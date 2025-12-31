@@ -18,7 +18,7 @@ from core.services.task_service import TaskService
 from core.exceptions import ValidationError, BusinessRuleError
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
-
+from core.events.domain_events import domain_events
 
 class CalendarTab(QWidget):
     """
@@ -50,7 +50,7 @@ class CalendarTab(QWidget):
         self.load_calendar_config()
         self.load_holidays()
         self.reload_projects()
-
+        domain_events.project_changed.connect(self._on_project_changed)
     # ------------------------------------------------------------------ #
     # UI setup
     # ------------------------------------------------------------------ #
@@ -265,6 +265,23 @@ class CalendarTab(QWidget):
         self.btn_calc.clicked.connect(self.run_calendar_calc)
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_recalc_project.clicked.connect(self.recalc_project_schedule)
+
+    def _on_project_changed(self, project_id: str):
+    
+        projects = self._project_service.list_projects()
+        # Reload project combo box
+        self.project_combo.blockSignals(True)
+        self.project_combo.clear()
+        for p in projects:
+            self.project_combo.addItem(p.name, userData=p.id)
+        self.project_combo.blockSignals(False)
+   
+        # Select first project by default if current no longer valid
+        if self.project_combo.count() > 0:
+            self.project_combo.setCurrentIndex(0)
+       
+        self.reload_projects()      
+
 
     # ------------------------------------------------------------------ #
     # Working time

@@ -1,7 +1,7 @@
 # reporting/exporters.py
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import List
 
@@ -111,20 +111,36 @@ def generate_gantt_png(
     fig.autofmt_xdate(rotation=30)
 
     # Optional today line (keep or remove to taste)
-    from datetime import date
+   
     today = date.today()
-    today_num = date2num(today)
-    ax.axvline(today_num, color="red", linestyle="--", linewidth=1, alpha=0.7)
-    ax.text(
-        today_num,
-        len(bars) + 0.1,
-        "Today",
-        color="red",
-        fontsize=8,
-        rotation=90,
-        ha="center",
-        va="bottom",
-    )
+    
+    # Determine project range
+    start_dates = [ b.start for b in bars if b.start]
+    end_dates = [b.end for b in bars if b.end]
+    
+    if start_dates and end_dates:
+        project_start = min(start_dates)
+        project_end = max(end_dates)
+    else:
+        project_start = project_end = None
+    
+    # only draw "Today" Line if today lies withing the project timeline (with 7 - day pad)
+    if project_start and project_end:
+        buffer = 7 # days buffer on either side
+        if project_start - timedelta(days=buffer) <= today <= project_end + timedelta(days=buffer):
+    
+            today_num = date2num(today)
+            ax.axvline(today_num, color="red", linestyle="--", linewidth=1, alpha=0.7)
+            ax.text(
+                today_num,
+                len(bars) + 0.1,
+                "Today",
+                color="red",
+                fontsize=8,
+                rotation=90,
+                ha="center",
+                va="bottom",
+            )
 
     ax.set_title("Project Gantt Chart", fontsize=14, pad=10)
     ax.set_xlabel("Date")

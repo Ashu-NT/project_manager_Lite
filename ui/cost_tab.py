@@ -22,7 +22,7 @@ from core.models import Project, Task, CostItem  , CostType, Resource
 from ui.styles.formatting import fmt_currency, currency_symbol_from_code
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG, CurrencyType
-
+from core.events.domain_events import domain_events
 
 class CostTableModel(QAbstractTableModel):
     HEADERS = ["Description", "Task","Type", "Planned", "Committed", "Actual", "Incurred Date"]
@@ -269,6 +269,9 @@ class CostTab(QWidget):
 
         self._setup_ui()
         self._load_projects()
+        domain_events.costs_changed.connect(self._on_costs_or_tasks_changed)
+        domain_events.tasks_changed.connect(self._on_costs_or_tasks_changed)
+        domain_events.project_changed.connect(self._on_project_changed_event)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -409,7 +412,41 @@ class CostTab(QWidget):
         if self.project_combo.count() > 0:
             self.project_combo.setCurrentIndex(0)
             self._on_project_changed(0)
-        
+
+    def _on_costs_or_tasks_changed(self, project_id: str):
+        pid = self._current_project_id()
+        if pid != project_id:
+            return  # ignore events for other projects
+        # If tasks changed, update the internal task list (task name mapping)
+        self._project_tasks = self._task_service.list_tasks_for_project(pid)
+        # Also refresh the current Project object (for any changes in budget/currency if needed)
+        self._current_project = self._project_service.get_project(pid)
+        # Now reload the costs and related summaries for this project
+        self.reload_costs()
+
+    def _on_project_changed_event(self, project_id: str):
+        prev_pid = self._current_project_id()
+        projects = self._project_service.list_projects()
+        # Reload project combo box
+        self.project_combo.blockSignals(True)
+        self.project_combo.clear()
+        for p in projects:
+            self.project_combo.addItem(p.name, userData=p.id)
+        self.project_combo.blockSignals(False)
+        # Preserve selection if possible
+        if prev_pid and prev_pid in [p.id for p in projects]:
+            idx = self.project_combo.findData(prev_pid)
+            if idx != -1:
+                self.project_combo.setCurrentIndex(idx)
+        else:
+            # Select first project by default if current no longer valid
+            if self.project_combo.count() > 0:
+                self.project_combo.setCurrentIndex(0)
+        # Update current project reference and related data
+        pid = self._current_project_id()
+        self._current_project = self._project_service.get_project(pid) if pid else None
+        self._project_tasks = self._task_service.list_tasks_for_project(pid) if pid else []
+        self.reload_costs()        
 
     def _current_project_id(self) -> Optional[str]:
         idx = self.project_combo.currentIndex()

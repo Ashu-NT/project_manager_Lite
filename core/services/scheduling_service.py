@@ -74,23 +74,11 @@ class SchedulingEngine:
 
         for d in deps:
             graph_succ.setdefault(d.predecessor_task_id, []).append(d)
-            indegree[d.successor_task_id] = 1
-
-        # Kahn's algorithm for topological order
-        queue = [tid for tid, deg in indegree.items() if deg == 0]
-        topo_order: List[str] = []
-
-        while queue:
-            current = queue.pop(0)
-            topo_order.append(current)
-            for dep in graph_succ.get(current, []):
-                succ_id = dep.successor_task_id
-                indegree[succ_id] -= 1
-                if indegree[succ_id] == 0:
-                    queue.append(succ_id)
-                    
+            indegree[d.successor_task_id] += 1
+          
         # Kahn's algorithm, but priority-aware & deterministic
          # Use a min-heap keyed by (priority_value, task_name, task_id)
+         
         heap: list[tuple[int, str, str]] = []
         for tid, deg in indegree.items():
              if deg == 0:
@@ -156,7 +144,7 @@ class SchedulingEngine:
                 ls[tid] = project_early_finish
             else:
                 lf[tid] = project_early_finish
-                ls[tid] = self._calendar.add_working_days(project_early_finish, -duration)
+                ls[tid] = self._calendar.add_working_days(project_early_finish, - (duration-1))
 
         # Propagate backwards along reversed topo
         for task_id in reversed(topo_order):
@@ -210,14 +198,14 @@ class SchedulingEngine:
                 lf_candidate = min(cand_lf_dates)
                 lf[task_id] = lf_candidate
                 if duration > 0:
-                    ls[task_id] = self._calendar.add_working_days(lf_candidate, -duration)
+                    ls[task_id] = self._calendar.add_working_days(lf_candidate, - (duration-1))
                 else:
                     ls[task_id] = lf_candidate
             elif cand_ls_dates:
                 ls_candidate = min(cand_ls_dates)
                 ls[task_id] = ls_candidate
                 if duration > 0:
-                    lf[task_id] = self._calendar.add_working_days(ls_candidate, duration)
+                    lf[task_id] = self._calendar.add_working_days(ls_candidate, (duration - 1))
                 else:
                     lf[task_id] = ls_candidate
             else:
@@ -427,7 +415,7 @@ class SchedulingEngine:
                     fixed_es = a_start
                 else:
                     if duration_days > 0:
-                        fixed_es = self._calendar.add_working_days(fixed_ef, -duration_days)
+                        fixed_es = self._calendar.add_working_days(fixed_ef, - (duration_days - 1))
                     else:
                         fixed_es = fixed_ef
                 return fixed_es, fixed_ef

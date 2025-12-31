@@ -136,6 +136,13 @@ class TaskService:
         """
         deps = self._dependency_repo.list_by_project(project_id)
 
+        # Ensure aagain that dependency for the cuurent project is available
+        project_task = {t.id for t in self._task_repo.list_by_project(project_id)}
+        deps =[
+            d for d in deps
+            if d.predecessor_task_id in project_task and d.successor_task_id in project_task
+        ]
+        
         graph: dict[str, list[str]] = {}
         for d in deps:
             graph.setdefault(d.predecessor_task_id, []).append(d.successor_task_id)

@@ -21,6 +21,7 @@ from core.models import Task, TaskStatus, DependencyType
 from ui.styles.style_utils import style_table
 from ui.styles.formatting import fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
+from core.events.domain_events import domain_events
 
 # ---------------- Task table model ---------------- #
 
@@ -846,6 +847,8 @@ class TaskTab(QWidget):
 
         self._setup_ui()
         self._load_projects()
+        domain_events.tasks_changed.connect(self._on_task_changed)
+        domain_events.tasks_changed.connect(self._on_project_changed_event)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -924,7 +927,33 @@ class TaskTab(QWidget):
         self.btn_assign.clicked.connect(self.manage_assignments)
 
     # ------------- Helpers ------------- #
-
+    def _on_task_changed(self, project_id: str):
+        current_pid = self._current_project_id()
+        if current_pid == project_id:
+            self.reload_tasks()
+    
+    def _on_project_changed_event(self, project_id: str):
+        # Preserve current selection (if still valid) while reloading projects
+        prev_pid = self._current_project_id()
+        projects = self._project_service.list_projects()
+        self.project_combo.blockSignals(True)
+        self.project_combo.clear()
+        # Re-populate combo box with updated project list
+        for p in projects:
+            self.project_combo.addItem(p.name, userData=p.id)
+        self.project_combo.blockSignals(False)
+        # If the previously selected project still exists, keep it selected
+        if prev_pid and prev_pid in [p.id for p in projects]:
+            index = self.project_combo.findData(prev_pid)
+            if index != -1:
+                self.project_combo.setCurrentIndex(index)
+        else:
+            # If no previous project or it was deleted, default to first
+            if self.project_combo.count() > 0:
+                self.project_combo.setCurrentIndex(0)
+        # Finally, refresh the task list for the (new) current project
+        self.reload_tasks()
+    
     def _load_projects(self):
         self.project_combo.blockSignals(True)
         self.project_combo.clear()
