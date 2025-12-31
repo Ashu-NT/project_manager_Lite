@@ -112,11 +112,10 @@ python main_qt.py
 
 ##  Future Enhancements
 
-- Gantt chart visualization
 - Multi-user / shared database mode
 - What-if scenario planning
 - Risk register and issue tracking
-- Export reports to Excel/PDF
+
 
 ---
 
