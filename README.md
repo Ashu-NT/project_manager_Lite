@@ -53,7 +53,7 @@ It supports structured project planning, task scheduling, resource management, c
 
 ---
 
-## 🧱 Architecture Overview
+##  Architecture Overview
 
 - **UI Layer**: PySide6 tabs (Projects, Tasks, Resources, Costs, Reports)
 - **Service Layer**: Business logic (TaskService, ReportingService, BaselineService)
