@@ -13,7 +13,7 @@ ENV/
 # PyInstaller
 build/
 dist/
-installer/
+
 *.spec
 
 # Databases

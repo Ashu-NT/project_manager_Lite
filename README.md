@@ -67,7 +67,7 @@ It supports structured project planning, task scheduling, resource management, c
 ##  Installation
 
 ### Option 1: Installer (Recommended)
-1. Download the installer `Setup_ProjectManagerLite_x.y.z.exe`
+1. Download the installer `Setup_ProjectManagerLite_2.0.0.exe`
 2. Run the installer and follow on-screen instructions
 3. Launch the app from Start Menu or Desktop
 
