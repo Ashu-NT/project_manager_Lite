@@ -124,9 +124,3 @@ python main_qt.py
 
 MIT License
 
----
-
-## 👤 Author
-
-Developed by **Your Name / Company**  
-Contact: your@email.com
