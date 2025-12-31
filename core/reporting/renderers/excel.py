@@ -1,0 +1,146 @@
+from pathlib import Path
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+
+from core.reporting.contexts import ExcelReportContext
+
+
+class ExcelReportRenderer:
+    def render(self, ctx: ExcelReportContext, output_path: Path) -> Path:
+        wb = Workbook()
+
+        header_font = Font(bold=True)
+        title_font = Font(bold=True, size=14)
+        center = Alignment(horizontal="center")
+        thin_border = Border(
+            left=Side(style="thin"),
+            right=Side(style="thin"),
+            top=Side(style="thin"),
+            bottom=Side(style="thin"),
+        )
+        header_fill = PatternFill("solid", fgColor="DDDDDD")
+
+        # ---------------- Overview ----------------
+        ws = wb.active
+        ws.title = "Overview"
+
+        ws["A1"] = f"Project KPIs - {ctx.kpi.name}"
+        ws["A1"].font = title_font
+
+        row = 3
+
+        def kv(key, value):
+            nonlocal row
+            ws[f"A{row}"] = key
+            ws[f"B{row}"] = value
+            ws[f"A{row}"].font = header_font
+            ws[f"A{row}"].border = thin_border
+            ws[f"B{row}"].border = thin_border
+            row += 1
+
+        kv("Project ID", ctx.kpi.project_id)
+        kv("Project name", ctx.kpi.name)
+        kv("Start date", ctx.kpi.start_date)
+        kv("End date", ctx.kpi.end_date)
+        kv("Duration (working days)", ctx.kpi.duration_working_days)
+
+        row += 1
+        kv("Tasks - total", ctx.kpi.tasks_total)
+        kv("Tasks - completed", ctx.kpi.tasks_completed)
+        kv("Tasks - in progress", ctx.kpi.tasks_in_progress)
+        kv("Tasks - not started", ctx.kpi.tasks_not_started)
+        kv("Critical tasks", ctx.kpi.critical_tasks)
+        kv("Late tasks", ctx.kpi.late_tasks)
+
+        row += 1
+        kv("Planned cost", ctx.kpi.total_planned_cost)
+        kv("Actual cost", ctx.kpi.total_actual_cost)
+        kv("Cost variance", ctx.kpi.cost_variance)
+
+        ws.column_dimensions["A"].width = 30
+        ws.column_dimensions["B"].width = 25
+
+        # ---------------- Tasks ----------------
+        ws_tasks = wb.create_sheet("Tasks")
+        headers = ["Task ID", "Name", "Start", "End", "Duration (days)", "Critical", "% complete", "Status"]
+        for col_index, h in enumerate(headers, start=1):
+            cell = ws_tasks.cell(row=1, column=col_index, value=h)
+            cell.font = header_font
+            cell.alignment = center
+            cell.fill = header_fill
+            cell.border = thin_border
+
+        for row_index, b in enumerate(ctx.gantt, start=2):
+            ws_tasks.cell(row=row_index, column=1, value=b.task_id).border = thin_border
+            ws_tasks.cell(row=row_index, column=2, value=b.name).border = thin_border
+            ws_tasks.cell(row=row_index, column=3, value=b.start.isoformat() if b.start else "").border = thin_border
+            ws_tasks.cell(row=row_index, column=4, value=b.end.isoformat() if b.end else "").border = thin_border
+            dur = (b.end - b.start).days + 1 if (b.start and b.end) else None
+            ws_tasks.cell(row=row_index, column=5, value=dur).border = thin_border
+            ws_tasks.cell(row=row_index, column=6, value="Yes" if b.is_critical else "No").border = thin_border
+            ws_tasks.cell(row=row_index, column=7, value=b.percent_complete).border = thin_border
+            ws_tasks.cell(row=row_index, column=8, value=getattr(b.status, "value", str(b.status))).border = thin_border
+
+        ws_tasks.column_dimensions["A"].width = 36
+        ws_tasks.column_dimensions["B"].width = 30
+        for col_letter in ("C", "D", "E", "F", "G", "H"):
+            ws_tasks.column_dimensions[col_letter].width = 15
+
+        # ---------------- Resources ----------------
+        ws_res = wb.create_sheet("Resources")
+        headers = ["Resource ID", "Name", "Total allocation (%)", "Tasks count"]
+        for c, h in enumerate(headers, start=1):
+            cell = ws_res.cell(1, c, h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+            cell.border = thin_border
+
+        for r, res in enumerate(ctx.resources, start=2):
+            values = [
+                res.resource_id,
+                res.resource_name,
+                res.total_allocation_percent,
+                res.tasks_count,
+            ]
+            for c, v in enumerate(values, 1):
+                cell = ws_res.cell(r, c, v)
+                cell.border = thin_border
+
+        ws_res.column_dimensions["A"].width = 34
+        ws_res.column_dimensions["B"].width = 28
+        ws_res.column_dimensions["C"].width = 20
+        ws_res.column_dimensions["D"].width = 15
+
+        # ---------------- EVM ----------------
+        if ctx.evm:
+            ws_evm = wb.create_sheet("EVM")
+            ws_evm["A1"] = "Earned Value Management"
+            ws_evm["A1"].font = title_font
+
+            headers = ["Metric", "Value"]
+            ws_evm["A2"], ws_evm["B2"] = headers
+            ws_evm["A2"].font = header_font
+            ws_evm["B2"].font = header_font
+
+            rows = [
+                ("BAC", ctx.evm.BAC),
+                ("PV", ctx.evm.PV),
+                ("EV", ctx.evm.EV),
+                ("AC", ctx.evm.AC),
+                
+                ("SPI", ctx.evm.SPI),
+                ("CPI", ctx.evm.CPI),
+                ("EAC", ctx.evm.EAC),
+                ("ETC", ctx.evm.ETC),
+                ("VAC", ctx.evm.VAC),
+            ]
+
+            for i, (k, v) in enumerate(rows, start=3):
+                ws_evm[f"A{i}"] = k
+                ws_evm[f"B{i}"] = float(v or 0.0)
+                ws_evm[f"A{i}"].border = thin_border
+                ws_evm[f"B{i}"].border = thin_border
+
+        wb.save(output_path)
+        return output_path
