@@ -121,33 +121,6 @@ class TaskService:
         if predecessor_id == successor_id:
             raise ValidationError("A task cannot depend on itself.")
 
-    def _check_no_circular_dependency(self, predecessor_id: str, successor_id: str):
-        """
-        Very simple cycle detection:
-        starting from successor, follow dependencies forward.
-        If we ever reach predecessor, we have a cycle.
-        """
-        # You can enhance this later; this is basic but works.
-        stack = [successor_id]
-        visited = set()
-
-        # We need all dependencies; for now we ignore project and get all
-        deps = self._dependency_repo.list_by_project(project_id=None)  # or all deps
-
-        graph = {}
-        for d in deps:
-            graph.setdefault(d.predecessor_task_id, []).append(d.successor_task_id)
-
-        while stack:
-            current = stack.pop()
-            if current in visited:
-                continue
-            visited.add(current)
-            for succ in graph.get(current, []):
-                if succ == predecessor_id:
-                    raise BusinessRuleError("Adding this dependency would create a circular dependency.")
-                stack.append(succ)
-    
     def _validate_task_name(self, name: str) -> None:
         if not name.strip():
             raise ValidationError("Task name cannot be empty.", code="TASK_NAME_EMPTY") 
@@ -155,7 +128,40 @@ class TaskService:
             raise ValidationError("Task name must be at least 3 characters.", code="TASK_NAME_TOO_SHORT")
         if any(c in name for c in ['/', '\\', '?', '%', '*', ':', '|', '"', '<', '>']):
             raise ValidationError("Task name contains invalid characters.", code="TASK_NAME_INVALID_CHARS")
-             
+      
+    def _check_no_circular_dependency(self, project_id: str, predecessor_id: str, successor_id: str) -> None:
+        """
+        Detect cycle for the PROPOSED edge predecessor_id -> successor_id.
+        Cycle exists if successor_id can reach predecessor_id through existing edges.
+        """
+        deps = self._dependency_repo.list_by_project(project_id)
+
+        graph: dict[str, list[str]] = {}
+        for d in deps:
+            graph.setdefault(d.predecessor_task_id, []).append(d.successor_task_id)
+
+        # add the proposed edge virtually
+        graph.setdefault(predecessor_id, []).append(successor_id)
+
+        # DFS from successor, if we reach predecessor => cycle
+        target = predecessor_id
+        stack = [successor_id]
+        visited = set()
+
+        while stack:
+            cur = stack.pop()
+            if cur == target:
+                raise BusinessRuleError(
+                    "Adding this dependency would create a circular dependency.",
+                    code="DEPENDENCY_CYCLE",
+                )
+            if cur in visited:
+                continue
+            visited.add(cur)
+            for nxt in graph.get(cur, []):
+                if nxt not in visited:
+                    stack.append(nxt)
+                
     def add_dependency(
         self,
         predecessor_id: str,
@@ -165,14 +171,32 @@ class TaskService:
     ) -> TaskDependency:
         self._validate_not_self_dependency(predecessor_id, successor_id)
 
-        # Check that both tasks exist
-        if not self._task_repo.get(predecessor_id):
-            raise NotFoundError("Predecessor task not found")
-        if not self._task_repo.get(successor_id):
-            raise NotFoundError("Successor task not found")
+        pred = self._task_repo.get(predecessor_id)
+        if not pred:
+            raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
 
-        # Check for circular dependency
-        self._check_no_circular_dependency(predecessor_id, successor_id)
+        succ = self._task_repo.get(successor_id)
+        if not succ:
+            raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
+
+        # MUST be in same project
+        if pred.project_id != succ.project_id:
+            raise ValidationError(
+                "Tasks must be in the same project to create a dependency.",
+                code="DEPENDENCY_CROSS_PROJECT",
+            )
+
+        # prevent duplicate edge (same predecessor->successor)
+        existing = self._dependency_repo.list_by_task(predecessor_id)
+        if any(d.successor_task_id == successor_id for d in existing):
+            raise ValidationError("This dependency already exists.", code="DEPENDENCY_DUPLICATE")
+
+        # robust cycle check: if there is a path succ -> ... -> pred, then adding pred->succ makes a cycle
+        self._check_no_circular_dependency(
+            project_id=pred.project_id,
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+        )
 
         dep = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
         try:
@@ -180,8 +204,11 @@ class TaskService:
             self._session.commit()
         except Exception as e:
             self._session.rollback()
-            raise e 
+            raise e
+
+        domain_events.tasks_changed.emit(pred.project_id)
         return dep
+
 
     def remove_dependency(self, dep_id: str) -> None:
         try:

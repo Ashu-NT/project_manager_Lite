@@ -67,7 +67,7 @@ class SchedulingEngine:
             d for d in deps
             if d.predecessor_task_id in tasks_by_id and d.successor_task_id in tasks_by_id
         ]
-
+        
         # Build graph and indegree for topological sort
         graph_succ: Dict[str, List[TaskDependency]] = {}
         indegree: Dict[str, int] = {t.id: 0 for t in tasks}

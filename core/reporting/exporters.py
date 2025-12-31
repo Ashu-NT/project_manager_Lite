@@ -439,7 +439,7 @@ def generate_pdf_report(
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     kpi: ProjectKPI = reporting_service.get_project_kpis(project_id)
-    print(kpi)
+    
     as_of = date.today()
     baseline_id = None  
     

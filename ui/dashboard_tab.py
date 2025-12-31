@@ -313,7 +313,7 @@ class DashboardTab(QWidget):
                 self.evm_group = self._build_evm_panel()
         except Exception as e:
             self._clear_dashboard()
-            self.summary_label.setText(f"Error loading dashboard: {e}")
+            #self.summary_widget(f"Error loading dashboard: {e}")
             return
 
         self._current_data = data
