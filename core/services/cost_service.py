@@ -104,7 +104,7 @@ class CostService:
             
         if committed_amount is not None:
             if committed_amount < 0:
-                raise ValidationError("Actual amount cannot be negative.")
+                raise ValidationError("Committed amount cannot be negative.")
             item.committed_amount = committed_amount
         
         if cost_type is not None:
@@ -151,14 +151,20 @@ class CostService:
         total_planned = sum(i.planned_amount for i in items)
         total_committed = sum(i.committed_amount for i in items)
         total_actual = sum(i.actual_amount for i in items)
+        variance = total_actual - total_planned
+        committed_variance = total_committed - total_planned
 
+        # Keep both legacy and normalized keys for backwards compatibility.
         return {
             "project_id": project_id,
             "total_planned": total_planned,
+            "total_committed": total_committed,
             "total-committed": total_committed,
             "total_actual": total_actual,
-            "variance_actual": total_actual - total_planned,
-            "variance_committment": total_committed - total_planned,
+            "variance": variance,
+            "variance_actual": variance,
+            "variance_commitment": committed_variance,
+            "variance_committment": committed_variance,
             "exposure": total_committed + total_actual,
             "items_count": len(items),
         }

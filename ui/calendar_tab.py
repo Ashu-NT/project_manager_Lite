@@ -267,20 +267,27 @@ class CalendarTab(QWidget):
         self.btn_recalc_project.clicked.connect(self.recalc_project_schedule)
 
     def _on_project_changed(self, project_id: str):
-    
+        prev_pid = self.project_combo.currentData()
         projects = self._project_service.list_projects()
-        # Reload project combo box
         self.project_combo.blockSignals(True)
         self.project_combo.clear()
         for p in projects:
             self.project_combo.addItem(p.name, userData=p.id)
         self.project_combo.blockSignals(False)
-   
-        # Select first project by default if current no longer valid
-        if self.project_combo.count() > 0:
-            self.project_combo.setCurrentIndex(0)
-       
-        self.reload_projects()      
+        if not projects:
+            return
+
+        target = None
+        if prev_pid and any(p.id == prev_pid for p in projects):
+            target = prev_pid
+        elif project_id and any(p.id == project_id for p in projects):
+            target = project_id
+        else:
+            target = projects[0].id
+
+        idx = self.project_combo.findData(target)
+        if idx >= 0:
+            self.project_combo.setCurrentIndex(idx)
 
 
     # ------------------------------------------------------------------ #

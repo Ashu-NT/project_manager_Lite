@@ -544,7 +544,7 @@ class DependencyListDialog(QDialog):
             pred_name = pred.name if pred else d.predecessor_task_id
             succ_name = succ.name if succ else d.successor_task_id
             txt = f"{pred_name} -> {succ_name} ({d.dependency_type.value}, lag={d.lag_days})"
-            item = self.list_widget.addItem(txt)
+            self.list_widget.addItem(txt)
             # store dep id in item data - if using QListWidgetItem:
             self.list_widget.item(self.list_widget.count() - 1).setData(Qt.UserRole, d.id)
 
@@ -742,7 +742,7 @@ class AssignmentListDialog(QDialog):
                 rname = res.name if res else a.resource_id
 
             h = float(getattr(a, "hours_logged", 0.0))
-            txt = f"{rname} ({fmt_percent(a.allocation_percent)}.{h:.1f}h logged)"
+            txt = f"{rname} ({fmt_percent(a.allocation_percent)}, {h:.1f}h logged)"
             self.list_widget.addItem(txt)
             self.list_widget.item(self.list_widget.count() - 1).setData(Qt.UserRole, a.id)
 
@@ -848,7 +848,7 @@ class TaskTab(QWidget):
         self._setup_ui()
         self._load_projects()
         domain_events.tasks_changed.connect(self._on_task_changed)
-        domain_events.tasks_changed.connect(self._on_project_changed_event)
+        domain_events.project_changed.connect(self._on_project_changed_event)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

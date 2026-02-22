@@ -924,7 +924,7 @@ class ReportingService(ServiceBase):
         critical_ids = set()
         try:
             cp = self.get_critical_path(project_id)
-            critical_ids = set(cp.get("critical_task_ids", []) or [])
+            critical_ids = {info.task.id for info in cp}
         except Exception:
             pass
 

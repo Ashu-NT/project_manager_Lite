@@ -1,6 +1,6 @@
 # ui/resource_tab.py
 from __future__ import annotations
-from typing import Optional, List
+from typing import Optional
 
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PySide6.QtWidgets import (
@@ -9,11 +9,9 @@ from PySide6.QtWidgets import (
     QCheckBox, QDialogButtonBox, QMessageBox
 )
 
-from core.services.project_service import ProjectService
-from core.services.task_service import TaskService
 from core.services.resource_service import ResourceService
 from core.exceptions import ValidationError, BusinessRuleError, NotFoundError
-from core.models import Resource, Project, CostType
+from core.models import Resource, CostType
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG, CurrencyType
 
@@ -200,14 +198,10 @@ class ResourceEditDialog(QDialog):
 class ResourceTab(QWidget):
     def __init__(
         self,
-        project_service: ProjectService,
-        task_service: TaskService,
         resource_service: ResourceService,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._project_service = project_service
-        self._task_service = task_service
         self._resource_service = resource_service
 
         self._setup_ui()

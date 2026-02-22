@@ -46,7 +46,6 @@ from infra.db.models import (
 )
 
 from core.models import WorkingCalendar, Holiday, CostType
-from core.interfaces import WorkingCalendarRepository
 
 
 # --- mapping helpers ----------------------------------------------------------------
@@ -377,11 +376,11 @@ class SqlAlchemyProjectResourceRepository(ProjectResourceRepository):
        if o:
            self.session.delete(o)
     
-    def delete_by_resource(self, res_id) -> None:
-        self.session.query(ProjectResourceORM).filter_by(resource_id = res_id).delete()
+    def delete_by_resource(self, res_id: str) -> None:
+        self.session.query(ProjectResourceORM).filter_by(resource_id=res_id).delete()
 
-    def update(self, pr_id: ProjectResource) -> None:
-            self.session.merge(project_resource_to_orm(pr_id))
+    def update(self, pr: ProjectResource) -> None:
+        self.session.merge(project_resource_to_orm(pr))
 
 class SqlAlchemyTaskRepository(TaskRepository):
     def __init__(self, session: Session):
@@ -475,7 +474,7 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
             return []   
         stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.task_id.in_(task_ids))
         rows = self.session.execute(stmt).scalars().all()   
-        return rows
+        return [assignment_from_orm(r) for r in rows]
         
 
 class SqlAlchemyDependencyRepository(DependencyRepository):
@@ -485,10 +484,16 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
     def add(self, dependency: TaskDependency) -> None:
         self.session.add(dependency_to_orm(dependency))
         
+    def get(self, dependency_id: str) -> Optional[TaskDependency]:
+        obj = self.session.get(TaskDependencyORM, dependency_id)
+        return dependency_from_orm(obj) if obj else None
 
     def list_by_project(self, project_id: str) -> List[TaskDependency]:
-        # simplified: return all for now or later join with tasks to filter
-        stmt = select(TaskDependencyORM)
+        task_ids_subq = select(TaskORM.id).where(TaskORM.project_id == project_id)
+        stmt = select(TaskDependencyORM).where(
+            TaskDependencyORM.predecessor_task_id.in_(task_ids_subq),
+            TaskDependencyORM.successor_task_id.in_(task_ids_subq),
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [dependency_from_orm(r) for r in rows]
 

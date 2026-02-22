@@ -2,11 +2,9 @@
 import sys
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont, QIcon
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from infra.resource import resource_path
 
-from infra.db.base import Base, engine,SessionLocal
+from infra.db.base import SessionLocal
 from infra.db.repositories import (
     SqlAlchemyProjectRepository,
     SqlAlchemyTaskRepository,

@@ -8,13 +8,13 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox, QPushButton,
     QTableView, QTableWidget, QTableWidgetItem, QDialog, QFormLayout, QTextEdit, QDoubleSpinBox,
-    QDialogButtonBox, QMessageBox, QDateEdit, QGroupBox, QListWidget, QListWidgetItem, QInputDialog
+    QDialogButtonBox, QMessageBox, QDateEdit, QGroupBox
 )
 
 from core.services.project_service import ProjectService
 from core.services.task_service import TaskService
 from core.services.cost_service import CostService
-from core.services.reporting_service import ReportingService, LaborResourceRow
+from core.services.reporting_service import ReportingService
 from core.services.resource_service import ResourceService
 from core.exceptions import ValidationError, NotFoundError
 from core.models import Project, Task, CostItem  , CostType, Resource
@@ -517,13 +517,12 @@ class CostTab(QWidget):
                 lines.append(f"Budget: {fmt_currency(budget, sym)}")
                 lines.append(f"Total Planned Cost: {fmt_currency(planed_total, sym)} (Remaining vs plan: {fmt_currency(rem_plan,sym)})")
                 lines.append(f"Total Actual Cost: {fmt_currency(actual_total, sym)} (Remaining vs plan: {fmt_currency(rem_actual,sym)})")
-
-            if planed_total > budget:
-                lines.append("Planned Total exceeds budget.")
+                if planed_total > budget:
+                    lines.append("Planned total exceeds budget.")
             else:
                 lines.append(f"Total Planned Cost: {fmt_currency(planed_total, sym)}")
                 lines.append(f"Total Actual Cost: {fmt_currency(actual_total, sym)}")
-                lines.append("Note: Set project budget to track remainding budget")
+                lines.append("Note: set project budget to track remaining budget.")
                 
             self.lbl_budget_summary.setText("\n".join(lines))
         except Exception:
@@ -681,7 +680,7 @@ class CostTab(QWidget):
         )
         while True:
             if dlg.exec() != QDialog.Accepted:
-                True
+                return
             try:
                 self._cost_service.add_cost_item(
                     project_id=pid,
@@ -694,15 +693,6 @@ class CostTab(QWidget):
                     incurred_date=dlg.incurred_date_value,
                     currency_code=dlg.currency_code,
                 )
-                # then set actual amount if > 0
-                # (depends on your service API; here's one approach)
-                costs = self._cost_service.list_cost_items_for_project(pid)
-                new_item = costs[-1] if costs else None
-                if new_item and dlg.actual_amount is not None:
-                    self._cost_service.update_cost_item(
-                        cost_id=new_item.id,
-                        actual_amount=dlg.actual_amount,
-                    )
             except ValidationError as e:
                 QMessageBox.warning(self, "Validation error", str(e))
                 continue

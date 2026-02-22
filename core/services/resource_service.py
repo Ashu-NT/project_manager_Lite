@@ -14,7 +14,7 @@ class ResourceService:
     def __init__(self, session: Session, 
                  resource_repo: ResourceRepository, 
                  assignment_repo: AssignmentRepository,
-                 project_resource_repo: ProjectResourceRepository
+                 project_resource_repo: ProjectResourceRepository | None = None
         ):
         self._session = session
         self._resource_repo = resource_repo
@@ -109,8 +109,9 @@ class ResourceService:
             assignments = self._assignment_repo.list_by_resource(resource_id)
             for a in assignments:
                 self._assignment_repo.delete(a.id)
-                self._project_resource_repo.delete(a.resource_id)   
-                
+            if self._project_resource_repo is not None:
+                self._project_resource_repo.delete_by_resource(resource_id)
+                 
             self._resource_repo.delete(resource_id)
             self._session.commit()
         except Exception as e:

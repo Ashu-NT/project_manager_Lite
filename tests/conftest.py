@@ -13,6 +13,7 @@ from infra.db.repositories import (
     SqlAlchemyCostRepository,
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyWorkingCalendarRepository,
+    SqlAlchemyBaselineRepository,
     SqlAlchemyProjectResourceRepository,
 )
 
@@ -24,6 +25,9 @@ from core.services.cost_service import CostService
 from core.services.work_calendar_engine import WorkCalendarEngine
 from core.services.work_calendar_service import WorkCalendarService
 from core.services.scheduling_service import SchedulingEngine
+from core.services.reporting_service import ReportingService
+from core.services.baseline_service import BaselineService
+from core.services.dashboard_service import DashboardService
 
 
 @pytest.fixture
@@ -50,6 +54,7 @@ def services(session):
     cost_repo = SqlAlchemyCostRepository(session)
     calendar_repo = SqlAlchemyCalendarEventRepository(session)
     work_calendar_repo = SqlAlchemyWorkingCalendarRepository(session)
+    baseline_repo = SqlAlchemyBaselineRepository(session)
     project_resource_repo = SqlAlchemyProjectResourceRepository(session)
 
     work_calendar_engine = WorkCalendarEngine(work_calendar_repo, calendar_id="default")
@@ -73,12 +78,43 @@ def services(session):
         calendar_repo,
         work_calendar_engine,
         project_resource_repo,
+        project_repo,
     )
     calendar_service = CalendarService(session, calendar_repo, task_repo)
-    resource_service = ResourceService(session, resource_repo, assignment_repo)
+    resource_service = ResourceService(session, resource_repo, assignment_repo, project_resource_repo)
     cost_service = CostService(session, cost_repo, project_repo, task_repo)
     work_calendar_service = WorkCalendarService(session, work_calendar_repo, work_calendar_engine)
     scheduling_engine = SchedulingEngine(session, task_repo, dependency_repo, work_calendar_engine)
+    baseline_service = BaselineService(
+        session=session,
+        project_repo=project_repo,
+        task_repo=task_repo,
+        cost_repo=cost_repo,
+        baseline_repo=baseline_repo,
+        scheduling=scheduling_engine,
+        calendar=work_calendar_engine,
+        project_resource_repo=project_resource_repo,
+        resource_repo=resource_repo,
+    )
+    reporting_service = ReportingService(
+        session=session,
+        project_repo=project_repo,
+        task_repo=task_repo,
+        resource_repo=resource_repo,
+        assignment_repo=assignment_repo,
+        cost_repo=cost_repo,
+        scheduling_engine=scheduling_engine,
+        calendar=work_calendar_engine,
+        baseline_repo=baseline_repo,
+        project_resource_repo=project_resource_repo,
+    )
+    dashboard_service = DashboardService(
+        reporting_service=reporting_service,
+        task_service=task_service,
+        project_service=project_service,
+        scheduling_engine=scheduling_engine,
+        work_calendar_engine=work_calendar_engine,
+    )
 
     return {
         "session": session,
@@ -90,4 +126,7 @@ def services(session):
         "work_calendar_engine": work_calendar_engine,
         "work_calendar_service": work_calendar_service,
         "scheduling_engine": scheduling_engine,
+        "baseline_service": baseline_service,
+        "reporting_service": reporting_service,
+        "dashboard_service": dashboard_service,
     }

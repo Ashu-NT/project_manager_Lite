@@ -11,7 +11,6 @@ from core.interfaces import (
     ProjectResourceRepository,
     ResourceRepository,
 )
-from core.models import ProjectResource
 from core.events.domain_events import domain_events
 
 class ProjectResourceService:
@@ -75,6 +74,9 @@ class ProjectResourceService:
                 code="PROJECT_RESOURCE_EXISTS",
             )
 
+        if planned_hours < 0:
+            raise BusinessRuleError("planned_hours cannot be negative.", code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID")
+
         pr = ProjectResource.create(
             project_id=project_id,
             resource_id=resource_id,
@@ -106,6 +108,9 @@ class ProjectResourceService:
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
 
+        if planned_hours < 0:
+            raise BusinessRuleError("planned_hours cannot be negative.", code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID")
+
         pr.hourly_rate = hourly_rate
         pr.currency_code = currency_code
         pr.planned_hours = planned_hours
@@ -133,7 +138,17 @@ class ProjectResourceService:
         except Exception:
             self._session.rollback()
             raise
+        domain_events.project_changed.emit(pr.project_id)
 
     def delete(self, pr_id: str) -> None:
-        self._project_resource_repo.delete(pr_id)
+        pr = self._project_resource_repo.get(pr_id)
+        if not pr:
+            raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
+        try:
+            self._project_resource_repo.delete(pr_id)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        domain_events.project_changed.emit(pr.project_id)
     

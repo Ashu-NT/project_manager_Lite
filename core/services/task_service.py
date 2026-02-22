@@ -3,7 +3,14 @@ from __future__ import annotations
 from typing import List, Optional
 from datetime import date, timedelta
 
-from ..models import Task, TaskStatus, TaskDependency, DependencyType, TaskAssignment
+from ..models import (
+    Task,
+    TaskStatus,
+    TaskDependency,
+    DependencyType,
+    TaskAssignment,
+    ProjectResource,
+)
 from ..interfaces import (
     TaskRepository,
     DependencyRepository,
@@ -32,9 +39,9 @@ class TaskService:
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
         calendar_repo: CalendarEventRepository,
-        work_calendar_engine= WorkCalendarEngine,
-        project_resource_repo = ProjectResourceRepository,
-        project_repo = ProjectRepository,
+        work_calendar_engine: WorkCalendarEngine,
+        project_resource_repo: ProjectResourceRepository | None = None,
+        project_repo: ProjectRepository | None = None,
     ):
         self._session = session
         self._task_repo = task_repo
@@ -75,8 +82,8 @@ class TaskService:
         )
         task.start_date = start_date
         task.duration_days = duration_days
-        if start_date and duration_days:
-            task.end_date = start_date + timedelta(days=duration_days-1)
+        if start_date and duration_days is not None:
+            task.end_date = self._work_calendar_engine.add_working_days(start_date, int(duration_days))
         
         self._validate_task_within_project_dates(project_id, task.start_date, task.end_date)
         
@@ -100,6 +107,9 @@ class TaskService:
             raise ValidationError("Task duration_days cannot be negative.")
 
     def _validate_task_within_project_dates(self, project_id: str, task_start: date | None, task_end: date | None):
+        # Backward-compatible mode for legacy wiring paths.
+        if self._project_repo is None:
+            return
         proj = self._project_repo.get(project_id)
         if not proj:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -115,7 +125,7 @@ class TaskService:
         if ps and task_end and task_end < ps:
             raise ValidationError(f"Task end date ({task_end}) can not be before project start ({ps})",code="TASK_INVALID_DATE")
         if pe and task_end and task_end > pe:
-            raise ValidationError(f"Task end date ({task_start}) can not be after project end ({pe})",code="TASK_INVALID_DATE")
+            raise ValidationError(f"Task end date ({task_end}) can not be after project end ({pe})",code="TASK_INVALID_DATE")
         
     def _validate_not_self_dependency(self, predecessor_id: str, successor_id: str):
         if predecessor_id == successor_id:
@@ -136,7 +146,7 @@ class TaskService:
         """
         deps = self._dependency_repo.list_by_project(project_id)
 
-        # Ensure aagain that dependency for the cuurent project is available
+        # Ensure again that dependency for the current project is available.
         project_task = {t.id for t in self._task_repo.list_by_project(project_id)}
         deps =[
             d for d in deps
@@ -218,27 +228,53 @@ class TaskService:
 
 
     def remove_dependency(self, dep_id: str) -> None:
+        dep = self._dependency_repo.get(dep_id)
+        if not dep:
+            raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
+        pred = self._task_repo.get(dep.predecessor_task_id)
+        succ = self._task_repo.get(dep.successor_task_id)
+
         try:
             self._dependency_repo.delete(dep_id)
             self._session.commit()
         except Exception as e:
             self._session.rollback()
             raise e
+
+        project_id = None
+        if pred:
+            project_id = pred.project_id
+        elif succ:
+            project_id = succ.project_id
+        if project_id:
+            domain_events.tasks_changed.emit(project_id)
     
     def set_status(self, task_id: str, status: TaskStatus) -> None:
         task = self._task_repo.get(task_id)
         if not task:
-            raise ValueError("Task not found")
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         task.status = status
-        self._task_repo.update(task)
+        try:
+            self._task_repo.update(task)
+            self._session.commit()
+        except Exception as e:
+            self._session.rollback()
+            raise e
+        domain_events.tasks_changed.emit(task.project_id)
 
     def unassign_resource(self, assignment_id: str) -> None:
+        assignment = self._assignment_repo.get(assignment_id)
+        if not assignment:
+            raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
+        task = self._task_repo.get(assignment.task_id)
         try:
             self._assignment_repo.delete(assignment_id)
             self._session.commit()
         except Exception as e:
             self._session.rollback()
             raise e
+        if task:
+            domain_events.tasks_changed.emit(task.project_id)
     
     def list_tasks_for_project(self, project_id: str) -> List[Task]:
         return self._task_repo.list_by_project(project_id)
@@ -253,9 +289,11 @@ class TaskService:
         if hours_logged < 0:
             raise ValidationError("hours_logged cannot be negative.")
         a = self._assignment_repo.get(assignment_id)
-        task = self._task_repo.get(a.task_id)
         if not a:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
+        task = self._task_repo.get(a.task_id)
+        if not task:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         a.hours_logged = hours_logged
         try:
             self._assignment_repo.update(a)
@@ -285,10 +323,11 @@ class TaskService:
                     self._cost_repo.delete(c.id)
 
             self._task_repo.delete(task_id)
+            self._session.commit()
         except Exception as e:
             self._session.rollback()
             raise e
-        
+         
         domain_events.tasks_changed.emit(task.project_id)
     
     def update_task(
@@ -307,6 +346,7 @@ class TaskService:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
 
         if name is not None:
+            self._validate_task_name(name)
             task.name = name.strip()
         if description is not None:
             task.description = description.strip()
@@ -453,6 +493,16 @@ class TaskService:
         return tasks
 
     def assign_project_resource(self, task_id: str, project_resource_id: str, allocation_percent: float) -> TaskAssignment:
+        if not self._project_resource_repo:
+            raise BusinessRuleError(
+                "Project resource repository is not configured.",
+                code="PROJECT_RESOURCE_REPO_MISSING",
+            )
+
+        alloc = float(allocation_percent or 0.0)
+        if alloc <= 0 or alloc > 100:
+            raise ValidationError("allocation_percent must be > 0 and <= 100.")
+
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -475,11 +525,11 @@ class TaskService:
             project_id= task.project_id,
             resource_id= pr.resource_id,
             new_task_id= task.id,
-            new_alloc_percent= float(allocation_percent or 0.0)
+            new_alloc_percent= alloc
         )
-        
+         
         # Keep resource_id for compatibility for now
-        assignment = TaskAssignment.create(task_id, pr.resource_id, allocation_percent)
+        assignment = TaskAssignment.create(task_id, pr.resource_id, alloc)
         setattr(assignment, "project_resource_id", pr.id)
         
         try:
@@ -491,6 +541,65 @@ class TaskService:
         
         domain_events.tasks_changed.emit(task.project_id)
         return assignment
+
+    def assign_resource(self, task_id: str, resource_id: str, allocation_percent: float = 100.0) -> TaskAssignment:
+        """
+        Backward-compatible assignment API used by legacy callers.
+        Internally resolves/creates a ProjectResource row and then delegates
+        to the project-resource assignment flow.
+        """
+        alloc = float(allocation_percent or 0.0)
+        if alloc <= 0 or alloc > 100:
+            raise ValidationError("allocation_percent must be > 0 and <= 100.")
+
+        task = self._task_repo.get(task_id)
+        if not task:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+
+        res = self._resource_repo.get(resource_id)
+        if not res:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+
+        if not self._project_resource_repo:
+            # Legacy fallback path (without project-resource planning layer).
+            self._check_resource_overallocation(
+                project_id=task.project_id,
+                resource_id=resource_id,
+                new_task_id=task_id,
+                new_alloc_percent=alloc,
+            )
+            assignment = TaskAssignment.create(task_id, resource_id, alloc)
+            try:
+                self._assignment_repo.add(assignment)
+                self._session.commit()
+            except Exception:
+                self._session.rollback()
+                raise
+            domain_events.tasks_changed.emit(task.project_id)
+            return assignment
+
+        pr = self._project_resource_repo.get_for_project(task.project_id, resource_id)
+        if not pr:
+            pr = ProjectResource.create(
+                project_id=task.project_id,
+                resource_id=resource_id,
+                hourly_rate=getattr(res, "hourly_rate", None),
+                currency_code=getattr(res, "currency_code", None),
+                planned_hours=0.0,
+                is_active=bool(getattr(res, "is_active", True)),
+            )
+            try:
+                self._project_resource_repo.add(pr)
+                self._session.commit()
+            except Exception:
+                self._session.rollback()
+                raise
+
+        return self.assign_project_resource(
+            task_id=task_id,
+            project_resource_id=pr.id,
+            allocation_percent=alloc,
+        )
 
 
     # -------------------------

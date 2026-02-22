@@ -197,12 +197,12 @@ class ProjectService:
 
             # finally delete the project record
             self._project_repo.delete(project_id)
-            # session.begin() will commit automatically at end of block
-            domain_events.project_changed.emit(project_id)
-            
+            self._session.commit()
+             
         except Exception as e:
             self._session.rollback()
             raise e
+        domain_events.project_changed.emit(project_id)
         
     def list_projects_by_status(self, status: ProjectStatus) -> List[Project]:
         return [p for p in self._project_repo.list_all() if p.status == status]

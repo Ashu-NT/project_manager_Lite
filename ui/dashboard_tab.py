@@ -259,13 +259,11 @@ class DashboardTab(QWidget):
             QMessageBox.critical(self, "Baseline error", f"Could not create baseline:\n{e}")
     
     def _on_domain_changed(self, project_id: str):
-        current_id,_ = self._current_project_id_and_name()
-        
+        current_id, _ = self._current_project_id_and_name()
         if current_id == project_id:
             self.reload_projects()
-            self.refresh_dashboard()
     
-    def _on_project_changed(self, Index: int = 0):
+    def _on_project_changed(self, index: int = 0):
         proj_id, _ = self._current_project_id_and_name()
         if proj_id:
             self._load_baselines_for_project(proj_id)
@@ -273,26 +271,34 @@ class DashboardTab(QWidget):
         self.refresh_dashboard()
     
     def reload_projects(self):
+        previous_id, _ = self._current_project_id_and_name()
         self.project_combo.blockSignals(True)
         self.project_combo.clear()
         projects = self._project_service.list_projects()
         for p in projects:
             self.project_combo.addItem(p.name, userData=p.id)
+        selected_id = None
+        if projects:
+            if previous_id and any(p.id == previous_id for p in projects):
+                selected_id = previous_id
+            else:
+                selected_id = projects[0].id
+            idx = self.project_combo.findData(selected_id)
+            if idx >= 0:
+                self.project_combo.setCurrentIndex(idx)
         self.project_combo.blockSignals(False)
 
-        if projects:
-            self.project_combo.setCurrentIndex(0)
-
-            proj_id, _ = self._current_project_id_and_name()
-            if proj_id:
-                self._load_baselines_for_project(proj_id)
-                self.baseline_combo.setCurrentIndex(0)  # "Latest baseline"
-
-            self.refresh_dashboard()
-        else:
+        if not projects:
             # no projects: clear baseline dropdown too
             self.baseline_combo.clear()
             self.baseline_combo.addItem("Latest baseline", userData=None)
+            self._clear_dashboard()
+            return
+
+        if selected_id:
+            self._load_baselines_for_project(selected_id)
+            self.baseline_combo.setCurrentIndex(0)
+        self.refresh_dashboard()
 
     def _current_project_id_and_name(self):
         idx = self.project_combo.currentIndex()

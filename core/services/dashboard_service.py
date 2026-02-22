@@ -8,7 +8,6 @@ from core.services.reporting_service import (
     ReportingService,
     ProjectKPI,
     ResourceLoadRow,
-    GanttTaskBar,
 )
 from core.services.task_service import TaskService
 from core.services.project_service import ProjectService
@@ -108,7 +107,7 @@ class DashboardService:
                 status_text=status,
             )
         except BusinessRuleError:
-            # No baseline yet -> just show “no EVM”
+            # No baseline yet -> no EVM section data.
             evm_obj = None
 
         data = DashboardData(
@@ -176,13 +175,14 @@ class DashboardService:
                 f"Project appears delayed: planned finish was {kpi.end_date.isoformat()}."
             )
             
-        # 6) Deadline and Priority
+        # 6) Deadline and priority
         for t in tasks:
             if t.deadline and t.end_date and t.end_date > t.deadline:
-                alerts.append(f"⚠ Task '{t.name}' missed its deadline")
+                alerts.append(f"Task '{t.name}' missed its deadline.")
 
-            if t.priority >= 80 and t.end_date and t.end_date > t.deadline:
-                alerts.append(f"🔥 High-priority task '{t.name}' is late")
+            priority = int(getattr(t, "priority", 0) or 0)
+            if priority >= 80 and t.deadline and t.end_date and t.end_date > t.deadline:
+                alerts.append(f"High-priority task '{t.name}' is late.")
 
         return alerts
 
@@ -307,14 +307,13 @@ class DashboardService:
                 parts.append("Forecast: likely over budget at completion.")
         else:
              parts.append("VAC: not available.")
-        
         if evm.TCPI_to_BAC is not None:
-            if evm.TCPI_to_BAC <= 1.05:
+            if evm.TCPI_to_BAC < 0.5:
+                parts.append("TCPI(BAC): unusually low; verify budget and progress data.")
+            elif evm.TCPI_to_BAC <= 1.05:
                 parts.append("TCPI(BAC): achievable efficiency to hit budget.")
             elif evm.TCPI_to_BAC <= 1.15:
-                parts.append("TCPI(BAC): challenging—requires efficiency improvement.") 
-            elif evm.TCPI_to_BAC < 0.5:
-                parts.append("TCPI(BAC): project is too under budget to be believable.")  
+                parts.append("TCPI(BAC): challenging; requires efficiency improvement.")
             else:
                 parts.append("TCPI(BAC): severely over budget or BAC is unrealistic.")
         else:
@@ -322,3 +321,5 @@ class DashboardService:
 
         return " ".join(parts)
     
+
+

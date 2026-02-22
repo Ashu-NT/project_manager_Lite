@@ -46,8 +46,6 @@ class MainWindow(QMainWindow):
         
         #Resources
         resource_tab = ResourceTab(
-            project_service=services["project_service"],
-            task_service=services["task_service"],
             resource_service=services["resource_service"],
         )
         self.tabs.addTab(resource_tab, "Resources")
