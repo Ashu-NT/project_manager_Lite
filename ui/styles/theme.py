@@ -39,6 +39,49 @@ def table_stylesheet() -> str:
     """
 
 
+def calendar_stylesheet() -> str:
+    return f"""
+    QCalendarWidget {{
+        background-color: {CFG.COLOR_BG_SURFACE};
+    }}
+
+    QCalendarWidget QTableView {{
+        background-color: {CFG.COLOR_BG_SURFACE};
+        border: 1px solid {CFG.COLOR_BORDER};
+        border-radius: 8px;
+        selection-background-color: {CFG.COLOR_ACCENT_SOFT};
+        selection-color: {CFG.COLOR_TEXT_PRIMARY};
+        outline: 0;
+    }}
+
+    QCalendarWidget QTableView::item {{
+        padding: 0px;
+        margin: 0px;
+    }}
+
+    QCalendarWidget QTableView QHeaderView::section {{
+        background-color: {CFG.COLOR_BG_SURFACE_ALT};
+        color: {CFG.COLOR_TEXT_SECONDARY};
+        border: none;
+        padding: 2px 0px;
+        font-weight: 600;
+    }}
+
+    QCalendarWidget QWidget#qt_calendar_navigationbar {{
+        background-color: {CFG.COLOR_BG_SURFACE_ALT};
+        border: none;
+    }}
+
+    QCalendarWidget QToolButton {{
+        color: {CFG.COLOR_TEXT_PRIMARY};
+        background: transparent;
+        border: none;
+        padding: 2px 6px;
+        font-weight: 600;
+    }}
+    """
+
+
 def base_stylesheet() -> str:
     return f"""
     QWidget {{
@@ -206,6 +249,7 @@ def base_stylesheet() -> str:
     }}
 
     {table_stylesheet()}
+    {calendar_stylesheet()}
     """
 
 

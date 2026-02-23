@@ -66,6 +66,7 @@ class CostEditDialog(QDialog):
         self.incurred_date = QDateEdit()
         self.incurred_date.setSizePolicy(CFG.INPUT_POLICY)
         self.incurred_date.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.incurred_date.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
         self.incurred_date.setDate(QDate.currentDate())
         self.incurred_date.setCalendarPopup(True)
         self.incurred_date.setDisplayFormat(CFG.DATE_FORMAT)

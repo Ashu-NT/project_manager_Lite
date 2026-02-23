@@ -76,6 +76,7 @@ class ProjectEditDialog(QDialog):
         for date_edit in (self.start_date_edit, self.end_date_edit):
             date_edit.setSizePolicy(CFG.INPUT_POLICY)
             date_edit.setFixedHeight(CFG.INPUT_HEIGHT)
+            date_edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
             date_edit.setCalendarPopup(True)
             date_edit.setDisplayFormat(CFG.DATE_FORMAT)
 

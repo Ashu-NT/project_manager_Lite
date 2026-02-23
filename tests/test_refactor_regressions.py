@@ -2,6 +2,7 @@ from datetime import date
 
 from core.exceptions import NotFoundError
 from infra.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
+from ui.styles.theme import base_stylesheet
 
 
 def test_cost_summary_has_legacy_and_normalized_keys(services):
@@ -123,3 +124,9 @@ def test_assignment_repository_list_by_tasks_returns_domain_models(session, serv
     assert len(rows) == 1
     assert rows[0].id == created.id
     assert rows[0].__class__.__name__ == "TaskAssignment"
+
+
+def test_base_stylesheet_contains_calendar_overrides():
+    css = base_stylesheet()
+    assert "QCalendarWidget QTableView::item" in css
+    assert "padding: 0px;" in css

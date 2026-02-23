@@ -54,6 +54,7 @@ class TaskEditDialog(QDialog):
         for date_edit in (self.start_date_edit, self.deadline_edit):
             date_edit.setSizePolicy(CFG.INPUT_POLICY)
             date_edit.setFixedHeight(CFG.INPUT_HEIGHT)
+            date_edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
             date_edit.setCalendarPopup(True)
             date_edit.setDisplayFormat(CFG.DATE_FORMAT)
 
@@ -192,6 +193,7 @@ class TaskProgressDialog(QDialog):
         for date_edit in (self.actual_start_edit, self.actual_end_edit):
             date_edit.setSizePolicy(CFG.INPUT_POLICY)
             date_edit.setFixedHeight(CFG.INPUT_HEIGHT)
+            date_edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
             date_edit.setCalendarPopup(True)
             date_edit.setDisplayFormat(CFG.DATE_FORMAT)
             date_edit.setDate(today)
