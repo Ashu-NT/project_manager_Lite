@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 
-from core.services.reporting_models import (
+from core.services.reporting import (
     GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,
@@ -39,3 +39,4 @@ class PdfReportContext:
     baseline_variance: Optional[list]
     cost_breakdown: Optional[list]
     as_of: date
+

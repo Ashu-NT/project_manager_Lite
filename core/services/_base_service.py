@@ -1,12 +1,5 @@
-from sqlalchemy.orm import Session
+"""Compatibility wrapper for ServiceBase."""
 
-class ServiceBase:
-    def __init__(self, session: Session):
-        self._session = session
-    
-    def commit(self):
-        try:
-            self._session.commit()
-        except Exception as e:
-            self._session.rollback()
-            raise e
+from core.services.common.base import ServiceBase
+
+__all__ = ["ServiceBase"]

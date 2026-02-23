@@ -1,59 +1,28 @@
-# ui/style_utils.py
-from PySide6.QtWidgets import QTableWidget, QHeaderView
+from __future__ import annotations
+
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableView
 
-def style_table(table: QTableWidget):
-    """
-    Apply a consistent, professional style to tables:
-    - Alternate row colors
-    - Nice headers
-    - Full-row selection
-    - No vertical header
-    """
+from ui.styles.theme import table_stylesheet
 
+
+def style_table(table: QTableView) -> None:
+    """Apply consistent, professional table behavior and look."""
     table.setAlternatingRowColors(True)
     table.setShowGrid(False)
-    table.setSelectionBehavior(QTableWidget.SelectRows)
-    table.setSelectionMode(QTableWidget.SingleSelection)
-    table.setEditTriggers(QTableWidget.NoEditTriggers)
+    table.setSelectionBehavior(QAbstractItemView.SelectRows)
+    table.setSelectionMode(QAbstractItemView.SingleSelection)
+    table.setEditTriggers(QAbstractItemView.NoEditTriggers)
     table.setWordWrap(False)
     table.setMouseTracking(True)
 
     vh = table.verticalHeader()
     vh.setVisible(False)
-    vh.setDefaultSectionSize(table.fontMetrics().height() + 8)
-
+    vh.setDefaultSectionSize(table.fontMetrics().height() + 10)
 
     hh = table.horizontalHeader()
-    hh.setSectionResizeMode(QHeaderView.Stretch) # comment this to adjust column width manually
-    #hh.setStretchLastSection(True)  -- Active this to adjust columns width manually
     hh.setHighlightSections(False)
     hh.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
-    # Style via stylesheet
-    table.setStyleSheet("""
-        QTableWidget {
-            background-color: #ffffff;
-            alternate-background-color: #f7f9fc;
-            border: 1px solid #d0d0d0;
-            border-radius: 6px;
-        }
-        QTableWidget::item {
-            padding: 2px 6px;
-        }
-        QTableWidget::item:selected {
-            background-color: #cfe6ff;
-            color: #000000;
-        }
-        QHeaderView::section {
-            background-color: #f0f0f0;
-            color: #555555;
-            padding: 4px 6px;
-            border: 0px;
-            border-right: 1px solid #d0d0d0;
-            font-weight: 600;
-        }
-        QHeaderView::section:last {
-            border-right: 0px;
-        }
-    """)
+    # Keep sizing decisions in each tab/dialog; only apply shared visual style here.
+    table.setStyleSheet(table_stylesheet())

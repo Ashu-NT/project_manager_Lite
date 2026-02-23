@@ -1,25 +1,24 @@
-# ui/task_components.py
+# ui/task/components.py
 from __future__ import annotations
 from datetime import date
 from typing import Optional
 
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton,
+    QVBoxLayout, QHBoxLayout, QComboBox, QPushButton,
     QTableView, QDialog, QFormLayout, QLineEdit, QTextEdit, QDateEdit,
     QSpinBox, QDoubleSpinBox, QDialogButtonBox, QCheckBox, QMessageBox,
     QInputDialog
 )
 from PySide6.QtCore import QDate
 
-from core.services.project_resource_service import ProjectResourceService
-from core.services.task_service import TaskService
-from core.services.resource_service import ResourceService
+from core.services.project import ProjectResourceService
+from core.services.task import TaskService
+from core.services.resource import ResourceService
 from core.exceptions import ValidationError, BusinessRuleError, NotFoundError
 from core.models import Task, TaskStatus, DependencyType
 from ui.styles.formatting import fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
-from core.events.domain_events import domain_events
 
 # ---------------- Task table model ---------------- #
 
@@ -825,3 +824,4 @@ class AssignmentListDialog(QDialog):
             return
         self.reload_assignments()
            
+

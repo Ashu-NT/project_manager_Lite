@@ -7,7 +7,7 @@ import matplotlib.dates as mdates
 from matplotlib.dates import date2num
 from matplotlib import ticker
 
-from core.services.reporting_models import GanttTaskBar
+from core.services.reporting import GanttTaskBar
 
 
 class GanttPngRenderer:
@@ -54,3 +54,4 @@ class GanttPngRenderer:
         plt.close(fig)
 
         return output_path
+

@@ -2,13 +2,13 @@
 from __future__ import annotations
 from PySide6.QtWidgets import QMainWindow, QWidget, QTabWidget, QVBoxLayout
 
-from ui.project_tab import ProjectTab
-from ui.report_tab import ReportTab
-from ui.cost_tab import CostTab
-from ui.task_tab import TaskTab
-from ui.resource_tab import ResourceTab
-from ui.calendar_tab import CalendarTab
-from ui.dashboard_tab import DashboardTab
+from ui.project.tab import ProjectTab
+from ui.report.tab import ReportTab
+from ui.cost.tab import CostTab
+from ui.task.tab import TaskTab
+from ui.resource.tab import ResourceTab
+from ui.calendar.tab import CalendarTab
+from ui.dashboard.tab import DashboardTab
 from ui.styles.ui_config import UIConfig as CFG
 
 

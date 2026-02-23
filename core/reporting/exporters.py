@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List
 
 import matplotlib.pyplot as plt
-from matplotlib.dates import date2num, DateFormatter
+from matplotlib.dates import date2num
 import matplotlib.dates as mdates
 from matplotlib import ticker
 
@@ -25,8 +25,8 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet
 
-from core.services.reporting_service import ReportingService
-from core.services.reporting_models import GanttTaskBar, ProjectKPI, ResourceLoadRow
+from core.services.reporting import ReportingService
+from core.services.reporting import GanttTaskBar, ProjectKPI, ResourceLoadRow
 
 def _ensure_path(path: str | Path) -> Path:
     p = Path(path)
@@ -655,23 +655,5 @@ def generate_pdf_report(
     doc.build(story)
     return output_path
 
-def generate_evm_png(reporting_service: ReportingService, project_id: str, out_path: Path) -> Path:
-    series = reporting_service.get_evm_series(project_id)
-
-    import matplotlib.pyplot as plt
-    xs = [p.period_end for p in series]
-    pv = [p.PV for p in series]
-    ev = [p.EV for p in series]
-    ac = [p.AC for p in series]
-
-    plt.figure(figsize=(8, 3))
-    plt.plot(xs, pv, label="PV")
-    plt.plot(xs, ev, label="EV")
-    plt.plot(xs, ac, label="AC")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=160)
-    plt.close()
-    return out_path
 
 

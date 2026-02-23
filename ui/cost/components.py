@@ -1,24 +1,23 @@
-# ui/cost_components.py
+# ui/cost/components.py
 from __future__ import annotations
 from typing import Optional
 from datetime import date
 
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex,QDate
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton,
+    QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton,
     QTableView, QTableWidget, QTableWidgetItem, QDialog, QFormLayout, QTextEdit, QDoubleSpinBox,
     QDialogButtonBox, QMessageBox, QDateEdit
 )
 
-from core.services.task_service import TaskService
-from core.services.reporting_service import ReportingService
-from core.services.resource_service import ResourceService
+from core.services.task import TaskService
+from core.services.reporting import ReportingService
+from core.services.resource import ResourceService
 from core.models import Project, Task, CostItem  , CostType, Resource
 
 from ui.styles.formatting import fmt_currency, currency_symbol_from_code
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG, CurrencyType
-from core.events.domain_events import domain_events
 
 class CostTableModel(QAbstractTableModel):
     HEADERS = ["Description", "Task","Type", "Planned", "Committed", "Actual", "Incurred Date"]
@@ -552,3 +551,4 @@ class ResourceAssignmentsDialog(QDialog):
         self.table.resizeRowsToContents()
 
               
+

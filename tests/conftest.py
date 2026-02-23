@@ -4,30 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from infra.db.base import Base
-from infra.db.repositories import (
-    SqlAlchemyProjectRepository,
-    SqlAlchemyTaskRepository,
-    SqlAlchemyResourceRepository,
-    SqlAlchemyAssignmentRepository,
-    SqlAlchemyDependencyRepository,
-    SqlAlchemyCostRepository,
-    SqlAlchemyCalendarEventRepository,
-    SqlAlchemyWorkingCalendarRepository,
-    SqlAlchemyBaselineRepository,
-    SqlAlchemyProjectResourceRepository,
-)
-
-from core.services.project_service import ProjectService
-from core.services.task_service import TaskService
-from core.services.resource_service import ResourceService
-from core.services.project_calendar_service import CalendarService
-from core.services.cost_service import CostService
-from core.services.work_calendar_engine import WorkCalendarEngine
-from core.services.work_calendar_service import WorkCalendarService
-from core.services.scheduling_service import SchedulingEngine
-from core.services.reporting_service import ReportingService
-from core.services.baseline_service import BaselineService
-from core.services.dashboard_service import DashboardService
+from infra.services import build_service_dict
 
 
 @pytest.fixture
@@ -45,88 +22,5 @@ def session():
 
 @pytest.fixture
 def services(session):
-    # Recreate what build_services() does, but with the test session
-    project_repo = SqlAlchemyProjectRepository(session)
-    task_repo = SqlAlchemyTaskRepository(session)
-    resource_repo = SqlAlchemyResourceRepository(session)
-    assignment_repo = SqlAlchemyAssignmentRepository(session)
-    dependency_repo = SqlAlchemyDependencyRepository(session)
-    cost_repo = SqlAlchemyCostRepository(session)
-    calendar_repo = SqlAlchemyCalendarEventRepository(session)
-    work_calendar_repo = SqlAlchemyWorkingCalendarRepository(session)
-    baseline_repo = SqlAlchemyBaselineRepository(session)
-    project_resource_repo = SqlAlchemyProjectResourceRepository(session)
+    return build_service_dict(session)
 
-    work_calendar_engine = WorkCalendarEngine(work_calendar_repo, calendar_id="default")
-
-    project_service = ProjectService(
-        session,
-        project_repo,
-        task_repo,
-        dependency_repo,
-        assignment_repo,
-        calendar_repo,
-        cost_repo,
-    )
-    task_service = TaskService(
-        session,
-        task_repo,
-        dependency_repo,
-        assignment_repo,
-        resource_repo,
-        cost_repo,
-        calendar_repo,
-        work_calendar_engine,
-        project_resource_repo,
-        project_repo,
-    )
-    calendar_service = CalendarService(session, calendar_repo, task_repo)
-    resource_service = ResourceService(session, resource_repo, assignment_repo, project_resource_repo)
-    cost_service = CostService(session, cost_repo, project_repo, task_repo)
-    work_calendar_service = WorkCalendarService(session, work_calendar_repo, work_calendar_engine)
-    scheduling_engine = SchedulingEngine(session, task_repo, dependency_repo, work_calendar_engine)
-    baseline_service = BaselineService(
-        session=session,
-        project_repo=project_repo,
-        task_repo=task_repo,
-        cost_repo=cost_repo,
-        baseline_repo=baseline_repo,
-        scheduling=scheduling_engine,
-        calendar=work_calendar_engine,
-        project_resource_repo=project_resource_repo,
-        resource_repo=resource_repo,
-    )
-    reporting_service = ReportingService(
-        session=session,
-        project_repo=project_repo,
-        task_repo=task_repo,
-        resource_repo=resource_repo,
-        assignment_repo=assignment_repo,
-        cost_repo=cost_repo,
-        scheduling_engine=scheduling_engine,
-        calendar=work_calendar_engine,
-        baseline_repo=baseline_repo,
-        project_resource_repo=project_resource_repo,
-    )
-    dashboard_service = DashboardService(
-        reporting_service=reporting_service,
-        task_service=task_service,
-        project_service=project_service,
-        scheduling_engine=scheduling_engine,
-        work_calendar_engine=work_calendar_engine,
-    )
-
-    return {
-        "session": session,
-        "project_service": project_service,
-        "task_service": task_service,
-        "calendar_service": calendar_service,
-        "resource_service": resource_service,
-        "cost_service": cost_service,
-        "work_calendar_engine": work_calendar_engine,
-        "work_calendar_service": work_calendar_service,
-        "scheduling_engine": scheduling_engine,
-        "baseline_service": baseline_service,
-        "reporting_service": reporting_service,
-        "dashboard_service": dashboard_service,
-    }

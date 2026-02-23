@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import date
 
 
-from core.services.reporting_service import ReportingService
+from core.services.reporting import ReportingService
 from core.reporting.renderers.gantt import GanttPngRenderer
 from core.reporting.renderers.evm import EvmCurveRenderer
 from core.reporting.renderers.excel import ExcelReportRenderer
@@ -60,3 +60,4 @@ def generate_pdf_report(reporting_service: ReportingService, project_id: str, ou
         as_of=date.today(),
     )
     return PdfReportRenderer().render(ctx, Path(output_path))
+
