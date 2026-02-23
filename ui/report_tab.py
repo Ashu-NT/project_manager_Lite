@@ -20,7 +20,7 @@ from core.reporting.exporters import (
     generate_gantt_png
 )
 from core.services.project_service import ProjectService
-from core.services.reporting_service import ReportingService, GanttTaskBar
+from core.services.reporting_service import ReportingService
 from core.exceptions import NotFoundError
 from ui.styles.ui_config import UIConfig as CFG
 

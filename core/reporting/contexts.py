@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 
-from core.services.reporting_service import (
+from core.services.reporting_models import (
     GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,

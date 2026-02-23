@@ -25,12 +25,8 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet
 
-from core.services.reporting_service import (
-    ReportingService,
-    GanttTaskBar,
-    ProjectKPI,          # adjust if named differently
-    ResourceLoadRow,     # adjust if named differently
-)
+from core.services.reporting_service import ReportingService
+from core.services.reporting_models import GanttTaskBar, ProjectKPI, ResourceLoadRow
 
 def _ensure_path(path: str | Path) -> Path:
     p = Path(path)

@@ -4,11 +4,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import List, Optional
 
-from core.services.reporting_service import (
-    ReportingService,
-    ProjectKPI,
-    ResourceLoadRow,
-)
+from core.services.reporting_service import ReportingService
+from core.services.reporting_models import ProjectKPI, ResourceLoadRow
 from core.services.task_service import TaskService
 from core.services.project_service import ProjectService
 from core.services.scheduling_service import SchedulingEngine
