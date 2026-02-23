@@ -113,8 +113,9 @@ def test_cost_tab_is_coordinator_only():
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "from ui.cost.models import" in text
-    assert "from ui.cost.cost_dialogs import" in text
-    assert "from ui.cost.labor_dialogs import" in text
+    assert "from ui.cost.project_flow import" in text
+    assert "from ui.cost.labor_summary import" in text
+    assert "from ui.cost.actions import" in text
     assert "class CostTableModel" not in text
     assert "class CostEditDialog" not in text
     assert "class ResourceLaborDialog" not in text
@@ -145,6 +146,18 @@ def test_dashboard_tab_is_coordinator_only():
     assert "class ChartWidget" not in text
 
 
+def test_dashboard_rendering_module_is_facade_only():
+    rendering_path = ROOT / "ui" / "dashboard" / "rendering.py"
+    text = rendering_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.dashboard.rendering_summary import" in text
+    assert "from ui.dashboard.rendering_charts import" in text
+    assert "from ui.dashboard.rendering_evm import" in text
+    assert "def _update_kpis" not in text
+    assert "def _update_burndown_chart" not in text
+    assert "def _update_evm" not in text
+
+
 def test_infra_repositories_module_is_facade_only():
     repo_path = ROOT / "infra" / "db" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -153,6 +166,16 @@ def test_infra_repositories_module_is_facade_only():
     assert "from infra.db.repositories_project import" in text
     assert "from infra.db.repositories_task import" in text
     assert "class SqlAlchemy" not in text
+
+
+def test_reporting_evm_module_is_facade_only():
+    evm_path = ROOT / "core" / "services" / "reporting" / "evm.py"
+    text = evm_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.reporting.evm_core import" in text
+    assert "from core.services.reporting.evm_series import" in text
+    assert "def get_earned_value" not in text
+    assert "def get_evm_series" not in text
 
 
 def test_task_service_is_orchestrator_only():
@@ -174,7 +197,9 @@ def test_known_large_modules_have_growth_budgets():
     # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
     budgets = {
         "core/services/reporting/service.py": 180,
-        "core/services/reporting/evm.py": 450,
+        "core/services/reporting/evm.py": 80,
+        "core/services/reporting/evm_core.py": 280,
+        "core/services/reporting/evm_series.py": 120,
         "core/services/reporting/kpi.py": 280,
         "core/services/reporting/labor.py": 260,
         "ui/project/tab.py": 260,
@@ -191,15 +216,28 @@ def test_known_large_modules_have_growth_budgets():
         "ui/task/assignment_dialogs.py": 260,
         "ui/task/models.py": 120,
         "ui/task/components.py": 80,
-        "ui/cost/tab.py": 560,
+        "ui/cost/tab.py": 220,
         "ui/cost/components.py": 80,
         "ui/cost/models.py": 180,
         "ui/cost/cost_dialogs.py": 240,
         "ui/cost/labor_dialogs.py": 320,
+        "ui/cost/project_flow.py": 180,
+        "ui/cost/labor_summary.py": 200,
+        "ui/cost/actions.py": 150,
         "ui/dashboard/tab.py": 260,
         "ui/dashboard/widgets.py": 120,
         "ui/dashboard/data_ops.py": 180,
-        "ui/dashboard/rendering.py": 380,
+        "ui/dashboard/rendering.py": 80,
+        "ui/dashboard/rendering_summary.py": 120,
+        "ui/dashboard/rendering_charts.py": 130,
+        "ui/dashboard/rendering_evm.py": 240,
+        "main.py": 580,
+        "ui/calendar/tab.py": 480,
+        "core/services/scheduling/engine.py": 460,
+        "ui/resource/tab.py": 360,
+        "core/models.py": 360,
+        "core/services/dashboard/service.py": 340,
+        "ui/styles/ui_config.py": 320,
         "core/services/task/service.py": 140,
         "core/services/task/lifecycle.py": 280,
         "core/services/task/dependency.py": 140,

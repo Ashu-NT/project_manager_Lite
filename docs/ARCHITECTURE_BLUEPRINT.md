@@ -19,13 +19,13 @@ This is already a good layered baseline and should be preserved.
 
 Top large modules observed in this codebase:
 
-1. `ui/cost/tab.py` (~499 lines)
-2. `core/services/reporting/evm.py` (~365 lines)
-3. `ui/dashboard/rendering.py` (~327 lines)
-4. `infra/db/mappers.py` (~306 lines)
-5. `ui/task/tab.py` (~289 lines)
-6. `ui/cost/labor_dialogs.py` (~231 lines)
-7. `ui/project/project_resources_dialog.py` (~194 lines)
+1. `main.py` (~498 lines)
+2. `ui/calendar/tab.py` (~412 lines)
+3. `core/services/scheduling/engine.py` (~408 lines)
+4. `ui/resource/tab.py` (~313 lines)
+5. `infra/db/mappers.py` (~306 lines)
+6. `core/models.py` (~305 lines)
+7. `ui/task/tab.py` (~289 lines)
 
 ## Refactor Applied In This Pass
 
@@ -39,7 +39,9 @@ Top large modules observed in this codebase:
    - Orchestrator: `core/services/reporting/service.py` (~55 lines)
    - KPI mixin: `core/services/reporting/kpi.py` (~221 lines)
    - Labor mixin: `core/services/reporting/labor.py` (~201 lines)
-   - EVM mixin: `core/services/reporting/evm.py` (~365 lines)
+   - EVM facade mixin: `core/services/reporting/evm.py` (~8 lines)
+   - EVM core calculations: `core/services/reporting/evm_core.py` (~213 lines)
+   - EVM series generation: `core/services/reporting/evm_series.py` (~56 lines)
    - Variance mixin: `core/services/reporting/variance.py` (~66 lines)
    - Cost breakdown mixin: `core/services/reporting/cost_breakdown.py` (~158 lines)
 4. Project UI split into coordinator + submodules:
@@ -67,7 +69,10 @@ Top large modules observed in this codebase:
    - Cost/calendar repos: `infra/db/repositories_cost_calendar.py` (~103 lines)
    - Baseline repo: `infra/db/repositories_baseline.py` (~52 lines)
 7. Cost UI split into coordinator + submodules:
-   - Coordinator: `ui/cost/tab.py` (~499 lines)
+   - Coordinator: `ui/cost/tab.py` (~144 lines)
+   - Project/data flow mixin: `ui/cost/project_flow.py` (~115 lines)
+   - Labor summary mixin: `ui/cost/labor_summary.py` (~130 lines)
+   - Cost actions mixin: `ui/cost/actions.py` (~103 lines)
    - Compatibility exports: `ui/cost/components.py` (~10 lines)
    - Models: `ui/cost/models.py` (~104 lines)
    - Cost item dialog: `ui/cost/cost_dialogs.py` (~145 lines)
@@ -82,7 +87,10 @@ Top large modules observed in this codebase:
 9. Dashboard UI split into coordinator + focused modules:
    - Coordinator: `ui/dashboard/tab.py` (~176 lines)
    - Data/loading mixin: `ui/dashboard/data_ops.py` (~124 lines)
-   - Rendering mixin: `ui/dashboard/rendering.py` (~327 lines)
+   - Rendering facade: `ui/dashboard/rendering.py` (~10 lines)
+   - Summary/KPI rendering: `ui/dashboard/rendering_summary.py` (~77 lines)
+   - Charts/lists rendering: `ui/dashboard/rendering_charts.py` (~79 lines)
+   - EVM rendering: `ui/dashboard/rendering_evm.py` (~169 lines)
    - Reusable widgets: `ui/dashboard/widgets.py` (~67 lines)
 
 ## Architecture Principles (Enforced)
@@ -115,12 +123,11 @@ Top large modules observed in this codebase:
 
 ## Next Structural Refactors (Recommended Order)
 
-1. Optionally split `core/services/reporting/evm.py` into:
-   - baseline selection, PV/EV calculation, forecast/indices helpers.
-2. Split `ui/cost/tab.py` into smaller coordinator sections:
-   - summary panel controller, labor summary controller, and cost actions controller.
-3. Optionally split `ui/dashboard/rendering.py` into:
-   - KPI rendering, chart rendering, and EVM rendering helpers.
+1. Refactor startup/wiring monolith in `main.py` into:
+   - app bootstrap, dependency wiring, and launcher modules.
+2. Split `ui/calendar/tab.py` into coordinator + dialogs/models.
+3. Split `core/services/scheduling/engine.py` into:
+   - forward-pass scheduling, critical-path analysis, and calendar utilities.
 
 ## Guardrails
 
