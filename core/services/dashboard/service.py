@@ -8,6 +8,7 @@ from core.services.dashboard.models import BurndownPoint, DashboardData, Dashboa
 from core.services.dashboard.upcoming import DashboardUpcomingMixin
 from core.services.project.service import ProjectService
 from core.services.reporting.service import ReportingService
+from core.services.resource import ResourceService
 from core.services.scheduling.engine import SchedulingEngine
 from core.services.task.service import TaskService
 from core.services.work_calendar.engine import WorkCalendarEngine
@@ -28,12 +29,14 @@ class DashboardService(
         reporting_service: ReportingService,
         task_service: TaskService,
         project_service: ProjectService,
+        resource_service: ResourceService,
         scheduling_engine: SchedulingEngine,
         work_calendar_engine: WorkCalendarEngine,
     ):
         self._reporting: ReportingService = reporting_service
         self._tasks: TaskService = task_service
         self._projects: ProjectService = project_service
+        self._resources: ResourceService = resource_service
         self._sched: SchedulingEngine = scheduling_engine
         self._calendar: WorkCalendarEngine = work_calendar_engine
 

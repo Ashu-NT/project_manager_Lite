@@ -4,17 +4,20 @@ from datetime import date, timedelta
 from typing import List
 
 from core.services.dashboard.models import UpcomingTask
+from core.services.resource import ResourceService
 from core.services.task.service import TaskService
 
 
 class DashboardUpcomingMixin:
     _tasks: TaskService
+    _resources: ResourceService
 
     def _build_upcoming_tasks(self, project_id: str) -> List[UpcomingTask]:
         today = date.today()
         horizon = today + timedelta(days=14)
 
         tasks = self._tasks.list_tasks_for_project(project_id)
+        resources_by_id = {r.id: r for r in self._resources.list_resources()}
         upcoming: List[UpcomingTask] = []
 
         for task in tasks:
@@ -34,6 +37,9 @@ class DashboardUpcomingMixin:
             if assignments:
                 assignment = max(assignments, key=lambda item: item.allocation_percent or 0.0)
                 main_resource = getattr(assignment, "resource_name", None)
+                if not main_resource:
+                    resource = resources_by_id.get(getattr(assignment, "resource_id", ""))
+                    main_resource = getattr(resource, "name", None)
 
             percent_complete = task.percent_complete or 0.0
             is_late = (

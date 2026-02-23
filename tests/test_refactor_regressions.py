@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from core.exceptions import NotFoundError
@@ -57,6 +57,31 @@ def test_dashboard_high_priority_without_deadline_does_not_crash(services):
     data = ds.get_dashboard_data(pid)
     assert data.kpi.project_id == pid
     assert not any("High-priority task" in msg for msg in data.alerts)
+
+
+def test_dashboard_upcoming_populates_main_resource_name(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    ds = services["dashboard_service"]
+
+    project = ps.create_project("Dashboard Main Resource", "")
+    pid = project.id
+
+    task = ts.create_task(
+        pid,
+        "Upcoming Task",
+        start_date=date.today() + timedelta(days=1),
+        duration_days=2,
+    )
+    resource = rs.create_resource("Planned Engineer", "Developer", hourly_rate=100.0)
+    ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
+
+    data = ds.get_dashboard_data(pid)
+    rows = [row for row in data.upcoming_tasks if row.task_id == task.id]
+
+    assert rows
+    assert rows[0].main_resource == "Planned Engineer"
 
 
 def test_baseline_variance_marks_critical_tasks(services):

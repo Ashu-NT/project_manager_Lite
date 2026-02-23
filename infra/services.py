@@ -135,6 +135,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         reporting_service=reporting_service,
         task_service=task_service,
         project_service=project_service,
+        resource_service=resource_service,
         scheduling_engine=scheduling_engine,
         work_calendar_engine=work_calendar_engine,
     )
