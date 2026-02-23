@@ -72,6 +72,21 @@ def test_project_tab_is_coordinator_only():
     assert "class ProjectTableModel" not in text
 
 
+def test_task_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "task" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.task.dialogs import" in text
+    assert "from ui.task.models import" in text
+    assert "class TaskEditDialog" not in text
+    assert "class TaskProgressDialog" not in text
+    assert "class DependencyAddDialog" not in text
+    assert "class DependencyListDialog" not in text
+    assert "class AssignmentAddDialog" not in text
+    assert "class AssignmentListDialog" not in text
+    assert "class TaskTableModel" not in text
+
+
 def test_known_large_modules_have_growth_budgets():
     # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
     budgets = {
@@ -82,7 +97,13 @@ def test_known_large_modules_have_growth_budgets():
         "ui/project/tab.py": 260,
         "ui/project/dialogs.py": 700,
         "ui/project/models.py": 120,
-        "ui/task/components.py": 840,
+        "ui/task/tab.py": 320,
+        "ui/task/dialogs.py": 80,
+        "ui/task/task_dialogs.py": 320,
+        "ui/task/dependency_dialogs.py": 220,
+        "ui/task/assignment_dialogs.py": 260,
+        "ui/task/models.py": 120,
+        "ui/task/components.py": 80,
         "ui/dashboard/tab.py": 830,
         "core/services/task/service.py": 720,
         "infra/db/repositories.py": 690,

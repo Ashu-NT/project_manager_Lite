@@ -16,13 +16,13 @@ from core.models import Task
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 from core.events.domain_events import domain_events
-from .components import (
-    TaskTableModel,
+from ui.task.dialogs import (
+    AssignmentListDialog,
+    DependencyListDialog,
     TaskEditDialog,
     TaskProgressDialog,
-    DependencyListDialog,
-    AssignmentListDialog,
 )
+from ui.task.models import TaskTableModel
 
 class TaskTab(QWidget):
     def __init__(

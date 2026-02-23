@@ -19,13 +19,13 @@ This is already a good layered baseline and should be preserved.
 
 Top large modules observed in this codebase:
 
-1. `ui/task/components.py` (~827 lines)
-2. `ui/dashboard/tab.py` (~816 lines)
-3. `core/services/task/service.py` (~703 lines)
-4. `infra/db/repositories.py` (~674 lines)
-5. `ui/project/dialogs.py` (~620 lines)
-6. `ui/cost/tab.py` (~556 lines)
-7. `ui/cost/components.py` (~554 lines)
+1. `ui/dashboard/tab.py` (~816 lines)
+2. `core/services/task/service.py` (~703 lines)
+3. `infra/db/repositories.py` (~674 lines)
+4. `ui/project/dialogs.py` (~620 lines)
+5. `ui/cost/tab.py` (~556 lines)
+6. `ui/cost/components.py` (~554 lines)
+7. `core/services/reporting/evm.py` (~365 lines)
 
 ## Refactor Applied In This Pass
 
@@ -46,6 +46,14 @@ Top large modules observed in this codebase:
    - Coordinator: `ui/project/tab.py` (~197 lines)
    - Dialogs: `ui/project/dialogs.py` (~620 lines)
    - Table model: `ui/project/models.py` (~63 lines)
+5. Task UI split into coordinator + submodules:
+   - Coordinator: `ui/task/tab.py` (~289 lines)
+   - Dialog facade: `ui/task/dialogs.py` (~15 lines)
+   - Task dialogs: `ui/task/task_dialogs.py` (~263 lines)
+   - Dependency dialogs: `ui/task/dependency_dialogs.py` (~169 lines)
+   - Assignment dialogs: `ui/task/assignment_dialogs.py` (~217 lines)
+   - Table model: `ui/task/models.py` (~62 lines)
+   - Compatibility exports: `ui/task/components.py` (~21 lines)
 
 ## Architecture Principles (Enforced)
 
@@ -77,12 +85,10 @@ Top large modules observed in this codebase:
 
 ## Next Structural Refactors (Recommended Order)
 
-1. Split `ui/task/components.py` by bounded context:
-   - task edit/progress, dependencies, assignments.
-2. Break `infra/db/repositories.py` into per-aggregate repository modules.
-3. Optionally split `core/services/reporting/evm.py` into:
+1. Break `infra/db/repositories.py` into per-aggregate repository modules.
+2. Optionally split `core/services/reporting/evm.py` into:
    - baseline selection, PV/EV calculation, forecast/indices helpers.
-4. Split `ui/project/dialogs.py` into:
+3. Split `ui/project/dialogs.py` into:
    - project metadata dialog and project-resource dialogs.
 
 ## Guardrails
@@ -91,6 +97,7 @@ Architecture guardrails are codified in:
 `tests/test_architecture_guardrails.py`
 
 These checks validate:
+
 1. Hard file-size ceiling.
 
 2. `core -> ui` import violations.
