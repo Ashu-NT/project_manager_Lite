@@ -1,16 +1,16 @@
 """Compatibility facade for ORM mappers.
 
-New code should import focused modules under ``infra.db.mappers_*``.
+New code should import focused aggregate modules under ``infra.db.<aggregate>.mapper``.
 This module re-exports all mapper functions to preserve legacy imports.
 """
 
-from infra.db.mappers_baseline import (
+from infra.db.baseline.mapper import (
     baseline_from_orm,
     baseline_task_from_orm,
     baseline_task_to_orm,
     baseline_to_orm,
 )
-from infra.db.mappers_cost_calendar import (
+from infra.db.cost_calendar.mapper import (
     calendar_from_orm,
     calendar_to_orm,
     cost_from_orm,
@@ -20,14 +20,14 @@ from infra.db.mappers_cost_calendar import (
     holiday_from_orm,
     holiday_to_orm,
 )
-from infra.db.mappers_project import (
+from infra.db.project.mapper import (
     project_from_orm,
     project_resource_from_orm,
     project_resource_to_orm,
     project_to_orm,
 )
-from infra.db.mappers_resource import resource_from_orm, resource_to_orm
-from infra.db.mappers_task import (
+from infra.db.resource.mapper import resource_from_orm, resource_to_orm
+from infra.db.task.mapper import (
     assignment_from_orm,
     assignment_to_orm,
     dependency_from_orm,

@@ -53,11 +53,15 @@ def test_report_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "report" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.report.dialogs import" in text
+    assert "from ui.report.project_flow import ReportProjectFlowMixin" in text
+    assert "from ui.report.actions import ReportActionsMixin" in text
     assert "class KPIReportDialog" not in text
     assert "class GanttPreviewDialog" not in text
     assert "class CriticalPathDialog" not in text
     assert "class ResourceLoadDialog" not in text
+    assert "def load_kpis" not in text
+    assert "def show_gantt" not in text
+    assert "def export_excel" not in text
 
 
 def test_report_dialogs_module_is_facade_only():
@@ -72,6 +76,28 @@ def test_report_dialogs_module_is_facade_only():
     assert "class GanttPreviewDialog" not in text
     assert "class CriticalPathDialog" not in text
     assert "class ResourceLoadDialog" not in text
+
+
+def test_report_actions_module_contains_report_workflows():
+    actions_path = ROOT / "ui" / "report" / "actions.py"
+    text = actions_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.report.dialogs import" in text
+    assert "def load_kpis" in text
+    assert "def show_gantt" in text
+    assert "def show_critical_path" in text
+    assert "def show_resource_load" in text
+    assert "def export_gantt_png" in text
+    assert "def export_excel" in text
+    assert "def export_pdf" in text
+
+
+def test_report_project_flow_module_contains_loading_helpers():
+    flow_path = ROOT / "ui" / "report" / "project_flow.py"
+    text = flow_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "def _load_projects" in text
+    assert "def _current_project_id_and_name" in text
 
 
 def test_project_tab_is_coordinator_only():
@@ -237,10 +263,34 @@ def test_resource_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "resource" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
+    assert "from ui.resource.flow import ResourceFlowMixin" in text
+    assert "from ui.resource.actions import ResourceActionsMixin" in text
     assert "from ui.resource.models import" in text
-    assert "from ui.resource.dialogs import" in text
     assert "class ResourceTableModel" not in text
     assert "class ResourceEditDialog" not in text
+    assert "def create_resource" not in text
+    assert "def edit_resource" not in text
+    assert "def delete_resource" not in text
+    assert "def toggle_active" not in text
+
+
+def test_resource_actions_module_contains_resource_workflows():
+    actions_path = ROOT / "ui" / "resource" / "actions.py"
+    text = actions_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.resource.dialogs import ResourceEditDialog" in text
+    assert "def create_resource" in text
+    assert "def edit_resource" in text
+    assert "def delete_resource" in text
+    assert "def toggle_active" in text
+
+
+def test_resource_flow_module_contains_loading_helpers():
+    flow_path = ROOT / "ui" / "resource" / "flow.py"
+    text = flow_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "def reload_resources" in text
+    assert "def _get_selected_resource" in text
 
 
 def test_calendar_tab_is_coordinator_only():
@@ -271,14 +321,35 @@ def test_infra_mappers_module_is_facade_only():
     mapper_path = ROOT / "infra" / "db" / "mappers.py"
     text = mapper_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from infra.db.mappers_project import" in text
-    assert "from infra.db.mappers_task import" in text
-    assert "from infra.db.mappers_resource import" in text
-    assert "from infra.db.mappers_cost_calendar import" in text
-    assert "from infra.db.mappers_baseline import" in text
+    assert "from infra.db.project.mapper import" in text
+    assert "from infra.db.task.mapper import" in text
+    assert "from infra.db.resource.mapper import" in text
+    assert "from infra.db.cost_calendar.mapper import" in text
+    assert "from infra.db.baseline.mapper import" in text
     assert "def project_to_orm" not in text
     assert "def task_to_orm" not in text
     assert "def cost_to_orm" not in text
+
+
+def test_infra_repository_wrappers_delegate_to_aggregate_folder():
+    wrappers = [
+        "repositories_project.py",
+        "repositories_task.py",
+        "repositories_resource.py",
+        "repositories_cost_calendar.py",
+        "repositories_baseline.py",
+    ]
+    expected_imports = {
+        "repositories_project.py": "from infra.db.project.repository import",
+        "repositories_task.py": "from infra.db.task.repository import",
+        "repositories_resource.py": "from infra.db.resource.repository import",
+        "repositories_cost_calendar.py": "from infra.db.cost_calendar.repository import",
+        "repositories_baseline.py": "from infra.db.baseline.repository import",
+    }
+    for name in wrappers:
+        text = (ROOT / "infra" / "db" / name).read_text(encoding="utf-8", errors="ignore")
+        assert expected_imports[name] in text
+        assert "Compatibility wrapper" in text
 
 
 def test_core_models_module_is_facade_only():
@@ -332,6 +403,17 @@ def test_task_service_is_orchestrator_only():
     assert "def add_dependency" not in text
     assert "def assign_resource" not in text
     assert "def query_tasks" not in text
+
+
+def test_project_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "services" / "project" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.project.lifecycle import ProjectLifecycleMixin" in text
+    assert "from core.services.project.query import ProjectQueryMixin" in text
+    assert "def create_project" not in text
+    assert "def update_project" not in text
+    assert "def delete_project" not in text
 
 
 def test_scheduling_engine_is_orchestrator_only():
@@ -392,6 +474,9 @@ def test_known_large_modules_have_growth_budgets():
         "ui/dashboard/rendering_summary.py": 120,
         "ui/dashboard/rendering_charts.py": 130,
         "ui/dashboard/rendering_evm.py": 240,
+        "ui/report/tab.py": 220,
+        "ui/report/actions.py": 220,
+        "ui/report/project_flow.py": 80,
         "ui/report/dialogs.py": 50,
         "ui/report/dialog_helpers.py": 140,
         "ui/report/dialog_kpi.py": 220,
@@ -413,6 +498,8 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/scheduling/passes.py": 260,
         "core/services/scheduling/results.py": 180,
         "ui/resource/tab.py": 220,
+        "ui/resource/actions.py": 180,
+        "ui/resource/flow.py": 80,
         "ui/resource/models.py": 100,
         "ui/resource/dialogs.py": 180,
         "core/models.py": 80,
@@ -433,6 +520,10 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/dashboard/evm.py": 160,
         "ui/styles/ui_config.py": 320,
         "core/services/task/service.py": 140,
+        "core/services/project/service.py": 90,
+        "core/services/project/lifecycle.py": 220,
+        "core/services/project/query.py": 90,
+        "core/services/project/validation.py": 80,
         "core/services/task/lifecycle.py": 280,
         "core/services/task/dependency.py": 140,
         "core/services/task/assignment.py": 220,
@@ -440,11 +531,21 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/task/validation.py": 220,
         "infra/db/repositories.py": 120,
         "infra/db/mappers.py": 120,
-        "infra/db/mappers_project.py": 120,
-        "infra/db/mappers_task.py": 140,
-        "infra/db/mappers_resource.py": 70,
-        "infra/db/mappers_cost_calendar.py": 150,
-        "infra/db/mappers_baseline.py": 90,
+        "infra/db/project/__init__.py": 80,
+        "infra/db/project/mapper.py": 120,
+        "infra/db/project/repository.py": 140,
+        "infra/db/task/__init__.py": 80,
+        "infra/db/task/mapper.py": 180,
+        "infra/db/task/repository.py": 180,
+        "infra/db/resource/__init__.py": 60,
+        "infra/db/resource/mapper.py": 80,
+        "infra/db/resource/repository.py": 80,
+        "infra/db/cost_calendar/__init__.py": 90,
+        "infra/db/cost_calendar/mapper.py": 180,
+        "infra/db/cost_calendar/repository.py": 180,
+        "infra/db/baseline/__init__.py": 60,
+        "infra/db/baseline/mapper.py": 100,
+        "infra/db/baseline/repository.py": 120,
         "infra/db/repositories_project.py": 100,
         "infra/db/repositories_task.py": 150,
         "infra/db/repositories_resource.py": 60,

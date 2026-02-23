@@ -1,31 +1,25 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QComboBox,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QComboBox,
-    QGroupBox,
-    QMessageBox,
-    QFileDialog,
+    QVBoxLayout,
+    QWidget,
 )
 
-from core.exceptions import NotFoundError
-from core.reporting.api import generate_excel_report, generate_gantt_png, generate_pdf_report
 from core.services.project import ProjectService
 from core.services.reporting import ReportingService
-from ui.report.dialogs import (
-    CriticalPathDialog,
-    GanttPreviewDialog,
-    KPIReportDialog,
-    ResourceLoadDialog,
-)
+from ui.report.actions import ReportActionsMixin
+from ui.report.project_flow import ReportProjectFlowMixin
 from ui.styles.ui_config import UIConfig as CFG
 
 
-class ReportTab(QWidget):
+class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
+    """Report tab coordinator: UI layout and event wiring only."""
+
     def __init__(
         self,
         project_service: ProjectService,
@@ -119,98 +113,3 @@ class ReportTab(QWidget):
         self.btn_export_gantt.clicked.connect(self.export_gantt_png)
         self.btn_export_excel.clicked.connect(self.export_excel)
         self.btn_export_pdf.clicked.connect(self.export_pdf)
-
-    def _load_projects(self):
-        self.project_combo.clear()
-        projects = self._project_service.list_projects()
-        for p in projects:
-            self.project_combo.addItem(p.name, userData=p.id)
-
-    def _current_project_id_and_name(self):
-        idx = self.project_combo.currentIndex()
-        if idx < 0:
-            return None, None
-        return self.project_combo.itemData(idx), self.project_combo.currentText()
-
-    def load_kpis(self):
-        pid, _name = self._current_project_id_and_name()
-        if not pid:
-            QMessageBox.information(self, "Load KPIs", "Please select a project.")
-            return
-        KPIReportDialog(self, self._reporting_service, pid).exec()
-
-    def show_gantt(self):
-        pid, name = self._current_project_id_and_name()
-        if not pid:
-            QMessageBox.information(self, "Show Gantt", "Please select a project.")
-            return
-        try:
-            GanttPreviewDialog(self, self._reporting_service, pid, name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Gantt", f"Failed to generate Gantt {str(e)}")
-
-    def show_critical_path(self):
-        pid, name = self._current_project_id_and_name()
-        if not pid:
-            QMessageBox.information(self, "Show Critical Path", "Please select a project.")
-            return
-        try:
-            CriticalPathDialog(self, self._reporting_service, pid, name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Critical Path", f"Failed to show critical path {str(e)}")
-
-    def show_resource_load(self):
-        pid, name = self._current_project_id_and_name()
-        if not pid:
-            QMessageBox.information(self, "Show Resource Load", "Please select a project.")
-            return
-        try:
-            ResourceLoadDialog(self, self._reporting_service, pid, name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Resource Load", f"Failed to show resource load {str(e)}")
-
-    def export_gantt_png(self):
-        pid, name = self._current_project_id_and_name()
-        if not pid:
-            QMessageBox.information(self, "Export Gantt", "Please select a project.")
-            return
-        path, _ = QFileDialog.getSaveFileName(self, "Save Gantt chart", f"{name}_gantt.png", "PNG image (*.png)")
-        if not path:
-            return
-        try:
-            generate_gantt_png(self._reporting_service, pid, path)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export Gantt: {e}")
-            return
-        QMessageBox.information(self, "Export Gantt", f"Gantt chart saved to:\n{path}")
-
-    def export_excel(self):
-        pid, name = self._current_project_id_and_name()
-        if not pid:
-            QMessageBox.information(self, "Export Excel", "Please select a project.")
-            return
-        path, _ = QFileDialog.getSaveFileName(self, "Save Excel report", f"{name}_report.xlsx", "Excel files (*.xlsx)")
-        if not path:
-            return
-        try:
-            generate_excel_report(self._reporting_service, pid, path)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export Excel report: {e}")
-            return
-        QMessageBox.information(self, "Export Excel", f"Excel report saved to:\n{path}")
-
-    def export_pdf(self):
-        pid, name = self._current_project_id_and_name()
-        if not pid:
-            QMessageBox.information(self, "Export PDF", "Please select a project.")
-            return
-        path, _ = QFileDialog.getSaveFileName(self, "Save PDF report", f"{name}_report.pdf", "PDF files (*.pdf)")
-        if not path:
-            return
-        try:
-            generate_pdf_report(self._reporting_service, pid, path)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export PDF report: {e}")
-            return
-        QMessageBox.information(self, "Export PDF", f"PDF report saved to:\n{path}")
-
