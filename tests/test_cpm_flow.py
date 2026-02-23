@@ -10,6 +10,7 @@ def test_cpm_forward_backward_basic(services):
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]
+    wc = services["work_calendar_engine"]
 
     # 1) Create project
     project = ps.create_project("CPM Test", "Testing CPM")
@@ -39,8 +40,8 @@ def test_cpm_forward_backward_basic(services):
     # A's ES is its given start
     assert infoA.earliest_start == date(2023, 11, 6)
 
-    # B starts on or after A finishes (FS)
-    assert infoB.earliest_start >= infoA.earliest_finish
+    # B starts the next working day after A finishes (FS, lag 0).
+    assert infoB.earliest_start == wc.next_working_day(infoA.earliest_finish, include_today=False)
 
     # C's EF equals B's EF (FF)
     assert infoC.earliest_finish == infoB.earliest_finish

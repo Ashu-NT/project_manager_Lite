@@ -130,7 +130,9 @@ class SchedulingEngine:
 
             if dep.dependency_type == DependencyType.FINISH_TO_START:
                 if pred_ef:
-                    candidates.append(self._calendar.add_working_days(pred_ef, dep.lag_days))
+                    # FS with day-grain dates means successor starts the next working day
+                    # after predecessor finish when lag is zero.
+                    candidates.append(self._calendar.add_working_days(pred_ef, dep.lag_days + 2))
             elif dep.dependency_type == DependencyType.START_TO_START:
                 if pred_es:
                     candidates.append(self._calendar.add_working_days(pred_es, dep.lag_days))
@@ -177,7 +179,9 @@ class SchedulingEngine:
 
             if dep.dependency_type == DependencyType.FINISH_TO_START:
                 if pred_ef:
-                    candidate_es.append(self._calendar.add_working_days(pred_ef, dep.lag_days))
+                    # FS with day-grain dates means successor starts the next working day
+                    # after predecessor finish when lag is zero.
+                    candidate_es.append(self._calendar.add_working_days(pred_ef, dep.lag_days + 2))
 
             elif dep.dependency_type == DependencyType.START_TO_START:
                 if pred_es:
@@ -279,3 +283,4 @@ class SchedulingEngine:
             if normalized in ("LOW", "L"):
                 return 90
         return 50
+

@@ -41,7 +41,9 @@ def test_cpm_dependency_type_math(services):
     p = result[pred.id]
 
     fs_info = result[fs.id]
-    exp_fs_start = wc.add_working_days(p.earliest_finish, 2)
+    # FS starts on next working day after predecessor finish, then applies lag days.
+    fs_base_start = wc.next_working_day(p.earliest_finish, include_today=False)
+    exp_fs_start = wc.add_working_days(fs_base_start, 3)
     exp_fs_finish = wc.add_working_days(exp_fs_start, 2)
     assert fs_info.earliest_start == exp_fs_start
     assert fs_info.earliest_finish == exp_fs_finish
@@ -115,6 +117,29 @@ def test_gantt_data_matches_schedule_and_includes_unscheduled_tasks(services):
 
     assert by_id[t2.id].start is None
     assert by_id[t2.id].end is None
+
+
+def test_gantt_reacts_to_new_dependency_constraints(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rp = services["reporting_service"]
+    wc = services["work_calendar_engine"]
+
+    project = ps.create_project("Gantt Dependency Shift", "")
+    pid = project.id
+
+    pred = ts.create_task(pid, "Predecessor", start_date=date(2023, 11, 6), duration_days=3)
+    succ = ts.create_task(pid, "Successor", start_date=date(2023, 11, 6), duration_days=2)
+
+    before = {b.task_id: b for b in rp.get_gantt_data(pid)}
+    assert before[succ.id].start == date(2023, 11, 6)
+
+    ts.add_dependency(pred.id, succ.id, DependencyType.FINISH_TO_START, lag_days=0)
+
+    after = {b.task_id: b for b in rp.get_gantt_data(pid)}
+    expected_start = wc.next_working_day(after[pred.id].end, include_today=False)
+    assert after[succ.id].start == expected_start
+    assert after[succ.id].end == wc.add_working_days(expected_start, 2)
 
 
 def test_reporting_kpi_math_counts_duration_and_costs(services):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import time
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -136,9 +137,10 @@ class GanttPreviewDialog(QDialog):
         try:
             tmpdir = Path(tempfile.gettempdir()) / "pm_gantt_preview"
             tmpdir.mkdir(parents=True, exist_ok=True)
-            out_path = tmpdir / f"gantt_{self._project_id}.png"
+            out_path = tmpdir / f"gantt_{self._project_id}_{int(time.time() * 1000)}.png"
             generate_gantt_png(self._reporting_service, self._project_id, out_path)
-            pix = QPixmap(str(out_path))
+            pix = QPixmap()
+            pix.load(str(out_path))
             if pix.isNull():
                 self._raw_pixmap = QPixmap()
                 self.image_label.setText("Unable to load Gantt image.")

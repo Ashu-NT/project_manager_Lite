@@ -78,7 +78,8 @@ def run_backward_pass(
 
             if dep.dependency_type == DependencyType.FINISH_TO_START:
                 if succ_ls is not None:
-                    cand_lf_dates.append(calendar.add_working_days(succ_ls, -dep.lag_days))
+                    # Inverse of forward FS rule with inclusive-day calendar arithmetic.
+                    cand_lf_dates.append(calendar.add_working_days(succ_ls, -(dep.lag_days + 1)))
             elif dep.dependency_type == DependencyType.FINISH_TO_FINISH:
                 if succ_lf is not None:
                     cand_lf_dates.append(calendar.add_working_days(succ_lf, -dep.lag_days))
@@ -108,4 +109,3 @@ def run_backward_pass(
             lf[task_id] = ef[task_id]
 
     return ls, lf
-

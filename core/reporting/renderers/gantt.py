@@ -22,6 +22,7 @@ class GanttPngRenderer:
     _CRITICAL_COLOR = "#DC2626"
     _CRITICAL_PROGRESS_COLOR = "#991B1B"
     _DEFAULT_PROGRESS_COLOR = "#1D4ED8"
+    _BAR_MIN_WIDTH_DAYS = 0.6
 
     def _normalize_status(self, status: str | None) -> str:
         if not status:
@@ -44,6 +45,29 @@ class GanttPngRenderer:
         b = int(int(hex_color[4:6], 16) * ratio)
         return f"#{r:02x}{g:02x}{b:02x}"
 
+    @staticmethod
+    def _configure_timeline_axis(ax, min_start: float, max_finish: float) -> None:
+        span_days = max(1.0, max_finish - min_start)
+
+        if span_days <= 35:
+            major_interval = max(1, int(span_days // 10) or 1)
+            ax.xaxis.set_major_locator(mdates.DayLocator(interval=major_interval))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
+            ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+        elif span_days <= 160:
+            week_interval = max(1, int(span_days // 56) or 1)
+            ax.xaxis.set_major_locator(mdates.WeekdayLocator(byweekday=mdates.MO, interval=week_interval))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b"))
+            ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+        else:
+            month_interval = max(1, int(span_days // 240) or 1)
+            ax.xaxis.set_major_locator(mdates.MonthLocator(interval=month_interval))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
+            ax.xaxis.set_minor_locator(mdates.WeekdayLocator(byweekday=mdates.MO, interval=2))
+
+        ax.xaxis.set_minor_formatter(ticker.NullFormatter())
+        ax.tick_params(axis="x", labelsize=9, rotation=25)
+
     def render(self, bars: List[GanttTaskBar], output_path: Path) -> Path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         bars = [b for b in bars if b.start and b.end]
@@ -53,8 +77,16 @@ class GanttPngRenderer:
         bars.sort(key=lambda b: (b.start, b.end or b.start))
 
         names = [b.name.strip() or "<untitled>" for b in bars]
+        # Render bars as point-to-point intervals so an end date appears at its own
+        # date tick (e.g. 23 -> 25 ends at 25 on the chart).
         start_nums = [date2num(b.start) for b in bars]
-        durations = [max(1, (b.end - b.start).days + 1) for b in bars]
+        durations = [
+            max(
+                self._BAR_MIN_WIDTH_DAYS,
+                (b.end - b.start).days,
+            )
+            for b in bars
+        ]
         critical = [b.is_critical for b in bars]
         pct = [b.percent_complete or 0.0 for b in bars]
         statuses = [b.status for b in bars]
@@ -114,15 +146,8 @@ class GanttPngRenderer:
 
         min_start = min(start_nums)
         max_finish = max(s + d for s, d in zip(start_nums, durations))
-        ax.set_xlim(min_start - 2.0, max_finish + 2.0)
-
-        major_locator = mdates.MonthLocator()
-        minor_locator = mdates.WeekdayLocator(byweekday=mdates.MO)
-        ax.xaxis.set_major_locator(major_locator)
-        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
-        ax.xaxis.set_minor_locator(minor_locator)
-        ax.xaxis.set_minor_formatter(ticker.NullFormatter())
-        ax.tick_params(axis="x", labelsize=9)
+        ax.set_xlim(min_start - 1.5, max_finish + 1.5)
+        self._configure_timeline_axis(ax, min_start, max_finish)
 
         today = date.today()
         today_num = date2num(today)
@@ -139,7 +164,7 @@ class GanttPngRenderer:
         )
 
         ax.set_title("Project Gantt Schedule", fontsize=14, fontweight="bold", color="#0F172A", pad=14)
-        ax.set_xlabel("Timeline", fontsize=10, color="#475569", labelpad=8)
+        ax.set_xlabel("Timeline (Date)", fontsize=10, color="#475569", labelpad=8)
         ax.grid(True, which="major", axis="x", linestyle="-", linewidth=0.6, color="#CBD5E1", alpha=0.7)
         ax.grid(True, which="minor", axis="x", linestyle=":", linewidth=0.5, color="#E2E8F0", alpha=0.9)
         for spine in ("top", "right"):
