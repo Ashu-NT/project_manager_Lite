@@ -1,5 +1,4 @@
 # core/services/baseline_service.py
-from datetime import date
 from typing import Optional, Dict, List
 
 from sqlalchemy.orm import Session

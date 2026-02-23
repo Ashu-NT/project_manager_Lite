@@ -5,20 +5,18 @@ from typing import Optional
 
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton,
     QTableView, QDialog, QFormLayout, QLineEdit, QTextEdit, QDateEdit,
     QSpinBox, QDoubleSpinBox, QDialogButtonBox, QCheckBox, QMessageBox,
     QInputDialog
 )
 from PySide6.QtCore import QDate
 
-from core.services.project_service import ProjectService
 from core.services.project_resource_service import ProjectResourceService
 from core.services.task_service import TaskService
 from core.services.resource_service import ResourceService
 from core.exceptions import ValidationError, BusinessRuleError, NotFoundError
 from core.models import Task, TaskStatus, DependencyType
-from ui.styles.style_utils import style_table
 from ui.styles.formatting import fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
 from core.events.domain_events import domain_events

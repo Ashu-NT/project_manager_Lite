@@ -4,19 +4,15 @@ from typing import Optional
 from datetime import date
 
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex,QDate
-from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QComboBox, QPushButton,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton,
     QTableView, QTableWidget, QTableWidgetItem, QDialog, QFormLayout, QTextEdit, QDoubleSpinBox,
-    QDialogButtonBox, QMessageBox, QDateEdit, QGroupBox
+    QDialogButtonBox, QMessageBox, QDateEdit
 )
 
-from core.services.project_service import ProjectService
 from core.services.task_service import TaskService
-from core.services.cost_service import CostService
 from core.services.reporting_service import ReportingService
 from core.services.resource_service import ResourceService
-from core.exceptions import ValidationError, NotFoundError
 from core.models import Project, Task, CostItem  , CostType, Resource
 
 from ui.styles.formatting import fmt_currency, currency_symbol_from_code

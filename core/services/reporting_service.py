@@ -1,6 +1,6 @@
 # core/services/reporting_service.py
 from __future__ import annotations
-from datetime import date, timedelta
+from datetime import date
 from typing import List, Dict, Optional, Tuple
 
 import calendar
