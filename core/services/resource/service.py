@@ -10,6 +10,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_CURRENCY_CODE = "EUR"
+
 class ResourceService:
     def __init__(self, session: Session, 
                  resource_repo: ResourceRepository, 
@@ -32,13 +34,14 @@ class ResourceService:
     ) -> Resource:
         if not name or not name.strip():
             raise ValidationError("Resource name cannot be empty.")
+        resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
         resource = Resource.create(
             name=name.strip(),
             role=role.strip(),
             hourly_rate=hourly_rate,
             is_active=is_active,
             cost_type=cost_type,
-            currency_code=currency_code,
+            currency_code=resolved_currency,
         )
         try:
             self._resource_repo.add(resource)
@@ -79,7 +82,7 @@ class ResourceService:
         if cost_type is not None:
             resource.cost_type = cost_type
         if currency_code is not None:
-            resource.currency_code = currency_code
+            resource.currency_code = currency_code.strip().upper() or None
 
         try:
             self._resource_repo.update(resource)

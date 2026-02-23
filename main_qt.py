@@ -1,5 +1,6 @@
 # main_qt.py
 import sys
+import os
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont, QIcon
 from infra.resource import resource_path
@@ -40,7 +41,7 @@ def main():
 
     # 2) Global stylesheet (QSS)
     from ui.styles.theme import apply_app_style
-    apply_app_style(app)
+    apply_app_style(app, mode=os.getenv("PM_THEME", "light"))
    
     services = build_services()
     window = MainWindow(services)

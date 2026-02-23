@@ -75,6 +75,7 @@ class ResourceEditDialog(QDialog):
                 self.currency_combo.setCurrentText(resource.currency_code)
             self.active_check.setChecked(getattr(resource, "is_active", True))
         else:
+            self.currency_combo.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
             self.active_check.setChecked(True)
 
         form = QFormLayout()

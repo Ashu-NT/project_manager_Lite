@@ -121,7 +121,11 @@ class ProjectEditDialog(QDialog):
             self.start_date_edit.setDate(today)
             self.end_date_edit.setDate(today)
             self.status_combo.setCurrentIndex(0)
-            self.currency_combo.setCurrentIndex(1)
+            idx = self.currency_combo.findText(CFG.DEFAULT_CURRENCY_CODE)
+            if idx >= 0:
+                self.currency_combo.setCurrentIndex(idx)
+            else:
+                self.currency_combo.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
 
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)

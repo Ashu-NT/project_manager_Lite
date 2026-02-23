@@ -1,8 +1,11 @@
 from datetime import date
+from pathlib import Path
 
 from core.exceptions import NotFoundError
 from infra.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
 from ui.styles.theme import base_stylesheet
+from ui.styles.theme import set_theme_mode
+from ui.styles.ui_config import UIConfig as CFG
 
 
 def test_cost_summary_has_legacy_and_normalized_keys(services):
@@ -130,3 +133,35 @@ def test_base_stylesheet_contains_calendar_overrides():
     css = base_stylesheet()
     assert "QCalendarWidget QTableView::item" in css
     assert "padding: 0px;" in css
+    assert "QTableView::item:focus" in css
+    assert "border: 2px solid" in css
+
+
+def test_dark_theme_mode_updates_tokens_and_stylesheet():
+    set_theme_mode("dark")
+    css_dark = base_stylesheet()
+    assert CFG.COLOR_BG_APP == "#0B1220"
+    assert CFG.COLOR_BG_APP in css_dark
+
+    set_theme_mode("light")
+    css_light = base_stylesheet()
+    assert CFG.COLOR_BG_APP == "#F4F7FB"
+    assert CFG.COLOR_BG_APP in css_light
+
+
+def test_main_window_wires_theme_switcher():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "main_window.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "self.theme_combo = QComboBox()" in text
+    assert "def _on_theme_changed" in text
+    assert "apply_app_style(app, mode=mode)" in text
+
+
+def test_style_table_has_auto_fit_and_stronger_grid():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "styles" / "style_utils.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "def _fit_table_columns" in text
+    assert "table.setShowGrid(True)" in text
+    assert "_bind_auto_fit_signals(table)" in text

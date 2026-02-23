@@ -100,6 +100,17 @@ class CostEditDialog(QDialog):
                     if self.type_combo.itemData(i) == cost_item.cost_type:
                         self.type_combo.setCurrentIndex(i)
                         break
+            if getattr(cost_item, "currency_code", None):
+                self.currency_combo.setCurrentText(str(cost_item.currency_code).upper())
+            elif getattr(self._project, "currency", None):
+                self.currency_combo.setCurrentText(str(self._project.currency).upper())
+            else:
+                self.currency_combo.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
+        else:
+            if getattr(self._project, "currency", None):
+                self.currency_combo.setCurrentText(str(self._project.currency).upper())
+            else:
+                self.currency_combo.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
 
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)

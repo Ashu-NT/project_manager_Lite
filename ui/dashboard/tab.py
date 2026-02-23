@@ -179,10 +179,10 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         kpi_layout.setSpacing(CFG.SPACING_SM)
 
         self.kpi_tasks = KpiCard("Tasks", "0 / 0", "Completed / Total")
-        self.kpi_critical = KpiCard("Critical tasks", "0", "", "#f5a623")
-        self.kpi_late = KpiCard("Late tasks", "0", "", "#d0021b")
-        self.kpi_cost = KpiCard("Cost variance", "0.00", "Actual - Planned", "#4a90e2")
-        self.kpi_progress = KpiCard("% complete", "0%", "", "#7ed321")
+        self.kpi_critical = KpiCard("Critical tasks", "0", "", CFG.COLOR_WARNING)
+        self.kpi_late = KpiCard("Late tasks", "0", "", CFG.COLOR_DANGER)
+        self.kpi_cost = KpiCard("Cost variance", "0.00", "Actual - Planned", CFG.COLOR_ACCENT)
+        self.kpi_progress = KpiCard("% complete", "0%", "", CFG.COLOR_SUCCESS)
 
         kpi_layout.addWidget(self.kpi_tasks)
         kpi_layout.addWidget(self.kpi_critical)

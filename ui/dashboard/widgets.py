@@ -15,7 +15,7 @@ class KpiCard(QWidget):
         title: str,
         value: str,
         subtitle: str = "",
-        color: str = "#4a90e2",
+        color: str = CFG.COLOR_ACCENT,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)

@@ -8,6 +8,9 @@ from core.interfaces import CostRepository, ProjectRepository, TaskRepository
 from core.exceptions import NotFoundError, ValidationError
 from core.events.domain_events import domain_events
 
+DEFAULT_CURRENCY_CODE = "EUR"
+
+
 class CostService:
     def __init__(
         self,
@@ -50,7 +53,7 @@ class CostService:
         
         if incurred_date is not None and not isinstance(incurred_date, date):
             raise ValidationError("Incurred date must be a valid date.")
-        
+        resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
 
         cost_item = CostItem.create(
             project_id=project_id,
@@ -61,7 +64,7 @@ class CostService:
             actual_amount=actual_amount,
             cost_type=cost_type,
             incurred_date=incurred_date,
-            currency_code = currency_code
+            currency_code=resolved_currency,
         )
 
         try:

@@ -82,7 +82,7 @@ class UIConfig:
     MIN_WIDTH = 800
     MIN_HEIGHT = 500
     MIN_GANTT_WIDTH = 1200
-    MIN_GANTT_HEIGHT = 800
+    MIN_GANTT_HEIGHT = 700
     MIN_ASSIGNMENTS_WIDTH = 600
     MIN_DEPENDENCIES_WIDTH = 600
 
@@ -139,6 +139,8 @@ class UIConfig:
     # =====================
     # Numeric inputs
     # =====================
+    DEFAULT_CURRENCY_CODE = CurrencyType.EUR.value
+
     MONEY_DECIMALS = 2
     MONEY_STEP = 100.0
     MONEY_MIN = 0.0

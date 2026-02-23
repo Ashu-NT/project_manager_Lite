@@ -4,6 +4,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import (
     QDialog,
+    QHeaderView,
     QHBoxLayout,
     QMessageBox,
     QPushButton,
@@ -71,8 +72,16 @@ class ResourceTab(QWidget):
         self.table.setSelectionBehavior(QTableView.SelectRows)
         self.table.setSelectionMode(QTableView.SingleSelection)
         self.table.setEditTriggers(QTableView.NoEditTriggers)
-        self.table.horizontalHeader().setStretchLastSection(True)
         style_table(self.table)
+        hh = self.table.horizontalHeader()
+        hh.setStretchLastSection(False)
+        hh.setSectionResizeMode(0, QHeaderView.Stretch)
+        hh.setSectionResizeMode(1, QHeaderView.Interactive)
+        hh.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        hh.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        hh.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        hh.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        hh.resizeSection(1, 180)
         layout.addWidget(self.table)
 
         self.btn_reload_resources.clicked.connect(self.reload_resources)

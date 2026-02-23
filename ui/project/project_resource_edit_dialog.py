@@ -142,6 +142,7 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
             self._chk_active.setChecked(bool(getattr(pr, "is_active", True)))
         else:
             self._chk_active.setChecked(True)
+            self._cmb_currency.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
 
     def _apply_resource_defaults(self):
         rid = self._cmb_resource.currentData()
@@ -156,7 +157,7 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
             self._spn_rate.setValue(0.0)
 
         if not getattr(self, "_currency_touched", False):
-            default_cur = (getattr(res, "currency_code", "") or "").upper()
+            default_cur = (getattr(res, "currency_code", "") or CFG.DEFAULT_CURRENCY_CODE).upper()
             idx = self._cmb_currency.findText(default_cur)
             if idx >= 0:
                 self._cmb_currency.setCurrentIndex(idx)
@@ -187,7 +188,7 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
         if getattr(self, "_currency_touched", False) and cur_txt:
             cur = cur_txt
         else:
-            cur = (getattr(res, "currency_code", None) or "")
+            cur = (getattr(res, "currency_code", None) or CFG.DEFAULT_CURRENCY_CODE)
             cur = cur.upper() if cur else None
 
         planned_hours = float(self._spn_planned_hours.value() or 0.0)

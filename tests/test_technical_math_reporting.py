@@ -127,6 +127,7 @@ def test_reporting_kpi_math_counts_duration_and_costs(services):
         "KPI Math",
         start_date=date(2023, 11, 6),
         end_date=date(2023, 11, 10),
+        currency="USD",
     )
     pid = project.id
 

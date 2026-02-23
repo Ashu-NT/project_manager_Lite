@@ -13,6 +13,9 @@ from core.interfaces import (
 )
 from core.events.domain_events import domain_events
 
+DEFAULT_CURRENCY_CODE = "EUR"
+
+
 class ProjectResourceService:
     """
     Manages project-specific resource membership and overrides.
@@ -77,11 +80,15 @@ class ProjectResourceService:
         if planned_hours < 0:
             raise BusinessRuleError("planned_hours cannot be negative.", code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID")
 
+        resolved_currency = (currency_code or getattr(res, "currency_code", None) or "").strip().upper()
+        if not resolved_currency:
+            resolved_currency = DEFAULT_CURRENCY_CODE
+
         pr = ProjectResource.create(
             project_id=project_id,
             resource_id=resource_id,
             hourly_rate=hourly_rate,
-            currency_code=currency_code,
+            currency_code=resolved_currency,
             planned_hours=planned_hours,
             is_active=is_active,
         )
@@ -111,8 +118,9 @@ class ProjectResourceService:
         if planned_hours < 0:
             raise BusinessRuleError("planned_hours cannot be negative.", code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID")
 
+        resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
         pr.hourly_rate = hourly_rate
-        pr.currency_code = currency_code
+        pr.currency_code = resolved_currency
         pr.planned_hours = planned_hours
         pr.is_active = is_active
 

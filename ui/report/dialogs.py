@@ -4,10 +4,11 @@ import tempfile
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QResizeEvent
+from PySide6.QtGui import QBrush, QColor, QPixmap, QResizeEvent
 from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -15,12 +16,79 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
+    QWidget,
     QHeaderView,
 )
 
 from core.reporting.api import generate_gantt_png
 from core.services.reporting import ReportingService
+from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
+
+
+def _metric_card(title: str, value: str, subtitle: str = "", color: str | None = None) -> QWidget:
+    card = QWidget()
+    card.setStyleSheet(
+        f"""
+        QWidget {{
+            background-color: {CFG.COLOR_BG_SURFACE};
+            border: 1px solid {CFG.COLOR_BORDER};
+            border-radius: 10px;
+        }}
+        """
+    )
+    layout = QVBoxLayout(card)
+    layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
+    layout.setSpacing(2)
+
+    lbl_title = QLabel(title)
+    lbl_title.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+    lbl_value = QLabel(value)
+    lbl_value.setStyleSheet(
+        CFG.DASHBOARD_KPI_VALUE_TEMPLATE.format(color=color or CFG.COLOR_TEXT_PRIMARY)
+    )
+    lbl_sub = QLabel(subtitle)
+    lbl_sub.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+    lbl_sub.setWordWrap(True)
+    lbl_sub.setVisible(bool(subtitle))
+
+    layout.addWidget(lbl_title)
+    layout.addWidget(lbl_value)
+    layout.addWidget(lbl_sub)
+    layout.addStretch()
+    return card
+
+
+def _section_group(title: str, rows: list[tuple[str, str]]) -> QGroupBox:
+    group = QGroupBox(title)
+    group.setFont(CFG.GROUPBOX_TITLE_FONT)
+
+    form = QFormLayout(group)
+    form.setLabelAlignment(CFG.ALIGN_LEFT | CFG.ALIGN_CENTER)
+    form.setFormAlignment(CFG.ALIGN_TOP)
+    form.setHorizontalSpacing(CFG.SPACING_MD)
+    form.setVerticalSpacing(CFG.SPACING_SM)
+    form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+    form.setRowWrapPolicy(QFormLayout.DontWrapRows)
+
+    for label, value in rows:
+        v = QLabel(value)
+        v.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        form.addRow(label, v)
+
+    return group
+
+
+def _setup_dialog_size(dialog: QDialog, min_width: int, min_height: int, width: int, height: int) -> None:
+    dialog.setMinimumWidth(min_width)
+    dialog.setMinimumHeight(min_height)
+    dialog.resize(width, height)
+
+
+def _soft_brush(hex_color: str, alpha: int) -> QBrush:
+    color = QColor(hex_color)
+    color.setAlpha(max(0, min(alpha, 255)))
+    return QBrush(color)
 
 
 class KPIReportDialog(QDialog):
@@ -36,57 +104,104 @@ class KPIReportDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
-        self.setMinimumSize(self.sizeHint())
+        _setup_dialog_size(self, 860, 540, 980, 680)
 
-        title = QLabel(f"Project: {kpi.name}")
+        title = QLabel(f"Project KPIs - {kpi.name}")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
         layout.addWidget(title)
 
-        schedule_label = QLabel("Schedule")
-        schedule_label.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(schedule_label)
-        schedule_form = QFormLayout()
-        schedule_form.addRow("Start date:", QLabel(kpi.start_date.isoformat() if kpi.start_date else "-"))
-        schedule_form.addRow("End date:", QLabel(kpi.end_date.isoformat() if kpi.end_date else "-"))
-        schedule_form.addRow("Duration (working days):", QLabel(str(kpi.duration_working_days)))
-        layout.addLayout(schedule_form)
+        subtitle = QLabel(
+            "Snapshot of schedule, task execution, and cost performance for this project."
+        )
+        subtitle.setWordWrap(True)
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        layout.addWidget(subtitle)
 
-        tasks_label = QLabel("Tasks")
-        tasks_label.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(tasks_label)
-        tasks_form = QFormLayout()
-        tasks_form.addRow("Total tasks:", QLabel(str(kpi.tasks_total)))
-        tasks_form.addRow("Completed:", QLabel(str(kpi.tasks_completed)))
-        tasks_form.addRow("In progress:", QLabel(str(kpi.tasks_in_progress)))
-        tasks_form.addRow("Not started:", QLabel(str(kpi.tasks_not_started)))
-        tasks_form.addRow("Critical tasks:", QLabel(str(kpi.critical_tasks)))
-        tasks_form.addRow("Late tasks:", QLabel(str(kpi.late_tasks)))
-        layout.addLayout(tasks_form)
+        completion_pct = (100.0 * kpi.tasks_completed / kpi.tasks_total) if kpi.tasks_total else 0.0
+        variance_color = CFG.COLOR_DANGER if kpi.cost_variance > 0 else CFG.COLOR_SUCCESS
 
-        cost_label = QLabel("Cost")
-        cost_label.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(cost_label)
-        cost_form = QFormLayout()
-        cost_form.addRow("Planned cost:", QLabel(f"{kpi.total_planned_cost:.2f}"))
-        cost_form.addRow("Actual cost:", QLabel(f"{kpi.total_actual_cost:.2f}"))
-        cost_form.addRow("Cost variance:", QLabel(f"{kpi.cost_variance:.2f}"))
-        layout.addLayout(cost_form)
+        cards_row = QHBoxLayout()
+        cards_row.setSpacing(CFG.SPACING_SM)
+        cards_row.addWidget(
+            _metric_card(
+                "Task Completion",
+                f"{completion_pct:.1f}%",
+                f"{kpi.tasks_completed} done / {kpi.tasks_total} total",
+                CFG.COLOR_ACCENT,
+            )
+        )
+        cards_row.addWidget(
+            _metric_card(
+                "Critical Tasks",
+                str(kpi.critical_tasks),
+                "Tasks with zero total float",
+                CFG.COLOR_WARNING,
+            )
+        )
+        cards_row.addWidget(
+            _metric_card(
+                "Late Tasks",
+                str(kpi.late_tasks),
+                "Tasks currently behind schedule",
+                CFG.COLOR_DANGER,
+            )
+        )
+        cards_row.addWidget(
+            _metric_card(
+                "Cost Variance",
+                f"{kpi.cost_variance:.2f}",
+                "Actual - Planned",
+                variance_color,
+            )
+        )
+        layout.addLayout(cards_row)
+
+        details_row = QHBoxLayout()
+        details_row.setSpacing(CFG.SPACING_SM)
+        details_row.addWidget(
+            _section_group(
+                "Schedule",
+                [
+                    ("Start date:", kpi.start_date.isoformat() if kpi.start_date else "-"),
+                    ("End date:", kpi.end_date.isoformat() if kpi.end_date else "-"),
+                    (
+                        "Duration (working days):",
+                        str(kpi.duration_working_days) if kpi.duration_working_days is not None else "-",
+                    ),
+                ],
+            )
+        )
+        details_row.addWidget(
+            _section_group(
+                "Task Breakdown",
+                [
+                    ("Total tasks:", str(kpi.tasks_total)),
+                    ("Completed:", str(kpi.tasks_completed)),
+                    ("In progress:", str(kpi.tasks_in_progress)),
+                    ("Blocked:", str(kpi.task_blocked)),
+                    ("Not started:", str(kpi.tasks_not_started)),
+                ],
+            )
+        )
+        details_row.addWidget(
+            _section_group(
+                "Cost Overview",
+                [
+                    ("Planned:", f"{kpi.total_planned_cost:.2f}"),
+                    ("Committed:", f"{kpi.total_committed_cost:.2f}"),
+                    ("Actual:", f"{kpi.total_actual_cost:.2f}"),
+                    ("Variance:", f"{kpi.cost_variance:.2f}"),
+                ],
+            )
+        )
+        layout.addLayout(details_row)
 
         hint = QLabel(
-            "Tip: Use the Excel/PDF export buttons on the Reports tab "
-            "to share detailed reports including Gantt and resource load."
+            "Use Excel/PDF exports from the Reports tab when you need printable reporting packages."
         )
         hint.setWordWrap(True)
-        hint.setStyleSheet(f"{CFG.INFO_TEXT_STYLE} margin-top: 8px;")
+        hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
         layout.addWidget(hint)
-
-        for form in [schedule_form, tasks_form, cost_form]:
-            form.setLabelAlignment(CFG.ALIGN_LEFT | CFG.ALIGN_CENTER)
-            form.setFormAlignment(CFG.ALIGN_TOP)
-            form.setHorizontalSpacing(CFG.SPACING_MD)
-            form.setVerticalSpacing(CFG.SPACING_SM)
-            form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-            form.setRowWrapPolicy(QFormLayout.DontWrapRows)
 
         btn_close = QPushButton(CFG.CLOSE_BUTTON_LABEL)
         btn_close.setMinimumHeight(CFG.BUTTON_HEIGHT)
@@ -114,9 +229,7 @@ class GanttPreviewDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
-        self.setMinimumSize(self.sizeHint())
-        self.setMinimumWidth(CFG.MIN_GANTT_WIDTH)
-        self.setMinimumHeight(CFG.MIN_GANTT_HEIGHT)
+        _setup_dialog_size(self, 920, 520, 1220, 720)
 
         title = QLabel(f"Gantt Timeline - {self._project_name}")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
@@ -266,32 +379,79 @@ class CriticalPathDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
-        self.setMinimumSize(self.sizeHint())
-        self.setMinimumWidth(CFG.MIN_WIDTH)
-        self.setMinimumHeight(CFG.MIN_HEIGHT)
+        _setup_dialog_size(self, 920, 520, 1120, 680)
 
-        info_label = QLabel("These tasks are on the critical path. Delays here will delay the whole project.")
+        title = QLabel(f"Critical Path - {self._project_name}")
+        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        layout.addWidget(title)
+
+        info_label = QLabel(
+            "These tasks define the minimum project duration. "
+            "Delay on any of them typically delays the entire project."
+        )
         info_label.setWordWrap(True)
+        info_label.setStyleSheet(CFG.INFO_TEXT_STYLE)
         layout.addWidget(info_label)
 
         critical = self._reporting_service.get_critical_path(self._project_id)
+        if critical:
+            starts = [item.earliest_start for item in critical if item.earliest_start]
+            finishes = [item.earliest_finish for item in critical if item.earliest_finish]
+            if starts and finishes:
+                summary = (
+                    f"Critical tasks: {len(critical)} | "
+                    f"Path span: {min(starts).isoformat()} to {max(finishes).isoformat()}"
+                )
+            else:
+                summary = f"Critical tasks: {len(critical)}"
+        else:
+            summary = "No critical tasks identified."
+        summary_label = QLabel(summary)
+        summary_label.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+        layout.addWidget(summary_label)
+
         table = QTableWidget(len(critical), len(CFG.CRITICAL_PATH_HEADERS))
         table.setHorizontalHeaderLabels(CFG.CRITICAL_PATH_HEADERS)
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        style_table(table)
+        table.setSortingEnabled(True)
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        for col in range(1, len(CFG.CRITICAL_PATH_HEADERS)):
+            table.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeToContents)
 
         for row, item in enumerate(critical):
             task = item.task
             start = item.earliest_start
             finish = item.earliest_finish
             dur = (finish - start).days + 1 if (start and finish) else None
-            table.setItem(row, 0, QTableWidgetItem(task.name))
-            table.setItem(row, 1, QTableWidgetItem(start.isoformat() if start else "-"))
-            table.setItem(row, 2, QTableWidgetItem(finish.isoformat() if finish else "-"))
-            table.setItem(row, 3, QTableWidgetItem(str(dur) if dur is not None else "-"))
-            table.setItem(row, 4, QTableWidgetItem(str(item.total_float_days)))
-            table.setItem(row, 5, QTableWidgetItem(getattr(task.status, "value", str(task.status))))
+            status_text = str(getattr(task.status, "value", task.status or "-")).replace("_", " ").title()
+
+            cells = [
+                QTableWidgetItem(task.name),
+                QTableWidgetItem(start.isoformat() if start else "-"),
+                QTableWidgetItem(finish.isoformat() if finish else "-"),
+                QTableWidgetItem(str(dur) if dur is not None else "-"),
+                QTableWidgetItem(str(item.total_float_days)),
+                QTableWidgetItem(status_text),
+            ]
+            cells[3].setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            cells[4].setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            for col, cell in enumerate(cells):
+                table.setItem(row, col, cell)
+
+            row_bg = _soft_brush(CFG.COLOR_DANGER, 34)
+            for col in range(len(cells)):
+                table.item(row, col).setBackground(row_bg)
+
+        if not critical:
+            table.setRowCount(1)
+            msg = QTableWidgetItem("No critical tasks to display.")
+            msg.setForeground(QBrush(QColor(CFG.COLOR_TEXT_MUTED)))
+            table.setItem(0, 0, msg)
+            for col in range(1, len(CFG.CRITICAL_PATH_HEADERS)):
+                table.setItem(0, col, QTableWidgetItem(""))
 
         layout.addWidget(table)
+
         btn_close = QPushButton(CFG.CLOSE_BUTTON_LABEL)
         btn_close.setMinimumHeight(CFG.BUTTON_HEIGHT)
         btn_close.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
@@ -315,34 +475,101 @@ class ResourceLoadDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
-        self.setMinimumSize(self.sizeHint())
-        self.setMinimumWidth(CFG.MIN_WIDTH)
-        self.setMinimumHeight(CFG.MIN_HEIGHT)
+        _setup_dialog_size(self, 900, 520, 1080, 660)
+
+        title = QLabel(f"Resource Load - {self._project_name}")
+        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        layout.addWidget(title)
 
         info = QLabel(
-            "Overview of resource allocation in this project.\n"
-            "Values above 100% indicate potential overload."
+            "Capacity overview by resource. "
+            "Values above 100% indicate over-allocation risk."
         )
         info.setWordWrap(True)
+        info.setStyleSheet(CFG.INFO_TEXT_STYLE)
         layout.addWidget(info)
 
         rows = self._reporting_service.get_resource_load_summary(self._project_id)
-        table = QTableWidget(len(rows), 3)
-        table.setHorizontalHeaderLabels(CFG.RESOURCE_LOAD_HEADERS)
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        overloaded = [r for r in rows if r.total_allocation_percent > 100.0]
+        avg_load = (
+            sum(r.total_allocation_percent for r in rows) / len(rows) if rows else 0.0
+        )
+
+        cards_row = QHBoxLayout()
+        cards_row.setSpacing(CFG.SPACING_SM)
+        cards_row.addWidget(
+            _metric_card(
+                "Resources",
+                str(len(rows)),
+                "Assigned in current project",
+                CFG.COLOR_ACCENT,
+            )
+        )
+        cards_row.addWidget(
+            _metric_card(
+                "Overloaded",
+                str(len(overloaded)),
+                "Above 100% allocation",
+                CFG.COLOR_DANGER,
+            )
+        )
+        cards_row.addWidget(
+            _metric_card(
+                "Average Load",
+                f"{avg_load:.1f}%",
+                "Across assigned resources",
+                CFG.COLOR_WARNING,
+            )
+        )
+        layout.addLayout(cards_row)
+
+        headers = ["Resource", "Total Allocation (%)", "Tasks", "Status"]
+        table = QTableWidget(len(rows), len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        style_table(table)
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        table.setSortingEnabled(True)
 
         for i, row in enumerate(rows):
             name_item = QTableWidgetItem(row.resource_name)
             name_item.setToolTip(f"Resource ID: {row.resource_id}")
-            table.setItem(i, 0, name_item)
+            alloc_item = QTableWidgetItem(f"{row.total_allocation_percent:.1f}%")
+            alloc_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            tasks_item = QTableWidgetItem(str(row.tasks_count))
+            tasks_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-            alloc_item = QTableWidgetItem(f"{row.total_allocation_percent:.1f}")
-            if row.total_allocation_percent > 100.0:
-                alloc_item.setForeground(Qt.red)
+            if row.total_allocation_percent > 120.0:
+                status_text, fg, row_bg = "Overloaded", CFG.COLOR_DANGER, _soft_brush(CFG.COLOR_DANGER, 34)
+            elif row.total_allocation_percent > 100.0:
+                status_text, fg, row_bg = "Risk", CFG.COLOR_WARNING, _soft_brush(CFG.COLOR_WARNING, 34)
+            elif row.total_allocation_percent >= 80.0:
+                status_text, fg, row_bg = "High", CFG.COLOR_ACCENT, _soft_brush(CFG.COLOR_ACCENT, 32)
+            else:
+                status_text, fg, row_bg = "Balanced", CFG.COLOR_SUCCESS, _soft_brush(CFG.COLOR_SUCCESS, 32)
+
+            status_item = QTableWidgetItem(status_text)
+            status_item.setForeground(QBrush(QColor(fg)))
+            alloc_item.setForeground(QBrush(QColor(fg)))
+
+            table.setItem(i, 0, name_item)
             table.setItem(i, 1, alloc_item)
-            table.setItem(i, 2, QTableWidgetItem(str(row.tasks_count)))
+            table.setItem(i, 2, tasks_item)
+            table.setItem(i, 3, status_item)
+
+            for col in range(len(headers)):
+                table.item(i, col).setBackground(row_bg)
+
+        if not rows:
+            table.setRowCount(1)
+            table.setItem(0, 0, QTableWidgetItem("No resource assignments for this project."))
+            for col in range(1, len(headers)):
+                table.setItem(0, col, QTableWidgetItem(""))
 
         layout.addWidget(table)
+
         btn_close = QPushButton(CFG.CLOSE_BUTTON_LABEL)
         btn_close.setMinimumHeight(CFG.BUTTON_HEIGHT)
         btn_close.setSizePolicy(CFG.BTN_FIXED_HEIGHT)

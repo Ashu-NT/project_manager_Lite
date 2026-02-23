@@ -17,6 +17,8 @@ import logging
 from core.events.domain_events import domain_events
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_CURRENCY_CODE = "EUR"
     
 class ProjectService:
     def __init__(
@@ -59,13 +61,14 @@ class ProjectService:
         end_date: date | None = None,
         ) -> Project:
         self._validate_project_name(name)
+        resolved_currency = (currency or "").strip().upper() or DEFAULT_CURRENCY_CODE
         project = Project.create(
             name=name.strip(), 
             description=description.strip(),
             client_name=(client_name or "").strip() or None,
             client_contact=(client_contact or "").strip() or None,
             planned_budget=planned_budget,  
-            currency=(currency or "").strip() or None,
+            currency=resolved_currency,
             start_date=start_date,  
             end_date=end_date,
         )
@@ -163,7 +166,7 @@ class ProjectService:
             project.planned_budget = planned_budget
             
         if currency is not None:
-            project.currency = currency.strip() or None
+            project.currency = currency.strip().upper() or None
         
         try:
             self._project_repo.update(project)
