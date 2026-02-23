@@ -141,9 +141,19 @@ def test_dashboard_tab_is_coordinator_only():
 
     assert "from ui.dashboard.data_ops import" in text
     assert "from ui.dashboard.rendering import" in text
+    assert "from ui.dashboard.styles import" in text
     assert "from ui.dashboard.widgets import" in text
     assert "class KpiCard" not in text
     assert "class ChartWidget" not in text
+
+
+def test_dashboard_tab_uses_splitter_layout_for_right_side_charts():
+    tab_path = ROOT / "ui" / "dashboard" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "self.main_splitter = QSplitter(Qt.Horizontal)" in text
+    assert "self.chart_splitter = QSplitter(Qt.Vertical)" in text
+    assert "self.main_splitter.addWidget(right_panel)" in text
 
 
 def test_dashboard_rendering_module_is_facade_only():
@@ -156,6 +166,14 @@ def test_dashboard_rendering_module_is_facade_only():
     assert "def _update_kpis" not in text
     assert "def _update_burndown_chart" not in text
     assert "def _update_evm" not in text
+
+
+def test_dashboard_summary_rendering_avoids_widget_index_lookups():
+    summary_path = ROOT / "ui" / "dashboard" / "rendering_summary.py"
+    text = summary_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "findChildren(" not in text
+    assert ".set_value(" in text
 
 
 def test_resource_tab_is_coordinator_only():

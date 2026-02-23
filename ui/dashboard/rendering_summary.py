@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel
-
 from core.services.dashboard import DashboardData
 from ui.styles.formatting import fmt_float, fmt_int, fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
@@ -17,19 +15,16 @@ class DashboardSummaryRenderingMixin:
         self.burndown_chart.redraw()
         self.resource_chart.redraw()
 
-        try:
-            self.kpi_tasks.findChildren(QLabel)[1].setText("0 / 0")
-            self.kpi_tasks.findChildren(QLabel)[2].setText("Completed / Total")
-            self.kpi_critical.findChildren(QLabel)[1].setText("0")
-            self.kpi_late.findChildren(QLabel)[1].setText("0")
-            self.kpi_cost.findChildren(QLabel)[1].setText("0.00")
-            self.kpi_cost.findChildren(QLabel)[2].setText("Actual - Planned")
-            self.kpi_progress.findChildren(QLabel)[1].setText("0%")
-        except Exception:
-            pass
+        self.kpi_tasks.set_value("0 / 0")
+        self.kpi_tasks.set_subtitle("Completed / Total")
+        self.kpi_critical.set_value("0")
+        self.kpi_late.set_value("0")
+        self.kpi_cost.set_value("0.00")
+        self.kpi_cost.set_subtitle("Actual - Planned")
+        self.kpi_progress.set_value("0%")
 
         if hasattr(self, "project_title_lbl"):
-            self.project_title_lbl.setText("")
+            self.project_title_lbl.setText("Select a project to see schedule and cost health.")
             self.project_meta_start.setText("")
             self.project_meta_end.setText("")
             self.project_meta_duration.setText("")
@@ -69,24 +64,17 @@ class DashboardSummaryRenderingMixin:
 
     def _update_kpis(self, data: DashboardData):
         k = data.kpi
-        tasks_value = self.kpi_tasks.findChildren(QLabel)[1]
-        tasks_sub = self.kpi_tasks.findChildren(QLabel)[2]
-        tasks_value.setText(f"{fmt_int(k.tasks_completed)} / {fmt_int(k.tasks_total)}")
-        tasks_sub.setText("Completed / Total")
+        self.kpi_tasks.set_value(f"{fmt_int(k.tasks_completed)} / {fmt_int(k.tasks_total)}")
+        self.kpi_tasks.set_subtitle("Completed / Total")
 
-        crit_value = self.kpi_critical.findChildren(QLabel)[1]
-        crit_value.setText(fmt_int(k.critical_tasks))
+        self.kpi_critical.set_value(fmt_int(k.critical_tasks))
 
-        late_value = self.kpi_late.findChildren(QLabel)[1]
-        late_value.setText(fmt_int(k.late_tasks))
+        self.kpi_late.set_value(fmt_int(k.late_tasks))
 
-        cost_value = self.kpi_cost.findChildren(QLabel)[1]
-        cost_sub = self.kpi_cost.findChildren(QLabel)[2]
-        cost_value.setText(f"{fmt_float(k.cost_variance,2)}")
-        cost_sub.setText("Actual - Planned")
+        self.kpi_cost.set_value(f"{fmt_float(k.cost_variance,2)}")
+        self.kpi_cost.set_subtitle("Actual - Planned")
 
         pct = 0.0
         if k.tasks_total > 0:
             pct = 100.0 * k.tasks_completed / k.tasks_total
-        prog_value = self.kpi_progress.findChildren(QLabel)[1]
-        prog_value.setText(f"{fmt_percent(pct,2)}")
+        self.kpi_progress.set_value(f"{fmt_percent(pct,2)}")

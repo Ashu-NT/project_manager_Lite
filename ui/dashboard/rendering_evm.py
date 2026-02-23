@@ -37,7 +37,9 @@ class DashboardEvmRenderingMixin:
             self.evm_forecast_summary,
             self.evm_TCPI_summary,
         ):
-            lbl.setStyleSheet("font-size: 10pt; color: #333333;")
+            lbl.setStyleSheet(
+                f"font-size: 10pt; color: {CFG.COLOR_TEXT_PRIMARY};"
+            )
             lbl.setWordWrap(False)
             lbl.setTextFormat(Qt.RichText)
             lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -46,7 +48,9 @@ class DashboardEvmRenderingMixin:
         self.evm_summary_bar.setTextFormat(Qt.RichText)
         self.evm_summary_bar.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.evm_summary_bar.setWordWrap(False)
-        self.evm_summary_bar.setStyleSheet("font-size: 10pt; color: #444444;")
+        self.evm_summary_bar.setStyleSheet(
+            f"font-size: 10pt; color: {CFG.COLOR_TEXT_SECONDARY};"
+        )
 
         grid.addWidget(self.evm_hint, 0, 0, 1, 10)
         grid.addWidget(self.evm_summary_bar, 1, 0, 1, 10)
@@ -111,20 +115,20 @@ class DashboardEvmRenderingMixin:
             lbl.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
 
         box.setStyleSheet(
-            """
-            QGroupBox {
-                background-color: #ffffff;
+            f"""
+            QGroupBox {{
+                background-color: {CFG.COLOR_BG_SURFACE};
                 border-radius: 10px;
-                border: 1px solid #e0e0e0;
+                border: 1px solid {CFG.COLOR_BORDER};
                 margin-top: 8px;
-            }
-            QGroupBox:title {
+            }}
+            QGroupBox:title {{
                 subcontrol-origin: margin;
                 left: 10px;
                 padding: 0 3px 0 3px;
-                color: #444444;
+                color: {CFG.COLOR_TEXT_SECONDARY};
                 font-weight: bold;
-            }
+            }}
         """
         )
 
@@ -135,7 +139,11 @@ class DashboardEvmRenderingMixin:
             return "-"
         if ":" in text:
             key, val = text.split(":", 1)
-            return f"<span style='font-weight:600;color:#444'>{key}:</span> <span style='color:#666'>{val.strip()}</span>"
+            return (
+                "<span style='font-weight:600;"
+                f"color:{CFG.COLOR_TEXT_SECONDARY}'>{key}:</span> "
+                f"<span style='color:{CFG.COLOR_TEXT_MUTED}'>{val.strip()}</span>"
+            )
         return text
 
     def _update_evm(self, data: DashboardData):

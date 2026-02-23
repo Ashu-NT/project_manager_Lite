@@ -5,7 +5,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QListWidgetItem, QTableWidgetItem
 
 from core.services.dashboard import DashboardData
-
+from ui.styles.ui_config import UIConfig as CFG
 
 class DashboardChartsRenderingMixin:
     def _update_burndown_chart(self, data: DashboardData):
@@ -19,7 +19,24 @@ class DashboardChartsRenderingMixin:
         dates = [p.day for p in pts]
         rem = [p.remaining_tasks for p in pts]
 
-        self.burndown_chart.ax.plot(dates, rem, marker="o")
+        self.burndown_chart.ax.plot(
+            dates,
+            rem,
+            marker="o",
+            linewidth=2.2,
+            markersize=4,
+            color=CFG.COLOR_ACCENT,
+        )
+        self.burndown_chart.ax.fill_between(dates, rem, color=CFG.COLOR_ACCENT_SOFT, alpha=0.35)
+        if len(dates) > 1:
+            self.burndown_chart.ax.plot(
+                [dates[0], dates[-1]],
+                [rem[0], 0],
+                linestyle="--",
+                linewidth=1.1,
+                color=CFG.COLOR_TEXT_MUTED,
+                label="Ideal trend",
+            )
         self.burndown_chart.ax.set_title("Burndown (remaining tasks)")
         self.burndown_chart.ax.set_xlabel("Date", fontsize=10)
         self.burndown_chart.ax.set_ylabel("Remaining tasks", fontsize=10)
@@ -27,9 +44,9 @@ class DashboardChartsRenderingMixin:
         self.burndown_chart.ax.xaxis.set_major_formatter(
             mdates.ConciseDateFormatter(mdates.AutoDateLocator())
         )
-        self.burndown_chart.fig.autofmt_xdate(rotation=30)
-        self.burndown_chart.ax.grid(True, linestyle=":", linewidth=0.5)
-
+        self.burndown_chart.fig.autofmt_xdate(rotation=25)
+        self.burndown_chart.ax.grid(True, linestyle=":", linewidth=0.5, alpha=0.6)
+        self.burndown_chart.ax.legend(loc="upper right", fontsize=8)
         self.burndown_chart.fig.tight_layout()
         self.burndown_chart.redraw()
 
@@ -41,21 +58,36 @@ class DashboardChartsRenderingMixin:
             self.resource_chart.redraw()
             return
 
-        names = [r.resource_name for r in rows]
-        allocs = [r.total_allocation_percent for r in rows]
+        rows_sorted = sorted(rows, key=lambda r: r.total_allocation_percent, reverse=True)
+        names = [r.resource_name for r in rows_sorted]
+        allocs = [r.total_allocation_percent for r in rows_sorted]
 
-        x = range(len(names))
-        bars = self.resource_chart.ax.bar(x, allocs)
-        for i, r in enumerate(rows):
-            if r.total_allocation_percent > 100.0:
-                bars[i].set_color("#d0021b")
+        y = range(len(names))
+        colors = [CFG.COLOR_DANGER if v > 100.0 else CFG.COLOR_ACCENT for v in allocs]
+        bars = self.resource_chart.ax.barh(y, allocs, color=colors, alpha=0.9, height=0.58)
 
-        self.resource_chart.ax.set_xticks(list(x))
-        self.resource_chart.ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
-        self.resource_chart.ax.set_ylabel("Allocation %", fontsize=10)
+        self.resource_chart.ax.set_yticks(list(y))
+        self.resource_chart.ax.set_yticklabels(names, fontsize=8)
+        self.resource_chart.ax.invert_yaxis()
+        self.resource_chart.ax.set_xlabel("Allocation %", fontsize=10)
         self.resource_chart.ax.set_title("Resource load")
-        self.resource_chart.ax.axhline(100.0, color="red", linestyle="--", linewidth=0.5)
-        self.resource_chart.ax.grid(True, axis="y", linestyle=":", linewidth=0.5)
+        self.resource_chart.ax.axvline(100.0, color=CFG.COLOR_DANGER, linestyle="--", linewidth=0.8)
+        self.resource_chart.ax.grid(True, axis="x", linestyle=":", linewidth=0.5, alpha=0.6)
+        max_alloc = max(allocs) if allocs else 100.0
+        axis_max = max(110.0, max_alloc * 1.2)
+        self.resource_chart.ax.set_xlim(0.0, axis_max)
+        for i, bar in enumerate(bars):
+            val = allocs[i]
+            x = min(val + 2.0, axis_max - 2.0)
+            self.resource_chart.ax.text(
+                x,
+                bar.get_y() + bar.get_height() / 2.0,
+                f"{val:.0f}%",
+                va="center",
+                ha="left",
+                fontsize=8,
+                color=CFG.COLOR_TEXT_SECONDARY,
+            )
 
         self.resource_chart.fig.tight_layout()
         self.resource_chart.redraw()
