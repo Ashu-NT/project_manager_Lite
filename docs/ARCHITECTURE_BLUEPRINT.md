@@ -19,13 +19,13 @@ This is already a good layered baseline and should be preserved.
 
 Top large modules observed in this codebase:
 
-1. `ui/dashboard/tab.py` (~816 lines)
-2. `core/services/task/service.py` (~703 lines)
-3. `ui/cost/tab.py` (~556 lines)
-4. `ui/cost/components.py` (~554 lines)
-5. `ui/project/project_resource_dialogs.py` (~367 lines)
-6. `core/services/reporting/evm.py` (~365 lines)
-7. `infra/db/mappers.py` (~306 lines)
+1. `ui/cost/tab.py` (~499 lines)
+2. `core/services/reporting/evm.py` (~365 lines)
+3. `ui/dashboard/rendering.py` (~327 lines)
+4. `infra/db/mappers.py` (~306 lines)
+5. `ui/task/tab.py` (~289 lines)
+6. `ui/cost/labor_dialogs.py` (~231 lines)
+7. `ui/project/project_resources_dialog.py` (~194 lines)
 
 ## Refactor Applied In This Pass
 
@@ -46,7 +46,9 @@ Top large modules observed in this codebase:
    - Coordinator: `ui/project/tab.py` (~197 lines)
    - Dialog facade: `ui/project/dialogs.py` (~10 lines)
    - Project metadata dialog: `ui/project/project_edit_dialog.py` (~170 lines)
-   - Project-resource dialogs: `ui/project/project_resource_dialogs.py` (~367 lines)
+   - Project-resource facade: `ui/project/project_resource_dialogs.py` (~4 lines)
+   - Project resources list dialog: `ui/project/project_resources_dialog.py` (~194 lines)
+   - Project resource edit dialog: `ui/project/project_resource_edit_dialog.py` (~182 lines)
    - Table model: `ui/project/models.py` (~63 lines)
 5. Task UI split into coordinator + submodules:
    - Coordinator: `ui/task/tab.py` (~289 lines)
@@ -64,6 +66,24 @@ Top large modules observed in this codebase:
    - Resource repo: `infra/db/repositories_resource.py` (~25 lines)
    - Cost/calendar repos: `infra/db/repositories_cost_calendar.py` (~103 lines)
    - Baseline repo: `infra/db/repositories_baseline.py` (~52 lines)
+7. Cost UI split into coordinator + submodules:
+   - Coordinator: `ui/cost/tab.py` (~499 lines)
+   - Compatibility exports: `ui/cost/components.py` (~10 lines)
+   - Models: `ui/cost/models.py` (~104 lines)
+   - Cost item dialog: `ui/cost/cost_dialogs.py` (~145 lines)
+   - Labor dialogs: `ui/cost/labor_dialogs.py` (~231 lines)
+8. Task domain service split into capability mixins:
+   - Orchestrator: `core/services/task/service.py` (~48 lines)
+   - Lifecycle: `core/services/task/lifecycle.py` (~161 lines)
+   - Dependency flow: `core/services/task/dependency.py` (~63 lines)
+   - Assignment flow: `core/services/task/assignment.py` (~130 lines)
+   - Query layer: `core/services/task/query.py` (~46 lines)
+   - Validation/rules: `core/services/task/validation.py` (~144 lines)
+9. Dashboard UI split into coordinator + focused modules:
+   - Coordinator: `ui/dashboard/tab.py` (~176 lines)
+   - Data/loading mixin: `ui/dashboard/data_ops.py` (~124 lines)
+   - Rendering mixin: `ui/dashboard/rendering.py` (~327 lines)
+   - Reusable widgets: `ui/dashboard/widgets.py` (~67 lines)
 
 ## Architecture Principles (Enforced)
 
@@ -95,12 +115,12 @@ Top large modules observed in this codebase:
 
 ## Next Structural Refactors (Recommended Order)
 
-1. Split `ui/cost/tab.py` into coordinator + dialogs/models modules.
-2. Split `ui/cost/components.py` by bounded context.
-3. Optionally split `core/services/reporting/evm.py` into:
+1. Optionally split `core/services/reporting/evm.py` into:
    - baseline selection, PV/EV calculation, forecast/indices helpers.
-4. Break `core/services/task/service.py` into mixins by capability:
-   - CRUD/update flows, dependency logic, assignment logic, progress/scheduling hooks.
+2. Split `ui/cost/tab.py` into smaller coordinator sections:
+   - summary panel controller, labor summary controller, and cost actions controller.
+3. Optionally split `ui/dashboard/rendering.py` into:
+   - KPI rendering, chart rendering, and EVM rendering helpers.
 
 ## Guardrails
 

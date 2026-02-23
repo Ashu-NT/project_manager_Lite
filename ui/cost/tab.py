@@ -21,11 +21,9 @@ from ui.styles.formatting import fmt_currency, currency_symbol_from_code
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 from core.events.domain_events import domain_events
-from .components import (
-    CostTableModel,
-    CostEditDialog,
-    ResourceLaborDialog,
-)
+from ui.cost.cost_dialogs import CostEditDialog
+from ui.cost.labor_dialogs import ResourceLaborDialog
+from ui.cost.models import CostTableModel
 
 class CostTab(QWidget):
     def __init__(

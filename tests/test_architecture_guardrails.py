@@ -83,6 +83,16 @@ def test_project_dialogs_module_is_facade_only():
     assert "class ProjectResourceEditDialog" not in text
 
 
+def test_project_resource_dialogs_module_is_facade_only():
+    dialogs_path = ROOT / "ui" / "project" / "project_resource_dialogs.py"
+    text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from .project_resources_dialog import" in text
+    assert "from .project_resource_edit_dialog import" in text
+    assert "class ProjectResourcesDialog" not in text
+    assert "class ProjectResourceEditDialog" not in text
+
+
 def test_task_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "task" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
@@ -98,6 +108,43 @@ def test_task_tab_is_coordinator_only():
     assert "class TaskTableModel" not in text
 
 
+def test_cost_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "cost" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.cost.models import" in text
+    assert "from ui.cost.cost_dialogs import" in text
+    assert "from ui.cost.labor_dialogs import" in text
+    assert "class CostTableModel" not in text
+    assert "class CostEditDialog" not in text
+    assert "class ResourceLaborDialog" not in text
+    assert "class ResourceAssignmentsDialog" not in text
+
+
+def test_cost_components_module_is_facade_only():
+    components_path = ROOT / "ui" / "cost" / "components.py"
+    text = components_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from .models import" in text
+    assert "from .cost_dialogs import" in text
+    assert "from .labor_dialogs import" in text
+    assert "class CostTableModel" not in text
+    assert "class CostEditDialog" not in text
+    assert "class ResourceLaborDialog" not in text
+    assert "class ResourceAssignmentsDialog" not in text
+
+
+def test_dashboard_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "dashboard" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.dashboard.data_ops import" in text
+    assert "from ui.dashboard.rendering import" in text
+    assert "from ui.dashboard.widgets import" in text
+    assert "class KpiCard" not in text
+    assert "class ChartWidget" not in text
+
+
 def test_infra_repositories_module_is_facade_only():
     repo_path = ROOT / "infra" / "db" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -106,6 +153,21 @@ def test_infra_repositories_module_is_facade_only():
     assert "from infra.db.repositories_project import" in text
     assert "from infra.db.repositories_task import" in text
     assert "class SqlAlchemy" not in text
+
+
+def test_task_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "services" / "task" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.task.lifecycle import" in text
+    assert "from core.services.task.dependency import" in text
+    assert "from core.services.task.assignment import" in text
+    assert "from core.services.task.query import" in text
+    assert "from core.services.task.validation import" in text
+    assert "def create_task" not in text
+    assert "def add_dependency" not in text
+    assert "def assign_resource" not in text
+    assert "def query_tasks" not in text
 
 
 def test_known_large_modules_have_growth_budgets():
@@ -118,7 +180,9 @@ def test_known_large_modules_have_growth_budgets():
         "ui/project/tab.py": 260,
         "ui/project/dialogs.py": 80,
         "ui/project/project_edit_dialog.py": 240,
-        "ui/project/project_resource_dialogs.py": 450,
+        "ui/project/project_resource_dialogs.py": 80,
+        "ui/project/project_resources_dialog.py": 260,
+        "ui/project/project_resource_edit_dialog.py": 240,
         "ui/project/models.py": 120,
         "ui/task/tab.py": 320,
         "ui/task/dialogs.py": 80,
@@ -127,8 +191,21 @@ def test_known_large_modules_have_growth_budgets():
         "ui/task/assignment_dialogs.py": 260,
         "ui/task/models.py": 120,
         "ui/task/components.py": 80,
-        "ui/dashboard/tab.py": 830,
-        "core/services/task/service.py": 720,
+        "ui/cost/tab.py": 560,
+        "ui/cost/components.py": 80,
+        "ui/cost/models.py": 180,
+        "ui/cost/cost_dialogs.py": 240,
+        "ui/cost/labor_dialogs.py": 320,
+        "ui/dashboard/tab.py": 260,
+        "ui/dashboard/widgets.py": 120,
+        "ui/dashboard/data_ops.py": 180,
+        "ui/dashboard/rendering.py": 380,
+        "core/services/task/service.py": 140,
+        "core/services/task/lifecycle.py": 280,
+        "core/services/task/dependency.py": 140,
+        "core/services/task/assignment.py": 220,
+        "core/services/task/query.py": 120,
+        "core/services/task/validation.py": 220,
         "infra/db/repositories.py": 120,
         "infra/db/mappers.py": 360,
         "infra/db/repositories_project.py": 100,
