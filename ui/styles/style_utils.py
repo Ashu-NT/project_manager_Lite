@@ -1,12 +1,25 @@
 from __future__ import annotations
 
+import weakref
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableView
+from shiboken6 import isValid
 
 from ui.styles.theme import table_stylesheet
 
 
+def _is_qobject_alive(obj) -> bool:
+    try:
+        return obj is not None and isValid(obj)
+    except RuntimeError:
+        return False
+
+
 def _fit_table_columns(table: QTableView) -> None:
+    if not _is_qobject_alive(table):
+        return
+
     model = table.model()
     if model is None:
         return
@@ -31,19 +44,29 @@ def _fit_table_columns(table: QTableView) -> None:
 
 
 def _schedule_table_fit(table: QTableView) -> None:
+    if not _is_qobject_alive(table):
+        return
+
     if getattr(table, "_pm_fit_pending", False):
         return
 
     table._pm_fit_pending = True
+    table_ref = weakref.ref(table)
 
     def _run():
-        table._pm_fit_pending = False
-        _fit_table_columns(table)
+        tbl = table_ref()
+        if not _is_qobject_alive(tbl):
+            return
+        tbl._pm_fit_pending = False
+        _fit_table_columns(tbl)
 
     QTimer.singleShot(0, _run)
 
 
 def _bind_auto_fit_signals(table: QTableView) -> None:
+    if not _is_qobject_alive(table):
+        return
+
     model = table.model()
     if model is None:
         return
@@ -53,13 +76,21 @@ def _bind_auto_fit_signals(table: QTableView) -> None:
         return
     table._pm_fit_model_id = model_id
 
-    model.modelReset.connect(lambda: _schedule_table_fit(table))
-    model.layoutChanged.connect(lambda: _schedule_table_fit(table))
-    model.dataChanged.connect(lambda *_args: _schedule_table_fit(table))
-    model.rowsInserted.connect(lambda *_args: _schedule_table_fit(table))
-    model.rowsRemoved.connect(lambda *_args: _schedule_table_fit(table))
-    model.columnsInserted.connect(lambda *_args: _schedule_table_fit(table))
-    model.columnsRemoved.connect(lambda *_args: _schedule_table_fit(table))
+    table_ref = weakref.ref(table)
+
+    def _queue_fit(*_args) -> None:
+        tbl = table_ref()
+        if not _is_qobject_alive(tbl):
+            return
+        _schedule_table_fit(tbl)
+
+    model.modelReset.connect(_queue_fit)
+    model.layoutChanged.connect(_queue_fit)
+    model.dataChanged.connect(_queue_fit)
+    model.rowsInserted.connect(_queue_fit)
+    model.rowsRemoved.connect(_queue_fit)
+    model.columnsInserted.connect(_queue_fit)
+    model.columnsRemoved.connect(_queue_fit)
 
     _schedule_table_fit(table)
 

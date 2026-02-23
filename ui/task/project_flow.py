@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+from typing import Optional
+
+from PySide6.QtWidgets import QComboBox, QTableView
+
+from core.models import Task
+
+
+class TaskProjectFlowMixin:
+    project_combo: QComboBox
+    table: QTableView
+
+    def _on_task_changed(self, project_id: str):
+        current_pid = self._current_project_id()
+        if current_pid == project_id:
+            self.reload_tasks()
+
+    def _on_project_changed_event(self, _project_id: str):
+        prev_pid = self._current_project_id()
+        projects = self._project_service.list_projects()
+        self.project_combo.blockSignals(True)
+        self.project_combo.clear()
+        for project in projects:
+            self.project_combo.addItem(project.name, userData=project.id)
+        self.project_combo.blockSignals(False)
+
+        if prev_pid and prev_pid in [p.id for p in projects]:
+            index = self.project_combo.findData(prev_pid)
+            if index != -1:
+                self.project_combo.setCurrentIndex(index)
+        elif self.project_combo.count() > 0:
+            self.project_combo.setCurrentIndex(0)
+
+        self.reload_tasks()
+
+    def _load_projects(self):
+        self.project_combo.blockSignals(True)
+        self.project_combo.clear()
+        projects = self._project_service.list_projects()
+        for project in projects:
+            self.project_combo.addItem(project.name, userData=project.id)
+        self.project_combo.blockSignals(False)
+        if self.project_combo.count() > 0:
+            self.project_combo.setCurrentIndex(0)
+            self._on_project_changed(0)
+
+    def _current_project_id(self) -> Optional[str]:
+        idx = self.project_combo.currentIndex()
+        if idx < 0:
+            return None
+        return self.project_combo.itemData(idx)
+
+    def _on_project_changed(self, _index: int):
+        self.reload_tasks()
+
+    def reload_tasks(self):
+        project_id = self._current_project_id()
+        if not project_id:
+            self.model.set_tasks([])
+            return
+        tasks = self._task_service.list_tasks_for_project(project_id)
+        self.model.set_tasks(tasks)
+
+    def _get_selected_task(self) -> Optional[Task]:
+        indexes = self.table.selectionModel().selectedRows()
+        if not indexes:
+            return None
+        row = indexes[0].row()
+        return self.model.get_task(row)
+

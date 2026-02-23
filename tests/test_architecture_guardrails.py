@@ -60,6 +60,20 @@ def test_report_tab_is_coordinator_only():
     assert "class ResourceLoadDialog" not in text
 
 
+def test_report_dialogs_module_is_facade_only():
+    dialogs_path = ROOT / "ui" / "report" / "dialogs.py"
+    text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.report.dialog_kpi import" in text
+    assert "from ui.report.dialog_gantt import" in text
+    assert "from ui.report.dialog_critical_path import" in text
+    assert "from ui.report.dialog_resource_load import" in text
+    assert "class KPIReportDialog" not in text
+    assert "class GanttPreviewDialog" not in text
+    assert "class CriticalPathDialog" not in text
+    assert "class ResourceLoadDialog" not in text
+
+
 def test_project_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "project" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
@@ -97,7 +111,8 @@ def test_task_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "task" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.task.dialogs import" in text
+    assert "from ui.task.project_flow import TaskProjectFlowMixin" in text
+    assert "from ui.task.actions import TaskActionsMixin" in text
     assert "from ui.task.models import" in text
     assert "class TaskEditDialog" not in text
     assert "class TaskProgressDialog" not in text
@@ -106,6 +121,34 @@ def test_task_tab_is_coordinator_only():
     assert "class AssignmentAddDialog" not in text
     assert "class AssignmentListDialog" not in text
     assert "class TaskTableModel" not in text
+    assert "def create_task" not in text
+    assert "def edit_task" not in text
+    assert "def delete_task" not in text
+    assert "def manage_dependencies" not in text
+    assert "def manage_assignments" not in text
+
+
+def test_task_actions_module_contains_task_workflows():
+    actions_path = ROOT / "ui" / "task" / "actions.py"
+    text = actions_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.task.dialogs import" in text
+    assert "def create_task" in text
+    assert "def edit_task" in text
+    assert "def delete_task" in text
+    assert "def update_progress" in text
+    assert "def manage_dependencies" in text
+    assert "def manage_assignments" in text
+
+
+def test_task_project_flow_module_contains_loading_helpers():
+    flow_path = ROOT / "ui" / "task" / "project_flow.py"
+    text = flow_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "def _load_projects" in text
+    assert "def _current_project_id" in text
+    assert "def reload_tasks" in text
+    assert "def _get_selected_task" in text
 
 
 def test_cost_tab_is_coordinator_only():
@@ -176,6 +219,20 @@ def test_dashboard_summary_rendering_avoids_widget_index_lookups():
     assert ".set_value(" in text
 
 
+def test_dashboard_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "services" / "dashboard" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.dashboard.alerts import" in text
+    assert "from core.services.dashboard.upcoming import" in text
+    assert "from core.services.dashboard.burndown import" in text
+    assert "from core.services.dashboard.evm import" in text
+    assert "def _build_alerts" not in text
+    assert "def _build_upcoming_tasks" not in text
+    assert "def _build_burndown" not in text
+    assert "def _interpret_evm" not in text
+
+
 def test_resource_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "resource" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
@@ -235,6 +292,24 @@ def test_task_service_is_orchestrator_only():
     assert "def query_tasks" not in text
 
 
+def test_scheduling_engine_is_orchestrator_only():
+    engine_path = ROOT / "core" / "services" / "scheduling" / "engine.py"
+    text = engine_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.scheduling.graph import build_project_dependency_graph" in text
+    assert "from core.services.scheduling.passes import run_backward_pass, run_forward_pass" in text
+    assert "from core.services.scheduling.results import build_schedule_result" in text
+    assert "import heapq" not in text
+
+
+def test_main_build_services_delegates_to_service_graph():
+    main_path = ROOT / "main.py"
+    text = main_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from infra.services import build_service_dict" in text
+    assert "return build_service_dict(session)" in text
+
+
 def test_known_large_modules_have_growth_budgets():
     # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
     budgets = {
@@ -251,7 +326,9 @@ def test_known_large_modules_have_growth_budgets():
         "ui/project/project_resources_dialog.py": 260,
         "ui/project/project_resource_edit_dialog.py": 240,
         "ui/project/models.py": 120,
-        "ui/task/tab.py": 320,
+        "ui/task/tab.py": 220,
+        "ui/task/actions.py": 220,
+        "ui/task/project_flow.py": 180,
         "ui/task/dialogs.py": 80,
         "ui/task/task_dialogs.py": 320,
         "ui/task/dependency_dialogs.py": 220,
@@ -273,18 +350,34 @@ def test_known_large_modules_have_growth_budgets():
         "ui/dashboard/rendering_summary.py": 120,
         "ui/dashboard/rendering_charts.py": 130,
         "ui/dashboard/rendering_evm.py": 240,
+        "ui/report/dialogs.py": 50,
+        "ui/report/dialog_helpers.py": 140,
+        "ui/report/dialog_kpi.py": 220,
+        "ui/report/dialog_gantt.py": 240,
+        "ui/report/dialog_critical_path.py": 220,
+        "ui/report/dialog_resource_load.py": 240,
+        "ui/styles/theme.py": 420,
         "main.py": 580,
         "ui/calendar/tab.py": 300,
         "ui/calendar/working_time.py": 120,
         "ui/calendar/holidays.py": 120,
         "ui/calendar/calculator.py": 100,
         "ui/calendar/project_ops.py": 120,
-        "core/services/scheduling/engine.py": 460,
+        "core/services/scheduling/engine.py": 360,
+        "core/services/scheduling/models.py": 80,
+        "core/services/scheduling/graph.py": 180,
+        "core/services/scheduling/passes.py": 260,
+        "core/services/scheduling/results.py": 180,
         "ui/resource/tab.py": 220,
         "ui/resource/models.py": 100,
         "ui/resource/dialogs.py": 180,
         "core/models.py": 360,
-        "core/services/dashboard/service.py": 340,
+        "core/services/dashboard/service.py": 140,
+        "core/services/dashboard/models.py": 120,
+        "core/services/dashboard/alerts.py": 180,
+        "core/services/dashboard/upcoming.py": 150,
+        "core/services/dashboard/burndown.py": 120,
+        "core/services/dashboard/evm.py": 160,
         "ui/styles/ui_config.py": 320,
         "core/services/task/service.py": 140,
         "core/services/task/lifecycle.py": 280,
