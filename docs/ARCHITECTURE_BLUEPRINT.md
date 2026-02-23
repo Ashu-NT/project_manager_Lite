@@ -21,11 +21,11 @@ Top large modules observed in this codebase:
 
 1. `ui/dashboard/tab.py` (~816 lines)
 2. `core/services/task/service.py` (~703 lines)
-3. `infra/db/repositories.py` (~674 lines)
-4. `ui/project/dialogs.py` (~620 lines)
-5. `ui/cost/tab.py` (~556 lines)
-6. `ui/cost/components.py` (~554 lines)
-7. `core/services/reporting/evm.py` (~365 lines)
+3. `ui/cost/tab.py` (~556 lines)
+4. `ui/cost/components.py` (~554 lines)
+5. `ui/project/project_resource_dialogs.py` (~367 lines)
+6. `core/services/reporting/evm.py` (~365 lines)
+7. `infra/db/mappers.py` (~306 lines)
 
 ## Refactor Applied In This Pass
 
@@ -44,7 +44,9 @@ Top large modules observed in this codebase:
    - Cost breakdown mixin: `core/services/reporting/cost_breakdown.py` (~158 lines)
 4. Project UI split into coordinator + submodules:
    - Coordinator: `ui/project/tab.py` (~197 lines)
-   - Dialogs: `ui/project/dialogs.py` (~620 lines)
+   - Dialog facade: `ui/project/dialogs.py` (~10 lines)
+   - Project metadata dialog: `ui/project/project_edit_dialog.py` (~170 lines)
+   - Project-resource dialogs: `ui/project/project_resource_dialogs.py` (~367 lines)
    - Table model: `ui/project/models.py` (~63 lines)
 5. Task UI split into coordinator + submodules:
    - Coordinator: `ui/task/tab.py` (~289 lines)
@@ -54,6 +56,14 @@ Top large modules observed in this codebase:
    - Assignment dialogs: `ui/task/assignment_dialogs.py` (~217 lines)
    - Table model: `ui/task/models.py` (~62 lines)
    - Compatibility exports: `ui/task/components.py` (~21 lines)
+6. Infrastructure DB repositories split by aggregate:
+   - Compatibility facade: `infra/db/repositories.py` (~82 lines)
+   - Shared mappers: `infra/db/mappers.py` (~306 lines)
+   - Project repos: `infra/db/repositories_project.py` (~60 lines)
+   - Task/dependency/assignment repos: `infra/db/repositories_task.py` (~102 lines)
+   - Resource repo: `infra/db/repositories_resource.py` (~25 lines)
+   - Cost/calendar repos: `infra/db/repositories_cost_calendar.py` (~103 lines)
+   - Baseline repo: `infra/db/repositories_baseline.py` (~52 lines)
 
 ## Architecture Principles (Enforced)
 
@@ -85,11 +95,12 @@ Top large modules observed in this codebase:
 
 ## Next Structural Refactors (Recommended Order)
 
-1. Break `infra/db/repositories.py` into per-aggregate repository modules.
-2. Optionally split `core/services/reporting/evm.py` into:
+1. Split `ui/cost/tab.py` into coordinator + dialogs/models modules.
+2. Split `ui/cost/components.py` by bounded context.
+3. Optionally split `core/services/reporting/evm.py` into:
    - baseline selection, PV/EV calculation, forecast/indices helpers.
-3. Split `ui/project/dialogs.py` into:
-   - project metadata dialog and project-resource dialogs.
+4. Break `core/services/task/service.py` into mixins by capability:
+   - CRUD/update flows, dependency logic, assignment logic, progress/scheduling hooks.
 
 ## Guardrails
 

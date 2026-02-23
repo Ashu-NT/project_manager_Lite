@@ -72,6 +72,17 @@ def test_project_tab_is_coordinator_only():
     assert "class ProjectTableModel" not in text
 
 
+def test_project_dialogs_module_is_facade_only():
+    dialogs_path = ROOT / "ui" / "project" / "dialogs.py"
+    text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from .project_edit_dialog import" in text
+    assert "from .project_resource_dialogs import" in text
+    assert "class ProjectEditDialog" not in text
+    assert "class ProjectResourcesDialog" not in text
+    assert "class ProjectResourceEditDialog" not in text
+
+
 def test_task_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "task" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
@@ -87,6 +98,16 @@ def test_task_tab_is_coordinator_only():
     assert "class TaskTableModel" not in text
 
 
+def test_infra_repositories_module_is_facade_only():
+    repo_path = ROOT / "infra" / "db" / "repositories.py"
+    text = repo_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from infra.db.mappers import" in text
+    assert "from infra.db.repositories_project import" in text
+    assert "from infra.db.repositories_task import" in text
+    assert "class SqlAlchemy" not in text
+
+
 def test_known_large_modules_have_growth_budgets():
     # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
     budgets = {
@@ -95,7 +116,9 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/reporting/kpi.py": 280,
         "core/services/reporting/labor.py": 260,
         "ui/project/tab.py": 260,
-        "ui/project/dialogs.py": 700,
+        "ui/project/dialogs.py": 80,
+        "ui/project/project_edit_dialog.py": 240,
+        "ui/project/project_resource_dialogs.py": 450,
         "ui/project/models.py": 120,
         "ui/task/tab.py": 320,
         "ui/task/dialogs.py": 80,
@@ -106,7 +129,13 @@ def test_known_large_modules_have_growth_budgets():
         "ui/task/components.py": 80,
         "ui/dashboard/tab.py": 830,
         "core/services/task/service.py": 720,
-        "infra/db/repositories.py": 690,
+        "infra/db/repositories.py": 120,
+        "infra/db/mappers.py": 360,
+        "infra/db/repositories_project.py": 100,
+        "infra/db/repositories_task.py": 150,
+        "infra/db/repositories_resource.py": 60,
+        "infra/db/repositories_cost_calendar.py": 150,
+        "infra/db/repositories_baseline.py": 100,
     }
 
     breaches = []
