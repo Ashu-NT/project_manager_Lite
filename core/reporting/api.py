@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from datetime import date
+from contextlib import suppress
 
 
 from core.services.reporting import ReportingService
@@ -27,6 +28,20 @@ def _optional_report_call(func, *args, **kwargs):
         if getattr(exc, "code", None) == "NO_BASELINE":
             return None
         raise
+
+
+def _cleanup_temp_artifact(path: Path | None, temp_dir: Path | None = None) -> None:
+    if path:
+        with suppress(FileNotFoundError, PermissionError, OSError):
+            path.unlink()
+
+    parent = temp_dir if temp_dir is not None else (path.parent if path else None)
+    if parent is None:
+        return
+    if parent.exists():
+        with suppress(FileNotFoundError, PermissionError, OSError):
+            if not any(parent.iterdir()):
+                parent.rmdir()
 
 
 def generate_gantt_png(reporting_service: ReportingService, project_id: str, output_path: str | Path) -> Path:
@@ -112,5 +127,8 @@ def generate_pdf_report(
         cost_breakdown=get_cost(project_id, as_of=as_of, baseline_id=baseline_id) if callable(get_cost) else None,
         as_of=as_of,
     )
-    return PdfReportRenderer().render(ctx, _ensure_parent(Path(output_path)))
+    try:
+        return PdfReportRenderer().render(ctx, _ensure_parent(Path(output_path)))
+    finally:
+        _cleanup_temp_artifact(gantt_path, temp_dir=temp_dir)
 

@@ -226,6 +226,7 @@ def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
 
 def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, monkeypatch):
     pid, _baseline_id = _setup_report_project(services)
+    temp_dir = tmp_path / "tmp_reports"
 
     def _raise_gantt(*_args, **_kwargs):
         raise ValueError("No tasks with dates available for Gantt chart.")
@@ -237,12 +238,32 @@ def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, mon
         services["reporting_service"],
         pid,
         output,
-        temp_dir=tmp_path / "tmp_reports",
+        temp_dir=temp_dir,
         as_of=date(2023, 11, 30),
     )
 
     assert output.exists()
     assert output.read_bytes().startswith(b"%PDF")
+    assert not temp_dir.exists()
+
+
+def test_pdf_export_cleans_temporary_gantt_artifact(services, tmp_path):
+    pid, _baseline_id = _setup_report_project(services)
+    temp_dir = tmp_path / "tmp_reports_cleanup"
+    output = tmp_path / "report_cleanup.pdf"
+
+    reporting_api.generate_pdf_report(
+        services["reporting_service"],
+        pid,
+        output,
+        temp_dir=temp_dir,
+        as_of=date(2023, 11, 30),
+    )
+
+    assert output.exists()
+    assert output.read_bytes().startswith(b"%PDF")
+    assert not (temp_dir / f"gantt_{pid}.png").exists()
+    assert not temp_dir.exists()
 
 
 def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
