@@ -40,13 +40,13 @@ class TaskService(
         project_resource_repo: ProjectResourceRepository | None = None,
         project_repo: ProjectRepository | None = None,
     ):
-        self._session = session
-        self._task_repo = task_repo
-        self._dependency_repo = dependency_repo
-        self._assignment_repo = assignment_repo
-        self._resource_repo = resource_repo
-        self._cost_repo = cost_repo
-        self._calendar_repo = calendar_repo
-        self._work_calendar_engine = work_calendar_engine
-        self._project_resource_repo = project_resource_repo
-        self._project_repo = project_repo
+        self._session: Session = session
+        self._task_repo: TaskRepository = task_repo
+        self._dependency_repo: DependencyRepository = dependency_repo
+        self._assignment_repo: AssignmentRepository = assignment_repo
+        self._resource_repo: ResourceRepository = resource_repo
+        self._cost_repo: CostRepository = cost_repo
+        self._calendar_repo: CalendarEventRepository = calendar_repo
+        self._work_calendar_engine: WorkCalendarEngine = work_calendar_engine
+        self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
+        self._project_repo: ProjectRepository | None = project_repo

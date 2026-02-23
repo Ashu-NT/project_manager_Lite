@@ -30,11 +30,11 @@ class ProjectResourcesDialog(QtWidgets.QDialog):
         self.setWindowTitle("Project Resources")
         self.resize(CFG.DEFAULT_PROJECT_WINDOW_SIZE)
 
-        self._project_id = project_id
-        self._resource_service = resource_service
-        self._project_resource_service = project_resource_service
+        self._project_id: str = project_id
+        self._resource_service: ResourceService = resource_service
+        self._project_resource_service: ProjectResourceService = project_resource_service
 
-        self._table = QtWidgets.QTableWidget(0, 6)
+        self._table: QtWidgets.QTableWidget = QtWidgets.QTableWidget(0, 6)
         style_table(self._table)
         self._table.setHorizontalHeaderLabels(
             [
@@ -57,10 +57,10 @@ class ProjectResourcesDialog(QtWidgets.QDialog):
         self._table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self._table.horizontalHeader().setStretchLastSection(True)
 
-        self._btn_add = QtWidgets.QPushButton("Add")
-        self._btn_edit = QtWidgets.QPushButton("Edit")
-        self._btn_toggle = QtWidgets.QPushButton("Deactivate/Activate")
-        self._btn_close = QtWidgets.QPushButton("Close")
+        self._btn_add: QtWidgets.QPushButton = QtWidgets.QPushButton("Add")
+        self._btn_edit: QtWidgets.QPushButton = QtWidgets.QPushButton("Edit")
+        self._btn_toggle: QtWidgets.QPushButton = QtWidgets.QPushButton("Deactivate/Activate")
+        self._btn_close: QtWidgets.QPushButton = QtWidgets.QPushButton("Close")
 
         for btn in (
             self._btn_add,

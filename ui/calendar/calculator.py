@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from datetime import date
 
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QDateEdit, QLabel, QMessageBox, QSpinBox
 
 from core.exceptions import ValidationError
+from core.services.work_calendar import WorkCalendarEngine
 
 
 class CalendarCalculatorMixin:
+    _wc_engine: WorkCalendarEngine
+    calc_start: QDateEdit
+    calc_days_spin: QSpinBox
+    calc_result_label: QLabel
+
     def run_calendar_calc(self):
         qd = self.calc_start.date()
         if not qd.isValid():

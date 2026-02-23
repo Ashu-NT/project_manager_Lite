@@ -40,11 +40,11 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._project_service = project_service
-        self._task_service = task_service
-        self._cost_service = cost_service
-        self._reporting_service = reporting_service
-        self._resource_service = resource_service
+        self._project_service: ProjectService = project_service
+        self._task_service: TaskService = task_service
+        self._cost_service: CostService = cost_service
+        self._reporting_service: ReportingService = reporting_service
+        self._resource_service: ResourceService = resource_service
 
         self._current_project: Project | None = None
         self._project_tasks: list[Task] = []

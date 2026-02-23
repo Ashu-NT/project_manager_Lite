@@ -2,15 +2,29 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QHeaderView, QMessageBox, QTableWidgetItem
+from PySide6.QtWidgets import QHeaderView, QLabel, QMessageBox, QTableView, QTableWidget, QTableWidgetItem
 
 from core.models import CostType
+from core.models import Project
+from core.services.cost import CostService
+from core.services.reporting import ReportingService
+from core.services.resource import ResourceService
+from core.services.task import TaskService
 from ui.cost.labor_dialogs import ResourceLaborDialog
 from ui.styles.formatting import currency_symbol_from_code, fmt_currency
 from ui.styles.ui_config import UIConfig as CFG
 
 
 class CostLaborSummaryMixin:
+    _reporting_service: ReportingService
+    _cost_service: CostService
+    _task_service: TaskService
+    _resource_service: ResourceService
+    _current_project: Project | None
+    tbl_labor_summary: QTableWidget
+    lbl_labor_note: QLabel
+    table: QTableView
+
     def reload_labor_summary(self, project_id: str):
         details = self._reporting_service.get_project_labor_details(project_id)
         self.tbl_labor_summary.setRowCount(0)

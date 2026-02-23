@@ -22,9 +22,9 @@ class WorkCalendarService:
         calendar_repo: WorkingCalendarRepository,
         engine: WorkCalendarEngine,
     ):
-        self._session = session
-        self._repo = calendar_repo
-        self._engine = engine
+        self._session: Session = session
+        self._repo: WorkingCalendarRepository = calendar_repo
+        self._engine: WorkCalendarEngine = engine
 
     def _ensure_calendar(self) -> WorkingCalendar:
         cal = self._repo.get_default()

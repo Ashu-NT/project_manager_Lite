@@ -5,11 +5,18 @@ from typing import Optional
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from core.exceptions import NotFoundError, ValidationError
-from core.models import CostItem
+from core.models import CostItem, Project, Task
+from core.services.cost import CostService
 from ui.cost.cost_dialogs import CostEditDialog
+from ui.cost.models import CostTableModel
 
 
 class CostActionsMixin:
+    _cost_service: CostService
+    model: CostTableModel
+    _current_project: Project | None
+    _project_tasks: list[Task]
+
     def _get_selected_cost(self) -> Optional[CostItem]:
         indexes = self.table.selectionModel().selectedRows()
         if not indexes:

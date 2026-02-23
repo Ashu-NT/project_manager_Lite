@@ -19,10 +19,10 @@ class CostService:
         project_repo: ProjectRepository,
         task_repo: TaskRepository,
     ):
-        self._session = session
-        self._cost_repo = cost_repo
-        self._project_repo = project_repo
-        self._task_repo = task_repo
+        self._session: Session = session
+        self._cost_repo: CostRepository = cost_repo
+        self._project_repo: ProjectRepository = project_repo
+        self._task_repo: TaskRepository = task_repo
 
     def add_cost_item(
         self,

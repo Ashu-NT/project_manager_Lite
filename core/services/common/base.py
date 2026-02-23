@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 class ServiceBase:
     def __init__(self, session: Session):
-        self._session = session
+        self._session: Session = session
     
     def commit(self):
         try:

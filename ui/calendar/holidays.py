@@ -3,12 +3,18 @@ from __future__ import annotations
 from datetime import date
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMessageBox, QTableWidgetItem
+from PySide6.QtWidgets import QDateEdit, QLineEdit, QMessageBox, QTableWidget, QTableWidgetItem
 
 from core.exceptions import BusinessRuleError, ValidationError
+from core.services.work_calendar import WorkCalendarService
 
 
 class CalendarHolidaysMixin:
+    _wc_service: WorkCalendarService
+    holiday_table: QTableWidget
+    holiday_date_edit: QDateEdit
+    holiday_name_edit: QLineEdit
+
     def load_holidays(self):
         holidays = self._wc_service.list_holidays()
         self.holiday_table.setRowCount(0)

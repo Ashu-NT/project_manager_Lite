@@ -3,8 +3,18 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+from sqlalchemy.orm import Session
+
 from core.events.domain_events import domain_events
 from core.exceptions import NotFoundError, ValidationError
+from core.interfaces import (
+    AssignmentRepository,
+    CalendarEventRepository,
+    CostRepository,
+    DependencyRepository,
+    ProjectRepository,
+    TaskRepository,
+)
 from core.models import Project, ProjectStatus
 from core.services.project.validation import ProjectValidationMixin
 
@@ -13,6 +23,14 @@ DEFAULT_CURRENCY_CODE = "EUR"
 
 
 class ProjectLifecycleMixin(ProjectValidationMixin):
+    _session: Session
+    _project_repo: ProjectRepository
+    _task_repo: TaskRepository
+    _dependency_repo: DependencyRepository
+    _assignment_repo: AssignmentRepository
+    _calendar_repo: CalendarEventRepository
+    _cost_repo: CostRepository
+
     def create_project(
         self,
         name: str,

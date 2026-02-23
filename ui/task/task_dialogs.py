@@ -26,7 +26,7 @@ class TaskEditDialog(QDialog):
     def __init__(self, parent=None, task: Task | None = None):
         super().__init__(parent)
         self.setWindowTitle("Task" + (" - Edit" if task else " - New"))
-        self._task = task
+        self._task: Task | None = task
 
         self.name_edit = QLineEdit()
         self.name_edit.setSizePolicy(CFG.INPUT_POLICY)
@@ -168,7 +168,7 @@ class TaskProgressDialog(QDialog):
     def __init__(self, parent=None, task: Task | None = None):
         super().__init__(parent)
         self.setWindowTitle("Update progress")
-        self._task = task
+        self._task: Task | None = task
 
         self.percent_check = QCheckBox()
         self.percent_check.setToolTip("Enable to update percent complete")

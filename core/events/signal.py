@@ -14,7 +14,7 @@ class Signal(Generic[T]):
 
     def __init__(self) -> None:
         self._subscribers: list[Callable[[T], None]] = []
-        self._lock = RLock()
+        self._lock: RLock = RLock()
 
     def connect(self, callback: Callable[[T], None]) -> None:
         with self._lock:

@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.models import Task
+from core.models import ProjectResource, Resource, Task
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
@@ -25,11 +25,16 @@ from ui.styles.ui_config import UIConfig as CFG
 
 
 class AssignmentAddDialog(QDialog):
-    def __init__(self, parent=None, project_resources=None, resources_by_id=None):
+    def __init__(
+        self,
+        parent=None,
+        project_resources: list[ProjectResource] | None = None,
+        resources_by_id: dict[str, Resource] | None = None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Assign resource")
-        self._project_resources = project_resources or []
-        self._resources_by_id = resources_by_id or {}
+        self._project_resources: list[ProjectResource] = project_resources or []
+        self._resources_by_id: dict[str, Resource] = resources_by_id or {}
 
         self.resource_combo = QComboBox()
         self.resource_combo.setSizePolicy(CFG.INPUT_POLICY)
@@ -102,10 +107,10 @@ class AssignmentListDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle(f"Assignments for: {task.name}")
-        self._task_service = task_service
-        self._resource_service = resource_service
-        self._task = task
-        self._project_resource_service = project_resource_service
+        self._task_service: TaskService = task_service
+        self._resource_service: ResourceService = resource_service
+        self._task: Task = task
+        self._project_resource_service: ProjectResourceService = project_resource_service
 
         self.list_widget = QListWidget()
         self.btn_add = QPushButton(CFG.ADD_BUTTON_LABEL)

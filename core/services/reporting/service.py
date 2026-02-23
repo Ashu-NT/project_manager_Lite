@@ -44,12 +44,12 @@ class ReportingService(
         project_resource_repo: ProjectResourceRepository
     ):
         super().__init__(session)
-        self._project_repo = project_repo
-        self._task_repo = task_repo
-        self._resource_repo = resource_repo
-        self._assignment_repo = assignment_repo
-        self._cost_repo = cost_repo
-        self._scheduling_engine = scheduling_engine
-        self._calendar = calendar
-        self._baseline_repo = baseline_repo
-        self._project_resource_repo = project_resource_repo
+        self._project_repo: ProjectRepository = project_repo
+        self._task_repo: TaskRepository = task_repo
+        self._resource_repo: ResourceRepository = resource_repo
+        self._assignment_repo: AssignmentRepository = assignment_repo
+        self._cost_repo: CostRepository = cost_repo
+        self._scheduling_engine: SchedulingEngine = scheduling_engine
+        self._calendar: WorkCalendarEngine = calendar
+        self._baseline_repo: BaselineRepository = baseline_repo
+        self._project_resource_repo: ProjectResourceRepository = project_resource_repo

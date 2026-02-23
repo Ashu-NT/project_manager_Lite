@@ -27,8 +27,8 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._project_service = project_service
-        self._reporting_service = reporting_service
+        self._project_service: ProjectService = project_service
+        self._reporting_service: ReportingService = reporting_service
         self._setup_ui()
         self._load_projects()
 

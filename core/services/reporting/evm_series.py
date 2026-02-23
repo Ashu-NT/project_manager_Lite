@@ -3,10 +3,14 @@ from __future__ import annotations
 import calendar
 from datetime import date
 
+from core.interfaces import BaselineRepository, ProjectRepository
 from core.services.reporting.models import EvmSeriesPoint
 
 
 class ReportingEvmSeriesMixin:
+    _project_repo: ProjectRepository
+    _baseline_repo: BaselineRepository
+
     def get_evm_series(
         self,
         project_id: str,

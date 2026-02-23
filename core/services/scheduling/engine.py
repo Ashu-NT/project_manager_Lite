@@ -31,10 +31,10 @@ class SchedulingEngine:
         dependency_repo: DependencyRepository,
         calendar: WorkCalendarEngine,
     ):
-        self._session = session
-        self._task_repo = task_repo
-        self._dependency_repo = dependency_repo
-        self._calendar = calendar
+        self._session: Session = session
+        self._task_repo: TaskRepository = task_repo
+        self._dependency_repo: DependencyRepository = dependency_repo
+        self._calendar: WorkCalendarEngine = calendar
 
     def recalculate_project_schedule(self, project_id: str) -> Dict[str, CPMTaskInfo]:
         """
@@ -279,4 +279,3 @@ class SchedulingEngine:
             if normalized in ("LOW", "L"):
                 return 90
         return 50
-

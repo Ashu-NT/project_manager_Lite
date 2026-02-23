@@ -10,8 +10,8 @@ from ui.styles.ui_config import UIConfig as CFG
 class KPIReportDialog(QDialog):
     def __init__(self, parent, reporting_service: ReportingService, project_id: str):
         super().__init__(parent)
-        self._reporting_service = reporting_service
-        self._project_id = project_id
+        self._reporting_service: ReportingService = reporting_service
+        self._project_id: str = project_id
         self.setWindowTitle("Project KPIs")
         self._setup_ui()
 
@@ -127,4 +127,3 @@ class KPIReportDialog(QDialog):
         btn_row.addStretch()
         btn_row.addWidget(btn_close)
         layout.addLayout(btn_row)
-

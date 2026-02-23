@@ -27,16 +27,16 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
         )
         self.resize(520, 220)
 
-        self._project_id = project_id
-        self._resource_service = resource_service
-        self._project_resource_service = project_resource_service
-        self._pr_id = project_resource_id
+        self._project_id: str = project_id
+        self._resource_service: ResourceService = resource_service
+        self._project_resource_service: ProjectResourceService = project_resource_service
+        self._pr_id: Optional[str] = project_resource_id
 
-        self._cmb_resource = QtWidgets.QComboBox()
+        self._cmb_resource: QtWidgets.QComboBox = QtWidgets.QComboBox()
         self._cmb_resource.setSizePolicy(CFG.INPUT_POLICY)
         self._cmb_resource.setFixedHeight(CFG.INPUT_HEIGHT)
 
-        self._spn_rate = QtWidgets.QDoubleSpinBox()
+        self._spn_rate: QtWidgets.QDoubleSpinBox = QtWidgets.QDoubleSpinBox()
         self._spn_rate.setSizePolicy(CFG.INPUT_POLICY)
         self._spn_rate.setFixedHeight(CFG.INPUT_HEIGHT)
         self._spn_rate.setDecimals(CFG.MONEY_DECIMALS)
@@ -45,7 +45,7 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
         self._spn_rate.setMaximum(CFG.MONEY_MAX)
         self._spn_rate.setAlignment(CFG.ALIGN_RIGHT)
 
-        self._cmb_currency = QtWidgets.QComboBox()
+        self._cmb_currency: QtWidgets.QComboBox = QtWidgets.QComboBox()
         self._cmb_currency.setSizePolicy(CFG.INPUT_POLICY)
         self._cmb_currency.setFixedHeight(CFG.INPUT_HEIGHT)
         self._cmb_currency.setEditable(True)
@@ -53,7 +53,7 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
         for cur in CurrencyType:
             self._cmb_currency.addItem(cur.value)
 
-        self._spn_planned_hours = QtWidgets.QDoubleSpinBox()
+        self._spn_planned_hours: QtWidgets.QDoubleSpinBox = QtWidgets.QDoubleSpinBox()
         self._spn_planned_hours.setSizePolicy(CFG.INPUT_POLICY)
         self._spn_planned_hours.setFixedHeight(CFG.INPUT_HEIGHT)
         self._spn_planned_hours.setDecimals(2)
@@ -64,15 +64,15 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
 
         self._spn_rate.setSpecialValueText("Use resource default")
         self._spn_rate.setValue(0.0)
-        self._rate_touched = False
+        self._rate_touched: bool = False
         self._spn_rate.valueChanged.connect(lambda _v: setattr(self, "_rate_touched", True))
 
-        self._currency_touched = False
+        self._currency_touched: bool = False
         self._cmb_currency.currentTextChanged.connect(
             lambda _t: setattr(self, "_currency_touched", True)
         )
 
-        self._chk_active = QtWidgets.QCheckBox("Active")
+        self._chk_active: QtWidgets.QCheckBox = QtWidgets.QCheckBox("Active")
 
         btn_save = QtWidgets.QPushButton("Save")
         btn_cancel = QtWidgets.QPushButton("Cancel")

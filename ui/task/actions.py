@@ -3,6 +3,9 @@ from __future__ import annotations
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.services.project import ProjectResourceService
+from core.services.resource import ResourceService
+from core.services.task import TaskService
 from ui.task.dialogs import (
     AssignmentListDialog,
     DependencyListDialog,
@@ -12,6 +15,10 @@ from ui.task.dialogs import (
 
 
 class TaskActionsMixin:
+    _task_service: TaskService
+    _resource_service: ResourceService
+    _project_resource_service: ProjectResourceService
+
     def create_task(self):
         pid = self._current_project_id()
         if not pid:
@@ -147,4 +154,3 @@ class TaskActionsMixin:
         )
         dlg.exec()
         self.reload_tasks()
-

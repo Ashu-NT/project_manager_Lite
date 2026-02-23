@@ -29,8 +29,8 @@ class DependencyAddDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle("Add dependency")
-        self._tasks = tasks or []
-        self._current_task = current_task
+        self._tasks: list[Task] = tasks or []
+        self._current_task: Task | None = current_task
 
         self.pred_combo = QComboBox()
         self.succ_combo = QComboBox()
@@ -111,9 +111,9 @@ class DependencyListDialog(QDialog):
     def __init__(self, parent, task_service: TaskService, project_tasks: list[Task], current_task: Task):
         super().__init__(parent)
         self.setWindowTitle(f"Dependencies for: {current_task.name}")
-        self._task_service = task_service
-        self._tasks = {t.id: t for t in project_tasks}
-        self._task = current_task
+        self._task_service: TaskService = task_service
+        self._tasks: dict[str, Task] = {t.id: t for t in project_tasks}
+        self._task: Task = current_task
 
         self.list_widget = QListWidget()
 

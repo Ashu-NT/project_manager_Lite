@@ -4,10 +4,18 @@ from datetime import date
 from typing import Dict, Optional
 
 from core.exceptions import BusinessRuleError
+from core.interfaces import BaselineRepository, CostRepository, ProjectRepository, TaskRepository
 from core.services.reporting.models import EarnedValueMetrics
+from core.services.work_calendar.engine import WorkCalendarEngine
 
 
 class ReportingEvmCoreMixin:
+    _baseline_repo: BaselineRepository
+    _task_repo: TaskRepository
+    _calendar: WorkCalendarEngine
+    _project_repo: ProjectRepository
+    _cost_repo: CostRepository
+
     def get_earned_value(
         self,
         project_id: str,

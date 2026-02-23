@@ -4,10 +4,14 @@ from datetime import date
 from typing import List
 
 from core.exceptions import ValidationError
+from core.interfaces import AssignmentRepository, TaskRepository
 from core.models import Task, TaskStatus
 
 
 class TaskQueryMixin:
+    _task_repo: TaskRepository
+    _assignment_repo: AssignmentRepository
+
     def list_tasks_for_project(self, project_id: str) -> List[Task]:
         return self._task_repo.list_by_project(project_id)
 

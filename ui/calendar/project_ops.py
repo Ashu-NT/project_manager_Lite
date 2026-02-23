@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QComboBox, QMessageBox
 
 from core.exceptions import BusinessRuleError
+from core.services.project import ProjectService
+from core.services.scheduling import SchedulingEngine
 
 
 class CalendarProjectOpsMixin:
+    _project_service: ProjectService
+    _scheduling_engine: SchedulingEngine
+    project_combo: QComboBox
+
     def _on_project_changed(self, project_id: str):
         prev_pid = self.project_combo.currentData()
         projects = self._project_service.list_projects()

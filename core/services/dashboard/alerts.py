@@ -3,10 +3,13 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
+from core.services.task.service import TaskService
 from core.services.reporting.models import ProjectKPI, ResourceLoadRow
 
 
 class DashboardAlertsMixin:
+    _tasks: TaskService
+
     def _build_alerts(
         self,
         project_id: str,
@@ -55,4 +58,3 @@ class DashboardAlertsMixin:
                 alerts.append(f"High-priority task '{task.name}' is late.")
 
         return alerts
-

@@ -4,15 +4,33 @@ import logging
 from datetime import date
 from typing import Optional
 
+from sqlalchemy.orm import Session
+
 from core.events.domain_events import domain_events
 from core.exceptions import NotFoundError, ValidationError
+from core.interfaces import (
+    AssignmentRepository,
+    CalendarEventRepository,
+    CostRepository,
+    DependencyRepository,
+    TaskRepository,
+)
 from core.models import Task, TaskStatus
+from core.services.work_calendar.engine import WorkCalendarEngine
 
 
 logger = logging.getLogger(__name__)
 
 
 class TaskLifecycleMixin:
+    _session: Session
+    _task_repo: TaskRepository
+    _dependency_repo: DependencyRepository
+    _assignment_repo: AssignmentRepository
+    _calendar_repo: CalendarEventRepository
+    _cost_repo: CostRepository
+    _work_calendar_engine: WorkCalendarEngine
+
     def create_task(
         self,
         project_id: str,

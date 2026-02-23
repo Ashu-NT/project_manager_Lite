@@ -2,12 +2,26 @@ from __future__ import annotations
 
 from typing import List
 
+from sqlalchemy.orm import Session
+
 from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.interfaces import (
+    AssignmentRepository,
+    ProjectResourceRepository,
+    ResourceRepository,
+    TaskRepository,
+)
 from core.models import ProjectResource, TaskAssignment
 
 
 class TaskAssignmentMixin:
+    _session: Session
+    _task_repo: TaskRepository
+    _assignment_repo: AssignmentRepository
+    _resource_repo: ResourceRepository
+    _project_resource_repo: ProjectResourceRepository | None
+
     def unassign_resource(self, assignment_id: str) -> None:
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:

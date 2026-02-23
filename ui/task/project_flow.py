@@ -5,11 +5,17 @@ from typing import Optional
 from PySide6.QtWidgets import QComboBox, QTableView
 
 from core.models import Task
+from core.services.project import ProjectService
+from core.services.task import TaskService
+from ui.task.models import TaskTableModel
 
 
 class TaskProjectFlowMixin:
     project_combo: QComboBox
     table: QTableView
+    model: TaskTableModel
+    _project_service: ProjectService
+    _task_service: TaskService
 
     def _on_task_changed(self, project_id: str):
         current_pid = self._current_project_id()
@@ -68,4 +74,3 @@ class TaskProjectFlowMixin:
             return None
         row = indexes[0].row()
         return self.model.get_task(row)
-

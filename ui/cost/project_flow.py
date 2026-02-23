@@ -2,11 +2,30 @@ from __future__ import annotations
 
 from typing import Optional
 
-from core.models import CostType
+from PySide6.QtWidgets import QComboBox, QLabel, QTableWidget
+
+from core.models import CostType, Project, Task
+from core.services.cost import CostService
+from core.services.project import ProjectService
+from core.services.reporting import ReportingService
+from core.services.task import TaskService
+from ui.cost.models import CostTableModel
 from ui.styles.formatting import currency_symbol_from_code, fmt_currency
 
 
 class CostProjectFlowMixin:
+    project_combo: QComboBox
+    model: CostTableModel
+    tbl_labor_summary: QTableWidget
+    lbl_labor_note: QLabel
+    lbl_budget_summary: QLabel
+    _project_service: ProjectService
+    _task_service: TaskService
+    _cost_service: CostService
+    _reporting_service: ReportingService
+    _current_project: Project | None
+    _project_tasks: list[Task]
+
     def _load_projects(self):
         self.project_combo.blockSignals(True)
         self.project_combo.clear()

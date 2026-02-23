@@ -26,7 +26,7 @@ class ResourceTab(ResourceFlowMixin, ResourceActionsMixin, QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._resource_service = resource_service
+        self._resource_service: ResourceService = resource_service
 
         self._setup_ui()
         self.reload_resources()

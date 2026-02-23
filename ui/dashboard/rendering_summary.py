@@ -1,11 +1,28 @@
 from __future__ import annotations
 
+from PySide6.QtWidgets import QLabel, QListWidget, QTableWidget
+
 from core.services.dashboard import DashboardData
+from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.styles.formatting import fmt_float, fmt_int, fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
 
 
 class DashboardSummaryRenderingMixin:
+    alerts_list: QListWidget
+    upcoming_table: QTableWidget
+    burndown_chart: ChartWidget
+    resource_chart: ChartWidget
+    kpi_tasks: KpiCard
+    kpi_critical: KpiCard
+    kpi_late: KpiCard
+    kpi_cost: KpiCard
+    kpi_progress: KpiCard
+    project_title_lbl: QLabel
+    project_meta_start: QLabel
+    project_meta_end: QLabel
+    project_meta_duration: QLabel
+
     def _clear_dashboard(self):
         self.alerts_list.clear()
         self.upcoming_table.setRowCount(0)

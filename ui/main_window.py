@@ -26,10 +26,10 @@ from ui.task.tab import TaskTab
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, services: dict, parent: QWidget | None = None):
+    def __init__(self, services: dict[str, object], parent: QWidget | None = None):
         super().__init__(parent)
-        self.services = services
-        self._theme_mode = os.getenv("PM_THEME", "light").strip().lower()
+        self.services: dict[str, object] = services
+        self._theme_mode: str = os.getenv("PM_THEME", "light").strip().lower()
         if self._theme_mode not in {"light", "dark"}:
             self._theme_mode = "light"
 

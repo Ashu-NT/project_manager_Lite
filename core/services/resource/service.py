@@ -18,10 +18,10 @@ class ResourceService:
                  assignment_repo: AssignmentRepository,
                  project_resource_repo: ProjectResourceRepository | None = None
         ):
-        self._session = session
-        self._resource_repo = resource_repo
-        self._assignment_repo = assignment_repo
-        self._project_resource_repo = project_resource_repo
+        self._session: Session = session
+        self._resource_repo: ResourceRepository = resource_repo
+        self._assignment_repo: AssignmentRepository = assignment_repo
+        self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
 
     def create_resource(
         self,

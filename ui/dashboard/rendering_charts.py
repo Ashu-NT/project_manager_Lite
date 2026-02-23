@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import matplotlib.dates as mdates
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QListWidgetItem, QTableWidgetItem
+from PySide6.QtWidgets import QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem
 
 from core.services.dashboard import DashboardData
+from ui.dashboard.widgets import ChartWidget
 from ui.styles.ui_config import UIConfig as CFG
 
 class DashboardChartsRenderingMixin:
+    burndown_chart: ChartWidget
+    resource_chart: ChartWidget
+    alerts_list: QListWidget
+    upcoming_table: QTableWidget
+
     def _update_burndown_chart(self, data: DashboardData):
         self.burndown_chart.ax.clear()
         pts = data.burndown

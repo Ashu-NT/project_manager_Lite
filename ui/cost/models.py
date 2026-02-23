@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
@@ -15,10 +15,10 @@ class CostTableModel(QAbstractTableModel):
         super().__init__(parent)
         self._costs: list[CostItem] = costs or []
         self._task_names: dict[str, str] = {}
-        self._project_currency = ""
+        self._project_currency: str = ""
         self._tasks_by_id: dict[str, Task] = {}
 
-    def set_context(self, tasks_by_id: dict, project_currency: str = ""):
+    def set_context(self, tasks_by_id: dict[str, Task], project_currency: str = ""):
         self._tasks_by_id = tasks_by_id or {}
         self._project_currency = (project_currency or "").strip().upper()
         self.layoutChanged.emit()
@@ -82,7 +82,7 @@ class LaborPlanVsActualTableModel(QAbstractTableModel):
 
     def __init__(self, rows):
         super().__init__()
-        self._rows = rows or []
+        self._rows: list[Any] = rows or []
 
     def rowCount(self, parent=QModelIndex()):
         return len(self._rows)

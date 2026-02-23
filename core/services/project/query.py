@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import List
 
+from core.interfaces import ProjectRepository
 from core.models import Project, ProjectStatus
 
 
 class ProjectQueryMixin:
+    _project_repo: ProjectRepository
+
     def list_projects(self) -> List[Project]:
         return self._project_repo.list_all()
 

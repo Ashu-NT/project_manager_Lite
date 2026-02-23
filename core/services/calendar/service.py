@@ -15,10 +15,15 @@ class CalendarService:
     - List events by project or date range
     """
 
-    def __init__(self, session: Session,calendar_repo: CalendarEventRepository, task_repo: TaskRepository):
-        self._session = session
-        self._calendar_repo = calendar_repo
-        self._task_repo = task_repo
+    def __init__(
+        self,
+        session: Session,
+        calendar_repo: CalendarEventRepository,
+        task_repo: TaskRepository,
+    ):
+        self._session: Session = session
+        self._calendar_repo: CalendarEventRepository = calendar_repo
+        self._task_repo: TaskRepository = task_repo
         
     def create_event(
         self,

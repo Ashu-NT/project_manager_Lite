@@ -35,11 +35,11 @@ class ProjectTab(QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._project_service = project_service
-        self._task_service = task_service
-        self._reporting_service = reporting_service
-        self._project_resource_service = project_resource_service
-        self._resource_service = resource_service
+        self._project_service: ProjectService = project_service
+        self._task_service: TaskService = task_service
+        self._reporting_service: ReportingService = reporting_service
+        self._project_resource_service: ProjectResourceService = project_resource_service
+        self._resource_service: ResourceService = resource_service
 
         self._setup_ui()
         self.reload_projects()

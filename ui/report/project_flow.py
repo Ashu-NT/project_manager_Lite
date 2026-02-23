@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+from PySide6.QtWidgets import QComboBox
+
+from core.services.project import ProjectService
+
 
 class ReportProjectFlowMixin:
+    project_combo: QComboBox
+    _project_service: ProjectService
+
     def _load_projects(self) -> None:
         self.project_combo.clear()
         for project in self._project_service.list_projects():

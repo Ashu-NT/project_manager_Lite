@@ -4,9 +4,14 @@ from datetime import timedelta
 from typing import List
 
 from core.services.dashboard.models import BurndownPoint
+from core.services.reporting.service import ReportingService
+from core.services.task.service import TaskService
 
 
 class DashboardBurndownMixin:
+    _reporting: ReportingService
+    _tasks: TaskService
+
     def _build_burndown(self, project_id: str) -> List[BurndownPoint]:
         """
         Simple logical burndown: count of remaining (not completed) tasks per day between
@@ -40,4 +45,3 @@ class DashboardBurndownMixin:
             current = current + timedelta(days=1)
 
         return points
-

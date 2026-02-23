@@ -4,9 +4,12 @@ from datetime import date, timedelta
 from typing import List
 
 from core.services.dashboard.models import UpcomingTask
+from core.services.task.service import TaskService
 
 
 class DashboardUpcomingMixin:
+    _tasks: TaskService
+
     def _build_upcoming_tasks(self, project_id: str) -> List[UpcomingTask]:
         today = date.today()
         horizon = today + timedelta(days=14)
@@ -54,4 +57,3 @@ class DashboardUpcomingMixin:
 
         upcoming.sort(key=lambda row: (row.start_date or date.max))
         return upcoming
-

@@ -34,13 +34,13 @@ class ResourceLaborDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle("Labor cost details")
-        self._project_id = project_id
-        self._reporting_service = reporting_service
-        self._task_service = task_service
-        self._resource_service = resource_service
+        self._project_id: str = project_id
+        self._reporting_service: ReportingService = reporting_service
+        self._task_service: TaskService = task_service
+        self._resource_service: ResourceService = resource_service
 
         self.table = QTableView()
-        self._model = None
+        self._model: LaborPlanVsActualTableModel | None = None
 
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
@@ -182,11 +182,11 @@ class ResourceAssignmentsDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle(f"{resource.name} - assignments in {project_name}")
-        self._task_service = task_service
-        self._reporting_service = reporting_service
-        self._project_id = project_id
-        self._project_name = project_name
-        self._resource = resource
+        self._task_service: TaskService = task_service
+        self._reporting_service: ReportingService = reporting_service
+        self._project_id: str = project_id
+        self._project_name: str = project_name
+        self._resource: Resource = resource
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)

@@ -31,11 +31,11 @@ class DashboardService(
         scheduling_engine: SchedulingEngine,
         work_calendar_engine: WorkCalendarEngine,
     ):
-        self._reporting = reporting_service
-        self._tasks = task_service
-        self._projects = project_service
-        self._sched = scheduling_engine
-        self._calendar = work_calendar_engine
+        self._reporting: ReportingService = reporting_service
+        self._tasks: TaskService = task_service
+        self._projects: ProjectService = project_service
+        self._sched: SchedulingEngine = scheduling_engine
+        self._calendar: WorkCalendarEngine = work_calendar_engine
 
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
         self._sched.recalculate_project_schedule(project_id)
@@ -64,4 +64,3 @@ __all__ = [
     "UpcomingTask",
     "BurndownPoint",
 ]
-

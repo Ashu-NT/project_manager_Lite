@@ -1,9 +1,20 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QInputDialog, QMessageBox
+from PySide6.QtWidgets import QComboBox, QInputDialog, QMessageBox
+
+from core.services.baseline import BaselineService
+from core.services.dashboard import DashboardData, DashboardService
+from core.services.project import ProjectService
 
 
 class DashboardDataOpsMixin:
+    project_combo: QComboBox
+    baseline_combo: QComboBox
+    _project_service: ProjectService
+    _dashboard_service: DashboardService
+    _baseline_service: BaselineService
+    _current_data: DashboardData | None
+
     def _generate_baseline(self):
         proj_id, _ = self._current_project_id_and_name()
         if not proj_id:

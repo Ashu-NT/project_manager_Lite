@@ -24,7 +24,7 @@ class ProjectEditDialog(QDialog):
     def __init__(self, parent=None, project: Project | None = None):
         super().__init__(parent)
         self.setWindowTitle("Project" + (" - Edit" if project else " - New"))
-        self._project = project
+        self._project: Project | None = project
 
         self.name_edit = QLineEdit()
         self.client_edit = QLineEdit()

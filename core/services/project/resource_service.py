@@ -29,9 +29,9 @@ class ProjectResourceService:
         resource_repo: ResourceRepository,
         session: Session,
     ):
-        self._project_resource_repo = project_resource_repo
-        self._resource_repo = resource_repo
-        self._session = session
+        self._project_resource_repo: ProjectResourceRepository = project_resource_repo
+        self._resource_repo: ResourceRepository = resource_repo
+        self._session: Session = session
 
     # -------------------------
     # Query methods

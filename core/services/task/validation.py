@@ -3,9 +3,20 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.interfaces import (
+    AssignmentRepository,
+    DependencyRepository,
+    ProjectRepository,
+    TaskRepository,
+)
 
 
 class TaskValidationMixin:
+    _task_repo: TaskRepository
+    _dependency_repo: DependencyRepository
+    _assignment_repo: AssignmentRepository
+    _project_repo: ProjectRepository | None
+
     def _validate_dates(self, start_date, end_date, duration_days):
         if start_date and end_date and end_date < start_date:
             raise ValidationError("Task deadline cannot be before start_date.")

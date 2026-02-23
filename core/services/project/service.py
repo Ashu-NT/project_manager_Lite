@@ -27,13 +27,13 @@ class ProjectService(ProjectLifecycleMixin, ProjectQueryMixin):
         calendar_repo: CalendarEventRepository,
         cost_repo: CostRepository,
     ):
-        self._session = session
-        self._project_repo = project_repo
-        self._task_repo = task_repo
-        self._dependency_repo = dependency_repo
-        self._assignment_repo = assignment_repo
-        self._calendar_repo = calendar_repo
-        self._cost_repo = cost_repo
+        self._session: Session = session
+        self._project_repo: ProjectRepository = project_repo
+        self._task_repo: TaskRepository = task_repo
+        self._dependency_repo: DependencyRepository = dependency_repo
+        self._assignment_repo: AssignmentRepository = assignment_repo
+        self._calendar_repo: CalendarEventRepository = calendar_repo
+        self._cost_repo: CostRepository = cost_repo
 
 
 __all__ = ["ProjectService"]

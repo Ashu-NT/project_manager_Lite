@@ -4,12 +4,30 @@ from datetime import date
 from typing import Dict, List, Tuple
 
 from core.exceptions import NotFoundError
+from core.interfaces import (
+    AssignmentRepository,
+    CostRepository,
+    ProjectRepository,
+    ProjectResourceRepository,
+    ResourceRepository,
+    TaskRepository,
+)
 from core.models import CostType
 from core.services.reporting.models import GanttTaskBar, ProjectKPI, ResourceLoadRow
-from core.services.scheduling.engine import CPMTaskInfo
+from core.services.scheduling.engine import CPMTaskInfo, SchedulingEngine
+from core.services.work_calendar.engine import WorkCalendarEngine
 
 
 class ReportingKpiMixin:
+    _project_repo: ProjectRepository
+    _task_repo: TaskRepository
+    _scheduling_engine: SchedulingEngine
+    _calendar: WorkCalendarEngine
+    _cost_repo: CostRepository
+    _project_resource_repo: ProjectResourceRepository
+    _resource_repo: ResourceRepository
+    _assignment_repo: AssignmentRepository
+
     def get_gantt_data(self, project_id: str) -> List[GanttTaskBar]:
         """
         Returns a list of GanttTaskBars, ensuring schedule is up to date (CPM).

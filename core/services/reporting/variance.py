@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from core.interfaces import BaselineRepository, TaskRepository
 from core.services.reporting.models import TaskVarianceRow
 
 
 class ReportingVarianceMixin:
+    _baseline_repo: BaselineRepository
+    _task_repo: TaskRepository
+
     def get_baseline_schedule_variance(
         self,
         project_id: str,

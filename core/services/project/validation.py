@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from core.exceptions import ValidationError
+from core.interfaces import ProjectRepository
 
 
 class ProjectValidationMixin:
+    _project_repo: ProjectRepository
+
     def _validate_project_name(self, name: str) -> None:
         if not name or not name.strip():
             raise ValidationError("Project name cannot be empty.", code="PROJECT_NAME_EMPTY")

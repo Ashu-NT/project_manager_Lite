@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QGridLayout, QGroupBox, QLabel
+from PySide6.QtWidgets import QComboBox, QGridLayout, QGroupBox, QLabel
 
 from core.services.dashboard import DashboardData
 from ui.styles.formatting import fmt_money, fmt_ratio
@@ -9,6 +9,23 @@ from ui.styles.ui_config import UIConfig as CFG
 
 
 class DashboardEvmRenderingMixin:
+    baseline_combo: QComboBox
+    evm_hint: QLabel
+    evm_cost_summary: QLabel
+    evm_schedule_summary: QLabel
+    evm_forecast_summary: QLabel
+    evm_TCPI_summary: QLabel
+    evm_summary_bar: QLabel
+    lbl_cpi: QLabel
+    lbl_spi: QLabel
+    lbl_eac: QLabel
+    lbl_vac: QLabel
+    lbl_pv: QLabel
+    lbl_ev: QLabel
+    lbl_ac: QLabel
+    lbl_tcpi: QLabel
+    lbl_tcpi_eac: QLabel
+
     def _build_evm_panel(self):
         box = QGroupBox("Earned Value (EVM)")
         box.setFont(CFG.GROUPBOX_TITLE_FONT)

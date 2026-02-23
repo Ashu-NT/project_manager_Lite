@@ -3,11 +3,24 @@ from __future__ import annotations
 from datetime import date
 from typing import Dict, List, Optional, Tuple
 
+from core.interfaces import (
+    BaselineRepository,
+    CostRepository,
+    ProjectRepository,
+    ProjectResourceRepository,
+    ResourceRepository,
+)
 from core.models import CostType
 from core.services.reporting.models import CostBreakdownRow
 
 
 class ReportingCostBreakdownMixin:
+    _project_repo: ProjectRepository
+    _baseline_repo: BaselineRepository
+    _cost_repo: CostRepository
+    _project_resource_repo: ProjectResourceRepository
+    _resource_repo: ResourceRepository
+
     def get_cost_breakdown(
         self,
         project_id: str,

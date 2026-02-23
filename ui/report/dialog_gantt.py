@@ -16,12 +16,12 @@ from ui.styles.ui_config import UIConfig as CFG
 class GanttPreviewDialog(QDialog):
     def __init__(self, parent, reporting_service: ReportingService, project_id: str, project_name: str):
         super().__init__(parent)
-        self._reporting_service = reporting_service
-        self._project_id = project_id
-        self._project_name = project_name
-        self._raw_pixmap = QPixmap()
-        self._fit_mode = True
-        self._zoom_factor = 1.0
+        self._reporting_service: ReportingService = reporting_service
+        self._project_id: str = project_id
+        self._project_name: str = project_name
+        self._raw_pixmap: QPixmap = QPixmap()
+        self._fit_mode: bool = True
+        self._zoom_factor: float = 1.0
         self.setWindowTitle(f"Gantt - {project_name}")
         self._setup_ui()
 
@@ -164,4 +164,3 @@ class GanttPreviewDialog(QDialog):
         super().resizeEvent(event)
         if self._fit_mode:
             self._render_preview()
-

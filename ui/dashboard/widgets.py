@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
@@ -19,19 +21,19 @@ class KpiCard(QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._accent = color
+        self._accent: str = color
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_XS, CFG.SPACING_SM, CFG.SPACING_XS)
         layout.setSpacing(2)
 
-        self._lbl_title = QLabel(title)
+        self._lbl_title: QLabel = QLabel(title)
         self._lbl_title.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
 
-        self._lbl_value = QLabel(value)
+        self._lbl_value: QLabel = QLabel(value)
         self._lbl_value.setStyleSheet(CFG.DASHBOARD_KPI_VALUE_TEMPLATE.format(color=self._accent))
 
-        self._lbl_sub = QLabel(subtitle)
+        self._lbl_sub: QLabel = QLabel(subtitle)
         self._lbl_sub.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
         self._lbl_sub.setVisible(bool(subtitle))
 
@@ -54,14 +56,16 @@ class KpiCard(QWidget):
 class ChartWidget(QWidget):
     def __init__(self, title: str, parent: QWidget | None = None):
         super().__init__(parent)
+        self._fig: Figure
+        self._ax: Axes
         self._fig, self._ax = plt.subplots()
-        self._canvas = FigureCanvas(self._fig)
+        self._canvas: FigureCanvas = FigureCanvas(self._fig)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_XS, CFG.SPACING_SM, CFG.SPACING_XS)
         layout.setSpacing(CFG.SPACING_XS)
 
-        self._title = QLabel(title)
+        self._title: QLabel = QLabel(title)
         self._title.setStyleSheet(CFG.CHART_TITLE_STYLE)
 
         layout.addWidget(self._title)
@@ -75,11 +79,11 @@ class ChartWidget(QWidget):
         self._fig.patch.set_facecolor("white")
 
     @property
-    def ax(self):
+    def ax(self) -> Axes:
         return self._ax
 
     @property
-    def fig(self):
+    def fig(self) -> Figure:
         return self._fig
 
     def redraw(self):

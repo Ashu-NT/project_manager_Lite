@@ -49,9 +49,9 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._project_service = project_service
-        self._dashboard_service = dashboard_service
-        self._baseline_service = baseline_service
+        self._project_service: ProjectService = project_service
+        self._dashboard_service: DashboardService = dashboard_service
+        self._baseline_service: BaselineService = baseline_service
 
         self._current_data: Optional[DashboardData] = None
 

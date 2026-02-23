@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from core.exceptions import BusinessRuleError
 from core.services.dashboard.models import DashboardEVM
+from core.services.reporting.models import EarnedValueMetrics
+from core.services.reporting.service import ReportingService
 
 
 class DashboardEvmMixin:
+    _reporting: ReportingService
+
     def _build_evm(self, project_id: str, baseline_id: str | None = None) -> DashboardEVM | None:
         try:
             evm = self._reporting.get_earned_value(project_id, baseline_id=baseline_id)
@@ -27,7 +31,7 @@ class DashboardEvmMixin:
         except BusinessRuleError:
             return None
 
-    def _interpret_evm(self, evm) -> str:
+    def _interpret_evm(self, evm: EarnedValueMetrics) -> str:
         parts = []
 
         if evm.CPI is None:
@@ -69,4 +73,3 @@ class DashboardEvmMixin:
             parts.append("TCPI(BAC): total planned budget exceeded.")
 
         return " ".join(parts)
-

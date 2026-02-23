@@ -22,9 +22,9 @@ from ui.styles.ui_config import UIConfig as CFG
 class CriticalPathDialog(QDialog):
     def __init__(self, parent, reporting_service: ReportingService, project_id: str, project_name: str):
         super().__init__(parent)
-        self._reporting_service = reporting_service
-        self._project_id = project_id
-        self._project_name = project_name
+        self._reporting_service: ReportingService = reporting_service
+        self._project_id: str = project_id
+        self._project_name: str = project_name
         self.setWindowTitle(f"Critical Path - {project_name}")
         self._setup_ui()
 
@@ -113,4 +113,3 @@ class CriticalPathDialog(QDialog):
         btn_row.addStretch()
         btn_row.addWidget(btn_close)
         layout.addLayout(btn_row)
-

@@ -7,8 +7,8 @@ from core.models import WorkingCalendar
 
 class WorkCalendarEngine:
     def __init__(self, calendar_repo: WorkingCalendarRepository, calendar_id: str = "default"):
-        self._repo = calendar_repo
-        self._calendar_id = calendar_id
+        self._repo: WorkingCalendarRepository = calendar_repo
+        self._calendar_id: str = calendar_id
 
     def _get_calendar(self) -> WorkingCalendar:
         cal = self._repo.get(self._calendar_id)

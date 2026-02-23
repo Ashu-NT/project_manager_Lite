@@ -3,10 +3,13 @@ from __future__ import annotations
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.services.resource import ResourceService
 from ui.resource.dialogs import ResourceEditDialog
 
 
 class ResourceActionsMixin:
+    _resource_service: ResourceService
+
     def create_resource(self) -> None:
         dlg = ResourceEditDialog(self, resource=None)
         if dlg.exec() != QDialog.Accepted:

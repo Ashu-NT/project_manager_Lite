@@ -19,7 +19,7 @@ class ResourceEditDialog(QDialog):
     def __init__(self, parent=None, resource: Resource | None = None):
         super().__init__(parent)
         self.setWindowTitle("Resource" + (" - Edit" if resource else " - New"))
-        self._resource = resource
+        self._resource: Resource | None = resource
 
         self.name_edit = QLineEdit()
         self.role_edit = QLineEdit()
@@ -38,7 +38,7 @@ class ResourceEditDialog(QDialog):
         self.rate_spin.setAlignment(CFG.ALIGN_RIGHT)
 
         self.category_combo = QComboBox()
-        self._cost_types = [
+        self._cost_types: list[CostType] = [
             CostType.LABOR,
             CostType.MATERIAL,
             CostType.OVERHEAD,

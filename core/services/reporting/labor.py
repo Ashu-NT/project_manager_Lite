@@ -3,11 +3,24 @@ from __future__ import annotations
 from typing import List
 
 from core.exceptions import NotFoundError
+from core.interfaces import (
+    AssignmentRepository,
+    ProjectRepository,
+    ProjectResourceRepository,
+    ResourceRepository,
+    TaskRepository,
+)
 from core.models import TaskAssignment
 from core.services.reporting.models import LaborAssignmentRow, LaborPlanActualRow, LaborResourceRow
 
 
 class ReportingLaborMixin:
+    _project_repo: ProjectRepository
+    _task_repo: TaskRepository
+    _assignment_repo: AssignmentRepository
+    _resource_repo: ResourceRepository
+    _project_resource_repo: ProjectResourceRepository
+
     def get_project_labor_details(self, project_id: str) -> List["LaborResourceRow"]:
         """Returns labor cost details grouped by resource for the given project.
 

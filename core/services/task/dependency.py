@@ -2,12 +2,19 @@ from __future__ import annotations
 
 from typing import List
 
+from sqlalchemy.orm import Session
+
 from core.events.domain_events import domain_events
 from core.exceptions import NotFoundError, ValidationError
+from core.interfaces import DependencyRepository, TaskRepository
 from core.models import DependencyType, TaskDependency
 
 
 class TaskDependencyMixin:
+    _session: Session
+    _task_repo: TaskRepository
+    _dependency_repo: DependencyRepository
+
     def add_dependency(
         self,
         predecessor_id: str,

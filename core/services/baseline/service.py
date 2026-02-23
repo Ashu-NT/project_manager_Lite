@@ -30,15 +30,15 @@ class BaselineService:
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
     ):
-        self._session = session
-        self._projects = project_repo
-        self._tasks = task_repo
-        self._costs = cost_repo
-        self._baselines = baseline_repo
-        self._sched = scheduling
-        self._cal = calendar
-        self._project_resources = project_resource_repo
-        self._resources = resource_repo
+        self._session: Session = session
+        self._projects: ProjectRepository = project_repo
+        self._tasks: TaskRepository = task_repo
+        self._costs: CostRepository = cost_repo
+        self._baselines: BaselineRepository = baseline_repo
+        self._sched: SchedulingEngine = scheduling
+        self._cal: WorkCalendarEngine = calendar
+        self._project_resources: ProjectResourceRepository = project_resource_repo
+        self._resources: ResourceRepository = resource_repo
 
     def create_baseline(self, project_id: str, name: str = "Baseline") -> ProjectBaseline:
         project = self._projects.get(project_id)

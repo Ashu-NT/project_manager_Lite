@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QCheckBox, QLabel, QMessageBox, QSpinBox
 
 from core.exceptions import ValidationError
+from core.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 
 
 class CalendarWorkingTimeMixin:
+    _wc_engine: WorkCalendarEngine
+    _wc_service: WorkCalendarService
+    day_checks: list[QCheckBox]
+    hours_spin: QSpinBox
+    summary_label: QLabel
+
     def load_calendar_config(self):
         cal = self._wc_engine._get_calendar()
         if cal:

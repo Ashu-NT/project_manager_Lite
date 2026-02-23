@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from core.exceptions import NotFoundError
 from core.reporting.api import generate_excel_report, generate_gantt_png, generate_pdf_report
+from core.services.reporting import ReportingService
 from ui.report.dialogs import (
     CriticalPathDialog,
     GanttPreviewDialog,
@@ -13,6 +14,8 @@ from ui.report.dialogs import (
 
 
 class ReportActionsMixin:
+    _reporting_service: ReportingService
+
     def load_kpis(self) -> None:
         project_id, _ = self._current_project_id_and_name()
         if not project_id:

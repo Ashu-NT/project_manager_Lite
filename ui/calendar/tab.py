@@ -53,11 +53,11 @@ class CalendarTab(
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._wc_service = work_calendar_service
-        self._wc_engine = work_calendar_engine
-        self._scheduling_engine = scheduling_engine
-        self._project_service = project_service
-        self._task_service = task_service
+        self._wc_service: WorkCalendarService = work_calendar_service
+        self._wc_engine: WorkCalendarEngine = work_calendar_engine
+        self._scheduling_engine: SchedulingEngine = scheduling_engine
+        self._project_service: ProjectService = project_service
+        self._task_service: TaskService = task_service
 
         self._setup_ui()
         self.load_calendar_config()

@@ -29,9 +29,9 @@ class CostEditDialog(QDialog):
     ):
         super().__init__(parent)
         self.setWindowTitle("Cost item" + (" - Edit" if cost_item else " - New"))
-        self._project = project
-        self._tasks = tasks or []
-        self._cost_item = cost_item
+        self._project: Project | None = project
+        self._tasks: list[Task] = tasks or []
+        self._cost_item: CostItem | None = cost_item
 
         self.desc_edit = QTextEdit()
         self.desc_edit.setSizePolicy(CFG.TEXTEDIT_POLICY)
