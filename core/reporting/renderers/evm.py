@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 class EvmCurveRenderer:
     def render(self, series, output_path: Path) -> Path:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         xs = [p.period_end for p in series]
         pv = [float(p.PV or 0.0) for p in series]
         ev = [float(p.EV or 0.0) for p in series]

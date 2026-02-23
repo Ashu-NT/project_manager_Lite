@@ -27,12 +27,26 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 from core.services.reporting import ReportingService
 from core.services.reporting import GanttTaskBar, ProjectKPI, ResourceLoadRow
+from core.exceptions import BusinessRuleError
 
 def _ensure_path(path: str | Path) -> Path:
     p = Path(path)
     if not p.parent.exists():
         p.parent.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def _optional_report_call(func, *args, **kwargs):
+    """
+    Run optional report sections and ignore missing-baseline errors so
+    base exports can still be produced.
+    """
+    try:
+        return func(*args, **kwargs)
+    except BusinessRuleError as exc:
+        if getattr(exc, "code", None) == "NO_BASELINE":
+            return None
+        raise
 
 def generate_gantt_png(
     reporting_service: ReportingService,
@@ -55,8 +69,8 @@ def generate_gantt_png(
 
     names = [b.name for b in bars]
     start_nums = [date2num(b.start) for b in bars]
-    #durations = [(b.end - b.start).days + 1 for b in bars]
-    durations = [(b.end - b.start).days + 0 for b in bars]
+    # Inclusive duration keeps one-day tasks visible in chart output.
+    durations = [max(1, (b.end - b.start).days + 1) for b in bars]
     critical_flags = [b.is_critical for b in bars]
     percents = [b.percent_complete or 0.0 for b in bars]
 
@@ -65,6 +79,7 @@ def generate_gantt_png(
 
     # Draw bars
     for i, (start, dur, is_crit, pct) in enumerate(zip(start_nums, durations, critical_flags, percents)):
+        pct = max(0.0, min(100.0, float(pct or 0.0)))
         base_color = "#d0d0ff" if not is_crit else "#ffcccc"
         ax.barh(
             y_positions[i],
@@ -193,6 +208,8 @@ def generate_excel_report(
     reporting_service: ReportingService,
     project_id: str,
     output_path: str | Path,
+    baseline_id: str | None = None,
+    as_of: date | None = None,
 ) -> Path:
     """
     Generate an Excel report (.xlsx) for a project:
@@ -203,8 +220,7 @@ def generate_excel_report(
     output_path = _ensure_path(output_path)
 
     kpi: ProjectKPI = reporting_service.get_project_kpis(project_id)
-    as_of = date.today()
-    baseline_id = None
+    as_of = as_of or date.today()
     gantt_data: List[GanttTaskBar] = reporting_service.get_gantt_data(project_id)
     res_load: List[ResourceLoadRow] = reporting_service.get_resource_load_summary(project_id)
 
@@ -311,71 +327,82 @@ def generate_excel_report(
     ws_res.column_dimensions["C"].width = 20
     ws_res.column_dimensions["D"].width = 15
     
-    # --- EVM sheet ---
+    evm = None
     if hasattr(reporting_service, "get_earned_value"):
+        evm = _optional_report_call(
+            reporting_service.get_earned_value,
+            project_id,
+            baseline_id=baseline_id,
+            as_of=as_of,
+        )
+
+    evm_series = None
+    if hasattr(reporting_service, "get_evm_series"):
+        evm_series = _optional_report_call(
+            reporting_service.get_evm_series,
+            project_id,
+            baseline_id=baseline_id,
+            as_of=as_of,
+        )
+
+    # --- EVM sheet ---
+    if evm is not None or evm_series:
         ws_evm = wb.create_sheet("EVM")
         ws_evm["A1"] = "Earned Value Management (EVM)"
         ws_evm["A1"].font = title_font
 
-        evm = reporting_service.get_earned_value(
-            project_id,
-            baseline_id=baseline_id,
-            as_of=as_of
-        )
+        if evm is not None:
+            rows = [
+                ("As of", as_of.isoformat()),
+                ("BAC", float(getattr(evm, "BAC", 0.0) or 0.0)),
+                ("PV",  float(getattr(evm, "PV", 0.0) or 0.0)),
+                ("EV",  float(getattr(evm, "EV", 0.0) or 0.0)),
+                ("AC",  float(getattr(evm, "AC", 0.0) or 0.0)),
+                ("ETC",  float(getattr(evm, "ETC", 0.0) or 0.0)),
+                ("TCPI_to_BAC",  float(getattr(evm, "TCPI_to_BAC", 0.0) or 0.0)),
+                ("TCPI_to_EAC",  float(getattr(evm, "TCPI_to_EAC", 0.0) or 0.0)),
+                ("SPI", float(getattr(evm, "SPI", 0.0) or 0.0)),
+                ("CPI", float(getattr(evm, "CPI", 0.0) or 0.0)),
+                ("EAC", float(getattr(evm, "EAC", 0.0) or 0.0)),
+                ("VAC", float(getattr(evm, "VAC", 0.0) or 0.0)),
+            ]
 
-        rows = [
-            ("As of", as_of.isoformat()),
-            ("BAC", float(getattr(evm, "BAC", 0.0) or 0.0)),
-            ("PV",  float(getattr(evm, "PV", 0.0) or 0.0)),
-            ("EV",  float(getattr(evm, "EV", 0.0) or 0.0)),
-            ("AC",  float(getattr(evm, "AC", 0.0) or 0.0)),
-            ("ETC",  float(getattr(evm, "ETC", 0.0) or 0.0)),
-            ("TCPI_to_BAC",  float(getattr(evm, "TCPI_to_BAC", 0.0) or 0.0)),
-            ("TCPI_to_EAC",  float(getattr(evm, "TCPI_to_EAC", 0.0) or 0.0)),
-            ("SPI", float(getattr(evm, "SPI", 0.0) or 0.0)),
-            ("CPI", float(getattr(evm, "CPI", 0.0) or 0.0)),
-            ("EAC", float(getattr(evm, "EAC", 0.0) or 0.0)),
-            ("VAC", float(getattr(evm, "VAC", 0.0) or 0.0)),
-        ]
+            r0 = 3
+            ws_evm["A2"] = "Metric"; ws_evm["B2"] = "Value"
+            ws_evm["A2"].font = header_font; ws_evm["B2"].font = header_font
+            ws_evm["A2"].fill = header_fill; ws_evm["B2"].fill = header_fill
+            ws_evm["A2"].border = thin_border; ws_evm["B2"].border = thin_border
 
-        r0 = 3
-        ws_evm["A2"] = "Metric"; ws_evm["B2"] = "Value"
-        ws_evm["A2"].font = header_font; ws_evm["B2"].font = header_font
-        ws_evm["A2"].fill = header_fill; ws_evm["B2"].fill = header_fill
-        ws_evm["A2"].border = thin_border; ws_evm["B2"].border = thin_border
+            for i, (k, v) in enumerate(rows):
+                rr = r0 + i
+                ws_evm[f"A{rr}"] = k
+                ws_evm[f"B{rr}"] = v
+                ws_evm[f"A{rr}"].border = thin_border
+                ws_evm[f"B{rr}"].border = thin_border
 
-        for i, (k, v) in enumerate(rows):
-            rr = r0 + i
-            ws_evm[f"A{rr}"] = k
-            ws_evm[f"B{rr}"] = v
-            ws_evm[f"A{rr}"].border = thin_border
-            ws_evm[f"B{rr}"].border = thin_border
+            ws_evm.column_dimensions["A"].width = 22
+            ws_evm.column_dimensions["B"].width = 18
 
-        ws_evm.column_dimensions["A"].width = 22
-        ws_evm.column_dimensions["B"].width = 18
-
-    if hasattr(reporting_service, "get_evm_series"):
-        series = reporting_service.get_evm_series(project_id, baseline_id=baseline_id, as_of=as_of)
-        if series:
+        if evm_series:
             ws_evm["D2"] = "Period End"
             ws_evm["E2"] = "PV"
             ws_evm["F2"] = "EV"
             ws_evm["G2"] = "AC"
-            for c in ("D","E","F","G"):
+            for c in ("D", "E", "F", "G"):
                 ws_evm[f"{c}2"].font = header_font
                 ws_evm[f"{c}2"].fill = header_fill
                 ws_evm[f"{c}2"].border = thin_border
 
-            for idx, p in enumerate(series, start=3):
+            for idx, p in enumerate(evm_series, start=3):
                 ws_evm[f"D{idx}"] = p.period_end.isoformat()
                 ws_evm[f"E{idx}"] = float(p.PV or 0.0)
                 ws_evm[f"F{idx}"] = float(p.EV or 0.0)
                 ws_evm[f"G{idx}"] = float(p.AC or 0.0)
-                for c in ("D","E","F","G"):
+                for c in ("D", "E", "F", "G"):
                     ws_evm[f"{c}{idx}"].border = thin_border
 
             ws_evm.column_dimensions["D"].width = 14
-            for c in ("E","F","G"):
+            for c in ("E", "F", "G"):
                 ws_evm.column_dimensions[c].width = 14
       
     if hasattr(reporting_service, "get_baseline_schedule_variance"):
@@ -438,6 +465,8 @@ def generate_pdf_report(
     project_id: str,
     output_path: str | Path,
     temp_dir: str | Path = "tmp_reports",
+    baseline_id: str | None = None,
+    as_of: date | None = None,
 ) -> Path:
     """
     Generate a PDF report:
@@ -452,11 +481,13 @@ def generate_pdf_report(
 
     kpi: ProjectKPI = reporting_service.get_project_kpis(project_id)
     
-    as_of = date.today()
-    baseline_id = None  
-    
-    gantt_png = temp_dir / f"gantt_{project_id}.png"
-    gantt_png = generate_gantt_png(reporting_service, project_id, gantt_png)
+    as_of = as_of or date.today()
+
+    gantt_png: Path | None = temp_dir / f"gantt_{project_id}.png"
+    try:
+        gantt_png = generate_gantt_png(reporting_service, project_id, gantt_png)
+    except ValueError:
+        gantt_png = None
 
     res_load: List[ResourceLoadRow] = reporting_service.get_resource_load_summary(project_id)
 
@@ -528,29 +559,32 @@ def generate_pdf_report(
     story.append(tbl)
     story.append(Spacer(1, 20))
 
-# --- EVM Summary (professional section) ---
+    # --- EVM Summary (professional section) ---
+    evm = None
     if hasattr(reporting_service, "get_earned_value"):
-        evm = reporting_service.get_earned_value(
+        evm = _optional_report_call(
+            reporting_service.get_earned_value,
             project_id,
             baseline_id=baseline_id,
-            as_of=as_of
+            as_of=as_of,
         )
 
+    if evm is not None:
         story.append(Paragraph("Earned Value Management (EVM)", styles["Heading2"]))
         story.append(Spacer(1, 8))
-        
+
         evm_rows = [
             ["As of", as_of.isoformat()],
             ["BAC", f"{float(getattr(evm, 'BAC', 0.0) or 0.0):.2f}"],
-            ["PV",  f"{float(getattr(evm, 'PV',  0.0)or 0.0):.2f}"],
-            ["EV",  f"{float(getattr(evm, 'EV',  0.0)or 0.0):.2f}"],
-            ["AC",  f"{float(getattr(evm, 'AC',  0.0)or 0.0):.2f}"],
-            ["SV (EV − PV)", f"{float(getattr(evm, 'SV', 0.0)or 0.0):.2f}"],
-            ["CV (EV − AC)", f"{float(getattr(evm, 'CV', 0.0)or 0.0):.2f}"],
-            ["SPI", f"{float(getattr(evm, 'SPI', 0.0)or 0.0):.3f}"],
-            ["CPI", f"{float(getattr(evm, 'CPI', 0.0)or 0.0):.3f}"],
-            ["EAC", f"{float(getattr(evm, 'EAC', 0.0)or 0.0):.2f}"],
-            ["VAC (BAC − EAC)", f"{float(getattr(evm, 'VAC', 0.0)or 0.0):.2f}"],
+            ["PV", f"{float(getattr(evm, 'PV', 0.0) or 0.0):.2f}"],
+            ["EV", f"{float(getattr(evm, 'EV', 0.0) or 0.0):.2f}"],
+            ["AC", f"{float(getattr(evm, 'AC', 0.0) or 0.0):.2f}"],
+            ["SV (EV - PV)", f"{float(getattr(evm, 'SV', 0.0) or 0.0):.2f}"],
+            ["CV (EV - AC)", f"{float(getattr(evm, 'CV', 0.0) or 0.0):.2f}"],
+            ["SPI", f"{float(getattr(evm, 'SPI', 0.0) or 0.0):.3f}"],
+            ["CPI", f"{float(getattr(evm, 'CPI', 0.0) or 0.0):.3f}"],
+            ["EAC", f"{float(getattr(evm, 'EAC', 0.0) or 0.0):.2f}"],
+            ["VAC (BAC - EAC)", f"{float(getattr(evm, 'VAC', 0.0) or 0.0):.2f}"],
         ]
 
         evm_tbl = Table([["Metric", "Value"]] + evm_rows, hAlign="LEFT", colWidths=[180, 160])
@@ -623,9 +657,12 @@ def generate_pdf_report(
     story.append(Paragraph("Gantt Chart", styles["Heading2"]))
     story.append(Spacer(1, 8))
 
-    img = PdfImage(str(gantt_png))
-    img._restrictSize(720, 280)  # fit on page
-    story.append(img)
+    if gantt_png and gantt_png.exists():
+        img = PdfImage(str(gantt_png))
+        img._restrictSize(720, 280)  # fit on page
+        story.append(img)
+    else:
+        story.append(Paragraph("No tasks with valid dates were available for Gantt rendering.", styles["Normal"]))
     story.append(Spacer(1, 20))
 
     # Resource load table

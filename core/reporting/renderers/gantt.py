@@ -12,6 +12,7 @@ from core.services.reporting import GanttTaskBar
 
 class GanttPngRenderer:
     def render(self, bars: List[GanttTaskBar], output_path: Path) -> Path:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         bars = [b for b in bars if b.start and b.end]
         if not bars:
             raise ValueError("No tasks with dates available for Gantt chart")
@@ -20,13 +21,14 @@ class GanttPngRenderer:
 
         names = [b.name for b in bars]
         start_nums = [date2num(b.start) for b in bars]
-        durations = [(b.end - b.start).days for b in bars]
+        durations = [max(1, (b.end - b.start).days + 1) for b in bars]
         critical = [b.is_critical for b in bars]
         pct = [b.percent_complete or 0.0 for b in bars]
 
         fig, ax = plt.subplots(figsize=(12, 6))
 
         for i, (s, d, c, p) in enumerate(zip(start_nums, durations, critical, pct)):
+            p = max(0.0, min(100.0, float(p or 0.0)))
             ax.barh(i, d, left=s, height=0.4,
                     color="#ffcccc" if c else "#d0d0ff",
                     edgecolor="black", linewidth=0.6)
