@@ -37,7 +37,8 @@ class TaskAssignmentMixin:
             domain_events.tasks_changed.emit(task.project_id)
 
     def list_assignments_for_task(self, task_id: str) -> List[TaskAssignment]:
-        return self._assignment_repo.list_by_assignment(task_id)
+        # Keep single-task queries aligned with primary repository API.
+        return self._assignment_repo.list_by_task(task_id)
 
     def set_assignment_hours(self, assignment_id: str, hours_logged: float) -> TaskAssignment:
         if hours_logged < 0:

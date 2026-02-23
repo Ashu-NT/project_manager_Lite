@@ -66,194 +66,170 @@ class CalendarTab(
         domain_events.project_changed.connect(self._on_project_changed)
 
     def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(CFG.SPACING_SM)
-        layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
-        self.setMinimumSize(self.sizeHint())
+        root = QVBoxLayout(self)
+        root.setSpacing(CFG.SPACING_MD)
+        root.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        grp_days = QGroupBox("Working time (used for all schedule calculations)")
+        title = QLabel("Calendar & Scheduling")
+        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        subtitle = QLabel(
+            "Configure working days, holidays, and run schedule date calculations from one place."
+        )
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        subtitle.setWordWrap(True)
+        root.addWidget(title)
+        root.addWidget(subtitle)
+
+        body = QHBoxLayout()
+        body.setSpacing(CFG.SPACING_MD)
+        root.addLayout(body, 1)
+
+        left_col = QVBoxLayout()
+        left_col.setSpacing(CFG.SPACING_MD)
+        body.addLayout(left_col, 3)
+
+        right_col = QVBoxLayout()
+        right_col.setSpacing(CFG.SPACING_MD)
+        body.addLayout(right_col, 2)
+
+        grp_days = QGroupBox("Working Calendar")
         grp_days.setFont(CFG.GROUPBOX_TITLE_FONT)
         days_layout = QVBoxLayout(grp_days)
         days_layout.setSpacing(CFG.SPACING_SM)
 
-        self.summary_label = QLabel(
-            "This calendar controls how task durations and dependencies are "
-            "converted into real dates.\n"
-            "Working days are counted for CPM, Gantt, and all scheduling."
-        )
+        self.summary_label = QLabel("")
+        self.summary_label.setStyleSheet(CFG.INFO_TEXT_STYLE)
         self.summary_label.setWordWrap(True)
         days_layout.addWidget(self.summary_label)
 
         days_row = QHBoxLayout()
         self.day_checks = []
-        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        for i, name in enumerate(day_names):
+        for index, name in enumerate(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]):
             cb = QCheckBox(name)
-            cb.setChecked(i < 5)
-            cb.day_index = i
-            cb.setToolTip("Include %s as a working day (tasks can be scheduled here)." % name)
+            cb.setChecked(index < 5)
+            cb.day_index = index
             self.day_checks.append(cb)
             days_row.addWidget(cb)
         days_row.addStretch()
         days_layout.addLayout(days_row)
 
         hours_row = QHBoxLayout()
-        hours_row.addWidget(QLabel("Working hours per day:"))
+        hours_row.addWidget(QLabel("Hours/day:"))
         self.hours_spin = QSpinBox()
         self.hours_spin.setMinimum(CFG.MIN_WORKING_HOURS)
         self.hours_spin.setMaximum(CFG.MAX_WORKING_HOURS)
         self.hours_spin.setValue(CFG.WORKING_HOURS_IN_DAY)
-        self.hours_spin.setToolTip(
-            "Used for reporting on capacity/cost. "
-            "Scheduling itself uses working DAYS, but this defines how long a day is."
-        )
-        hours_row.addWidget(self.hours_spin)
-
+        self.hours_spin.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.hours_spin.setMinimumWidth(96)
         self.btn_save_calendar = QPushButton(CFG.APPLY_WORKING_TIME_LABEL)
-        self.btn_save_calendar.setToolTip(
-            "Save these working days and hours and use them for all future schedule calculations."
-        )
+        self.btn_save_calendar.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_save_calendar.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        hours_row.addWidget(self.hours_spin)
         hours_row.addWidget(self.btn_save_calendar)
         hours_row.addStretch()
         days_layout.addLayout(hours_row)
-        layout.addWidget(grp_days)
+        left_col.addWidget(grp_days)
 
-        grp_holidays = QGroupBox("Non-working days (holidays, shutdowns, special days)")
+        grp_holidays = QGroupBox("Non-working Days")
         grp_holidays.setFont(CFG.GROUPBOX_TITLE_FONT)
         hol_layout = QVBoxLayout(grp_holidays)
         hol_layout.setSpacing(CFG.SPACING_SM)
 
-        desc = QLabel(
-            "Tasks will NEVER be scheduled on these dates, even if they fall on a working weekday.\n"
-            "Use this for public holidays, company shutdowns, or any special non-working days."
-        )
-        desc.setWordWrap(True)
-        hol_layout.addWidget(desc)
-
         self.holiday_table = QTableWidget(0, 2)
         self.holiday_table.setHorizontalHeaderLabels(CFG.HOLIDAY_TABLE_HEADERS)
+        self.holiday_table.verticalHeader().setVisible(False)
+        self.holiday_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.holiday_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.holiday_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.holiday_table.setToolTip(
-            "List of specific dates that are treated as non-working days in all schedules."
-        )
+        self.holiday_table.setMinimumHeight(220)
         style_table(self.holiday_table)
         hol_layout.addWidget(self.holiday_table)
 
-        row = QHBoxLayout()
+        form_row = QHBoxLayout()
         self.holiday_date_edit = QDateEdit()
         self.holiday_date_edit.setDisplayFormat(CFG.DATE_FORMAT)
-        self.holiday_date_edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
-        self.holiday_date_edit.setSizePolicy(CFG.INPUT_POLICY)
         self.holiday_date_edit.setCalendarPopup(True)
         self.holiday_date_edit.setDate(QDate.currentDate())
-        self.holiday_date_edit.setToolTip("Pick a date that should be treated as non-working.")
-
+        self.holiday_date_edit.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.holiday_date_edit.setMinimumWidth(130)
         self.holiday_name_edit = QLineEdit()
-        self.holiday_name_edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
-        self.holiday_name_edit.setSizePolicy(CFG.INPUT_POLICY)
-        self.holiday_name_edit.setPlaceholderText(
-            "e.g. Christmas, National Holiday, Plant Shutdown"
-        )
-        self.holiday_name_edit.setToolTip("Short description of this non-working day.")
-
+        self.holiday_name_edit.setPlaceholderText("Holiday name")
+        self.holiday_name_edit.setFixedHeight(CFG.INPUT_HEIGHT)
         self.btn_add_holiday = QPushButton(CFG.ADD_NON_WORKING_DAY_LABEL)
-        self.btn_add_holiday.setToolTip("Add the selected date and name as a non-working day.")
         self.btn_delete_holiday = QPushButton(CFG.REMOVE_SELECTED_LABEL)
-        self.btn_delete_holiday.setToolTip(
-            "Remove the currently selected non-working day from the calendar."
-        )
-        for btn in [self.btn_add_holiday, self.btn_delete_holiday]:
-            btn.setMinimumHeight(CFG.BUTTON_HEIGHT)
+        for btn in (self.btn_add_holiday, self.btn_delete_holiday):
+            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
 
-        row.addWidget(QLabel("Date:"))
-        row.addWidget(self.holiday_date_edit)
-        row.addWidget(QLabel("Name:"))
-        row.addWidget(self.holiday_name_edit)
-        row.addWidget(self.btn_add_holiday)
-        row.addWidget(self.btn_delete_holiday)
-        row.addStretch()
-        hol_layout.addLayout(row)
-        layout.addWidget(grp_holidays)
+        form_row.addWidget(QLabel("Date"))
+        form_row.addWidget(self.holiday_date_edit)
+        form_row.addWidget(QLabel("Name"))
+        form_row.addWidget(self.holiday_name_edit, 1)
+        form_row.addWidget(self.btn_add_holiday)
+        form_row.addWidget(self.btn_delete_holiday)
+        hol_layout.addLayout(form_row)
+        left_col.addWidget(grp_holidays, 1)
 
-        grp_calc = QGroupBox("Working-day calculator")
+        grp_calc = QGroupBox("Working-day Calculator")
         grp_calc.setFont(CFG.GROUPBOX_TITLE_FONT)
         calc_layout = QVBoxLayout(grp_calc)
         calc_layout.setSpacing(CFG.SPACING_SM)
-
-        calc_desc = QLabel(
-            "Use this tool to see how the current calendar interprets a duration in working days.\n"
-            "This is exactly how task durations are converted into dates in CPM and Gantt."
-        )
-        calc_desc.setWordWrap(True)
-        calc_layout.addWidget(calc_desc)
 
         calc_row = QHBoxLayout()
         self.calc_start = QDateEdit()
         self.calc_start.setCalendarPopup(True)
         self.calc_start.setDisplayFormat(CFG.DATE_FORMAT)
-        self.calc_start.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
-        self.calc_start.setSizePolicy(CFG.INPUT_POLICY)
         self.calc_start.setDate(QDate.currentDate())
-        self.calc_start.setToolTip("Starting date for the calculation (e.g. task start).")
-
+        self.calc_start.setFixedHeight(CFG.INPUT_HEIGHT)
         self.calc_days_spin = QSpinBox()
-        self.calc_days_spin.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
-        self.calc_days_spin.setSizePolicy(CFG.INPUT_POLICY)
         self.calc_days_spin.setMinimum(1)
         self.calc_days_spin.setMaximum(3650)
         self.calc_days_spin.setValue(5)
-        self.calc_days_spin.setToolTip(
-            "How many WORKING days to add. Weekends and non-working days will be skipped."
-        )
-
+        self.calc_days_spin.setFixedHeight(CFG.INPUT_HEIGHT)
         self.btn_calc = QPushButton(CFG.CALCULATE_LABEL)
-        self.btn_calc.setMinimumHeight(CFG.BUTTON_HEIGHT)
+        self.btn_calc.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_calc.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        self.btn_calc.setToolTip(
-            "Compute: Start date + N working days = end date, using the current calendar."
-        )
-        self.calc_result_label = QLabel("Result: (not calculated yet)")
-        self.calc_result_label.setWordWrap(True)
-
-        calc_row.addWidget(QLabel("Start date:"))
+        calc_row.addWidget(QLabel("Start"))
         calc_row.addWidget(self.calc_start)
-        calc_row.addWidget(QLabel("Duration (working days):"))
+        calc_row.addWidget(QLabel("Days"))
         calc_row.addWidget(self.calc_days_spin)
         calc_row.addWidget(self.btn_calc)
         calc_row.addStretch()
         calc_layout.addLayout(calc_row)
-        calc_layout.addWidget(self.calc_result_label)
-        layout.addWidget(grp_calc)
 
-        grp_sched = QGroupBox("Recalculate project schedules with this calendar")
+        self.calc_result_label = QLabel("Result: not calculated.")
+        self.calc_result_label.setWordWrap(True)
+        self.calc_result_label.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+        calc_layout.addWidget(self.calc_result_label)
+        right_col.addWidget(grp_calc)
+
+        grp_sched = QGroupBox("Project Schedule Recalculation")
         grp_sched.setFont(CFG.GROUPBOX_TITLE_FONT)
-        sched_layout = QHBoxLayout(grp_sched)
+        sched_layout = QVBoxLayout(grp_sched)
         sched_layout.setSpacing(CFG.SPACING_SM)
 
+        project_row = QHBoxLayout()
         self.project_combo = QComboBox()
         self.project_combo.setMinimumWidth(CFG.COMBO_MIN_WIDTH_MD)
-        self.project_combo.setSizePolicy(CFG.INPUT_POLICY)
-        self.project_combo.setToolTip("Pick a project whose task dates you want to recalculate.")
+        self.project_combo.setFixedHeight(CFG.INPUT_HEIGHT)
         self.btn_reload_projects = QPushButton(CFG.RELOAD_PROJECTS_LABEL)
-        self.btn_reload_projects.setToolTip("Reload the list of projects.")
         self.btn_recalc_project = QPushButton(CFG.RECALCULATE_SCHEDULE_LABEL)
-        for btn in [self.btn_reload_projects, self.btn_recalc_project]:
-            btn.setMinimumHeight(CFG.BUTTON_HEIGHT)
+        for btn in (self.btn_reload_projects, self.btn_recalc_project):
+            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        self.btn_recalc_project.setToolTip(
-            "Recompute all task dates for the selected project using the current calendar."
-        )
 
-        sched_layout.addWidget(QLabel("Project:"))
-        sched_layout.addWidget(self.project_combo)
-        sched_layout.addWidget(self.btn_reload_projects)
-        sched_layout.addWidget(self.btn_recalc_project)
-        sched_layout.addStretch()
-        layout.addWidget(grp_sched)
+        project_row.addWidget(QLabel("Project"))
+        project_row.addWidget(self.project_combo, 1)
+        project_row.addWidget(self.btn_reload_projects)
+        project_row.addWidget(self.btn_recalc_project)
+        sched_layout.addLayout(project_row)
 
-        layout.addStretch()
+        hint = QLabel("Apply after editing working days or holidays to refresh task dates.")
+        hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        hint.setWordWrap(True)
+        sched_layout.addWidget(hint)
+        right_col.addWidget(grp_sched)
+        right_col.addStretch()
 
         self.btn_save_calendar.clicked.connect(self.save_calendar)
         self.btn_add_holiday.clicked.connect(self.add_holiday)
@@ -261,3 +237,4 @@ class CalendarTab(
         self.btn_calc.clicked.connect(self.run_calendar_calc)
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_recalc_project.clicked.connect(self.recalc_project_schedule)
+

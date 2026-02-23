@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
@@ -145,20 +144,10 @@ class TaskActionsMixin:
         if not task:
             QMessageBox.information(self, "Assignments", "Please select a task.")
             return
+
         refresh_panel = getattr(self, "_reload_assignment_panel_for_selected_task", None)
         if callable(refresh_panel):
             refresh_panel()
-
-        splitter = getattr(self, "main_splitter", None)
-        if splitter is not None and hasattr(splitter, "orientation"):
-            try:
-                if splitter.orientation() == Qt.Horizontal:
-                    total = max(1, splitter.width())
-                    panel = max(280, min(460, int(total * 0.36)))
-                    table = max(320, total - panel)
-                    splitter.setSizes([table, panel])
-            except Exception:
-                pass
 
         assignment_table = getattr(self, "assignment_table", None)
         if assignment_table is not None:

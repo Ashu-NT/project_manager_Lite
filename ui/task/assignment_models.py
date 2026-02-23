@@ -14,8 +14,19 @@ class AssignmentRow:
     resource_name: str
 
 
+def _assignment_hours_logged(assignment: TaskAssignment) -> float:
+    value = getattr(assignment, "hours_logged", None)
+    if value is None:
+        value = getattr(assignment, "hours", 0.0)
+    return float(value or 0.0)
+
+
+def _assignment_allocation(assignment: TaskAssignment) -> float:
+    return float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
+
+
 class AssignmentTableModel(QAbstractTableModel):
-    HEADERS = ["Resource", "Allocation (%)", "Hours Logged"]
+    HEADERS = ["Resource", "Hours Logged", "Allocation (%)"]
 
     def __init__(self, rows: list[AssignmentRow] | None = None, parent=None):
         super().__init__(parent)
@@ -48,9 +59,9 @@ class AssignmentTableModel(QAbstractTableModel):
         if col == 0:
             return row.resource_name
         if col == 1:
-            return f"{float(assignment.allocation_percent or 0.0):.1f}"
+            return f"{_assignment_hours_logged(assignment):.2f}"
         if col == 2:
-            return f"{float(assignment.hours_logged or 0.0):.2f}"
+            return f"{_assignment_allocation(assignment):.1f}"
         return None
 
     def headerData(self, section: int, orientation, role=Qt.DisplayRole):

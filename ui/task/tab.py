@@ -1,14 +1,11 @@
 # ui/task/tab.py
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer, Qt
-from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSplitter,
     QSizePolicy,
     QTableView,
     QVBoxLayout,
@@ -41,29 +38,8 @@ class TaskTab(
     - delegates project/task loading to TaskProjectFlowMixin
     - delegates user actions to TaskActionsMixin
     """
+
     _assignment_panel: QWidget
-    main_splitter: QSplitter
-
-    def _set_initial_splitter_sizes(self) -> None:
-        self._sync_splitter_orientation()
-
-    def _sync_splitter_orientation(self) -> None:
-        # Use stacked layout on narrower windows to avoid table/panel overlap.
-        narrow = self.width() < 1200
-        desired_orientation = Qt.Vertical if narrow else Qt.Horizontal
-        if self.main_splitter.orientation() != desired_orientation:
-            self.main_splitter.setOrientation(desired_orientation)
-
-        if desired_orientation == Qt.Horizontal:
-            total = max(1, self.main_splitter.width())
-            panel = max(280, min(460, int(total * 0.33)))
-            table = max(360, total - panel)
-            self.main_splitter.setSizes([table, panel])
-        else:
-            total = max(1, self.main_splitter.height())
-            top = max(280, int(total * 0.62))
-            bottom = max(200, total - top)
-            self.main_splitter.setSizes([top, bottom])
 
     def __init__(
         self,
@@ -85,9 +61,9 @@ class TaskTab(
         domain_events.project_changed.connect(self._on_project_changed_event)
 
     def _setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(CFG.SPACING_MD)
-        layout.setContentsMargins(
+        root = QVBoxLayout(self)
+        root.setSpacing(CFG.SPACING_MD)
+        root.setContentsMargins(
             CFG.MARGIN_MD,
             CFG.MARGIN_MD,
             CFG.MARGIN_MD,
@@ -103,7 +79,7 @@ class TaskTab(
         top.addWidget(self.project_combo)
         top.addWidget(self.btn_reload_projects)
         top.addStretch()
-        layout.addLayout(top)
+        root.addLayout(top)
 
         toolbar = QHBoxLayout()
         self.btn_new = QPushButton(CFG.NEW_TASK_LABEL)
@@ -111,7 +87,6 @@ class TaskTab(
         self.btn_delete = QPushButton(CFG.DELETE_LABEL)
         self.btn_progress = QPushButton(CFG.UPDATE_PROGRESS_LABEL)
         self.btn_deps = QPushButton(CFG.DEPENDENCIES_LABEL)
-        self.btn_assign = QPushButton(CFG.ASSIGNMENTS_LABEL)
         self.btn_refresh_tasks = QPushButton(CFG.REFRESH_TASKS_LABEL)
 
         for btn in [
@@ -121,7 +96,6 @@ class TaskTab(
             self.btn_delete,
             self.btn_progress,
             self.btn_deps,
-            self.btn_assign,
             self.btn_refresh_tasks,
         ]:
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
@@ -132,10 +106,12 @@ class TaskTab(
         toolbar.addWidget(self.btn_delete)
         toolbar.addWidget(self.btn_progress)
         toolbar.addWidget(self.btn_deps)
-        toolbar.addWidget(self.btn_assign)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh_tasks)
-        layout.addLayout(toolbar)
+        root.addLayout(toolbar)
+
+        content = QHBoxLayout()
+        content.setSpacing(CFG.SPACING_MD)
 
         self.table = QTableView()
         self.model = TaskTableModel()
@@ -146,20 +122,15 @@ class TaskTab(
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         style_table(self.table)
+        content.addWidget(self.table, 5)
 
-        self.main_splitter = QSplitter(Qt.Horizontal)
-        self.main_splitter.setChildrenCollapsible(False)
-        self.main_splitter.setHandleWidth(8)
-        self.main_splitter.addWidget(self.table)
         self._assignment_panel = self._build_assignment_panel()
         self._assignment_panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self._assignment_panel.setMinimumWidth(240)
+        self._assignment_panel.setMinimumWidth(340)
         self._assignment_panel.setMaximumWidth(520)
-        self.main_splitter.addWidget(self._assignment_panel)
-        self.main_splitter.setStretchFactor(0, 3)
-        self.main_splitter.setStretchFactor(1, 2)
-        layout.addWidget(self.main_splitter)
-        QTimer.singleShot(0, self._set_initial_splitter_sizes)
+        content.addWidget(self._assignment_panel, 3)
+
+        root.addLayout(content, 1)
 
         self.btn_reload_projects.clicked.connect(self._load_projects)
         self.project_combo.currentIndexChanged.connect(self._on_project_changed)
@@ -169,9 +140,5 @@ class TaskTab(
         self.btn_delete.clicked.connect(self.delete_task)
         self.btn_progress.clicked.connect(self.update_progress)
         self.btn_deps.clicked.connect(self.manage_dependencies)
-        self.btn_assign.clicked.connect(self.manage_assignments)
         self.table.selectionModel().selectionChanged.connect(self._on_task_selection_changed)
 
-    def resizeEvent(self, event: QResizeEvent) -> None:
-        super().resizeEvent(event)
-        self._sync_splitter_orientation()
