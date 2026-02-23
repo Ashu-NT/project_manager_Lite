@@ -143,7 +143,12 @@ class ExcelReportRenderer:
 
                 for i, (k, v) in enumerate(rows, start=3):
                     ws_evm[f"A{i}"] = k
-                    ws_evm[f"B{i}"] = float(v or 0.0) if v is not None else ""
+                    if isinstance(v, (int, float)):
+                        ws_evm[f"B{i}"] = float(v)
+                    elif v is None:
+                        ws_evm[f"B{i}"] = ""
+                    else:
+                        ws_evm[f"B{i}"] = str(v)
                     ws_evm[f"A{i}"].border = thin_border
                     ws_evm[f"B{i}"].border = thin_border
 

@@ -8,11 +8,6 @@ from openpyxl import load_workbook
 
 from core.models import CostType, DependencyType
 from core.reporting import api as reporting_api
-from core.reporting.exporters import (
-    generate_excel_report,
-    generate_gantt_png,
-    generate_pdf_report,
-)
 from core.services.reporting.models import (
     CostBreakdownRow,
     EarnedValueMetrics,
@@ -82,7 +77,7 @@ def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, m
     monkeypatch.setattr(Axes, "barh", _spy_barh)
 
     output = tmp_path / "gantt.png"
-    generate_gantt_png(services["reporting_service"], pid, output)
+    reporting_api.generate_gantt_png(services["reporting_service"], pid, output)
 
     assert output.exists()
     assert output.stat().st_size > 0
@@ -93,7 +88,7 @@ def test_excel_export_contains_expected_sections_when_baseline_exists(services, 
     pid, baseline_id = _setup_report_project(services)
     output = tmp_path / "report.xlsx"
 
-    generate_excel_report(
+    reporting_api.generate_excel_report(
         services["reporting_service"],
         pid,
         output,
@@ -120,7 +115,7 @@ def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
     ts.create_task(pid, "Task No Base", start_date=date(2023, 11, 6), duration_days=2)
 
     output = tmp_path / "report_no_baseline.xlsx"
-    generate_excel_report(services["reporting_service"], pid, output)
+    reporting_api.generate_excel_report(services["reporting_service"], pid, output)
 
     wb = load_workbook(output)
     assert "EVM" not in wb.sheetnames
@@ -133,10 +128,10 @@ def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, mon
     def _raise_gantt(*_args, **_kwargs):
         raise ValueError("No tasks with dates available for Gantt chart.")
 
-    monkeypatch.setattr("core.reporting.exporters.generate_gantt_png", _raise_gantt)
+    monkeypatch.setattr("core.reporting.api.generate_gantt_png", _raise_gantt)
 
     output = tmp_path / "report.pdf"
-    generate_pdf_report(
+    reporting_api.generate_pdf_report(
         services["reporting_service"],
         pid,
         output,
@@ -285,4 +280,3 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     assert captured["pdf_ctx"].baseline_variance == variance
     assert captured["pdf_ctx"].cost_breakdown == cost_breakdown
     assert captured["pdf_ctx"].as_of == as_of
-

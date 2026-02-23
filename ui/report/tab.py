@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
-from core.reporting.exporters import (
+from core.reporting.api import (
     generate_excel_report, 
     generate_pdf_report, 
     generate_gantt_png
