@@ -1,0 +1,84 @@
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def _line_count(path: Path) -> int:
+    return len(path.read_text(encoding="utf-8", errors="ignore").splitlines())
+
+
+def _python_files(root: Path):
+    for path in root.rglob("*.py"):
+        # Keep architecture checks focused on source/test code, not packaged artifacts.
+        if "dist" in path.parts:
+            continue
+        yield path
+
+
+def test_no_python_module_exceeds_hard_line_limit():
+    offenders = []
+    for path in _python_files(ROOT):
+        lines = _line_count(path)
+        if lines > 1200:
+            offenders.append((str(path.relative_to(ROOT)), lines))
+    assert not offenders, f"Modules exceed hard 1200-line limit: {offenders}"
+
+
+def test_core_layer_does_not_import_ui_layer():
+    violations: list[tuple[str, str]] = []
+    core_root = ROOT / "core"
+
+    for path in _python_files(core_root):
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    name = alias.name
+                    if name == "ui" or name.startswith("ui."):
+                        violations.append((str(path.relative_to(ROOT)), name))
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod == "ui" or mod.startswith("ui."):
+                    violations.append((str(path.relative_to(ROOT)), mod))
+
+    assert not violations, f"Core layer imports UI layer: {violations}"
+
+
+def test_report_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "report" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.report.dialogs import" in text
+    assert "class KPIReportDialog" not in text
+    assert "class GanttPreviewDialog" not in text
+    assert "class CriticalPathDialog" not in text
+    assert "class ResourceLoadDialog" not in text
+
+
+def test_known_large_modules_have_growth_budgets():
+    # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
+    budgets = {
+        "core/services/reporting/service.py": 180,
+        "core/services/reporting/evm.py": 450,
+        "core/services/reporting/kpi.py": 280,
+        "core/services/reporting/labor.py": 260,
+        "ui/project/tab.py": 860,
+        "ui/task/components.py": 840,
+        "ui/dashboard/tab.py": 830,
+        "core/services/task/service.py": 720,
+        "infra/db/repositories.py": 690,
+    }
+
+    breaches = []
+    for rel_path, max_lines in budgets.items():
+        path = ROOT / rel_path
+        lines = _line_count(path)
+        if lines > max_lines:
+            breaches.append((rel_path, lines, max_lines))
+
+    assert not breaches, f"Large-module budgets exceeded: {breaches}"
