@@ -60,6 +60,18 @@ def test_report_tab_is_coordinator_only():
     assert "class ResourceLoadDialog" not in text
 
 
+def test_project_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "project" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.project.dialogs import" in text
+    assert "from ui.project.models import" in text
+    assert "class ProjectEditDialog" not in text
+    assert "class ProjectResourcesDialog" not in text
+    assert "class ProjectResourceEditDialog" not in text
+    assert "class ProjectTableModel" not in text
+
+
 def test_known_large_modules_have_growth_budgets():
     # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
     budgets = {
@@ -67,7 +79,9 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/reporting/evm.py": 450,
         "core/services/reporting/kpi.py": 280,
         "core/services/reporting/labor.py": 260,
-        "ui/project/tab.py": 860,
+        "ui/project/tab.py": 260,
+        "ui/project/dialogs.py": 700,
+        "ui/project/models.py": 120,
         "ui/task/components.py": 840,
         "ui/dashboard/tab.py": 830,
         "core/services/task/service.py": 720,

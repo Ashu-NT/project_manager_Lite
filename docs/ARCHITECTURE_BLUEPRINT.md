@@ -19,11 +19,11 @@ This is already a good layered baseline and should be preserved.
 
 Top large modules observed in this codebase:
 
-1. `ui/project/tab.py` (~845 lines)
-2. `ui/task/components.py` (~827 lines)
-3. `ui/dashboard/tab.py` (~816 lines)
-4. `core/services/task/service.py` (~703 lines)
-5. `infra/db/repositories.py` (~674 lines)
+1. `ui/task/components.py` (~827 lines)
+2. `ui/dashboard/tab.py` (~816 lines)
+3. `core/services/task/service.py` (~703 lines)
+4. `infra/db/repositories.py` (~674 lines)
+5. `ui/project/dialogs.py` (~620 lines)
 6. `ui/cost/tab.py` (~556 lines)
 7. `ui/cost/components.py` (~554 lines)
 
@@ -42,6 +42,10 @@ Top large modules observed in this codebase:
    - EVM mixin: `core/services/reporting/evm.py` (~365 lines)
    - Variance mixin: `core/services/reporting/variance.py` (~66 lines)
    - Cost breakdown mixin: `core/services/reporting/cost_breakdown.py` (~158 lines)
+4. Project UI split into coordinator + submodules:
+   - Coordinator: `ui/project/tab.py` (~197 lines)
+   - Dialogs: `ui/project/dialogs.py` (~620 lines)
+   - Table model: `ui/project/models.py` (~63 lines)
 
 ## Architecture Principles (Enforced)
 
@@ -73,13 +77,13 @@ Top large modules observed in this codebase:
 
 ## Next Structural Refactors (Recommended Order)
 
-1. Continue splitting `ui/project/tab.py` into:
-   - tab coordinator + project edit dialogs + project-resource dialogs.
-2. Split `ui/task/components.py` by bounded context:
+1. Split `ui/task/components.py` by bounded context:
    - task edit/progress, dependencies, assignments.
-3. Break `infra/db/repositories.py` into per-aggregate repository modules.
-4. Optionally split `core/services/reporting/evm.py` into:
+2. Break `infra/db/repositories.py` into per-aggregate repository modules.
+3. Optionally split `core/services/reporting/evm.py` into:
    - baseline selection, PV/EV calculation, forecast/indices helpers.
+4. Split `ui/project/dialogs.py` into:
+   - project metadata dialog and project-resource dialogs.
 
 ## Guardrails
 
@@ -91,4 +95,5 @@ These checks validate:
 
 2. `core -> ui` import violations.
 3. Report tab remains coordinator-only.
-4. Growth budgets for known large modules.
+4. Project tab remains coordinator-only.
+5. Growth budgets for known large modules.
