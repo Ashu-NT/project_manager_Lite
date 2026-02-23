@@ -20,12 +20,12 @@ This is already a good layered baseline and should be preserved.
 Top large modules observed in this codebase:
 
 1. `main.py` (~498 lines)
-2. `ui/calendar/tab.py` (~412 lines)
-3. `core/services/scheduling/engine.py` (~408 lines)
-4. `ui/resource/tab.py` (~313 lines)
-5. `infra/db/mappers.py` (~306 lines)
-6. `core/models.py` (~305 lines)
-7. `ui/task/tab.py` (~289 lines)
+2. `core/services/scheduling/engine.py` (~408 lines)
+3. `infra/db/mappers.py` (~306 lines)
+4. `core/models.py` (~305 lines)
+5. `ui/task/tab.py` (~289 lines)
+6. `core/services/dashboard/service.py` (~278 lines)
+7. `ui/task/task_dialogs.py` (~263 lines)
 
 ## Refactor Applied In This Pass
 
@@ -92,6 +92,16 @@ Top large modules observed in this codebase:
    - Charts/lists rendering: `ui/dashboard/rendering_charts.py` (~79 lines)
    - EVM rendering: `ui/dashboard/rendering_evm.py` (~169 lines)
    - Reusable widgets: `ui/dashboard/widgets.py` (~67 lines)
+10. Resource UI split into coordinator + submodules:
+   - Coordinator: `ui/resource/tab.py` (~148 lines)
+   - Table model: `ui/resource/models.py` (~44 lines)
+   - Edit dialog: `ui/resource/dialogs.py` (~116 lines)
+11. Calendar UI split into coordinator + operation mixins:
+   - Coordinator: `ui/calendar/tab.py` (~233 lines)
+   - Working-time operations: `ui/calendar/working_time.py` (~39 lines)
+   - Holidays operations: `ui/calendar/holidays.py` (~57 lines)
+   - Calculator operations: `ui/calendar/calculator.py` (~35 lines)
+   - Project-schedule operations: `ui/calendar/project_ops.py` (~48 lines)
 
 ## Architecture Principles (Enforced)
 
@@ -125,9 +135,9 @@ Top large modules observed in this codebase:
 
 1. Refactor startup/wiring monolith in `main.py` into:
    - app bootstrap, dependency wiring, and launcher modules.
-2. Split `ui/calendar/tab.py` into coordinator + dialogs/models.
-3. Split `core/services/scheduling/engine.py` into:
+2. Split `core/services/scheduling/engine.py` into:
    - forward-pass scheduling, critical-path analysis, and calendar utilities.
+3. Split `infra/db/mappers.py` by aggregate to reduce mapper coupling.
 
 ## Guardrails
 

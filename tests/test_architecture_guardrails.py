@@ -158,6 +158,30 @@ def test_dashboard_rendering_module_is_facade_only():
     assert "def _update_evm" not in text
 
 
+def test_resource_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "resource" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.resource.models import" in text
+    assert "from ui.resource.dialogs import" in text
+    assert "class ResourceTableModel" not in text
+    assert "class ResourceEditDialog" not in text
+
+
+def test_calendar_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "calendar" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.calendar.working_time import" in text
+    assert "from ui.calendar.holidays import" in text
+    assert "from ui.calendar.calculator import" in text
+    assert "from ui.calendar.project_ops import" in text
+    assert "def save_calendar" not in text
+    assert "def load_holidays" not in text
+    assert "def run_calendar_calc" not in text
+    assert "def recalc_project_schedule" not in text
+
+
 def test_infra_repositories_module_is_facade_only():
     repo_path = ROOT / "infra" / "db" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -232,9 +256,15 @@ def test_known_large_modules_have_growth_budgets():
         "ui/dashboard/rendering_charts.py": 130,
         "ui/dashboard/rendering_evm.py": 240,
         "main.py": 580,
-        "ui/calendar/tab.py": 480,
+        "ui/calendar/tab.py": 300,
+        "ui/calendar/working_time.py": 120,
+        "ui/calendar/holidays.py": 120,
+        "ui/calendar/calculator.py": 100,
+        "ui/calendar/project_ops.py": 120,
         "core/services/scheduling/engine.py": 460,
-        "ui/resource/tab.py": 360,
+        "ui/resource/tab.py": 220,
+        "ui/resource/models.py": 100,
+        "ui/resource/dialogs.py": 180,
         "core/models.py": 360,
         "core/services/dashboard/service.py": 340,
         "ui/styles/ui_config.py": 320,

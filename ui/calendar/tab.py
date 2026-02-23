@@ -1,33 +1,46 @@
-# ui/calendar_tab.py
 from __future__ import annotations
-from datetime import date
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QCheckBox, QGroupBox, QSpinBox, QDateEdit, QLineEdit,
-    QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox, QComboBox
-)
 from PySide6.QtCore import QDate
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDateEdit,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QVBoxLayout,
+    QWidget,
+    QHeaderView,
+)
 
-from core.services.work_calendar import WorkCalendarService
-from core.services.work_calendar import WorkCalendarEngine
-from core.services.scheduling import SchedulingEngine
+from core.events.domain_events import domain_events
 from core.services.project import ProjectService
+from core.services.scheduling import SchedulingEngine
 from core.services.task import TaskService
-from core.exceptions import ValidationError, BusinessRuleError
+from core.services.work_calendar import WorkCalendarEngine, WorkCalendarService
+from ui.calendar.calculator import CalendarCalculatorMixin
+from ui.calendar.holidays import CalendarHolidaysMixin
+from ui.calendar.project_ops import CalendarProjectOpsMixin
+from ui.calendar.working_time import CalendarWorkingTimeMixin
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
-from core.events.domain_events import domain_events
 
-class CalendarTab(QWidget):
+
+class CalendarTab(
+    CalendarWorkingTimeMixin,
+    CalendarHolidaysMixin,
+    CalendarCalculatorMixin,
+    CalendarProjectOpsMixin,
+    QWidget,
+):
     """
-    User-friendly calendar configuration:
-
-    - Working days + hours per day
-    - Non-working days (holidays/shutdowns)
-    - Working-day calculator (what does "5 working days" really mean?)
-    - Recalculate project schedule using current calendar
+    Calendar tab coordinator:
+    - builds widgets
+    - delegates working-time/holiday/calculation/project actions to mixins
     """
 
     def __init__(
@@ -51,19 +64,13 @@ class CalendarTab(QWidget):
         self.load_holidays()
         self.reload_projects()
         domain_events.project_changed.connect(self._on_project_changed)
-    # ------------------------------------------------------------------ #
-    # UI setup
-    # ------------------------------------------------------------------ #
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_SM)
-        layout.setContentsMargins(
-            CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD
-        )
+        layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
         self.setMinimumSize(self.sizeHint())
 
-        # ---- Working time group ---- #
         grp_days = QGroupBox("Working time (used for all schedule calculations)")
         grp_days.setFont(CFG.GROUPBOX_TITLE_FONT)
         days_layout = QVBoxLayout(grp_days)
@@ -78,12 +85,11 @@ class CalendarTab(QWidget):
         days_layout.addWidget(self.summary_label)
 
         days_row = QHBoxLayout()
-    
         self.day_checks = []
         day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         for i, name in enumerate(day_names):
             cb = QCheckBox(name)
-            cb.setChecked(i < 5)  # default Mon-Fri
+            cb.setChecked(i < 5)
             cb.day_index = i
             cb.setToolTip("Include %s as a working day (tasks can be scheduled here)." % name)
             self.day_checks.append(cb)
@@ -110,13 +116,10 @@ class CalendarTab(QWidget):
         hours_row.addWidget(self.btn_save_calendar)
         hours_row.addStretch()
         days_layout.addLayout(hours_row)
-
         layout.addWidget(grp_days)
 
-        # ---- Holidays group ---- #
         grp_holidays = QGroupBox("Non-working days (holidays, shutdowns, special days)")
         grp_holidays.setFont(CFG.GROUPBOX_TITLE_FONT)
-        
         hol_layout = QVBoxLayout(grp_holidays)
         hol_layout.setSpacing(CFG.SPACING_SM)
 
@@ -149,15 +152,17 @@ class CalendarTab(QWidget):
         self.holiday_name_edit = QLineEdit()
         self.holiday_name_edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
         self.holiday_name_edit.setSizePolicy(CFG.INPUT_POLICY)
-        
-        self.holiday_name_edit.setPlaceholderText("e.g. Christmas, National Holiday, Plant Shutdown")
+        self.holiday_name_edit.setPlaceholderText(
+            "e.g. Christmas, National Holiday, Plant Shutdown"
+        )
         self.holiday_name_edit.setToolTip("Short description of this non-working day.")
 
         self.btn_add_holiday = QPushButton(CFG.ADD_NON_WORKING_DAY_LABEL)
         self.btn_add_holiday.setToolTip("Add the selected date and name as a non-working day.")
         self.btn_delete_holiday = QPushButton(CFG.REMOVE_SELECTED_LABEL)
-        self.btn_delete_holiday.setToolTip("Remove the currently selected non-working day from the calendar.")
-        
+        self.btn_delete_holiday.setToolTip(
+            "Remove the currently selected non-working day from the calendar."
+        )
         for btn in [self.btn_add_holiday, self.btn_delete_holiday]:
             btn.setMinimumHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
@@ -170,16 +175,13 @@ class CalendarTab(QWidget):
         row.addWidget(self.btn_delete_holiday)
         row.addStretch()
         hol_layout.addLayout(row)
-
         layout.addWidget(grp_holidays)
 
-        # ---- Calculator group ---- #
         grp_calc = QGroupBox("Working-day calculator")
         grp_calc.setFont(CFG.GROUPBOX_TITLE_FONT)
-        
         calc_layout = QVBoxLayout(grp_calc)
         calc_layout.setSpacing(CFG.SPACING_SM)
-        
+
         calc_desc = QLabel(
             "Use this tool to see how the current calendar interprets a duration in working days.\n"
             "This is exactly how task durations are converted into dates in CPM and Gantt."
@@ -199,7 +201,7 @@ class CalendarTab(QWidget):
         self.calc_days_spin = QSpinBox()
         self.calc_days_spin.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
         self.calc_days_spin.setSizePolicy(CFG.INPUT_POLICY)
-        self.calc_days_spin.setMinimum(1)  # engine supports only positive
+        self.calc_days_spin.setMinimum(1)
         self.calc_days_spin.setMaximum(3650)
         self.calc_days_spin.setValue(5)
         self.calc_days_spin.setToolTip(
@@ -223,20 +225,16 @@ class CalendarTab(QWidget):
         calc_row.addStretch()
         calc_layout.addLayout(calc_row)
         calc_layout.addWidget(self.calc_result_label)
-
         layout.addWidget(grp_calc)
 
-        # ---- Project schedule recalculation ---- #
         grp_sched = QGroupBox("Recalculate project schedules with this calendar")
         grp_sched.setFont(CFG.GROUPBOX_TITLE_FONT)
-        
         sched_layout = QHBoxLayout(grp_sched)
         sched_layout.setSpacing(CFG.SPACING_SM)
-        
+
         self.project_combo = QComboBox()
         self.project_combo.setMinimumWidth(CFG.COMBO_MIN_WIDTH_MD)
         self.project_combo.setSizePolicy(CFG.INPUT_POLICY)
-        
         self.project_combo.setToolTip("Pick a project whose task dates you want to recalculate.")
         self.btn_reload_projects = QPushButton(CFG.RELOAD_PROJECTS_LABEL)
         self.btn_reload_projects.setToolTip("Reload the list of projects.")
@@ -244,7 +242,6 @@ class CalendarTab(QWidget):
         for btn in [self.btn_reload_projects, self.btn_recalc_project]:
             btn.setMinimumHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-            
         self.btn_recalc_project.setToolTip(
             "Recompute all task dates for the selected project using the current calendar."
         )
@@ -258,215 +255,9 @@ class CalendarTab(QWidget):
 
         layout.addStretch()
 
-        # ---- Signals ---- #
         self.btn_save_calendar.clicked.connect(self.save_calendar)
         self.btn_add_holiday.clicked.connect(self.add_holiday)
         self.btn_delete_holiday.clicked.connect(self.delete_selected_holiday)
         self.btn_calc.clicked.connect(self.run_calendar_calc)
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_recalc_project.clicked.connect(self.recalc_project_schedule)
-
-    def _on_project_changed(self, project_id: str):
-        prev_pid = self.project_combo.currentData()
-        projects = self._project_service.list_projects()
-        self.project_combo.blockSignals(True)
-        self.project_combo.clear()
-        for p in projects:
-            self.project_combo.addItem(p.name, userData=p.id)
-        self.project_combo.blockSignals(False)
-        if not projects:
-            return
-
-        target = None
-        if prev_pid and any(p.id == prev_pid for p in projects):
-            target = prev_pid
-        elif project_id and any(p.id == project_id for p in projects):
-            target = project_id
-        else:
-            target = projects[0].id
-
-        idx = self.project_combo.findData(target)
-        if idx >= 0:
-            self.project_combo.setCurrentIndex(idx)
-
-
-    # ------------------------------------------------------------------ #
-    # Working time
-    # ------------------------------------------------------------------ #
-
-    def load_calendar_config(self):
-        cal = self._wc_engine._get_calendar()  # or get_or_create_calendar()
-        if cal:
-            working_days = set(cal.working_days or [])
-            for cb in self.day_checks:
-                cb.setChecked(cb.day_index in working_days)
-            if cal.hours_per_day:
-                self.hours_spin.setValue(int(cal.hours_per_day))
-
-            self._update_summary_label(working_days, cal.hours_per_day or 8.0)
-        else:
-            # default summary
-            self._update_summary_label({0, 1, 2, 3, 4}, 8.0)
-
-    def _update_summary_label(self, working_days: set[int], hours_per_day: float):
-        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        active_names = [day_names[i] for i in sorted(working_days)]
-        self.summary_label.setText(
-            "This calendar controls all schedule calculations.\n"
-            f"Currently: {', '.join(active_names) or 'no days'} are working days, "
-            f"{hours_per_day:g} hours per day."
-        )
-
-    def save_calendar(self):
-        working_days = {cb.day_index for cb in self.day_checks if cb.isChecked()}
-        hours = float(self.hours_spin.value())
-        try:
-            cal = self._wc_service.set_working_days(working_days, hours_per_day=hours)
-        except ValidationError as e:
-            QMessageBox.warning(self, "Validation error", str(e))
-            return
-
-        self._update_summary_label(set(cal.working_days or []), cal.hours_per_day or hours)
-        QMessageBox.information(
-            self,
-            "Calendar saved",
-            "Working calendar has been saved.\n\n"
-            "Tip: Recalculate project schedules so tasks use these updated working days "
-            "and non-working dates."
-        )
-
-    # ------------------------------------------------------------------ #
-    # Holidays
-    # ------------------------------------------------------------------ #
-
-    def load_holidays(self):
-        holidays = self._wc_service.list_holidays()
-        self.holiday_table.setRowCount(0)
-        for h in holidays:
-            row = self.holiday_table.rowCount()
-            self.holiday_table.insertRow(row)
-            item_date = QTableWidgetItem(h.date.isoformat())
-            item_name = QTableWidgetItem(h.name or "")
-            # store id in UserRole
-            item_date.setData(Qt.UserRole, h.id)
-            self.holiday_table.setItem(row, 0, item_date)
-            self.holiday_table.setItem(row, 1, item_name)
-
-    def add_holiday(self):
-        qd = self.holiday_date_edit.date()
-        if not qd.isValid():
-            QMessageBox.warning(self, "Holiday", "Please choose a valid date.")
-            return
-        d = date(qd.year(), qd.month(), qd.day())
-        name = self.holiday_name_edit.text().strip()
-        if not name:
-            QMessageBox.warning(self, "Holiday", "Please enter a name for the non-working day.")
-            return
-
-        try:
-            self._wc_service.add_holiday(d, name)
-        except ValidationError as e:
-            QMessageBox.warning(self, "Validation error", str(e))
-            return
-
-        self.holiday_name_edit.clear()
-        self.load_holidays()
-
-    def delete_selected_holiday(self):
-        row = self.holiday_table.currentRow()
-        if row < 0:
-            return
-        item = self.holiday_table.item(row, 0)
-        if not item:
-            return
-        hol_id = item.data(Qt.UserRole)
-        if not hol_id:
-            return
-
-        confirm = QMessageBox.question(
-            self,
-            "Delete non-working day",
-            "Remove the selected non-working day from the calendar?",
-        )
-        if confirm != QMessageBox.Yes:
-            return
-
-        try:
-            self._wc_service.delete_holiday(hol_id)
-        except BusinessRuleError as e:
-            QMessageBox.warning(self, "Error", str(e))
-            return
-
-        self.load_holidays()
-
-    # ------------------------------------------------------------------ #
-    # Calculator
-    # ------------------------------------------------------------------ #
-
-    def run_calendar_calc(self):
-        qd = self.calc_start.date()
-        if not qd.isValid():
-            QMessageBox.warning(self, "Calculator", "Invalid start date.")
-            return
-        start = date(qd.year(), qd.month(), qd.day())
-        n = self.calc_days_spin.value()
-        if n <= 0:
-            QMessageBox.warning(
-                self,
-                "Calculator",
-                "Please enter a positive number of working days (1 or more).",
-            )
-            return
-
-        try:
-            result = self._wc_engine.add_working_days(start, n)
-        except ValidationError as e:
-            QMessageBox.warning(self, "Error", str(e))
-            return
-
-        # Count skipped non-working days between start and result, just for explanation
-        skipped_non_working = 0
-        current = start
-        while current <= result:
-            if not self._wc_engine.is_working_day(current):
-                skipped_non_working += 1
-            current = current.fromordinal(current.toordinal() + 1)
-
-        # Explanation text
-        self.calc_result_label.setText(
-            f"Result: Start {start.isoformat()} + {n} working days = {result.isoformat()}\n"
-            f"(Skipped {skipped_non_working} non-working days "
-            f"based on your working week and holidays.)"
-        )
-
-    # ------------------------------------------------------------------ #
-    # Project schedule
-    # ------------------------------------------------------------------ #
-
-    def reload_projects(self):
-        self.project_combo.clear()
-        projects = self._project_service.list_projects()
-        for p in projects:
-            self.project_combo.addItem(p.name, userData=p.id)
-
-    def recalc_project_schedule(self):
-        idx = self.project_combo.currentIndex()
-        if idx < 0:
-            QMessageBox.information(self, "Schedule", "Please select a project.")
-            return
-        pid = self.project_combo.itemData(idx)
-        name = self.project_combo.currentText()
-        try:
-            schedule = self._scheduling_engine.recalculate_project_schedule(pid)
-        except BusinessRuleError as e:
-            QMessageBox.warning(self, "Error", str(e))
-            return
-
-        QMessageBox.information(
-            self,
-            "Schedule recalculated",
-            f"Schedule recalculated for project '{name}'.\n"
-            f"Tasks updated: {len(schedule)}.\n\n"
-            "Tip: Open the Tasks or Reports tab to see the updated dates and Gantt.",
-        )
-
