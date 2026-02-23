@@ -80,10 +80,10 @@ def test_dependency_repository_filters_by_project(session, services):
     p1 = ps.create_project("Dep P1", "")
     p2 = ps.create_project("Dep P2", "")
 
-    a1 = ts.create_task(p1.id, "A1", start_date=date(2023, 11, 6), duration_days=1)
-    b1 = ts.create_task(p1.id, "B1", duration_days=1)
-    a2 = ts.create_task(p2.id, "A2", start_date=date(2023, 11, 6), duration_days=1)
-    b2 = ts.create_task(p2.id, "B2", duration_days=1)
+    a1 = ts.create_task(p1.id, "A01", start_date=date(2023, 11, 6), duration_days=1)
+    b1 = ts.create_task(p1.id, "B01", duration_days=1)
+    a2 = ts.create_task(p2.id, "A02", start_date=date(2023, 11, 6), duration_days=1)
+    b2 = ts.create_task(p2.id, "B02", duration_days=1)
 
     ts.add_dependency(a1.id, b1.id)
     ts.add_dependency(a2.id, b2.id)

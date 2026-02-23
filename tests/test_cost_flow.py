@@ -7,7 +7,7 @@ def test_cost_items_and_summary(services):
     pid = project.id
 
     t1 = ts.create_task(pid, "Dev", duration_days=5)
-    t2 = ts.create_task(pid, "QA", duration_days=2)
+    t2 = ts.create_task(pid, "QAT", duration_days=2)
 
     # Add project-level and task-level cost items
     c1 = cost_s.add_cost_item(pid, "License", planned_amount=500.0, task_id=None)

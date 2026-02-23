@@ -17,11 +17,11 @@ def test_cpm_forward_backward_basic(services):
 
     # 2) Create three tasks
     # A: start fixed, 2 working days
-    tA = ts.create_task(pid, "A", "Start", start_date=date(2023, 11, 6), duration_days=2)
+    tA = ts.create_task(pid, "Task A", "Start", start_date=date(2023, 11, 6), duration_days=2)
     # B: depends FS on A, 3 days
-    tB = ts.create_task(pid, "B", "Middle", duration_days=3)
+    tB = ts.create_task(pid, "Task B", "Middle", duration_days=3)
     # C: depends FF on B, 1 day
-    tC = ts.create_task(pid, "C", "End", duration_days=1)
+    tC = ts.create_task(pid, "Task C", "End", duration_days=1)
 
     # 3) Add dependencies:
     # A -> B (FS, lag 0)
@@ -58,8 +58,8 @@ def test_cpm_cycle_detection(services):
     pid = project.id
 
     # Give at least one task a start_date so scheduling would work if there were no cycle
-    t1 = ts.create_task(pid, "T1", start_date=date(2023, 11, 6), duration_days=1)
-    t2 = ts.create_task(pid, "T2", duration_days=1)
+    t1 = ts.create_task(pid, "T01", start_date=date(2023, 11, 6), duration_days=1)
+    t2 = ts.create_task(pid, "T02", duration_days=1)
 
     # t1 -> t2
     ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
