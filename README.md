@@ -1,132 +1,144 @@
 # ProjectManagerLite
 
-ProjectManagerLite is a professional desktop project management application built with Python and PySide6. 
-It supports structured project planning, task scheduling, resource management, cost control, and Earned Value Management (EVM).
+ProjectManagerLite is a desktop project management application for planning, scheduling, execution control, and reporting.
+It is built with Python + PySide6 and follows a layered architecture designed for maintainability and scale.
 
----
+## Core Capabilities
 
-## Key Features
+### Planning and Scheduling
+- Project setup with date and budget context
+- Task planning with duration, priority, and status
+- Dependency management (`FS`, `SS`, `FF`, `SF`) with lag support
+- CPM-based schedule recalculation with critical path and float
+- Working calendar support (working days, hours/day, holidays)
 
-### Project Management
+### Execution and Control
+- Resource catalog with rates, activity status, and currency
+- Project-specific resource planning (`ProjectResource`) with planned hours/rates
+- Task assignment with allocation `%` and logged hours
+- Cost tracking (planned, committed, actual) with labor integration
+- Baseline creation and schedule/cost variance analysis
 
-- Create and manage multiple projects
-- Define project start/end dates and planned budget
-- Project-level currency support
-- Baseline creation and comparison
+### Reporting and Exports
+- Dashboard: KPIs, alerts, upcoming tasks, resource load, burndown, EVM snapshot
+- Report views: KPI, Gantt, Critical Path, Resource Load, Performance Variance, EVM
+- Exports:
+  - Gantt PNG
+  - EVM PNG
+  - Excel workbook
+  - PDF report
 
-### Task Management
+## Architecture
 
-- Task creation with planned start, duration, priority, and dependencies
-- Actual start/end tracking
-- Progress (% complete) updates
-- Critical Path scheduling (CPM)
+The codebase is split into three main layers:
 
-### Resource Management
+- `core/`: domain models, business rules, scheduling/reporting engines, service orchestration
+- `infra/`: SQLAlchemy repositories, mappers, migration/bootstrap wiring
+- `ui/`: Qt tabs/dialogs and presentation workflows
 
-- Central resource registry with default hourly rate and currency
-- Project-specific resource assignment (ProjectResource)
-- Planned hours and project-specific rates
-- Resource activation/deactivation
-- Over-allocation detection and warnings
+Architectural guardrails are enforced by tests in `tests/test_architecture_guardrails.py`.
+For design details and refactor history, see `docs/ARCHITECTURE_BLUEPRINT.md`.
 
-### Task Assignments
+## Project Structure
 
-- Assign project resources to tasks
-- Allocation percentage per task
-- Log actual hours worked
-- Automatic labor cost calculation
+```text
+project_mangement_app/
+  core/
+  infra/
+  ui/
+  tests/
+  docs/
+  main_qt.py
+  main.py
+  requirements.txt
+```
 
-### Cost Management
+## Requirements
 
-- Planned, committed, and actual cost items
-- Resource labor costs computed from hours × rate
-- Budget vs actual cost tracking
-- Cost breakdown by task and resource
+- Python 3.11+
+- Windows/macOS/Linux (desktop)
+- Dependencies from `requirements.txt`
 
-### Earned Value Management (EVM)
+## Quick Start
 
-- Planned Value (PV)
-- Earned Value (EV)
-- Actual Cost (AC)
-- Schedule Variance (SV) and Cost Variance (CV)
-- CPI and SPI indicators
+### Option A: Conda (recommended)
 
-### Reporting & Analysis
-
-- Labor cost summaries
-- Resource assignment breakdown
-- Over-allocation warnings
-- Budget utilization overview
-
----
-
-## Architecture Overview
-
-- **UI Layer**: PySide6 tabs (Projects, Tasks, Resources, Costs, Reports)
-- **Service Layer**: Business logic (TaskService, ReportingService, BaselineService)
-- **Domain Models**: Project, Task, Resource, ProjectResource, Assignment
-- **Persistence**: SQLAlchemy ORM (SQLite by default)
-- **Scheduling Engine**: CPM + Work Calendar
-- **Event System**: Domain events for reactive UI updates
-
----
-
-## Installation
-
-### Option 1: Installer (Recommended)
-
-1. Download the installer `Setup_ProjectManagerLite_2.0.0.exe`
-2. Run the installer and follow on-screen instructions
-3. Launch the app from Start Menu or Desktop
-
-### Option 2: From Source (Developers)
-
-```bash
-git clone https://github.com/your-username/projectmanagerlite.git
-cd projectmanagerlite
-python -m venv .env
-.env\Scripts\activate
+```powershell
+conda create -n pmenv python=3.11 -y
+conda activate pmenv
 pip install -r requirements.txt
 python main_qt.py
 ```
 
----
+### Option B: venv
 
-## Database Behavior
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python main_qt.py
+```
 
-- On first run, the application automatically creates a local SQLite database
-- Database migrations are applied automatically
-- Each user has an independent local database
+## Running the Application
 
----
+### Desktop UI (primary)
 
-## Updates
+```powershell
+python main_qt.py
+```
 
-- Rebuilding the EXE replaces the application binaries
-- Existing databases are preserved unless explicitly deleted
-- Schema migrations are handled via Alembic
+### CLI mode (optional)
 
----
+```powershell
+python main.py
+```
 
-## Tech Stack
+## Database, Migrations, and Logs
 
-- Python 3.11+
-- PySide6 (Qt)
-- SQLAlchemy
-- Alembic
-- PyInstaller
-- NSIS (Installer)
+- Migrations run automatically at startup (`alembic upgrade head` via `infra/migrate.py`)
+- Local SQLite database location:
+  - Windows: `%APPDATA%\TECHASH\ProjectManagerLite\project_manager.db`
+  - macOS: `~/Library/Application Support/TECHASH/ProjectManagerLite/project_manager.db`
+  - Linux: `~/.local/share/TECHASH/ProjectManagerLite/project_manager.db`
+- Application log file:
+  - `<user_data_dir>/logs/app.log`
 
----
+## Theme
 
-## Future Enhancements
+- Runtime theme switcher available in the main window (`Light` / `Dark`)
+- Optional environment default:
 
-- Multi-user / shared database mode
-- What-if scenario planning
-- Risk register and issue tracking
+```powershell
+$env:PM_THEME = "light"
+python main_qt.py
+```
 
----
+## Testing
+
+Run full test suite:
+
+```powershell
+conda run -n pmenv python -m pytest -q -p no:cacheprovider
+```
+
+Run selected suites:
+
+```powershell
+conda run -n pmenv python -m pytest -q tests/test_technical_math_reporting.py -p no:cacheprovider
+conda run -n pmenv python -m pytest -q tests/test_exporters_configuration.py -p no:cacheprovider
+conda run -n pmenv python -m pytest -q tests/test_architecture_guardrails.py -p no:cacheprovider
+```
+
+## Build and Distribution
+
+- PyInstaller is used for packaging
+- NSIS installer script and artifact are under `installer/`
+
+## Notes
+
+- No `.env` file is required by default
+- Legacy compatibility modules are preserved in several packages for smoother refactors
 
 ## License
 
-MIT License
+MIT. See `LICENSE`.
