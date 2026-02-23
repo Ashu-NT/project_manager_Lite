@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSpinBox,
+    QSplitter,
     QTableWidget,
     QVBoxLayout,
     QWidget,
@@ -80,17 +81,20 @@ class CalendarTab(
         root.addWidget(title)
         root.addWidget(subtitle)
 
-        body = QHBoxLayout()
-        body.setSpacing(CFG.SPACING_MD)
-        root.addLayout(body, 1)
+        splitter = QSplitter()
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(8)
+        root.addWidget(splitter, 1)
 
-        left_col = QVBoxLayout()
+        left_container = QWidget()
+        left_col = QVBoxLayout(left_container)
+        left_col.setContentsMargins(0, 0, 0, 0)
         left_col.setSpacing(CFG.SPACING_MD)
-        body.addLayout(left_col, 3)
 
-        right_col = QVBoxLayout()
+        right_container = QWidget()
+        right_col = QVBoxLayout(right_container)
+        right_col.setContentsMargins(0, 0, 0, 0)
         right_col.setSpacing(CFG.SPACING_MD)
-        body.addLayout(right_col, 2)
 
         grp_days = QGroupBox("Working Calendar")
         grp_days.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -230,6 +234,11 @@ class CalendarTab(
         sched_layout.addWidget(hint)
         right_col.addWidget(grp_sched)
         right_col.addStretch()
+        splitter.addWidget(left_container)
+        splitter.addWidget(right_container)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([780, 460])
 
         self.btn_save_calendar.clicked.connect(self.save_calendar)
         self.btn_add_holiday.clicked.connect(self.add_holiday)
@@ -237,4 +246,3 @@ class CalendarTab(
         self.btn_calc.clicked.connect(self.run_calendar_calc)
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_recalc_project.clicked.connect(self.recalc_project_schedule)
-

@@ -19,6 +19,10 @@ class CostProjectFlowMixin:
     tbl_labor_summary: QTableWidget
     lbl_labor_note: QLabel
     lbl_budget_summary: QLabel
+    lbl_kpi_budget: QLabel
+    lbl_kpi_planned: QLabel
+    lbl_kpi_actual: QLabel
+    lbl_kpi_remaining: QLabel
     _project_service: ProjectService
     _task_service: TaskService
     _cost_service: CostService
@@ -85,6 +89,10 @@ class CostProjectFlowMixin:
             self._current_project = None
             self._project_tasks = []
             self.model.set_costs([], {})
+            self.lbl_kpi_budget.setText("-")
+            self.lbl_kpi_planned.setText("-")
+            self.lbl_kpi_actual.setText("-")
+            self.lbl_kpi_remaining.setText("-")
             return
         projects = self._project_service.list_projects()
         self._current_project = next((p for p in projects if p.id == pid), None)
@@ -101,6 +109,11 @@ class CostProjectFlowMixin:
             self.model.set_costs([], {})
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_labor_note.setText("")
+            self.lbl_budget_summary.setText("")
+            self.lbl_kpi_budget.setText("-")
+            self.lbl_kpi_planned.setText("-")
+            self.lbl_kpi_actual.setText("-")
+            self.lbl_kpi_remaining.setText("-")
             return
 
         costs = self._cost_service.list_cost_items_for_project(pid)
@@ -112,36 +125,42 @@ class CostProjectFlowMixin:
 
         self.model.set_costs(costs, task_names)
 
+        cur = (
+            (getattr(self._current_project, "currency", "") or "").upper()
+            if self._current_project
+            else ""
+        )
+        sym = currency_symbol_from_code(cur)
+        budget = float(getattr(self._current_project, "planned_budget", 0.0) or 0.0)
+        total_planned = sum(float(c.planned_amount or 0.0) for c in costs)
+        total_actual = sum(float(c.actual_amount or 0.0) for c in costs)
+        remaining = (budget - total_planned) if budget > 0 else None
+
+        self.lbl_kpi_budget.setText(fmt_currency(budget, sym) if budget > 0 else "-")
+        self.lbl_kpi_planned.setText(fmt_currency(total_planned, sym))
+        self.lbl_kpi_actual.setText(fmt_currency(total_actual, sym))
+        self.lbl_kpi_remaining.setText(
+            fmt_currency(remaining, sym) if remaining is not None else "-"
+        )
+
         try:
-            row = self._reporting_service.get_cost_breakdown(pid)
-            planed_total = sum(float(r.planned or 0.0) for r in row)
-            actual_total = sum(float(r.actual or 0.0) for r in row)
-
-            budget = float(getattr(self._current_project, "planned_budget", 0.0) or 0.0)
-            cur = (
-                (getattr(self._current_project, "currency", "") or "").upper()
-                if self._current_project
-                else ""
-            )
-            sym = currency_symbol_from_code(cur)
-
-            rem_plan = budget - planed_total
-            rem_actual = budget - actual_total
+            rem_plan = budget - total_planned
+            rem_actual = budget - total_actual
 
             lines = []
             if budget > 0:
                 lines.append(f"Budget: {fmt_currency(budget, sym)}")
                 lines.append(
-                    f"Total Planned Cost: {fmt_currency(planed_total, sym)} (Remaining vs plan: {fmt_currency(rem_plan,sym)})"
+                    f"Total Planned Cost: {fmt_currency(total_planned, sym)} (Remaining vs plan: {fmt_currency(rem_plan,sym)})"
                 )
                 lines.append(
-                    f"Total Actual Cost: {fmt_currency(actual_total, sym)} (Remaining vs plan: {fmt_currency(rem_actual,sym)})"
+                    f"Total Actual Cost: {fmt_currency(total_actual, sym)} (Remaining vs plan: {fmt_currency(rem_actual,sym)})"
                 )
-                if planed_total > budget:
+                if total_planned > budget:
                     lines.append("Planned total exceeds budget.")
             else:
-                lines.append(f"Total Planned Cost: {fmt_currency(planed_total, sym)}")
-                lines.append(f"Total Actual Cost: {fmt_currency(actual_total, sym)}")
+                lines.append(f"Total Planned Cost: {fmt_currency(total_planned, sym)}")
+                lines.append(f"Total Actual Cost: {fmt_currency(total_actual, sym)}")
                 lines.append("Note: set project budget to track remaining budget.")
 
             self.lbl_budget_summary.setText("\n".join(lines))
