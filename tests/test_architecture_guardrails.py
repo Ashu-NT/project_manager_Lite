@@ -267,6 +267,48 @@ def test_infra_repositories_module_is_facade_only():
     assert "class SqlAlchemy" not in text
 
 
+def test_infra_mappers_module_is_facade_only():
+    mapper_path = ROOT / "infra" / "db" / "mappers.py"
+    text = mapper_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from infra.db.mappers_project import" in text
+    assert "from infra.db.mappers_task import" in text
+    assert "from infra.db.mappers_resource import" in text
+    assert "from infra.db.mappers_cost_calendar import" in text
+    assert "from infra.db.mappers_baseline import" in text
+    assert "def project_to_orm" not in text
+    assert "def task_to_orm" not in text
+    assert "def cost_to_orm" not in text
+
+
+def test_core_models_module_is_facade_only():
+    models_path = ROOT / "core" / "models.py"
+    text = models_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.domain.project import" in text
+    assert "from core.domain.task import" in text
+    assert "from core.domain.resource import" in text
+    assert "from core.domain.cost import" in text
+    assert "from core.domain.calendar import" in text
+    assert "from core.domain.baseline import" in text
+    assert "class Project(" not in text
+    assert "class Task(" not in text
+    assert "class Resource(" not in text
+
+
+def test_theme_module_is_facade_only():
+    theme_path = ROOT / "ui" / "styles" / "theme.py"
+    text = theme_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.styles.theme_stylesheet import" in text
+    assert "from ui.styles.theme_tokens import" in text
+    assert "def set_theme_mode" in text
+    assert "def apply_app_style" in text
+    assert "QTableView, QTableWidget" not in text
+    assert "LIGHT_THEME = {" not in text
+    assert "DARK_THEME = {" not in text
+
+
 def test_reporting_evm_module_is_facade_only():
     evm_path = ROOT / "core" / "services" / "reporting" / "evm.py"
     text = evm_path.read_text(encoding="utf-8", errors="ignore")
@@ -356,7 +398,9 @@ def test_known_large_modules_have_growth_budgets():
         "ui/report/dialog_gantt.py": 240,
         "ui/report/dialog_critical_path.py": 220,
         "ui/report/dialog_resource_load.py": 240,
-        "ui/styles/theme.py": 420,
+        "ui/styles/theme.py": 80,
+        "ui/styles/theme_tokens.py": 140,
+        "ui/styles/theme_stylesheet.py": 340,
         "main.py": 580,
         "ui/calendar/tab.py": 300,
         "ui/calendar/working_time.py": 120,
@@ -371,7 +415,16 @@ def test_known_large_modules_have_growth_budgets():
         "ui/resource/tab.py": 220,
         "ui/resource/models.py": 100,
         "ui/resource/dialogs.py": 180,
-        "core/models.py": 360,
+        "core/models.py": 80,
+        "core/domain/__init__.py": 60,
+        "core/domain/identifiers.py": 40,
+        "core/domain/enums.py": 90,
+        "core/domain/project.py": 120,
+        "core/domain/task.py": 160,
+        "core/domain/resource.py": 80,
+        "core/domain/cost.py": 90,
+        "core/domain/calendar.py": 120,
+        "core/domain/baseline.py": 90,
         "core/services/dashboard/service.py": 140,
         "core/services/dashboard/models.py": 120,
         "core/services/dashboard/alerts.py": 180,
@@ -386,7 +439,12 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/task/query.py": 120,
         "core/services/task/validation.py": 220,
         "infra/db/repositories.py": 120,
-        "infra/db/mappers.py": 360,
+        "infra/db/mappers.py": 120,
+        "infra/db/mappers_project.py": 120,
+        "infra/db/mappers_task.py": 140,
+        "infra/db/mappers_resource.py": 70,
+        "infra/db/mappers_cost_calendar.py": 150,
+        "infra/db/mappers_baseline.py": 90,
         "infra/db/repositories_project.py": 100,
         "infra/db/repositories_task.py": 150,
         "infra/db/repositories_resource.py": 60,

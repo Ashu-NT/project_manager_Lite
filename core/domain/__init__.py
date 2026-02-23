@@ -1,9 +1,3 @@
-"""Compatibility facade for domain models.
-
-New code should import focused models from ``core.domain`` modules.
-This module re-exports all legacy names to preserve existing imports.
-"""
-
 from core.domain.baseline import BaselineTask, ProjectBaseline
 from core.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
 from core.domain.cost import CostItem
