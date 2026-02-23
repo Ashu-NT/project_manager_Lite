@@ -223,7 +223,7 @@ class UIConfig:
     # =====================
     NEW_TASK_LABEL = "New Task"
     UPDATE_PROGRESS_LABEL = "Update Progress"
-    DEPENDENCIES_LABEL = "Dependencies..."
+    DEPENDENCIES_LABEL = "Dependencies"
     ASSIGNMENTS_LABEL = "Assignments..."
     REFRESH_TASKS_LABEL = "Refresh Tasks"
 

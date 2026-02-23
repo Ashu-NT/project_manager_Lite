@@ -101,6 +101,8 @@ class TaskTab(
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
 
+        self.btn_deps.setToolTip("Manage predecessor and successor relationships for the selected task.")
+
         toolbar.addWidget(self.btn_new)
         toolbar.addWidget(self.btn_edit)
         toolbar.addWidget(self.btn_delete)
@@ -141,4 +143,3 @@ class TaskTab(
         self.btn_progress.clicked.connect(self.update_progress)
         self.btn_deps.clicked.connect(self.manage_dependencies)
         self.table.selectionModel().selectionChanged.connect(self._on_task_selection_changed)
-
