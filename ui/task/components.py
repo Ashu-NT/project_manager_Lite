@@ -11,10 +11,12 @@ from .dialogs import (
     TaskEditDialog,
     TaskProgressDialog,
 )
+from .assignment_models import AssignmentTableModel
 from .models import TaskTableModel
 
 __all__ = [
     "TaskTableModel",
+    "AssignmentTableModel",
     "TaskEditDialog",
     "TaskProgressDialog",
     "DependencyAddDialog",

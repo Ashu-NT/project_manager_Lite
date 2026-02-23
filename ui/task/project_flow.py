@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QComboBox, QTableView
 from core.models import Task
 from core.services.project import ProjectService
 from core.services.task import TaskService
+from ui.task.assignment_summary import build_task_assignment_summary
 from ui.task.models import TaskTableModel
 
 
@@ -61,12 +62,30 @@ class TaskProjectFlowMixin:
         self.reload_tasks()
 
     def reload_tasks(self):
+        current_task = self._get_selected_task()
+        current_task_id = current_task.id if current_task else None
         project_id = self._current_project_id()
         if not project_id:
-            self.model.set_tasks([])
+            self.model.set_tasks([], {})
+            post_reload = getattr(self, "_reload_assignment_panel_for_selected_task", None)
+            if callable(post_reload):
+                post_reload()
             return
+
         tasks = self._task_service.list_tasks_for_project(project_id)
-        self.model.set_tasks(tasks)
+        task_ids = [task.id for task in tasks]
+        assignments = self._task_service.list_assignments_for_tasks(task_ids)
+        summary = build_task_assignment_summary(task_ids, assignments)
+        self.model.set_tasks(tasks, summary)
+
+        if current_task_id:
+            self._select_task_by_id(current_task_id)
+        elif tasks:
+            self.table.selectRow(0)
+
+        post_reload = getattr(self, "_reload_assignment_panel_for_selected_task", None)
+        if callable(post_reload):
+            post_reload()
 
     def _get_selected_task(self) -> Optional[Task]:
         indexes = self.table.selectionModel().selectedRows()
@@ -74,3 +93,10 @@ class TaskProjectFlowMixin:
             return None
         row = indexes[0].row()
         return self.model.get_task(row)
+
+    def _select_task_by_id(self, task_id: str) -> None:
+        for row in range(self.model.rowCount()):
+            task = self.model.get_task(row)
+            if task and task.id == task_id:
+                self.table.selectRow(row)
+                return

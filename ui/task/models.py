@@ -5,6 +5,7 @@ from typing import Optional
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from core.models import Task
+from ui.task.assignment_summary import TaskAssignmentSummary
 
 
 class TaskTableModel(QAbstractTableModel):
@@ -19,15 +20,24 @@ class TaskTableModel(QAbstractTableModel):
         "Priority",
         "Actual Start",
         "Actual End",
+        "Assigned",
+        "Alloc %",
+        "Hours Logged",
     ]
 
     def __init__(self, tasks: list[Task] | None = None, parent=None):
         super().__init__(parent)
         self._tasks: list[Task] = tasks or []
+        self._assignment_summary: TaskAssignmentSummary = {}
 
-    def set_tasks(self, tasks: list[Task]):
+    def set_tasks(
+        self,
+        tasks: list[Task],
+        assignment_summary: TaskAssignmentSummary | None = None,
+    ):
         self.beginResetModel()
         self._tasks = tasks or []
+        self._assignment_summary = assignment_summary or {}
         self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()):
@@ -37,7 +47,11 @@ class TaskTableModel(QAbstractTableModel):
         return len(self.HEADERS)
 
     def data(self, index: QModelIndex, role=Qt.DisplayRole):
-        if not index.isValid() or role not in (Qt.DisplayRole, Qt.EditRole):
+        if not index.isValid():
+            return None
+        if role == Qt.TextAlignmentRole and index.column() in (4, 5, 7, 10, 11, 12):
+            return Qt.AlignRight | Qt.AlignVCenter
+        if role not in (Qt.DisplayRole, Qt.EditRole):
             return None
         t = self._tasks[index.row()]
         col = index.column()
@@ -62,6 +76,13 @@ class TaskTableModel(QAbstractTableModel):
             return t.actual_start.isoformat() if getattr(t, "actual_start", None) else ""
         if col == 9:
             return t.actual_end.isoformat() if getattr(t, "actual_end", None) else ""
+        assigned, alloc, hours = self._assignment_summary.get(t.id, (0, 0.0, 0.0))
+        if col == 10:
+            return str(assigned)
+        if col == 11:
+            return f"{alloc:.1f}"
+        if col == 12:
+            return f"{hours:.2f}"
         return None
 
     def headerData(self, section: int, orientation, role=Qt.DisplayRole):

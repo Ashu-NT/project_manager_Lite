@@ -58,6 +58,42 @@ class TaskAssignmentMixin:
         domain_events.tasks_changed.emit(task.project_id)
         return a
 
+    def set_assignment_allocation(
+        self,
+        assignment_id: str,
+        allocation_percent: float,
+    ) -> TaskAssignment:
+        alloc = float(allocation_percent or 0.0)
+        if alloc <= 0 or alloc > 100:
+            raise ValidationError("allocation_percent must be > 0 and <= 100.")
+
+        a = self._assignment_repo.get(assignment_id)
+        if not a:
+            raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
+
+        task = self._task_repo.get(a.task_id)
+        if not task:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+
+        self._check_resource_overallocation(
+            project_id=task.project_id,
+            resource_id=a.resource_id,
+            new_task_id=task.id,
+            new_alloc_percent=alloc,
+            exclude_assignment_id=a.id,
+        )
+
+        a.allocation_percent = alloc
+        try:
+            self._assignment_repo.update(a)
+            self._session.commit()
+        except Exception as exc:
+            self._session.rollback()
+            raise exc
+
+        domain_events.tasks_changed.emit(task.project_id)
+        return a
+
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         return self._assignment_repo.get(assignment_id)
 

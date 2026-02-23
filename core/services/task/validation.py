@@ -124,6 +124,7 @@ class TaskValidationMixin:
         resource_id: str,
         new_task_id: str,
         new_alloc_percent: float,
+        exclude_assignment_id: str | None = None,
     ) -> None:
         new_task = self._task_repo.get(new_task_id)
         if not new_task:
@@ -142,6 +143,8 @@ class TaskValidationMixin:
         daily_tasks: dict[date, list[str]] = {}
 
         for a in assigns:
+            if exclude_assignment_id and getattr(a, "id", None) == exclude_assignment_id:
+                continue
             t = self._task_repo.get(a.task_id)
             if not t or getattr(t, "project_id", None) != project_id:
                 continue

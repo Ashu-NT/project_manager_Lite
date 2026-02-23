@@ -5,7 +5,7 @@ from typing import List
 
 from core.exceptions import ValidationError
 from core.interfaces import AssignmentRepository, TaskRepository
-from core.models import Task, TaskStatus
+from core.models import Task, TaskAssignment, TaskStatus
 
 
 class TaskQueryMixin:
@@ -24,6 +24,11 @@ class TaskQueryMixin:
             if t:
                 tasks.append(t)
         return tasks
+
+    def list_assignments_for_tasks(self, task_ids: list[str]) -> List[TaskAssignment]:
+        if not task_ids:
+            return []
+        return self._assignment_repo.list_by_tasks(task_ids)
 
     def query_tasks(
         self,
