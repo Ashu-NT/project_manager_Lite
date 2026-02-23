@@ -72,10 +72,14 @@ def test_report_dialogs_module_is_facade_only():
     assert "from ui.report.dialog_gantt import" in text
     assert "from ui.report.dialog_critical_path import" in text
     assert "from ui.report.dialog_resource_load import" in text
+    assert "from ui.report.dialog_evm import" in text
+    assert "from ui.report.dialog_performance import" in text
     assert "class KPIReportDialog" not in text
     assert "class GanttPreviewDialog" not in text
     assert "class CriticalPathDialog" not in text
     assert "class ResourceLoadDialog" not in text
+    assert "class EvmReportDialog" not in text
+    assert "class PerformanceVarianceDialog" not in text
 
 
 def test_report_actions_module_contains_report_workflows():
@@ -87,7 +91,10 @@ def test_report_actions_module_contains_report_workflows():
     assert "def show_gantt" in text
     assert "def show_critical_path" in text
     assert "def show_resource_load" in text
+    assert "def show_evm" in text
+    assert "def show_performance" in text
     assert "def export_gantt_png" in text
+    assert "def export_evm_png" in text
     assert "def export_excel" in text
     assert "def export_pdf" in text
 

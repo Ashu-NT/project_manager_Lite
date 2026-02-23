@@ -1,7 +1,9 @@
 from .dialogs import (
     CriticalPathDialog,
+    EvmReportDialog,
     GanttPreviewDialog,
     KPIReportDialog,
+    PerformanceVarianceDialog,
     ResourceLoadDialog,
 )
 from .tab import ReportTab
@@ -12,5 +14,6 @@ __all__ = [
     "GanttPreviewDialog",
     "CriticalPathDialog",
     "ResourceLoadDialog",
+    "EvmReportDialog",
+    "PerformanceVarianceDialog",
 ]
-

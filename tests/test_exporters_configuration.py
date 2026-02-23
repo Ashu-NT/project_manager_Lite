@@ -7,6 +7,7 @@ from matplotlib.axes import Axes
 from openpyxl import load_workbook
 
 from core.models import CostType, DependencyType
+from core.exceptions import BusinessRuleError
 from core.reporting import api as reporting_api
 from core.services.reporting.models import (
     CostBreakdownRow,
@@ -82,6 +83,62 @@ def test_gantt_export_inclusive_duration_for_one_day_tasks(services, tmp_path, m
     assert output.exists()
     assert output.stat().st_size > 0
     assert any(float(w) >= 1.0 for w in widths if w is not None)
+
+
+def test_evm_export_png_is_skipped_when_no_series_data(tmp_path):
+    class EmptySeriesService:
+        def get_evm_series(self, _project_id, baseline_id=None, as_of=None):
+            return []
+
+    output = tmp_path / "evm_empty.png"
+    result = reporting_api.generate_evm_png(EmptySeriesService(), "p1", output)
+
+    assert result == output
+    assert not output.exists()
+
+
+def test_evm_export_png_is_skipped_when_baseline_is_missing(tmp_path):
+    class NoBaselineService:
+        def get_evm_series(self, _project_id, baseline_id=None, as_of=None):
+            raise BusinessRuleError("No baseline found.", code="NO_BASELINE")
+
+    output = tmp_path / "evm_no_baseline.png"
+    result = reporting_api.generate_evm_png(NoBaselineService(), "p1", output)
+
+    assert result == output
+    assert not output.exists()
+
+
+def test_evm_export_png_generates_image_when_series_exists(tmp_path):
+    class SeriesService:
+        def get_evm_series(self, _project_id, baseline_id=None, as_of=None):
+            return [
+                EvmSeriesPoint(
+                    period_end=date(2023, 11, 30),
+                    PV=100.0,
+                    EV=80.0,
+                    AC=90.0,
+                    BAC=120.0,
+                    CPI=0.89,
+                    SPI=0.80,
+                ),
+                EvmSeriesPoint(
+                    period_end=date(2023, 12, 31),
+                    PV=120.0,
+                    EV=110.0,
+                    AC=115.0,
+                    BAC=120.0,
+                    CPI=0.96,
+                    SPI=0.92,
+                ),
+            ]
+
+    output = tmp_path / "evm.png"
+    result = reporting_api.generate_evm_png(SeriesService(), "p1", output)
+
+    assert result == output
+    assert output.exists()
+    assert output.stat().st_size > 0
 
 
 def test_excel_export_contains_expected_sections_when_baseline_exists(services, tmp_path):
