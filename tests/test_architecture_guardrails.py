@@ -239,11 +239,12 @@ def test_dashboard_tab_uses_splitter_layout_for_right_side_charts():
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "self.main_splitter = QSplitter(Qt.Horizontal)" in text
+    assert "self.middle_splitter = QSplitter(Qt.Vertical)" in text
     assert "self.chart_splitter = QSplitter(Qt.Vertical)" in text
     assert "self.main_splitter.addWidget(middle_panel)" in text
     assert "self.main_splitter.addWidget(right_panel)" in text
-    assert "middle_layout.addWidget(alerts_group, 3)" in text
-    assert "middle_layout.addWidget(upcoming_group, 2)" in text
+    assert "self.middle_splitter.addWidget(alerts_group)" in text
+    assert "self.middle_splitter.addWidget(upcoming_group)" in text
 
 
 def test_dashboard_rendering_module_is_facade_only():

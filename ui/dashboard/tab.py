@@ -1,9 +1,9 @@
 from __future__ import annotations
 from typing import Optional
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
 from core.events.domain_events import domain_events
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
@@ -31,7 +30,6 @@ from ui.dashboard.styles import (
 from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
-
 class DashboardTab(
     DashboardDataOpsMixin,
     DashboardLevelingOpsMixin,
@@ -39,13 +37,6 @@ class DashboardTab(
     DashboardAlertsPanelMixin,
     QWidget,
 ):
-    """
-    Dashboard coordinator:
-    - wires UI
-    - delegates loading/state actions to DashboardDataOpsMixin
-    - delegates rendering/update logic to DashboardRenderingMixin
-    """
-
     def __init__(
         self,
         project_service: ProjectService,
@@ -127,7 +118,7 @@ class DashboardTab(
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(CFG.SPACING_SM)
-        left_panel.setMinimumWidth(360)
+        left_panel.setMinimumWidth(420)
 
         self.summary_widget = QWidget()
         self.summary_widget.setStyleSheet(dashboard_summary_style())
@@ -179,7 +170,7 @@ class DashboardTab(
         left_layout.addWidget(self.summary_widget)
 
         kpi_group = QGroupBox("Portfolio Summary")
-        kpi_layout = QHBoxLayout(kpi_group)
+        kpi_layout = QGridLayout(kpi_group)
         kpi_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
         kpi_layout.setSpacing(CFG.SPACING_SM)
 
@@ -189,11 +180,14 @@ class DashboardTab(
         self.kpi_cost = KpiCard("Cost variance", "0.00", "Actual - Planned", CFG.COLOR_ACCENT)
         self.kpi_progress = KpiCard("% complete", "0%", "", CFG.COLOR_SUCCESS)
 
-        kpi_layout.addWidget(self.kpi_tasks)
-        kpi_layout.addWidget(self.kpi_critical)
-        kpi_layout.addWidget(self.kpi_late)
-        kpi_layout.addWidget(self.kpi_cost)
-        kpi_layout.addWidget(self.kpi_progress)
+        kpi_layout.addWidget(self.kpi_tasks, 0, 0)
+        kpi_layout.addWidget(self.kpi_critical, 0, 1)
+        kpi_layout.addWidget(self.kpi_late, 0, 2)
+        kpi_layout.addWidget(self.kpi_cost, 1, 0, 1, 2)
+        kpi_layout.addWidget(self.kpi_progress, 1, 2)
+        kpi_layout.setColumnStretch(0, 1)
+        kpi_layout.setColumnStretch(1, 1)
+        kpi_layout.setColumnStretch(2, 1)
         left_layout.addWidget(kpi_group)
 
         self.evm_group = self._build_evm_panel()
@@ -204,9 +198,12 @@ class DashboardTab(
         middle_layout = QVBoxLayout(middle_panel)
         middle_layout.setContentsMargins(0, 0, 0, 0)
         middle_layout.setSpacing(CFG.SPACING_SM)
+        self.middle_splitter = QSplitter(Qt.Vertical)
+        self.middle_splitter.setChildrenCollapsible(False)
+        self.middle_splitter.setHandleWidth(8)
 
         alerts_group = self._build_alerts_panel()
-        middle_layout.addWidget(alerts_group, 3)
+        self.middle_splitter.addWidget(alerts_group)
 
         upcoming_group = QGroupBox("Upcoming tasks (next 14 days)")
         upcoming_group.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -218,7 +215,11 @@ class DashboardTab(
         self.upcoming_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         style_table(self.upcoming_table)
         up_layout.addWidget(self.upcoming_table)
-        middle_layout.addWidget(upcoming_group, 2)
+        self.middle_splitter.addWidget(upcoming_group)
+        self.middle_splitter.setStretchFactor(0, 2)
+        self.middle_splitter.setStretchFactor(1, 3)
+        self.middle_splitter.setSizes([350, 520])
+        middle_layout.addWidget(self.middle_splitter, 1)
 
         right_panel = QWidget()
         right_panel.setMinimumWidth(360)
@@ -240,10 +241,10 @@ class DashboardTab(
         self.main_splitter.addWidget(left_panel)
         self.main_splitter.addWidget(middle_panel)
         self.main_splitter.addWidget(right_panel)
-        self.main_splitter.setStretchFactor(0, 3)
+        self.main_splitter.setStretchFactor(0, 4)
         self.main_splitter.setStretchFactor(1, 3)
-        self.main_splitter.setStretchFactor(2, 4)
-        self.main_splitter.setSizes([540, 620, 660])
+        self.main_splitter.setStretchFactor(2, 3)
+        self.main_splitter.setSizes([620, 520, 560])
 
         layout.addWidget(self.main_splitter, 1)
 

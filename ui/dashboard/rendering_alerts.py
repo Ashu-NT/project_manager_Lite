@@ -41,7 +41,9 @@ class DashboardAlertsRenderingMixin:
                 low += 1
             self._set_alert_row(row, severity, msg, action)
 
-        self.alerts_status.setText(f"{len(alerts)} active alerts  |  High: {high}  Medium: {medium}  Low: {low}")
+        self.alerts_status.setText(
+            f"{len(alerts)} active alerts  |  H:{high}  M:{medium}  L:{low}"
+        )
         self.alerts_status.setStyleSheet(
             f"font-weight: 700; color: {CFG.COLOR_TEXT_PRIMARY}; font-size: 10pt;"
         )
@@ -98,6 +100,8 @@ class DashboardAlertsRenderingMixin:
             sev_item.setForeground(QColor(CFG.COLOR_WARNING))
         else:
             sev_item.setForeground(QColor(CFG.COLOR_TEXT_SECONDARY))
+        issue_item.setToolTip(issue)
+        action_item.setToolTip(action)
 
         self.alerts_table.setItem(row, 0, sev_item)
         self.alerts_table.setItem(row, 1, issue_item)
