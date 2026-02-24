@@ -15,6 +15,7 @@ from core.services.common.base import ServiceBase
 from core.services.scheduling.engine import SchedulingEngine
 from core.services.work_calendar.engine import WorkCalendarEngine
 
+from .baseline_compare import ReportingBaselineCompareMixin
 from .cost_breakdown import ReportingCostBreakdownMixin
 from .evm import ReportingEvmMixin
 from .kpi import ReportingKpiMixin
@@ -24,6 +25,7 @@ from .variance import ReportingVarianceMixin
 
 class ReportingService(
     ReportingCostBreakdownMixin,
+    ReportingBaselineCompareMixin,
     ReportingVarianceMixin,
     ReportingEvmMixin,
     ReportingLaborMixin,

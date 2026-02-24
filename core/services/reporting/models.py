@@ -126,6 +126,42 @@ class TaskVarianceRow:
 
 
 @dataclass
+class BaselineComparisonRow:
+    task_id: str
+    task_name: str
+    baseline_a_start: date | None
+    baseline_a_finish: date | None
+    baseline_a_duration_days: int | None
+    baseline_a_planned_cost: float | None
+    baseline_b_start: date | None
+    baseline_b_finish: date | None
+    baseline_b_duration_days: int | None
+    baseline_b_planned_cost: float | None
+    start_shift_days: int | None
+    finish_shift_days: int | None
+    duration_delta_days: int | None
+    planned_cost_delta: float
+    change_type: str
+
+
+@dataclass
+class BaselineComparisonResult:
+    project_id: str
+    baseline_a_id: str
+    baseline_a_name: str
+    baseline_a_created_at: date | None
+    baseline_b_id: str
+    baseline_b_name: str
+    baseline_b_created_at: date | None
+    total_tasks_compared: int
+    changed_tasks: int
+    added_tasks: int
+    removed_tasks: int
+    unchanged_tasks: int
+    rows: list[BaselineComparisonRow]
+
+
+@dataclass
 class CostBreakdownRow:
     cost_type: str
     currency: str

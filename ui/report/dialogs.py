@@ -5,6 +5,7 @@ in its own module for better maintainability.
 """
 
 from ui.report.dialog_critical_path import CriticalPathDialog
+from ui.report.dialog_baseline_compare import BaselineCompareDialog
 from ui.report.dialog_evm import EvmReportDialog
 from ui.report.dialog_gantt import GanttPreviewDialog
 from ui.report.dialog_kpi import KPIReportDialog
@@ -15,6 +16,7 @@ __all__ = [
     "KPIReportDialog",
     "GanttPreviewDialog",
     "CriticalPathDialog",
+    "BaselineCompareDialog",
     "ResourceLoadDialog",
     "EvmReportDialog",
     "PerformanceVarianceDialog",

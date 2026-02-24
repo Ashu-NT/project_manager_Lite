@@ -1,5 +1,7 @@
 from .service import ReportingService
 from .models import (
+    BaselineComparisonResult,
+    BaselineComparisonRow,
     EvmSeriesPoint,
     EarnedValueMetrics,
     LaborAssignmentRow,
@@ -14,6 +16,8 @@ from .models import (
 
 __all__ = [
     "ReportingService",
+    "BaselineComparisonResult",
+    "BaselineComparisonRow",
     "EvmSeriesPoint",
     "EarnedValueMetrics",
     "LaborAssignmentRow",

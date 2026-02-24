@@ -29,6 +29,7 @@ class BaselineTask:
     id: str
     baseline_id: str
     task_id: str
+    task_name: str | None
     baseline_start: Optional[date]
     baseline_finish: Optional[date]
     baseline_duration_days: int
@@ -38,6 +39,7 @@ class BaselineTask:
     def create(
         baseline_id: str,
         task_id: str,
+        task_name: str | None,
         baseline_start: Optional[date],
         baseline_finish: Optional[date],
         baseline_duration_days: int,
@@ -47,6 +49,7 @@ class BaselineTask:
             id=generate_id(),
             baseline_id=baseline_id,
             task_id=task_id,
+            task_name=(task_name.strip() if task_name else None),
             baseline_start=baseline_start,
             baseline_finish=baseline_finish,
             baseline_duration_days=max(0, baseline_duration_days),

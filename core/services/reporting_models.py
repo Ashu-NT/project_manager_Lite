@@ -1,6 +1,8 @@
 """Compatibility wrapper for reporting data models."""
 
 from core.services.reporting.models import (
+    BaselineComparisonResult,
+    BaselineComparisonRow,
     EvmSeriesPoint,
     EarnedValueMetrics,
     LaborAssignmentRow,
@@ -14,6 +16,8 @@ from core.services.reporting.models import (
 )
 
 __all__ = [
+    "BaselineComparisonResult",
+    "BaselineComparisonRow",
     "EvmSeriesPoint",
     "EarnedValueMetrics",
     "LaborAssignmentRow",

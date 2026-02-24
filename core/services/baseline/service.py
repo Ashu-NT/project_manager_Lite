@@ -51,6 +51,7 @@ class BaselineService:
         tasks = self._tasks.list_by_project(project_id)
         if not tasks:
             raise ValidationError("Cannot baseline: project has no tasks.")
+        task_name_by_id = {task.id: task.name for task in tasks}
 
         proj_cur = (getattr(project, "currency", None) or "").upper().strip()
 
@@ -195,6 +196,7 @@ class BaselineService:
                 BaselineTask.create(
                     baseline_id=baseline.id,
                     task_id=tid,
+                    task_name=task_name_by_id.get(tid),
                     baseline_start=bs,
                     baseline_finish=bf,
                     baseline_duration_days=dur,

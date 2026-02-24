@@ -87,6 +87,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self.btn_show_resource_load = QPushButton(CFG.SHOW_RESOURCE_LOAD_LABEL)
         self.btn_show_performance = QPushButton("Show Performance Variance")
         self.btn_show_evm = QPushButton("Show EVM Analysis")
+        self.btn_show_baseline_compare = QPushButton(CFG.SHOW_BASELINE_COMPARE_LABEL)
         for btn in [
             self.btn_load_kpi,
             self.btn_show_gantt,
@@ -94,6 +95,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
             self.btn_show_resource_load,
             self.btn_show_performance,
             self.btn_show_evm,
+            self.btn_show_baseline_compare,
         ]:
             btn.setMinimumHeight(CFG.BUTTON_HEIGHT)
             btn.setMinimumWidth(190)
@@ -105,6 +107,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self.btn_show_resource_load.setToolTip("Resource loading overview by assignment pressure.")
         self.btn_show_performance.setToolTip("Schedule variance and cost variance against baseline.")
         self.btn_show_evm.setToolTip("Earned Value metrics and trend for project controls.")
+        self.btn_show_baseline_compare.setToolTip("Compare two baselines to review task-level planning drift.")
 
         ons_layout.addWidget(self.btn_load_kpi, 0, 0)
         ons_layout.addWidget(self.btn_show_gantt, 0, 1)
@@ -112,6 +115,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         ons_layout.addWidget(self.btn_show_resource_load, 1, 0)
         ons_layout.addWidget(self.btn_show_performance, 1, 1)
         ons_layout.addWidget(self.btn_show_evm, 1, 2)
+        ons_layout.addWidget(self.btn_show_baseline_compare, 2, 0)
         for col in range(3):
             ons_layout.setColumnStretch(col, 1)
         layout.addWidget(group_on_screen)
@@ -140,7 +144,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         layout.addWidget(group_export)
 
         coverage = QLabel(
-            "Coverage includes KPI status, critical path, resource load, baseline variance, and EVM.\n"
+            "Coverage includes KPI status, critical path, resource load, baseline variance, baseline comparison, and EVM.\n"
             "Reports are generated from live scheduling, assignment, and cost data."
         )
         coverage.setWordWrap(True)
@@ -156,6 +160,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self.btn_show_resource_load.clicked.connect(self.show_resource_load)
         self.btn_show_performance.clicked.connect(self.show_performance)
         self.btn_show_evm.clicked.connect(self.show_evm)
+        self.btn_show_baseline_compare.clicked.connect(self.show_baseline_comparison)
         self.btn_export_gantt.clicked.connect(self.export_gantt_png)
         self.btn_export_evm.clicked.connect(self.export_evm_png)
         self.btn_export_excel.clicked.connect(self.export_excel)

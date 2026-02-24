@@ -193,6 +193,7 @@ class UIConfig:
     SHOW_GANTT_LABEL = "Show Gantt"
     SHOW_CRITICAL_PATH_LABEL = "Show Critical Path"
     SHOW_RESOURCE_LOAD_LABEL = "Show Resource Load"
+    SHOW_BASELINE_COMPARE_LABEL = "Compare Baselines"
     EXPORT_GANTT_LABEL = "Export Gantt (PNG)"
     EXPORT_EXCEL_LABEL = "Export Excel"
     EXPORT_PDF_LABEL = "Export PDF"

@@ -187,6 +187,7 @@ class BaselineTaskORM(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     baseline_id: Mapped[str] = mapped_column(String, ForeignKey("project_baselines.id", ondelete="CASCADE"), nullable=False)
     task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    task_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     baseline_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     baseline_finish: Mapped[Optional[date]] = mapped_column(Date, nullable=True)

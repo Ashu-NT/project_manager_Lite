@@ -2,6 +2,8 @@
 
 from core.services.reporting.service import ReportingService
 from core.services.reporting.models import (
+    BaselineComparisonResult,
+    BaselineComparisonRow,
     EvmSeriesPoint,
     EarnedValueMetrics,
     LaborAssignmentRow,
@@ -18,6 +20,8 @@ from core.services.scheduling.engine import CPMTaskInfo
 __all__ = [
     "ReportingService",
     "CPMTaskInfo",
+    "BaselineComparisonResult",
+    "BaselineComparisonRow",
     "EvmSeriesPoint",
     "EarnedValueMetrics",
     "LaborAssignmentRow",

@@ -13,6 +13,7 @@ from core.reporting.api import (
 )
 from core.services.reporting import ReportingService
 from ui.report.dialogs import (
+    BaselineCompareDialog,
     CriticalPathDialog,
     EvmReportDialog,
     GanttPreviewDialog,
@@ -97,6 +98,16 @@ class ReportActionsMixin:
             PerformanceVarianceDialog(self, self._reporting_service, project_id, project_name).exec()
         except NotFoundError as e:
             QMessageBox.warning(self, "Performance", f"Failed to generate performance view: {e}")
+
+    def show_baseline_comparison(self) -> None:
+        selected = self._require_project("Compare Baselines")
+        if not selected:
+            return
+        project_id, project_name = selected
+        try:
+            BaselineCompareDialog(self, self._reporting_service, project_id, project_name).exec()
+        except NotFoundError as e:
+            QMessageBox.warning(self, "Baseline Comparison", f"Failed to compare baselines: {e}")
 
     def export_gantt_png(self) -> None:
         selected = self._require_project("Export Gantt")
