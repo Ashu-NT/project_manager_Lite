@@ -220,3 +220,73 @@ def test_resource_load_summary_sorted_descending(services):
     rows = rp.get_resource_load_summary(pid)
     assert len(rows) == 2
     assert rows[0].total_allocation_percent >= rows[1].total_allocation_percent
+
+
+def test_dependency_diagnostics_flags_duplicates(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+
+    project = ps.create_project("Dependency Diagnostics", "")
+    t1 = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1)
+    t2 = ts.create_task(project.id, "Task B", start_date=date(2023, 11, 6), duration_days=1)
+    ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
+
+    diag = ts.get_dependency_diagnostics(t1.id, t2.id, include_impact=False)
+    assert not diag.is_valid
+    assert diag.code == "DEPENDENCY_DUPLICATE"
+
+
+def test_dependency_diagnostics_cycle_includes_path_names(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+
+    project = ps.create_project("Cycle Detail", "")
+    task_a = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=1)
+    task_b = ts.create_task(project.id, "Task B", duration_days=1)
+    task_c = ts.create_task(project.id, "Task C", duration_days=1)
+    ts.add_dependency(task_a.id, task_b.id, DependencyType.FINISH_TO_START, lag_days=0)
+    ts.add_dependency(task_b.id, task_c.id, DependencyType.FINISH_TO_START, lag_days=0)
+
+    diag = ts.get_dependency_diagnostics(task_c.id, task_a.id, include_impact=False)
+    assert not diag.is_valid
+    assert diag.code == "DEPENDENCY_CYCLE"
+    assert "Task A" in diag.detail
+    assert "Task B" in diag.detail
+    assert "Task C" in diag.detail
+
+
+def test_dependency_diagnostics_reports_schedule_impact(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+
+    project = ps.create_project("Impact Preview", "")
+    task_a = ts.create_task(project.id, "Task A", start_date=date(2023, 11, 6), duration_days=2)
+    task_b = ts.create_task(project.id, "Task B", start_date=date(2023, 11, 6), duration_days=2)
+
+    diag = ts.get_dependency_diagnostics(
+        task_a.id,
+        task_b.id,
+        dependency_type=DependencyType.FINISH_TO_START,
+        lag_days=0,
+        include_impact=True,
+    )
+    assert diag.is_valid
+    assert any(row.task_id == task_b.id for row in diag.impact_rows)
+    impacted_b = next(row for row in diag.impact_rows if row.task_id == task_b.id)
+    assert (impacted_b.start_shift_days or 0) > 0
+    assert "Task B" in impacted_b.trace_path
+
+
+def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+
+    project = ps.create_project("Cycle Enforcement", "")
+    t1 = ts.create_task(project.id, "Task 1", start_date=date(2023, 11, 6), duration_days=1)
+    t2 = ts.create_task(project.id, "Task 2", duration_days=1)
+    ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
+
+    with pytest.raises(BusinessRuleError) as exc:
+        ts.add_dependency(t2.id, t1.id, DependencyType.FINISH_TO_START, lag_days=0)
+    assert exc.value.code == "DEPENDENCY_CYCLE"
+    assert "Cycle path" in str(exc.value)

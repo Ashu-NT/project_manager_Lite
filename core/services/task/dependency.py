@@ -5,7 +5,7 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from core.events.domain_events import domain_events
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.interfaces import DependencyRepository, TaskRepository
 from core.models import DependencyType, TaskDependency
 
@@ -22,31 +22,26 @@ class TaskDependencyMixin:
         dependency_type: DependencyType = DependencyType.FINISH_TO_START,
         lag_days: int = 0,
     ) -> TaskDependency:
-        self._validate_not_self_dependency(predecessor_id, successor_id)
+        diagnostic = self.get_dependency_diagnostics(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=dependency_type,
+            lag_days=lag_days,
+            include_impact=False,
+        )
+        if not diagnostic.is_valid:
+            message = diagnostic.summary
+            if diagnostic.detail:
+                message = f"{diagnostic.summary}\n{diagnostic.detail}"
+            if diagnostic.code == "TASK_NOT_FOUND":
+                raise NotFoundError(message, code=diagnostic.code)
+            if diagnostic.code == "DEPENDENCY_CYCLE":
+                raise BusinessRuleError(message, code=diagnostic.code)
+            raise ValidationError(message, code=diagnostic.code)
 
         pred = self._task_repo.get(predecessor_id)
         if not pred:
             raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
-
-        succ = self._task_repo.get(successor_id)
-        if not succ:
-            raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
-
-        if pred.project_id != succ.project_id:
-            raise ValidationError(
-                "Tasks must be in the same project to create a dependency.",
-                code="DEPENDENCY_CROSS_PROJECT",
-            )
-
-        existing = self._dependency_repo.list_by_task(predecessor_id)
-        if any(d.successor_task_id == successor_id for d in existing):
-            raise ValidationError("This dependency already exists.", code="DEPENDENCY_DUPLICATE")
-
-        self._check_no_circular_dependency(
-            project_id=pred.project_id,
-            predecessor_id=predecessor_id,
-            successor_id=successor_id,
-        )
 
         dep = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
         try:

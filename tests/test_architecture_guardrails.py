@@ -184,6 +184,17 @@ def test_task_project_flow_module_contains_loading_helpers():
     assert "def _get_selected_task" in text
 
 
+def test_task_dependency_dialogs_module_is_facade_only():
+    dialogs_path = ROOT / "ui" / "task" / "dependency_dialogs.py"
+    text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from .dependency_add_dialog import" in text
+    assert "from .dependency_list_dialog import" in text
+    assert "from .dependency_shared import" in text
+    assert "class DependencyAddDialog" not in text
+    assert "class DependencyListDialog" not in text
+
+
 def test_cost_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "cost" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
@@ -463,6 +474,9 @@ def test_known_large_modules_have_growth_budgets():
         "ui/task/dialogs.py": 80,
         "ui/task/task_dialogs.py": 320,
         "ui/task/dependency_dialogs.py": 220,
+        "ui/task/dependency_add_dialog.py": 220,
+        "ui/task/dependency_list_dialog.py": 180,
+        "ui/task/dependency_shared.py": 60,
         "ui/task/assignment_dialogs.py": 270,
         "ui/task/models.py": 120,
         "ui/task/components.py": 80,

@@ -14,6 +14,7 @@ from core.interfaces import (
 )
 from core.services.task.assignment import TaskAssignmentMixin
 from core.services.task.dependency import TaskDependencyMixin
+from core.services.task.dependency_diagnostics import TaskDependencyDiagnosticsMixin
 from core.services.task.lifecycle import TaskLifecycleMixin
 from core.services.task.query import TaskQueryMixin
 from core.services.task.validation import TaskValidationMixin
@@ -22,6 +23,7 @@ from core.services.work_calendar.engine import WorkCalendarEngine
 
 class TaskService(
     TaskLifecycleMixin,
+    TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
     TaskAssignmentMixin,
     TaskQueryMixin,
