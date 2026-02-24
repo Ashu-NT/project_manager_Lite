@@ -35,12 +35,19 @@ def _fit_table_columns(table: QTableView) -> None:
     max_w = 460
     padding = 18
     header = table.horizontalHeader()
-    for col in range(col_count):
-        if header.sectionResizeMode(col) == QHeaderView.Stretch:
-            continue
-        width = header.sectionSize(col)
-        target = max(min_w, min(max_w, width + padding))
-        header.resizeSection(col, target)
+    table._pm_is_fitting = True
+    try:
+        for col in range(col_count):
+            mode = header.sectionResizeMode(col)
+            if mode == QHeaderView.Stretch:
+                continue
+            if mode != QHeaderView.Interactive:
+                header.setSectionResizeMode(col, QHeaderView.Interactive)
+            width = header.sectionSize(col)
+            target = max(min_w, min(max_w, width + padding))
+            header.resizeSection(col, target)
+    finally:
+        table._pm_is_fitting = False
 
 
 def _schedule_table_fit(table: QTableView) -> None:
@@ -91,6 +98,15 @@ def _bind_auto_fit_signals(table: QTableView) -> None:
     model.rowsRemoved.connect(_queue_fit)
     model.columnsInserted.connect(_queue_fit)
     model.columnsRemoved.connect(_queue_fit)
+
+    header = table.horizontalHeader()
+
+    def _on_user_resize(*_args) -> None:
+        if getattr(table, "_pm_is_fitting", False):
+            return
+        table._pm_manual_resize_seen = True
+
+    header.sectionResized.connect(_on_user_resize)
 
     _schedule_table_fit(table)
 

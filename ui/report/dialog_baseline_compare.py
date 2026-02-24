@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QHeaderView,
@@ -111,10 +113,13 @@ class BaselineCompareDialog(QDialog):
         self.table = QTableWidget(0, len(headers))
         self.table.setHorizontalHeaderLabels(headers)
         style_table(self.table)
+        self.table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.table.setSortingEnabled(True)
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
+        self.table.horizontalHeader().resizeSection(0, 320)
         for col in range(1, len(headers)):
-            self.table.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeToContents)
+            self.table.horizontalHeader().setSectionResizeMode(col, QHeaderView.Interactive)
+            self.table.horizontalHeader().resizeSection(col, 120 if col not in (10,) else 110)
         layout.addWidget(self.table, 1)
 
         close_row = QHBoxLayout()
@@ -217,10 +222,20 @@ class BaselineCompareDialog(QDialog):
 
             for col_idx, text in enumerate(values):
                 item = QTableWidgetItem(text)
+                item.setToolTip(text)
                 if col_idx in (3, 6, 7, 8, 9):
                     item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                if col_idx == 10:
+                    fg = {
+                        "ADDED": CFG.COLOR_SUCCESS,
+                        "REMOVED": CFG.COLOR_DANGER,
+                        "CHANGED": CFG.COLOR_WARNING,
+                        "UNCHANGED": CFG.COLOR_TEXT_SECONDARY,
+                    }.get(change, CFG.COLOR_TEXT_PRIMARY)
+                    item.setForeground(QBrush(QColor(fg)))
                 self.table.setItem(row_idx, col_idx, item)
-                self.table.item(row_idx, col_idx).setBackground(row_bg)
+                if col_idx == 10:
+                    self.table.item(row_idx, col_idx).setBackground(row_bg)
 
         if not result.rows:
             self.table.setRowCount(1)

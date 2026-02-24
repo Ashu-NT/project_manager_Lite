@@ -48,6 +48,7 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
     assert rows_by_id[task_a.id].planned_cost_delta == pytest.approx(50.0)
 
     assert rows_by_id[task_b.id].change_type == "REMOVED"
+    assert rows_by_id[task_b.id].task_name == "Task B"
     assert rows_by_id[task_b.id].baseline_b_start is None
 
     assert rows_by_id[task_c.id].change_type == "ADDED"
