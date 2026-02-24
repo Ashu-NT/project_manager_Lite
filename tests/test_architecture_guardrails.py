@@ -444,6 +444,14 @@ def test_scheduling_engine_is_orchestrator_only():
     assert "import heapq" not in text
 
 
+def test_scheduling_leveling_is_split_from_engine():
+    engine_path = ROOT / "core" / "services" / "scheduling" / "engine.py"
+    text = engine_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.scheduling.leveling_service import ResourceLevelingMixin" in text
+    assert "class SchedulingEngine(ResourceLevelingMixin)" in text
+
+
 def test_main_build_services_delegates_to_service_graph():
     main_path = ROOT / "main.py"
     text = main_path.read_text(encoding="utf-8", errors="ignore")
@@ -518,6 +526,9 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/scheduling/graph.py": 180,
         "core/services/scheduling/passes.py": 260,
         "core/services/scheduling/results.py": 180,
+        "core/services/scheduling/leveling.py": 180,
+        "core/services/scheduling/leveling_service.py": 280,
+        "core/services/scheduling/leveling_models.py": 120,
         "ui/resource/tab.py": 220,
         "ui/resource/actions.py": 180,
         "ui/resource/flow.py": 80,

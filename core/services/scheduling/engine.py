@@ -6,16 +6,22 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from core.interfaces import DependencyRepository, TaskRepository
+from core.interfaces import (
+    AssignmentRepository,
+    DependencyRepository,
+    ResourceRepository,
+    TaskRepository,
+)
 from core.models import DependencyType, Task, TaskDependency
 from core.services.scheduling.graph import build_project_dependency_graph
+from core.services.scheduling.leveling_service import ResourceLevelingMixin
 from core.services.scheduling.models import CPMTaskInfo
 from core.services.scheduling.passes import run_backward_pass, run_forward_pass
 from core.services.scheduling.results import build_schedule_result
 from core.services.work_calendar.engine import WorkCalendarEngine
 
 
-class SchedulingEngine:
+class SchedulingEngine(ResourceLevelingMixin):
     """
     CPM-style scheduling engine:
     - Forward pass: ES/EF
@@ -30,11 +36,15 @@ class SchedulingEngine:
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         calendar: WorkCalendarEngine,
+        assignment_repo: AssignmentRepository | None = None,
+        resource_repo: ResourceRepository | None = None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
         self._dependency_repo: DependencyRepository = dependency_repo
         self._calendar: WorkCalendarEngine = calendar
+        self._assignment_repo: AssignmentRepository | None = assignment_repo
+        self._resource_repo: ResourceRepository | None = resource_repo
 
     def recalculate_project_schedule(self, project_id: str) -> Dict[str, CPMTaskInfo]:
         """
@@ -283,4 +293,3 @@ class SchedulingEngine:
             if normalized in ("LOW", "L"):
                 return 90
         return 50
-

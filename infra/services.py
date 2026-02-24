@@ -107,7 +107,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
     resource_service = ResourceService(session, resource_repo, assignment_repo, project_resource_repo)
     cost_service = CostService(session, cost_repo, project_repo, task_repo)
     work_calendar_service = WorkCalendarService(session, work_calendar_repo, work_calendar_engine)
-    scheduling_engine = SchedulingEngine(session, task_repo, dependency_repo, work_calendar_engine)
+    scheduling_engine = SchedulingEngine(
+        session,
+        task_repo,
+        dependency_repo,
+        work_calendar_engine,
+        assignment_repo=assignment_repo,
+        resource_repo=resource_repo,
+    )
     reporting_service = ReportingService(
         session=session,
         project_repo=project_repo,
