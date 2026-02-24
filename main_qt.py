@@ -10,6 +10,7 @@ from infra.logging_config import setup_logging
 from infra.services import build_service_dict
 
 from ui.main_window import MainWindow
+from ui.settings import MainWindowSettingsStore
 
 
 def build_services():
@@ -33,6 +34,9 @@ def main():
     setup_logging()
 
     app = QApplication(sys.argv)
+    settings_store = MainWindowSettingsStore()
+    startup_theme = settings_store.load_theme_mode(default_mode=os.getenv("PM_THEME", "light"))
+    os.environ["PM_THEME"] = startup_theme
     icon_path = resource_path("assets/icons/app.ico")
     app.setWindowIcon(QIcon(icon_path))
     
@@ -41,7 +45,7 @@ def main():
 
     # 2) Global stylesheet (QSS)
     from ui.styles.theme import apply_app_style
-    apply_app_style(app, mode=os.getenv("PM_THEME", "light"))
+    apply_app_style(app, mode=startup_theme)
    
     services = build_services()
     window = MainWindow(services)

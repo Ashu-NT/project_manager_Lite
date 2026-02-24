@@ -9,12 +9,17 @@ from ui.styles.ui_config import UIConfig as CFG
 
 def metric_card(title: str, value: str, subtitle: str = "", color: str | None = None) -> QWidget:
     card = QWidget()
+    card.setObjectName("metricCard")
     card.setStyleSheet(
         f"""
-        QWidget {{
+        QWidget#metricCard {{
             background-color: {CFG.COLOR_BG_SURFACE};
             border: 1px solid {CFG.COLOR_BORDER};
             border-radius: 10px;
+        }}
+        QWidget#metricCard QLabel {{
+            background: transparent;
+            border: none;
         }}
         """
     )
@@ -76,4 +81,3 @@ def soft_brush(hex_color: str, alpha: int) -> QBrush:
     color = QColor(hex_color)
     color.setAlpha(max(0, min(alpha, 255)))
     return QBrush(color)
-

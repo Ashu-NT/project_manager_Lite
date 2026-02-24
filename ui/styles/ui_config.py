@@ -72,6 +72,10 @@ class UIConfig:
     COLOR_SUCCESS = "#0F766E"
     COLOR_WARNING = "#B45309"
     COLOR_DANGER = "#B42318"
+    COLOR_SCROLLBAR_TRACK = "#E2E8F0"
+    COLOR_SCROLLBAR_HANDLE = "#94A3B8"
+    COLOR_SCROLLBAR_HANDLE_HOVER = "#64748B"
+    COLOR_SCROLLBAR_HANDLE_ACTIVE = "#475569"
 
     # =====================
     # Window
@@ -252,8 +256,8 @@ class UIConfig:
     # =====================
     # Shared style snippets
     # =====================
-    INFO_TEXT_STYLE = f"color: {COLOR_TEXT_MUTED}; font-size: 9pt;"
-    NOTE_STYLE_SHEET = f"color: {COLOR_TEXT_MUTED}; font-size: 9pt; font-style: italic;"
+    INFO_TEXT_STYLE = f"color: {COLOR_TEXT_SECONDARY}; font-size: 10pt;"
+    NOTE_STYLE_SHEET = f"color: {COLOR_TEXT_SECONDARY}; font-size: 9pt; font-style: italic;"
     SECTION_BOLD_MARGIN_STYLE = f"font-weight: 700; color: {COLOR_TEXT_SECONDARY}; margin-top: 8px;"
     TITLE_LARGE_STYLE = f"font-size: {FONT_SIZE_TITLE}px; font-weight: 700; color: {COLOR_TEXT_PRIMARY};"
 

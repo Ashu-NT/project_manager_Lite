@@ -140,7 +140,7 @@ class CostLaborSummaryMixin:
         for i in range(self.tbl_labor_summary.rowCount()):
             content_height += self.tbl_labor_summary.rowHeight(i)
         content_height += 6
-        max_h = 300
+        max_h = 400
         h = min(content_height, max_h)
         self.tbl_labor_summary.setFixedHeight(h)
         self.tbl_labor_summary.updateGeometry()

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -20,6 +21,7 @@ from ui.dashboard.tab import DashboardTab
 from ui.project.tab import ProjectTab
 from ui.report.tab import ReportTab
 from ui.resource.tab import ResourceTab
+from ui.settings import MainWindowSettingsStore
 from ui.styles.theme import apply_app_style
 from ui.styles.ui_config import UIConfig as CFG
 from ui.task.tab import TaskTab
@@ -29,9 +31,10 @@ class MainWindow(QMainWindow):
     def __init__(self, services: dict[str, object], parent: QWidget | None = None):
         super().__init__(parent)
         self.services: dict[str, object] = services
-        self._theme_mode: str = os.getenv("PM_THEME", "light").strip().lower()
-        if self._theme_mode not in {"light", "dark"}:
-            self._theme_mode = "light"
+        self._settings_store = MainWindowSettingsStore()
+        default_theme = os.getenv("PM_THEME", "light").strip().lower()
+        self._theme_mode: str = self._settings_store.load_theme_mode(default_mode=default_theme)
+        os.environ["PM_THEME"] = self._theme_mode
 
         self.setWindowTitle("Project Management App")
         self.resize(CFG.DEFAULT_WINDOW_SIZE)
@@ -62,8 +65,10 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
         self._build_tabs()
+        self.tabs.currentChanged.connect(self._on_tab_changed)
 
         self.setCentralWidget(central)
+        self._restore_persisted_state()
 
     def _build_tabs(self) -> None:
         dashboard_tab = DashboardTab(
@@ -135,9 +140,29 @@ class MainWindow(QMainWindow):
 
         self._theme_mode = mode
         os.environ["PM_THEME"] = mode
+        self._settings_store.save_theme_mode(mode)
 
         app = QApplication.instance()
         if app is not None:
             apply_app_style(app, mode=mode)
 
         self._rebuild_tabs(current_index=self.tabs.currentIndex())
+
+    def _restore_persisted_state(self) -> None:
+        geometry = self._settings_store.load_geometry()
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        if self.tabs.count():
+            saved_index = self._settings_store.load_tab_index(default_index=0)
+            safe_index = max(0, min(saved_index, self.tabs.count() - 1))
+            self.tabs.setCurrentIndex(safe_index)
+
+    def _on_tab_changed(self, index: int) -> None:
+        if index >= 0:
+            self._settings_store.save_tab_index(index)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self._settings_store.save_theme_mode(self._theme_mode)
+        self._settings_store.save_tab_index(self.tabs.currentIndex())
+        self._settings_store.save_geometry(self.saveGeometry())
+        super().closeEvent(event)

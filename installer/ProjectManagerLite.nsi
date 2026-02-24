@@ -3,9 +3,10 @@
 ; ------------------------------------------
 
 !include "MUI2.nsh"
+!include "LogicLib.nsh"
 
 !define APP_NAME       "ProjectManagerLite"
-!define APP_VERSION    "2.0.0"
+!define APP_VERSION    "2.1.0"
 !define APP_PUBLISHER  "TECHBASE"
 !define APP_EXE        "ProjectManagerLite.exe"
 !define APP_SOURCE_DIR "..\dist\ProjectManagerLite"
@@ -39,6 +40,14 @@ RequestExecutionLevel admin
 !insertmacro MUI_LANGUAGE "English"
 
 Function .onInit
+  ; Detect existing install and show update/repair prompt.
+  ReadRegStr $1 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayVersion"
+  StrCmp $1 "" check_running
+    MessageBox MB_OKCANCEL|MB_ICONINFORMATION \
+      "${APP_NAME} version $1 is already installed.$\r$\n$\r$\nSetup will install version ${APP_VERSION} over it (update/repair).$\r$\nContinue?" \
+      IDCANCEL cancel
+
+check_running:
   ; Optional basic running-app check (best-effort)
   FindWindow $0 "" "${APP_NAME}"
   StrCmp $0 0 done
@@ -49,6 +58,11 @@ Function .onInit
   done:
 FunctionEnd
 
+Function RefreshShellIcons
+  ; Ask Explorer to refresh icon cache associations.
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+FunctionEnd
+
 Section "MainSection" SEC01
   SetShellVarContext all
   SetOutPath "$INSTDIR"
@@ -57,9 +71,20 @@ Section "MainSection" SEC01
 
   WriteRegStr HKLM "Software\${APP_NAME}" "InstallDir" "$INSTDIR"
 
+  ; Remove old shortcuts from both current-user and all-users scopes.
+  SetShellVarContext current
+  Delete "$DESKTOP\${APP_NAME}.lnk"
+  Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
+  RMDir "$SMPROGRAMS\${APP_NAME}"
+
+  SetShellVarContext all
+  Delete "$DESKTOP\${APP_NAME}.lnk"
+  Delete "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk"
+  RMDir "$SMPROGRAMS\${APP_NAME}"
+
   CreateDirectory "$SMPROGRAMS\${APP_NAME}"
-  CreateShortCut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}"
-  CreateShortCut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}"
+  CreateShortCut "$SMPROGRAMS\${APP_NAME}\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0
+  CreateShortCut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0
 
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "DisplayName" "${APP_NAME}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
@@ -71,6 +96,7 @@ Section "MainSection" SEC01
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}" "NoRepair" 1
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
+  Call RefreshShellIcons
 SectionEnd
 
 Section "Uninstall"

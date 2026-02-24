@@ -5,6 +5,7 @@ from core.exceptions import NotFoundError
 from infra.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
 from ui.styles.theme import base_stylesheet
 from ui.styles.theme import set_theme_mode
+from ui.styles.theme import table_stylesheet
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -167,11 +168,28 @@ def test_dark_theme_mode_updates_tokens_and_stylesheet():
     css_dark = base_stylesheet()
     assert CFG.COLOR_BG_APP == "#0B1220"
     assert CFG.COLOR_BG_APP in css_dark
+    assert "QMainWindow, QDialog" in css_dark
 
     set_theme_mode("light")
     css_light = base_stylesheet()
     assert CFG.COLOR_BG_APP == "#F4F7FB"
     assert CFG.COLOR_BG_APP in css_light
+
+
+def test_dark_theme_info_and_meta_text_are_readable():
+    set_theme_mode("dark")
+    assert CFG.COLOR_TEXT_SECONDARY in CFG.INFO_TEXT_STYLE
+    assert "font-size: 10pt" in CFG.INFO_TEXT_STYLE
+    assert CFG.COLOR_TEXT_SECONDARY in CFG.DASHBOARD_KPI_SUB_STYLE
+
+
+def test_table_stylesheet_includes_table_scrollbar_rules():
+    set_theme_mode("light")
+    css = table_stylesheet()
+    assert "QTableView QScrollBar:vertical" in css
+    assert "QTableView QScrollBar:horizontal" in css
+    assert CFG.COLOR_SCROLLBAR_HANDLE in css
+    assert CFG.COLOR_SCROLLBAR_TRACK in css
 
 
 def test_main_window_wires_theme_switcher():

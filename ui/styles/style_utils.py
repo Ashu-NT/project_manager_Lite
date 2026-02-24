@@ -103,15 +103,18 @@ def style_table(table: QTableView) -> None:
     table.setWordWrap(False)
     table.setMouseTracking(True)
     table.setFocusPolicy(Qt.StrongFocus)
+    table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+    table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
 
     vh = table.verticalHeader()
     vh.setVisible(False)
-    vh.setDefaultSectionSize(table.fontMetrics().height() + 12)
+    vh.setDefaultSectionSize(table.fontMetrics().height() + 14)
 
     hh = table.horizontalHeader()
     hh.setHighlightSections(False)
     hh.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
     hh.setMinimumSectionSize(72)
+    hh.setDefaultSectionSize(max(110, hh.defaultSectionSize()))
     hh.setStretchLastSection(True)
 
     table.setStyleSheet(table_stylesheet())

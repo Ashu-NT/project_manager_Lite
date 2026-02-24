@@ -19,6 +19,10 @@ LIGHT_THEME = {
     "COLOR_SUCCESS": "#0F766E",
     "COLOR_WARNING": "#B45309",
     "COLOR_DANGER": "#B42318",
+    "COLOR_SCROLLBAR_TRACK": "#E2E8F0",
+    "COLOR_SCROLLBAR_HANDLE": "#94A3B8",
+    "COLOR_SCROLLBAR_HANDLE_HOVER": "#64748B",
+    "COLOR_SCROLLBAR_HANDLE_ACTIVE": "#475569",
 }
 
 
@@ -38,6 +42,10 @@ DARK_THEME = {
     "COLOR_SUCCESS": "#34D399",
     "COLOR_WARNING": "#F59E0B",
     "COLOR_DANGER": "#F87171",
+    "COLOR_SCROLLBAR_TRACK": "#1F2E45",
+    "COLOR_SCROLLBAR_HANDLE": "#4C678A",
+    "COLOR_SCROLLBAR_HANDLE_HOVER": "#6E86A5",
+    "COLOR_SCROLLBAR_HANDLE_ACTIVE": "#8FB3D9",
 }
 
 
@@ -47,9 +55,9 @@ def apply_theme_tokens(mode: str = "light") -> None:
     for attr, value in palette.items():
         setattr(CFG, attr, value)
 
-    CFG.INFO_TEXT_STYLE = f"color: {CFG.COLOR_TEXT_MUTED}; font-size: 9pt;"
+    CFG.INFO_TEXT_STYLE = f"color: {CFG.COLOR_TEXT_SECONDARY}; font-size: 10pt;"
     CFG.NOTE_STYLE_SHEET = (
-        f"color: {CFG.COLOR_TEXT_MUTED}; font-size: 9pt; font-style: italic;"
+        f"color: {CFG.COLOR_TEXT_SECONDARY}; font-size: 9pt; font-style: italic;"
     )
     CFG.SECTION_BOLD_MARGIN_STYLE = (
         f"font-weight: 700; color: {CFG.COLOR_TEXT_SECONDARY}; margin-top: 8px;"
@@ -59,19 +67,19 @@ def apply_theme_tokens(mode: str = "light") -> None:
     )
 
     CFG.DASHBOARD_SUMMARY_STYLE = f"font-size: 10pt; color: {CFG.COLOR_TEXT_SECONDARY};"
-    CFG.DASHBOARD_PROJECT_LABEL_STYLE = f"font-size: 10pt; color: {CFG.COLOR_TEXT_MUTED};"
+    CFG.DASHBOARD_PROJECT_LABEL_STYLE = f"font-size: 10pt; color: {CFG.COLOR_TEXT_SECONDARY};"
     CFG.DASHBOARD_PROJECT_TITLE_STYLE = (
         f"font-size: 11pt; font-weight: 700; color: {CFG.COLOR_TEXT_PRIMARY};"
     )
     CFG.DASHBOARD_PROJECT_META_STYLE = (
-        f"color: {CFG.COLOR_TEXT_MUTED}; font-size: 9pt; padding: 0 6px;"
+        f"color: {CFG.COLOR_TEXT_SECONDARY}; font-size: 9pt; padding: 0 6px;"
     )
     CFG.PROJECT_SUMMARY_BOX_STYLE = (
         f"background-color: {CFG.COLOR_BG_SURFACE}; "
         f"border: 1px solid {CFG.COLOR_BORDER}; border-radius: 10px; padding: 8px;"
     )
-    CFG.DASHBOARD_KPI_TITLE_STYLE = f"font-size: 9pt; color: {CFG.COLOR_TEXT_MUTED};"
-    CFG.DASHBOARD_KPI_SUB_STYLE = f"font-size: 8pt; color: {CFG.COLOR_TEXT_MUTED};"
+    CFG.DASHBOARD_KPI_TITLE_STYLE = f"font-size: 9pt; color: {CFG.COLOR_TEXT_SECONDARY};"
+    CFG.DASHBOARD_KPI_SUB_STYLE = f"font-size: 9pt; color: {CFG.COLOR_TEXT_SECONDARY};"
     CFG.DASHBOARD_HIGHLIGHT_COLOR = CFG.COLOR_ACCENT
     CFG.CHART_TITLE_STYLE = (
         f"font-size: 11pt; font-weight: 700; color: {CFG.COLOR_TEXT_SECONDARY};"

@@ -169,7 +169,7 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         grp_labor.setFont(CFG.GROUPBOX_TITLE_FONT)
         labor_layout = QVBoxLayout(grp_labor)
         labor_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        labor_layout.setSpacing(CFG.SPACING_SM)
+        labor_layout.setSpacing(CFG.SPACING_MD)
 
         self.tbl_labor_summary = QTableWidget()
         self.tbl_labor_summary.setColumnCount(len(CFG.LABOR_SUMMARY_HEADERS))
