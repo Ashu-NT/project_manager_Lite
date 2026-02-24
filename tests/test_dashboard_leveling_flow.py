@@ -72,6 +72,10 @@ def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     assert "def _preview_conflicts" in ops_text
     assert "def _auto_level_conflicts" in ops_text
     assert "def _manual_shift_selected_conflict" in ops_text
+    assert "self._update_conflicts_from_load(overloaded)" in ops_text
 
     assert "def preview_resource_conflicts" in service_text
     assert "def auto_level_overallocations" in service_text
+    assert "def _update_conflicts_from_load" in (root / "ui" / "dashboard" / "rendering_alerts.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )

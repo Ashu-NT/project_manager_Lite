@@ -86,7 +86,6 @@ class TaskTab(
         self.btn_edit = QPushButton(CFG.EDIT_LABEL)
         self.btn_delete = QPushButton(CFG.DELETE_LABEL)
         self.btn_progress = QPushButton(CFG.UPDATE_PROGRESS_LABEL)
-        self.btn_deps = QPushButton(CFG.DEPENDENCIES_LABEL)
         self.btn_refresh_tasks = QPushButton(CFG.REFRESH_TASKS_LABEL)
 
         for btn in [
@@ -95,19 +94,15 @@ class TaskTab(
             self.btn_edit,
             self.btn_delete,
             self.btn_progress,
-            self.btn_deps,
             self.btn_refresh_tasks,
         ]:
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
 
-        self.btn_deps.setToolTip("Manage predecessor and successor relationships for the selected task.")
-
         toolbar.addWidget(self.btn_new)
         toolbar.addWidget(self.btn_edit)
         toolbar.addWidget(self.btn_delete)
         toolbar.addWidget(self.btn_progress)
-        toolbar.addWidget(self.btn_deps)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh_tasks)
         root.addLayout(toolbar)
@@ -141,5 +136,4 @@ class TaskTab(
         self.btn_edit.clicked.connect(self.edit_task)
         self.btn_delete.clicked.connect(self.delete_task)
         self.btn_progress.clicked.connect(self.update_progress)
-        self.btn_deps.clicked.connect(self.manage_dependencies)
         self.table.selectionModel().selectionChanged.connect(self._on_task_selection_changed)

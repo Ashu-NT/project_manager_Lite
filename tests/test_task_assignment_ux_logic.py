@@ -2,7 +2,6 @@ from datetime import date
 
 import pytest
 
-from core.exceptions import BusinessRuleError
 from ui.task.assignment_summary import build_task_assignment_summary
 
 
@@ -34,6 +33,7 @@ def test_set_assignment_allocation_updates_and_enforces_overallocation(services)
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
+    sched = services["scheduling_engine"]
 
     project = ps.create_project("Allocation Edit Rules", "")
     t1 = ts.create_task(project.id, "Task One", start_date=date(2024, 1, 1), duration_days=3)
@@ -46,11 +46,18 @@ def test_set_assignment_allocation_updates_and_enforces_overallocation(services)
     updated = ts.set_assignment_allocation(a2.id, 40.0)
     assert updated.allocation_percent == pytest.approx(40.0)
 
-    with pytest.raises(BusinessRuleError) as exc:
-        ts.set_assignment_allocation(a2.id, 50.0)
-    assert exc.value.code == "RESOURCE_OVERALLOCATED"
+    warned = ts.set_assignment_allocation(a2.id, 50.0)
+    assert warned.allocation_percent == pytest.approx(50.0)
+
+    warning_text = ts.consume_last_overallocation_warning()
+    assert warning_text is not None
+    assert "over-allocated on" in warning_text
+    assert ts.consume_last_overallocation_warning() is None
 
     unchanged = ts.get_assignment(a1.id)
     assert unchanged is not None
     assert unchanged.allocation_percent == pytest.approx(60.0)
 
+    conflicts = sched.preview_resource_conflicts(project.id)
+    assert conflicts
+    assert conflicts[0].total_allocation_percent > 100.0

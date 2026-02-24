@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
@@ -22,8 +21,6 @@ from core.services.resource import ResourceService
 from core.services.task import TaskService
 from ui.styles.formatting import fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
-
-
 class AssignmentAddDialog(QDialog):
     def __init__(
         self,
@@ -147,6 +144,14 @@ class AssignmentListDialog(QDialog):
 
         self.reload_assignments()
 
+    def _show_overallocation_warning_if_any(self) -> None:
+        consume = getattr(self._task_service, "consume_last_overallocation_warning", None)
+        if not callable(consume):
+            return
+        warning = consume()
+        if warning:
+            QMessageBox.information(self, "Allocation Warning", warning)
+
     def reload_assignments(self):
         self.list_widget.clear()
 
@@ -201,6 +206,7 @@ class AssignmentListDialog(QDialog):
                 QMessageBox.warning(self, "Error", str(exc))
                 return
 
+            self._show_overallocation_warning_if_any()
             self.reload_assignments()
 
     def remove_selected(self):
@@ -258,6 +264,4 @@ class AssignmentListDialog(QDialog):
             QMessageBox.warning(self, "Error", str(exc))
             return
         self.reload_assignments()
-
-
 __all__ = ["AssignmentAddDialog", "AssignmentListDialog"]

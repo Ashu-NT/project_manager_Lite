@@ -159,6 +159,7 @@ def test_task_tab_is_coordinator_only():
     assert "def delete_task" not in text
     assert "def manage_dependencies" not in text
     assert "def manage_assignments" not in text
+    assert "self.btn_deps" not in text
 
 
 def test_task_actions_module_contains_task_workflows():
@@ -172,6 +173,16 @@ def test_task_actions_module_contains_task_workflows():
     assert "def update_progress" in text
     assert "def manage_dependencies" in text
     assert "def manage_assignments" in text
+
+
+def test_task_assignment_panel_includes_inline_dependency_section():
+    panel_path = ROOT / "ui" / "task" / "assignment_panel.py"
+    text = panel_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "self.panel_splitter = QSplitter(Qt.Vertical)" in text
+    assert "self.dependency_table = QTableWidget(0, 5)" in text
+    assert "def add_dependency_inline" in text
+    assert "def remove_dependency_inline" in text
 
 
 def test_task_project_flow_module_contains_loading_helpers():

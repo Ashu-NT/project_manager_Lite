@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QLabel, QTableWidget, QTableWidgetItem
 
+from core.services.reporting.models import ResourceLoadRow
 from core.services.dashboard import DashboardData
 from core.services.scheduling.leveling_models import ResourceConflict
 from ui.styles.ui_config import UIConfig as CFG
@@ -87,6 +88,35 @@ class DashboardAlertsRenderingMixin:
                         for e in conflict.entries
                     )
                     item.setToolTip(details)
+                self.conflicts_table.setItem(row, col, item)
+
+    def _update_conflicts_from_load(self, rows: list[ResourceLoadRow]) -> None:
+        self.conflicts_table.setRowCount(0)
+        if not rows:
+            self._update_conflicts([])
+            return
+
+        self.conflicts_table.setRowCount(len(rows))
+        for row, load in enumerate(rows):
+            vals = [
+                load.resource_name,
+                "-",
+                f"{float(load.total_allocation_percent or 0.0):.1f}%",
+                (
+                    f"Aggregate {int(load.tasks_count or 0)} assignment(s); "
+                    "no same-day overlap conflict detected."
+                ),
+            ]
+            for col, value in enumerate(vals):
+                item = QTableWidgetItem(value)
+                if col == 2:
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                    item.setForeground(QColor(CFG.COLOR_WARNING))
+                if col == 3:
+                    item.setToolTip(
+                        "This row indicates allocation risk from aggregate project load. "
+                        "Auto/manual leveling uses daily conflicts only."
+                    )
                 self.conflicts_table.setItem(row, col, item)
 
     def _set_alert_row(self, row: int, severity: str, issue: str, action: str) -> None:

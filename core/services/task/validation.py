@@ -16,6 +16,8 @@ class TaskValidationMixin:
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
     _project_repo: ProjectRepository | None
+    _overallocation_policy: str
+    _last_overallocation_warning: str | None
 
     def _validate_dates(self, start_date, end_date, duration_days):
         if start_date and end_date and end_date < start_date:
@@ -125,7 +127,8 @@ class TaskValidationMixin:
         new_task_id: str,
         new_alloc_percent: float,
         exclude_assignment_id: str | None = None,
-    ) -> None:
+    ) -> str | None:
+        self._last_overallocation_warning = None
         new_task = self._task_repo.get(new_task_id)
         if not new_task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -133,11 +136,11 @@ class TaskValidationMixin:
         ns = getattr(new_task, "start_date", None)
         ne = getattr(new_task, "end_date", None)
         if not ns or not ne:
-            return
+            return None
 
         assigns = self._assignment_repo.list_by_resource(resource_id)
         if not assigns:
-            return
+            return None
 
         daily_total: dict[date, float] = {}
         daily_tasks: dict[date, list[str]] = {}
@@ -181,4 +184,8 @@ class TaskValidationMixin:
                     f"({tot:.1f}% > 100%).\n"
                     f"Tasks: {', '.join(tasks)}{extra}"
                 )
-                raise BusinessRuleError(msg, code="RESOURCE_OVERALLOCATED")
+                if getattr(self, "_overallocation_policy", "warn") == "strict":
+                    raise BusinessRuleError(msg, code="RESOURCE_OVERALLOCATED")
+                self._last_overallocation_warning = msg
+                return msg
+        return None

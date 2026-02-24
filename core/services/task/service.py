@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from sqlalchemy.orm import Session
 
 from core.interfaces import (
@@ -52,3 +54,11 @@ class TaskService(
         self._work_calendar_engine: WorkCalendarEngine = work_calendar_engine
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
         self._project_repo: ProjectRepository | None = project_repo
+        policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
+        self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
+        self._last_overallocation_warning: str | None = None
+
+    def consume_last_overallocation_warning(self) -> str | None:
+        warning = self._last_overallocation_warning
+        self._last_overallocation_warning = None
+        return warning

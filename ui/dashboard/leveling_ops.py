@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QPushButton, QTableWidget
 
-from core.services.dashboard import DashboardService
+from core.services.dashboard import DashboardData, DashboardService
 from core.services.scheduling.leveling_models import ResourceConflict
 
 
@@ -12,14 +12,57 @@ class DashboardLevelingOpsMixin:
     btn_manual_shift: QPushButton
     _dashboard_service: DashboardService
     _current_conflicts: list[ResourceConflict]
+    _current_data: DashboardData | None
 
-    def _refresh_conflicts(self, project_id: str) -> None:
+    def _refresh_conflicts(self, project_id: str, *, show_feedback: bool = False) -> None:
+        error_text = None
         try:
             conflicts = self._dashboard_service.preview_resource_conflicts(project_id)
-        except Exception:
+        except Exception as exc:
             conflicts = []
+            error_text = str(exc)
         self._current_conflicts = conflicts
-        self._update_conflicts(conflicts)
+        if conflicts:
+            self._update_conflicts(conflicts)
+            if show_feedback:
+                QMessageBox.information(
+                    self,
+                    "Conflicts",
+                    f"Found {len(conflicts)} daily resource conflict(s).",
+                )
+        else:
+            data = getattr(self, "_current_data", None)
+            if data is None:
+                try:
+                    data = self._dashboard_service.get_dashboard_data(project_id)
+                except Exception:
+                    data = None
+            overloaded = [
+                row
+                for row in getattr(data, "resource_load", []) or []
+                if float(getattr(row, "total_allocation_percent", 0.0) or 0.0) > 100.0
+            ]
+            if overloaded and hasattr(self, "_update_conflicts_from_load"):
+                self._update_conflicts_from_load(overloaded)
+                if show_feedback:
+                    QMessageBox.information(
+                        self,
+                        "Conflicts",
+                        (
+                            f"No daily conflicts found. Showing {len(overloaded)} "
+                            "aggregate overload row(s)."
+                        ),
+                    )
+            else:
+                self._update_conflicts([])
+                if show_feedback and not error_text:
+                    QMessageBox.information(
+                        self,
+                        "Conflicts",
+                        "No daily conflicts detected for this project.",
+                    )
+        if show_feedback and error_text:
+            QMessageBox.warning(self, "Conflicts", f"Could not preview conflicts:\n{error_text}")
         self._sync_leveling_buttons()
 
     def _preview_conflicts(self) -> None:
@@ -27,21 +70,14 @@ class DashboardLevelingOpsMixin:
         if not project_id:
             QMessageBox.information(self, "Conflicts", "Please select a project.")
             return
-        self._refresh_conflicts(project_id)
+        self._refresh_conflicts(project_id, show_feedback=True)
 
     def _auto_level_conflicts(self) -> None:
         project_id, _ = self._current_project_id_and_name()
         if not project_id:
             QMessageBox.information(self, "Auto-Level", "Please select a project.")
             return
-        iterations, ok = QInputDialog.getInt(
-            self,
-            "Auto-Level",
-            "Maximum iterations:",
-            value=20,
-            min=1,
-            max=300,
-        )
+        iterations, ok = QInputDialog.getInt(self, "Auto-Level", "Maximum iterations:", 20, 1, 300, 1)
         if not ok:
             return
         try:
@@ -90,14 +126,7 @@ class DashboardLevelingOpsMixin:
             return
         task_id = conflict.entries[choices.index(selected)].task_id
 
-        shift_days, ok = QInputDialog.getInt(
-            self,
-            "Manual Shift",
-            "Shift by working days:",
-            value=1,
-            min=1,
-            max=60,
-        )
+        shift_days, ok = QInputDialog.getInt(self, "Manual Shift", "Shift by working days:", 1, 1, 60, 1)
         if not ok:
             return
         reason = (
