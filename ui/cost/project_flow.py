@@ -43,7 +43,6 @@ class CostProjectFlowMixin(CostFiltersMixin):
             self.project_combo.addItem(p.name, userData=p.id)
         self.project_combo.blockSignals(False)
         self._reload_cost_type_filter_options()
-
         if self.project_combo.count() > 0:
             self.project_combo.setCurrentIndex(0)
             self._on_project_changed(0)
@@ -69,9 +68,8 @@ class CostProjectFlowMixin(CostFiltersMixin):
             idx = self.project_combo.findData(prev_pid)
             if idx != -1:
                 self.project_combo.setCurrentIndex(idx)
-        else:
-            if self.project_combo.count() > 0:
-                self.project_combo.setCurrentIndex(0)
+        elif self.project_combo.count() > 0:
+            self.project_combo.setCurrentIndex(0)
         pid = self._current_project_id()
         self._current_project = self._project_service.get_project(pid) if pid else None
         self._project_tasks = self._task_service.list_tasks_for_project(pid) if pid else []
@@ -120,7 +118,6 @@ class CostProjectFlowMixin(CostFiltersMixin):
         tasks_by_id = {t.id: t for t in self._project_tasks}
         project_currency = self._current_project.currency if self._current_project else ""
         self.model.set_context(tasks_by_id, project_currency)
-
         self.reload_costs()
 
     def reload_costs(self):
@@ -136,27 +133,16 @@ class CostProjectFlowMixin(CostFiltersMixin):
             self.lbl_kpi_actual.setText("-")
             self.lbl_kpi_remaining.setText("-")
             return
-
         costs = self._cost_service.list_cost_items_for_project(pid)
         task_names = {t.id: t.name for t in self._project_tasks}
-
         tasks_by_id = {t.id: t for t in self._project_tasks}
         project_currency = self._current_project.currency if self._current_project else ""
         self.model.set_context(tasks_by_id, project_currency)
-
         self.model.set_costs(costs, task_names)
 
-        cur = (
-            (getattr(self._current_project, "currency", "") or "").upper()
-            if self._current_project
-            else ""
-        )
+        cur = ((getattr(self._current_project, "currency", "") or "").upper() if self._current_project else "")
         sym = currency_symbol_from_code(cur)
         budget = float(getattr(self._current_project, "planned_budget", 0.0) or 0.0)
-        total_planned = 0.0
-        total_committed = 0.0
-        total_actual = 0.0
-        remaining = None
         try:
             totals = self._reporting_service.get_project_cost_control_totals(pid)
             budget = float(getattr(totals, "budget", budget) or budget)
@@ -165,29 +151,23 @@ class CostProjectFlowMixin(CostFiltersMixin):
             total_actual = float(getattr(totals, "actual", 0.0) or 0.0)
             remaining = getattr(totals, "available", None)
         except Exception:
-            # Keep UI resilient if reporting totals are temporarily unavailable.
             total_planned = sum(float(c.planned_amount or 0.0) for c in costs)
             total_committed = sum(float(c.committed_amount or 0.0) for c in costs)
             total_actual = sum(float(c.actual_amount or 0.0) for c in costs)
-            exposure = max(total_actual, total_committed)
-            remaining = (budget - exposure) if budget > 0 else None
+            remaining = (budget - max(total_actual, total_committed)) if budget > 0 else None
 
         self.lbl_kpi_budget.setText(fmt_currency(budget, sym) if budget > 0 else "-")
         self.lbl_kpi_planned.setText(fmt_currency(total_planned, sym))
         self.lbl_kpi_committed.setText(fmt_currency(total_committed, sym))
         self.lbl_kpi_actual.setText(fmt_currency(total_actual, sym))
-        self.lbl_kpi_remaining.setText(
-            fmt_currency(remaining, sym) if remaining is not None else "-"
-        )
+        self.lbl_kpi_remaining.setText(fmt_currency(remaining, sym) if remaining is not None else "-")
 
         filtered_costs = self._apply_cost_filters(costs=costs, task_names=task_names)
         self.model.set_costs(filtered_costs, task_names)
-        self.lbl_costs_summary.setText(
-            f"Showing {len(filtered_costs)} of {len(costs)} cost item(s)."
-        )
-
+        self.lbl_costs_summary.setText(f"Showing {len(filtered_costs)} of {len(costs)} cost item(s).")
         try:
             self.reload_labor_summary(pid)
         except Exception as exc:
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_labor_note.setText(f"Labor summary unavailable: {exc}")
+
