@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QVBoxLayout,
     QWidget,
+    QSizePolicy,
 )
 
 from core.events.domain_events import domain_events
@@ -169,14 +170,18 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         self.tbl_labor_summary.setSelectionMode(QTableWidget.NoSelection)
         self.tbl_labor_summary.horizontalHeader().setStretchLastSection(True)
         self.tbl_labor_summary.setMinimumHeight(160)
+        self.tbl_labor_summary.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         style_table(self.tbl_labor_summary)
-        labor_layout.addWidget(self.tbl_labor_summary)
+        labor_layout.addWidget(self.tbl_labor_summary, 1)
 
         button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, CFG.SPACING_XS, 0, 0)
+        button_row.setSpacing(CFG.SPACING_SM)
         button_row.addStretch()
         self.btn_labor_details = QPushButton(CFG.LABOR_DETAILS_BUTTON_LABEL)
         self.btn_labor_details.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_labor_details.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        self.btn_labor_details.setToolTip("Open detailed labor usage and cost breakdown by resource.")
         button_row.addWidget(self.btn_labor_details)
         labor_layout.addLayout(button_row)
 
