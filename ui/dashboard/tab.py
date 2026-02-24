@@ -49,12 +49,12 @@ class DashboardTab(
         self._dashboard_service: DashboardService = dashboard_service
         self._baseline_service: BaselineService = baseline_service
         self._current_data: Optional[DashboardData] = None; self._current_conflicts = []
-
         self._setup_ui()
         self.reload_projects()
         domain_events.costs_changed.connect(self._on_domain_changed)
         domain_events.tasks_changed.connect(self._on_domain_changed)
         domain_events.project_changed.connect(self._on_project_catalog_changed)
+        domain_events.resources_changed.connect(self._on_resources_changed)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

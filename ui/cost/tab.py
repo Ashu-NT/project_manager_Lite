@@ -70,6 +70,7 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         domain_events.costs_changed.connect(self._on_costs_or_tasks_changed)
         domain_events.tasks_changed.connect(self._on_costs_or_tasks_changed)
         domain_events.project_changed.connect(self._on_project_changed_event)
+        domain_events.resources_changed.connect(self._on_resources_changed)
 
     def _setup_ui(self):
         root = QVBoxLayout(self)

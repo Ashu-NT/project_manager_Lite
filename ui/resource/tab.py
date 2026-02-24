@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.events.domain_events import domain_events
 from core.services.resource import ResourceService
 from ui.resource.actions import ResourceActionsMixin
 from ui.resource.flow import ResourceFlowMixin
@@ -30,6 +31,7 @@ class ResourceTab(ResourceFlowMixin, ResourceActionsMixin, QWidget):
 
         self._setup_ui()
         self.reload_resources()
+        domain_events.resources_changed.connect(self._on_resources_changed)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -86,3 +88,6 @@ class ResourceTab(ResourceFlowMixin, ResourceActionsMixin, QWidget):
         self.btn_edit.clicked.connect(self.edit_resource)
         self.btn_delete.clicked.connect(self.delete_resource)
         self.btn_toggle_active.clicked.connect(self.toggle_active)
+
+    def _on_resources_changed(self, _resource_id: str) -> None:
+        self.reload_resources()

@@ -44,6 +44,10 @@ class DashboardDataOpsMixin:
         # even when current selection is a different project.
         self.reload_projects()
 
+    def _on_resources_changed(self, _resource_id: str):
+        # Resource rename/rate/status affects dashboard labels and load cards.
+        self.refresh_dashboard()
+
     def _on_project_changed(self, index: int = 0):
         proj_id, _ = self._current_project_id_and_name()
         if proj_id:

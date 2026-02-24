@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from core.models import Resource, CostType
 from core.interfaces import ResourceRepository, AssignmentRepository, ProjectResourceRepository
 from core.exceptions import NotFoundError, ValidationError
+from core.events.domain_events import domain_events
 import logging
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class ResourceService:
             self._session.rollback()
             logger.error(f"Error creating resource: {e}")
             raise 
+        domain_events.resources_changed.emit(resource.id)
         return resource
 
     def update_resource(
@@ -91,6 +93,7 @@ class ResourceService:
         except Exception as e:
             self._session.rollback()
             raise e
+        domain_events.resources_changed.emit(resource.id)
         return resource
 
     def list_resources(self) -> List[Resource]:
@@ -120,5 +123,6 @@ class ResourceService:
         except Exception as e:
             self._session.rollback()
             raise e
+        domain_events.resources_changed.emit(resource_id)
 
 

@@ -40,6 +40,11 @@ class TaskProjectFlowMixin:
 
         self.reload_tasks()
 
+    def _on_resources_changed(self, _resource_id: str) -> None:
+        post_reload = getattr(self, "_reload_assignment_panel_for_selected_task", None)
+        if callable(post_reload):
+            post_reload()
+
     def _load_projects(self):
         self.project_combo.blockSignals(True)
         self.project_combo.clear()

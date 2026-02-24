@@ -69,6 +69,12 @@ class CostProjectFlowMixin:
         self._project_tasks = self._task_service.list_tasks_for_project(pid) if pid else []
         self.reload_costs()
 
+    def _on_resources_changed(self, _resource_id: str) -> None:
+        pid = self._current_project_id()
+        if not pid:
+            return
+        self.reload_costs()
+
     def _current_project_id(self) -> Optional[str]:
         idx = self.project_combo.currentIndex()
         if idx < 0:

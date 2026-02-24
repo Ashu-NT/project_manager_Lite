@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, ValidationError
 from core.models import Project
 from core.services.project import ProjectResourceService, ProjectService
@@ -46,6 +47,8 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
 
         self._setup_ui()
         self.reload_projects()
+        domain_events.project_changed.connect(self._on_project_changed_event)
+        domain_events.resources_changed.connect(self._on_resources_changed_event)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -129,6 +132,12 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
                     row = i
                     break
         self.table.selectRow(row)
+        self._reload_project_resource_panel_for_selected_project()
+
+    def _on_project_changed_event(self, _project_id: str) -> None:
+        self.reload_projects()
+
+    def _on_resources_changed_event(self, _resource_id: str) -> None:
         self._reload_project_resource_panel_for_selected_project()
 
     def _get_selected_project(self) -> Optional[Project]:
