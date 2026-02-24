@@ -29,5 +29,23 @@ class Signal(Generic[T]):
     def emit(self, payload: T) -> None:
         with self._lock:
             subscribers = list(self._subscribers)
+        stale_callbacks: list[Callable[[T], None]] = []
         for callback in subscribers:
-            callback(payload)
+            try:
+                callback(payload)
+            except RuntimeError as exc:
+                # Qt-bound methods can outlive their QObject and raise:
+                # "Internal C++ object (...) already deleted."
+                # Auto-prune these subscribers to keep domain events resilient.
+                msg = str(exc).lower()
+                if "already deleted" in msg or "has been deleted" in msg:
+                    stale_callbacks.append(callback)
+                    continue
+                raise
+            except ReferenceError:
+                stale_callbacks.append(callback)
+        if stale_callbacks:
+            with self._lock:
+                for callback in stale_callbacks:
+                    if callback in self._subscribers:
+                        self._subscribers.remove(callback)

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.events.domain_events import domain_events
 from core.services.project import ProjectService
 from core.services.reporting import ReportingService
 from ui.report.actions import ReportActionsMixin
@@ -34,6 +35,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self._reporting_service: ReportingService = reporting_service
         self._setup_ui()
         self._load_projects()
+        domain_events.project_changed.connect(self._on_project_changed_event)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

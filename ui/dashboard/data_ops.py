@@ -39,6 +39,11 @@ class DashboardDataOpsMixin:
         if current_id == project_id:
             self.reload_projects()
 
+    def _on_project_catalog_changed(self, _project_id: str):
+        # Project create/update/delete must refresh dashboard project selector,
+        # even when current selection is a different project.
+        self.reload_projects()
+
     def _on_project_changed(self, index: int = 0):
         proj_id, _ = self._current_project_id_and_name()
         if proj_id:

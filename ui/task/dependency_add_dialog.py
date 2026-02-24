@@ -176,13 +176,14 @@ class DependencyAddDialog(QDialog):
             lag_days=self.lag_days,
             include_impact=True,
         )
-        status = "Ready to apply" if diag.is_valid else "Validation issue"
+        risk = str(getattr(diag, "risk_level", "unknown")).upper()
+        status = ("Ready to apply" if diag.is_valid else "Validation issue") + f" | Risk: {risk}"
         status_color = CFG.COLOR_SUCCESS if diag.is_valid else CFG.COLOR_DANGER
         lines = [f"<b style='color:{status_color};'>{status}</b>", f"<b>{diag.summary}</b>"]
         if diag.detail:
             lines.append(diag.detail)
         if diag.suggestions:
-            lines.append(f"Next step: {diag.suggestions[0]}")
+            lines.extend(f"- {text}" for text in diag.suggestions[:2])
 
         self.lbl_diag.setText("\n".join(lines))
         self._render_impact_rows(diag.impact_rows)
@@ -215,6 +216,5 @@ class DependencyAddDialog(QDialog):
         if days is None:
             return "-"
         return f"{days:+d}d"
-
 
 __all__ = ["DependencyAddDialog"]

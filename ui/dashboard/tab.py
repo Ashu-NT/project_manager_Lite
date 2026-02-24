@@ -54,7 +54,7 @@ class DashboardTab(
         self.reload_projects()
         domain_events.costs_changed.connect(self._on_domain_changed)
         domain_events.tasks_changed.connect(self._on_domain_changed)
-        domain_events.project_changed.connect(self._on_domain_changed)
+        domain_events.project_changed.connect(self._on_project_catalog_changed)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)

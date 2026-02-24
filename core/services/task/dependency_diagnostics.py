@@ -39,6 +39,7 @@ class DependencyDiagnostic:
     lag_days: int
     impact_rows: list[DependencyImpactRow]
     suggestions: list[str]
+    risk_level: str = "unknown"
 
 
 class TaskDependencyDiagnosticsMixin:
@@ -63,6 +64,10 @@ class TaskDependencyDiagnosticsMixin:
                 successor_id=successor_id,
                 dependency_type=dependency_type,
                 lag_days=lag_days,
+                suggestions=[
+                    "Pick a different predecessor or successor task.",
+                    "Use task hierarchy/subtasks instead of self-links for decomposition.",
+                ],
             )
 
         predecessor = self._task_repo.get(predecessor_id)
@@ -76,6 +81,7 @@ class TaskDependencyDiagnosticsMixin:
                 successor_id=successor_id,
                 dependency_type=dependency_type,
                 lag_days=lag_days,
+                suggestions=["Refresh task list and reselect predecessor task."],
             )
         if not successor:
             return self._invalid_diagnostic(
@@ -86,6 +92,7 @@ class TaskDependencyDiagnosticsMixin:
                 successor_id=successor_id,
                 dependency_type=dependency_type,
                 lag_days=lag_days,
+                suggestions=["Refresh task list and reselect successor task."],
             )
         if predecessor.project_id != successor.project_id:
             return self._invalid_diagnostic(
@@ -96,6 +103,10 @@ class TaskDependencyDiagnosticsMixin:
                 successor_id=successor_id,
                 dependency_type=dependency_type,
                 lag_days=lag_days,
+                suggestions=[
+                    "Create dependencies only within the same project plan.",
+                    "Use milestone handoff tasks if cross-project coordination is needed.",
+                ],
             )
 
         project_id = predecessor.project_id
@@ -112,6 +123,10 @@ class TaskDependencyDiagnosticsMixin:
                 successor_id=successor_id,
                 dependency_type=dependency_type,
                 lag_days=lag_days,
+                suggestions=[
+                    "This relationship already exists; update lag/type on existing dependency if needed.",
+                    "Use diagnostics to test another direction/type before saving.",
+                ],
             )
 
         tasks = self._task_repo.list_by_project(project_id)
@@ -151,6 +166,7 @@ class TaskDependencyDiagnosticsMixin:
                 lag_days=lag_days,
                 impact_rows=[],
                 suggestions=[],
+                risk_level="none",
             )
 
         proposed = TaskDependency.create(
@@ -181,12 +197,14 @@ class TaskDependencyDiagnosticsMixin:
                 lag_days=lag_days,
                 impact_rows=[],
                 suggestions=["You can apply this dependency with low scheduling risk."],
+                risk_level="none",
             )
 
         max_delay = max(
             max(abs(row.start_shift_days or 0), abs(row.finish_shift_days or 0))
             for row in impact_rows
         )
+        risk_level = self._impact_risk_level(max_delay=max_delay, impacted_count=len(impact_rows))
         top_items = ", ".join(
             f"{row.task_name} ({row.finish_shift_days:+d}d)"
             for row in impact_rows[:3]
@@ -209,6 +227,7 @@ class TaskDependencyDiagnosticsMixin:
                 "Review impacted successor chain before saving.",
                 "If delay is too high, consider another dependency type or lag adjustment.",
             ],
+            risk_level=risk_level,
         )
 
     def _invalid_diagnostic(
@@ -233,6 +252,7 @@ class TaskDependencyDiagnosticsMixin:
             lag_days=lag_days,
             impact_rows=[],
             suggestions=suggestions or [],
+            risk_level="blocked",
         )
 
     def _find_cycle_path_ids(
@@ -510,6 +530,14 @@ class TaskDependencyDiagnosticsMixin:
                 paths[nxt] = [*current_path, nxt]
                 queue.append(nxt)
         return paths
+
+    @staticmethod
+    def _impact_risk_level(max_delay: int, impacted_count: int) -> str:
+        if max_delay <= 1 and impacted_count <= 2:
+            return "low"
+        if max_delay <= 3 and impacted_count <= 5:
+            return "medium"
+        return "high"
 
 
 __all__ = ["DependencyImpactRow", "DependencyDiagnostic", "TaskDependencyDiagnosticsMixin"]

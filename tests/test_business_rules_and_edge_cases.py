@@ -234,6 +234,8 @@ def test_dependency_diagnostics_flags_duplicates(services):
     diag = ts.get_dependency_diagnostics(t1.id, t2.id, include_impact=False)
     assert not diag.is_valid
     assert diag.code == "DEPENDENCY_DUPLICATE"
+    assert diag.risk_level == "blocked"
+    assert diag.suggestions
 
 
 def test_dependency_diagnostics_cycle_includes_path_names(services):
@@ -253,6 +255,8 @@ def test_dependency_diagnostics_cycle_includes_path_names(services):
     assert "Task A" in diag.detail
     assert "Task B" in diag.detail
     assert "Task C" in diag.detail
+    assert diag.risk_level == "blocked"
+    assert diag.suggestions
 
 
 def test_dependency_diagnostics_reports_schedule_impact(services):
@@ -275,6 +279,26 @@ def test_dependency_diagnostics_reports_schedule_impact(services):
     impacted_b = next(row for row in diag.impact_rows if row.task_id == task_b.id)
     assert (impacted_b.start_shift_days or 0) > 0
     assert "Task B" in impacted_b.trace_path
+    assert diag.risk_level in {"low", "medium", "high"}
+
+
+def test_dependency_diagnostics_no_shift_reports_none_risk(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+
+    project = ps.create_project("No Shift Preview", "")
+    pred = ts.create_task(project.id, "Task P", start_date=date(2023, 11, 6), duration_days=2)
+    succ = ts.create_task(project.id, "Task S", start_date=date(2023, 11, 6), duration_days=2)
+
+    diag = ts.get_dependency_diagnostics(
+        pred.id,
+        succ.id,
+        dependency_type=DependencyType.START_TO_START,
+        lag_days=0,
+        include_impact=True,
+    )
+    assert diag.is_valid
+    assert diag.risk_level == "none"
 
 
 def test_add_dependency_uses_diagnostics_for_cycle_rule(services):
