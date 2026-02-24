@@ -113,10 +113,23 @@ def test_project_tab_is_coordinator_only():
 
     assert "from ui.project.dialogs import" in text
     assert "from ui.project.models import" in text
+    assert "from ui.project.resource_panel import ProjectResourcePanelMixin" in text
     assert "class ProjectEditDialog" not in text
     assert "class ProjectResourcesDialog" not in text
     assert "class ProjectResourceEditDialog" not in text
     assert "class ProjectTableModel" not in text
+    assert "self.btn_project_resources" not in text
+
+
+def test_project_resource_panel_inlines_assignment_controls():
+    panel_path = ROOT / "ui" / "project" / "resource_panel.py"
+    text = panel_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "def _build_project_resource_panel" in text
+    assert "self._project_resource_table = QTableWidget(0, 6)" in text
+    assert "def _on_add_project_resource_inline" in text
+    assert "def _on_edit_project_resource_inline" in text
+    assert "def _on_toggle_project_resource_inline" in text
 
 
 def test_project_dialogs_module_is_facade_only():
@@ -124,20 +137,14 @@ def test_project_dialogs_module_is_facade_only():
     text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "from .project_edit_dialog import" in text
-    assert "from .project_resource_dialogs import" in text
-    assert "class ProjectEditDialog" not in text
-    assert "class ProjectResourcesDialog" not in text
-    assert "class ProjectResourceEditDialog" not in text
-
-
-def test_project_resource_dialogs_module_is_facade_only():
-    dialogs_path = ROOT / "ui" / "project" / "project_resource_dialogs.py"
-    text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from .project_resources_dialog import" in text
     assert "from .project_resource_edit_dialog import" in text
-    assert "class ProjectResourcesDialog" not in text
+    assert "class ProjectEditDialog" not in text
     assert "class ProjectResourceEditDialog" not in text
+
+
+def test_project_legacy_resource_dialog_modules_removed():
+    assert not (ROOT / "ui" / "project" / "project_resource_dialogs.py").exists()
+    assert not (ROOT / "ui" / "project" / "project_resources_dialog.py").exists()
 
 
 def test_task_tab_is_coordinator_only():
@@ -487,8 +494,6 @@ def test_known_large_modules_have_growth_budgets():
         "ui/project/tab.py": 260,
         "ui/project/dialogs.py": 80,
         "ui/project/project_edit_dialog.py": 240,
-        "ui/project/project_resource_dialogs.py": 80,
-        "ui/project/project_resources_dialog.py": 260,
         "ui/project/project_resource_edit_dialog.py": 240,
         "ui/project/models.py": 120,
         "ui/task/tab.py": 220,
