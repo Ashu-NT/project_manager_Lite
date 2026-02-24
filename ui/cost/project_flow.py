@@ -18,7 +18,6 @@ class CostProjectFlowMixin:
     model: CostTableModel
     tbl_labor_summary: QTableWidget
     lbl_labor_note: QLabel
-    lbl_budget_summary: QLabel
     lbl_kpi_budget: QLabel
     lbl_kpi_planned: QLabel
     lbl_kpi_actual: QLabel
@@ -109,7 +108,6 @@ class CostProjectFlowMixin:
             self.model.set_costs([], {})
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_labor_note.setText("")
-            self.lbl_budget_summary.setText("")
             self.lbl_kpi_budget.setText("-")
             self.lbl_kpi_planned.setText("-")
             self.lbl_kpi_actual.setText("-")
@@ -142,30 +140,6 @@ class CostProjectFlowMixin:
         self.lbl_kpi_remaining.setText(
             fmt_currency(remaining, sym) if remaining is not None else "-"
         )
-
-        try:
-            rem_plan = budget - total_planned
-            rem_actual = budget - total_actual
-
-            lines = []
-            if budget > 0:
-                lines.append(f"Budget: {fmt_currency(budget, sym)}")
-                lines.append(
-                    f"Total Planned Cost: {fmt_currency(total_planned, sym)} (Remaining vs plan: {fmt_currency(rem_plan,sym)})"
-                )
-                lines.append(
-                    f"Total Actual Cost: {fmt_currency(total_actual, sym)} (Remaining vs plan: {fmt_currency(rem_actual,sym)})"
-                )
-                if total_planned > budget:
-                    lines.append("Planned total exceeds budget.")
-            else:
-                lines.append(f"Total Planned Cost: {fmt_currency(total_planned, sym)}")
-                lines.append(f"Total Actual Cost: {fmt_currency(total_actual, sym)}")
-                lines.append("Note: set project budget to track remaining budget.")
-
-            self.lbl_budget_summary.setText("\n".join(lines))
-        except Exception:
-            self.lbl_budget_summary.setText("")
 
         try:
             self.reload_labor_summary(pid)

@@ -1,6 +1,7 @@
 # core/services/dashboard_service.py
 from __future__ import annotations
 
+from core.events.domain_events import domain_events
 from core.services.dashboard.alerts import DashboardAlertsMixin
 from core.services.dashboard.burndown import DashboardBurndownMixin
 from core.services.dashboard.evm import DashboardEvmMixin
@@ -87,6 +88,8 @@ class DashboardService(
             threshold_percent=threshold_percent,
         )
         self._sched.recalculate_project_schedule(project_id)
+        if result.actions:
+            domain_events.tasks_changed.emit(project_id)
         return result
 
     def manually_shift_task_for_leveling(
@@ -103,6 +106,7 @@ class DashboardService(
             reason=reason,
         )
         self._sched.recalculate_project_schedule(project_id)
+        domain_events.tasks_changed.emit(project_id)
         return action
 
 

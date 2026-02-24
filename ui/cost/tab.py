@@ -4,7 +4,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
-    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -155,16 +154,6 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(CFG.SPACING_SM)
 
-        grp_budget = QGroupBox("Budget Insights")
-        grp_budget.setFont(CFG.GROUPBOX_TITLE_FONT)
-        b = QGridLayout(grp_budget)
-        b.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        self.lbl_budget_summary = QLabel("")
-        self.lbl_budget_summary.setWordWrap(True)
-        self.lbl_budget_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
-        b.addWidget(self.lbl_budget_summary, 0, 0)
-        right_layout.addWidget(grp_budget)
-
         grp_labor = QGroupBox("Labor Snapshot")
         grp_labor.setFont(CFG.GROUPBOX_TITLE_FONT)
         labor_layout = QVBoxLayout(grp_labor)
@@ -210,4 +199,3 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         self.btn_delete.clicked.connect(self.delete_cost_item)
         self.btn_labor_details.clicked.connect(self.show_labor_details)
         self.tbl_labor_summary.itemSelectionChanged.connect(self._on_labor_table_selected)
-

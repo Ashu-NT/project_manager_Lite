@@ -207,4 +207,29 @@ def test_style_table_has_auto_fit_and_stronger_grid():
     )
     assert "def _fit_table_columns" in text
     assert "table.setShowGrid(True)" in text
+    assert "table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)" in text
+    assert "table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)" in text
     assert "_bind_auto_fit_signals(table)" in text
+
+
+def test_cost_tab_removes_duplicate_budget_insights_panel():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "cost" / "tab.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert 'QGroupBox("Budget Insights")' not in text
+    assert "self.lbl_budget_summary" not in text
+
+
+def test_no_table_forces_horizontal_scrollbar_off():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "task" / "assignment_panel.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "ScrollBarAlwaysOff" not in text
+
+
+def test_cost_labor_snapshot_uses_content_sized_columns():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "cost" / "labor_summary.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "for col in range(self.tbl_labor_summary.columnCount()):" in text
+    assert "header.setSectionResizeMode(col, QHeaderView.ResizeToContents)" in text

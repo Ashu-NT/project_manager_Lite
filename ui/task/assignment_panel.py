@@ -60,7 +60,7 @@ class TaskAssignmentPanelMixin:
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.resizeSection(1, 110)
         header.resizeSection(2, 120)
-        self.assignment_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.assignment_table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
     def _configure_dependency_table_columns(self) -> None:
         header = self.dependency_table.horizontalHeader()

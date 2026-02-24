@@ -1,11 +1,13 @@
 # ui/task/tab.py
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSplitter,
     QSizePolicy,
     QTableView,
     QVBoxLayout,
@@ -107,9 +109,6 @@ class TaskTab(
         toolbar.addWidget(self.btn_refresh_tasks)
         root.addLayout(toolbar)
 
-        content = QHBoxLayout()
-        content.setSpacing(CFG.SPACING_MD)
-
         self.table = QTableView()
         self.model = TaskTableModel()
         self.table.setModel(self.model)
@@ -119,15 +118,20 @@ class TaskTab(
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         style_table(self.table)
-        content.addWidget(self.table, 5)
 
         self._assignment_panel = self._build_assignment_panel()
         self._assignment_panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-        self._assignment_panel.setMinimumWidth(340)
-        self._assignment_panel.setMaximumWidth(520)
-        content.addWidget(self._assignment_panel, 3)
+        self._assignment_panel.setMinimumWidth(320)
 
-        root.addLayout(content, 1)
+        self.main_splitter = QSplitter(Qt.Horizontal)
+        self.main_splitter.setChildrenCollapsible(False)
+        self.main_splitter.setHandleWidth(8)
+        self.main_splitter.addWidget(self.table)
+        self.main_splitter.addWidget(self._assignment_panel)
+        self.main_splitter.setStretchFactor(0, 5)
+        self.main_splitter.setStretchFactor(1, 3)
+        self.main_splitter.setSizes([980, 520])
+        root.addWidget(self.main_splitter, 1)
 
         self.btn_reload_projects.clicked.connect(self._load_projects)
         self.project_combo.currentIndexChanged.connect(self._on_project_changed)

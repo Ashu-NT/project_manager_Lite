@@ -1,6 +1,8 @@
 from datetime import date
 from pathlib import Path
 
+from core.events.domain_events import domain_events
+
 
 def test_dashboard_service_preview_resource_conflicts(services):
     ps = services["project_service"]
@@ -48,6 +50,58 @@ def test_dashboard_service_auto_level_overallocations(services):
     assert len(after) <= len(before)
 
 
+def test_dashboard_service_auto_level_emits_tasks_changed_event(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    ds = services["dashboard_service"]
+
+    project = ps.create_project("Dashboard Auto Level Event", "")
+    t1 = ts.create_task(project.id, "Task A", start_date=date(2024, 2, 1), duration_days=2)
+    t2 = ts.create_task(project.id, "Task B", start_date=date(2024, 2, 8), duration_days=2)
+    res = rs.create_resource("Shared Event", "Dev", hourly_rate=120.0)
+
+    ts.assign_resource(t1.id, res.id, allocation_percent=70.0)
+    ts.assign_resource(t2.id, res.id, allocation_percent=50.0)
+    ts.update_task(t2.id, start_date=date(2024, 2, 1), duration_days=2)
+
+    seen: list[str] = []
+
+    def _on_tasks_changed(project_id: str) -> None:
+        seen.append(project_id)
+
+    domain_events.tasks_changed.connect(_on_tasks_changed)
+    try:
+        result = ds.auto_level_overallocations(project.id, max_iterations=20)
+    finally:
+        domain_events.tasks_changed.disconnect(_on_tasks_changed)
+
+    assert result.actions
+    assert project.id in seen
+
+
+def test_dashboard_service_manual_shift_emits_tasks_changed_event(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    ds = services["dashboard_service"]
+
+    project = ps.create_project("Dashboard Manual Shift Event", "")
+    task = ts.create_task(project.id, "Leaf Task", start_date=date(2024, 2, 1), duration_days=2)
+
+    seen: list[str] = []
+
+    def _on_tasks_changed(project_id: str) -> None:
+        seen.append(project_id)
+
+    domain_events.tasks_changed.connect(_on_tasks_changed)
+    try:
+        ds.manually_shift_task_for_leveling(project.id, task.id, shift_working_days=1)
+    finally:
+        domain_events.tasks_changed.disconnect(_on_tasks_changed)
+
+    assert project.id in seen
+
+
 def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     root = Path(__file__).resolve().parents[1]
     tab_text = (root / "ui" / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
@@ -73,9 +127,13 @@ def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     assert "def _auto_level_conflicts" in ops_text
     assert "def _manual_shift_selected_conflict" in ops_text
     assert "self._update_conflicts_from_load(overloaded)" in ops_text
+    assert "Date shifts:" in ops_text
+    assert "No eligible task was shifted." in ops_text
+    assert "Iterations used:" in ops_text
 
     assert "def preview_resource_conflicts" in service_text
     assert "def auto_level_overallocations" in service_text
+    assert "domain_events.tasks_changed.emit(project_id)" in service_text
     assert "def _update_conflicts_from_load" in (root / "ui" / "dashboard" / "rendering_alerts.py").read_text(
         encoding="utf-8", errors="ignore"
     )

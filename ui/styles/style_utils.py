@@ -121,6 +121,8 @@ def style_table(table: QTableView) -> None:
     table.setFocusPolicy(Qt.StrongFocus)
     table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
     table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+    table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+    table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
     vh = table.verticalHeader()
     vh.setVisible(False)

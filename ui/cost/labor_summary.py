@@ -131,9 +131,7 @@ class CostLaborSummaryMixin:
         self.tbl_labor_summary.resizeRowsToContents()
         header = self.tbl_labor_summary.horizontalHeader()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        for col in (2, 3, 4, 5):
+        for col in range(self.tbl_labor_summary.columnCount()):
             header.setSectionResizeMode(col, QHeaderView.ResizeToContents)
 
         content_height = self.tbl_labor_summary.horizontalHeader().height()

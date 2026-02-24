@@ -169,6 +169,15 @@ def test_task_tab_is_coordinator_only():
     assert "self.btn_deps" not in text
 
 
+def test_task_tab_uses_horizontal_splitter_for_right_panel():
+    tab_path = ROOT / "ui" / "task" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "self.main_splitter = QSplitter(Qt.Horizontal)" in text
+    assert "self.main_splitter.addWidget(self.table)" in text
+    assert "self.main_splitter.addWidget(self._assignment_panel)" in text
+
+
 def test_task_actions_module_contains_task_workflows():
     actions_path = ROOT / "ui" / "task" / "actions.py"
     text = actions_path.read_text(encoding="utf-8", errors="ignore")

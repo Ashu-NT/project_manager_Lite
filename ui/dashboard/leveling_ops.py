@@ -89,14 +89,36 @@ class DashboardLevelingOpsMixin:
             QMessageBox.warning(self, "Auto-Level", str(exc))
             return
         self.refresh_dashboard()
+        resolved = max(0, int(result.conflicts_before) - int(result.conflicts_after))
+        message = (
+            f"Conflicts: {result.conflicts_before} -> {result.conflicts_after} "
+            f"(resolved {resolved})\n"
+            f"Iterations used: {result.iterations}\n"
+            f"Tasks shifted: {len(result.actions)}"
+        )
+        if result.actions:
+            sample = result.actions[:6]
+            changes = "\n".join(
+                (
+                    f"- {a.task_name}: {a.old_start} -> {a.new_start} "
+                    f"| {a.old_end} -> {a.new_end}"
+                )
+                for a in sample
+            )
+            if len(result.actions) > len(sample):
+                changes += f"\n- ... and {len(result.actions) - len(sample)} more shift(s)"
+            message += f"\n\nDate shifts:\n{changes}"
+        else:
+            message += (
+                "\n\nNo eligible task was shifted. Auto-level only moves tasks that:"
+                "\n- have no successors"
+                "\n- have no actual start/end"
+                "\n- are not already in progress"
+            )
         QMessageBox.information(
             self,
             "Auto-Level Result",
-            (
-                f"Conflicts: {result.conflicts_before} -> {result.conflicts_after}\n"
-                f"Iterations: {result.iterations}\n"
-                f"Tasks shifted: {len(result.actions)}"
-            ),
+            message,
         )
 
     def _manual_shift_selected_conflict(self) -> None:
