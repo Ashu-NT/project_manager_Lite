@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QLineEdit
 
 from core.models import CostType
+from ui.styles.ui_config import UIConfig as CFG
 
 
 class CostFiltersMixin:
@@ -17,7 +18,12 @@ class CostFiltersMixin:
         self.filter_type_combo.clear()
         self.filter_type_combo.addItem("All Types", userData="")
         for cost_type in CostType:
-            self.filter_type_combo.addItem(cost_type.value, userData=cost_type.value)
+            label = (
+                CFG.COST_TYPE_LABOR_ADJUSTMENT_LABEL
+                if cost_type == CostType.LABOR
+                else cost_type.value
+            )
+            self.filter_type_combo.addItem(label, userData=cost_type.value)
         idx = self.filter_type_combo.findData(selected)
         self.filter_type_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.filter_type_combo.blockSignals(False)

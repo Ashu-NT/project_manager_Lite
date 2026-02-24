@@ -12,13 +12,13 @@ from core.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
-from core.models import CostType
+from core.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.services.reporting.models import GanttTaskBar, ProjectKPI, ResourceLoadRow
 from core.services.scheduling.engine import CPMTaskInfo, SchedulingEngine
 from core.services.work_calendar.engine import WorkCalendarEngine
 
 
-class ReportingKpiMixin:
+class ReportingKpiMixin(ReportingCostPolicyMixin):
     _project_repo: ProjectRepository
     _task_repo: TaskRepository
     _scheduling_engine: SchedulingEngine
@@ -98,75 +98,20 @@ class ReportingKpiMixin:
         if start_date and end_date:
             duration_working_days = self._calendar.working_days_between(start_date, end_date)
 
-        # Cost summary
-        cost_items = self._cost_repo.list_by_project(project_id)
-        # computed labor totals (in project currency if set)
-        labor_rows = self.get_project_labor_details(project_id)
-        project_currency = project.currency if project else None
-        if project_currency:
-            computed_labor_total = sum(r.total_cost for r in labor_rows if (r.currency_code or project_currency or "").upper() == project_currency.upper())
-        else:
-            computed_labor_total = sum(r.total_cost for r in labor_rows)
-
-        if computed_labor_total > 0:
-            # ignore manual labor CostItems to avoid double counting
-            filtered = [ci for ci in cost_items if getattr(ci, 'cost_type', None) != CostType.LABOR]
-        else:
-            filtered = cost_items
-
-        # -------------------------
-        # Planned totals (NEW planning model)
-        # planned = planned CostItems + planned ProjectResource labor
-        # Budget is NOT used as planned; budget is a reference/limit.
-        # -------------------------
-
-        proj_cur = (project.currency or "").upper() if project and getattr(project, "currency", None) else None
-
-        # Planned CostItems (typed)
-        planned_costitems_total = 0.0
-        for ci in filtered:
-            amt = float(getattr(ci, "planned_amount", 0.0) or 0.0)
-            if amt <= 0:
-                continue
-
-            if proj_cur:
-                cur = (getattr(ci, "currency_code", None) or proj_cur or "").upper()
-                if cur != proj_cur:
-                    continue
-            planned_costitems_total += amt
-
-        # Planned labor from ProjectResources
-        planned_labor_total = 0.0
-        prs = self._project_resource_repo.list_by_project(project_id)
-        for pr in prs:
-            if not getattr(pr, "is_active", True):
-                continue
-
-            ph = float(getattr(pr, "planned_hours", 0.0) or 0.0)
-            if ph <= 0:
-                continue
-
-            res = self._resource_repo.get(pr.resource_id)
-
-            rate = float(pr.hourly_rate) if getattr(pr, "hourly_rate", None) is not None else float(getattr(res, "hourly_rate", 0.0) or 0.0)
-            if rate <= 0:
-                continue
-
-            # currency filter if project currency is set
-            if proj_cur:
-                pr_cur = (getattr(pr, "currency_code", None) or getattr(res, "currency_code", None) or proj_cur or "").upper()
-                if pr_cur != proj_cur:
-                    continue
-
-            planned_labor_total += ph * rate
-
-        total_planned = float(planned_costitems_total + planned_labor_total)
-
-        # -------------------------
-        # Actual/Committed totals
-        # -------------------------
-        total_actual = sum(float(getattr(ci, "actual_amount", 0.0) or 0.0) for ci in filtered) + float(computed_labor_total or 0.0)
-        total_committed = sum(float(getattr(ci, "committed_amount", 0.0) or 0.0) for ci in filtered)
+        # Cost summary (shared policy used by KPI, EVM, cost breakdown, and Cost tab)
+        cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id)
+        total_planned = self._sum_bucket_map(
+            cost_snapshot.planned_map,
+            cost_snapshot.project_currency,
+        )
+        total_committed = self._sum_bucket_map(
+            cost_snapshot.committed_map,
+            cost_snapshot.project_currency,
+        )
+        total_actual = self._sum_bucket_map(
+            cost_snapshot.actual_map,
+            cost_snapshot.project_currency,
+        )
 
         cost_variance = float(total_actual - total_planned)
         committed_variance = float(total_committed - total_planned)

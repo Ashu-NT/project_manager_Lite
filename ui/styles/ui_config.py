@@ -215,12 +215,13 @@ class UIConfig:
     REFRESH_COSTS_LABEL = "Refresh Costs"
     LABOR_GROUP_TITLE = "Labor"
     LABOR_DETAILS_BUTTON_LABEL = "Labor Details"
+    COST_TYPE_LABOR_ADJUSTMENT_LABEL = "LABOR ADJUSTMENT"
     LABOR_PER_RESOURCE_TITLE = "Per-resource labor costs (hours x hourly rate):"
     NO_LABOR_ASSIGNMENTS_TEXT = "No labor assignments"
     LABOR_TOTAL_HOURS_LABEL = "Total hours"
     LABOR_IGNORED_NOTE = (
-        "Manual LABOR cost items are excluded when assignment-based labor exists "
-        "to avoid double counting."
+        "Manual labor adjustment cost items are used only as fallback when no "
+        "project-resource or assignment labor exists, to avoid double counting."
     )
 
     # =====================

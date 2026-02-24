@@ -56,36 +56,6 @@ class BaselineService:
         proj_cur = (getattr(project, "currency", None) or "").upper().strip()
 
         # -------------------------
-        # Planned costs snapshot (baseline budget basis)
-        # - exclude manual LABOR CostItems (you compute labor separately)
-        # -------------------------
-        costs = self._costs.list_by_project(project_id)
-
-        planned_by_task: Dict[str, float] = {}
-        planned_unassigned = 0.0
-
-        for c in costs:
-            ct = getattr(c, "cost_type", None)
-            if ct == CostType.LABOR:
-                continue
-
-            amt = float(getattr(c, "planned_amount", 0.0) or 0.0)
-            if amt <= 0:
-                continue
-
-            if getattr(c, "task_id", None):
-                tid = c.task_id
-                planned_by_task[tid] = planned_by_task.get(tid, 0.0) + amt
-            else:
-                planned_unassigned += amt
-
-        # If there are NO planned cost items at all, optionally fall back to project planned budget.
-        if (sum(planned_by_task.values()) + planned_unassigned) <= 0.0:
-            pb = float(getattr(project, "planned_budget", 0.0) or 0.0)
-            if pb > 0:
-                planned_unassigned = pb
-
-        # -------------------------
         # Planned labor snapshot (ProjectResource planned_hours × rate)
         # - uses PR override rate/currency else Resource defaults
         # - only includes active PR rows
@@ -127,6 +97,38 @@ class BaselineService:
                     continue
 
             planned_labor_total += ph * rate_val
+
+        # -------------------------
+        # Planned costs snapshot (baseline budget basis)
+        # - include manual LABOR CostItems only when no project-resource labor is planned
+        #   (fallback mode, same policy as reporting KPI/EVM/breakdown)
+        # -------------------------
+        costs = self._costs.list_by_project(project_id)
+        include_manual_labor_items = planned_labor_total <= 0.0
+
+        planned_by_task: Dict[str, float] = {}
+        planned_unassigned = 0.0
+
+        for c in costs:
+            ct = getattr(c, "cost_type", None)
+            if ct == CostType.LABOR and not include_manual_labor_items:
+                continue
+
+            amt = float(getattr(c, "planned_amount", 0.0) or 0.0)
+            if amt <= 0:
+                continue
+
+            if getattr(c, "task_id", None):
+                tid = c.task_id
+                planned_by_task[tid] = planned_by_task.get(tid, 0.0) + amt
+            else:
+                planned_unassigned += amt
+
+        # If there are NO planned cost items at all, optionally fall back to project planned budget.
+        if (sum(planned_by_task.values()) + planned_unassigned) <= 0.0:
+            pb = float(getattr(project, "planned_budget", 0.0) or 0.0)
+            if pb > 0:
+                planned_unassigned = pb
 
         baseline = ProjectBaseline.create(project_id, name)
 

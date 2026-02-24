@@ -5,11 +5,12 @@ from typing import Dict, Optional
 
 from core.exceptions import BusinessRuleError
 from core.interfaces import BaselineRepository, CostRepository, ProjectRepository, TaskRepository
+from core.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.services.reporting.models import EarnedValueMetrics
 from core.services.work_calendar.engine import WorkCalendarEngine
 
 
-class ReportingEvmCoreMixin:
+class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
     _baseline_repo: BaselineRepository
     _task_repo: TaskRepository
     _calendar: WorkCalendarEngine
@@ -182,40 +183,11 @@ class ReportingEvmCoreMixin:
         if EV <= 0:
             notes.append("EV is 0 (tasks may have 0% progress or baseline budget is missing).")
 
-        cost_items = self._cost_repo.list_by_project(project_id)
-        labor_rows = self.get_project_labor_details(project_id)
-        project = self._project_repo.get(project_id)
-        project_currency = project.currency if project else None
-
-        if project_currency:
-            labor_total = sum(
-                r.total_cost
-                for r in labor_rows
-                if (r.currency_code or project_currency or "").upper() == project_currency.upper()
-            )
-        else:
-            labor_total = sum(r.total_cost for r in labor_rows)
-
-        from core.models import CostType
-
-        if labor_total > 0:
-            filtered_items = [
-                ci for ci in cost_items if getattr(ci, "cost_type", None) != CostType.LABOR
-            ]
-        else:
-            filtered_items = cost_items
-
-        AC = 0.0
-        for c in filtered_items:
-            amt = float(getattr(c, "actual_amount", 0.0) or 0.0)
-            if amt <= 0:
-                continue
-            inc = getattr(c, "incurred_date", None)
-            if inc is not None and inc > as_of:
-                continue
-            AC += amt
-
-        AC += float(labor_total or 0.0)
+        cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id, as_of=as_of)
+        AC = self._sum_bucket_map(
+            cost_snapshot.actual_map,
+            cost_snapshot.project_currency,
+        )
 
         if AC <= 0:
             notes.append(

@@ -153,11 +153,24 @@ class CostProjectFlowMixin(CostFiltersMixin):
         )
         sym = currency_symbol_from_code(cur)
         budget = float(getattr(self._current_project, "planned_budget", 0.0) or 0.0)
-        total_planned = sum(float(c.planned_amount or 0.0) for c in costs)
-        total_committed = sum(float(c.committed_amount or 0.0) for c in costs)
-        total_actual = sum(float(c.actual_amount or 0.0) for c in costs)
-        exposure = max(total_actual, total_committed)
-        remaining = (budget - exposure) if budget > 0 else None
+        total_planned = 0.0
+        total_committed = 0.0
+        total_actual = 0.0
+        remaining = None
+        try:
+            totals = self._reporting_service.get_project_cost_control_totals(pid)
+            budget = float(getattr(totals, "budget", budget) or budget)
+            total_planned = float(getattr(totals, "planned", 0.0) or 0.0)
+            total_committed = float(getattr(totals, "committed", 0.0) or 0.0)
+            total_actual = float(getattr(totals, "actual", 0.0) or 0.0)
+            remaining = getattr(totals, "available", None)
+        except Exception:
+            # Keep UI resilient if reporting totals are temporarily unavailable.
+            total_planned = sum(float(c.planned_amount or 0.0) for c in costs)
+            total_committed = sum(float(c.committed_amount or 0.0) for c in costs)
+            total_actual = sum(float(c.actual_amount or 0.0) for c in costs)
+            exposure = max(total_actual, total_committed)
+            remaining = (budget - exposure) if budget > 0 else None
 
         self.lbl_kpi_budget.setText(fmt_currency(budget, sym) if budget > 0 else "-")
         self.lbl_kpi_planned.setText(fmt_currency(total_planned, sym))

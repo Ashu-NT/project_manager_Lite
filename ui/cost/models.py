@@ -4,8 +4,9 @@ from typing import Any, Optional
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
-from core.models import CostItem, Task
+from core.models import CostItem, CostType, Task
 from ui.styles.formatting import fmt_currency, currency_symbol_from_code
+from ui.styles.ui_config import UIConfig as CFG
 
 
 class CostTableModel(QAbstractTableModel):
@@ -51,6 +52,8 @@ class CostTableModel(QAbstractTableModel):
                 return self._task_names[c.task_id]
             return ""
         if col == 2:
+            if getattr(c, "cost_type", None) == CostType.LABOR:
+                return CFG.COST_TYPE_LABOR_ADJUSTMENT_LABEL
             return c.cost_type.value if hasattr(c.cost_type, "value") else str(c.cost_type)
         if col == 3:
             return fmt_currency(c.planned_amount, currency_symbol_from_code(c.currency_code or self._project_currency))

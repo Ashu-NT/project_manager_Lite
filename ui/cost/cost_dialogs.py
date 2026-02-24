@@ -80,7 +80,12 @@ class CostEditDialog(QDialog):
         for cost_type in CostType:
             if cost_type == CostType.LABOR and not include_labor_type:
                 continue
-            self.type_combo.addItem(cost_type.value, userData=cost_type)
+            label = (
+                CFG.COST_TYPE_LABOR_ADJUSTMENT_LABEL
+                if cost_type == CostType.LABOR
+                else cost_type.value
+            )
+            self.type_combo.addItem(label, userData=cost_type)
 
         for task in self._tasks:
             self.task_combo.addItem(task.name, userData=task.id)
@@ -120,7 +125,9 @@ class CostEditDialog(QDialog):
 
         if include_labor_type:
             self.type_combo.setEnabled(False)
-            self.type_combo.setToolTip("Labor rows are system-derived and cost type is fixed.")
+            self.type_combo.setToolTip(
+                "Labor adjustment rows are legacy/manual entries and type is fixed."
+            )
 
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)

@@ -1,171 +1,73 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
-from core.interfaces import (
-    BaselineRepository,
-    CostRepository,
-    ProjectRepository,
-    ProjectResourceRepository,
-    ResourceRepository,
-)
+from core.interfaces import BaselineRepository, ProjectRepository
 from core.models import CostType
+from core.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.services.reporting.models import CostBreakdownRow
 
 
-class ReportingCostBreakdownMixin:
+class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
     _project_repo: ProjectRepository
     _baseline_repo: BaselineRepository
-    _cost_repo: CostRepository
-    _project_resource_repo: ProjectResourceRepository
-    _resource_repo: ResourceRepository
 
     def get_cost_breakdown(
         self,
         project_id: str,
         as_of: Optional[date] = None,
         baseline_id: Optional[str] = None,
-    ) -> List["CostBreakdownRow"]:
+    ) -> List[CostBreakdownRow]:
         """
-        Planned vs Actual cost breakdown by CostType and currency.
+        Planned vs actual by (cost type, currency) with one canonical labor policy.
 
-        Updated for ProjectResource planning model:
-        - Planned includes:
-            (a) CostItems.planned_amount grouped by CostType
-            (b) Planned labor from ProjectResource.planned_hours × resolved hourly rate
-        - Actual includes:
-            (a) CostItems.actual_amount (to as_of)
-            (b) Computed labor from assignments (hours_logged × resolved hourly rate)
-        - Avoids double counting manual LABOR CostItems when computed labor exists.
+        Planned:
+        - CostItem.planned_amount
+        - + ProjectResource planned labor (planned_hours x resolved rate)
+        - + baseline fallback (only when no planned data exists)
 
+        Actual:
+        - CostItem.actual_amount up to as_of
+        - + assignment-based labor actuals (hours_logged x resolved rate)
         """
         as_of = as_of or date.today()
+        snapshot = self._build_cost_policy_snapshot(project_id=project_id, as_of=as_of)
 
-        project = self._project_repo.get(project_id)
-        proj_cur = (project.currency or "").upper() if project else ""
+        planned_map = dict(snapshot.planned_map)
+        actual_map = dict(snapshot.actual_map)
 
-        # --- choose baseline (kept for optional fallback only) ---
-        if baseline_id:
-            baseline = self._baseline_repo.get_baseline(baseline_id)
-        else:
-            baseline = self._baseline_repo.get_latest_for_project(project_id)
-
-        b_tasks = self._baseline_repo.list_tasks(baseline.id) if baseline else []
-
-        # -------------------------
-        # ACTUAL map
-        # -------------------------
-        cost_items = self._cost_repo.list_by_project(project_id)
-
-        labor_rows = self.get_project_labor_details(project_id)
-        project_currency = project.currency if project else None
-
-        if project_currency:
-            labor_total = sum(
-                float(r.total_cost or 0.0)
-                for r in labor_rows
-                if (r.currency_code or project_currency or "").upper() == project_currency.upper()
+        # Keep historical fallback behavior for projects with no explicit planning data.
+        if not planned_map:
+            if baseline_id:
+                baseline = self._baseline_repo.get_baseline(baseline_id)
+            else:
+                baseline = self._baseline_repo.get_latest_for_project(project_id)
+            baseline_tasks = self._baseline_repo.list_tasks(baseline.id) if baseline else []
+            baseline_total = float(
+                sum(float(getattr(bt, "baseline_planned_cost", 0.0) or 0.0) for bt in baseline_tasks)
             )
-            labor_currency = project_currency.upper()
-        else:
-            labor_total = sum(float(r.total_cost or 0.0) for r in labor_rows)
-            labor_currency = (proj_cur or "").upper().strip() or "—"
-
-        if labor_total > 0:
-            filtered_items = [ci for ci in cost_items if getattr(ci, "cost_type", None) != CostType.LABOR]
-        else:
-            filtered_items = cost_items
-
-        actual_map: Dict[Tuple[CostType, str], float] = {}
-        for c in filtered_items:
-            amt = float(getattr(c, "actual_amount", 0.0) or 0.0)
-            if amt <= 0:
-                continue
-            inc = getattr(c, "incurred_date", None)
-            if inc is not None and inc > as_of:
-                continue
-
-            ct = getattr(c, "cost_type", None) or CostType.OTHER
-            cur = (getattr(c, "currency_code", None) or proj_cur or "").upper().strip() or "—"
-            actual_map[(ct, cur)] = actual_map.get((ct, cur), 0.0) + amt
-
-        if labor_total > 0:
-            actual_map[(CostType.LABOR, labor_currency or "—")] = actual_map.get((CostType.LABOR, labor_currency or "—"), 0.0) + float(labor_total)
-
-        # -------------------------
-        # PLANNED map
-        # -------------------------
-        planned_map: Dict[Tuple[CostType, str], float] = {}
-
-        # (1) Planned from CostItems (typed)
-        planned_sum = 0.0
-        for c in cost_items:
-            amt = float(getattr(c, "planned_amount", 0.0) or 0.0)
-            if amt <= 0:
-                continue
-            ct = getattr(c, "cost_type", None) or CostType.OTHER
-            cur = (getattr(c, "currency_code", None) or proj_cur or "").upper().strip() or "—"
-            planned_map[(ct, cur)] = planned_map.get((ct, cur), 0.0) + amt
-            planned_sum += amt
-
-        # (2) Planned labor from ProjectResource planned_hours × resolved rate
-        # Uses project override rate/currency if present, else resource defaults, else project currency
-        prs = self._project_resource_repo.list_by_project(project_id)
-        for pr in prs:
-            if not getattr(pr, "is_active", True):
-                continue
-            ph = float(getattr(pr, "planned_hours", 0.0) or 0.0)
-            if ph <= 0:
-                continue
-
-            res = self._resource_repo.get(pr.resource_id)
-            rate = None
-            cur = None
-
-            if getattr(pr, "hourly_rate", None) is not None:
-                rate = float(pr.hourly_rate)
-            if getattr(pr, "currency_code", None):
-                cur = str(pr.currency_code).upper()
-
-            if rate is None:
-                rate = float(getattr(res, "hourly_rate", 0.0) or 0.0) if res else 0.0
-
-            if not cur:
-                cur = (getattr(res, "currency_code", None) or proj_cur or "—")
-                cur = str(cur).upper().strip() or "—"
-
-            if rate <= 0:
-                continue
-
-            planned_labor_cost = ph * rate
-            planned_map[(CostType.LABOR, cur)] = planned_map.get((CostType.LABOR, cur), 0.0) + planned_labor_cost
-            planned_sum += planned_labor_cost
-
-        # (3) Optional baseline fallback ONLY if there is literally no planning data
-        # This prevents "planned labor = 0" when you actually planned labor via ProjectResources.
-        if planned_sum <= 0.0:
-            baseline_total = float(sum(float(getattr(bt, "baseline_planned_cost", 0.0) or 0.0) for bt in b_tasks))
             if baseline_total > 0:
-                planned_map[(CostType.OTHER, proj_cur or "—")] = baseline_total
+                self._add_bucket(
+                    planned_map,
+                    cost_type=CostType.OTHER,
+                    currency=self._normalize_currency(snapshot.project_currency),
+                    amount=baseline_total,
+                )
 
-        # NOTE: Removed the project.planned_budget fallback that buckets into OTHER.
-        # Budget belongs in the UI summary, not in cost breakdown categories.
-
-        # -------------------------
-        # Merge into rows
-        # -------------------------
+        rows: List[CostBreakdownRow] = []
         keys = set(planned_map.keys()) | set(actual_map.keys())
-        rows: List["CostBreakdownRow"] = []
-
-        for (ct, cur) in sorted(keys, key=lambda x: (str(x[0]), x[1])):
-            planned = float(planned_map.get((ct, cur), 0.0) or 0.0)
-            actual = float(actual_map.get((ct, cur), 0.0) or 0.0)
-            rows.append(CostBreakdownRow(
-                cost_type=str(ct),
-                currency=cur,
-                planned=planned,
-                actual=actual,
-            ))
-
+        for (cost_type, currency) in sorted(
+            keys,
+            key=lambda x: (x[0].value if hasattr(x[0], "value") else str(x[0]), x[1]),
+        ):
+            rows.append(
+                CostBreakdownRow(
+                    cost_type=cost_type.value if hasattr(cost_type, "value") else str(cost_type),
+                    currency=currency,
+                    planned=float(planned_map.get((cost_type, currency), 0.0) or 0.0),
+                    actual=float(actual_map.get((cost_type, currency), 0.0) or 0.0),
+                )
+            )
         return rows
+
