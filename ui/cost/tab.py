@@ -4,16 +4,12 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
     QSplitter,
-    QTableView,
-    QTableWidget,
     QVBoxLayout,
     QWidget,
-    QSizePolicy,
 )
 
 from core.events.domain_events import domain_events
@@ -24,10 +20,10 @@ from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
 from ui.cost.actions import CostActionsMixin
+from ui.cost.layout import CostLayoutMixin
 from ui.cost.labor_summary import CostLaborSummaryMixin
 from ui.cost.models import CostTableModel
 from ui.cost.project_flow import CostProjectFlowMixin
-from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -46,7 +42,15 @@ def _kpi_card(title: str, value: str = "-") -> tuple[QFrame, QLabel]:
     return card, lbl_value
 
 
-class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWidget):
+class CostTab(
+    CostProjectFlowMixin,
+    CostLayoutMixin,
+    CostLaborSummaryMixin,
+    CostActionsMixin,
+    QWidget,
+):
+    model: CostTableModel
+
     def __init__(
         self,
         project_service: ProjectService,
@@ -116,10 +120,12 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         kpi_row.setSpacing(CFG.SPACING_SM)
         budget_card, self.lbl_kpi_budget = _kpi_card("Budget")
         planned_card, self.lbl_kpi_planned = _kpi_card("Planned")
+        committed_card, self.lbl_kpi_committed = _kpi_card("Committed")
         actual_card, self.lbl_kpi_actual = _kpi_card("Actual")
-        remaining_card, self.lbl_kpi_remaining = _kpi_card("Remaining")
+        remaining_card, self.lbl_kpi_remaining = _kpi_card("Available")
         kpi_row.addWidget(budget_card)
         kpi_row.addWidget(planned_card)
+        kpi_row.addWidget(committed_card)
         kpi_row.addWidget(actual_card)
         kpi_row.addWidget(remaining_card)
         root.addLayout(kpi_row)
@@ -133,62 +139,14 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(CFG.SPACING_SM)
-
-        grp_costs = QGroupBox("Cost Items")
-        grp_costs.setFont(CFG.GROUPBOX_TITLE_FONT)
-        costs_layout = QVBoxLayout(grp_costs)
-        costs_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        costs_layout.setSpacing(CFG.SPACING_SM)
-
-        self.table = QTableView()
-        self.model = CostTableModel()
-        self.table.setModel(self.model)
-        self.table.setSelectionBehavior(QTableView.SelectRows)
-        self.table.setSelectionMode(QTableView.SingleSelection)
-        self.table.setEditTriggers(QTableView.NoEditTriggers)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        style_table(self.table)
-        costs_layout.addWidget(self.table)
+        grp_costs = self._build_cost_items_group()
         left_layout.addWidget(grp_costs)
 
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(CFG.SPACING_SM)
-
-        grp_labor = QGroupBox("Labor Snapshot")
-        grp_labor.setFont(CFG.GROUPBOX_TITLE_FONT)
-        labor_layout = QVBoxLayout(grp_labor)
-        labor_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        labor_layout.setSpacing(CFG.SPACING_MD)
-
-        self.tbl_labor_summary = QTableWidget()
-        self.tbl_labor_summary.setColumnCount(len(CFG.LABOR_SUMMARY_HEADERS))
-        self.tbl_labor_summary.setHorizontalHeaderLabels(CFG.LABOR_SUMMARY_HEADERS)
-        self.tbl_labor_summary.verticalHeader().setVisible(False)
-        self.tbl_labor_summary.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.tbl_labor_summary.setSelectionMode(QTableWidget.NoSelection)
-        self.tbl_labor_summary.horizontalHeader().setStretchLastSection(True)
-        self.tbl_labor_summary.setMinimumHeight(160)
-        self.tbl_labor_summary.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        style_table(self.tbl_labor_summary)
-        labor_layout.addWidget(self.tbl_labor_summary, 1)
-
-        button_row = QHBoxLayout()
-        button_row.setContentsMargins(0, CFG.SPACING_XS, 0, 0)
-        button_row.setSpacing(CFG.SPACING_SM)
-        button_row.addStretch()
-        self.btn_labor_details = QPushButton(CFG.LABOR_DETAILS_BUTTON_LABEL)
-        self.btn_labor_details.setFixedHeight(CFG.BUTTON_HEIGHT)
-        self.btn_labor_details.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        self.btn_labor_details.setToolTip("Open detailed labor usage and cost breakdown by resource.")
-        button_row.addWidget(self.btn_labor_details)
-        labor_layout.addLayout(button_row)
-
-        self.lbl_labor_note = QLabel("")
-        self.lbl_labor_note.setWordWrap(True)
-        self.lbl_labor_note.setStyleSheet(CFG.NOTE_STYLE_SHEET)
-        labor_layout.addWidget(self.lbl_labor_note)
+        grp_labor = self._build_labor_group()
         right_layout.addWidget(grp_labor, 1)
 
         splitter.addWidget(left_panel)
@@ -203,5 +161,9 @@ class CostTab(CostProjectFlowMixin, CostLaborSummaryMixin, CostActionsMixin, QWi
         self.btn_new.clicked.connect(self.create_cost_item)
         self.btn_edit.clicked.connect(self.edit_cost_item)
         self.btn_delete.clicked.connect(self.delete_cost_item)
+        self.filter_text.textChanged.connect(self.reload_costs)
+        self.filter_type_combo.currentIndexChanged.connect(self.reload_costs)
+        self.filter_task_combo.currentIndexChanged.connect(self.reload_costs)
+        self.btn_clear_filters.clicked.connect(self._clear_cost_filters)
         self.btn_labor_details.clicked.connect(self.show_labor_details)
         self.tbl_labor_summary.itemSelectionChanged.connect(self._on_labor_table_selected)

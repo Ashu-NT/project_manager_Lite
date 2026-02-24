@@ -76,8 +76,9 @@ class CostEditDialog(QDialog):
 
         self.task_combo.addItem("(none)", userData=None)
 
+        include_labor_type = bool(cost_item and cost_item.cost_type == CostType.LABOR)
         for cost_type in CostType:
-            if cost_type == CostType.LABOR:
+            if cost_type == CostType.LABOR and not include_labor_type:
                 continue
             self.type_combo.addItem(cost_type.value, userData=cost_type)
 
@@ -90,6 +91,8 @@ class CostEditDialog(QDialog):
                 self.planned_spin.setValue(cost_item.planned_amount)
             if cost_item.actual_amount is not None:
                 self.actual_spin.setValue(cost_item.actual_amount)
+            if cost_item.committed_amount is not None:
+                self.committed_spin.setValue(cost_item.committed_amount)
             if cost_item.task_id:
                 for i in range(1, self.task_combo.count()):
                     if self.task_combo.itemData(i) == cost_item.task_id:
@@ -100,6 +103,9 @@ class CostEditDialog(QDialog):
                     if self.type_combo.itemData(i) == cost_item.cost_type:
                         self.type_combo.setCurrentIndex(i)
                         break
+            if cost_item.incurred_date is not None:
+                d = cost_item.incurred_date
+                self.incurred_date.setDate(QDate(d.year, d.month, d.day))
             if getattr(cost_item, "currency_code", None):
                 self.currency_combo.setCurrentText(str(cost_item.currency_code).upper())
             elif getattr(self._project, "currency", None):
@@ -111,6 +117,10 @@ class CostEditDialog(QDialog):
                 self.currency_combo.setCurrentText(str(self._project.currency).upper())
             else:
                 self.currency_combo.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
+
+        if include_labor_type:
+            self.type_combo.setEnabled(False)
+            self.type_combo.setToolTip("Labor rows are system-derived and cost type is fixed.")
 
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)
@@ -163,7 +173,9 @@ class CostEditDialog(QDialog):
     @property
     def cost_type(self) -> CostType:
         idx = self.type_combo.currentIndex()
-        return self.type_combo.itemData(idx) or CostType.OVERHEAD
+        return self.type_combo.itemData(idx) or (
+            self._cost_item.cost_type if self._cost_item is not None else CostType.OVERHEAD
+        )
 
     @property
     def committed_amount(self) -> float:

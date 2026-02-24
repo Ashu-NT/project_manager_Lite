@@ -39,8 +39,15 @@ class CostService:
         if not self._project_repo.get(project_id):
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
-        if task_id is not None and not self._task_repo.get(task_id):
-            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        if task_id is not None:
+            task = self._task_repo.get(task_id)
+            if not task:
+                raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+            if task.project_id != project_id:
+                raise ValidationError(
+                    "Task must belong to the selected project.",
+                    code="TASK_PROJECT_MISMATCH",
+                )
 
         if planned_amount < 0:
             raise ValidationError("Planned amount cannot be negative.")
@@ -114,10 +121,12 @@ class CostService:
             item.cost_type = cost_type
         
         if incurred_date is not None:
+            if not isinstance(incurred_date, date):
+                raise ValidationError("Incurred date must be a valid date.")
             item.incurred_date = incurred_date
         
         if currency_code is not None:
-            item.currency_code = currency_code.strip() or None    
+            item.currency_code = currency_code.strip().upper() or DEFAULT_CURRENCY_CODE
         
 
         try:

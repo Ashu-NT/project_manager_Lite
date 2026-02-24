@@ -148,6 +148,43 @@ def test_cost_service_negative_amount_validation(services):
         cs.update_cost_item(item.id, actual_amount=-5.0)
 
 
+def test_cost_item_task_must_belong_to_same_project(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    cs = services["cost_service"]
+
+    p1 = ps.create_project("Cost P1", "")
+    p2 = ps.create_project("Cost P2", "")
+    foreign_task = ts.create_task(p2.id, "Foreign Task", duration_days=1)
+
+    with pytest.raises(ValidationError) as exc:
+        cs.add_cost_item(
+            project_id=p1.id,
+            description="Wrong link",
+            planned_amount=10.0,
+            task_id=foreign_task.id,
+        )
+    assert exc.value.code == "TASK_PROJECT_MISMATCH"
+
+
+def test_update_cost_item_rejects_invalid_incurred_date_value(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    cs = services["cost_service"]
+
+    p = ps.create_project("Cost Date Validation", "")
+    task = ts.create_task(p.id, "Date Task", duration_days=1)
+    item = cs.add_cost_item(
+        project_id=p.id,
+        description="Date row",
+        planned_amount=10.0,
+        task_id=task.id,
+    )
+
+    with pytest.raises(ValidationError):
+        cs.update_cost_item(item.id, incurred_date="2026-02-24")
+
+
 def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
     ps = services["project_service"]
     ts = services["task_service"]

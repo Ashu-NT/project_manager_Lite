@@ -36,10 +36,14 @@ class CostTableModel(QAbstractTableModel):
         return len(self.HEADERS)
 
     def data(self, index: QModelIndex, role=Qt.DisplayRole):
-        if not index.isValid() or role not in (Qt.DisplayRole, Qt.EditRole):
+        if not index.isValid():
+            return None
+        col = index.column()
+        if role == Qt.TextAlignmentRole and col in (3, 4, 5):
+            return Qt.AlignRight | Qt.AlignVCenter
+        if role not in (Qt.DisplayRole, Qt.EditRole):
             return None
         c = self._costs[index.row()]
-        col = index.column()
         if col == 0:
             return c.description
         if col == 1:
