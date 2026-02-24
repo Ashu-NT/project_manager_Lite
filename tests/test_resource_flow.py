@@ -1,5 +1,4 @@
 from datetime import date
-from core.exceptions import BusinessRuleError
 
 
 def test_resource_assignment_and_overload(services):
@@ -25,12 +24,11 @@ def test_resource_assignment_and_overload(services):
     a2 = ts.assign_resource(t2.id, r.id, allocation_percent=40.0)
     assert a2.allocation_percent == 40.0
 
-    # Now try to assign 20% on overlapping task -> should fail with overload
-    try:
-        ts.assign_resource(t2.id, r.id, allocation_percent=20.0)
-        assert False, "Expected BusinessRuleError for over-allocation"
-    except BusinessRuleError:
-        pass
+    # Warn-only policy: allow the assignment but record an over-allocation warning.
+    ts.assign_resource(t2.id, r.id, allocation_percent=20.0)
+    warning_text = ts.consume_last_overallocation_warning()
+    assert warning_text is not None
+    assert "over-allocated on" in warning_text
 
     # Check tasks for resource in project
     tasks_for_res = ts.query_tasks(project_id=pid, resource_id=r.id)

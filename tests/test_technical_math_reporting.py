@@ -208,6 +208,7 @@ def test_reporting_evm_core_formulae_and_series_points(services):
         "EVM Math",
         start_date=date(2023, 11, 6),
         end_date=date(2023, 11, 30),
+        currency="USD",
     )
     pid = project.id
     task = ts.create_task(pid, "Task E", start_date=date(2023, 11, 6), duration_days=2)
