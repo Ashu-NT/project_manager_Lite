@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import Optional
 
 from PySide6.QtCore import Qt
@@ -9,7 +8,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
-    QListWidget,
     QPushButton,
     QSplitter,
     QTableWidget,
@@ -21,7 +19,9 @@ from core.events.domain_events import domain_events
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.project import ProjectService
+from ui.dashboard.alerts_panel import DashboardAlertsPanelMixin
 from ui.dashboard.data_ops import DashboardDataOpsMixin
+from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
 from ui.dashboard.rendering import DashboardRenderingMixin
 from ui.dashboard.styles import (
     dashboard_action_button_style,
@@ -32,8 +32,13 @@ from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
-
-class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
+class DashboardTab(
+    DashboardDataOpsMixin,
+    DashboardLevelingOpsMixin,
+    DashboardRenderingMixin,
+    DashboardAlertsPanelMixin,
+    QWidget,
+):
     """
     Dashboard coordinator:
     - wires UI
@@ -52,8 +57,7 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         self._project_service: ProjectService = project_service
         self._dashboard_service: DashboardService = dashboard_service
         self._baseline_service: BaselineService = baseline_service
-
-        self._current_data: Optional[DashboardData] = None
+        self._current_data: Optional[DashboardData] = None; self._current_conflicts = []
 
         self._setup_ui()
         self.reload_projects()
@@ -123,6 +127,7 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(CFG.SPACING_SM)
+        left_panel.setMinimumWidth(360)
 
         self.summary_widget = QWidget()
         self.summary_widget.setStyleSheet(dashboard_summary_style())
@@ -192,19 +197,16 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         left_layout.addWidget(kpi_group)
 
         self.evm_group = self._build_evm_panel()
-        left_layout.addWidget(self.evm_group)
+        left_layout.addWidget(self.evm_group, 1)
 
-        bottom_panel = QWidget()
-        bottom_row = QHBoxLayout(bottom_panel)
-        bottom_row.setContentsMargins(0, 0, 0, 0)
-        bottom_row.setSpacing(CFG.SPACING_SM)
+        middle_panel = QWidget()
+        middle_panel.setMinimumWidth(400)
+        middle_layout = QVBoxLayout(middle_panel)
+        middle_layout.setContentsMargins(0, 0, 0, 0)
+        middle_layout.setSpacing(CFG.SPACING_SM)
 
-        alerts_group = QGroupBox("Alerts")
-        alerts_group.setFont(CFG.GROUPBOX_TITLE_FONT)
-        alerts_layout = QVBoxLayout(alerts_group)
-        self.alerts_list = QListWidget()
-        alerts_layout.addWidget(self.alerts_list)
-        bottom_row.addWidget(alerts_group, 1)
+        alerts_group = self._build_alerts_panel()
+        middle_layout.addWidget(alerts_group, 3)
 
         upcoming_group = QGroupBox("Upcoming tasks (next 14 days)")
         upcoming_group.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -216,9 +218,7 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         self.upcoming_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         style_table(self.upcoming_table)
         up_layout.addWidget(self.upcoming_table)
-        bottom_row.addWidget(upcoming_group, 2)
-
-        left_layout.addWidget(bottom_panel, 1)
+        middle_layout.addWidget(upcoming_group, 2)
 
         right_panel = QWidget()
         right_panel.setMinimumWidth(360)
@@ -238,10 +238,12 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         right_layout.addWidget(self.chart_splitter)
 
         self.main_splitter.addWidget(left_panel)
+        self.main_splitter.addWidget(middle_panel)
         self.main_splitter.addWidget(right_panel)
         self.main_splitter.setStretchFactor(0, 3)
-        self.main_splitter.setStretchFactor(1, 2)
-        self.main_splitter.setSizes([920, 440])
+        self.main_splitter.setStretchFactor(1, 3)
+        self.main_splitter.setStretchFactor(2, 4)
+        self.main_splitter.setSizes([540, 620, 660])
 
         layout.addWidget(self.main_splitter, 1)
 
@@ -251,3 +253,7 @@ class DashboardTab(DashboardDataOpsMixin, DashboardRenderingMixin, QWidget):
         self.btn_delete_baseline.clicked.connect(self._delete_selected_baseline)
         self.project_combo.currentIndexChanged.connect(self._on_project_changed)
         self.baseline_combo.currentIndexChanged.connect(self.refresh_dashboard)
+        self.btn_preview_conflicts.clicked.connect(self._preview_conflicts)
+        self.btn_auto_level.clicked.connect(self._auto_level_conflicts)
+        self.btn_manual_shift.clicked.connect(self._manual_shift_selected_conflict)
+        self.conflicts_table.itemSelectionChanged.connect(self._sync_leveling_buttons)

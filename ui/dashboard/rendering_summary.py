@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel, QListWidget, QTableWidget
+from PySide6.QtWidgets import QLabel, QTableWidget
 
 from core.services.dashboard import DashboardData
 from ui.dashboard.widgets import ChartWidget, KpiCard
@@ -9,7 +9,11 @@ from ui.styles.ui_config import UIConfig as CFG
 
 
 class DashboardSummaryRenderingMixin:
-    alerts_list: QListWidget
+    alerts_table: QTableWidget
+    conflicts_table: QTableWidget
+    alerts_status: QLabel
+    btn_auto_level: object
+    btn_manual_shift: object
     upcoming_table: QTableWidget
     burndown_chart: ChartWidget
     resource_chart: ChartWidget
@@ -24,7 +28,13 @@ class DashboardSummaryRenderingMixin:
     project_meta_duration: QLabel
 
     def _clear_dashboard(self):
-        self.alerts_list.clear()
+        self.alerts_table.setRowCount(0)
+        self.conflicts_table.setRowCount(0)
+        self.alerts_status.setText("0 active alerts")
+        if hasattr(self, "btn_auto_level"):
+            self.btn_auto_level.setEnabled(False)
+        if hasattr(self, "btn_manual_shift"):
+            self.btn_manual_shift.setEnabled(False)
         self.upcoming_table.setRowCount(0)
 
         self.burndown_chart.ax.clear()

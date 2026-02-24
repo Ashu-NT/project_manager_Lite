@@ -10,6 +10,11 @@ from core.services.project.service import ProjectService
 from core.services.reporting.service import ReportingService
 from core.services.resource import ResourceService
 from core.services.scheduling.engine import SchedulingEngine
+from core.services.scheduling.leveling_models import (
+    ResourceConflict,
+    ResourceLevelingAction,
+    ResourceLevelingResult,
+)
 from core.services.task.service import TaskService
 from core.services.work_calendar.engine import WorkCalendarEngine
 
@@ -58,6 +63,47 @@ class DashboardService(
             evm=evm_obj,
             upcoming_tasks=upcoming,
         )
+
+    def preview_resource_conflicts(
+        self,
+        project_id: str,
+        threshold_percent: float = 100.0,
+    ) -> list[ResourceConflict]:
+        self._sched.recalculate_project_schedule(project_id)
+        return self._sched.preview_resource_conflicts(
+            project_id=project_id,
+            threshold_percent=threshold_percent,
+        )
+
+    def auto_level_overallocations(
+        self,
+        project_id: str,
+        max_iterations: int = 60,
+        threshold_percent: float = 100.0,
+    ) -> ResourceLevelingResult:
+        result = self._sched.auto_level_resources(
+            project_id=project_id,
+            max_iterations=max_iterations,
+            threshold_percent=threshold_percent,
+        )
+        self._sched.recalculate_project_schedule(project_id)
+        return result
+
+    def manually_shift_task_for_leveling(
+        self,
+        project_id: str,
+        task_id: str,
+        shift_working_days: int = 1,
+        reason: str = "Manual dashboard leveling",
+    ) -> ResourceLevelingAction:
+        action = self._sched.resolve_resource_conflict_manual(
+            project_id=project_id,
+            task_id=task_id,
+            shift_working_days=shift_working_days,
+            reason=reason,
+        )
+        self._sched.recalculate_project_schedule(project_id)
+        return action
 
 
 __all__ = [

@@ -240,7 +240,10 @@ def test_dashboard_tab_uses_splitter_layout_for_right_side_charts():
 
     assert "self.main_splitter = QSplitter(Qt.Horizontal)" in text
     assert "self.chart_splitter = QSplitter(Qt.Vertical)" in text
+    assert "self.main_splitter.addWidget(middle_panel)" in text
     assert "self.main_splitter.addWidget(right_panel)" in text
+    assert "middle_layout.addWidget(alerts_group, 3)" in text
+    assert "middle_layout.addWidget(upcoming_group, 2)" in text
 
 
 def test_dashboard_rendering_module_is_facade_only():
@@ -499,6 +502,8 @@ def test_known_large_modules_have_growth_budgets():
         "ui/dashboard/tab.py": 260,
         "ui/dashboard/widgets.py": 120,
         "ui/dashboard/data_ops.py": 180,
+        "ui/dashboard/leveling_ops.py": 180,
+        "ui/dashboard/alerts_panel.py": 140,
         "ui/dashboard/rendering.py": 80,
         "ui/dashboard/rendering_summary.py": 120,
         "ui/dashboard/rendering_charts.py": 140,

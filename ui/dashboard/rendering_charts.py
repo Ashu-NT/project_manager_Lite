@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import matplotlib.dates as mdates
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 
 from core.services.dashboard import DashboardData
 from ui.dashboard.widgets import ChartWidget
@@ -11,7 +11,6 @@ from ui.styles.ui_config import UIConfig as CFG
 class DashboardChartsRenderingMixin:
     burndown_chart: ChartWidget
     resource_chart: ChartWidget
-    alerts_list: QListWidget
     upcoming_table: QTableWidget
 
     def _update_burndown_chart(self, data: DashboardData):
@@ -97,17 +96,6 @@ class DashboardChartsRenderingMixin:
 
         self.resource_chart.fig.tight_layout()
         self.resource_chart.redraw()
-
-    def _update_alerts(self, data: DashboardData):
-        self.alerts_list.clear()
-        if not data.alerts:
-            self.alerts_list.addItem("No alerts. Everything looks good.")
-            return
-
-        for msg in data.alerts:
-            item = QListWidgetItem("WARNING: " + msg)
-            item.setForeground(QColor("#d0021b"))
-            self.alerts_list.addItem(item)
 
     def _update_upcoming(self, data: DashboardData):
         self.upcoming_table.setRowCount(0)

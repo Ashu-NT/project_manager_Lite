@@ -101,6 +101,8 @@ class DashboardDataOpsMixin:
         self._update_burndown_chart(data)
         self._update_resource_chart(data)
         self._update_alerts(data)
+        if hasattr(self, "_refresh_conflicts"):
+            self._refresh_conflicts(proj_id)
         self._update_upcoming(data)
         self._update_evm(data)
 
