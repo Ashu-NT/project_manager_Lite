@@ -57,8 +57,17 @@ class LoginDialog(QDialog):
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.Password)
+        self.btn_toggle_password = QPushButton("Show")
+        self.btn_toggle_password.setCheckable(True)
+        self.btn_toggle_password.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_toggle_password.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        password_row = QHBoxLayout()
+        password_row.setContentsMargins(0, 0, 0, 0)
+        password_row.setSpacing(CFG.SPACING_XS)
+        password_row.addWidget(self.password_input, 1)
+        password_row.addWidget(self.btn_toggle_password)
         form.addRow("Username:", self.username_input)
-        form.addRow("Password:", self.password_input)
+        form.addRow("Password:", password_row)
         root.addLayout(form)
 
         row = QHBoxLayout()
@@ -73,8 +82,13 @@ class LoginDialog(QDialog):
 
         self.btn_cancel.clicked.connect(self.reject)
         self.btn_sign_in.clicked.connect(self._try_sign_in)
+        self.btn_toggle_password.toggled.connect(self._toggle_password_visibility)
         self.password_input.returnPressed.connect(self._try_sign_in)
         self.username_input.returnPressed.connect(self._try_sign_in)
+
+    def _toggle_password_visibility(self, visible: bool) -> None:
+        self.password_input.setEchoMode(QLineEdit.Normal if visible else QLineEdit.Password)
+        self.btn_toggle_password.setText("Hide" if visible else "Show")
 
     def _try_sign_in(self) -> None:
         username = self.username_input.text().strip()
@@ -98,4 +112,3 @@ class LoginDialog(QDialog):
 
 
 __all__ = ["LoginDialog"]
-

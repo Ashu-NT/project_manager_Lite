@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.exceptions import ValidationError
+from core.exceptions import NotFoundError, ValidationError
 
 
 def test_bootstrap_creates_admin_and_permissions(services):
@@ -45,3 +45,45 @@ def test_register_user_rejects_weak_password(services):
     with pytest.raises(ValidationError):
         auth.register_user("weak-pass-user", "123")
 
+    with pytest.raises(ValidationError, match="uppercase"):
+        auth.register_user("weak-pass-user-2", "alllowercase123")
+
+    with pytest.raises(ValidationError, match="digit"):
+        auth.register_user("weak-pass-user-3", "NoDigitsHere")
+
+
+def test_register_user_rejects_invalid_email(services):
+    auth = services["auth_service"]
+
+    with pytest.raises(ValidationError, match="Invalid email format"):
+        auth.register_user(
+            "email-invalid-user",
+            "StrongPass123",
+            email="not-an-email",
+        )
+
+
+def test_register_user_normalizes_email(services):
+    auth = services["auth_service"]
+
+    user = auth.register_user(
+        "email-normalized-user",
+        "StrongPass123",
+        email="  USER.Name@Example.COM  ",
+    )
+
+    assert user.email == "user.name@example.com"
+
+
+def test_register_user_rolls_back_when_role_is_invalid(services):
+    auth = services["auth_service"]
+
+    with pytest.raises(NotFoundError):
+        auth.register_user(
+            "transient-user",
+            "StrongPass123",
+            role_names=["missing-role"],
+        )
+
+    created = auth.register_user("transient-user", "StrongPass123")
+    assert created.username == "transient-user"

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, timezone
 from typing import Iterable
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.exceptions import NotFoundError, ValidationError
@@ -15,9 +17,13 @@ from core.interfaces import (
     UserRoleRepository,
 )
 from core.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
+from core.services.auth.authorization import require_permission
 from core.services.auth.passwords import hash_password, verify_password
 from core.services.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
-from core.services.auth.session import UserSessionPrincipal
+from core.services.auth.session import UserSessionContext, UserSessionPrincipal
+
+
+_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 
 class AuthService:
@@ -29,6 +35,7 @@ class AuthService:
         permission_repo: PermissionRepository,
         user_role_repo: UserRoleRepository,
         role_permission_repo: RolePermissionRepository,
+        user_session: UserSessionContext | None = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -36,6 +43,7 @@ class AuthService:
         self._permission_repo: PermissionRepository = permission_repo
         self._user_role_repo: UserRoleRepository = user_role_repo
         self._role_permission_repo: RolePermissionRepository = role_permission_repo
+        self._user_session: UserSessionContext | None = user_session
 
     def bootstrap_defaults(self) -> UserAccount:
         self._ensure_default_permissions()
@@ -55,6 +63,7 @@ class AuthService:
                 display_name="Administrator",
                 role_names=["admin"],
                 commit=False,
+                bypass_permission=True,
             )
         else:
             admin_role = role_map.get("admin")
@@ -74,10 +83,15 @@ class AuthService:
         role_names: Iterable[str] | None = None,
         *,
         commit: bool = True,
+        bypass_permission: bool = False,
     ) -> UserAccount:
+        if not bypass_permission:
+            require_permission(self._user_session, "auth.manage", operation_label="register user")
         normalized = (username or "").strip().lower()
+        normalized_email = self._normalize_email(email)
         if not normalized:
             raise ValidationError("Username is required.", code="USERNAME_REQUIRED")
+        self._validate_email(normalized_email)
         self._validate_password(raw_password)
         if self._user_repo.get_by_username(normalized):
             raise ValidationError("Username already exists.", code="USERNAME_EXISTS")
@@ -86,14 +100,29 @@ class AuthService:
             username=normalized,
             password_hash=hash_password(raw_password),
             display_name=(display_name or "").strip() or None,
-            email=(email or "").strip() or None,
+            email=normalized_email,
             is_active=is_active,
         )
-        self._user_repo.add(user)
-        self._assign_roles_for_user(user.id, role_names or ("viewer",))
-
-        if commit:
-            self._session.commit()
+        try:
+            with self._session.begin_nested():
+                self._user_repo.add(user)
+                self._assign_roles_for_user(user.id, role_names or ("viewer",))
+            if commit:
+                self._session.commit()
+        except IntegrityError as exc:
+            self._session.rollback()
+            if "username" in str(exc).lower():
+                raise ValidationError(
+                    "Username already exists.",
+                    code="USERNAME_EXISTS",
+                ) from exc
+            raise ValidationError(
+                "Failed to create user due to data conflict.",
+                code="USER_CREATE_CONFLICT",
+            ) from exc
+        except Exception:
+            self._session.rollback()
+            raise
         return user
 
     def authenticate(self, username: str, raw_password: str) -> UserAccount:
@@ -117,6 +146,7 @@ class AuthService:
         self._session.commit()
 
     def assign_role(self, user_id: str, role_name: str) -> None:
+        require_permission(self._user_session, "auth.manage", operation_label="assign role")
         user = self._require_user(user_id)
         role = self._require_role_by_name(role_name)
         if not self._user_role_repo.exists(user.id, role.id):
@@ -124,6 +154,7 @@ class AuthService:
             self._session.commit()
 
     def revoke_role(self, user_id: str, role_name: str) -> None:
+        require_permission(self._user_session, "auth.manage", operation_label="revoke role")
         user = self._require_user(user_id)
         role = self._require_role_by_name(role_name)
         self._user_role_repo.delete(user.id, role.id)
@@ -141,6 +172,23 @@ class AuthService:
 
     def has_permission(self, user_id: str, permission_code: str) -> bool:
         return permission_code in self.get_user_permissions(user_id)
+
+    def list_users(self) -> list[UserAccount]:
+        require_permission(self._user_session, "auth.manage", operation_label="list users")
+        return self._user_repo.list_all()
+
+    def list_roles(self) -> list[Role]:
+        require_permission(self._user_session, "auth.manage", operation_label="list roles")
+        return self._role_repo.list_all()
+
+    def set_user_active(self, user_id: str, is_active: bool) -> UserAccount:
+        require_permission(self._user_session, "auth.manage", operation_label="set user active")
+        user = self._require_user(user_id)
+        user.is_active = bool(is_active)
+        user.updated_at = datetime.now(timezone.utc)
+        self._user_repo.update(user)
+        self._session.commit()
+        return user
 
     def get_user_role_names(self, user_id: str) -> set[str]:
         self._require_user(user_id)
@@ -214,8 +262,42 @@ class AuthService:
 
     @staticmethod
     def _validate_password(password: str) -> None:
-        if len(password or "") < 8:
-            raise ValidationError("Password must be at least 8 characters.", code="WEAK_PASSWORD")
+        pwd = password or ""
+        if len(pwd) < 8:
+            raise ValidationError(
+                "Password must be at least 8 characters.",
+                code="WEAK_PASSWORD",
+            )
+        if not any(ch.islower() for ch in pwd):
+            raise ValidationError(
+                "Password must include a lowercase letter.",
+                code="WEAK_PASSWORD",
+            )
+        if not any(ch.isupper() for ch in pwd):
+            raise ValidationError(
+                "Password must include an uppercase letter.",
+                code="WEAK_PASSWORD",
+            )
+        if not any(ch.isdigit() for ch in pwd):
+            raise ValidationError(
+                "Password must include a digit.",
+                code="WEAK_PASSWORD",
+            )
+
+    @staticmethod
+    def _normalize_email(email: str | None) -> str | None:
+        value = (email or "").strip().lower()
+        return value or None
+
+    @staticmethod
+    def _validate_email(email: str | None) -> None:
+        if email is None:
+            return
+        if not _EMAIL_RE.match(email):
+            raise ValidationError(
+                "Invalid email format.",
+                code="INVALID_EMAIL",
+            )
 
 
 __all__ = ["AuthService"]
