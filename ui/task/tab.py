@@ -30,11 +30,13 @@ from ui.styles.ui_config import UIConfig as CFG
 from ui.task.assignment_actions import TaskAssignmentActionsMixin
 from ui.task.assignment_panel import TaskAssignmentPanelMixin
 from ui.task.actions import TaskActionsMixin
+from ui.task.filtering import TaskFiltersMixin
 from ui.task.models import TaskTableModel
 from ui.task.project_flow import TaskProjectFlowMixin
 
 
 class TaskTab(
+    TaskFiltersMixin,
     TaskProjectFlowMixin,
     TaskAssignmentActionsMixin,
     TaskActionsMixin,
@@ -77,6 +79,7 @@ class TaskTab(
             manage_permission="task.manage",
             governance_action="dependency.remove",
         )
+        self._all_tasks = []
 
         self._setup_ui()
         self._load_projects()
@@ -131,6 +134,7 @@ class TaskTab(
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh_tasks)
         root.addLayout(toolbar)
+        self._build_task_filters(root)
 
         self.table = QTableView()
         self.model = TaskTableModel()

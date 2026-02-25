@@ -17,6 +17,7 @@ class TaskProjectFlowMixin:
     model: TaskTableModel
     _project_service: ProjectService
     _task_service: TaskService
+    _all_tasks: list[Task]
 
     def _on_task_changed(self, project_id: str):
         current_pid = self._current_project_id()
@@ -74,20 +75,28 @@ class TaskProjectFlowMixin:
         current_task_id = current_task.id if current_task else None
         project_id = self._current_project_id()
         if not project_id:
-            self.model.set_tasks([])
-            post_reload = getattr(self, "_reload_assignment_panel_for_selected_task", None)
-            if callable(post_reload):
-                post_reload()
-            sync_toolbar = getattr(self, "_sync_toolbar_actions", None)
-            if callable(sync_toolbar):
-                sync_toolbar()
+            self._all_tasks = []
+            self._set_visible_tasks([], preferred_task_id=current_task_id)
             return
 
-        tasks = self._task_service.list_tasks_for_project(project_id)
-        self.model.set_tasks(tasks)
+        self._all_tasks = self._task_service.list_tasks_for_project(project_id)
+        visible_tasks = self._apply_task_filters(list(self._all_tasks))
+        self._set_visible_tasks(visible_tasks, preferred_task_id=current_task_id)
 
-        if current_task_id:
-            self._select_task_by_id(current_task_id)
+    def _refresh_tasks_from_cache(self) -> None:
+        current_task = self._get_selected_task()
+        current_task_id = current_task.id if current_task else None
+        all_tasks = list(getattr(self, "_all_tasks", []))
+        visible_tasks = self._apply_task_filters(all_tasks)
+        self._set_visible_tasks(visible_tasks, preferred_task_id=current_task_id)
+
+    def _apply_task_filters(self, tasks: list[Task]) -> list[Task]:
+        return tasks
+
+    def _set_visible_tasks(self, tasks: list[Task], preferred_task_id: Optional[str]) -> None:
+        self.model.set_tasks(tasks)
+        if preferred_task_id:
+            self._select_task_by_id(preferred_task_id)
         elif tasks:
             self.table.selectRow(0)
 

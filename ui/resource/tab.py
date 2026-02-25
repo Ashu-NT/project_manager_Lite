@@ -10,9 +10,11 @@ from PySide6.QtWidgets import (
 )
 
 from core.events.domain_events import domain_events
+from core.models import Resource
 from core.services.auth import UserSessionContext
 from core.services.resource import ResourceService
 from ui.resource.actions import ResourceActionsMixin
+from ui.resource.filtering import ResourceFiltersMixin
 from ui.resource.flow import ResourceFlowMixin
 from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.resource.models import ResourceTableModel
@@ -20,7 +22,7 @@ from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
-class ResourceTab(ResourceFlowMixin, ResourceActionsMixin, QWidget):
+class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin, QWidget):
     """Resource tab coordinator: UI wiring + delegates actions/flow to mixins."""
 
     def __init__(
@@ -33,6 +35,7 @@ class ResourceTab(ResourceFlowMixin, ResourceActionsMixin, QWidget):
         self._resource_service: ResourceService = resource_service
         self._user_session = user_session
         self._can_manage_resources = has_permission(self._user_session, "resource.manage")
+        self._all_resources: list[Resource] = []
 
         self._setup_ui()
         self.reload_resources()
@@ -70,6 +73,7 @@ class ResourceTab(ResourceFlowMixin, ResourceActionsMixin, QWidget):
         toolbar.addStretch()
         toolbar.addWidget(self.btn_reload_resources)
         layout.addLayout(toolbar)
+        self._build_resource_filters(layout)
 
         self.table = QTableView()
         self.model = ResourceTableModel()
@@ -125,6 +129,12 @@ class ResourceTab(ResourceFlowMixin, ResourceActionsMixin, QWidget):
             missing_permission="resource.manage",
         )
         self._sync_actions()
+
+    def reload_resources(self) -> None:
+        selected = self._get_selected_resource()
+        selected_id = selected.id if selected else None
+        self._all_resources = self._resource_service.list_resources()
+        self._render_resource_rows(preferred_resource_id=selected_id)
 
     def _on_resources_changed(self, _resource_id: str) -> None:
         self.reload_resources()

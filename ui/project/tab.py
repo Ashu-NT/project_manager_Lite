@@ -21,6 +21,7 @@ from core.services.resource import ResourceService
 from core.services.task import TaskService
 from ui.project.actions import ProjectActionsMixin
 from ui.project.dialogs import ProjectEditDialog  # noqa: F401
+from ui.project.filtering import ProjectFiltersMixin
 from ui.project.models import ProjectTableModel
 from ui.project.resource_panel import ProjectResourcePanelMixin
 from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
@@ -28,7 +29,7 @@ from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
-class ProjectTab(ProjectActionsMixin, ProjectResourcePanelMixin, QWidget):
+class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelMixin, QWidget):
     def __init__(
         self,
         project_service: ProjectService,
@@ -48,6 +49,7 @@ class ProjectTab(ProjectActionsMixin, ProjectResourcePanelMixin, QWidget):
         self._user_session = user_session
         self._can_manage_projects = has_permission(self._user_session, "project.manage")
         self._can_manage_project_resources = self._can_manage_projects
+        self._all_projects: list[Project] = []
 
         self._setup_ui()
         self.reload_projects()
@@ -69,7 +71,7 @@ class ProjectTab(ProjectActionsMixin, ProjectResourcePanelMixin, QWidget):
         self.btn_delete = QPushButton(CFG.DELETE_LABEL)
         self.btn_refresh = QPushButton(CFG.REFRESH_PROJECTS_LABEL)
 
-        for btn in(
+        for btn in (
             self.btn_new,
             self.btn_edit,
             self.btn_delete,
@@ -85,6 +87,7 @@ class ProjectTab(ProjectActionsMixin, ProjectResourcePanelMixin, QWidget):
         toolbar.addWidget(self.btn_refresh)
 
         layout.addLayout(toolbar)
+        self._build_project_filters(layout)
 
         content = QSplitter(Qt.Horizontal)
         content.setChildrenCollapsible(False)
@@ -148,21 +151,8 @@ class ProjectTab(ProjectActionsMixin, ProjectResourcePanelMixin, QWidget):
     def reload_projects(self):
         selected = self._get_selected_project()
         selected_id = selected.id if selected else None
-        projects = self._project_service.list_projects()
-        self.model.set_projects(projects)
-        if not projects:
-            self._reload_project_resource_panel_for_selected_project()
-            self._sync_actions()
-            return
-        row = 0
-        if selected_id:
-            for i, p in enumerate(projects):
-                if p.id == selected_id:
-                    row = i
-                    break
-        self.table.selectRow(row)
-        self._reload_project_resource_panel_for_selected_project()
-        self._sync_actions()
+        self._all_projects = self._project_service.list_projects()
+        self._render_project_rows(preferred_project_id=selected_id)
 
     def _on_project_changed_event(self, _project_id: str) -> None:
         self.reload_projects()
@@ -186,5 +176,4 @@ class ProjectTab(ProjectActionsMixin, ProjectResourcePanelMixin, QWidget):
         self.btn_new.setEnabled(self._can_manage_projects)
         self.btn_edit.setEnabled(self._can_manage_projects and has_project)
         self.btn_delete.setEnabled(self._can_manage_projects and has_project)
-
 
