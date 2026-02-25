@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -22,8 +23,12 @@ from core.services.auth.passwords import hash_password, verify_password
 from core.services.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
 from core.services.auth.session import UserSessionContext, UserSessionPrincipal
 
+if TYPE_CHECKING:
+    from core.services.audit.service import AuditService
+
 
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -36,6 +41,7 @@ class AuthService:
         user_role_repo: UserRoleRepository,
         role_permission_repo: RolePermissionRepository,
         user_session: UserSessionContext | None = None,
+        audit_service: "AuditService | None" = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -44,6 +50,7 @@ class AuthService:
         self._user_role_repo: UserRoleRepository = user_role_repo
         self._role_permission_repo: RolePermissionRepository = role_permission_repo
         self._user_session: UserSessionContext | None = user_session
+        self._audit_service: AuditService | None = audit_service
 
     def bootstrap_defaults(self) -> UserAccount:
         self._ensure_default_permissions()
@@ -129,9 +136,27 @@ class AuthService:
         normalized = (username or "").strip().lower()
         user = self._user_repo.get_by_username(normalized)
         if not user or not user.is_active:
+            self._record_auth_event(
+                action="auth.login.failed",
+                username=normalized,
+                user_id=user.id if user else None,
+                details={"reason": "invalid_credentials"},
+            )
             raise ValidationError("Invalid credentials.", code="AUTH_FAILED")
         if not verify_password(raw_password, user.password_hash):
+            self._record_auth_event(
+                action="auth.login.failed",
+                username=normalized,
+                user_id=user.id,
+                details={"reason": "invalid_credentials"},
+            )
             raise ValidationError("Invalid credentials.", code="AUTH_FAILED")
+        self._record_auth_event(
+            action="auth.login.success",
+            username=user.username,
+            user_id=user.id,
+            details={"result": "ok"},
+        )
         return user
 
     def change_password(self, user_id: str, current_password: str, new_password: str) -> None:
@@ -352,6 +377,29 @@ class AuthService:
                 "Invalid email format.",
                 code="INVALID_EMAIL",
             )
+
+    def _record_auth_event(
+        self,
+        *,
+        action: str,
+        username: str,
+        user_id: str | None,
+        details: dict[str, str],
+    ) -> None:
+        if self._audit_service is None:
+            return
+        try:
+            self._audit_service.record(
+                action=action,
+                entity_type="auth_session",
+                entity_id=user_id or username or "unknown",
+                actor_user_id=user_id,
+                actor_username=username or None,
+                details=details,
+                commit=True,
+            )
+        except Exception as exc:
+            logger.warning("Failed to write auth audit event '%s': %s", action, exc)
 
 
 __all__ = ["AuthService"]

@@ -146,6 +146,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_role_repo=user_role_repo,
         role_permission_repo=role_permission_repo,
         user_session=user_session,
+        audit_service=audit_service,
     )
     auth_service.bootstrap_defaults()
 

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from core.exceptions import BusinessRuleError
+from core.exceptions import BusinessRuleError, ValidationError
 
 
 def _login_admin(services):
@@ -153,3 +153,19 @@ def test_assignment_and_project_resource_audit_use_business_labels(services):
 
     project_resource_add = next(e for e in entries if e.action == "project_resource.add")
     assert project_resource_add.details.get("resource_name") == "Backend Dev"
+
+
+def test_auth_login_attempts_are_audited(services):
+    auth = services["auth_service"]
+    audit = services["audit_service"]
+
+    admin = auth.authenticate("admin", "ChangeMe123!")
+    assert admin.username == "admin"
+
+    with pytest.raises(ValidationError, match="Invalid credentials"):
+        auth.authenticate("admin", "WrongPassword123")
+
+    entries = audit.list_recent(limit=50, entity_type="auth_session")
+    actions = [entry.action for entry in entries]
+    assert "auth.login.success" in actions
+    assert "auth.login.failed" in actions

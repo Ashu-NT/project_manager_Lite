@@ -28,15 +28,23 @@ class AuditService:
         entity_id: str,
         project_id: str | None = None,
         details: dict[str, Any] | None = None,
+        actor_user_id: str | None = None,
+        actor_username: str | None = None,
         commit: bool = False,
     ) -> AuditLogEntry:
         principal = self._user_session.principal if self._user_session else None
+        resolved_actor_user_id = actor_user_id if actor_user_id is not None else (
+            principal.user_id if principal else None
+        )
+        resolved_actor_username = actor_username if actor_username is not None else (
+            principal.username if principal else None
+        )
         entry = AuditLogEntry.create(
             action=action,
             entity_type=entity_type,
             entity_id=entity_id,
-            actor_user_id=principal.user_id if principal else None,
-            actor_username=principal.username if principal else None,
+            actor_user_id=resolved_actor_user_id,
+            actor_username=resolved_actor_username,
             project_id=project_id,
             details=details or {},
         )
@@ -60,4 +68,3 @@ class AuditService:
 
 
 __all__ = ["AuditService"]
-
