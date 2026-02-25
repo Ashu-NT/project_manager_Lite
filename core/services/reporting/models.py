@@ -169,3 +169,22 @@ class CostBreakdownRow:
     actual: float
 
 
+@dataclass
+class CostSourceRow:
+    source_key: str
+    source_label: str
+    planned: float
+    committed: float
+    actual: float
+
+
+@dataclass
+class CostSourceBreakdown:
+    project_id: str
+    project_currency: str | None
+    rows: list[CostSourceRow]
+    total_planned: float
+    total_committed: float
+    total_actual: float
+    notes: list[str]
+

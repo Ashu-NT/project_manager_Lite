@@ -321,6 +321,11 @@ def test_cost_policy_uses_manual_labor_as_fallback_when_no_computed_labor(servic
     assert totals.planned == pytest.approx(300.0)
     assert totals.committed == pytest.approx(120.0)
     assert totals.actual == pytest.approx(80.0)
+    source = rp.get_project_cost_source_breakdown(pid)
+    rows = {r.source_key: r for r in source.rows}
+    assert rows["DIRECT_COST"].actual == pytest.approx(0.0)
+    assert rows["COMPUTED_LABOR"].actual == pytest.approx(0.0)
+    assert rows["LABOR_ADJUSTMENT"].actual == pytest.approx(80.0)
 
     kpi = rp.get_project_kpis(pid)
     assert kpi.total_planned_cost == pytest.approx(300.0)
@@ -402,6 +407,12 @@ def test_cost_policy_consistent_across_kpi_evm_breakdown_and_totals(services):
     assert totals.committed == pytest.approx(20.0)  # manual labor committed excluded
     assert totals.actual == pytest.approx(230.0)  # 200 computed labor + 30 overhead
     assert totals.exposure == pytest.approx(230.0)
+    source = rp.get_project_cost_source_breakdown(pid, as_of=date(2023, 11, 30))
+    rows = {r.source_key: r for r in source.rows}
+    assert rows["DIRECT_COST"].actual == pytest.approx(30.0)
+    assert rows["COMPUTED_LABOR"].actual == pytest.approx(200.0)
+    assert rows["LABOR_ADJUSTMENT"].actual == pytest.approx(0.0)
+    assert source.notes
 
     kpi = rp.get_project_kpis(pid)
     assert kpi.total_planned_cost == pytest.approx(1150.0)

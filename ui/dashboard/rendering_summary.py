@@ -101,7 +101,16 @@ class DashboardSummaryRenderingMixin:
         self.kpi_late.set_value(fmt_int(k.late_tasks))
 
         self.kpi_cost.set_value(f"{fmt_float(k.cost_variance,2)}")
-        self.kpi_cost.set_subtitle("Actual - Planned")
+        cost_subtitle = "Actual - Planned"
+        sources = getattr(data, "cost_sources", None)
+        if sources and getattr(sources, "rows", None):
+            actual_map = {row.source_key: float(row.actual or 0.0) for row in sources.rows}
+            cost_subtitle = (
+                f"Direct Cost {fmt_float(actual_map.get('DIRECT_COST', 0.0), 0)} | "
+                f"Computed Labor {fmt_float(actual_map.get('COMPUTED_LABOR', 0.0), 0)} | "
+                f"Labor Adjustment {fmt_float(actual_map.get('LABOR_ADJUSTMENT', 0.0), 0)}"
+            )
+        self.kpi_cost.set_subtitle(cost_subtitle)
 
         pct = 0.0
         if k.tasks_total > 0:

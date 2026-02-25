@@ -17,6 +17,7 @@ class KPIReportDialog(QDialog):
 
     def _setup_ui(self):
         kpi = self._reporting_service.get_project_kpis(self._project_id)
+        cost_sources = self._reporting_service.get_project_cost_source_breakdown(self._project_id)
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
@@ -111,6 +112,29 @@ class KPIReportDialog(QDialog):
             )
         )
         layout.addLayout(details_row)
+        rows_by_key = {row.source_key: row for row in cost_sources.rows}
+
+        def _fmt_source(key: str) -> str:
+            row = rows_by_key.get(key)
+            if row is None:
+                return "P 0.00 | C 0.00 | A 0.00"
+            return f"P {row.planned:.2f} | C {row.committed:.2f} | A {row.actual:.2f}"
+
+        layout.addWidget(
+            section_group(
+                "Cost Source Transparency",
+                [
+                    ("Direct Cost:", _fmt_source("DIRECT_COST")),
+                    ("Computed Labor:", _fmt_source("COMPUTED_LABOR")),
+                    ("Labor Adjustment:", _fmt_source("LABOR_ADJUSTMENT")),
+                ],
+            )
+        )
+        if cost_sources.notes:
+            source_note = QLabel(" ".join(cost_sources.notes))
+            source_note.setWordWrap(True)
+            source_note.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+            layout.addWidget(source_note)
 
         hint = QLabel(
             "Use Excel/PDF exports from the Reports tab when you need printable reporting packages."

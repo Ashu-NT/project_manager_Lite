@@ -11,6 +11,8 @@ from core.models import CostType, DependencyType
 from core.exceptions import BusinessRuleError
 from core.reporting import api as reporting_api
 from core.services.reporting.models import (
+    CostSourceBreakdown,
+    CostSourceRow,
     CostBreakdownRow,
     EarnedValueMetrics,
     EvmSeriesPoint,
@@ -200,12 +202,13 @@ def test_excel_export_contains_expected_sections_when_baseline_exists(services, 
 
     wb = load_workbook(output)
     names = set(wb.sheetnames)
-    assert {"Overview", "Tasks", "Resources", "EVM", "Variance", "Cost Breakdown"}.issubset(names)
+    assert {"Overview", "Tasks", "Resources", "EVM", "Variance", "Cost Breakdown", "Cost Sources"}.issubset(names)
     assert wb["Overview"]["A1"].value.startswith("Project KPIs - ")
     assert wb["Tasks"]["A1"].value == "Task ID"
     assert wb["EVM"]["A2"].value == "Metric"
     assert wb["EVM"]["D2"].value == "Period End"
     assert wb["Cost Breakdown"]["A1"].value == "Type"
+    assert wb["Cost Sources"]["A1"].value == "Source"
 
 
 def test_excel_export_without_baseline_skips_evm_sheet(services, tmp_path):
@@ -338,6 +341,37 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     cost_breakdown = [
         CostBreakdownRow(cost_type="MATERIAL", currency="USD", planned=100.0, actual=50.0)
     ]
+    cost_sources = CostSourceBreakdown(
+        project_id="p1",
+        project_currency="USD",
+        rows=[
+            CostSourceRow(
+                source_key="DIRECT_COST",
+                source_label="Direct Cost",
+                planned=100.0,
+                committed=60.0,
+                actual=50.0,
+            ),
+            CostSourceRow(
+                source_key="COMPUTED_LABOR",
+                source_label="Computed Labor",
+                planned=20.0,
+                committed=0.0,
+                actual=10.0,
+            ),
+            CostSourceRow(
+                source_key="LABOR_ADJUSTMENT",
+                source_label="Labor Adjustment",
+                planned=0.0,
+                committed=0.0,
+                actual=0.0,
+            ),
+        ],
+        total_planned=120.0,
+        total_committed=60.0,
+        total_actual=60.0,
+        notes=[],
+    )
 
     class DummyReportingService:
         def get_project_kpis(self, _project_id):
@@ -368,6 +402,10 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
             assert as_of == date(2023, 11, 30)
             return cost_breakdown
 
+        def get_project_cost_source_breakdown(self, _project_id, as_of=None):
+            assert as_of == date(2023, 11, 30)
+            return cost_sources
+
     captured = {}
 
     class _FakeExcelRenderer:
@@ -396,10 +434,12 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     assert captured["excel_ctx"].evm_series == series
     assert captured["excel_ctx"].baseline_variance == variance
     assert captured["excel_ctx"].cost_breakdown == cost_breakdown
+    assert captured["excel_ctx"].cost_sources == cost_sources
     assert captured["excel_ctx"].as_of == as_of
 
     assert captured["pdf_ctx"].evm is evm
     assert captured["pdf_ctx"].evm_series == series
     assert captured["pdf_ctx"].baseline_variance == variance
     assert captured["pdf_ctx"].cost_breakdown == cost_breakdown
+    assert captured["pdf_ctx"].cost_sources == cost_sources
     assert captured["pdf_ctx"].as_of == as_of

@@ -144,6 +144,34 @@ class PdfReportRenderer:
             story.append(table)
             story.append(Spacer(1, 16))
 
+        # ---------------- Cost Sources ----------------
+        if ctx.cost_sources:
+            story.append(Paragraph("Cost Sources (Policy Applied)", styles["Heading2"]))
+            story.append(Spacer(1, 8))
+
+            data = [["Source", "Planned", "Committed", "Actual"]]
+            for src in ctx.cost_sources.rows:
+                data.append([
+                    str(src.source_label),
+                    f"{float(src.planned or 0.0):.2f}",
+                    f"{float(src.committed or 0.0):.2f}",
+                    f"{float(src.actual or 0.0):.2f}",
+                ])
+
+            table = Table(data, colWidths=[200, 120, 120, 120])
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+            ]))
+            story.append(table)
+            if ctx.cost_sources.notes:
+                story.append(Spacer(1, 6))
+                for note in ctx.cost_sources.notes:
+                    story.append(Paragraph(note, styles["Normal"]))
+            story.append(Spacer(1, 16))
+
         # ---------------- Resources ----------------
         if ctx.resources:
             story.append(Paragraph("Resource Load Summary", styles["Heading2"]))

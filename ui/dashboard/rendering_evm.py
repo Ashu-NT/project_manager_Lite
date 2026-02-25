@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QGridLayout, QGroupBox, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QComboBox, QGridLayout, QGroupBox, QLabel, QSizePolicy, QVBoxLayout, QWidget
 from core.services.dashboard import DashboardData
 from ui.styles.formatting import fmt_money, fmt_ratio
 from ui.styles.ui_config import UIConfig as CFG
@@ -27,16 +27,17 @@ class DashboardEvmRenderingMixin:
         box.setFont(CFG.GROUPBOX_TITLE_FONT)
         root = QVBoxLayout(box)
         root.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        root.setSpacing(CFG.SPACING_SM)
+        root.setSpacing(CFG.SPACING_MD)
         self.evm_hint = QLabel("Create a baseline to enable EVM metrics.")
         self.evm_hint.setWordWrap(True)
+        self.evm_hint.setMinimumHeight(38)
         self.evm_hint.setStyleSheet(
             f"""
             color: {CFG.COLOR_TEXT_SECONDARY};
             background-color: {CFG.COLOR_BG_SURFACE_ALT};
             border: 1px solid {CFG.COLOR_BORDER};
             border-radius: 8px;
-            padding: 6px 8px;
+            padding: 8px 10px;
             """
         )
         root.addWidget(self.evm_hint)
@@ -67,25 +68,30 @@ class DashboardEvmRenderingMixin:
                 background-color: {CFG.COLOR_BG_SURFACE_ALT};
                 border: 1px solid {CFG.COLOR_BORDER};
                 border-radius: 8px;
-                padding: 5px 7px;
+                padding: 7px 9px;
                 """
             )
             lbl.setWordWrap(True)
+            lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             lbl.setTextFormat(Qt.PlainText)
             lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            lbl.setMinimumHeight(42)
+            lbl.setMinimumHeight(50)
+            lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         summary_grid = QGridLayout()
-        summary_grid.setHorizontalSpacing(CFG.SPACING_SM)
-        summary_grid.setVerticalSpacing(CFG.SPACING_SM)
+        summary_grid.setHorizontalSpacing(CFG.SPACING_XS)
+        summary_grid.setVerticalSpacing(CFG.SPACING_XS)
         summary_grid.addWidget(self.evm_cost_summary, 0, 0)
         summary_grid.addWidget(self.evm_schedule_summary, 0, 1)
         summary_grid.addWidget(self.evm_forecast_summary, 1, 0)
         summary_grid.addWidget(self.evm_TCPI_summary, 1, 1)
         summary_grid.setColumnStretch(0, 1)
         summary_grid.setColumnStretch(1, 1)
+        summary_grid.setRowStretch(0, 1)
+        summary_grid.setRowStretch(1, 1)
         summary_host = QWidget()
         summary_host.setLayout(summary_grid)
+        summary_host.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         root.addWidget(summary_host)
         self.cpi_lbl = QLabel("CPI")
         self.pv_lbl = QLabel("PV")
@@ -110,22 +116,21 @@ class DashboardEvmRenderingMixin:
             (self.tcpi_eac, self.lbl_tcpi_eac, "TCPI_EAC"),
         ]
         grid = QGridLayout()
-        grid.setHorizontalSpacing(CFG.SPACING_SM)
-        grid.setVerticalSpacing(CFG.SPACING_SM)
+        grid.setHorizontalSpacing(CFG.SPACING_XS)
+        grid.setVerticalSpacing(CFG.SPACING_XS)
         for i in range(3):
             grid.setColumnStretch(i, 1)
         for index, (title_label, value_label, metric_key) in enumerate(metrics):
             row = index // 3
             color = evm_map.get(metric_key, CFG.EVM_DEFAULT_COLOR)
-            tile = self._build_metric_tile(
-                title_label,
-                value_label,
-                color,
-                compact=(row == 2),
-            )
+            tile = self._build_metric_tile(title_label, value_label, color)
             grid.addWidget(tile, row, index % 3)
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 1)
         metrics_host = QWidget()
         metrics_host.setLayout(grid)
+        metrics_host.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
         root.addWidget(metrics_host)
         box.setStyleSheet(
             f"""
@@ -146,26 +151,38 @@ class DashboardEvmRenderingMixin:
         )
         return box
 
-    def _build_metric_tile(self, title_label: QLabel, value_label: QLabel, color: str, *, compact: bool = False) -> QWidget:
+    def _build_metric_tile(
+        self,
+        title_label: QLabel,
+        value_label: QLabel,
+        color: str,
+        *,
+        compact: bool = False,
+    ) -> QWidget:
         title_label.setStyleSheet(
             f"font-size: {'8pt' if compact else '8.5pt'}; "
             f"font-weight: 600; color: {CFG.COLOR_TEXT_SECONDARY};"
         )
+        title_label.setWordWrap(False)
         value_label.setStyleSheet(
-            f"font-size: {'10.5pt' if compact else '11.5pt'}; font-weight: 800; color: {color};"
+            f"font-size: {'10.5pt' if compact else '11.5pt'}; "
+            f"font-weight: 800; color: {color};"
         )
+        value_label.setWordWrap(False)
         value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         value_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        value_label.setMinimumHeight(16 if compact else 20)
+        value_label.setMinimumHeight(22)
         tile = QWidget()
         tile.setObjectName("evmMetricTile")
+        tile.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        tile.setMinimumHeight(66 if compact else 70)
         layout = QVBoxLayout(tile)
         if compact:
-            layout.setContentsMargins(8, 5, 8, 5)
-            layout.setSpacing(0)
+            layout.setContentsMargins(8, 6, 8, 6)
+            layout.setSpacing(2)
         else:
             layout.setContentsMargins(10, 8, 10, 8)
-            layout.setSpacing(1)
+            layout.setSpacing(3)
         layout.addWidget(title_label)
         layout.addWidget(value_label)
         tile.setStyleSheet(

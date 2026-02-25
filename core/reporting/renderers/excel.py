@@ -57,6 +57,14 @@ class ExcelReportRenderer:
         kv("Planned cost", ctx.kpi.total_planned_cost)
         kv("Actual cost", ctx.kpi.total_actual_cost)
         kv("Cost variance", ctx.kpi.cost_variance)
+        if ctx.cost_sources:
+            row += 1
+            for src in ctx.cost_sources.rows:
+                kv(f"{src.source_label} (planned)", src.planned)
+                kv(f"{src.source_label} (committed)", src.committed)
+                kv(f"{src.source_label} (actual)", src.actual)
+            for note in ctx.cost_sources.notes:
+                kv("Cost source note", note)
 
         ws.column_dimensions["A"].width = 30
         ws.column_dimensions["B"].width = 25
@@ -228,6 +236,34 @@ class ExcelReportRenderer:
             ws_c.column_dimensions["C"].width = 14
             ws_c.column_dimensions["D"].width = 14
             ws_c.column_dimensions["E"].width = 14
+
+        # ---------------- Cost Sources ----------------
+        if ctx.cost_sources:
+            ws_s = wb.create_sheet("Cost Sources")
+            headers = ["Source", "Planned", "Committed", "Actual"]
+            for i, h in enumerate(headers, start=1):
+                cell = ws_s.cell(row=1, column=i, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+                cell.border = thin_border
+
+            for r_i, src in enumerate(ctx.cost_sources.rows, start=2):
+                ws_s.cell(r_i, 1, src.source_label).border = thin_border
+                ws_s.cell(r_i, 2, float(src.planned or 0.0)).border = thin_border
+                ws_s.cell(r_i, 3, float(src.committed or 0.0)).border = thin_border
+                ws_s.cell(r_i, 4, float(src.actual or 0.0)).border = thin_border
+
+            note_row = len(ctx.cost_sources.rows) + 3
+            for note in ctx.cost_sources.notes:
+                ws_s.cell(note_row, 1, "Note").font = header_font
+                ws_s.cell(note_row, 2, note)
+                note_row += 1
+
+            ws_s.column_dimensions["A"].width = 24
+            ws_s.column_dimensions["B"].width = 14
+            ws_s.column_dimensions["C"].width = 14
+            ws_s.column_dimensions["D"].width = 14
 
         wb.save(output_path)
         return output_path

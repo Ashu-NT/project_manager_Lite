@@ -3,6 +3,7 @@ from datetime import date
 from typing import List, Optional
 
 from core.services.reporting import (
+    CostSourceBreakdown,
     GanttTaskBar,
     ProjectKPI,
     ResourceLoadRow,
@@ -27,6 +28,7 @@ class ExcelReportContext:
     evm_series: Optional[list]
     baseline_variance: Optional[list]
     cost_breakdown: Optional[list]
+    cost_sources: Optional[CostSourceBreakdown]
     as_of: date
 
 @dataclass
@@ -38,5 +40,6 @@ class PdfReportContext:
     evm_series: Optional[list]
     baseline_variance: Optional[list]
     cost_breakdown: Optional[list]
+    cost_sources: Optional[CostSourceBreakdown]
     as_of: date
 

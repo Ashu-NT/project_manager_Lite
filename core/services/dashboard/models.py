@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 
-from core.services.reporting.models import ProjectKPI, ResourceLoadRow
+from core.services.reporting.models import CostSourceBreakdown, ProjectKPI, ResourceLoadRow
 
 
 @dataclass
@@ -49,5 +49,5 @@ class DashboardData:
     alerts: List[str]
     upcoming_tasks: List[UpcomingTask]
     burndown: List[BurndownPoint]
+    cost_sources: CostSourceBreakdown | None = None
     evm: Optional[DashboardEVM] = None
-

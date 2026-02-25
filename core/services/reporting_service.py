@@ -14,6 +14,8 @@ from core.services.reporting.models import (
     ResourceLoadRow,
     TaskVarianceRow,
     CostBreakdownRow,
+    CostSourceRow,
+    CostSourceBreakdown,
 )
 from core.services.scheduling.engine import CPMTaskInfo
 
@@ -32,4 +34,6 @@ __all__ = [
     "ResourceLoadRow",
     "TaskVarianceRow",
     "CostBreakdownRow",
+    "CostSourceRow",
+    "CostSourceBreakdown",
 ]

@@ -36,6 +36,7 @@ class PerformanceVarianceDialog(QDialog):
     def _setup_ui(self):
         rows_variance = self._reporting_service.get_baseline_schedule_variance(self._project_id)
         rows_cost = self._reporting_service.get_cost_breakdown(self._project_id)
+        cost_sources = self._reporting_service.get_project_cost_source_breakdown(self._project_id)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
@@ -52,6 +53,38 @@ class PerformanceVarianceDialog(QDialog):
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         layout.addWidget(subtitle)
+        grp_sources = QGroupBox("Cost Sources (Policy Applied)")
+        grp_sources.setFont(CFG.GROUPBOX_TITLE_FONT)
+        sources_layout = QVBoxLayout(grp_sources)
+        sources_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        sources_layout.setSpacing(CFG.SPACING_SM)
+
+        tbl_sources = QTableWidget(len(cost_sources.rows), 4)
+        tbl_sources.setHorizontalHeaderLabels(["Source", "Planned", "Committed", "Actual"])
+        style_table(tbl_sources)
+        tbl_sources.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        for col in (1, 2, 3):
+            tbl_sources.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeToContents)
+
+        for row, src in enumerate(cost_sources.rows):
+            cells = [
+                QTableWidgetItem(src.source_label),
+                QTableWidgetItem(_fmt_money(src.planned)),
+                QTableWidgetItem(_fmt_money(src.committed)),
+                QTableWidgetItem(_fmt_money(src.actual)),
+            ]
+            for col in (1, 2, 3):
+                cells[col].setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            for col, cell in enumerate(cells):
+                tbl_sources.setItem(row, col, cell)
+
+        sources_layout.addWidget(tbl_sources)
+        if cost_sources.notes:
+            src_note = QLabel(" ".join(cost_sources.notes))
+            src_note.setWordWrap(True)
+            src_note.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+            sources_layout.addWidget(src_note)
+        layout.addWidget(grp_sources, 0)
 
         grp_sched = QGroupBox("Schedule Variance (Baseline vs Current)")
         grp_sched.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -157,4 +190,3 @@ class PerformanceVarianceDialog(QDialog):
 
 
 __all__ = ["PerformanceVarianceDialog"]
-

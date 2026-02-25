@@ -12,6 +12,7 @@ from core.interfaces import (
     ResourceRepository,
 )
 from core.models import CostType
+from core.services.reporting.models import CostSourceBreakdown, CostSourceRow
 
 CostBucketKey = Tuple[CostType, str]
 
@@ -69,6 +70,11 @@ class ReportingCostPolicyMixin:
         key = (cost_type, currency)
         target[key] = float(target.get(key, 0.0) + amount)
 
+    def _currency_in_scope(self, currency: str, project_currency: str | None) -> bool:
+        if not project_currency:
+            return True
+        return currency.upper() == project_currency.upper()
+
     def _sum_bucket_map(
         self,
         values: Dict[CostBucketKey, float],
@@ -80,6 +86,38 @@ class ReportingCostPolicyMixin:
         return float(
             sum(float(v or 0.0) for (ct, c), v in values.items() if c.upper() == cur)
         )
+
+    def _sum_bucket_for_type(
+        self,
+        values: Dict[CostBucketKey, float],
+        *,
+        cost_type: CostType,
+        project_currency: str | None,
+    ) -> float:
+        total = 0.0
+        for (ct, cur), amount in values.items():
+            if ct != cost_type:
+                continue
+            if not self._currency_in_scope(cur, project_currency):
+                continue
+            total += float(amount or 0.0)
+        return float(total)
+
+    def _sum_bucket_excluding_type(
+        self,
+        values: Dict[CostBucketKey, float],
+        *,
+        excluded_type: CostType,
+        project_currency: str | None,
+    ) -> float:
+        total = 0.0
+        for (ct, cur), amount in values.items():
+            if ct == excluded_type:
+                continue
+            if not self._currency_in_scope(cur, project_currency):
+                continue
+            total += float(amount or 0.0)
+        return float(total)
 
     def _resolve_planned_labor_map(self, project_id: str, project_currency: str | None) -> Dict[str, float]:
         planned_labor_by_currency: Dict[str, float] = {}
@@ -239,3 +277,114 @@ class ReportingCostPolicyMixin:
             available=available,
         )
 
+    def get_project_cost_source_breakdown(
+        self,
+        project_id: str,
+        *,
+        as_of: date | None = None,
+    ) -> CostSourceBreakdown:
+        as_of = as_of or date.today()
+        snapshot = self._build_cost_policy_snapshot(project_id, as_of=as_of)
+
+        direct_planned = self._sum_bucket_excluding_type(
+            snapshot.planned_map,
+            excluded_type=CostType.LABOR,
+            project_currency=snapshot.project_currency,
+        )
+        direct_committed = self._sum_bucket_excluding_type(
+            snapshot.committed_map,
+            excluded_type=CostType.LABOR,
+            project_currency=snapshot.project_currency,
+        )
+        direct_actual = self._sum_bucket_excluding_type(
+            snapshot.actual_map,
+            excluded_type=CostType.LABOR,
+            project_currency=snapshot.project_currency,
+        )
+
+        labor_planned_total = self._sum_bucket_for_type(
+            snapshot.planned_map,
+            cost_type=CostType.LABOR,
+            project_currency=snapshot.project_currency,
+        )
+        labor_committed_total = self._sum_bucket_for_type(
+            snapshot.committed_map,
+            cost_type=CostType.LABOR,
+            project_currency=snapshot.project_currency,
+        )
+        labor_actual_total = self._sum_bucket_for_type(
+            snapshot.actual_map,
+            cost_type=CostType.LABOR,
+            project_currency=snapshot.project_currency,
+        )
+
+        manual_raw_planned = 0.0
+        manual_raw_committed = 0.0
+        manual_raw_actual = 0.0
+        for item in self._cost_repo.list_by_project(project_id):
+            if (getattr(item, "cost_type", None) or CostType.OTHER) != CostType.LABOR:
+                continue
+            cur = self._normalize_currency(getattr(item, "currency_code", None), snapshot.project_currency)
+            if not self._currency_in_scope(cur, snapshot.project_currency):
+                continue
+            manual_raw_planned += float(getattr(item, "planned_amount", 0.0) or 0.0)
+            manual_raw_committed += float(getattr(item, "committed_amount", 0.0) or 0.0)
+            actual_amt = float(getattr(item, "actual_amount", 0.0) or 0.0)
+            incurred = getattr(item, "incurred_date", None)
+            if incurred is None or incurred <= as_of:
+                manual_raw_actual += actual_amt
+
+        manual_planned = manual_raw_planned if snapshot.include_manual_labor_planned else 0.0
+        manual_committed = manual_raw_committed if snapshot.include_manual_labor_committed else 0.0
+        manual_actual = manual_raw_actual if snapshot.include_manual_labor_actual else 0.0
+
+        computed_planned = max(0.0, float(labor_planned_total - manual_planned))
+        computed_actual = max(0.0, float(labor_actual_total - manual_actual))
+
+        rows = [
+            CostSourceRow(
+                source_key="DIRECT_COST",
+                source_label="Direct Cost",
+                planned=float(direct_planned),
+                committed=float(direct_committed),
+                actual=float(direct_actual),
+            ),
+            CostSourceRow(
+                source_key="COMPUTED_LABOR",
+                source_label="Computed Labor",
+                planned=float(computed_planned),
+                committed=0.0,
+                actual=float(computed_actual),
+            ),
+            CostSourceRow(
+                source_key="LABOR_ADJUSTMENT",
+                source_label="Labor Adjustment",
+                planned=float(manual_planned),
+                committed=float(labor_committed_total),
+                actual=float(manual_actual),
+            ),
+        ]
+
+        notes: list[str] = []
+        if manual_raw_planned > 0 or manual_raw_committed > 0 or manual_raw_actual > 0:
+            if not (
+                snapshot.include_manual_labor_planned
+                and snapshot.include_manual_labor_committed
+                and snapshot.include_manual_labor_actual
+            ):
+                notes.append(
+                    "Manual labor adjustment entries are recorded, but excluded from "
+                    "totals while computed labor exists."
+                )
+            else:
+                notes.append("Manual labor adjustment entries are active in current totals.")
+
+        return CostSourceBreakdown(
+            project_id=project_id,
+            project_currency=snapshot.project_currency,
+            rows=rows,
+            total_planned=float(direct_planned + computed_planned + manual_planned),
+            total_committed=float(direct_committed + labor_committed_total),
+            total_actual=float(direct_actual + computed_actual + manual_actual),
+            notes=notes,
+        )

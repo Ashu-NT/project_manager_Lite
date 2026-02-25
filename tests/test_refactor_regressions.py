@@ -247,3 +247,29 @@ def test_cost_labor_snapshot_uses_content_sized_columns():
     )
     assert "for col in range(self.tbl_labor_summary.columnCount()):" in text
     assert "header.setSectionResizeMode(col, QHeaderView.ResizeToContents)" in text
+
+
+def test_dashboard_and_report_tabs_surface_cost_source_transparency():
+    root = Path(__file__).resolve().parents[1]
+    dashboard_text = (root / "ui" / "dashboard" / "rendering_summary.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    kpi_text = (root / "ui" / "report" / "dialog_kpi.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    perf_text = (root / "ui" / "report" / "dialog_performance.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "Direct Cost" in dashboard_text
+    assert "Computed Labor" in dashboard_text
+    assert "Labor Adjustment" in dashboard_text
+    assert "get_project_cost_source_breakdown" in kpi_text
+    assert "get_project_cost_source_breakdown" in perf_text
+
+
+def test_reporting_export_api_wires_cost_source_context():
+    text = (Path(__file__).resolve().parents[1] / "core" / "reporting" / "api.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "get_project_cost_source_breakdown" in text
+    assert "cost_sources=" in text

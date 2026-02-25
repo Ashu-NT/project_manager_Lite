@@ -143,8 +143,10 @@ class CostProjectFlowMixin(CostFiltersMixin):
         cur = ((getattr(self._current_project, "currency", "") or "").upper() if self._current_project else "")
         sym = currency_symbol_from_code(cur)
         budget = float(getattr(self._current_project, "planned_budget", 0.0) or 0.0)
+        source_breakdown = None
         try:
             totals = self._reporting_service.get_project_cost_control_totals(pid)
+            source_breakdown = self._reporting_service.get_project_cost_source_breakdown(pid)
             budget = float(getattr(totals, "budget", budget) or budget)
             total_planned = float(getattr(totals, "planned", 0.0) or 0.0)
             total_committed = float(getattr(totals, "committed", 0.0) or 0.0)
@@ -164,10 +166,14 @@ class CostProjectFlowMixin(CostFiltersMixin):
 
         filtered_costs = self._apply_cost_filters(costs=costs, task_names=task_names)
         self.model.set_costs(filtered_costs, task_names)
-        self.lbl_costs_summary.setText(f"Showing {len(filtered_costs)} of {len(costs)} cost item(s).")
+        summary = f"Showing {len(filtered_costs)} of {len(costs)} cost item(s)."
+        if source_breakdown and source_breakdown.rows:
+            actuals = {row.source_key: float(row.actual or 0.0) for row in source_breakdown.rows}
+            summary += ("  Actual sources: Direct Cost {0:.2f}, Computed Labor {1:.2f}, Labor Adjustment {2:.2f}."
+                        .format(actuals.get("DIRECT_COST", 0.0), actuals.get("COMPUTED_LABOR", 0.0), actuals.get("LABOR_ADJUSTMENT", 0.0)))
+        self.lbl_costs_summary.setText(summary)
         try:
             self.reload_labor_summary(pid)
         except Exception as exc:
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_labor_note.setText(f"Labor summary unavailable: {exc}")
-

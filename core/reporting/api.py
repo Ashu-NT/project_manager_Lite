@@ -81,6 +81,7 @@ def generate_excel_report(
     get_series = getattr(reporting_service, "get_evm_series", None)
     get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
     get_cost = getattr(reporting_service, "get_cost_breakdown", None)
+    get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
 
     ctx = ExcelReportContext(
         kpi=reporting_service.get_project_kpis(project_id),
@@ -90,6 +91,7 @@ def generate_excel_report(
         evm_series=_optional_report_call(get_series, project_id, baseline_id=baseline_id, as_of=as_of) if callable(get_series) else None,
         baseline_variance=get_variance(project_id, baseline_id=baseline_id) if callable(get_variance) else None,
         cost_breakdown=get_cost(project_id, as_of=as_of, baseline_id=baseline_id) if callable(get_cost) else None,
+        cost_sources=get_cost_sources(project_id, as_of=as_of) if callable(get_cost_sources) else None,
         as_of=as_of,
     )
     return ExcelReportRenderer().render(ctx, _ensure_parent(Path(output_path)))
@@ -116,6 +118,7 @@ def generate_pdf_report(
     get_series = getattr(reporting_service, "get_evm_series", None)
     get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
     get_cost = getattr(reporting_service, "get_cost_breakdown", None)
+    get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
 
     ctx = PdfReportContext(
         kpi=reporting_service.get_project_kpis(project_id),
@@ -125,6 +128,7 @@ def generate_pdf_report(
         evm_series=_optional_report_call(get_series, project_id, baseline_id=baseline_id, as_of=as_of) if callable(get_series) else None,
         baseline_variance=get_variance(project_id, baseline_id=baseline_id) if callable(get_variance) else None,
         cost_breakdown=get_cost(project_id, as_of=as_of, baseline_id=baseline_id) if callable(get_cost) else None,
+        cost_sources=get_cost_sources(project_id, as_of=as_of) if callable(get_cost_sources) else None,
         as_of=as_of,
     )
     try:

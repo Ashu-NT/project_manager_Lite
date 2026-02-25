@@ -13,6 +13,8 @@ from core.services.reporting.models import (
     ResourceLoadRow,
     TaskVarianceRow,
     CostBreakdownRow,
+    CostSourceRow,
+    CostSourceBreakdown,
 )
 
 __all__ = [
@@ -28,4 +30,6 @@ __all__ = [
     "ResourceLoadRow",
     "TaskVarianceRow",
     "CostBreakdownRow",
+    "CostSourceRow",
+    "CostSourceBreakdown",
 ]

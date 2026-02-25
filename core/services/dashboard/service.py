@@ -54,6 +54,7 @@ class DashboardService(
         alerts = self._build_alerts(project_id, kpi, resource_load)
         upcoming = self._build_upcoming_tasks(project_id)
         burndown = self._build_burndown(project_id)
+        cost_sources = self._reporting.get_project_cost_source_breakdown(project_id)
         evm_obj = self._build_evm(project_id, baseline_id=baseline_id)
 
         return DashboardData(
@@ -61,6 +62,7 @@ class DashboardService(
             alerts=alerts,
             resource_load=resource_load,
             burndown=burndown,
+            cost_sources=cost_sources,
             evm=evm_obj,
             upcoming_tasks=upcoming,
         )

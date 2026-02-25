@@ -35,6 +35,7 @@ class KpiCard(QWidget):
 
         self._lbl_sub: QLabel = QLabel(subtitle)
         self._lbl_sub.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+        self._lbl_sub.setWordWrap(True)
         self._lbl_sub.setVisible(bool(subtitle))
 
         layout.addWidget(self._lbl_title)
