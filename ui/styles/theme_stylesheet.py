@@ -164,6 +164,12 @@ def base_stylesheet() -> str:
         background: {CFG.COLOR_BG_SURFACE};
         color: {CFG.COLOR_TEXT_PRIMARY};
         border-color: {CFG.COLOR_BORDER_STRONG};
+        border-top: 3px solid {CFG.COLOR_ACCENT};
+        border-bottom: 2px solid {CFG.COLOR_BG_SURFACE};
+        font-weight: 700;
+    }}
+    QTabBar::tab:!selected {{
+        margin-top: 2px;
     }}
     QGroupBox {{
         border: 1px solid {CFG.COLOR_BORDER};

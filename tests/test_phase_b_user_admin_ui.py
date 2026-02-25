@@ -24,6 +24,17 @@ def test_audit_tab_resolves_reference_ids_to_display_names():
     assert "self._cost_label_by_id.get(raw, raw)" in text
 
 
+def test_audit_tab_supports_date_and_date_range_filters():
+    text = (ROOT / "ui" / "admin" / "audit_tab.py").read_text(encoding="utf-8", errors="ignore")
+    assert "self.date_mode_filter = QComboBox()" in text
+    assert 'self.date_mode_filter.addItem("All Dates", userData="all")' in text
+    assert 'self.date_mode_filter.addItem("On Date", userData="on")' in text
+    assert 'self.date_mode_filter.addItem("Date Range", userData="range")' in text
+    assert "self.date_from_filter = QDateEdit()" in text
+    assert "self.date_to_filter = QDateEdit()" in text
+    assert "def _date_matches" in text
+
+
 def test_user_admin_tab_exposes_reset_password_action():
     text = (ROOT / "ui" / "admin" / "users_tab.py").read_text(encoding="utf-8", errors="ignore")
     assert 'self.btn_reset_password = QPushButton("Reset Password")' in text

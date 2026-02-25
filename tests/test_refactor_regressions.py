@@ -163,6 +163,13 @@ def test_base_stylesheet_contains_calendar_overrides():
     assert "border: 2px solid" in css
 
 
+def test_base_stylesheet_highlights_selected_tab_clearly():
+    css = base_stylesheet()
+    assert "QTabBar::tab:selected" in css
+    assert "border-top: 3px solid" in css
+    assert "QTabBar::tab:!selected" in css
+
+
 def test_dark_theme_mode_updates_tokens_and_stylesheet():
     set_theme_mode("dark")
     css_dark = base_stylesheet()

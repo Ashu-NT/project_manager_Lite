@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QDateEdit,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -101,6 +103,27 @@ class AuditLogTab(QWidget):
         self.actor_filter.setPlaceholderText("Username...")
         self.actor_filter.setMinimumHeight(CFG.INPUT_HEIGHT)
         toolbar.addWidget(self.actor_filter)
+        toolbar.addWidget(QLabel("Date:"))
+        self.date_mode_filter = QComboBox()
+        self.date_mode_filter.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.date_mode_filter.addItem("All Dates", userData="all")
+        self.date_mode_filter.addItem("On Date", userData="on")
+        self.date_mode_filter.addItem("Date Range", userData="range")
+        toolbar.addWidget(self.date_mode_filter)
+        toolbar.addWidget(QLabel("From:"))
+        self.date_from_filter = QDateEdit()
+        self.date_from_filter.setDisplayFormat(CFG.DATE_FORMAT)
+        self.date_from_filter.setCalendarPopup(True)
+        self.date_from_filter.setDate(QDate.currentDate())
+        self.date_from_filter.setMinimumHeight(CFG.INPUT_HEIGHT)
+        toolbar.addWidget(self.date_from_filter)
+        toolbar.addWidget(QLabel("To:"))
+        self.date_to_filter = QDateEdit()
+        self.date_to_filter.setDisplayFormat(CFG.DATE_FORMAT)
+        self.date_to_filter.setCalendarPopup(True)
+        self.date_to_filter.setDate(QDate.currentDate())
+        self.date_to_filter.setMinimumHeight(CFG.INPUT_HEIGHT)
+        toolbar.addWidget(self.date_to_filter)
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_refresh.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_refresh.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
@@ -126,9 +149,13 @@ class AuditLogTab(QWidget):
         self.entity_filter.currentIndexChanged.connect(self._apply_filters)
         self.action_filter.textChanged.connect(self._apply_filters)
         self.actor_filter.textChanged.connect(self._apply_filters)
+        self.date_mode_filter.currentIndexChanged.connect(self._on_date_mode_changed)
+        self.date_from_filter.dateChanged.connect(self._apply_filters)
+        self.date_to_filter.dateChanged.connect(self._apply_filters)
         self.btn_refresh.clicked.connect(
             make_guarded_slot(self, title="Audit Log", callback=self.reload_logs)
         )
+        self._on_date_mode_changed()
 
     def _connect_domain_events(self) -> None:
         domain_events.project_changed.connect(self._on_domain_event)
@@ -227,8 +254,29 @@ class AuditLogTab(QWidget):
             and (not entity_type or row.entity_type == entity_type)
             and (not action_query or action_query in row.action.lower())
             and (not actor_query or actor_query in (row.actor_username or "").lower())
+            and self._date_matches(row.occurred_at.date())
         ]
         self._populate_table(filtered)
+
+    def _on_date_mode_changed(self) -> None:
+        mode = str(self.date_mode_filter.currentData() or "all")
+        use_from = mode in {"on", "range"}
+        use_to = mode == "range"
+        self.date_from_filter.setEnabled(use_from)
+        self.date_to_filter.setEnabled(use_to)
+        self._apply_filters()
+
+    def _date_matches(self, occurred_on: date) -> bool:
+        mode = str(self.date_mode_filter.currentData() or "all")
+        if mode == "all":
+            return True
+        start_date = self.date_from_filter.date().toPython()
+        if mode == "on":
+            return occurred_on == start_date
+        end_date = self.date_to_filter.date().toPython()
+        if start_date <= end_date:
+            return start_date <= occurred_on <= end_date
+        return end_date <= occurred_on <= start_date
 
     def _populate_table(self, rows: list[AuditLogEntry]) -> None:
         self.table.setRowCount(len(rows))
