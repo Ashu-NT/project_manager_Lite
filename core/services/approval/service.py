@@ -62,11 +62,7 @@ class ApprovalService:
         self._record_governance_audit(
             action="governance.request",
             request=request,
-            details={
-                "request_type": request.request_type,
-                "entity_type": request.entity_type,
-                "entity_id": request.entity_id,
-            },
+            details=self._build_request_audit_details(request),
         )
         if commit:
             self._session.commit()
@@ -122,12 +118,7 @@ class ApprovalService:
         self._record_governance_audit(
             action="governance.reject",
             request=request,
-            details={
-                "request_type": request.request_type,
-                "entity_type": request.entity_type,
-                "entity_id": request.entity_id,
-                "decision_note": request.decision_note,
-            },
+            details=self._build_request_audit_details(request, decision_note=request.decision_note),
         )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
@@ -161,12 +152,7 @@ class ApprovalService:
         self._record_governance_audit(
             action="governance.approve",
             request=request,
-            details={
-                "request_type": request.request_type,
-                "entity_type": request.entity_type,
-                "entity_id": request.entity_id,
-                "decision_note": request.decision_note,
-            },
+            details=self._build_request_audit_details(request, decision_note=request.decision_note),
         )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
@@ -215,6 +201,39 @@ class ApprovalService:
             details=details or {},
             commit=False,
         )
+
+    @staticmethod
+    def _build_request_audit_details(
+        request: ApprovalRequest,
+        *,
+        decision_note: str | None = None,
+    ) -> dict[str, str]:
+        payload = request.payload or {}
+        details: dict[str, str] = {
+            "request_type": request.request_type,
+            "entity_type": request.entity_type,
+        }
+        baseline_name = str(payload.get("name") or "").strip()
+        project_name = str(payload.get("project_name") or "").strip()
+        if baseline_name:
+            details["baseline_name"] = baseline_name
+        if project_name:
+            details["project_name"] = project_name
+        cost_desc = str(payload.get("description") or "").strip()
+        task_name = str(payload.get("task_name") or "").strip()
+        if cost_desc:
+            details["cost_description"] = cost_desc
+        if task_name:
+            details["task_name"] = task_name
+        predecessor_name = str(payload.get("predecessor_name") or "").strip()
+        successor_name = str(payload.get("successor_name") or "").strip()
+        if predecessor_name:
+            details["predecessor_name"] = predecessor_name
+        if successor_name:
+            details["successor_name"] = successor_name
+        if decision_note:
+            details["decision_note"] = decision_note
+        return details
 
 
 __all__ = ["ApprovalService", "ApplyHandler"]

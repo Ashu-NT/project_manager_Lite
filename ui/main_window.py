@@ -148,6 +148,10 @@ class MainWindow(QMainWindow):
             audit_tab = AuditLogTab(
                 audit_service=self.services["audit_service"],
                 project_service=self.services["project_service"],
+                task_service=self.services["task_service"],
+                resource_service=self.services["resource_service"],
+                cost_service=self.services["cost_service"],
+                baseline_service=self.services["baseline_service"],
             )
             self.tabs.addTab(audit_tab, "Audit")
 

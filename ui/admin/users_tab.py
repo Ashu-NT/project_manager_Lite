@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QInputDialog,
     QLabel,
-    QLineEdit,
     QMessageBox,
     QPushButton,
     QTableWidget,
@@ -19,7 +18,7 @@ from PySide6.QtWidgets import (
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import UserAccount
 from core.services.auth import AuthService
-from ui.admin.user_dialog import UserCreateDialog
+from ui.admin.user_dialog import PasswordResetDialog, UserCreateDialog
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -237,26 +236,11 @@ class UserAdminTab(QWidget):
         user = self._selected_user()
         if not user:
             return
+        dlg = PasswordResetDialog(username=user.username, parent=self)
         while True:
-            new_password, ok = QInputDialog.getText(
-                self,
-                "Reset Password",
-                f"New password for '{user.username}':",
-                QLineEdit.Password,
-            )
-            if not ok:
+            if dlg.exec() != QDialog.Accepted:
                 return
-            confirm_password, ok = QInputDialog.getText(
-                self,
-                "Reset Password",
-                "Confirm new password:",
-                QLineEdit.Password,
-            )
-            if not ok:
-                return
-            if new_password != confirm_password:
-                QMessageBox.warning(self, "Users", "Password and confirmation do not match.")
-                continue
+            new_password = dlg.password
             try:
                 self._auth_service.reset_user_password(user.id, new_password)
             except ValidationError as exc:

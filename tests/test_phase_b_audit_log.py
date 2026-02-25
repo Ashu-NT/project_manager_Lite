@@ -82,3 +82,20 @@ def test_governance_request_and_approve_are_audited(services, monkeypatch):
     actions = {entry.action for entry in entries}
     assert "governance.request" in actions
     assert "governance.approve" in actions
+
+
+def test_dependency_audit_details_use_task_names(services):
+    _login_admin(services)
+    ps = services["project_service"]
+    ts = services["task_service"]
+    audit = services["audit_service"]
+
+    project = ps.create_project("Dependency Audit Names")
+    predecessor = ts.create_task(project.id, "Design", start_date=date(2026, 2, 1), duration_days=1)
+    successor = ts.create_task(project.id, "Build", start_date=date(2026, 2, 2), duration_days=1)
+    ts.add_dependency(predecessor.id, successor.id)
+
+    entries = audit.list_recent(limit=40, project_id=project.id)
+    dep_add = next(e for e in entries if e.action == "dependency.add")
+    assert dep_add.details.get("predecessor_name") == "Design"
+    assert dep_add.details.get("successor_name") == "Build"

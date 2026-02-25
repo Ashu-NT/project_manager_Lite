@@ -9,10 +9,6 @@ from core.services.approval.policy import is_governance_required
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import is_admin_session, require_permission
 class TaskDependencyMixin:
-    _session: Session
-    _task_repo: TaskRepository
-    _dependency_repo: DependencyRepository
-
     def add_dependency(
         self,
         predecessor_id: str,
@@ -42,10 +38,10 @@ class TaskDependencyMixin:
             if diagnostic.code == "DEPENDENCY_CYCLE":
                 raise BusinessRuleError(message, code=diagnostic.code)
             raise ValidationError(message, code=diagnostic.code)
-
         pred = self._task_repo.get(predecessor_id)
         if not pred:
             raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
+        succ = self._task_repo.get(successor_id)
         if governed:
             req = self._approval_service.request_change(
                 request_type="dependency.add",
@@ -54,7 +50,9 @@ class TaskDependencyMixin:
                 project_id=pred.project_id,
                 payload={
                     "predecessor_id": predecessor_id,
+                    "predecessor_name": pred.name,
                     "successor_id": successor_id,
+                    "successor_name": succ.name,
                     "dependency_type": dependency_type.value,
                     "lag_days": lag_days,
                 },
@@ -74,8 +72,8 @@ class TaskDependencyMixin:
                 entity_id=dep.id,
                 project_id=pred.project_id,
                 details={
-                    "predecessor_id": dep.predecessor_task_id,
-                    "successor_id": dep.successor_task_id,
+                    "predecessor_name": pred.name,
+                    "successor_name": succ.name,
                     "type": dep.dependency_type.value,
                     "lag_days": dep.lag_days,
                 },
@@ -104,7 +102,13 @@ class TaskDependencyMixin:
                 entity_type="task_dependency",
                 entity_id=dep.id,
                 project_id=project_id,
-                payload={"dependency_id": dep.id},
+                payload={
+                    "dependency_id": dep.id,
+                    "predecessor_id": dep.predecessor_task_id,
+                    "predecessor_name": pred.name if pred else None,
+                    "successor_id": dep.successor_task_id,
+                    "successor_name": succ.name if succ else None,
+                },
             )
             raise BusinessRuleError(
                 f"Approval required for dependency removal. Request {req.id} created.",
@@ -121,8 +125,8 @@ class TaskDependencyMixin:
                 entity_id=dep_id,
                 project_id=project_id,
                 details={
-                    "predecessor_id": dep.predecessor_task_id,
-                    "successor_id": dep.successor_task_id,
+                    "predecessor_name": pred.name if pred else None,
+                    "successor_name": succ.name if succ else None,
                 },
             )
         except Exception as exc:

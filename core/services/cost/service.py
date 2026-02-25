@@ -65,6 +65,7 @@ class CostService:
         if not self._project_repo.get(project_id):
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
+        task = None
         if task_id is not None:
             task = self._task_repo.get(task_id)
             if not task:
@@ -96,6 +97,7 @@ class CostService:
                 payload={
                     "project_id": project_id,
                     "task_id": task_id,
+                    "task_name": task.name if task is not None else None,
                     "description": description,
                     "planned_amount": planned_amount,
                     "committed_amount": committed_amount,
@@ -179,6 +181,7 @@ class CostService:
                 "Cost item changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+        item_task = self._task_repo.get(item.task_id) if item.task_id else None
         if governed:
             req = self._approval_service.request_change(
                 request_type="cost.update",
@@ -188,6 +191,7 @@ class CostService:
                 payload={
                     "cost_id": cost_id,
                     "description": description,
+                    "task_name": item_task.name if item_task is not None else None,
                     "planned_amount": planned_amount,
                     "committed_amount": committed_amount,
                     "actual_amount": actual_amount,
@@ -274,13 +278,18 @@ class CostService:
         item = self._cost_repo.get(cost_id)
         if not item:
             raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
+        item_task = self._task_repo.get(item.task_id) if item.task_id else None
         if governed:
             req = self._approval_service.request_change(
                 request_type="cost.delete",
                 entity_type="cost_item",
                 entity_id=item.id,
                 project_id=item.project_id,
-                payload={"cost_id": cost_id},
+                payload={
+                    "cost_id": cost_id,
+                    "description": item.description,
+                    "task_name": item_task.name if item_task is not None else None,
+                },
             )
             raise BusinessRuleError(
                 f"Approval required for cost deletion. Request {req.id} created.",

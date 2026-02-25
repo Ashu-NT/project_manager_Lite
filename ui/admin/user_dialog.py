@@ -20,6 +20,25 @@ from ui.styles.ui_config import UIConfig as CFG
 _EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
 
+def _set_password_fields_visibility(
+    *,
+    visible: bool,
+    password_input: QLineEdit,
+    confirm_password_input: QLineEdit,
+    toggle_button: QPushButton,
+) -> None:
+    echo_mode = QLineEdit.Normal if visible else QLineEdit.Password
+    password_input.setEchoMode(echo_mode)
+    confirm_password_input.setEchoMode(echo_mode)
+    toggle_button.setText("Hide" if visible else "Show")
+
+
+def _apply_password_strength(label: QLabel, password: str) -> None:
+    strength, color = _password_strength_ui(password)
+    label.setText(f"Strength: {strength}")
+    label.setStyleSheet(f"color: {color}; font-size: 9pt;")
+
+
 class UserCreateDialog(QDialog):
     def __init__(self, role_names: list[str], parent=None):
         super().__init__(parent)
@@ -100,17 +119,15 @@ class UserCreateDialog(QDialog):
         self.accept()
 
     def _toggle_password_visibility(self, visible: bool) -> None:
-        echo_mode = QLineEdit.Normal if visible else QLineEdit.Password
-        self.password_input.setEchoMode(echo_mode)
-        self.confirm_password_input.setEchoMode(echo_mode)
-        self.btn_toggle_password.setText("Hide" if visible else "Show")
+        _set_password_fields_visibility(
+            visible=visible,
+            password_input=self.password_input,
+            confirm_password_input=self.confirm_password_input,
+            toggle_button=self.btn_toggle_password,
+        )
 
     def _update_password_strength(self, password: str) -> None:
-        strength, color = _password_strength_ui(password)
-        self.password_strength_label.setText(f"Strength: {strength}")
-        self.password_strength_label.setStyleSheet(
-            f"color: {color}; font-size: 9pt;"
-        )
+        _apply_password_strength(self.password_strength_label, password)
 
     @property
     def username(self) -> str:
@@ -143,6 +160,98 @@ class UserCreateDialog(QDialog):
         return self.password == self.confirm_password
 
 
+class PasswordResetDialog(QDialog):
+    def __init__(self, username: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Reset Password")
+        self.setMinimumWidth(420)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(CFG.MARGIN_LG, CFG.MARGIN_LG, CFG.MARGIN_LG, CFG.MARGIN_LG)
+        root.setSpacing(CFG.SPACING_MD)
+
+        title = QLabel(f"Reset password for '{username}'")
+        title.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        title.setWordWrap(True)
+        root.addWidget(title)
+
+        form = QFormLayout()
+        form.setSpacing(CFG.SPACING_SM)
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.Password)
+        self.confirm_password_input = QLineEdit()
+        self.confirm_password_input.setEchoMode(QLineEdit.Password)
+        self.btn_toggle_password = QPushButton("Show")
+        self.btn_toggle_password.setCheckable(True)
+        self.btn_toggle_password.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_toggle_password.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        self.password_strength_label = QLabel("Strength: weak")
+        self.password_strength_label.setStyleSheet(
+            f"color: {CFG.COLOR_DANGER}; font-size: 9pt;"
+        )
+        password_row = QHBoxLayout()
+        password_row.setContentsMargins(0, 0, 0, 0)
+        password_row.setSpacing(CFG.SPACING_XS)
+        password_row.addWidget(self.password_input, 1)
+        password_row.addWidget(self.btn_toggle_password)
+        form.addRow("New Password:", password_row)
+        form.addRow("Confirm Password:", self.confirm_password_input)
+        root.addLayout(form)
+        root.addWidget(self.password_strength_label)
+
+        row = QHBoxLayout()
+        row.addStretch()
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_save = QPushButton("Reset")
+        self.btn_cancel.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_save.setFixedHeight(CFG.BUTTON_HEIGHT)
+        row.addWidget(self.btn_cancel)
+        row.addWidget(self.btn_save)
+        root.addLayout(row)
+
+        self.btn_cancel.clicked.connect(self.reject)
+        self.btn_save.clicked.connect(self._validate_and_accept)
+        self.btn_toggle_password.toggled.connect(self._toggle_password_visibility)
+        self.password_input.textChanged.connect(self._update_password_strength)
+        self._update_password_strength("")
+
+    def _validate_and_accept(self) -> None:
+        if not self.password:
+            QMessageBox.warning(self, "Reset Password", "Password is required.")
+            return
+        if not self.passwords_match:
+            QMessageBox.warning(
+                self,
+                "Reset Password",
+                "Password and confirm password must match.",
+            )
+            return
+        self.accept()
+
+    def _toggle_password_visibility(self, visible: bool) -> None:
+        _set_password_fields_visibility(
+            visible=visible,
+            password_input=self.password_input,
+            confirm_password_input=self.confirm_password_input,
+            toggle_button=self.btn_toggle_password,
+        )
+
+    def _update_password_strength(self, password: str) -> None:
+        _apply_password_strength(self.password_strength_label, password)
+
+    @property
+    def password(self) -> str:
+        return self.password_input.text()
+
+    @property
+    def confirm_password(self) -> str:
+        return self.confirm_password_input.text()
+
+    @property
+    def passwords_match(self) -> bool:
+        return self.password == self.confirm_password
+
+
 def _password_strength_ui(password: str) -> tuple[str, str]:
     score = 0
     pwd = password or ""
@@ -164,4 +273,4 @@ def _password_strength_ui(password: str) -> tuple[str, str]:
     return "strong", CFG.COLOR_SUCCESS
 
 
-__all__ = ["UserCreateDialog"]
+__all__ = ["PasswordResetDialog", "UserCreateDialog"]

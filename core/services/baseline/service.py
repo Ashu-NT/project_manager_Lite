@@ -82,7 +82,11 @@ class BaselineService:
                 entity_type="project_baseline",
                 entity_id=project_id,
                 project_id=project_id,
-                payload={"project_id": project_id, "name": name},
+                payload={
+                    "project_id": project_id,
+                    "project_name": project.name,
+                    "name": name,
+                },
             )
             raise BusinessRuleError(
                 f"Approval required for baseline creation. Request {req.id} created.",
@@ -276,6 +280,9 @@ class BaselineService:
 
     def delete_baseline(self, baseline_id: str) -> None:
         require_permission(self._user_session, "baseline.manage", operation_label="delete baseline")
+        baseline = self._baselines.get_baseline(baseline_id)
+        if not baseline:
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
         try:
             self._baselines.delete_baseline(baseline_id)
             self._session.commit()
@@ -284,6 +291,8 @@ class BaselineService:
                 action="baseline.delete",
                 entity_type="project_baseline",
                 entity_id=baseline_id,
+                project_id=baseline.project_id,
+                details={"name": baseline.name},
             )
         except Exception:
             self._session.rollback()
