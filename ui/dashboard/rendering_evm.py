@@ -1,10 +1,20 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QGridLayout, QGroupBox, QLabel, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QComboBox,
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
+)
 from core.services.dashboard import DashboardData
+from ui.dashboard.evm_rows import build_metric_row, build_status_row
 from ui.styles.formatting import fmt_money, fmt_ratio
 from ui.styles.ui_config import UIConfig as CFG
+
+
 class DashboardEvmRenderingMixin:
     baseline_combo: QComboBox
     evm_hint: QLabel
@@ -27,17 +37,17 @@ class DashboardEvmRenderingMixin:
         box.setFont(CFG.GROUPBOX_TITLE_FONT)
         root = QVBoxLayout(box)
         root.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        root.setSpacing(CFG.SPACING_MD)
+        root.setSpacing(CFG.SPACING_SM)
         self.evm_hint = QLabel("Create a baseline to enable EVM metrics.")
         self.evm_hint.setWordWrap(True)
-        self.evm_hint.setMinimumHeight(38)
+        self.evm_hint.setMinimumHeight(34)
         self.evm_hint.setStyleSheet(
             f"""
             color: {CFG.COLOR_TEXT_SECONDARY};
             background-color: {CFG.COLOR_BG_SURFACE_ALT};
             border: 1px solid {CFG.COLOR_BORDER};
             border-radius: 8px;
-            padding: 8px 10px;
+            padding: 6px 10px;
             """
         )
         root.addWidget(self.evm_hint)
@@ -55,44 +65,22 @@ class DashboardEvmRenderingMixin:
         self.evm_schedule_summary = QLabel("")
         self.evm_forecast_summary = QLabel("")
         self.evm_TCPI_summary = QLabel("")
-        for lbl in (
-            self.evm_cost_summary,
-            self.evm_schedule_summary,
-            self.evm_forecast_summary,
-            self.evm_TCPI_summary,
-        ):
-            lbl.setStyleSheet(
-                f"""
-                font-size: 9pt;
-                color: {CFG.COLOR_TEXT_PRIMARY};
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 8px;
-                padding: 7px 9px;
-                """
-            )
-            lbl.setWordWrap(True)
-            lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-            lbl.setTextFormat(Qt.PlainText)
-            lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            lbl.setMinimumHeight(50)
-            lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        summary_grid = QGridLayout()
-        summary_grid.setHorizontalSpacing(CFG.SPACING_XS)
-        summary_grid.setVerticalSpacing(CFG.SPACING_XS)
-        summary_grid.addWidget(self.evm_cost_summary, 0, 0)
-        summary_grid.addWidget(self.evm_schedule_summary, 0, 1)
-        summary_grid.addWidget(self.evm_forecast_summary, 1, 0)
-        summary_grid.addWidget(self.evm_TCPI_summary, 1, 1)
-        summary_grid.setColumnStretch(0, 1)
-        summary_grid.setColumnStretch(1, 1)
-        summary_grid.setRowStretch(0, 1)
-        summary_grid.setRowStretch(1, 1)
+        summary_rows = [
+            (self.evm_cost_summary, CFG.COLOR_DANGER),
+            (self.evm_schedule_summary, CFG.COLOR_SUCCESS),
+            (self.evm_forecast_summary, CFG.COLOR_WARNING),
+            (self.evm_TCPI_summary, CFG.COLOR_TEXT_SECONDARY),
+        ]
+        summary_layout = QVBoxLayout()
+        summary_layout.setContentsMargins(0, 0, 0, 0)
+        summary_layout.setSpacing(CFG.SPACING_XS)
+        for lbl, accent in summary_rows:
+            row = build_status_row(lbl, accent)
+            summary_layout.addWidget(row)
         summary_host = QWidget()
-        summary_host.setLayout(summary_grid)
-        summary_host.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        summary_host.setLayout(summary_layout)
         root.addWidget(summary_host)
+
         self.cpi_lbl = QLabel("CPI")
         self.pv_lbl = QLabel("PV")
         self.spi_lbl = QLabel("SPI")
@@ -115,23 +103,23 @@ class DashboardEvmRenderingMixin:
             (self.tcpi_bac, self.lbl_tcpi, "TCPI"),
             (self.tcpi_eac, self.lbl_tcpi_eac, "TCPI_EAC"),
         ]
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(CFG.SPACING_XS)
-        grid.setVerticalSpacing(CFG.SPACING_XS)
+
+        metrics_grid = QGridLayout()
+        metrics_grid.setContentsMargins(0, 0, 0, 0)
+        metrics_grid.setHorizontalSpacing(CFG.SPACING_XS)
+        metrics_grid.setVerticalSpacing(CFG.SPACING_XS)
         for i in range(3):
-            grid.setColumnStretch(i, 1)
+            metrics_grid.setColumnStretch(i, 1)
         for index, (title_label, value_label, metric_key) in enumerate(metrics):
             row = index // 3
+            col = index % 3
             color = evm_map.get(metric_key, CFG.EVM_DEFAULT_COLOR)
-            tile = self._build_metric_tile(title_label, value_label, color)
-            grid.addWidget(tile, row, index % 3)
-        grid.setRowStretch(0, 1)
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 1)
+            metrics_grid.addWidget(build_metric_row(title_label, value_label, color), row, col)
         metrics_host = QWidget()
-        metrics_host.setLayout(grid)
-        metrics_host.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        metrics_host.setLayout(metrics_grid)
+        metrics_host.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
         root.addWidget(metrics_host)
+
         box.setStyleSheet(
             f"""
             QGroupBox {{
@@ -151,56 +139,6 @@ class DashboardEvmRenderingMixin:
         )
         return box
 
-    def _build_metric_tile(
-        self,
-        title_label: QLabel,
-        value_label: QLabel,
-        color: str,
-        *,
-        compact: bool = False,
-    ) -> QWidget:
-        title_label.setStyleSheet(
-            f"font-size: {'8pt' if compact else '8.5pt'}; "
-            f"font-weight: 600; color: {CFG.COLOR_TEXT_SECONDARY};"
-        )
-        title_label.setWordWrap(False)
-        value_label.setStyleSheet(
-            f"font-size: {'10.5pt' if compact else '11.5pt'}; "
-            f"font-weight: 800; color: {color};"
-        )
-        value_label.setWordWrap(False)
-        value_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        value_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        value_label.setMinimumHeight(22)
-        tile = QWidget()
-        tile.setObjectName("evmMetricTile")
-        tile.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        tile.setMinimumHeight(66 if compact else 70)
-        layout = QVBoxLayout(tile)
-        if compact:
-            layout.setContentsMargins(8, 6, 8, 6)
-            layout.setSpacing(2)
-        else:
-            layout.setContentsMargins(10, 8, 10, 8)
-            layout.setSpacing(3)
-        layout.addWidget(title_label)
-        layout.addWidget(value_label)
-        tile.setStyleSheet(
-            f"""
-            QWidget#evmMetricTile {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-left: 4px solid {color};
-                border-radius: 10px;
-            }}
-            QWidget#evmMetricTile QLabel {{
-                background: transparent;
-                border: none;
-            }}
-            """
-        )
-        return tile
-
     def _format_evm_part(self, heading: str, text: str) -> str:
         clean = " ".join((text or "").split())
         if not clean:
@@ -208,6 +146,7 @@ class DashboardEvmRenderingMixin:
         if ":" in clean:
             return clean
         return f"{heading}: {clean}"
+
     def _update_evm(self, data: DashboardData):
         if data.evm is None:
             self.evm_hint.setText("Create a baseline to enable EVM metrics.")
