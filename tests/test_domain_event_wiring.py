@@ -237,6 +237,16 @@ def test_governance_tab_subscribes_to_approvals_changed_for_auto_refresh():
     assert "domain_events.approvals_changed.connect(self._on_approvals_changed)" in text
 
 
+def test_audit_tab_subscribes_to_domain_events_for_auto_refresh():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "admin" / "audit_tab.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    assert "domain_events.approvals_changed.connect(self._on_domain_event)" in text
+    assert "domain_events.tasks_changed.connect(self._on_domain_event)" in text
+    assert "domain_events.costs_changed.connect(self._on_domain_event)" in text
+
+
 def test_dashboard_subscribes_to_baseline_changed_for_refresh():
     text = (Path(__file__).resolve().parents[1] / "ui" / "dashboard" / "tab.py").read_text(
         encoding="utf-8",

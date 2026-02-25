@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.services.auth import UserSessionContext
+from ui.admin.audit_tab import AuditLogTab
 from ui.admin.users_tab import UserAdminTab
 from ui.calendar.tab import CalendarTab
 from ui.cost.tab import CostTab
@@ -142,6 +143,13 @@ class MainWindow(QMainWindow):
         if self._has_permission("auth.manage"):
             users_tab = UserAdminTab(auth_service=self.services["auth_service"])
             self.tabs.addTab(users_tab, "Users")
+
+        if self._has_permission("auth.manage"):
+            audit_tab = AuditLogTab(
+                audit_service=self.services["audit_service"],
+                project_service=self.services["project_service"],
+            )
+            self.tabs.addTab(audit_tab, "Audit")
 
         if self._has_permission("approval.request") or self._has_permission("approval.decide"):
             governance_tab = GovernanceTab(

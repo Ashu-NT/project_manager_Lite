@@ -136,6 +136,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         session=session,
         approval_repo=approval_repo,
         user_session=user_session,
+        audit_service=audit_service,
     )
     auth_service = AuthService(
         session=session,

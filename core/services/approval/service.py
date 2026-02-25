@@ -11,6 +11,7 @@ from core.interfaces import ApprovalRepository
 from core.models import ApprovalRequest, ApprovalStatus
 from core.services.auth.authorization import require_permission
 from core.services.auth.session import UserSessionContext
+from core.services.audit.service import AuditService
 
 ApplyHandler = Callable[[ApprovalRequest], None]
 
@@ -21,10 +22,12 @@ class ApprovalService:
         session: Session,
         approval_repo: ApprovalRepository,
         user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
     ):
         self._session = session
         self._approval_repo = approval_repo
         self._user_session = user_session
+        self._audit_service = audit_service
         self._apply_handlers: dict[str, ApplyHandler] = {}
 
     def register_apply_handler(self, request_type: str, handler: ApplyHandler) -> None:
@@ -56,6 +59,15 @@ class ApprovalService:
             requested_by_username=principal.username if principal else None,
         )
         self._approval_repo.add(request)
+        self._record_governance_audit(
+            action="governance.request",
+            request=request,
+            details={
+                "request_type": request.request_type,
+                "entity_type": request.entity_type,
+                "entity_id": request.entity_id,
+            },
+        )
         if commit:
             self._session.commit()
             domain_events.approvals_changed.emit(request.id)
@@ -107,6 +119,16 @@ class ApprovalService:
         request.decided_by_username = principal.username if principal else None
         request.decision_note = (note or "").strip() or None
         self._approval_repo.update(request)
+        self._record_governance_audit(
+            action="governance.reject",
+            request=request,
+            details={
+                "request_type": request.request_type,
+                "entity_type": request.entity_type,
+                "entity_id": request.entity_id,
+                "decision_note": request.decision_note,
+            },
+        )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
         return request
@@ -136,6 +158,16 @@ class ApprovalService:
         request.decided_by_username = principal.username if principal else None
         request.decision_note = (note or "").strip() or None
         self._approval_repo.update(request)
+        self._record_governance_audit(
+            action="governance.approve",
+            request=request,
+            details={
+                "request_type": request.request_type,
+                "entity_type": request.entity_type,
+                "entity_id": request.entity_id,
+                "decision_note": request.decision_note,
+            },
+        )
         self._session.commit()
         domain_events.approvals_changed.emit(request.id)
         return request
@@ -165,6 +197,24 @@ class ApprovalService:
     def _emit_post_apply_domain_events(request: ApprovalRequest) -> None:
         if request.request_type == "baseline.create" and request.project_id:
             domain_events.baseline_changed.emit(request.project_id)
+
+    def _record_governance_audit(
+        self,
+        *,
+        action: str,
+        request: ApprovalRequest,
+        details: dict | None = None,
+    ) -> None:
+        if self._audit_service is None:
+            return
+        self._audit_service.record(
+            action=action,
+            entity_type="approval_request",
+            entity_id=request.id,
+            project_id=request.project_id,
+            details=details or {},
+            commit=False,
+        )
 
 
 __all__ = ["ApprovalService", "ApplyHandler"]
