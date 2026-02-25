@@ -101,3 +101,34 @@ def test_admin_can_reset_other_user_password(services):
     assert authenticated.id == user.id
     with pytest.raises(ValidationError, match="Invalid credentials"):
         auth.authenticate("reset-target", "StrongPass123")
+
+
+def test_admin_can_edit_user_profile_without_touching_password(services):
+    auth = services["auth_service"]
+    user = auth.register_user(
+        "profile-target",
+        "StrongPass123",
+        display_name="Old Name",
+        email="old@example.com",
+    )
+
+    updated = auth.update_user_profile(
+        user.id,
+        username="profile-target-updated",
+        display_name="New Name",
+        email="new@example.com",
+    )
+
+    assert updated.username == "profile-target-updated"
+    assert updated.display_name == "New Name"
+    assert updated.email == "new@example.com"
+    assert auth.authenticate("profile-target-updated", "StrongPass123").id == user.id
+
+
+def test_edit_user_profile_rejects_duplicate_username(services):
+    auth = services["auth_service"]
+    auth.register_user("profile-alpha", "StrongPass123")
+    target = auth.register_user("profile-beta", "StrongPass123")
+
+    with pytest.raises(ValidationError, match="Username already exists"):
+        auth.update_user_profile(target.id, username="profile-alpha")

@@ -43,6 +43,33 @@ def test_user_admin_tab_exposes_reset_password_action():
     assert "self._auth_service.reset_user_password(user.id, new_password)" in text
 
 
+def test_user_admin_tab_exposes_edit_user_action():
+    tab_text = (ROOT / "ui" / "admin" / "users_tab.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    dialog_text = (ROOT / "ui" / "admin" / "user_dialog.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert 'self.btn_edit_user = QPushButton("Edit User")' in tab_text
+    assert "def edit_user(self) -> None:" in tab_text
+    assert "UserEditDialog(" in tab_text
+    assert "self._auth_service.update_user_profile(" in tab_text
+    assert "class UserEditDialog(QDialog):" in dialog_text
+
+
+def test_project_tab_exposes_update_status_action():
+    tab_text = (ROOT / "ui" / "project" / "tab.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    actions_text = (ROOT / "ui" / "project" / "actions.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "self.btn_update_status = QPushButton(CFG.UPDATE_PROJECT_STATUS_LABEL)" in tab_text
+    assert "callback=self.update_project_status" in tab_text
+    assert "def update_project_status(self) -> None:" in actions_text
+    assert "self._project_service.set_status(proj.id, selected_status)" in actions_text
+
+
 def test_login_dialog_has_show_hide_password_toggle():
     text = (ROOT / "ui" / "auth" / "login_dialog.py").read_text(encoding="utf-8", errors="ignore")
     assert "self.btn_toggle_password = QPushButton(\"Show\")" in text
@@ -55,3 +82,15 @@ def test_password_reset_dialog_has_strength_toggle_and_confirm_logic():
     assert "self.btn_toggle_password = QPushButton(\"Show\")" in text
     assert "self.password_input.textChanged.connect(self._update_password_strength)" in text
     assert "Password and confirm password must match." in text
+
+
+def test_task_progress_dialog_supports_status_checkbox_update():
+    text = (ROOT / "ui" / "task" / "task_progress_dialog.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    assert "self.status_check = QCheckBox()" in text
+    assert "self.status_combo = QComboBox()" in text
+    assert "form.addRow(\"Status:\", self._with_checkbox(self.status_combo, self.status_check))" in text
+    assert "def status_set(self) -> bool:" in text
+    assert "def status(self) -> TaskStatus | None:" in text

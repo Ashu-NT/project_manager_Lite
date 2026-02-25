@@ -80,6 +80,7 @@ def test_tabs_apply_rbac_hints_and_guarded_slots():
     resource_text = (root / "resource" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     cost_text = (root / "cost" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     calendar_text = (root / "calendar" / "tab.py").read_text(encoding="utf-8", errors="ignore")
+    users_text = (root / "admin" / "users_tab.py").read_text(encoding="utf-8", errors="ignore")
     dashboard_text = (root / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     dashboard_access_text = (root / "dashboard" / "access.py").read_text(
         encoding="utf-8",
@@ -98,6 +99,8 @@ def test_tabs_apply_rbac_hints_and_guarded_slots():
     assert "apply_permission_hint(" in cost_text
     assert "apply_permission_hint(" in calendar_text
     assert "make_guarded_slot(" in calendar_text
+    assert "apply_permission_hint(" in users_text
+    assert "make_guarded_slot(" in users_text
     assert "can_execute_governed_action(" in dashboard_access_text
     assert "apply_permission_hint(" in dashboard_access_text
     assert "wire_dashboard_access(" in dashboard_text

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QDialog, QMessageBox
+from PySide6.QtWidgets import QDialog, QInputDialog, QMessageBox
 
 from core.exceptions import (
     BusinessRuleError,
@@ -8,6 +8,7 @@ from core.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from core.models import ProjectStatus
 from ui.project.dialogs import ProjectEditDialog
 
 
@@ -96,6 +97,48 @@ class ProjectActionsMixin:
             return
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+            return
+        self.reload_projects()
+
+    def update_project_status(self) -> None:
+        proj = self._get_selected_project()
+        if not proj:
+            QMessageBox.information(self, "Project status", "Please select a project.")
+            return
+
+        statuses = [
+            ProjectStatus.PLANNED,
+            ProjectStatus.ACTIVE,
+            ProjectStatus.ON_HOLD,
+            ProjectStatus.COMPLETED,
+        ]
+        labels = [status.value.replace("_", " ").title() for status in statuses]
+        current_status = getattr(proj.status, "value", str(proj.status))
+        current_idx = 0
+        for idx, status in enumerate(statuses):
+            if status.value == current_status:
+                current_idx = idx
+                break
+
+        selected_label, ok = QInputDialog.getItem(
+            self,
+            "Update Project Status",
+            f"Status for '{proj.name}':",
+            labels,
+            current_idx,
+            editable=False,
+        )
+        if not ok:
+            return
+
+        selected_status = statuses[labels.index(selected_label)]
+        try:
+            self._project_service.set_status(proj.id, selected_status)
+        except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as e:
+            QMessageBox.warning(self, "Project status", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Project status", str(e))
             return
         self.reload_projects()
 

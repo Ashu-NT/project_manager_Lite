@@ -199,6 +199,51 @@ class AuthService:
         self._session.commit()
         return user
 
+    def update_user_profile(
+        self,
+        user_id: str,
+        *,
+        username: str | None = None,
+        display_name: str | None = None,
+        email: str | None = None,
+    ) -> UserAccount:
+        require_permission(self._user_session, "auth.manage", operation_label="update user profile")
+        user = self._require_user(user_id)
+
+        if username is not None:
+            normalized = (username or "").strip().lower()
+            if not normalized:
+                raise ValidationError("Username is required.", code="USERNAME_REQUIRED")
+            existing = self._user_repo.get_by_username(normalized)
+            if existing and existing.id != user.id:
+                raise ValidationError("Username already exists.", code="USERNAME_EXISTS")
+            user.username = normalized
+
+        if display_name is not None:
+            user.display_name = (display_name or "").strip() or None
+
+        if email is not None:
+            normalized_email = self._normalize_email(email)
+            self._validate_email(normalized_email)
+            user.email = normalized_email
+
+        user.updated_at = datetime.now(timezone.utc)
+        try:
+            self._user_repo.update(user)
+            self._session.commit()
+        except IntegrityError as exc:
+            self._session.rollback()
+            if "username" in str(exc).lower():
+                raise ValidationError("Username already exists.", code="USERNAME_EXISTS") from exc
+            raise ValidationError(
+                "Failed to update user due to data conflict.",
+                code="USER_UPDATE_CONFLICT",
+            ) from exc
+        except Exception:
+            self._session.rollback()
+            raise
+        return user
+
     def get_user_role_names(self, user_id: str) -> set[str]:
         self._require_user(user_id)
         role_ids = self._user_role_repo.list_role_ids(user_id)

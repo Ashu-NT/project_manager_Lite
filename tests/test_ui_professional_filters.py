@@ -34,6 +34,7 @@ def test_task_tab_has_professional_filters_with_cached_refresh():
     assert "from ui.task.filtering import TaskFiltersMixin" in tab_text
     assert "self._build_task_filters(root)" in tab_text
     assert "class TaskFiltersMixin" in mixin_text
-    assert 'self.task_progress_filter.addItem("In Progress", userData="in_progress")' in mixin_text
+    assert "self.task_status_filter = QComboBox()" in mixin_text
+    assert "self.task_progress_filter" not in mixin_text
     assert "def _refresh_tasks_from_cache" in flow_text
     assert "visible_tasks = self._apply_task_filters(list(self._all_tasks))" in flow_text

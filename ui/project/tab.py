@@ -68,12 +68,14 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         toolbar = QHBoxLayout()
         self.btn_new = QPushButton(CFG.NEW_PROJECT_LABEL)
         self.btn_edit = QPushButton(CFG.EDIT_LABEL)
+        self.btn_update_status = QPushButton(CFG.UPDATE_PROJECT_STATUS_LABEL)
         self.btn_delete = QPushButton(CFG.DELETE_LABEL)
         self.btn_refresh = QPushButton(CFG.REFRESH_PROJECTS_LABEL)
 
         for btn in (
             self.btn_new,
             self.btn_edit,
+            self.btn_update_status,
             self.btn_delete,
             self.btn_refresh,
         ):
@@ -82,6 +84,7 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
 
         toolbar.addWidget(self.btn_new)
         toolbar.addWidget(self.btn_edit)
+        toolbar.addWidget(self.btn_update_status)
         toolbar.addWidget(self.btn_delete)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
@@ -125,6 +128,9 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         self.btn_edit.clicked.connect(
             make_guarded_slot(self, title="Projects", callback=self.edit_project)
         )
+        self.btn_update_status.clicked.connect(
+            make_guarded_slot(self, title="Projects", callback=self.update_project_status)
+        )
         self.btn_delete.clicked.connect(
             make_guarded_slot(self, title="Projects", callback=self.delete_project)
         )
@@ -138,6 +144,11 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         )
         apply_permission_hint(
             self.btn_edit,
+            allowed=self._can_manage_projects,
+            missing_permission="project.manage",
+        )
+        apply_permission_hint(
+            self.btn_update_status,
             allowed=self._can_manage_projects,
             missing_permission="project.manage",
         )
@@ -175,5 +186,6 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         has_project = self._get_selected_project() is not None
         self.btn_new.setEnabled(self._can_manage_projects)
         self.btn_edit.setEnabled(self._can_manage_projects and has_project)
+        self.btn_update_status.setEnabled(self._can_manage_projects and has_project)
         self.btn_delete.setEnabled(self._can_manage_projects and has_project)
 

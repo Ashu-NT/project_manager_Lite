@@ -252,6 +252,73 @@ class PasswordResetDialog(QDialog):
         return self.password == self.confirm_password
 
 
+class UserEditDialog(QDialog):
+    def __init__(
+        self,
+        *,
+        username: str,
+        display_name: str | None,
+        email: str | None,
+        parent=None,
+    ):
+        super().__init__(parent)
+        self.setWindowTitle("Edit User")
+        self.setMinimumWidth(420)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(CFG.MARGIN_LG, CFG.MARGIN_LG, CFG.MARGIN_LG, CFG.MARGIN_LG)
+        root.setSpacing(CFG.SPACING_MD)
+
+        form = QFormLayout()
+        form.setSpacing(CFG.SPACING_SM)
+        self.username_input = QLineEdit()
+        self.display_name_input = QLineEdit()
+        self.email_input = QLineEdit()
+        self.username_input.setText((username or "").strip())
+        self.display_name_input.setText((display_name or "").strip())
+        self.email_input.setText((email or "").strip())
+        form.addRow("Username:", self.username_input)
+        form.addRow("Display Name:", self.display_name_input)
+        form.addRow("Email:", self.email_input)
+        root.addLayout(form)
+
+        row = QHBoxLayout()
+        row.addStretch()
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_save = QPushButton("Save")
+        self.btn_cancel.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_save.setFixedHeight(CFG.BUTTON_HEIGHT)
+        row.addWidget(self.btn_cancel)
+        row.addWidget(self.btn_save)
+        root.addLayout(row)
+
+        self.btn_cancel.clicked.connect(self.reject)
+        self.btn_save.clicked.connect(self._validate_and_accept)
+
+    def _validate_and_accept(self) -> None:
+        if not self.username:
+            QMessageBox.warning(self, "Edit User", "Username is required.")
+            return
+        if self.email and not _EMAIL_RE.match(self.email):
+            QMessageBox.warning(self, "Edit User", "Invalid email format.")
+            return
+        self.accept()
+
+    @property
+    def username(self) -> str:
+        return self.username_input.text().strip()
+
+    @property
+    def display_name(self) -> str | None:
+        value = self.display_name_input.text().strip()
+        return value or None
+
+    @property
+    def email(self) -> str | None:
+        value = self.email_input.text().strip()
+        return value or None
+
+
 def _password_strength_ui(password: str) -> tuple[str, str]:
     score = 0
     pwd = password or ""
@@ -273,4 +340,4 @@ def _password_strength_ui(password: str) -> tuple[str, str]:
     return "strong", CFG.COLOR_SUCCESS
 
 
-__all__ = ["PasswordResetDialog", "UserCreateDialog"]
+__all__ = ["PasswordResetDialog", "UserCreateDialog", "UserEditDialog"]

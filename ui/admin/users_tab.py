@@ -17,17 +17,24 @@ from PySide6.QtWidgets import (
 
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import UserAccount
-from core.services.auth import AuthService
-from ui.admin.user_dialog import PasswordResetDialog, UserCreateDialog
-from ui.shared.guards import make_guarded_slot
+from core.services.auth import AuthService, UserSessionContext
+from ui.admin.user_dialog import PasswordResetDialog, UserCreateDialog, UserEditDialog
+from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
 class UserAdminTab(QWidget):
-    def __init__(self, auth_service: AuthService, parent: QWidget | None = None):
+    def __init__(
+        self,
+        auth_service: AuthService,
+        user_session: UserSessionContext | None = None,
+        parent: QWidget | None = None,
+    ):
         super().__init__(parent)
         self._auth_service = auth_service
+        self._user_session = user_session
+        self._can_manage_users = has_permission(self._user_session, "auth.manage")
         self._rows: list[UserAccount] = []
         self._setup_ui()
         self.reload_users()
@@ -48,6 +55,7 @@ class UserAdminTab(QWidget):
         toolbar = QHBoxLayout()
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_new_user = QPushButton("New User")
+        self.btn_edit_user = QPushButton("Edit User")
         self.btn_assign_role = QPushButton("Assign Role")
         self.btn_revoke_role = QPushButton("Revoke Role")
         self.btn_reset_password = QPushButton("Reset Password")
@@ -55,6 +63,7 @@ class UserAdminTab(QWidget):
         for btn in (
             self.btn_refresh,
             self.btn_new_user,
+            self.btn_edit_user,
             self.btn_assign_role,
             self.btn_revoke_role,
             self.btn_reset_password,
@@ -64,6 +73,7 @@ class UserAdminTab(QWidget):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addWidget(self.btn_new_user)
+        toolbar.addWidget(self.btn_edit_user)
         toolbar.addWidget(self.btn_assign_role)
         toolbar.addWidget(self.btn_revoke_role)
         toolbar.addWidget(self.btn_reset_password)
@@ -91,6 +101,9 @@ class UserAdminTab(QWidget):
         self.btn_new_user.clicked.connect(
             make_guarded_slot(self, title="Users", callback=self.create_user)
         )
+        self.btn_edit_user.clicked.connect(
+            make_guarded_slot(self, title="Users", callback=self.edit_user)
+        )
         self.btn_assign_role.clicked.connect(
             make_guarded_slot(self, title="Users", callback=self.assign_role)
         )
@@ -104,6 +117,36 @@ class UserAdminTab(QWidget):
             make_guarded_slot(self, title="Users", callback=self.toggle_active)
         )
         self.table.itemSelectionChanged.connect(self._sync_actions)
+        apply_permission_hint(
+            self.btn_new_user,
+            allowed=self._can_manage_users,
+            missing_permission="auth.manage",
+        )
+        apply_permission_hint(
+            self.btn_edit_user,
+            allowed=self._can_manage_users,
+            missing_permission="auth.manage",
+        )
+        apply_permission_hint(
+            self.btn_assign_role,
+            allowed=self._can_manage_users,
+            missing_permission="auth.manage",
+        )
+        apply_permission_hint(
+            self.btn_revoke_role,
+            allowed=self._can_manage_users,
+            missing_permission="auth.manage",
+        )
+        apply_permission_hint(
+            self.btn_reset_password,
+            allowed=self._can_manage_users,
+            missing_permission="auth.manage",
+        )
+        apply_permission_hint(
+            self.btn_toggle_active,
+            allowed=self._can_manage_users,
+            missing_permission="auth.manage",
+        )
         self._sync_actions()
 
     def reload_users(self) -> None:
@@ -189,6 +232,40 @@ class UserAdminTab(QWidget):
             break
         self.reload_users()
 
+    def edit_user(self) -> None:
+        user = self._selected_user()
+        if not user:
+            QMessageBox.information(self, "Users", "Please select a user.")
+            return
+
+        dlg = UserEditDialog(
+            username=user.username,
+            display_name=user.display_name,
+            email=user.email,
+            parent=self,
+        )
+        while True:
+            if dlg.exec() != QDialog.Accepted:
+                return
+            try:
+                self._auth_service.update_user_profile(
+                    user.id,
+                    username=dlg.username,
+                    display_name=dlg.display_name,
+                    email=dlg.email,
+                )
+            except ValidationError as exc:
+                QMessageBox.warning(self, "Users", str(exc))
+                continue
+            except (NotFoundError, BusinessRuleError) as exc:
+                QMessageBox.warning(self, "Users", str(exc))
+                return
+            except Exception as exc:
+                QMessageBox.critical(self, "Users", f"Failed to edit user: {exc}")
+                return
+            break
+        self.reload_users()
+
     def assign_role(self) -> None:
         user = self._selected_user()
         if not user:
@@ -270,10 +347,12 @@ class UserAdminTab(QWidget):
 
     def _sync_actions(self) -> None:
         has_user = self._selected_user() is not None
-        self.btn_assign_role.setEnabled(has_user)
-        self.btn_revoke_role.setEnabled(has_user)
-        self.btn_reset_password.setEnabled(has_user)
-        self.btn_toggle_active.setEnabled(has_user)
+        self.btn_new_user.setEnabled(self._can_manage_users)
+        self.btn_edit_user.setEnabled(self._can_manage_users and has_user)
+        self.btn_assign_role.setEnabled(self._can_manage_users and has_user)
+        self.btn_revoke_role.setEnabled(self._can_manage_users and has_user)
+        self.btn_reset_password.setEnabled(self._can_manage_users and has_user)
+        self.btn_toggle_active.setEnabled(self._can_manage_users and has_user)
 
 
 __all__ = ["UserAdminTab"]

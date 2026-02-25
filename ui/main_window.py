@@ -149,7 +149,10 @@ class MainWindow(QMainWindow):
             self.tabs.addTab(report_tab, "Reports")
 
         if self._has_permission("auth.manage"):
-            users_tab = UserAdminTab(auth_service=self.services["auth_service"])
+            users_tab = UserAdminTab(
+                auth_service=self.services["auth_service"],
+                user_session=self._user_session,
+            )
             self.tabs.addTab(users_tab, "Users")
 
         if self._has_permission("auth.manage"):

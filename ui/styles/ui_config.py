@@ -239,6 +239,7 @@ class UIConfig:
     NEW_PROJECT_LABEL = "New Project"
     REFRESH_PROJECTS_LABEL = "Refresh Projects"
     PROJECT_RESOURCES_LABEL = "Project Resources"
+    UPDATE_PROJECT_STATUS_LABEL = "Update Status"
 
     # =====================
     # Dashboard labels

@@ -213,6 +213,7 @@ class TaskLifecycleMixin:
         percent_complete: float | None = None,
         actual_start: date | None = None,
         actual_end: date | None = None,
+        status: TaskStatus | None = None,
         expected_version: int | None = None,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="update task progress")
@@ -247,6 +248,8 @@ class TaskLifecycleMixin:
             if check_start and actual_end < check_start:
                 raise ValidationError("Actual end date cannot be before actual start.")
             task.actual_end = actual_end
+        if status is not None:
+            task.status = status
 
         self._validate_task_within_project_dates(task.project_id, task.actual_start, task.actual_end)
 
@@ -259,7 +262,10 @@ class TaskLifecycleMixin:
                 entity_type="task",
                 entity_id=task.id,
                 project_id=task.project_id,
-                details={"percent_complete": task.percent_complete},
+                details={
+                    "percent_complete": task.percent_complete,
+                    "status": task.status.value,
+                },
             )
         except Exception as exc:
             self._session.rollback()

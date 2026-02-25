@@ -123,6 +123,8 @@ class TaskActionsMixin:
                     kwargs["actual_start"] = dlg.actual_start
                 if dlg.actual_end_set:
                     kwargs["actual_end"] = dlg.actual_end
+                if dlg.status_set:
+                    kwargs["status"] = dlg.status
 
                 if not kwargs:
                     QMessageBox.information(
