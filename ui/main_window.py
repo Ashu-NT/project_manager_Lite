@@ -15,9 +15,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.services.auth import UserSessionContext
 from ui.calendar.tab import CalendarTab
 from ui.cost.tab import CostTab
 from ui.dashboard.tab import DashboardTab
+from ui.governance.tab import GovernanceTab
 from ui.project.tab import ProjectTab
 from ui.report.tab import ReportTab
 from ui.resource.tab import ResourceTab
@@ -31,6 +33,7 @@ class MainWindow(QMainWindow):
     def __init__(self, services: dict[str, object], parent: QWidget | None = None):
         super().__init__(parent)
         self.services: dict[str, object] = services
+        self._user_session: UserSessionContext | None = services.get("user_session")  # type: ignore[assignment]
         self._settings_store = MainWindowSettingsStore()
         default_theme = os.getenv("PM_THEME", "light").strip().lower()
         self._theme_mode: str = self._settings_store.load_theme_mode(default_mode=default_theme)
@@ -60,6 +63,11 @@ class MainWindow(QMainWindow):
         self.theme_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.theme_combo.currentIndexChanged.connect(self._on_theme_changed)
         header_layout.addWidget(self.theme_combo)
+        principal = self._user_session.principal if self._user_session else None
+        if principal is not None:
+            label = principal.display_name or principal.username
+            self.user_label = QLabel(f"User: {label}")
+            header_layout.addWidget(self.user_label)
         layout.addWidget(header)
 
         self.tabs = QTabWidget()
@@ -71,56 +79,76 @@ class MainWindow(QMainWindow):
         self._restore_persisted_state()
 
     def _build_tabs(self) -> None:
-        dashboard_tab = DashboardTab(
-            dashboard_service=self.services["dashboard_service"],
-            project_service=self.services["project_service"],
-            baseline_service=self.services["baseline_service"],
-        )
-        self.tabs.addTab(dashboard_tab, "Dashboard")
+        if self._has_permission("project.read") or self._has_permission("report.view"):
+            dashboard_tab = DashboardTab(
+                dashboard_service=self.services["dashboard_service"],
+                project_service=self.services["project_service"],
+                baseline_service=self.services["baseline_service"],
+            )
+            self.tabs.addTab(dashboard_tab, "Dashboard")
 
-        calendar_tab = CalendarTab(
-            work_calendar_service=self.services["work_calendar_service"],
-            work_calendar_engine=self.services["work_calendar_engine"],
-            scheduling_engine=self.services["scheduling_engine"],
-            project_service=self.services["project_service"],
-            task_service=self.services["task_service"],
-        )
-        self.tabs.addTab(calendar_tab, "Calendar")
+        if self._has_permission("task.read"):
+            calendar_tab = CalendarTab(
+                work_calendar_service=self.services["work_calendar_service"],
+                work_calendar_engine=self.services["work_calendar_engine"],
+                scheduling_engine=self.services["scheduling_engine"],
+                project_service=self.services["project_service"],
+                task_service=self.services["task_service"],
+            )
+            self.tabs.addTab(calendar_tab, "Calendar")
 
-        resource_tab = ResourceTab(resource_service=self.services["resource_service"])
-        self.tabs.addTab(resource_tab, "Resources")
+        if self._has_permission("resource.read"):
+            resource_tab = ResourceTab(resource_service=self.services["resource_service"])
+            self.tabs.addTab(resource_tab, "Resources")
 
-        project_tab = ProjectTab(
-            project_service=self.services["project_service"],
-            task_service=self.services["task_service"],
-            reporting_service=self.services["reporting_service"],
-            project_resource_service=self.services["project_resource_service"],
-            resource_service=self.services["resource_service"],
-        )
-        self.tabs.addTab(project_tab, "Projects")
+        if self._has_permission("project.read"):
+            project_tab = ProjectTab(
+                project_service=self.services["project_service"],
+                task_service=self.services["task_service"],
+                reporting_service=self.services["reporting_service"],
+                project_resource_service=self.services["project_resource_service"],
+                resource_service=self.services["resource_service"],
+            )
+            self.tabs.addTab(project_tab, "Projects")
 
-        task_tab = TaskTab(
-            project_service=self.services["project_service"],
-            task_service=self.services["task_service"],
-            resource_service=self.services["resource_service"],
-            project_resource_service=self.services["project_resource_service"],
-        )
-        self.tabs.addTab(task_tab, "Tasks")
+        if self._has_permission("task.read"):
+            task_tab = TaskTab(
+                project_service=self.services["project_service"],
+                task_service=self.services["task_service"],
+                resource_service=self.services["resource_service"],
+                project_resource_service=self.services["project_resource_service"],
+            )
+            self.tabs.addTab(task_tab, "Tasks")
 
-        cost_tab = CostTab(
-            project_service=self.services["project_service"],
-            task_service=self.services["task_service"],
-            cost_service=self.services["cost_service"],
-            reporting_service=self.services["reporting_service"],
-            resource_service=self.services["resource_service"],
-        )
-        self.tabs.addTab(cost_tab, "Costs")
+        if self._has_permission("cost.read"):
+            cost_tab = CostTab(
+                project_service=self.services["project_service"],
+                task_service=self.services["task_service"],
+                cost_service=self.services["cost_service"],
+                reporting_service=self.services["reporting_service"],
+                resource_service=self.services["resource_service"],
+            )
+            self.tabs.addTab(cost_tab, "Costs")
 
-        report_tab = ReportTab(
-            project_service=self.services["project_service"],
-            reporting_service=self.services["reporting_service"],
-        )
-        self.tabs.addTab(report_tab, "Reports")
+        if self._has_permission("report.view"):
+            report_tab = ReportTab(
+                project_service=self.services["project_service"],
+                reporting_service=self.services["reporting_service"],
+                user_session=self._user_session,
+            )
+            self.tabs.addTab(report_tab, "Reports")
+
+        if self._has_permission("auth.manage"):
+            governance_tab = GovernanceTab(
+                approval_service=self.services["approval_service"],
+                project_service=self.services["project_service"],
+            )
+            self.tabs.addTab(governance_tab, "Governance")
+
+    def _has_permission(self, permission_code: str) -> bool:
+        if self._user_session is None:
+            return True
+        return self._user_session.has_permission(permission_code)
 
     def _rebuild_tabs(self, current_index: int) -> None:
         while self.tabs.count() > 0:

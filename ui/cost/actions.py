@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import CostItem, Project, Task
 from core.services.cost import CostService
 from ui.cost.cost_dialogs import CostEditDialog
@@ -57,6 +57,10 @@ class CostActionsMixin:
             except NotFoundError as e:
                 QMessageBox.warning(self, "Error", str(e))
                 continue
+            except BusinessRuleError as e:
+                QMessageBox.information(self, "Approval required", str(e))
+                self.reload_costs()
+                return
 
             self.reload_costs()
             return
@@ -94,6 +98,10 @@ class CostActionsMixin:
             except (ValidationError, NotFoundError) as e:
                 QMessageBox.warning(self, "Error", str(e))
                 continue
+            except BusinessRuleError as e:
+                QMessageBox.information(self, "Approval required", str(e))
+                self.reload_costs()
+                return
 
             self.reload_costs()
             return
@@ -120,5 +128,9 @@ class CostActionsMixin:
             self._cost_service.delete_cost_item(item.id)
         except NotFoundError as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except BusinessRuleError as e:
+            QMessageBox.information(self, "Approval required", str(e))
+            self.reload_costs()
             return
         self.reload_costs()

@@ -5,8 +5,11 @@ from sqlalchemy.orm import Session
 from datetime import date
 from core.models import CostItem, CostType
 from core.interfaces import CostRepository, ProjectRepository, TaskRepository
-from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from core.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.events.domain_events import domain_events
+from core.services.approval.policy import is_governance_required
+from core.services.audit.helpers import record_audit
+from core.services.auth.authorization import require_permission
 
 DEFAULT_CURRENCY_CODE = "EUR"
 
@@ -18,11 +21,17 @@ class CostService:
         cost_repo: CostRepository,
         project_repo: ProjectRepository,
         task_repo: TaskRepository,
+        user_session=None,
+        audit_service=None,
+        approval_service=None,
     ):
         self._session: Session = session
         self._cost_repo: CostRepository = cost_repo
         self._project_repo: ProjectRepository = project_repo
         self._task_repo: TaskRepository = task_repo
+        self._user_session = user_session
+        self._audit_service = audit_service
+        self._approval_service = approval_service
 
     def add_cost_item(
         self,
@@ -35,7 +44,11 @@ class CostService:
         actual_amount: float = 0.0,
         incurred_date: date | None = None,
         currency_code: str | None = None,
+        bypass_approval: bool = False,
     ) -> CostItem:
+        require_permission(self._user_session, "cost.manage", operation_label="add cost item")
+        if not isinstance(cost_type, CostType):
+            cost_type = CostType(str(cost_type))
         if not self._project_repo.get(project_id):
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
@@ -61,6 +74,32 @@ class CostService:
         if incurred_date is not None and not isinstance(incurred_date, date):
             raise ValidationError("Incurred date must be a valid date.")
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
+        if (
+            not bypass_approval
+            and self._approval_service is not None
+            and is_governance_required("cost.add")
+        ):
+            req = self._approval_service.request_change(
+                request_type="cost.add",
+                entity_type="cost_item",
+                entity_id=task_id or project_id,
+                project_id=project_id,
+                payload={
+                    "project_id": project_id,
+                    "task_id": task_id,
+                    "description": description,
+                    "planned_amount": planned_amount,
+                    "committed_amount": committed_amount,
+                    "actual_amount": actual_amount,
+                    "cost_type": cost_type.value,
+                    "incurred_date": str(incurred_date) if incurred_date else None,
+                    "currency_code": resolved_currency,
+                },
+            )
+            raise BusinessRuleError(
+                f"Approval required for cost creation. Request {req.id} created.",
+                code="APPROVAL_REQUIRED",
+            )
 
         cost_item = CostItem.create(
             project_id=project_id,
@@ -77,6 +116,18 @@ class CostService:
         try:
             self._cost_repo.add(cost_item)
             self._session.commit()
+            record_audit(
+                self,
+                action="cost.add",
+                entity_type="cost_item",
+                entity_id=cost_item.id,
+                project_id=project_id,
+                details={
+                    "description": cost_item.description,
+                    "planned_amount": cost_item.planned_amount,
+                    "actual_amount": cost_item.actual_amount,
+                },
+            )
         except Exception as e:
             self._session.rollback()
             raise e
@@ -95,7 +146,9 @@ class CostService:
         incurred_date: date | None = None,
         currency_code: str | None = None,
         expected_version: int | None = None,
+        bypass_approval: bool = False,
     ) -> CostItem:
+        require_permission(self._user_session, "cost.manage", operation_label="update cost item")
         item = self._cost_repo.get(cost_id)
         if not item:
             raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
@@ -103,6 +156,32 @@ class CostService:
             raise ConcurrencyError(
                 "Cost item changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
+            )
+        if (
+            not bypass_approval
+            and self._approval_service is not None
+            and is_governance_required("cost.update")
+        ):
+            req = self._approval_service.request_change(
+                request_type="cost.update",
+                entity_type="cost_item",
+                entity_id=item.id,
+                project_id=item.project_id,
+                payload={
+                    "cost_id": cost_id,
+                    "description": description,
+                    "planned_amount": planned_amount,
+                    "committed_amount": committed_amount,
+                    "actual_amount": actual_amount,
+                    "cost_type": cost_type.value if cost_type else None,
+                    "incurred_date": str(incurred_date) if incurred_date else None,
+                    "currency_code": currency_code,
+                    "expected_version": expected_version,
+                },
+            )
+            raise BusinessRuleError(
+                f"Approval required for cost update. Request {req.id} created.",
+                code="APPROVAL_REQUIRED",
             )
 
         if description is not None:
@@ -124,6 +203,8 @@ class CostService:
             item.committed_amount = committed_amount
         
         if cost_type is not None:
+            if not isinstance(cost_type, CostType):
+                cost_type = CostType(str(cost_type))
             item.cost_type = cost_type
         
         if incurred_date is not None:
@@ -138,6 +219,18 @@ class CostService:
         try:
             self._cost_repo.update(item)
             self._session.commit()
+            record_audit(
+                self,
+                action="cost.update",
+                entity_type="cost_item",
+                entity_id=item.id,
+                project_id=item.project_id,
+                details={
+                    "description": item.description,
+                    "planned_amount": item.planned_amount,
+                    "actual_amount": item.actual_amount,
+                },
+            )
         except Exception as e:
             self._session.rollback()
             raise e
@@ -145,13 +238,38 @@ class CostService:
         domain_events.costs_changed.emit(item.project_id)
         return item
 
-    def delete_cost_item(self, cost_id: str) -> None:
+    def delete_cost_item(self, cost_id: str, bypass_approval: bool = False) -> None:
+        require_permission(self._user_session, "cost.manage", operation_label="delete cost item")
         item = self._cost_repo.get(cost_id)
         if not item:
             raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
+        if (
+            not bypass_approval
+            and self._approval_service is not None
+            and is_governance_required("cost.delete")
+        ):
+            req = self._approval_service.request_change(
+                request_type="cost.delete",
+                entity_type="cost_item",
+                entity_id=item.id,
+                project_id=item.project_id,
+                payload={"cost_id": cost_id},
+            )
+            raise BusinessRuleError(
+                f"Approval required for cost deletion. Request {req.id} created.",
+                code="APPROVAL_REQUIRED",
+            )
         try:
             self._cost_repo.delete(cost_id)
             self._session.commit()
+            record_audit(
+                self,
+                action="cost.delete",
+                entity_type="cost_item",
+                entity_id=item.id,
+                project_id=item.project_id,
+                details={"description": item.description},
+            )
         except Exception as e:
             self._session.rollback()
             raise e

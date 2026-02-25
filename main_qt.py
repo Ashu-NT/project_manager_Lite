@@ -1,7 +1,7 @@
 # main_qt.py
 import sys
 import os
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtGui import QFont, QIcon
 from infra.resource import resource_path
 
@@ -9,6 +9,7 @@ from infra.db.base import SessionLocal, get_db_url
 from infra.logging_config import setup_logging
 from infra.services import build_service_dict
 
+from ui.auth import LoginDialog
 from ui.main_window import MainWindow
 from ui.settings import MainWindowSettingsStore
 
@@ -41,6 +42,13 @@ def main():
     apply_app_style(app, mode=startup_theme)
    
     services = build_services()
+    if os.getenv("PM_SKIP_LOGIN", "0").strip() not in {"1", "true", "TRUE"}:
+        login = LoginDialog(
+            auth_service=services["auth_service"],
+            user_session=services["user_session"],
+        )
+        if login.exec() != QDialog.Accepted:
+            return
     window = MainWindow(services)
     window.show()
     sys.exit(app.exec())

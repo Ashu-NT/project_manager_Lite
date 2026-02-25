@@ -12,7 +12,10 @@ from core.interfaces import (
     ProjectResourceRepository,
     ResourceRepository,
 )
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.services.approval.policy import is_governance_required
+from core.services.audit.helpers import record_audit
+from core.services.auth.authorization import require_permission
 from core.services.scheduling.engine import SchedulingEngine
 from core.services.work_calendar.engine import WorkCalendarEngine
 
@@ -29,6 +32,9 @@ class BaselineService:
         calendar: WorkCalendarEngine,
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
+        user_session=None,
+        audit_service=None,
+        approval_service=None,
     ):
         self._session: Session = session
         self._projects: ProjectRepository = project_repo
@@ -39,11 +45,36 @@ class BaselineService:
         self._cal: WorkCalendarEngine = calendar
         self._project_resources: ProjectResourceRepository = project_resource_repo
         self._resources: ResourceRepository = resource_repo
+        self._user_session = user_session
+        self._audit_service = audit_service
+        self._approval_service = approval_service
 
-    def create_baseline(self, project_id: str, name: str = "Baseline") -> ProjectBaseline:
+    def create_baseline(
+        self,
+        project_id: str,
+        name: str = "Baseline",
+        bypass_approval: bool = False,
+    ) -> ProjectBaseline:
+        require_permission(self._user_session, "baseline.manage", operation_label="create baseline")
         project = self._projects.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        if (
+            not bypass_approval
+            and self._approval_service is not None
+            and is_governance_required("baseline.create")
+        ):
+            req = self._approval_service.request_change(
+                request_type="baseline.create",
+                entity_type="project_baseline",
+                entity_id=project_id,
+                project_id=project_id,
+                payload={"project_id": project_id, "name": name},
+            )
+            raise BusinessRuleError(
+                f"Approval required for baseline creation. Request {req.id} created.",
+                code="APPROVAL_REQUIRED",
+            )
 
         # Ensure we have a computed schedule (CPM provides earliest_start/finish)
         schedule = self._sched.recalculate_project_schedule(project_id)
@@ -210,6 +241,14 @@ class BaselineService:
             self._baselines.add_baseline(baseline)
             self._baselines.add_baseline_tasks(baseline_tasks)
             self._session.commit()
+            record_audit(
+                self,
+                action="baseline.create",
+                entity_type="project_baseline",
+                entity_id=baseline.id,
+                project_id=project_id,
+                details={"name": baseline.name},
+            )
         except Exception:
             self._session.rollback()
             raise
@@ -223,9 +262,16 @@ class BaselineService:
         return self._baselines.list_for_project(project_id)
 
     def delete_baseline(self, baseline_id: str) -> None:
+        require_permission(self._user_session, "baseline.manage", operation_label="delete baseline")
         try:
             self._baselines.delete_baseline(baseline_id)
             self._session.commit()
+            record_audit(
+                self,
+                action="baseline.delete",
+                entity_type="project_baseline",
+                entity_id=baseline_id,
+            )
         except Exception:
             self._session.rollback()
             raise

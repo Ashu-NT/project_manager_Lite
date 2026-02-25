@@ -4,7 +4,9 @@ New code should import focused models from ``core.domain`` modules.
 This module re-exports all legacy names to preserve existing imports.
 """
 
+from core.domain.approval import ApprovalRequest, ApprovalStatus
 from core.domain.auth import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
+from core.domain.audit import AuditLogEntry
 from core.domain.baseline import BaselineTask, ProjectBaseline
 from core.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
 from core.domain.cost import CostItem
@@ -37,4 +39,7 @@ __all__ = [
     "Permission",
     "UserRoleBinding",
     "RolePermissionBinding",
+    "AuditLogEntry",
+    "ApprovalStatus",
+    "ApprovalRequest",
 ]

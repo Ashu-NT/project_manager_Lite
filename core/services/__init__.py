@@ -1,5 +1,7 @@
 from .baseline import BaselineService
 from .auth import AuthService
+from .approval import ApprovalService
+from .audit import AuditService
 from .calendar import CalendarService
 from .cost import CostService
 from .dashboard import DashboardService, DashboardData, DashboardEVM, UpcomingTask, BurndownPoint
@@ -14,6 +16,8 @@ __all__ = [
     "ProjectService",
     "ProjectResourceService",
     "AuthService",
+    "ApprovalService",
+    "AuditService",
     "TaskService",
     "ResourceService",
     "CostService",

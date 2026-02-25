@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from sqlalchemy.orm import Session
 
+from core.models import CostType, DependencyType
+from core.services.approval import ApprovalService
+from core.services.audit import AuditService
 from core.services.baseline import BaselineService
 from core.services.auth import AuthService
+from core.services.auth.session import UserSessionContext
 from core.services.calendar import CalendarService
 from core.services.cost import CostService
 from core.services.dashboard import DashboardService
@@ -33,12 +38,39 @@ from infra.db.repositories import (
     SqlAlchemyUserRoleRepository,
     SqlAlchemyWorkingCalendarRepository,
 )
+from infra.db.repositories_approval import SqlAlchemyApprovalRepository
+from infra.db.repositories_audit import SqlAlchemyAuditLogRepository
+
+
+def _parse_date(value: Any) -> date | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        return date.fromisoformat(value)
+    raise ValueError(f"Unsupported date value: {value!r}")
+
+
+def _as_cost_type(value: Any) -> CostType:
+    if isinstance(value, CostType):
+        return value
+    return CostType((value or CostType.OVERHEAD.value))
+
+
+def _as_dependency_type(value: Any) -> DependencyType:
+    if isinstance(value, DependencyType):
+        return value
+    return DependencyType((value or DependencyType.FINISH_TO_START.value))
 
 
 @dataclass(frozen=True)
 class ServiceGraph:
     session: Session
+    user_session: UserSessionContext
     auth_service: AuthService
+    audit_service: AuditService
+    approval_service: ApprovalService
     project_service: ProjectService
     task_service: TaskService
     calendar_service: CalendarService
@@ -55,7 +87,10 @@ class ServiceGraph:
     def as_dict(self) -> dict[str, Any]:
         return {
             "session": self.session,
+            "user_session": self.user_session,
             "auth_service": self.auth_service,
+            "audit_service": self.audit_service,
+            "approval_service": self.approval_service,
             "project_service": self.project_service,
             "task_service": self.task_service,
             "calendar_service": self.calendar_service,
@@ -72,6 +107,7 @@ class ServiceGraph:
 
 
 def build_service_graph(session: Session) -> ServiceGraph:
+    user_session = UserSessionContext()
     project_repo = SqlAlchemyProjectRepository(session)
     task_repo = SqlAlchemyTaskRepository(session)
     resource_repo = SqlAlchemyResourceRepository(session)
@@ -87,8 +123,20 @@ def build_service_graph(session: Session) -> ServiceGraph:
     permission_repo = SqlAlchemyPermissionRepository(session)
     user_role_repo = SqlAlchemyUserRoleRepository(session)
     role_permission_repo = SqlAlchemyRolePermissionRepository(session)
+    audit_repo = SqlAlchemyAuditLogRepository(session)
+    approval_repo = SqlAlchemyApprovalRepository(session)
 
     work_calendar_engine = WorkCalendarEngine(work_calendar_repo, calendar_id="default")
+    audit_service = AuditService(
+        session=session,
+        audit_repo=audit_repo,
+        user_session=user_session,
+    )
+    approval_service = ApprovalService(
+        session=session,
+        approval_repo=approval_repo,
+        user_session=user_session,
+    )
     auth_service = AuthService(
         session=session,
         user_repo=user_repo,
@@ -107,6 +155,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         assignment_repo,
         calendar_repo,
         cost_repo,
+        user_session=user_session,
+        audit_service=audit_service,
     )
     project_resource_service = ProjectResourceService(
         project_resource_repo=project_resource_repo,
@@ -124,10 +174,28 @@ def build_service_graph(session: Session) -> ServiceGraph:
         work_calendar_engine,
         project_resource_repo,
         project_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+        approval_service=approval_service,
     )
     calendar_service = CalendarService(session, calendar_repo, task_repo)
-    resource_service = ResourceService(session, resource_repo, assignment_repo, project_resource_repo)
-    cost_service = CostService(session, cost_repo, project_repo, task_repo)
+    resource_service = ResourceService(
+        session,
+        resource_repo,
+        assignment_repo,
+        project_resource_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    cost_service = CostService(
+        session,
+        cost_repo,
+        project_repo,
+        task_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+        approval_service=approval_service,
+    )
     work_calendar_service = WorkCalendarService(session, work_calendar_repo, work_calendar_engine)
     scheduling_engine = SchedulingEngine(
         session,
@@ -159,6 +227,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
         calendar=work_calendar_engine,
         project_resource_repo=project_resource_repo,
         resource_repo=resource_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+        approval_service=approval_service,
     )
     dashboard_service = DashboardService(
         reporting_service=reporting_service,
@@ -168,10 +239,79 @@ def build_service_graph(session: Session) -> ServiceGraph:
         scheduling_engine=scheduling_engine,
         work_calendar_engine=work_calendar_engine,
     )
+    approval_service.register_apply_handler(
+        "baseline.create",
+        lambda req: baseline_service.create_baseline(
+            project_id=req.payload["project_id"],
+            name=req.payload.get("name") or "Baseline",
+            bypass_approval=True,
+        ),
+    )
+    approval_service.register_apply_handler(
+        "dependency.add",
+        lambda req: task_service.add_dependency(
+            predecessor_id=req.payload["predecessor_id"],
+            successor_id=req.payload["successor_id"],
+            dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
+            lag_days=int(req.payload.get("lag_days", 0) or 0),
+            bypass_approval=True,
+        ),
+    )
+    approval_service.register_apply_handler(
+        "dependency.remove",
+        lambda req: task_service.remove_dependency(
+            dep_id=req.payload["dependency_id"],
+            bypass_approval=True,
+        ),
+    )
+    approval_service.register_apply_handler(
+        "cost.add",
+        lambda req: cost_service.add_cost_item(
+            project_id=req.payload["project_id"],
+            description=req.payload.get("description", ""),
+            planned_amount=float(req.payload.get("planned_amount", 0.0) or 0.0),
+            task_id=req.payload.get("task_id"),
+            cost_type=_as_cost_type(req.payload.get("cost_type", "OVERHEAD")),
+            committed_amount=float(req.payload.get("committed_amount", 0.0) or 0.0),
+            actual_amount=float(req.payload.get("actual_amount", 0.0) or 0.0),
+            incurred_date=_parse_date(req.payload.get("incurred_date")),
+            currency_code=req.payload.get("currency_code"),
+            bypass_approval=True,
+        ),
+    )
+    approval_service.register_apply_handler(
+        "cost.update",
+        lambda req: cost_service.update_cost_item(
+            cost_id=req.payload["cost_id"],
+            description=req.payload.get("description"),
+            planned_amount=req.payload.get("planned_amount"),
+            committed_amount=req.payload.get("committed_amount"),
+            actual_amount=req.payload.get("actual_amount"),
+            cost_type=(
+                _as_cost_type(req.payload.get("cost_type"))
+                if req.payload.get("cost_type") is not None
+                else None
+            ),
+            incurred_date=_parse_date(req.payload.get("incurred_date")),
+            currency_code=req.payload.get("currency_code"),
+            expected_version=req.payload.get("expected_version"),
+            bypass_approval=True,
+        ),
+    )
+    approval_service.register_apply_handler(
+        "cost.delete",
+        lambda req: cost_service.delete_cost_item(
+            cost_id=req.payload["cost_id"],
+            bypass_approval=True,
+        ),
+    )
 
     return ServiceGraph(
         session=session,
+        user_session=user_session,
         auth_service=auth_service,
+        audit_service=audit_service,
+        approval_service=approval_service,
         project_service=project_service,
         task_service=task_service,
         calendar_service=calendar_service,

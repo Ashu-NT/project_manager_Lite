@@ -17,6 +17,7 @@ from core.interfaces import (
 from core.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
 from core.services.auth.passwords import hash_password, verify_password
 from core.services.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
+from core.services.auth.session import UserSessionPrincipal
 
 
 class AuthService:
@@ -140,6 +141,25 @@ class AuthService:
 
     def has_permission(self, user_id: str, permission_code: str) -> bool:
         return permission_code in self.get_user_permissions(user_id)
+
+    def get_user_role_names(self, user_id: str) -> set[str]:
+        self._require_user(user_id)
+        role_ids = self._user_role_repo.list_role_ids(user_id)
+        names: set[str] = set()
+        for role_id in role_ids:
+            role = self._role_repo.get(role_id)
+            if role:
+                names.add(role.name)
+        return names
+
+    def build_principal(self, user: UserAccount) -> UserSessionPrincipal:
+        return UserSessionPrincipal(
+            user_id=user.id,
+            username=user.username,
+            display_name=user.display_name,
+            role_names=frozenset(self.get_user_role_names(user.id)),
+            permissions=frozenset(self.get_user_permissions(user.id)),
+        )
 
     def _assign_roles_for_user(self, user_id: str, role_names: Iterable[str]) -> None:
         for role_name in role_names:

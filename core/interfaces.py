@@ -15,9 +15,12 @@ from .models import (
     ProjectBaseline,
     BaselineTask,
     ProjectResource,
+    AuditLogEntry,
+    ApprovalRequest,
     Permission,
     Role,
     RolePermissionBinding,
+    ApprovalStatus,
     UserAccount,
     UserRoleBinding,
 )
@@ -235,3 +238,33 @@ class RolePermissionRepository(ABC):
     def exists(self, role_id: str, permission_id: str) -> bool: ...
     @abstractmethod
     def list_permission_ids(self, role_id: str) -> List[str]: ...
+
+
+class AuditLogRepository(ABC):
+    @abstractmethod
+    def add(self, entry: AuditLogEntry) -> None: ...
+    @abstractmethod
+    def list_recent(
+        self,
+        limit: int = 200,
+        *,
+        project_id: str | None = None,
+        entity_type: str | None = None,
+    ) -> List[AuditLogEntry]: ...
+
+
+class ApprovalRepository(ABC):
+    @abstractmethod
+    def add(self, request: ApprovalRequest) -> None: ...
+    @abstractmethod
+    def update(self, request: ApprovalRequest) -> None: ...
+    @abstractmethod
+    def get(self, request_id: str) -> Optional[ApprovalRequest]: ...
+    @abstractmethod
+    def list_by_status(
+        self,
+        status: ApprovalStatus | None = None,
+        *,
+        limit: int = 200,
+        project_id: str | None = None,
+    ) -> List[ApprovalRequest]: ...

@@ -16,6 +16,8 @@ from core.interfaces import (
     TaskRepository,
 )
 from core.models import Project, ProjectStatus
+from core.services.audit.helpers import record_audit
+from core.services.auth.authorization import require_permission
 from core.services.project.validation import ProjectValidationMixin
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> Project:
+        require_permission(self._user_session, "project.manage", operation_label="create project")
         self._validate_project_name(name)
         resolved_currency = (currency or "").strip().upper() or DEFAULT_CURRENCY_CODE
         project = Project.create(
@@ -58,6 +61,14 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.add(project)
             self._session.commit()
+            record_audit(
+                self,
+                action="project.create",
+                entity_type="project",
+                entity_id=project.id,
+                project_id=project.id,
+                details={"name": project.name},
+            )
             logger.info("Created project %s - %s", project.id, project.name)
             domain_events.project_changed.emit(project.id)
             return project
@@ -67,6 +78,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             raise
 
     def set_status(self, project_id: str, status: ProjectStatus) -> None:
+        require_permission(self._user_session, "project.manage", operation_label="set project status")
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
@@ -75,6 +87,14 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.update(project)
             self._session.commit()
+            record_audit(
+                self,
+                action="project.set_status",
+                entity_type="project",
+                entity_id=project.id,
+                project_id=project.id,
+                details={"status": project.status.value},
+            )
         except Exception:
             self._session.rollback()
             raise
@@ -112,6 +132,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         planned_budget: float | None = None,
         currency: str | None = None,
     ) -> Project:
+        require_permission(self._user_session, "project.manage", operation_label="update project")
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -149,6 +170,14 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         try:
             self._project_repo.update(project)
             self._session.commit()
+            record_audit(
+                self,
+                action="project.update",
+                entity_type="project",
+                entity_id=project.id,
+                project_id=project.id,
+                details={"name": project.name, "status": project.status.value},
+            )
         except Exception:
             self._session.rollback()
             raise
@@ -157,6 +186,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         return project
 
     def delete_project(self, project_id: str) -> None:
+        require_permission(self._user_session, "project.manage", operation_label="delete project")
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
@@ -173,11 +203,18 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             self._calendar_repo.delete_for_project(project_id)
             self._project_repo.delete(project_id)
             self._session.commit()
+            record_audit(
+                self,
+                action="project.delete",
+                entity_type="project",
+                entity_id=project.id,
+                project_id=project.id,
+                details={"name": project.name},
+            )
         except Exception:
             self._session.rollback()
             raise
 
         domain_events.project_changed.emit(project_id)
-
 
 __all__ = ["ProjectLifecycleMixin", "DEFAULT_CURRENCY_CODE"]

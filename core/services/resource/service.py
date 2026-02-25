@@ -7,6 +7,8 @@ from core.models import Resource, CostType
 from core.interfaces import ResourceRepository, AssignmentRepository, ProjectResourceRepository
 from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.events.domain_events import domain_events
+from core.services.audit.helpers import record_audit
+from core.services.auth.authorization import require_permission
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,12 +19,16 @@ class ResourceService:
     def __init__(self, session: Session, 
                  resource_repo: ResourceRepository, 
                  assignment_repo: AssignmentRepository,
-                 project_resource_repo: ProjectResourceRepository | None = None
+                 project_resource_repo: ProjectResourceRepository | None = None,
+                 user_session=None,
+                 audit_service=None,
         ):
         self._session: Session = session
         self._resource_repo: ResourceRepository = resource_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
+        self._user_session = user_session
+        self._audit_service = audit_service
 
     def create_resource(
         self,
@@ -33,6 +39,7 @@ class ResourceService:
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,
     ) -> Resource:
+        require_permission(self._user_session, "resource.manage", operation_label="create resource")
         if not name or not name.strip():
             raise ValidationError("Resource name cannot be empty.")
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
@@ -47,6 +54,13 @@ class ResourceService:
         try:
             self._resource_repo.add(resource)
             self._session.commit()
+            record_audit(
+                self,
+                action="resource.create",
+                entity_type="resource",
+                entity_id=resource.id,
+                details={"name": resource.name, "role": resource.role},
+            )
             logger.info(f"Created resource {resource.id} - {resource.name}")
         except Exception as e:
             self._session.rollback()
@@ -66,6 +80,7 @@ class ResourceService:
         currency_code: str | None = None,
         expected_version: int | None = None,
     ) -> Resource:
+        require_permission(self._user_session, "resource.manage", operation_label="update resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
@@ -95,6 +110,13 @@ class ResourceService:
         try:
             self._resource_repo.update(resource)
             self._session.commit()
+            record_audit(
+                self,
+                action="resource.update",
+                entity_type="resource",
+                entity_id=resource.id,
+                details={"name": resource.name, "role": resource.role},
+            )
             
         except Exception as e:
             self._session.rollback()
@@ -112,6 +134,7 @@ class ResourceService:
         return resource
 
     def delete_resource(self, resource_id: str) -> None:
+        require_permission(self._user_session, "resource.manage", operation_label="delete resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
@@ -126,6 +149,13 @@ class ResourceService:
                  
             self._resource_repo.delete(resource_id)
             self._session.commit()
+            record_audit(
+                self,
+                action="resource.delete",
+                entity_type="resource",
+                entity_id=resource.id,
+                details={"name": resource.name},
+            )
         except Exception as e:
             self._session.rollback()
             raise e

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QComboBox, QInputDialog, QMessageBox
 
+from core.exceptions import BusinessRuleError
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.project import ProjectService
@@ -32,6 +33,8 @@ class DashboardDataOpsMixin:
             self._load_baselines_for_project(proj_id)
             self.baseline_combo.setCurrentIndex(0)
             self.refresh_dashboard()
+        except BusinessRuleError as exc:
+            QMessageBox.information(self, "Baseline", str(exc))
         except Exception as exc:
             QMessageBox.critical(self, "Baseline error", f"Could not create baseline:\n{exc}")
 

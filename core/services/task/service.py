@@ -14,6 +14,9 @@ from core.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
+from core.services.approval.service import ApprovalService
+from core.services.audit.service import AuditService
+from core.services.auth.session import UserSessionContext
 from core.services.task.assignment import TaskAssignmentMixin
 from core.services.task.dependency import TaskDependencyMixin
 from core.services.task.dependency_diagnostics import TaskDependencyDiagnosticsMixin
@@ -43,6 +46,9 @@ class TaskService(
         work_calendar_engine: WorkCalendarEngine,
         project_resource_repo: ProjectResourceRepository | None = None,
         project_repo: ProjectRepository | None = None,
+        user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
+        approval_service: ApprovalService | None = None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -54,6 +60,9 @@ class TaskService(
         self._work_calendar_engine: WorkCalendarEngine = work_calendar_engine
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
         self._project_repo: ProjectRepository | None = project_repo
+        self._user_session: UserSessionContext | None = user_session
+        self._audit_service: AuditService | None = audit_service
+        self._approval_service: ApprovalService | None = approval_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None

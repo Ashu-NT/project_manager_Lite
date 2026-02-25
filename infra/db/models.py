@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum as SAEnum,
     Index,
     Integer,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -272,6 +273,39 @@ class RolePermissionORM(Base):
     permission_id: Mapped[str] = mapped_column(String, ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
 
 
+class AuditLogORM(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    actor_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    actor_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String, nullable=False)
+    project_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    details_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+
+
+class ApprovalRequestORM(Base):
+    __tablename__ = "approval_requests"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    request_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String, nullable=False)
+    project_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="PENDING", server_default="PENDING")
+    requested_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    requested_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    requested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    decided_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    decided_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 Index("idx_users_username", UserORM.username, unique=True)
 Index("idx_roles_name", RoleORM.name, unique=True)
 Index("idx_permissions_code", PermissionORM.code, unique=True)
@@ -279,3 +313,9 @@ Index("idx_user_roles_user", UserRoleORM.user_id)
 Index("idx_user_roles_role", UserRoleORM.role_id)
 Index("idx_role_permissions_role", RolePermissionORM.role_id)
 Index("idx_role_permissions_permission", RolePermissionORM.permission_id)
+Index("idx_audit_logs_occurred_at", AuditLogORM.occurred_at)
+Index("idx_audit_logs_project", AuditLogORM.project_id)
+Index("idx_audit_logs_entity", AuditLogORM.entity_type, AuditLogORM.entity_id)
+Index("idx_approval_status", ApprovalRequestORM.status)
+Index("idx_approval_project", ApprovalRequestORM.project_id)
+Index("idx_approval_type", ApprovalRequestORM.request_type)

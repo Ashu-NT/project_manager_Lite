@@ -16,6 +16,8 @@ from core.interfaces import (
     TaskRepository,
 )
 from core.models import Task, TaskStatus
+from core.services.audit.helpers import record_audit
+from core.services.auth.authorization import require_permission
 from core.services.work_calendar.engine import WorkCalendarEngine
 
 
@@ -42,6 +44,7 @@ class TaskLifecycleMixin:
         priority: int = 0,
         deadline: Optional[date] = None,
     ) -> Task:
+        require_permission(self._user_session, "task.manage", operation_label="create task")
         self._validate_dates(start_date, deadline, duration_days)
         self._validate_task_name(name)
 
@@ -65,6 +68,14 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.add(task)
             self._session.commit()
+            record_audit(
+                self,
+                action="task.create",
+                entity_type="task",
+                entity_id=task.id,
+                project_id=project_id,
+                details={"name": task.name},
+            )
             logger.info(f"Created task {task.id} - {task.name} for project {project_id}")
             domain_events.tasks_changed.emit(project_id)
             return task
@@ -74,6 +85,7 @@ class TaskLifecycleMixin:
             raise
 
     def set_status(self, task_id: str, status: TaskStatus) -> None:
+        require_permission(self._user_session, "task.manage", operation_label="set task status")
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -81,12 +93,21 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.update(task)
             self._session.commit()
+            record_audit(
+                self,
+                action="task.set_status",
+                entity_type="task",
+                entity_id=task.id,
+                project_id=task.project_id,
+                details={"status": task.status.value},
+            )
         except Exception as exc:
             self._session.rollback()
             raise exc
         domain_events.tasks_changed.emit(task.project_id)
 
     def delete_task(self, task_id: str) -> None:
+        require_permission(self._user_session, "task.manage", operation_label="delete task")
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found")
@@ -103,6 +124,14 @@ class TaskLifecycleMixin:
 
             self._task_repo.delete(task_id)
             self._session.commit()
+            record_audit(
+                self,
+                action="task.delete",
+                entity_type="task",
+                entity_id=task_id,
+                project_id=task.project_id,
+                details={"name": task.name},
+            )
         except Exception as exc:
             self._session.rollback()
             raise exc
@@ -121,6 +150,7 @@ class TaskLifecycleMixin:
         deadline: date | None = None,
         expected_version: int | None = None,
     ) -> Task:
+        require_permission(self._user_session, "task.manage", operation_label="update task")
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -162,6 +192,14 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.update(task)
             self._session.commit()
+            record_audit(
+                self,
+                action="task.update",
+                entity_type="task",
+                entity_id=task.id,
+                project_id=task.project_id,
+                details={"name": task.name, "status": task.status.value},
+            )
         except Exception as exc:
             self._session.rollback()
             raise exc
@@ -177,6 +215,7 @@ class TaskLifecycleMixin:
         actual_end: date | None = None,
         expected_version: int | None = None,
     ) -> Task:
+        require_permission(self._user_session, "task.manage", operation_label="update task progress")
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -214,6 +253,14 @@ class TaskLifecycleMixin:
         try:
             self._task_repo.update(task)
             self._session.commit()
+            record_audit(
+                self,
+                action="task.update_progress",
+                entity_type="task",
+                entity_id=task.id,
+                project_id=task.project_id,
+                details={"percent_complete": task.percent_complete},
+            )
         except Exception as exc:
             self._session.rollback()
             raise exc

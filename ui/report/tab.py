@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from core.events.domain_events import domain_events
 from core.services.project import ProjectService
 from core.services.reporting import ReportingService
+from core.services.auth import UserSessionContext
 from ui.report.actions import ReportActionsMixin
 from ui.report.project_flow import ReportProjectFlowMixin
 from ui.styles.ui_config import UIConfig as CFG
@@ -28,11 +29,13 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self,
         project_service: ProjectService,
         reporting_service: ReportingService,
+        user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._project_service: ProjectService = project_service
         self._reporting_service: ReportingService = reporting_service
+        self._user_session = user_session
         self._setup_ui()
         self._load_projects()
         domain_events.project_changed.connect(self._on_project_changed_event)
@@ -167,3 +170,13 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self.btn_export_evm.clicked.connect(self.export_evm_png)
         self.btn_export_excel.clicked.connect(self.export_excel)
         self.btn_export_pdf.clicked.connect(self.export_pdf)
+        self._apply_permissions()
+
+    def _apply_permissions(self) -> None:
+        if self._user_session is None:
+            return
+        can_export = self._user_session.has_permission("report.export")
+        self.btn_export_gantt.setEnabled(can_export)
+        self.btn_export_evm.setEnabled(can_export)
+        self.btn_export_excel.setEnabled(can_export)
+        self.btn_export_pdf.setEnabled(can_export)
