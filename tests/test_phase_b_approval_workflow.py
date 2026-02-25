@@ -75,7 +75,7 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
     assert deps[0].predecessor_task_id == a.id
 
 
-def test_same_user_cannot_approve_own_request(services, monkeypatch):
+def test_admin_bypasses_governance_requests_for_governed_actions(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
     _login(services, "admin", "ChangeMe123!")
@@ -84,11 +84,40 @@ def test_same_user_cannot_approve_own_request(services, monkeypatch):
     cs = services["cost_service"]
     approvals = services["approval_service"]
 
-    project = ps.create_project("Self Approval Guard")
-    item = cs.add_cost_item(project.id, "Travel", planned_amount=100.0, actual_amount=10.0)
-    with pytest.raises(BusinessRuleError, match="Approval required"):
-        cs.update_cost_item(item.id, actual_amount=20.0)
+    project = ps.create_project("Admin bypass")
+    item = cs.add_cost_item(project.id, "Travel", planned_amount=1000.0, actual_amount=100.0)
+    updated = cs.update_cost_item(item.id, actual_amount=250.0)
 
-    request_id = approvals.list_pending(project_id=project.id)[0].id
+    assert updated.actual_amount == 250.0
+    assert approvals.list_pending(project_id=project.id) == []
+
+
+def test_same_user_cannot_approve_own_request(services, monkeypatch):
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
+    _login(services, "admin", "ChangeMe123!")
+
+    approvals = services["approval_service"]
+    request = approvals.request_change(
+        request_type="cost.update",
+        entity_type="cost_item",
+        entity_id="c-1",
+        project_id="p-1",
+        payload={"cost_id": "c-1"},
+    )
     with pytest.raises(BusinessRuleError, match="cannot approve or reject your own"):
-        approvals.approve_and_apply(request_id)
+        approvals.approve_and_apply(request.id)
+
+
+def test_list_requests_accepts_string_status_value_from_ui(services, monkeypatch):
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
+    _login(services, "admin", "ChangeMe123!")
+    approvals = services["approval_service"]
+    req = approvals.request_change(
+        request_type="cost.update",
+        entity_type="cost_item",
+        entity_id="c-2",
+        project_id="p-2",
+        payload={"cost_id": "c-2"},
+    )
+    pending = approvals.list_requests(status="PENDING", project_id="p-2")
+    assert any(item.id == req.id for item in pending)

@@ -52,6 +52,16 @@ class DashboardDataOpsMixin:
         # Resource rename/rate/status affects dashboard labels and load cards.
         self.refresh_dashboard()
 
+    def _on_baseline_changed(self, project_id: str):
+        current_id, _ = self._current_project_id_and_name()
+        if current_id != project_id:
+            return
+        selected_baseline = self._selected_baseline_id()
+        self._load_baselines_for_project(project_id)
+        idx = self.baseline_combo.findData(selected_baseline) if selected_baseline else -1
+        self.baseline_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.refresh_dashboard()
+
     def _on_project_changed(self, index: int = 0):
         proj_id, _ = self._current_project_id_and_name()
         if proj_id:

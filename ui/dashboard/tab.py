@@ -55,6 +55,7 @@ class DashboardTab(
         domain_events.tasks_changed.connect(self._on_domain_changed)
         domain_events.project_changed.connect(self._on_project_catalog_changed)
         domain_events.resources_changed.connect(self._on_resources_changed)
+        domain_events.baseline_changed.connect(self._on_baseline_changed)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -245,7 +246,6 @@ class DashboardTab(
         self.main_splitter.setStretchFactor(1, 3)
         self.main_splitter.setStretchFactor(2, 3)
         self.main_splitter.setSizes([620, 520, 560])
-
         layout.addWidget(self.main_splitter, 1)
 
         self.btn_reload_projects.clicked.connect(self.reload_projects)

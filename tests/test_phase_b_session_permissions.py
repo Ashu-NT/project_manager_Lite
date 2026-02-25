@@ -146,6 +146,7 @@ def test_governance_permissions_are_split_between_request_and_decide(services, m
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
     monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
     auth = services["auth_service"]
+    auth.register_user("planner4", "StrongPass123", role_names=["planner"])
     auth.register_user("viewer4", "StrongPass123", role_names=["viewer"])
     _login_as(services, "admin", "ChangeMe123!")
 
@@ -155,6 +156,7 @@ def test_governance_permissions_are_split_between_request_and_decide(services, m
 
     project = ps.create_project("Governance permission split")
     item = cs.add_cost_item(project.id, "Hotel", planned_amount=200.0, actual_amount=20.0)
+    _login_as(services, "planner4", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="Approval required"):
         cs.update_cost_item(item.id, actual_amount=25.0)
     request_id = approvals.list_pending(project_id=project.id)[0].id

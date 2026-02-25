@@ -7,7 +7,7 @@ from core.interfaces import DependencyRepository, TaskRepository
 from core.models import DependencyType, TaskDependency
 from core.services.approval.policy import is_governance_required
 from core.services.audit.helpers import record_audit
-from core.services.auth.authorization import require_permission
+from core.services.auth.authorization import is_admin_session, require_permission
 class TaskDependencyMixin:
     _session: Session
     _task_repo: TaskRepository
@@ -21,7 +21,7 @@ class TaskDependencyMixin:
         lag_days: int = 0,
         bypass_approval: bool = False,
     ) -> TaskDependency:
-        governed = (not bypass_approval and self._approval_service is not None and is_governance_required("dependency.add"))
+        governed = (not bypass_approval and self._approval_service is not None and is_governance_required("dependency.add") and not is_admin_session(self._user_session))
         if governed:
             require_permission(self._user_session, "approval.request", operation_label="request dependency change")
         else:
@@ -87,7 +87,7 @@ class TaskDependencyMixin:
         return dep
 
     def remove_dependency(self, dep_id: str, bypass_approval: bool = False) -> None:
-        governed = (not bypass_approval and self._approval_service is not None and is_governance_required("dependency.remove"))
+        governed = (not bypass_approval and self._approval_service is not None and is_governance_required("dependency.remove") and not is_admin_session(self._user_session))
         if governed:
             require_permission(self._user_session, "approval.request", operation_label="request dependency removal")
         else:

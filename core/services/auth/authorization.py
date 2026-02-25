@@ -20,5 +20,11 @@ def require_permission(
     )
 
 
-__all__ = ["require_permission"]
+def is_admin_session(user_session: UserSessionContext | None) -> bool:
+    principal = user_session.principal if user_session is not None else None
+    if principal is None:
+        return False
+    return "admin" in principal.role_names
 
+
+__all__ = ["require_permission", "is_admin_session"]

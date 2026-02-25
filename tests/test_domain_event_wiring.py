@@ -1,8 +1,18 @@
 from datetime import date
 from pathlib import Path
 
+import pytest
+
+from core.exceptions import BusinessRuleError
 from core.models import DependencyType
 from core.events.domain_events import domain_events
+
+
+def _login_as(services, username: str, password: str) -> None:
+    auth = services["auth_service"]
+    user_session = services["user_session"]
+    user = auth.authenticate(username, password)
+    user_session.set_principal(auth.build_principal(user))
 
 
 def test_project_create_emits_project_changed(services):
@@ -126,6 +136,68 @@ def test_resource_create_update_delete_emit_resources_changed(services):
     assert seen == [resource.id, resource.id, resource.id]
 
 
+def test_cost_governance_request_emits_approvals_changed(services, monkeypatch):
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
+    auth = services["auth_service"]
+    auth.register_user("planner-events", "StrongPass123", role_names=["planner"])
+    _login_as(services, "admin", "ChangeMe123!")
+
+    ps = services["project_service"]
+    cs = services["cost_service"]
+    project = ps.create_project("Approval events")
+    item = cs.add_cost_item(project.id, "Travel", planned_amount=100.0, actual_amount=20.0)
+    _login_as(services, "planner-events", "StrongPass123")
+
+    seen: list[str] = []
+
+    def _on_approvals_changed(request_id: str) -> None:
+        seen.append(request_id)
+
+    domain_events.approvals_changed.connect(_on_approvals_changed)
+    try:
+        with pytest.raises(BusinessRuleError, match="Approval required"):
+            cs.update_cost_item(item.id, actual_amount=30.0)
+    finally:
+        domain_events.approvals_changed.disconnect(_on_approvals_changed)
+
+    assert len(seen) == 1
+
+
+def test_approve_baseline_request_emits_baseline_changed(services, monkeypatch):
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "baseline.create")
+    auth = services["auth_service"]
+    auth.register_user("planner-baseline", "StrongPass123", role_names=["planner"])
+    _login_as(services, "admin", "ChangeMe123!")
+
+    ps = services["project_service"]
+    ts = services["task_service"]
+    approvals = services["approval_service"]
+    baseline = services["baseline_service"]
+    project = ps.create_project("Approval baseline events")
+    ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=1)
+    _login_as(services, "planner-baseline", "StrongPass123")
+
+    with pytest.raises(BusinessRuleError, match="Approval required"):
+        baseline.create_baseline(project.id, "Gate 1")
+    request_id = approvals.list_pending(project_id=project.id)[0].id
+
+    seen: list[str] = []
+
+    def _on_baseline_changed(project_id: str) -> None:
+        seen.append(project_id)
+
+    domain_events.baseline_changed.connect(_on_baseline_changed)
+    try:
+        _login_as(services, "admin", "ChangeMe123!")
+        approvals.approve_and_apply(request_id, note="Approved")
+    finally:
+        domain_events.baseline_changed.disconnect(_on_baseline_changed)
+
+    assert seen == [project.id]
+
+
 def test_report_tab_subscribes_to_project_changed_for_combo_refresh():
     text = (Path(__file__).resolve().parents[1] / "ui" / "report" / "tab.py").read_text(
         encoding="utf-8", errors="ignore"
@@ -155,3 +227,19 @@ def test_tabs_subscribe_to_resources_changed_for_refresh():
     assert "domain_events.resources_changed.connect(self._on_resources_changed)" in cost_text
     assert "domain_events.resources_changed.connect(self._on_resources_changed)" in dash_text
     assert "domain_events.resources_changed.connect(self._on_resources_changed_event)" in project_text
+
+
+def test_governance_tab_subscribes_to_approvals_changed_for_auto_refresh():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "governance" / "tab.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    assert "domain_events.approvals_changed.connect(self._on_approvals_changed)" in text
+
+
+def test_dashboard_subscribes_to_baseline_changed_for_refresh():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "dashboard" / "tab.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    assert "domain_events.baseline_changed.connect(self._on_baseline_changed)" in text

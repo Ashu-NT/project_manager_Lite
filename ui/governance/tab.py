@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.exceptions import BusinessRuleError, NotFoundError
+from core.events.domain_events import domain_events
 from core.models import ApprovalRequest, ApprovalStatus
 from core.services.approval import ApprovalService
 from core.services.auth import UserSessionContext
@@ -51,6 +52,7 @@ class GovernanceTab(QWidget):
         self._can_change_mode = user_session is None or user_session.has_permission("settings.manage")
         self._setup_ui()
         self.reload_requests()
+        domain_events.approvals_changed.connect(self._on_approvals_changed)
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -86,6 +88,8 @@ class GovernanceTab(QWidget):
         toolbar.addWidget(QLabel("Status:"))
         self.status_combo = QComboBox()
         self.status_combo.addItem("Pending", userData=ApprovalStatus.PENDING)
+        self.status_combo.addItem("Approved", userData=ApprovalStatus.APPROVED)
+        self.status_combo.addItem("Rejected", userData=ApprovalStatus.REJECTED)
         self.status_combo.addItem("All", userData=None)
         self.status_combo.setFixedHeight(CFG.INPUT_HEIGHT)
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
@@ -126,10 +130,7 @@ class GovernanceTab(QWidget):
 
     def reload_requests(self) -> None:
         selected = self.status_combo.currentData()
-        if selected is None:
-            self._rows = self._approval_service.list_recent(limit=500)
-        else:
-            self._rows = self._approval_service.list_pending(limit=500)
+        self._rows = self._approval_service.list_requests(status=selected, limit=500)
         project_name_by_id = {p.id: p.name for p in self._project_service.list_projects()}
         project_ids = {req.project_id for req in self._rows if req.project_id}
         task_name_by_id = self._build_task_name_index(project_ids)
@@ -235,6 +236,9 @@ class GovernanceTab(QWidget):
                 else "Governance mode is now OFF.\nGoverned actions apply immediately."
             ),
         )
+
+    def _on_approvals_changed(self, _request_id: str) -> None:
+        self.reload_requests()
 
     def _build_task_name_index(self, project_ids: set[str]) -> dict[str, str]:
         if self._task_service is None:

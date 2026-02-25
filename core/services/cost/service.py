@@ -9,7 +9,7 @@ from core.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, 
 from core.events.domain_events import domain_events
 from core.services.approval.policy import is_governance_required
 from core.services.audit.helpers import record_audit
-from core.services.auth.authorization import require_permission
+from core.services.auth.authorization import is_admin_session, require_permission
 
 DEFAULT_CURRENCY_CODE = "EUR"
 
@@ -50,6 +50,7 @@ class CostService:
             not bypass_approval
             and self._approval_service is not None
             and is_governance_required("cost.add")
+            and not is_admin_session(self._user_session)
         )
         if governed:
             require_permission(
@@ -160,6 +161,7 @@ class CostService:
             not bypass_approval
             and self._approval_service is not None
             and is_governance_required("cost.update")
+            and not is_admin_session(self._user_session)
         )
         if governed:
             require_permission(
@@ -259,6 +261,7 @@ class CostService:
             not bypass_approval
             and self._approval_service is not None
             and is_governance_required("cost.delete")
+            and not is_admin_session(self._user_session)
         )
         if governed:
             require_permission(

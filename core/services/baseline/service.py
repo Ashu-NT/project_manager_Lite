@@ -15,7 +15,7 @@ from core.interfaces import (
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.services.approval.policy import is_governance_required
 from core.services.audit.helpers import record_audit
-from core.services.auth.authorization import require_permission
+from core.services.auth.authorization import is_admin_session, require_permission
 from core.services.scheduling.engine import SchedulingEngine
 from core.services.work_calendar.engine import WorkCalendarEngine
 
@@ -59,6 +59,7 @@ class BaselineService:
             not bypass_approval
             and self._approval_service is not None
             and is_governance_required("baseline.create")
+            and not is_admin_session(self._user_session)
         )
         if governed:
             require_permission(

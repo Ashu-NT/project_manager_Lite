@@ -5,6 +5,7 @@ from typing import Callable
 
 from sqlalchemy.orm import Session
 
+from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, NotFoundError
 from core.interfaces import ApprovalRepository
 from core.models import ApprovalRequest, ApprovalStatus
@@ -57,21 +58,39 @@ class ApprovalService:
         self._approval_repo.add(request)
         if commit:
             self._session.commit()
+            domain_events.approvals_changed.emit(request.id)
         return request
 
-    def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
+    def list_requests(
+        self,
+        *,
+        status: ApprovalStatus | str | None = None,
+        project_id: str | None = None,
+        limit: int = 200,
+    ) -> list[ApprovalRequest]:
+        normalized_status: ApprovalStatus | None
+        if isinstance(status, ApprovalStatus) or status is None:
+            normalized_status = status
+        else:
+            raw = str(status).strip()
+            if "." in raw:
+                raw = raw.rsplit(".", 1)[-1]
+            raw = raw.upper()
+            try:
+                normalized_status = ApprovalStatus(raw)
+            except ValueError:
+                normalized_status = None
         return self._approval_repo.list_by_status(
-            ApprovalStatus.PENDING,
+            normalized_status,
             limit=limit,
             project_id=project_id,
         )
 
+    def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
+        return self.list_requests(status=ApprovalStatus.PENDING, limit=limit, project_id=project_id)
+
     def list_recent(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:
-        return self._approval_repo.list_by_status(
-            None,
-            limit=limit,
-            project_id=project_id,
-        )
+        return self.list_requests(status=None, limit=limit, project_id=project_id)
 
     def reject(self, request_id: str, note: str | None = None) -> ApprovalRequest:
         require_permission(
@@ -89,6 +108,7 @@ class ApprovalService:
         request.decision_note = (note or "").strip() or None
         self._approval_repo.update(request)
         self._session.commit()
+        domain_events.approvals_changed.emit(request.id)
         return request
 
     def approve_and_apply(self, request_id: str, note: str | None = None) -> ApprovalRequest:
@@ -107,6 +127,7 @@ class ApprovalService:
             )
 
         handler(request)
+        self._emit_post_apply_domain_events(request)
 
         principal = self._user_session.principal if self._user_session else None
         request.status = ApprovalStatus.APPROVED
@@ -116,6 +137,7 @@ class ApprovalService:
         request.decision_note = (note or "").strip() or None
         self._approval_repo.update(request)
         self._session.commit()
+        domain_events.approvals_changed.emit(request.id)
         return request
 
     def _require_pending(self, request_id: str) -> ApprovalRequest:
@@ -138,6 +160,11 @@ class ApprovalService:
                 "You cannot approve or reject your own governance request.",
                 code="APPROVAL_SELF_DECISION_FORBIDDEN",
             )
+
+    @staticmethod
+    def _emit_post_apply_domain_events(request: ApprovalRequest) -> None:
+        if request.request_type == "baseline.create" and request.project_id:
+            domain_events.baseline_changed.emit(request.project_id)
 
 
 __all__ = ["ApprovalService", "ApplyHandler"]
