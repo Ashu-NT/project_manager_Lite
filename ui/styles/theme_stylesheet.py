@@ -148,9 +148,10 @@ def base_stylesheet() -> str:
         color: {CFG.COLOR_TEXT_SECONDARY};
         border: 1px solid {CFG.COLOR_BORDER};
         border-bottom: none;
-        min-width: 120px;
-        padding: 7px 14px;
-        margin-right: 4px;
+        min-width: 96px;
+        min-height: 22px;
+        padding: 4px 10px;
+        margin-right: 2px;
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
         font-weight: 600;

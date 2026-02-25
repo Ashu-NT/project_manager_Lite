@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QTableWidget,
@@ -49,12 +50,14 @@ class UserAdminTab(QWidget):
         self.btn_new_user = QPushButton("New User")
         self.btn_assign_role = QPushButton("Assign Role")
         self.btn_revoke_role = QPushButton("Revoke Role")
+        self.btn_reset_password = QPushButton("Reset Password")
         self.btn_toggle_active = QPushButton("Toggle Active")
         for btn in (
             self.btn_refresh,
             self.btn_new_user,
             self.btn_assign_role,
             self.btn_revoke_role,
+            self.btn_reset_password,
             self.btn_toggle_active,
         ):
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
@@ -63,6 +66,7 @@ class UserAdminTab(QWidget):
         toolbar.addWidget(self.btn_new_user)
         toolbar.addWidget(self.btn_assign_role)
         toolbar.addWidget(self.btn_revoke_role)
+        toolbar.addWidget(self.btn_reset_password)
         toolbar.addWidget(self.btn_toggle_active)
         toolbar.addStretch()
         layout.addLayout(toolbar)
@@ -85,6 +89,7 @@ class UserAdminTab(QWidget):
         self.btn_new_user.clicked.connect(self.create_user)
         self.btn_assign_role.clicked.connect(self.assign_role)
         self.btn_revoke_role.clicked.connect(self.revoke_role)
+        self.btn_reset_password.clicked.connect(self.reset_password)
         self.btn_toggle_active.clicked.connect(self.toggle_active)
         self.table.itemSelectionChanged.connect(self._sync_actions)
         self._sync_actions()
@@ -228,10 +233,49 @@ class UserAdminTab(QWidget):
             return
         self.reload_users()
 
+    def reset_password(self) -> None:
+        user = self._selected_user()
+        if not user:
+            return
+        while True:
+            new_password, ok = QInputDialog.getText(
+                self,
+                "Reset Password",
+                f"New password for '{user.username}':",
+                QLineEdit.Password,
+            )
+            if not ok:
+                return
+            confirm_password, ok = QInputDialog.getText(
+                self,
+                "Reset Password",
+                "Confirm new password:",
+                QLineEdit.Password,
+            )
+            if not ok:
+                return
+            if new_password != confirm_password:
+                QMessageBox.warning(self, "Users", "Password and confirmation do not match.")
+                continue
+            try:
+                self._auth_service.reset_user_password(user.id, new_password)
+            except ValidationError as exc:
+                QMessageBox.warning(self, "Users", str(exc))
+                continue
+            except (NotFoundError, BusinessRuleError) as exc:
+                QMessageBox.warning(self, "Users", str(exc))
+                return
+            except Exception as exc:
+                QMessageBox.critical(self, "Users", f"Failed to reset password: {exc}")
+                return
+            QMessageBox.information(self, "Users", f"Password reset for '{user.username}'.")
+            return
+
     def _sync_actions(self) -> None:
         has_user = self._selected_user() is not None
         self.btn_assign_role.setEnabled(has_user)
         self.btn_revoke_role.setEnabled(has_user)
+        self.btn_reset_password.setEnabled(has_user)
         self.btn_toggle_active.setEnabled(has_user)
 
 

@@ -89,3 +89,15 @@ def test_register_user_rolls_back_when_role_is_invalid(services):
 
     created = auth.register_user("transient-user", "StrongPass123")
     assert created.username == "transient-user"
+
+
+def test_admin_can_reset_other_user_password(services):
+    auth = services["auth_service"]
+    user = auth.register_user("reset-target", "StrongPass123")
+
+    auth.reset_user_password(user.id, "NewStrongPass123")
+
+    authenticated = auth.authenticate("reset-target", "NewStrongPass123")
+    assert authenticated.id == user.id
+    with pytest.raises(ValidationError, match="Invalid credentials"):
+        auth.authenticate("reset-target", "StrongPass123")

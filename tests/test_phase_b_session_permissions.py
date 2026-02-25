@@ -35,6 +35,7 @@ def test_admin_session_can_execute_manage_operations(services):
 def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     auth = services["auth_service"]
     auth.register_user("viewer2", "StrongPass123", role_names=["viewer"])
+    target = auth.register_user("reset-target-viewer", "StrongPass123", role_names=["viewer"])
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
@@ -54,6 +55,9 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     assignment = ts.assign_project_resource(task.id, project_resource.id, 50.0)
 
     _login_as(services, "viewer2", "StrongPass123")
+
+    with pytest.raises(BusinessRuleError, match="Permission denied"):
+        auth.reset_user_password(target.id, "ResetByViewer123")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         rs.create_resource("Forbidden resource")

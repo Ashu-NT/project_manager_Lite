@@ -145,6 +145,15 @@ class AuthService:
         self._user_repo.update(user)
         self._session.commit()
 
+    def reset_user_password(self, user_id: str, new_password: str) -> None:
+        require_permission(self._user_session, "auth.manage", operation_label="reset user password")
+        user = self._require_user(user_id)
+        self._validate_password(new_password)
+        user.password_hash = hash_password(new_password)
+        user.updated_at = datetime.now(timezone.utc)
+        self._user_repo.update(user)
+        self._session.commit()
+
     def assign_role(self, user_id: str, role_name: str) -> None:
         require_permission(self._user_session, "auth.manage", operation_label="assign role")
         user = self._require_user(user_id)
