@@ -20,9 +20,8 @@ class EvmContext:
     as_of: date
 
 @dataclass
-class ExcelReportContext:
+class ReportExportContext:
     kpi: ProjectKPI
-    gantt: List[GanttTaskBar]
     resources: List[ResourceLoadRow]
     evm: Optional[object]
     evm_series: Optional[list]
@@ -32,14 +31,10 @@ class ExcelReportContext:
     as_of: date
 
 @dataclass
-class PdfReportContext:
-    kpi: ProjectKPI
+class ExcelReportContext(ReportExportContext):
+    gantt: List[GanttTaskBar]
+
+@dataclass
+class PdfReportContext(ReportExportContext):
     gantt_png_path: str
-    resources: List[ResourceLoadRow]
-    evm: Optional[object]
-    evm_series: Optional[list]
-    baseline_variance: Optional[list]
-    cost_breakdown: Optional[list]
-    cost_sources: Optional[CostSourceBreakdown]
-    as_of: date
 
