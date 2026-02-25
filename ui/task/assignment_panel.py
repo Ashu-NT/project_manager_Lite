@@ -20,6 +20,7 @@ from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import Task, TaskAssignment
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.shared.guards import apply_permission_hint, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 from ui.task.assignment_models import (
@@ -166,10 +167,43 @@ class TaskAssignmentPanelMixin:
         self.assignment_table.selectionModel().selectionChanged.connect(
             self._on_assignment_selection_changed
         )
-        self.btn_assignment_add.clicked.connect(self.add_assignment_inline)
-        self.btn_assignment_remove.clicked.connect(self.remove_assignment_inline)
-        self.btn_assignment_set_alloc.clicked.connect(self.set_assignment_allocation_inline)
-        self.btn_assignment_log_hours.clicked.connect(self.log_assignment_hours_inline)
+        self.btn_assignment_add.clicked.connect(
+            make_guarded_slot(self, title="Assignments", callback=self.add_assignment_inline)
+        )
+        self.btn_assignment_remove.clicked.connect(
+            make_guarded_slot(self, title="Assignments", callback=self.remove_assignment_inline)
+        )
+        self.btn_assignment_set_alloc.clicked.connect(
+            make_guarded_slot(
+                self,
+                title="Assignments",
+                callback=self.set_assignment_allocation_inline,
+            )
+        )
+        self.btn_assignment_log_hours.clicked.connect(
+            make_guarded_slot(self, title="Assignments", callback=self.log_assignment_hours_inline)
+        )
+        can_manage = bool(getattr(self, "_can_manage_assignments", True))
+        apply_permission_hint(
+            self.btn_assignment_add,
+            allowed=can_manage,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_assignment_remove,
+            allowed=can_manage,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_assignment_set_alloc,
+            allowed=can_manage,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_assignment_log_hours,
+            allowed=can_manage,
+            missing_permission="task.manage",
+        )
         return box
 
     def _build_dependency_section(self) -> QWidget:
@@ -217,8 +251,24 @@ class TaskAssignmentPanelMixin:
         layout.addLayout(button_row)
 
         self.dependency_table.itemSelectionChanged.connect(self._on_dependency_selection_changed)
-        self.btn_dependency_add.clicked.connect(self.add_dependency_inline)
-        self.btn_dependency_remove.clicked.connect(self.remove_dependency_inline)
+        self.btn_dependency_add.clicked.connect(
+            make_guarded_slot(self, title="Dependency", callback=self.add_dependency_inline)
+        )
+        self.btn_dependency_remove.clicked.connect(
+            make_guarded_slot(self, title="Dependency", callback=self.remove_dependency_inline)
+        )
+        can_add_dep = bool(getattr(self, "_can_add_dependencies", True))
+        can_remove_dep = bool(getattr(self, "_can_remove_dependencies", can_add_dep))
+        apply_permission_hint(
+            self.btn_dependency_add,
+            allowed=can_add_dep,
+            missing_permission="task.manage or approval.request",
+        )
+        apply_permission_hint(
+            self.btn_dependency_remove,
+            allowed=can_remove_dep,
+            missing_permission="task.manage or approval.request",
+        )
         return box
 
     def _on_task_selection_changed(self, *_args) -> None:
@@ -335,12 +385,25 @@ class TaskAssignmentPanelMixin:
         assignment_selected: bool,
         dependency_selected: bool = False,
     ) -> None:
-        self.btn_assignment_add.setEnabled(task_selected)
-        self.btn_assignment_remove.setEnabled(task_selected and assignment_selected)
-        self.btn_assignment_set_alloc.setEnabled(task_selected and assignment_selected)
-        self.btn_assignment_log_hours.setEnabled(task_selected and assignment_selected)
-        self.btn_dependency_add.setEnabled(task_selected)
-        self.btn_dependency_remove.setEnabled(task_selected and dependency_selected)
+        can_manage_assignments = bool(getattr(self, "_can_manage_assignments", True))
+        can_add_dependencies = bool(getattr(self, "_can_add_dependencies", True))
+        can_remove_dependencies = bool(
+            getattr(self, "_can_remove_dependencies", can_add_dependencies)
+        )
+        self.btn_assignment_add.setEnabled(can_manage_assignments and task_selected)
+        self.btn_assignment_remove.setEnabled(
+            can_manage_assignments and task_selected and assignment_selected
+        )
+        self.btn_assignment_set_alloc.setEnabled(
+            can_manage_assignments and task_selected and assignment_selected
+        )
+        self.btn_assignment_log_hours.setEnabled(
+            can_manage_assignments and task_selected and assignment_selected
+        )
+        self.btn_dependency_add.setEnabled(can_add_dependencies and task_selected)
+        self.btn_dependency_remove.setEnabled(
+            can_remove_dependencies and task_selected and dependency_selected
+        )
 
     def _get_selected_assignment(self) -> TaskAssignment | None:
         indexes = self.assignment_table.selectionModel().selectedRows()

@@ -15,9 +15,16 @@ from PySide6.QtWidgets import (
 )
 
 from core.events.domain_events import domain_events
+from core.services.auth import UserSessionContext
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.shared.guards import (
+    apply_permission_hint,
+    can_execute_governed_action,
+    has_permission,
+    make_guarded_slot,
+)
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 from ui.task.assignment_actions import TaskAssignmentActionsMixin
@@ -49,6 +56,7 @@ class TaskTab(
         task_service: TaskService,
         resource_service: ResourceService,
         project_resource_service: ProjectResourceService,
+        user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -56,9 +64,23 @@ class TaskTab(
         self._task_service: TaskService = task_service
         self._resource_service: ResourceService = resource_service
         self._project_resource_service: ProjectResourceService = project_resource_service
+        self._user_session = user_session
+        self._can_manage_tasks = has_permission(self._user_session, "task.manage")
+        self._can_manage_assignments = self._can_manage_tasks
+        self._can_add_dependencies = can_execute_governed_action(
+            user_session=self._user_session,
+            manage_permission="task.manage",
+            governance_action="dependency.add",
+        )
+        self._can_remove_dependencies = can_execute_governed_action(
+            user_session=self._user_session,
+            manage_permission="task.manage",
+            governance_action="dependency.remove",
+        )
 
         self._setup_ui()
         self._load_projects()
+        self._sync_toolbar_actions()
         domain_events.tasks_changed.connect(self._on_task_changed)
         domain_events.project_changed.connect(self._on_project_changed_event)
         domain_events.resources_changed.connect(self._on_resources_changed)
@@ -137,8 +159,49 @@ class TaskTab(
         self.btn_reload_projects.clicked.connect(self._load_projects)
         self.project_combo.currentIndexChanged.connect(self._on_project_changed)
         self.btn_refresh_tasks.clicked.connect(self.reload_tasks)
-        self.btn_new.clicked.connect(self.create_task)
-        self.btn_edit.clicked.connect(self.edit_task)
-        self.btn_delete.clicked.connect(self.delete_task)
-        self.btn_progress.clicked.connect(self.update_progress)
+        self.btn_new.clicked.connect(
+            make_guarded_slot(self, title="Tasks", callback=self.create_task)
+        )
+        self.btn_edit.clicked.connect(
+            make_guarded_slot(self, title="Tasks", callback=self.edit_task)
+        )
+        self.btn_delete.clicked.connect(
+            make_guarded_slot(self, title="Tasks", callback=self.delete_task)
+        )
+        self.btn_progress.clicked.connect(
+            make_guarded_slot(self, title="Tasks", callback=self.update_progress)
+        )
         self.table.selectionModel().selectionChanged.connect(self._on_task_selection_changed)
+
+        apply_permission_hint(
+            self.btn_new,
+            allowed=self._can_manage_tasks,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_edit,
+            allowed=self._can_manage_tasks,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_delete,
+            allowed=self._can_manage_tasks,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_progress,
+            allowed=self._can_manage_tasks,
+            missing_permission="task.manage",
+        )
+        self._sync_toolbar_actions()
+
+    def _on_task_selection_changed(self, *_args) -> None:
+        TaskAssignmentPanelMixin._on_task_selection_changed(self, *_args)
+        self._sync_toolbar_actions()
+
+    def _sync_toolbar_actions(self) -> None:
+        has_task = self._get_selected_task() is not None
+        self.btn_new.setEnabled(self._can_manage_tasks)
+        self.btn_edit.setEnabled(self._can_manage_tasks and has_task)
+        self.btn_delete.setEnabled(self._can_manage_tasks and has_task)
+        self.btn_progress.setEnabled(self._can_manage_tasks and has_task)

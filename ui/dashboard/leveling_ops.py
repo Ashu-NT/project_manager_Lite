@@ -169,8 +169,11 @@ class DashboardLevelingOpsMixin:
 
     def _sync_leveling_buttons(self) -> None:
         has_conflicts = bool(getattr(self, "_current_conflicts", []))
-        self.btn_auto_level.setEnabled(has_conflicts)
-        self.btn_manual_shift.setEnabled(has_conflicts and self.conflicts_table.currentRow() >= 0)
+        can_level = bool(getattr(self, "_can_level_resources", True))
+        self.btn_auto_level.setEnabled(can_level and has_conflicts)
+        self.btn_manual_shift.setEnabled(
+            can_level and has_conflicts and self.conflicts_table.currentRow() >= 0
+        )
 
 
 __all__ = ["DashboardLevelingOpsMixin"]

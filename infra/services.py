@@ -165,6 +165,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_repo=resource_repo,
         session=session,
         user_session=user_session,
+        audit_service=audit_service,
     )
     task_service = TaskService(
         session,

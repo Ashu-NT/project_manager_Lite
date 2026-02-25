@@ -21,6 +21,7 @@ from core.models import Project
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from ui.project.dialogs import ProjectResourceEditDialog
+from ui.shared.guards import apply_permission_hint, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -101,11 +102,45 @@ class ProjectResourcePanelMixin:
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
-        self._btn_project_resource_add.clicked.connect(self._on_add_project_resource_inline)
-        self._btn_project_resource_edit.clicked.connect(self._on_edit_project_resource_inline)
-        self._btn_project_resource_toggle.clicked.connect(self._on_toggle_project_resource_inline)
+        self._btn_project_resource_add.clicked.connect(
+            make_guarded_slot(
+                self,
+                title="Project Resources",
+                callback=self._on_add_project_resource_inline,
+            )
+        )
+        self._btn_project_resource_edit.clicked.connect(
+            make_guarded_slot(
+                self,
+                title="Project Resources",
+                callback=self._on_edit_project_resource_inline,
+            )
+        )
+        self._btn_project_resource_toggle.clicked.connect(
+            make_guarded_slot(
+                self,
+                title="Project Resources",
+                callback=self._on_toggle_project_resource_inline,
+            )
+        )
         self._project_resource_table.itemSelectionChanged.connect(
             self._sync_project_resource_panel_actions
+        )
+        can_manage = bool(getattr(self, "_can_manage_project_resources", True))
+        apply_permission_hint(
+            self._btn_project_resource_add,
+            allowed=can_manage,
+            missing_permission="project.manage",
+        )
+        apply_permission_hint(
+            self._btn_project_resource_edit,
+            allowed=can_manage,
+            missing_permission="project.manage",
+        )
+        apply_permission_hint(
+            self._btn_project_resource_toggle,
+            allowed=can_manage,
+            missing_permission="project.manage",
         )
         self._sync_project_resource_panel_actions()
         return panel
@@ -231,9 +266,10 @@ class ProjectResourcePanelMixin:
     def _sync_project_resource_panel_actions(self) -> None:
         has_project = self._get_selected_project() is not None
         has_row = self._selected_project_resource_id_inline() is not None
-        self._btn_project_resource_add.setEnabled(has_project)
-        self._btn_project_resource_edit.setEnabled(has_project and has_row)
-        self._btn_project_resource_toggle.setEnabled(has_project and has_row)
+        can_manage = bool(getattr(self, "_can_manage_project_resources", True))
+        self._btn_project_resource_add.setEnabled(can_manage and has_project)
+        self._btn_project_resource_edit.setEnabled(can_manage and has_project and has_row)
+        self._btn_project_resource_toggle.setEnabled(can_manage and has_project and has_row)
 
     def _get_selected_project(self) -> Optional[Project]:
         raise NotImplementedError

@@ -12,6 +12,7 @@ from core.interfaces import (
     ResourceRepository,
 )
 from core.events.domain_events import domain_events
+from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 
 DEFAULT_CURRENCY_CODE = "EUR"
@@ -30,11 +31,13 @@ class ProjectResourceService:
         resource_repo: ResourceRepository,
         session: Session,
         user_session=None,
+        audit_service=None,
     ):
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._resource_repo: ResourceRepository = resource_repo
         self._session: Session = session
         self._user_session = user_session
+        self._audit_service = audit_service
 
     # -------------------------
     # Query methods
@@ -104,6 +107,20 @@ class ProjectResourceService:
         try:
             self._project_resource_repo.add(pr)
             self._session.commit()
+            record_audit(
+                self,
+                action="project_resource.add",
+                entity_type="project_resource",
+                entity_id=pr.id,
+                project_id=project_id,
+                details={
+                    "resource_name": res.name,
+                    "planned_hours": pr.planned_hours,
+                    "hourly_rate": pr.hourly_rate,
+                    "currency_code": pr.currency_code,
+                    "is_active": pr.is_active,
+                },
+            )
         except Exception:
             self._session.rollback()
             raise
@@ -136,11 +153,26 @@ class ProjectResourceService:
         pr.currency_code = resolved_currency
         pr.planned_hours = planned_hours
         pr.is_active = is_active
+        resource = self._resource_repo.get(pr.resource_id)
 
         try:
             # repo holds ORM, so flush is enough
             self._project_resource_repo.update(pr)
             self._session.commit()
+            record_audit(
+                self,
+                action="project_resource.update",
+                entity_type="project_resource",
+                entity_id=pr.id,
+                project_id=pr.project_id,
+                details={
+                    "resource_name": resource.name if resource is not None else pr.resource_id,
+                    "planned_hours": pr.planned_hours,
+                    "hourly_rate": pr.hourly_rate,
+                    "currency_code": pr.currency_code,
+                    "is_active": pr.is_active,
+                },
+            )
         except Exception:
             self._session.rollback()
             raise
@@ -161,6 +193,18 @@ class ProjectResourceService:
         try:
             self._project_resource_repo.update(pr)
             self._session.commit()
+            resource = self._resource_repo.get(pr.resource_id)
+            record_audit(
+                self,
+                action="project_resource.set_active",
+                entity_type="project_resource",
+                entity_id=pr.id,
+                project_id=pr.project_id,
+                details={
+                    "resource_name": resource.name if resource is not None else pr.resource_id,
+                    "is_active": pr.is_active,
+                },
+            )
         except Exception:
             self._session.rollback()
             raise
@@ -175,9 +219,20 @@ class ProjectResourceService:
         pr = self._project_resource_repo.get(pr_id)
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
+        resource = self._resource_repo.get(pr.resource_id)
         try:
             self._project_resource_repo.delete(pr_id)
             self._session.commit()
+            record_audit(
+                self,
+                action="project_resource.delete",
+                entity_type="project_resource",
+                entity_id=pr.id,
+                project_id=pr.project_id,
+                details={
+                    "resource_name": resource.name if resource is not None else pr.resource_id,
+                },
+            )
         except Exception:
             self._session.rollback()
             raise

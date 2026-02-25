@@ -26,6 +26,7 @@ from core.services.cost import CostService
 from core.services.project import ProjectService
 from core.services.task import TaskService
 from ui.settings import MainWindowSettingsStore
+from ui.shared.guards import make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -120,18 +121,41 @@ class GovernanceTab(QWidget):
         header.setSectionResizeMode(6, QHeaderView.Stretch)
         layout.addWidget(self.table, 1)
 
-        self.status_combo.currentIndexChanged.connect(self.reload_requests)
+        self.status_combo.currentIndexChanged.connect(
+            make_guarded_slot(self, title="Governance", callback=self.reload_requests)
+        )
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-        self.btn_refresh.clicked.connect(self.reload_requests)
-        self.btn_approve.clicked.connect(self.approve_selected)
-        self.btn_reject.clicked.connect(self.reject_selected)
+        self.btn_refresh.clicked.connect(
+            make_guarded_slot(self, title="Governance", callback=self.reload_requests)
+        )
+        self.btn_approve.clicked.connect(
+            make_guarded_slot(self, title="Governance", callback=self.approve_selected)
+        )
+        self.btn_reject.clicked.connect(
+            make_guarded_slot(self, title="Governance", callback=self.reject_selected)
+        )
         self.table.itemSelectionChanged.connect(self._sync_buttons)
         self._sync_buttons()
 
     def reload_requests(self) -> None:
         selected = self.status_combo.currentData()
-        self._rows = self._approval_service.list_requests(status=selected, limit=500)
-        project_name_by_id = {p.id: p.name for p in self._project_service.list_projects()}
+        try:
+            self._rows = self._approval_service.list_requests(status=selected, limit=500)
+            projects = self._project_service.list_projects()
+        except (BusinessRuleError, NotFoundError, ValueError) as exc:
+            QMessageBox.warning(self, "Governance", str(exc))
+            self._rows = []
+            self.table.setRowCount(0)
+            self._sync_buttons()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Governance", f"Failed to load requests:\n{exc}")
+            self._rows = []
+            self.table.setRowCount(0)
+            self._sync_buttons()
+            return
+
+        project_name_by_id = {p.id: p.name for p in projects}
         project_ids = {req.project_id for req in self._rows if req.project_id}
         task_name_by_id = self._build_task_name_index(project_ids)
         cost_desc_by_id = self._build_cost_description_index(project_ids)

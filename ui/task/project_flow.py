@@ -40,6 +40,9 @@ class TaskProjectFlowMixin:
             self.project_combo.setCurrentIndex(0)
 
         self.reload_tasks()
+        sync_toolbar = getattr(self, "_sync_toolbar_actions", None)
+        if callable(sync_toolbar):
+            sync_toolbar()
 
     def _on_resources_changed(self, _resource_id: str) -> None:
         post_reload = getattr(self, "_reload_assignment_panel_for_selected_task", None)
@@ -56,6 +59,9 @@ class TaskProjectFlowMixin:
         if self.project_combo.count() > 0:
             self.project_combo.setCurrentIndex(0)
             self._on_project_changed(0)
+        sync_toolbar = getattr(self, "_sync_toolbar_actions", None)
+        if callable(sync_toolbar):
+            sync_toolbar()
 
     def _current_project_id(self) -> Optional[str]:
         return current_data(self.project_combo)
@@ -72,6 +78,9 @@ class TaskProjectFlowMixin:
             post_reload = getattr(self, "_reload_assignment_panel_for_selected_task", None)
             if callable(post_reload):
                 post_reload()
+            sync_toolbar = getattr(self, "_sync_toolbar_actions", None)
+            if callable(sync_toolbar):
+                sync_toolbar()
             return
 
         tasks = self._task_service.list_tasks_for_project(project_id)
@@ -85,6 +94,9 @@ class TaskProjectFlowMixin:
         post_reload = getattr(self, "_reload_assignment_panel_for_selected_task", None)
         if callable(post_reload):
             post_reload()
+        sync_toolbar = getattr(self, "_sync_toolbar_actions", None)
+        if callable(sync_toolbar):
+            sync_toolbar()
 
     def _get_selected_task(self) -> Optional[Task]:
         indexes = self.table.selectionModel().selectedRows()

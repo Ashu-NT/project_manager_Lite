@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
                 dashboard_service=self.services["dashboard_service"],
                 project_service=self.services["project_service"],
                 baseline_service=self.services["baseline_service"],
+                user_session=self._user_session,
             )
             self.tabs.addTab(dashboard_tab, "Dashboard")
 
@@ -96,11 +97,15 @@ class MainWindow(QMainWindow):
                 scheduling_engine=self.services["scheduling_engine"],
                 project_service=self.services["project_service"],
                 task_service=self.services["task_service"],
+                user_session=self._user_session,
             )
             self.tabs.addTab(calendar_tab, "Calendar")
 
         if self._has_permission("resource.read"):
-            resource_tab = ResourceTab(resource_service=self.services["resource_service"])
+            resource_tab = ResourceTab(
+                resource_service=self.services["resource_service"],
+                user_session=self._user_session,
+            )
             self.tabs.addTab(resource_tab, "Resources")
 
         if self._has_permission("project.read"):
@@ -110,6 +115,7 @@ class MainWindow(QMainWindow):
                 reporting_service=self.services["reporting_service"],
                 project_resource_service=self.services["project_resource_service"],
                 resource_service=self.services["resource_service"],
+                user_session=self._user_session,
             )
             self.tabs.addTab(project_tab, "Projects")
 
@@ -119,6 +125,7 @@ class MainWindow(QMainWindow):
                 task_service=self.services["task_service"],
                 resource_service=self.services["resource_service"],
                 project_resource_service=self.services["project_resource_service"],
+                user_session=self._user_session,
             )
             self.tabs.addTab(task_tab, "Tasks")
 
@@ -129,6 +136,7 @@ class MainWindow(QMainWindow):
                 cost_service=self.services["cost_service"],
                 reporting_service=self.services["reporting_service"],
                 resource_service=self.services["resource_service"],
+                user_session=self._user_session,
             )
             self.tabs.addTab(cost_tab, "Costs")
 
@@ -214,3 +222,4 @@ class MainWindow(QMainWindow):
         self._settings_store.save_tab_index(self.tabs.currentIndex())
         self._settings_store.save_geometry(self.saveGeometry())
         super().closeEvent(event)
+

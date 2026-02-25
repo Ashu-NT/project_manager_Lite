@@ -99,3 +99,57 @@ def test_dependency_audit_details_use_task_names(services):
     dep_add = next(e for e in entries if e.action == "dependency.add")
     assert dep_add.details.get("predecessor_name") == "Design"
     assert dep_add.details.get("successor_name") == "Build"
+
+
+def test_assignment_and_project_resource_audit_use_business_labels(services):
+    _login_admin(services)
+    ps = services["project_service"]
+    rs = services["resource_service"]
+    prs = services["project_resource_service"]
+    ts = services["task_service"]
+    audit = services["audit_service"]
+
+    project = ps.create_project("Audit Assignment Labels")
+    resource = rs.create_resource("Backend Dev", hourly_rate=130.0)
+    project_resource = prs.add_to_project(
+        project_id=project.id,
+        resource_id=resource.id,
+        planned_hours=24.0,
+    )
+    prs.update(
+        pr_id=project_resource.id,
+        hourly_rate=140.0,
+        currency_code="EUR",
+        planned_hours=32.0,
+        is_active=True,
+    )
+    task = ts.create_task(
+        project_id=project.id,
+        name="Implement API",
+        start_date=date(2026, 2, 1),
+        duration_days=2,
+    )
+    assignment = ts.assign_project_resource(task.id, project_resource.id, 60.0)
+    ts.set_assignment_allocation(assignment.id, 75.0)
+    ts.set_assignment_hours(assignment.id, 6.5)
+    ts.unassign_resource(assignment.id)
+    prs.set_active(project_resource.id, False)
+    prs.delete(project_resource.id)
+
+    entries = audit.list_recent(limit=200, project_id=project.id)
+    actions = {entry.action for entry in entries}
+    assert "project_resource.add" in actions
+    assert "project_resource.update" in actions
+    assert "project_resource.set_active" in actions
+    assert "project_resource.delete" in actions
+    assert "assignment.add" in actions
+    assert "assignment.set_allocation" in actions
+    assert "assignment.log_hours" in actions
+    assert "assignment.remove" in actions
+
+    assignment_add = next(e for e in entries if e.action == "assignment.add")
+    assert assignment_add.details.get("task_name") == "Implement API"
+    assert assignment_add.details.get("resource_name") == "Backend Dev"
+
+    project_resource_add = next(e for e in entries if e.action == "project_resource.add")
+    assert project_resource_add.details.get("resource_name") == "Backend Dev"

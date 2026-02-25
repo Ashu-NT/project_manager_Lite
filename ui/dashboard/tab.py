@@ -1,23 +1,18 @@
 from __future__ import annotations
 from typing import Optional
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (
-    QComboBox,
-    QGridLayout,
-    QGroupBox,
-    QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QPushButton,
-    QSplitter,
-    QTableWidget,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtWidgets import (QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
+                               QHeaderView, QLabel, QPushButton, QSplitter,
+                               QTableWidget, QVBoxLayout, QWidget)
 from core.events.domain_events import domain_events
+from core.services.auth import UserSessionContext
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.project import ProjectService
+from ui.dashboard.access import (
+    configure_dashboard_access,
+    wire_dashboard_access,
+)
 from ui.dashboard.alerts_panel import DashboardAlertsPanelMixin
 from ui.dashboard.data_ops import DashboardDataOpsMixin
 from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
@@ -30,6 +25,8 @@ from ui.dashboard.styles import (
 from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
+
+
 class DashboardTab(
     DashboardDataOpsMixin,
     DashboardLevelingOpsMixin,
@@ -42,12 +39,14 @@ class DashboardTab(
         project_service: ProjectService,
         dashboard_service: DashboardService,
         baseline_service: BaselineService,
+        user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._project_service: ProjectService = project_service
         self._dashboard_service: DashboardService = dashboard_service
         self._baseline_service: BaselineService = baseline_service
+        configure_dashboard_access(self, user_session)
         self._current_data: Optional[DashboardData] = None; self._current_conflicts = []
         self._setup_ui()
         self.reload_projects()
@@ -258,3 +257,4 @@ class DashboardTab(
         self.btn_auto_level.clicked.connect(self._auto_level_conflicts)
         self.btn_manual_shift.clicked.connect(self._manual_shift_selected_conflict)
         self.conflicts_table.itemSelectionChanged.connect(self._sync_leveling_buttons)
+        wire_dashboard_access(self)

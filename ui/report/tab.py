@@ -19,6 +19,7 @@ from core.services.reporting import ReportingService
 from core.services.auth import UserSessionContext
 from ui.report.actions import ReportActionsMixin
 from ui.report.project_flow import ReportProjectFlowMixin
+from ui.shared.guards import make_guarded_slot
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -158,18 +159,40 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         layout.addWidget(coverage)
         layout.addStretch()
 
-        self.btn_reload_projects.clicked.connect(self._load_projects)
-        self.btn_load_kpi.clicked.connect(self.load_kpis)
-        self.btn_show_gantt.clicked.connect(self.show_gantt)
-        self.btn_show_critical.clicked.connect(self.show_critical_path)
-        self.btn_show_resource_load.clicked.connect(self.show_resource_load)
-        self.btn_show_performance.clicked.connect(self.show_performance)
-        self.btn_show_evm.clicked.connect(self.show_evm)
+        self.btn_reload_projects.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self._load_projects)
+        )
+        self.btn_load_kpi.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.load_kpis)
+        )
+        self.btn_show_gantt.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.show_gantt)
+        )
+        self.btn_show_critical.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.show_critical_path)
+        )
+        self.btn_show_resource_load.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.show_resource_load)
+        )
+        self.btn_show_performance.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.show_performance)
+        )
+        self.btn_show_evm.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.show_evm)
+        )
         self.btn_show_baseline_compare.clicked.connect(self.show_baseline_comparison)
-        self.btn_export_gantt.clicked.connect(self.export_gantt_png)
-        self.btn_export_evm.clicked.connect(self.export_evm_png)
-        self.btn_export_excel.clicked.connect(self.export_excel)
-        self.btn_export_pdf.clicked.connect(self.export_pdf)
+        self.btn_export_gantt.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.export_gantt_png)
+        )
+        self.btn_export_evm.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.export_evm_png)
+        )
+        self.btn_export_excel.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.export_excel)
+        )
+        self.btn_export_pdf.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.export_pdf)
+        )
         self._apply_permissions()
 
     def _apply_permissions(self) -> None:

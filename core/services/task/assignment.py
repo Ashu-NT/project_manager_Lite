@@ -12,8 +12,9 @@ from core.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
-from core.models import ProjectResource, TaskAssignment
+from core.models import TaskAssignment
 from core.services.auth.authorization import require_permission
+from core.services.task.assignment_audit import record_assignment_action
 
 
 class TaskAssignmentMixin:
@@ -32,9 +33,19 @@ class TaskAssignmentMixin:
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
         task = self._task_repo.get(assignment.task_id)
+        resource = self._resource_repo.get(assignment.resource_id)
         try:
             self._assignment_repo.delete(assignment_id)
             self._session.commit()
+            if task is not None:
+                record_assignment_action(
+                    self,
+                    action="assignment.remove",
+                    assignment_id=assignment.id,
+                    project_id=task.project_id,
+                    task_name=task.name,
+                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                )
         except Exception as exc:
             self._session.rollback()
             raise exc
@@ -56,9 +67,19 @@ class TaskAssignmentMixin:
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         a.hours_logged = hours_logged
+        resource = self._resource_repo.get(a.resource_id)
         try:
             self._assignment_repo.update(a)
             self._session.commit()
+            record_assignment_action(
+                self,
+                action="assignment.log_hours",
+                assignment_id=a.id,
+                project_id=task.project_id,
+                task_name=task.name,
+                resource_name=resource.name if resource is not None else a.resource_id,
+                extra={"hours_logged": a.hours_logged},
+            )
         except Exception as exc:
             self._session.rollback()
             raise exc
@@ -92,9 +113,19 @@ class TaskAssignmentMixin:
         )
 
         a.allocation_percent = alloc
+        resource = self._resource_repo.get(a.resource_id)
         try:
             self._assignment_repo.update(a)
             self._session.commit()
+            record_assignment_action(
+                self,
+                action="assignment.set_allocation",
+                assignment_id=a.id,
+                project_id=task.project_id,
+                task_name=task.name,
+                resource_name=resource.name if resource is not None else a.resource_id,
+                extra={"allocation_percent": a.allocation_percent},
+            )
         except Exception as exc:
             self._session.rollback()
             raise exc
@@ -145,69 +176,23 @@ class TaskAssignmentMixin:
 
         assignment = TaskAssignment.create(task_id, pr.resource_id, alloc)
         setattr(assignment, "project_resource_id", pr.id)
+        resource = self._resource_repo.get(pr.resource_id)
 
         try:
             self._assignment_repo.add(assignment)
             self._session.commit()
+            record_assignment_action(
+                self,
+                action="assignment.add",
+                assignment_id=assignment.id,
+                project_id=task.project_id,
+                task_name=task.name,
+                resource_name=resource.name if resource is not None else pr.resource_id,
+                extra={"allocation_percent": assignment.allocation_percent},
+            )
         except Exception:
             self._session.rollback()
             raise
 
         domain_events.tasks_changed.emit(task.project_id)
         return assignment
-
-    def assign_resource(
-        self, task_id: str, resource_id: str, allocation_percent: float = 100.0
-    ) -> TaskAssignment:
-        self._require_manage("add assignment")
-        alloc = float(allocation_percent or 0.0)
-        if alloc <= 0 or alloc > 100:
-            raise ValidationError("allocation_percent must be > 0 and <= 100.")
-
-        task = self._task_repo.get(task_id)
-        if not task:
-            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
-
-        res = self._resource_repo.get(resource_id)
-        if not res:
-            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-
-        if not self._project_resource_repo:
-            self._check_resource_overallocation(
-                project_id=task.project_id,
-                resource_id=resource_id,
-                new_task_id=task_id,
-                new_alloc_percent=alloc,
-            )
-            assignment = TaskAssignment.create(task_id, resource_id, alloc)
-            try:
-                self._assignment_repo.add(assignment)
-                self._session.commit()
-            except Exception:
-                self._session.rollback()
-                raise
-            domain_events.tasks_changed.emit(task.project_id)
-            return assignment
-
-        pr = self._project_resource_repo.get_for_project(task.project_id, resource_id)
-        if not pr:
-            pr = ProjectResource.create(
-                project_id=task.project_id,
-                resource_id=resource_id,
-                hourly_rate=getattr(res, "hourly_rate", None),
-                currency_code=getattr(res, "currency_code", None),
-                planned_hours=0.0,
-                is_active=bool(getattr(res, "is_active", True)),
-            )
-            try:
-                self._project_resource_repo.add(pr)
-                self._session.commit()
-            except Exception:
-                self._session.rollback()
-                raise
-
-        return self.assign_project_resource(
-            task_id=task_id,
-            project_resource_id=pr.id,
-            allocation_percent=alloc,
-        )

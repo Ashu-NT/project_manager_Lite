@@ -26,6 +26,7 @@ from core.services.cost import CostService
 from core.services.project import ProjectService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.shared.guards import make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -84,7 +85,9 @@ class AuditLogTab(QWidget):
         self.entity_filter.addItem("Project", userData="project")
         self.entity_filter.addItem("Task", userData="task")
         self.entity_filter.addItem("Dependency", userData="task_dependency")
+        self.entity_filter.addItem("Task Assignment", userData="task_assignment")
         self.entity_filter.addItem("Resource", userData="resource")
+        self.entity_filter.addItem("Project Resource", userData="project_resource")
         self.entity_filter.addItem("Cost", userData="cost_item")
         self.entity_filter.addItem("Baseline", userData="project_baseline")
         toolbar.addWidget(self.entity_filter)
@@ -123,7 +126,9 @@ class AuditLogTab(QWidget):
         self.entity_filter.currentIndexChanged.connect(self._apply_filters)
         self.action_filter.textChanged.connect(self._apply_filters)
         self.actor_filter.textChanged.connect(self._apply_filters)
-        self.btn_refresh.clicked.connect(self.reload_logs)
+        self.btn_refresh.clicked.connect(
+            make_guarded_slot(self, title="Audit Log", callback=self.reload_logs)
+        )
 
     def _connect_domain_events(self) -> None:
         domain_events.project_changed.connect(self._on_domain_event)

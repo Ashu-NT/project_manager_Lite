@@ -18,6 +18,7 @@ from core.services.approval.service import ApprovalService
 from core.services.audit.service import AuditService
 from core.services.auth.session import UserSessionContext
 from core.services.task.assignment import TaskAssignmentMixin
+from core.services.task.assignment_bridge import TaskAssignmentBridgeMixin
 from core.services.task.dependency import TaskDependencyMixin
 from core.services.task.dependency_diagnostics import TaskDependencyDiagnosticsMixin
 from core.services.task.lifecycle import TaskLifecycleMixin
@@ -31,6 +32,7 @@ class TaskService(
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
     TaskAssignmentMixin,
+    TaskAssignmentBridgeMixin,
     TaskQueryMixin,
     TaskValidationMixin,
 ):

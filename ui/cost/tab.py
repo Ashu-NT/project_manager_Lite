@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from core.events.domain_events import domain_events
 from core.models import Project, Task
+from core.services.auth import UserSessionContext
 from core.services.cost import CostService
 from core.services.project import ProjectService
 from core.services.reporting import ReportingService
@@ -24,6 +25,10 @@ from ui.cost.layout import CostLayoutMixin
 from ui.cost.labor_summary import CostLaborSummaryMixin
 from ui.cost.models import CostTableModel
 from ui.cost.project_flow import CostProjectFlowMixin
+from ui.shared.guards import (
+    apply_permission_hint,
+    can_execute_governed_action,
+)
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -58,6 +63,7 @@ class CostTab(
         cost_service: CostService,
         reporting_service: ReportingService,
         resource_service: ResourceService,
+        user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -66,12 +72,29 @@ class CostTab(
         self._cost_service: CostService = cost_service
         self._reporting_service: ReportingService = reporting_service
         self._resource_service: ResourceService = resource_service
+        self._user_session = user_session
+        self._can_create_cost = can_execute_governed_action(
+            user_session=self._user_session,
+            manage_permission="cost.manage",
+            governance_action="cost.add",
+        )
+        self._can_edit_cost = can_execute_governed_action(
+            user_session=self._user_session,
+            manage_permission="cost.manage",
+            governance_action="cost.update",
+        )
+        self._can_delete_cost = can_execute_governed_action(
+            user_session=self._user_session,
+            manage_permission="cost.manage",
+            governance_action="cost.delete",
+        )
 
         self._current_project: Project | None = None
         self._project_tasks: list[Task] = []
 
         self._setup_ui()
         self._load_projects()
+        self._sync_cost_actions()
         domain_events.costs_changed.connect(self._on_costs_or_tasks_changed)
         domain_events.tasks_changed.connect(self._on_costs_or_tasks_changed)
         domain_events.project_changed.connect(self._on_project_changed_event)
@@ -167,3 +190,28 @@ class CostTab(
         self.btn_clear_filters.clicked.connect(self._clear_cost_filters)
         self.btn_labor_details.clicked.connect(self.show_labor_details)
         self.tbl_labor_summary.itemSelectionChanged.connect(self._on_labor_table_selected)
+        self.table.selectionModel().selectionChanged.connect(self._sync_cost_actions)
+
+        apply_permission_hint(
+            self.btn_new,
+            allowed=self._can_create_cost,
+            missing_permission="cost.manage or approval.request",
+        )
+        apply_permission_hint(
+            self.btn_edit,
+            allowed=self._can_edit_cost,
+            missing_permission="cost.manage or approval.request",
+        )
+        apply_permission_hint(
+            self.btn_delete,
+            allowed=self._can_delete_cost,
+            missing_permission="cost.manage or approval.request",
+        )
+        self._sync_cost_actions()
+
+    def _sync_cost_actions(self, *_args) -> None:
+        has_project = self._current_project_id() is not None
+        has_selected_cost = self._get_selected_cost() is not None
+        self.btn_new.setEnabled(self._can_create_cost and has_project)
+        self.btn_edit.setEnabled(self._can_edit_cost and has_project and has_selected_cost)
+        self.btn_delete.setEnabled(self._can_delete_cost and has_project and has_selected_cost)

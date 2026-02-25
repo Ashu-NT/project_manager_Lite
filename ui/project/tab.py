@@ -4,9 +4,7 @@ from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog,
     QHBoxLayout,
-    QMessageBox,
     QPushButton,
     QSplitter,
     QTableView,
@@ -15,25 +13,22 @@ from PySide6.QtWidgets import (
 )
 
 from core.events.domain_events import domain_events
-from core.exceptions import (
-    BusinessRuleError,
-    ConcurrencyError,
-    NotFoundError,
-    ValidationError,
-)
 from core.models import Project
+from core.services.auth import UserSessionContext
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
-from ui.project.dialogs import ProjectEditDialog
+from ui.project.actions import ProjectActionsMixin
+from ui.project.dialogs import ProjectEditDialog  # noqa: F401
 from ui.project.models import ProjectTableModel
 from ui.project.resource_panel import ProjectResourcePanelMixin
+from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
-class ProjectTab(ProjectResourcePanelMixin, QWidget):
+class ProjectTab(ProjectActionsMixin, ProjectResourcePanelMixin, QWidget):
     def __init__(
         self,
         project_service: ProjectService,
@@ -41,6 +36,7 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
         reporting_service: ReportingService,
         project_resource_service: ProjectResourceService,
         resource_service: ResourceService,
+        user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -49,9 +45,13 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
         self._reporting_service: ReportingService = reporting_service
         self._project_resource_service: ProjectResourceService = project_resource_service
         self._resource_service: ResourceService = resource_service
+        self._user_session = user_session
+        self._can_manage_projects = has_permission(self._user_session, "project.manage")
+        self._can_manage_project_resources = self._can_manage_projects
 
         self._setup_ui()
         self.reload_projects()
+        self._sync_actions()
         domain_events.project_changed.connect(self._on_project_changed_event)
         domain_events.resources_changed.connect(self._on_resources_changed_event)
 
@@ -116,11 +116,34 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
         layout.addWidget(content, 1)
 
         # signal connections
-        self.btn_new.clicked.connect(self.create_project)
-        self.btn_edit.clicked.connect(self.edit_project)
-        self.btn_delete.clicked.connect(self.delete_project)
+        self.btn_new.clicked.connect(
+            make_guarded_slot(self, title="Projects", callback=self.create_project)
+        )
+        self.btn_edit.clicked.connect(
+            make_guarded_slot(self, title="Projects", callback=self.edit_project)
+        )
+        self.btn_delete.clicked.connect(
+            make_guarded_slot(self, title="Projects", callback=self.delete_project)
+        )
         self.btn_refresh.clicked.connect(self.reload_projects)
         self.table.selectionModel().selectionChanged.connect(self._on_project_selection_changed)
+
+        apply_permission_hint(
+            self.btn_new,
+            allowed=self._can_manage_projects,
+            missing_permission="project.manage",
+        )
+        apply_permission_hint(
+            self.btn_edit,
+            allowed=self._can_manage_projects,
+            missing_permission="project.manage",
+        )
+        apply_permission_hint(
+            self.btn_delete,
+            allowed=self._can_manage_projects,
+            missing_permission="project.manage",
+        )
+        self._sync_actions()
 
     def reload_projects(self):
         selected = self._get_selected_project()
@@ -129,6 +152,7 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
         self.model.set_projects(projects)
         if not projects:
             self._reload_project_resource_panel_for_selected_project()
+            self._sync_actions()
             return
         row = 0
         if selected_id:
@@ -138,12 +162,17 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
                     break
         self.table.selectRow(row)
         self._reload_project_resource_panel_for_selected_project()
+        self._sync_actions()
 
     def _on_project_changed_event(self, _project_id: str) -> None:
         self.reload_projects()
 
     def _on_resources_changed_event(self, _resource_id: str) -> None:
         self._reload_project_resource_panel_for_selected_project()
+
+    def _on_project_selection_changed(self, *_args) -> None:
+        ProjectResourcePanelMixin._on_project_selection_changed(self, *_args)
+        self._sync_actions()
 
     def _get_selected_project(self) -> Optional[Project]:
         indexes = self.table.selectionModel().selectedRows()
@@ -152,90 +181,10 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
         row = indexes[0].row()
         return self.model.get_project(row)
 
-    def create_project(self):
-        dlg = ProjectEditDialog(self)
-        while True:
-            if dlg.exec() != QDialog.Accepted:
-                return
-            try:
-                self._project_service.create_project(
-                    name=dlg.name,
-                    client_name=dlg.client_name,
-                    client_contact=dlg.client_contact,
-                    planned_budget=dlg.planned_budget,
-                    currency=dlg.currency,
-                    start_date=dlg.start_date,
-                    end_date=dlg.end_date,
-                    description=dlg.description,
-                )
-            except ValidationError as e:
-                QMessageBox.warning(self, "Validation error", str(e))
-                continue
-            except (BusinessRuleError, NotFoundError, ConcurrencyError) as e:
-                QMessageBox.warning(self, "Error", str(e))
-                return
-            except Exception as e:
-                QMessageBox.critical(self, "Error", str(e))
-                return
-            self.reload_projects()
-            return
+    def _sync_actions(self) -> None:
+        has_project = self._get_selected_project() is not None
+        self.btn_new.setEnabled(self._can_manage_projects)
+        self.btn_edit.setEnabled(self._can_manage_projects and has_project)
+        self.btn_delete.setEnabled(self._can_manage_projects and has_project)
 
-    def edit_project(self):
-        proj = self._get_selected_project()
-        if not proj:
-            QMessageBox.information(self, "Edit project", "Please select a project.")
-            return
-
-        dlg = ProjectEditDialog(self, project=proj)
-        while True:
-            if dlg.exec() != QDialog.Accepted:
-                return
-            try:
-                self._project_service.update_project(
-                    project_id=proj.id,
-                    name=dlg.name,
-                    description=dlg.description,
-                    client_name=dlg.client_name,
-                    client_contact=dlg.client_contact,
-                    planned_budget=dlg.planned_budget,
-                    currency=dlg.currency,
-                    status=dlg.status,
-                    start_date=dlg.start_date,
-                    end_date=dlg.end_date,
-                )
-            except ValidationError as e:
-                QMessageBox.warning(self, "Error", str(e))
-                continue
-            except (BusinessRuleError, NotFoundError, ConcurrencyError) as e:
-                QMessageBox.warning(self, "Error", str(e))
-                return
-            except Exception as e:
-                QMessageBox.critical(self, "Error", str(e))
-                return
-            self.reload_projects()
-            return
-
-    def delete_project(self):
-        proj = self._get_selected_project()
-        if not proj:
-            QMessageBox.information(self, "Delete project", "Please select a project.")
-            return
-
-        confirm = QMessageBox.question(
-            self,
-            "Confirm delete",
-            f"Delete project '{proj.name}' and all its tasks, costs, etc.?",
-        )
-        if confirm != QMessageBox.Yes:
-            return
-
-        try:
-            self._project_service.delete_project(proj.id)
-        except (BusinessRuleError, NotFoundError) as e:
-            QMessageBox.warning(self, "Error", str(e))
-            return
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-            return
-        self.reload_projects()
 

@@ -19,6 +19,7 @@ from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import UserAccount
 from core.services.auth import AuthService
 from ui.admin.user_dialog import PasswordResetDialog, UserCreateDialog
+from ui.shared.guards import make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -84,12 +85,24 @@ class UserAdminTab(QWidget):
         header.setSectionResizeMode(4, QHeaderView.Stretch)
         layout.addWidget(self.table, 1)
 
-        self.btn_refresh.clicked.connect(self.reload_users)
-        self.btn_new_user.clicked.connect(self.create_user)
-        self.btn_assign_role.clicked.connect(self.assign_role)
-        self.btn_revoke_role.clicked.connect(self.revoke_role)
-        self.btn_reset_password.clicked.connect(self.reset_password)
-        self.btn_toggle_active.clicked.connect(self.toggle_active)
+        self.btn_refresh.clicked.connect(
+            make_guarded_slot(self, title="Users", callback=self.reload_users)
+        )
+        self.btn_new_user.clicked.connect(
+            make_guarded_slot(self, title="Users", callback=self.create_user)
+        )
+        self.btn_assign_role.clicked.connect(
+            make_guarded_slot(self, title="Users", callback=self.assign_role)
+        )
+        self.btn_revoke_role.clicked.connect(
+            make_guarded_slot(self, title="Users", callback=self.revoke_role)
+        )
+        self.btn_reset_password.clicked.connect(
+            make_guarded_slot(self, title="Users", callback=self.reset_password)
+        )
+        self.btn_toggle_active.clicked.connect(
+            make_guarded_slot(self, title="Users", callback=self.toggle_active)
+        )
         self.table.itemSelectionChanged.connect(self._sync_actions)
         self._sync_actions()
 

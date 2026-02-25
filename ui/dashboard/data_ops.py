@@ -1,11 +1,11 @@
 from __future__ import annotations
-
 from PySide6.QtWidgets import QComboBox, QInputDialog, QMessageBox
 
 from core.exceptions import BusinessRuleError
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.project import ProjectService
+from ui.dashboard.access import sync_dashboard_baseline_actions
 from ui.shared.combo import current_data_and_text
 
 
@@ -91,12 +91,12 @@ class DashboardDataOpsMixin:
             self.baseline_combo.clear()
             self.baseline_combo.addItem("Latest baseline", userData=None)
             self._clear_dashboard()
-            return
-
-        if selected_id:
-            self._load_baselines_for_project(selected_id)
-            self.baseline_combo.setCurrentIndex(0)
-        self.refresh_dashboard()
+        else:
+            if selected_id:
+                self._load_baselines_for_project(selected_id)
+                self.baseline_combo.setCurrentIndex(0)
+            self.refresh_dashboard()
+        sync_dashboard_baseline_actions(self)
 
     def _current_project_id_and_name(self):
         return current_data_and_text(self.project_combo)

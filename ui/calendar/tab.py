@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.events.domain_events import domain_events
+from core.services.auth import UserSessionContext
 from core.services.project import ProjectService
 from core.services.scheduling import SchedulingEngine
 from core.services.task import TaskService
@@ -27,6 +28,7 @@ from ui.calendar.calculator import CalendarCalculatorMixin
 from ui.calendar.holidays import CalendarHolidaysMixin
 from ui.calendar.project_ops import CalendarProjectOpsMixin
 from ui.calendar.working_time import CalendarWorkingTimeMixin
+from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -51,6 +53,7 @@ class CalendarTab(
         scheduling_engine: SchedulingEngine,
         project_service: ProjectService,
         task_service: TaskService,
+        user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -59,6 +62,8 @@ class CalendarTab(
         self._scheduling_engine: SchedulingEngine = scheduling_engine
         self._project_service: ProjectService = project_service
         self._task_service: TaskService = task_service
+        self._user_session = user_session
+        self._can_manage_calendar = has_permission(self._user_session, "task.manage")
 
         self._setup_ui()
         self.load_calendar_config()
@@ -240,9 +245,42 @@ class CalendarTab(
         splitter.setStretchFactor(1, 2)
         splitter.setSizes([780, 460])
 
-        self.btn_save_calendar.clicked.connect(self.save_calendar)
-        self.btn_add_holiday.clicked.connect(self.add_holiday)
-        self.btn_delete_holiday.clicked.connect(self.delete_selected_holiday)
+        self.btn_save_calendar.clicked.connect(
+            make_guarded_slot(self, title="Calendar", callback=self.save_calendar)
+        )
+        self.btn_add_holiday.clicked.connect(
+            make_guarded_slot(self, title="Calendar", callback=self.add_holiday)
+        )
+        self.btn_delete_holiday.clicked.connect(
+            make_guarded_slot(self, title="Calendar", callback=self.delete_selected_holiday)
+        )
         self.btn_calc.clicked.connect(self.run_calendar_calc)
         self.btn_reload_projects.clicked.connect(self.reload_projects)
-        self.btn_recalc_project.clicked.connect(self.recalc_project_schedule)
+        self.btn_recalc_project.clicked.connect(
+            make_guarded_slot(self, title="Calendar", callback=self.recalc_project_schedule)
+        )
+
+        apply_permission_hint(
+            self.btn_save_calendar,
+            allowed=self._can_manage_calendar,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_add_holiday,
+            allowed=self._can_manage_calendar,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_delete_holiday,
+            allowed=self._can_manage_calendar,
+            missing_permission="task.manage",
+        )
+        apply_permission_hint(
+            self.btn_recalc_project,
+            allowed=self._can_manage_calendar,
+            missing_permission="task.manage",
+        )
+        self.btn_save_calendar.setEnabled(self._can_manage_calendar)
+        self.btn_add_holiday.setEnabled(self._can_manage_calendar)
+        self.btn_delete_holiday.setEnabled(self._can_manage_calendar)
+        self.btn_recalc_project.setEnabled(self._can_manage_calendar)

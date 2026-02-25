@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import Optional
 
 from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QTableWidget
@@ -130,6 +129,8 @@ class CostProjectFlowMixin(CostFiltersMixin):
             self.lbl_kpi_committed.setText("-")
             self.lbl_kpi_actual.setText("-")
             self.lbl_kpi_remaining.setText("-")
+            if callable(getattr(self, "_sync_cost_actions", None)):
+                self._sync_cost_actions()
             return
         costs = self._cost_service.list_cost_items_for_project(pid)
         task_names = {t.id: t.name for t in self._project_tasks}
@@ -175,3 +176,5 @@ class CostProjectFlowMixin(CostFiltersMixin):
         except Exception as exc:
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_labor_note.setText(f"Labor summary unavailable: {exc}")
+        if callable(getattr(self, "_sync_cost_actions", None)):
+            self._sync_cost_actions()

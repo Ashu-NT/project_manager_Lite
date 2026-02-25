@@ -17,6 +17,9 @@ class ResourceFlowMixin:
     def reload_resources(self) -> None:
         resources = self._resource_service.list_resources()
         self.model.set_resources(resources)
+        sync_actions = getattr(self, "_sync_actions", None)
+        if callable(sync_actions):
+            sync_actions()
 
     def _get_selected_resource(self) -> Optional[Resource]:
         indexes = self.table.selectionModel().selectedRows()
