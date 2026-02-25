@@ -13,6 +13,7 @@ def resource_to_orm(resource: Resource) -> ResourceORM:
         is_active=resource.is_active,
         cost_type=resource.cost_type,
         currency_code=resource.currency_code,
+        version=getattr(resource, "version", 1),
     )
 
 
@@ -25,6 +26,7 @@ def resource_from_orm(obj: ResourceORM) -> Resource:
         is_active=obj.is_active,
         cost_type=obj.cost_type,
         currency_code=obj.currency_code,
+        version=getattr(obj, "version", 1),
     )
 
 

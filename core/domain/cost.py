@@ -20,6 +20,7 @@ class CostItem:
     actual_amount: float = 0.0
     incurred_date: Optional[date] = None
     currency_code: Optional[str] = None
+    version: int = 1
 
     @staticmethod
     def create(

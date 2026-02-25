@@ -22,6 +22,7 @@ from infra.db.cost_calendar.mapper import (
     holiday_to_orm,
 )
 from infra.db.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
+from infra.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyCostRepository(CostRepository):
@@ -32,7 +33,29 @@ class SqlAlchemyCostRepository(CostRepository):
         self.session.add(cost_to_orm(cost_item))
 
     def update(self, cost_item: CostItem) -> None:
-        self.session.merge(cost_to_orm(cost_item))
+        cost_item.version = update_with_version_check(
+            self.session,
+            CostItemORM,
+            cost_item.id,
+            getattr(cost_item, "version", 1),
+            {
+                "project_id": cost_item.project_id,
+                "task_id": cost_item.task_id,
+                "description": cost_item.description,
+                "cost_type": (
+                    cost_item.cost_type.value
+                    if hasattr(cost_item.cost_type, "value")
+                    else cost_item.cost_type
+                ),
+                "currency_code": cost_item.currency_code,
+                "planned_amount": cost_item.planned_amount,
+                "committed_amount": cost_item.committed_amount,
+                "actual_amount": cost_item.actual_amount,
+                "incurred_date": cost_item.incurred_date,
+            },
+            not_found_message="Cost item not found.",
+            stale_message="Cost item was updated by another user.",
+        )
 
     def delete(self, cost_id: str) -> None:
         self.session.query(CostItemORM).filter_by(id=cost_id).delete()

@@ -16,6 +16,7 @@ class Resource:
     is_active: bool = True
     cost_type: CostType = CostType.LABOR
     currency_code: Optional[str] = None
+    version: int = 1
 
     @staticmethod
     def create(

@@ -23,6 +23,7 @@ class Task:
     actual_start: Optional[date] = None
     actual_end: Optional[date] = None
     deadline: date | None = None
+    version: int = 1
 
     @staticmethod
     def create(project_id: str, name: str, description: str = "", **extra) -> "Task":

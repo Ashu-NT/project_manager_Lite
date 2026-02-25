@@ -18,6 +18,7 @@ def cost_to_orm(cost: CostItem) -> CostItemORM:
         cost_type=(cost.cost_type.value if hasattr(cost.cost_type, "value") else cost.cost_type),
         incurred_date=cost.incurred_date,
         currency_code=cost.currency_code,
+        version=getattr(cost, "version", 1),
     )
 
 
@@ -33,6 +34,7 @@ def cost_from_orm(obj: CostItemORM) -> CostItem:
         cost_type=CostType(obj.cost_type) if obj.cost_type else CostType.OVERHEAD,
         incurred_date=obj.incurred_date,
         currency_code=obj.currency_code,
+        version=getattr(obj, "version", 1),
     )
 
 

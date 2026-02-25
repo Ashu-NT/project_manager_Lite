@@ -16,6 +16,7 @@ def project_to_orm(project: Project) -> ProjectORM:
         client_contact=project.client_contact,
         planned_budget=project.planned_budget,
         currency=project.currency,
+        version=getattr(project, "version", 1),
     )
 
 
@@ -31,6 +32,7 @@ def project_from_orm(obj: ProjectORM) -> Project:
         client_contact=obj.client_contact,
         planned_budget=obj.planned_budget,
         currency=obj.currency,
+        version=getattr(obj, "version", 1),
     )
 
 

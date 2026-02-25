@@ -1,4 +1,5 @@
 from .baseline import BaselineService
+from .auth import AuthService
 from .calendar import CalendarService
 from .cost import CostService
 from .dashboard import DashboardService, DashboardData, DashboardEVM, UpcomingTask, BurndownPoint
@@ -12,6 +13,7 @@ from .work_calendar import WorkCalendarEngine, WorkCalendarService
 __all__ = [
     "ProjectService",
     "ProjectResourceService",
+    "AuthService",
     "TaskService",
     "ResourceService",
     "CostService",

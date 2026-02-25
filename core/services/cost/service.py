@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import date
 from core.models import CostItem, CostType
 from core.interfaces import CostRepository, ProjectRepository, TaskRepository
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.events.domain_events import domain_events
 
 DEFAULT_CURRENCY_CODE = "EUR"
@@ -93,11 +93,17 @@ class CostService:
         actual_amount: float | None = None,
         cost_type : CostType | None = None,
         incurred_date: date | None = None,
-        currency_code: str | None = None
+        currency_code: str | None = None,
+        expected_version: int | None = None,
     ) -> CostItem:
         item = self._cost_repo.get(cost_id)
         if not item:
             raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
+        if expected_version is not None and item.version != expected_version:
+            raise ConcurrencyError(
+                "Cost item changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
 
         if description is not None:
             item.description = description.strip()

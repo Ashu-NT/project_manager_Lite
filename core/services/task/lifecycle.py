@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from core.events.domain_events import domain_events
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.interfaces import (
     AssignmentRepository,
     CalendarEventRepository,
@@ -119,10 +119,16 @@ class TaskLifecycleMixin:
         status: TaskStatus | None = None,
         priority: int | None = None,
         deadline: date | None = None,
+        expected_version: int | None = None,
     ) -> Task:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        if expected_version is not None and task.version != expected_version:
+            raise ConcurrencyError(
+                "Task changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
 
         if name is not None:
             self._validate_task_name(name)
@@ -169,10 +175,16 @@ class TaskLifecycleMixin:
         percent_complete: float | None = None,
         actual_start: date | None = None,
         actual_end: date | None = None,
+        expected_version: int | None = None,
     ) -> Task:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        if expected_version is not None and task.version != expected_version:
+            raise ConcurrencyError(
+                "Task changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
 
         if percent_complete is not None:
             if percent_complete < 0 or percent_complete > 100:

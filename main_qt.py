@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont, QIcon
 from infra.resource import resource_path
 
-from infra.db.base import SessionLocal
+from infra.db.base import SessionLocal, get_db_url
 from infra.logging_config import setup_logging
 from infra.services import build_service_dict
 
@@ -16,14 +16,7 @@ from ui.settings import MainWindowSettingsStore
 def build_services():
     # same DB as CLI
     from infra.migrate import run_migrations
-    from infra.path import default_db_path
-    from pathlib import Path
-
-    db_url:Path = default_db_path()
-
-    run_migrations(
-        db_url=db_url.as_posix()
-    )
+    run_migrations(db_url=get_db_url())
     #Base.metadata.create_all(bind=engine)
     session = SessionLocal()
 

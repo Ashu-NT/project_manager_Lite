@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from core.interfaces import AssignmentRepository, DependencyRepository, TaskRepository
 from core.models import Task, TaskAssignment, TaskDependency
 from infra.db.models import TaskAssignmentORM, TaskDependencyORM, TaskORM
+from infra.db.optimistic import update_with_version_check
 from infra.db.task.mapper import (
     assignment_from_orm,
     assignment_to_orm,
@@ -26,7 +27,28 @@ class SqlAlchemyTaskRepository(TaskRepository):
         self.session.add(task_to_orm(task))
 
     def update(self, task: Task) -> None:
-        self.session.merge(task_to_orm(task))
+        task.version = update_with_version_check(
+            self.session,
+            TaskORM,
+            task.id,
+            getattr(task, "version", 1),
+            {
+                "project_id": task.project_id,
+                "name": task.name,
+                "description": task.description,
+                "start_date": task.start_date,
+                "end_date": task.end_date,
+                "duration_days": task.duration_days,
+                "status": task.status,
+                "priority": task.priority,
+                "percent_complete": task.percent_complete,
+                "actual_start": task.actual_start,
+                "actual_end": task.actual_end,
+                "deadline": task.deadline,
+            },
+            not_found_message="Task not found.",
+            stale_message="Task was updated by another user.",
+        )
 
     def delete(self, task_id: str) -> None:
         self.session.query(TaskORM).filter_by(id=task_id).delete()

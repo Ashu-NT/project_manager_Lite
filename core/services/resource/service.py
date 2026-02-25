@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from core.models import Resource, CostType
 from core.interfaces import ResourceRepository, AssignmentRepository, ProjectResourceRepository
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.events.domain_events import domain_events
 import logging
 
@@ -64,10 +64,16 @@ class ResourceService:
         is_active: bool | None = None,
         cost_type: CostType | None = None,
         currency_code: str | None = None,
+        expected_version: int | None = None,
     ) -> Resource:
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        if expected_version is not None and resource.version != expected_version:
+            raise ConcurrencyError(
+                "Resource changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
 
         if name is not None:
             if not name.strip():

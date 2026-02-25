@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from core.interfaces import ProjectRepository, ProjectResourceRepository
 from core.models import Project, ProjectResource
 from infra.db.models import ProjectORM, ProjectResourceORM
+from infra.db.optimistic import update_with_version_check
 from infra.db.project.mapper import (
     project_from_orm,
     project_resource_from_orm,
@@ -24,7 +25,25 @@ class SqlAlchemyProjectRepository(ProjectRepository):
         self.session.add(project_to_orm(project))
 
     def update(self, project: Project) -> None:
-        self.session.merge(project_to_orm(project))
+        project.version = update_with_version_check(
+            self.session,
+            ProjectORM,
+            project.id,
+            getattr(project, "version", 1),
+            {
+                "name": project.name,
+                "description": project.description,
+                "start_date": project.start_date,
+                "end_date": project.end_date,
+                "status": project.status,
+                "client_name": project.client_name,
+                "client_contact": project.client_contact,
+                "planned_budget": project.planned_budget,
+                "currency": project.currency,
+            },
+            not_found_message="Project not found.",
+            stale_message="Project was updated by another user.",
+        )
 
     def delete(self, project_id: str) -> None:
         self.session.query(ProjectORM).filter_by(id=project_id).delete()

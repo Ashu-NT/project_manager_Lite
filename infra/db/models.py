@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum as SAEnum,
     Index,
     Integer,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +43,7 @@ class ProjectORM(Base):
     client_contact: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     planned_budget: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     currency: Mapped[Optional[str]] = mapped_column(String(8), nullable=True) #' EUR, USD, etc.'
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 class TaskORM(Base):
@@ -67,6 +69,7 @@ class TaskORM(Base):
     actual_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     actual_end: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     deadline: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 Index("idx_tasks_project_id", TaskORM.project_id)
 
 class ResourceORM(Base):
@@ -80,6 +83,7 @@ class ResourceORM(Base):
 
     cost_type: Mapped[CostType] = mapped_column(SAEnum(CostType), default=CostType.LABOR, nullable=False)
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 class TaskAssignmentORM(Base):
@@ -125,6 +129,7 @@ class CostItemORM(Base):
     committed_amount: Mapped[float] = mapped_column(Float, default=0.0)
     actual_amount: Mapped[float] = mapped_column(Float, default=0.0)
     incurred_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     
 Index("idx_costs_project", CostItemORM.project_id)
 Index("idx_costs_task", CostItemORM.task_id)
@@ -212,3 +217,65 @@ class ProjectResourceORM(Base):
 Index("idx_project_resource_project", ProjectResourceORM.project_id)
 Index("idx_project_resource_resource", ProjectResourceORM.resource_id)
 Index("ux_project_resource_project_resource", ProjectResourceORM.project_id, ProjectResourceORM.resource_id, unique=True)
+
+
+class UserORM(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    username: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class RoleORM(Base):
+    __tablename__ = "roles"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(String, nullable=False, default="")
+    is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+
+
+class PermissionORM(Base):
+    __tablename__ = "permissions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    code: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(String, nullable=False, default="")
+
+
+class UserRoleORM(Base):
+    __tablename__ = "user_roles"
+    __table_args__ = (
+        UniqueConstraint("user_id", "role_id", name="ux_user_roles_user_role"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role_id: Mapped[str] = mapped_column(String, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+
+
+class RolePermissionORM(Base):
+    __tablename__ = "role_permissions"
+    __table_args__ = (
+        UniqueConstraint("role_id", "permission_id", name="ux_role_permissions_role_perm"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    role_id: Mapped[str] = mapped_column(String, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    permission_id: Mapped[str] = mapped_column(String, ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
+
+
+Index("idx_users_username", UserORM.username, unique=True)
+Index("idx_roles_name", RoleORM.name, unique=True)
+Index("idx_permissions_code", PermissionORM.code, unique=True)
+Index("idx_user_roles_user", UserRoleORM.user_id)
+Index("idx_user_roles_role", UserRoleORM.role_id)
+Index("idx_role_permissions_role", RolePermissionORM.role_id)
+Index("idx_role_permissions_permission", RolePermissionORM.permission_id)

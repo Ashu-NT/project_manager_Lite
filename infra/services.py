@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from core.services.baseline import BaselineService
+from core.services.auth import AuthService
 from core.services.calendar import CalendarService
 from core.services.cost import CostService
 from core.services.dashboard import DashboardService
@@ -21,10 +22,15 @@ from infra.db.repositories import (
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyCostRepository,
     SqlAlchemyDependencyRepository,
+    SqlAlchemyPermissionRepository,
     SqlAlchemyProjectRepository,
     SqlAlchemyProjectResourceRepository,
+    SqlAlchemyRolePermissionRepository,
+    SqlAlchemyRoleRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyTaskRepository,
+    SqlAlchemyUserRepository,
+    SqlAlchemyUserRoleRepository,
     SqlAlchemyWorkingCalendarRepository,
 )
 
@@ -32,6 +38,7 @@ from infra.db.repositories import (
 @dataclass(frozen=True)
 class ServiceGraph:
     session: Session
+    auth_service: AuthService
     project_service: ProjectService
     task_service: TaskService
     calendar_service: CalendarService
@@ -48,6 +55,7 @@ class ServiceGraph:
     def as_dict(self) -> dict[str, Any]:
         return {
             "session": self.session,
+            "auth_service": self.auth_service,
             "project_service": self.project_service,
             "task_service": self.task_service,
             "calendar_service": self.calendar_service,
@@ -74,8 +82,22 @@ def build_service_graph(session: Session) -> ServiceGraph:
     work_calendar_repo = SqlAlchemyWorkingCalendarRepository(session)
     baseline_repo = SqlAlchemyBaselineRepository(session)
     project_resource_repo = SqlAlchemyProjectResourceRepository(session)
+    user_repo = SqlAlchemyUserRepository(session)
+    role_repo = SqlAlchemyRoleRepository(session)
+    permission_repo = SqlAlchemyPermissionRepository(session)
+    user_role_repo = SqlAlchemyUserRoleRepository(session)
+    role_permission_repo = SqlAlchemyRolePermissionRepository(session)
 
     work_calendar_engine = WorkCalendarEngine(work_calendar_repo, calendar_id="default")
+    auth_service = AuthService(
+        session=session,
+        user_repo=user_repo,
+        role_repo=role_repo,
+        permission_repo=permission_repo,
+        user_role_repo=user_role_repo,
+        role_permission_repo=role_permission_repo,
+    )
+    auth_service.bootstrap_defaults()
 
     project_service = ProjectService(
         session,
@@ -149,6 +171,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
 
     return ServiceGraph(
         session=session,
+        auth_service=auth_service,
         project_service=project_service,
         task_service=task_service,
         calendar_service=calendar_service,

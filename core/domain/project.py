@@ -20,6 +20,7 @@ class Project:
     client_contact: Optional[str] = None
     planned_budget: Optional[float] = None
     currency: Optional[str] = None
+    version: int = 1
 
     @staticmethod
     def create(name: str, description: str = "", **extra) -> "Project":

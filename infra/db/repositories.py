@@ -27,8 +27,18 @@ from infra.db.mappers import (
     project_to_orm,
     resource_from_orm,
     resource_to_orm,
+    role_from_orm,
+    role_permission_from_orm,
+    role_permission_to_orm,
+    role_to_orm,
     task_from_orm,
     task_to_orm,
+    user_from_orm,
+    user_role_from_orm,
+    user_role_to_orm,
+    user_to_orm,
+    permission_to_orm,
+    permission_from_orm,
 )
 from infra.db.repositories_baseline import SqlAlchemyBaselineRepository
 from infra.db.repositories_cost_calendar import (
@@ -45,6 +55,13 @@ from infra.db.repositories_task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
+)
+from infra.db.repositories_auth import (
+    SqlAlchemyPermissionRepository,
+    SqlAlchemyRolePermissionRepository,
+    SqlAlchemyRoleRepository,
+    SqlAlchemyUserRepository,
+    SqlAlchemyUserRoleRepository,
 )
 
 __all__ = [
@@ -72,6 +89,16 @@ __all__ = [
     "baseline_task_to_orm",
     "project_resource_from_orm",
     "project_resource_to_orm",
+    "user_to_orm",
+    "user_from_orm",
+    "role_to_orm",
+    "role_from_orm",
+    "permission_to_orm",
+    "permission_from_orm",
+    "user_role_to_orm",
+    "user_role_from_orm",
+    "role_permission_to_orm",
+    "role_permission_from_orm",
     "SqlAlchemyProjectRepository",
     "SqlAlchemyProjectResourceRepository",
     "SqlAlchemyTaskRepository",
@@ -82,4 +109,9 @@ __all__ = [
     "SqlAlchemyCalendarEventRepository",
     "SqlAlchemyWorkingCalendarRepository",
     "SqlAlchemyBaselineRepository",
+    "SqlAlchemyUserRepository",
+    "SqlAlchemyRoleRepository",
+    "SqlAlchemyPermissionRepository",
+    "SqlAlchemyUserRoleRepository",
+    "SqlAlchemyRolePermissionRepository",
 ]

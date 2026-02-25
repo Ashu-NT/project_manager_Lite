@@ -10,6 +10,18 @@ from infra.db.baseline.mapper import (
     baseline_task_to_orm,
     baseline_to_orm,
 )
+from infra.db.auth.mapper import (
+    permission_from_orm,
+    permission_to_orm,
+    role_from_orm,
+    role_permission_from_orm,
+    role_permission_to_orm,
+    role_to_orm,
+    user_from_orm,
+    user_role_from_orm,
+    user_role_to_orm,
+    user_to_orm,
+)
 from infra.db.cost_calendar.mapper import (
     calendar_from_orm,
     calendar_to_orm,
@@ -61,4 +73,14 @@ __all__ = [
     "baseline_task_to_orm",
     "project_resource_from_orm",
     "project_resource_to_orm",
+    "user_to_orm",
+    "user_from_orm",
+    "role_to_orm",
+    "role_from_orm",
+    "permission_to_orm",
+    "permission_from_orm",
+    "user_role_to_orm",
+    "user_role_from_orm",
+    "role_permission_to_orm",
+    "role_permission_from_orm",
 ]

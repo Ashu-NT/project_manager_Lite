@@ -6,7 +6,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from core.events.domain_events import domain_events
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.interfaces import (
     AssignmentRepository,
     CalendarEventRepository,
@@ -101,6 +101,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
     def update_project(
         self,
         project_id: str,
+        expected_version: int | None = None,
         name: str | None = None,
         description: str | None = None,
         status: ProjectStatus | None = None,
@@ -114,6 +115,11 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        if expected_version is not None and project.version != expected_version:
+            raise ConcurrencyError(
+                "Project changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
 
         if name is not None:
             if not name.strip():

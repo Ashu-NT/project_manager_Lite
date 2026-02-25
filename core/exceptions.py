@@ -17,3 +17,7 @@ class NotFoundError(DomainError):
 
 class BusinessRuleError(DomainError):
     """Raised when business rules are violated (e.g., circular dependencies)."""
+
+
+class ConcurrencyError(DomainError):
+    """Raised when optimistic locking detects a stale update."""

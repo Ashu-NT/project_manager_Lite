@@ -1,4 +1,6 @@
 from core.services._base_service import ServiceBase as LegacyServiceBase
+from core.services.auth import AuthService
+from core.services.auth_service import AuthService as LegacyAuthService
 from core.services.baseline import BaselineService
 from core.services.baseline_service import BaselineService as LegacyBaselineService
 from core.services.calendar import CalendarService
@@ -27,6 +29,7 @@ def test_service_graph_builder_wires_all_services(session):
     graph = build_service_graph(session)
 
     assert isinstance(graph, ServiceGraph)
+    assert isinstance(graph.auth_service, AuthService)
     assert isinstance(graph.project_service, ProjectService)
     assert isinstance(graph.task_service, TaskService)
     assert isinstance(graph.resource_service, ResourceService)
@@ -41,6 +44,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.project_resource_service, ProjectResourceService)
 
     as_dict = graph.as_dict()
+    assert as_dict["auth_service"] is graph.auth_service
     assert as_dict["dashboard_service"] is graph.dashboard_service
     assert as_dict["project_resource_service"] is graph.project_resource_service
     assert as_dict["session"] is session
@@ -48,6 +52,7 @@ def test_service_graph_builder_wires_all_services(session):
 
 def test_legacy_service_imports_point_to_new_packages():
     assert LegacyServiceBase.__name__ == "ServiceBase"
+    assert LegacyAuthService is AuthService
     assert LegacyProjectService is ProjectService
     assert LegacyProjectResourceService is ProjectResourceService
     assert LegacyTaskService is TaskService
