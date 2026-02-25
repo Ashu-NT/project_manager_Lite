@@ -143,10 +143,13 @@ class MainWindow(QMainWindow):
             users_tab = UserAdminTab(auth_service=self.services["auth_service"])
             self.tabs.addTab(users_tab, "Users")
 
-        if self._has_permission("auth.manage"):
+        if self._has_permission("approval.request") or self._has_permission("approval.decide"):
             governance_tab = GovernanceTab(
                 approval_service=self.services["approval_service"],
                 project_service=self.services["project_service"],
+                task_service=self.services["task_service"],
+                cost_service=self.services["cost_service"],
+                user_session=self._user_session,
             )
             self.tabs.addTab(governance_tab, "Governance")
 

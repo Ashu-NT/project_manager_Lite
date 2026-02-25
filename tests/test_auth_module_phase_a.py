@@ -14,6 +14,8 @@ def test_bootstrap_creates_admin_and_permissions(services):
     assert "auth.manage" in permissions
     assert "project.manage" in permissions
     assert "report.export" in permissions
+    assert "approval.request" in permissions
+    assert "approval.decide" in permissions
 
 
 def test_register_user_uses_default_viewer_role(services):

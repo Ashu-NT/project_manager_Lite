@@ -46,7 +46,19 @@ class CostService:
         currency_code: str | None = None,
         bypass_approval: bool = False,
     ) -> CostItem:
-        require_permission(self._user_session, "cost.manage", operation_label="add cost item")
+        governed = (
+            not bypass_approval
+            and self._approval_service is not None
+            and is_governance_required("cost.add")
+        )
+        if governed:
+            require_permission(
+                self._user_session,
+                "approval.request",
+                operation_label="request cost item creation",
+            )
+        else:
+            require_permission(self._user_session, "cost.manage", operation_label="add cost item")
         if not isinstance(cost_type, CostType):
             cost_type = CostType(str(cost_type))
         if not self._project_repo.get(project_id):
@@ -74,11 +86,7 @@ class CostService:
         if incurred_date is not None and not isinstance(incurred_date, date):
             raise ValidationError("Incurred date must be a valid date.")
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
-        if (
-            not bypass_approval
-            and self._approval_service is not None
-            and is_governance_required("cost.add")
-        ):
+        if governed:
             req = self._approval_service.request_change(
                 request_type="cost.add",
                 entity_type="cost_item",
@@ -148,7 +156,19 @@ class CostService:
         expected_version: int | None = None,
         bypass_approval: bool = False,
     ) -> CostItem:
-        require_permission(self._user_session, "cost.manage", operation_label="update cost item")
+        governed = (
+            not bypass_approval
+            and self._approval_service is not None
+            and is_governance_required("cost.update")
+        )
+        if governed:
+            require_permission(
+                self._user_session,
+                "approval.request",
+                operation_label="request cost item update",
+            )
+        else:
+            require_permission(self._user_session, "cost.manage", operation_label="update cost item")
         item = self._cost_repo.get(cost_id)
         if not item:
             raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
@@ -157,11 +177,7 @@ class CostService:
                 "Cost item changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if (
-            not bypass_approval
-            and self._approval_service is not None
-            and is_governance_required("cost.update")
-        ):
+        if governed:
             req = self._approval_service.request_change(
                 request_type="cost.update",
                 entity_type="cost_item",
@@ -239,15 +255,23 @@ class CostService:
         return item
 
     def delete_cost_item(self, cost_id: str, bypass_approval: bool = False) -> None:
-        require_permission(self._user_session, "cost.manage", operation_label="delete cost item")
-        item = self._cost_repo.get(cost_id)
-        if not item:
-            raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
-        if (
+        governed = (
             not bypass_approval
             and self._approval_service is not None
             and is_governance_required("cost.delete")
-        ):
+        )
+        if governed:
+            require_permission(
+                self._user_session,
+                "approval.request",
+                operation_label="request cost item deletion",
+            )
+        else:
+            require_permission(self._user_session, "cost.manage", operation_label="delete cost item")
+        item = self._cost_repo.get(cost_id)
+        if not item:
+            raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
+        if governed:
             req = self._approval_service.request_change(
                 request_type="cost.delete",
                 entity_type="cost_item",

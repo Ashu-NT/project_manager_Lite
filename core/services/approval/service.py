@@ -39,6 +39,11 @@ class ApprovalService:
         payload: dict | None = None,
         commit: bool = True,
     ) -> ApprovalRequest:
+        require_permission(
+            self._user_session,
+            "approval.request",
+            operation_label="request governed change",
+        )
         principal = self._user_session.principal if self._user_session else None
         request = ApprovalRequest.create(
             request_type=request_type.strip().lower(),
@@ -69,8 +74,13 @@ class ApprovalService:
         )
 
     def reject(self, request_id: str, note: str | None = None) -> ApprovalRequest:
-        require_permission(self._user_session, "auth.manage", operation_label="reject approval request")
+        require_permission(
+            self._user_session,
+            "approval.decide",
+            operation_label="reject approval request",
+        )
         request = self._require_pending(request_id)
+        self._ensure_not_self_decision(request)
         principal = self._user_session.principal if self._user_session else None
         request.status = ApprovalStatus.REJECTED
         request.decided_at = datetime.now(timezone.utc)
@@ -82,8 +92,13 @@ class ApprovalService:
         return request
 
     def approve_and_apply(self, request_id: str, note: str | None = None) -> ApprovalRequest:
-        require_permission(self._user_session, "auth.manage", operation_label="approve approval request")
+        require_permission(
+            self._user_session,
+            "approval.decide",
+            operation_label="approve approval request",
+        )
         request = self._require_pending(request_id)
+        self._ensure_not_self_decision(request)
         handler = self._apply_handlers.get(request.request_type)
         if handler is None:
             raise BusinessRuleError(
@@ -113,6 +128,16 @@ class ApprovalService:
                 code="APPROVAL_ALREADY_DECIDED",
             )
         return request
+
+    def _ensure_not_self_decision(self, request: ApprovalRequest) -> None:
+        principal = self._user_session.principal if self._user_session else None
+        if principal is None or not request.requested_by_user_id:
+            return
+        if principal.user_id == request.requested_by_user_id:
+            raise BusinessRuleError(
+                "You cannot approve or reject your own governance request.",
+                code="APPROVAL_SELF_DECISION_FORBIDDEN",
+            )
 
 
 __all__ = ["ApprovalService", "ApplyHandler"]

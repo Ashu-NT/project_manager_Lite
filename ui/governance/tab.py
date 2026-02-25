@@ -20,7 +20,10 @@ from PySide6.QtWidgets import (
 from core.exceptions import BusinessRuleError, NotFoundError
 from core.models import ApprovalRequest, ApprovalStatus
 from core.services.approval import ApprovalService
+from core.services.auth import UserSessionContext
+from core.services.cost import CostService
 from core.services.project import ProjectService
+from core.services.task import TaskService
 from ui.settings import MainWindowSettingsStore
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
@@ -31,13 +34,21 @@ class GovernanceTab(QWidget):
         self,
         approval_service: ApprovalService,
         project_service: ProjectService,
+        task_service: TaskService | None = None,
+        cost_service: CostService | None = None,
+        user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._approval_service = approval_service
         self._project_service = project_service
+        self._task_service = task_service
+        self._cost_service = cost_service
+        self._user_session = user_session
         self._settings_store = MainWindowSettingsStore()
         self._rows: list[ApprovalRequest] = []
+        self._can_decide = user_session is None or user_session.has_permission("approval.decide")
+        self._can_change_mode = user_session is None or user_session.has_permission("settings.manage")
         self._setup_ui()
         self.reload_requests()
 
@@ -68,6 +79,9 @@ class GovernanceTab(QWidget):
         mode_idx = self.mode_combo.findData(self._governance_mode)
         self.mode_combo.setCurrentIndex(mode_idx if mode_idx >= 0 else 0)
         self.mode_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.mode_combo.setEnabled(self._can_change_mode)
+        if not self._can_change_mode:
+            self.mode_combo.setToolTip("Requires settings.manage permission.")
         toolbar.addWidget(self.mode_combo)
         toolbar.addWidget(QLabel("Status:"))
         self.status_combo = QComboBox()
@@ -89,7 +103,7 @@ class GovernanceTab(QWidget):
 
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels(
-            ["Requested At", "Status", "Type", "Entity", "Project", "Requested By", "Decision"]
+            ["Requested At", "Status", "Type", "Change Summary", "Project", "Requested By", "Decision"]
         )
         style_table(self.table)
         header = self.table.horizontalHeader()
@@ -117,15 +131,24 @@ class GovernanceTab(QWidget):
         else:
             self._rows = self._approval_service.list_pending(limit=500)
         project_name_by_id = {p.id: p.name for p in self._project_service.list_projects()}
+        project_ids = {req.project_id for req in self._rows if req.project_id}
+        task_name_by_id = self._build_task_name_index(project_ids)
+        cost_desc_by_id = self._build_cost_description_index(project_ids)
 
         self.table.setRowCount(len(self._rows))
         for row, request in enumerate(self._rows):
             project_label = project_name_by_id.get(request.project_id or "", request.project_id or "-")
+            entity_label = self._entity_display_label(
+                request=request,
+                project_name_by_id=project_name_by_id,
+                task_name_by_id=task_name_by_id,
+                cost_desc_by_id=cost_desc_by_id,
+            )
             values = (
                 request.requested_at.strftime("%Y-%m-%d %H:%M"),
                 request.status.value,
                 request.request_type,
-                f"{request.entity_type}:{request.entity_id}",
+                entity_label,
                 project_label,
                 request.requested_by_username or "system",
                 request.decision_note or "",
@@ -186,11 +209,16 @@ class GovernanceTab(QWidget):
 
     def _sync_buttons(self) -> None:
         request_id = self._selected_request_id()
-        can_decide = request_id is not None
+        can_decide = self._can_decide and request_id is not None
         self.btn_approve.setEnabled(can_decide)
         self.btn_reject.setEnabled(can_decide)
+        if not self._can_decide:
+            self.btn_approve.setToolTip("Requires approval.decide permission.")
+            self.btn_reject.setToolTip("Requires approval.decide permission.")
 
     def _on_mode_changed(self, _index: int) -> None:
+        if not self._can_change_mode:
+            return
         mode = str(self.mode_combo.currentData() or "off").strip().lower()
         if mode not in {"off", "required"}:
             mode = "off"
@@ -207,6 +235,71 @@ class GovernanceTab(QWidget):
                 else "Governance mode is now OFF.\nGoverned actions apply immediately."
             ),
         )
+
+    def _build_task_name_index(self, project_ids: set[str]) -> dict[str, str]:
+        if self._task_service is None:
+            return {}
+        names: dict[str, str] = {}
+        for project_id in project_ids:
+            for task in self._task_service.list_tasks_for_project(project_id):
+                names[task.id] = task.name
+        return names
+
+    def _build_cost_description_index(self, project_ids: set[str]) -> dict[str, str]:
+        if self._cost_service is None:
+            return {}
+        labels: dict[str, str] = {}
+        for project_id in project_ids:
+            for item in self._cost_service.list_cost_items_for_project(project_id):
+                labels[item.id] = item.description
+        return labels
+
+    def _entity_display_label(
+        self,
+        *,
+        request: ApprovalRequest,
+        project_name_by_id: dict[str, str],
+        task_name_by_id: dict[str, str],
+        cost_desc_by_id: dict[str, str],
+    ) -> str:
+        payload = request.payload or {}
+        explicit = str(payload.get("display_label") or "").strip()
+        if explicit:
+            return explicit
+
+        if request.request_type == "baseline.create":
+            baseline_name = str(payload.get("name") or "Baseline").strip() or "Baseline"
+            project_name = project_name_by_id.get(request.project_id or "", "selected project")
+            return f"Create baseline '{baseline_name}' for {project_name}"
+
+        if request.request_type == "dependency.add":
+            pred_name = task_name_by_id.get(str(payload.get("predecessor_id") or ""), "predecessor task")
+            succ_name = task_name_by_id.get(str(payload.get("successor_id") or ""), "successor task")
+            dep_type = str(payload.get("dependency_type") or "FS").strip().upper()
+            lag_days = int(payload.get("lag_days") or 0)
+            lag_label = f", lag {lag_days}d" if lag_days else ""
+            return f"Add dependency: {pred_name} -> {succ_name} ({dep_type}{lag_label})"
+
+        if request.request_type == "dependency.remove":
+            return "Remove dependency"
+
+        if request.request_type.startswith("cost."):
+            action_map = {"cost.add": "Add", "cost.update": "Update", "cost.delete": "Delete"}
+            action = action_map.get(request.request_type, "Change")
+            description = str(payload.get("description") or "").strip()
+            if not description:
+                cost_id = str(payload.get("cost_id") or request.entity_id or "")
+                description = cost_desc_by_id.get(cost_id, "cost item")
+            task_name = task_name_by_id.get(str(payload.get("task_id") or ""), "")
+            if task_name:
+                return f"{action} cost '{description}' for task '{task_name}'"
+            project_name = project_name_by_id.get(request.project_id or "", "")
+            if project_name:
+                return f"{action} cost '{description}' for {project_name}"
+            return f"{action} cost '{description}'"
+
+        fallback = (request.entity_type or "governed change").replace("_", " ").strip()
+        return fallback.title()
 
 
 __all__ = ["GovernanceTab"]

@@ -12,6 +12,8 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "baseline.manage": "Create baselines",
     "report.view": "View reports",
     "report.export": "Export reports",
+    "approval.request": "Submit governed change requests",
+    "approval.decide": "Approve or reject governed change requests",
     "settings.manage": "Manage app settings",
     "auth.manage": "Manage users and roles",
 }
@@ -35,6 +37,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
         "baseline.manage",
         "report.view",
         "report.export",
+        "approval.request",
     },
     "finance": {
         "project.read",
@@ -44,10 +47,10 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
         "cost.manage",
         "report.view",
         "report.export",
+        "approval.request",
     },
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
 
 
 __all__ = ["DEFAULT_PERMISSIONS", "DEFAULT_ROLE_PERMISSIONS"]
-

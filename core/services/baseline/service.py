@@ -55,15 +55,27 @@ class BaselineService:
         name: str = "Baseline",
         bypass_approval: bool = False,
     ) -> ProjectBaseline:
-        require_permission(self._user_session, "baseline.manage", operation_label="create baseline")
-        project = self._projects.get(project_id)
-        if not project:
-            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        if (
+        governed = (
             not bypass_approval
             and self._approval_service is not None
             and is_governance_required("baseline.create")
-        ):
+        )
+        if governed:
+            require_permission(
+                self._user_session,
+                "approval.request",
+                operation_label="request baseline creation",
+            )
+        else:
+            require_permission(
+                self._user_session,
+                "baseline.manage",
+                operation_label="create baseline",
+            )
+        project = self._projects.get(project_id)
+        if not project:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        if governed:
             req = self._approval_service.request_change(
                 request_type="baseline.create",
                 entity_type="project_baseline",
