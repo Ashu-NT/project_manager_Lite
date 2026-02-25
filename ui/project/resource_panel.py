@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.exceptions import NotFoundError
+from core.exceptions import BusinessRuleError, NotFoundError
 from core.models import Project
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
@@ -124,14 +124,6 @@ class ProjectResourcePanelMixin:
 
         self._project_resource_title.setText(f"Project: {project.name}")
         rows = self._project_resource_service.list_by_project(project.id)
-        valid_rows = []
-        for pr in rows:
-            try:
-                self._resource_service.get_resource(pr.resource_id)
-                valid_rows.append(pr)
-            except NotFoundError:
-                self._project_resource_service.delete(pr.id)
-        rows = valid_rows
 
         self._project_resource_table.setRowCount(len(rows))
         active_count = 0
@@ -223,7 +215,17 @@ class ProjectResourcePanelMixin:
             QMessageBox.warning(self, "Status", "Selected item no longer exists.")
             self._reload_project_resource_panel_for_selected_project()
             return
-        self._project_resource_service.set_active(pr_id, not bool(getattr(pr, "is_active", True)))
+        try:
+            self._project_resource_service.set_active(
+                pr_id,
+                not bool(getattr(pr, "is_active", True)),
+            )
+        except (BusinessRuleError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Status", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Status", str(exc))
+            return
         self._reload_project_resource_panel_for_selected_project()
 
     def _sync_project_resource_panel_actions(self) -> None:

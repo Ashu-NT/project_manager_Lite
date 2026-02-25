@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QCheckBox, QLabel, QMessageBox, QSpinBox
 
-from core.exceptions import ValidationError
+from core.exceptions import BusinessRuleError, ValidationError
 from core.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 
 
@@ -40,8 +40,14 @@ class CalendarWorkingTimeMixin:
         hours = float(self.hours_spin.value())
         try:
             cal = self._wc_service.set_working_days(working_days, hours_per_day=hours)
+        except BusinessRuleError as e:
+            QMessageBox.warning(self, "Permission", str(e))
+            return
         except ValidationError as e:
             QMessageBox.warning(self, "Validation error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Calendar", str(e))
             return
 
         self._update_summary_label(set(cal.working_days or []), cal.hours_per_day or hours)

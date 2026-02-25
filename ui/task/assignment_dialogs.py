@@ -218,7 +218,7 @@ class AssignmentListDialog(QDialog):
             return
         try:
             self._task_service.unassign_resource(assign_id)
-        except BusinessRuleError as exc:
+        except (BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Error", str(exc))
             return
         self.reload_assignments()
@@ -253,8 +253,11 @@ class AssignmentListDialog(QDialog):
             return
         try:
             self._task_service.set_assignment_hours(assignment_id, value)
-        except Exception as exc:
+        except (ValidationError, BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Error", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
             return
         self.reload_assignments()
 __all__ = ["AssignmentAddDialog", "AssignmentListDialog"]

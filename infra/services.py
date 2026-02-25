@@ -163,6 +163,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         project_resource_repo=project_resource_repo,
         resource_repo=resource_repo,
         session=session,
+        user_session=user_session,
     )
     task_service = TaskService(
         session,
@@ -197,7 +198,12 @@ def build_service_graph(session: Session) -> ServiceGraph:
         audit_service=audit_service,
         approval_service=approval_service,
     )
-    work_calendar_service = WorkCalendarService(session, work_calendar_repo, work_calendar_engine)
+    work_calendar_service = WorkCalendarService(
+        session,
+        work_calendar_repo,
+        work_calendar_engine,
+        user_session=user_session,
+    )
     scheduling_engine = SchedulingEngine(
         session,
         task_repo,
@@ -239,6 +245,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_service=resource_service,
         scheduling_engine=scheduling_engine,
         work_calendar_engine=work_calendar_engine,
+        user_session=user_session,
     )
     approval_service.register_apply_handler(
         "baseline.create",

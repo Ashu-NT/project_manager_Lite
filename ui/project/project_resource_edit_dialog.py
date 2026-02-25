@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6 import QtWidgets
 
-from core.exceptions import NotFoundError
+from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from ui.styles.ui_config import UIConfig as CFG, CurrencyType
@@ -99,9 +99,14 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
         self._load()
 
     def _load(self):
-        resources = [
-            r for r in self._resource_service.list_resources() if getattr(r, "is_active", True)
-        ]
+        try:
+            resources = [
+                r for r in self._resource_service.list_resources() if getattr(r, "is_active", True)
+            ]
+        except Exception as exc:
+            QtWidgets.QMessageBox.critical(self, "Load", str(exc))
+            self.reject()
+            return
 
         self._cmb_resource.clear()
         for resource in resources:
@@ -212,6 +217,9 @@ class ProjectResourceEditDialog(QtWidgets.QDialog):
                     planned_hours=planned_hours,
                     is_active=active,
                 )
+        except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+            QtWidgets.QMessageBox.warning(self, "Save", str(exc))
+            return
         except Exception as exc:
             QtWidgets.QMessageBox.critical(self, "Save failed", str(exc))
             return

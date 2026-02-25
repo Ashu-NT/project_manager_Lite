@@ -12,6 +12,7 @@ class MainWindowSettingsStore:
     _KEY_THEME_MODE = "ui/theme_mode"
     _KEY_TAB_INDEX = "ui/current_tab_index"
     _KEY_GEOMETRY = "ui/main_window_geometry"
+    _KEY_GOVERNANCE_MODE = "governance/mode"
 
     def __init__(self, settings: QSettings | None = None) -> None:
         self._settings = settings or QSettings(self.ORG_NAME, self.APP_NAME)
@@ -26,6 +27,19 @@ class MainWindowSettingsStore:
     def save_theme_mode(self, mode: str) -> None:
         normalized = (mode or "light").strip().lower()
         self._settings.setValue(self._KEY_THEME_MODE, "dark" if normalized == "dark" else "light")
+        self._settings.sync()
+
+    def load_governance_mode(self, default_mode: str = "off") -> str:
+        default = (default_mode or "off").strip().lower()
+        if default not in {"off", "required"}:
+            default = "off"
+        raw = str(self._settings.value(self._KEY_GOVERNANCE_MODE, default)).strip().lower()
+        return raw if raw in {"off", "required"} else default
+
+    def save_governance_mode(self, mode: str) -> None:
+        normalized = (mode or "off").strip().lower()
+        value = "required" if normalized == "required" else "off"
+        self._settings.setValue(self._KEY_GOVERNANCE_MODE, value)
         self._settings.sync()
 
     def load_tab_index(self, default_index: int = 0) -> int:
@@ -50,4 +64,3 @@ class MainWindowSettingsStore:
         if geometry is not None and not geometry.isEmpty():
             self._settings.setValue(self._KEY_GEOMETRY, geometry)
             self._settings.sync()
-

@@ -75,8 +75,11 @@ class TaskAssignmentActionsMixin:
 
         try:
             self._task_service.unassign_resource(assignment.id)
-        except BusinessRuleError as exc:
+        except (BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Error", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
             return
 
         self.reload_tasks()

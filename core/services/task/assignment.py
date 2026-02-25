@@ -13,6 +13,7 @@ from core.interfaces import (
     TaskRepository,
 )
 from core.models import ProjectResource, TaskAssignment
+from core.services.auth.authorization import require_permission
 
 
 class TaskAssignmentMixin:
@@ -22,7 +23,11 @@ class TaskAssignmentMixin:
     _resource_repo: ResourceRepository
     _project_resource_repo: ProjectResourceRepository | None
 
+    def _require_manage(self, operation_label: str) -> None:
+        require_permission(self._user_session, "task.manage", operation_label=operation_label)
+
     def unassign_resource(self, assignment_id: str) -> None:
+        self._require_manage("remove assignment")
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -41,6 +46,7 @@ class TaskAssignmentMixin:
         return self._assignment_repo.list_by_task(task_id)
 
     def set_assignment_hours(self, assignment_id: str, hours_logged: float) -> TaskAssignment:
+        self._require_manage("log assignment hours")
         if hours_logged < 0:
             raise ValidationError("hours_logged cannot be negative.")
         a = self._assignment_repo.get(assignment_id)
@@ -64,6 +70,7 @@ class TaskAssignmentMixin:
         assignment_id: str,
         allocation_percent: float,
     ) -> TaskAssignment:
+        self._require_manage("set assignment allocation")
         alloc = float(allocation_percent or 0.0)
         if alloc <= 0 or alloc > 100:
             raise ValidationError("allocation_percent must be > 0 and <= 100.")
@@ -101,6 +108,7 @@ class TaskAssignmentMixin:
     def assign_project_resource(
         self, task_id: str, project_resource_id: str, allocation_percent: float
     ) -> TaskAssignment:
+        self._require_manage("add assignment")
         if not self._project_resource_repo:
             raise BusinessRuleError(
                 "Project resource repository is not configured.",
@@ -151,6 +159,7 @@ class TaskAssignmentMixin:
     def assign_resource(
         self, task_id: str, resource_id: str, allocation_percent: float = 100.0
     ) -> TaskAssignment:
+        self._require_manage("add assignment")
         alloc = float(allocation_percent or 0.0)
         if alloc <= 0 or alloc > 100:
             raise ValidationError("allocation_percent must be > 0 and <= 100.")

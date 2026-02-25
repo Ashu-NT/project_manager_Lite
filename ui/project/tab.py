@@ -15,7 +15,12 @@ from PySide6.QtWidgets import (
 )
 
 from core.events.domain_events import domain_events
-from core.exceptions import BusinessRuleError, ValidationError
+from core.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from core.models import Project
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.reporting import ReportingService
@@ -166,6 +171,12 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
             except ValidationError as e:
                 QMessageBox.warning(self, "Validation error", str(e))
                 continue
+            except (BusinessRuleError, NotFoundError, ConcurrencyError) as e:
+                QMessageBox.warning(self, "Error", str(e))
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
+                return
             self.reload_projects()
             return
 
@@ -192,9 +203,15 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
                     start_date=dlg.start_date,
                     end_date=dlg.end_date,
                 )
-            except (ValidationError, BusinessRuleError) as e:
+            except ValidationError as e:
                 QMessageBox.warning(self, "Error", str(e))
                 continue
+            except (BusinessRuleError, NotFoundError, ConcurrencyError) as e:
+                QMessageBox.warning(self, "Error", str(e))
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
+                return
             self.reload_projects()
             return
 
@@ -214,8 +231,11 @@ class ProjectTab(ProjectResourcePanelMixin, QWidget):
 
         try:
             self._project_service.delete_project(proj.id)
-        except BusinessRuleError as e:
+        except (BusinessRuleError, NotFoundError) as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
             return
         self.reload_projects()
 

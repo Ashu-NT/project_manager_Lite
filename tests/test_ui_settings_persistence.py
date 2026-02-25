@@ -18,10 +18,12 @@ def test_main_window_settings_store_round_trip(tmp_path):
     geometry = QByteArray(b"\x01\x02\x03\x04")
 
     store.save_theme_mode("dark")
+    store.save_governance_mode("required")
     store.save_tab_index(5)
     store.save_geometry(geometry)
 
     assert store.load_theme_mode(default_mode="light") == "dark"
+    assert store.load_governance_mode(default_mode="off") == "required"
     assert store.load_tab_index(default_index=0) == 5
     loaded_geometry = store.load_geometry()
     assert loaded_geometry is not None
@@ -31,10 +33,12 @@ def test_main_window_settings_store_round_trip(tmp_path):
 def test_main_window_settings_store_normalizes_invalid_values(tmp_path):
     store, settings = _store_with_ini(tmp_path)
     settings.setValue("ui/theme_mode", "INVALID")
+    settings.setValue("governance/mode", "INVALID")
     settings.setValue("ui/current_tab_index", "-3")
     settings.sync()
 
     assert store.load_theme_mode(default_mode="dark") == "dark"
+    assert store.load_governance_mode(default_mode="required") == "required"
     assert store.load_tab_index(default_index=2) == 0
 
 
@@ -45,6 +49,7 @@ def test_main_qt_loads_theme_from_settings_before_app_style():
     )
     assert "MainWindowSettingsStore" in text
     assert "load_theme_mode" in text
+    assert "load_governance_mode" in text
     assert "apply_app_style(app, mode=startup_theme)" in text
 
 

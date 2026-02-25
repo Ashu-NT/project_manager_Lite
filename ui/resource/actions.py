@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
-from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from core.services.resource import ResourceService
 from ui.resource.dialogs import ResourceEditDialog
 
@@ -27,6 +32,12 @@ class ResourceActionsMixin:
         except ValidationError as e:
             QMessageBox.warning(self, "Validation error", str(e))
             return
+        except (BusinessRuleError, NotFoundError, ConcurrencyError) as e:
+            QMessageBox.warning(self, "Error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
+            return
         self.reload_resources()
 
     def edit_resource(self) -> None:
@@ -49,8 +60,11 @@ class ResourceActionsMixin:
                 cost_type=dlg.cost_type,
                 currency_code=dlg.currency_code,
             )
-        except (ValidationError, NotFoundError, BusinessRuleError) as e:
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
             return
         self.reload_resources()
 
@@ -70,8 +84,11 @@ class ResourceActionsMixin:
 
         try:
             self._resource_service.delete_resource(resource.id)
-        except BusinessRuleError as e:
+        except (BusinessRuleError, NotFoundError) as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
             return
         self.reload_resources()
 
@@ -86,8 +103,11 @@ class ResourceActionsMixin:
                 resource_id=resource.id,
                 is_active=not getattr(resource, "is_active", True),
             )
-        except (ValidationError, NotFoundError, BusinessRuleError) as e:
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
             return
         self.reload_resources()
 

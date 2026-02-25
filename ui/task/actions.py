@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
-from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
@@ -39,9 +44,12 @@ class TaskActionsMixin:
                     priority=dlg.priority,
                     deadline=dlg.deadline,
                 )
-            except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+            except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
                 QMessageBox.warning(self, "Error", str(exc))
                 continue
+            except Exception as exc:
+                QMessageBox.critical(self, "Error", str(exc))
+                return
             self.reload_tasks()
             return
 
@@ -66,9 +74,12 @@ class TaskActionsMixin:
                     priority=dlg.priority,
                     deadline=dlg.deadline,
                 )
-            except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+            except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
                 QMessageBox.warning(self, "Error", str(exc))
                 continue
+            except Exception as exc:
+                QMessageBox.critical(self, "Error", str(exc))
+                return
             self.reload_tasks()
             return
 
@@ -86,8 +97,11 @@ class TaskActionsMixin:
             return
         try:
             self._task_service.delete_task(task.id)
-        except BusinessRuleError as exc:
+        except (BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Error", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", str(exc))
             return
         self.reload_tasks()
 
@@ -119,9 +133,12 @@ class TaskActionsMixin:
                     continue
 
                 self._task_service.update_progress(task_id=task.id, **kwargs)
-            except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+            except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
                 QMessageBox.warning(self, "Error", str(exc))
                 continue
+            except Exception as exc:
+                QMessageBox.critical(self, "Error", str(exc))
+                return
             self.reload_tasks()
             return
 
@@ -134,7 +151,14 @@ class TaskActionsMixin:
         if not task:
             QMessageBox.information(self, "Dependencies", "Please select a task.")
             return
-        project_tasks = self._task_service.list_tasks_for_project(project_id)
+        try:
+            project_tasks = self._task_service.list_tasks_for_project(project_id)
+        except (BusinessRuleError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Dependencies", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Dependencies", str(exc))
+            return
         dlg = DependencyListDialog(self, self._task_service, project_tasks, task)
         dlg.exec()
         self.reload_tasks()

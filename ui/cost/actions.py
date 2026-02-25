@@ -4,10 +4,16 @@ from typing import Optional
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
-from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from core.models import CostItem, Project, Task
 from core.services.cost import CostService
 from ui.cost.cost_dialogs import CostEditDialog
+from ui.cost.error_handling import show_cost_business_rule
 from ui.cost.models import CostTableModel
 
 
@@ -21,8 +27,7 @@ class CostActionsMixin:
         indexes = self.table.selectionModel().selectedRows()
         if not indexes:
             return None
-        row = indexes[0].row()
-        return self.model.get_cost(row)
+        return self.model.get_cost(indexes[0].row())
 
     def create_cost_item(self):
         pid = self._current_project_id()
@@ -58,8 +63,11 @@ class CostActionsMixin:
                 QMessageBox.warning(self, "Error", str(e))
                 continue
             except BusinessRuleError as e:
-                QMessageBox.information(self, "Approval required", str(e))
+                show_cost_business_rule(self, e)
                 self.reload_costs()
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
                 return
 
             self.reload_costs()
@@ -95,12 +103,15 @@ class CostActionsMixin:
                     incurred_date=dlg.incurred_date_value,
                     currency_code=dlg.currency_code,
                 )
-            except (ValidationError, NotFoundError) as e:
+            except (ValidationError, NotFoundError, ConcurrencyError) as e:
                 QMessageBox.warning(self, "Error", str(e))
                 continue
             except BusinessRuleError as e:
-                QMessageBox.information(self, "Approval required", str(e))
+                show_cost_business_rule(self, e)
                 self.reload_costs()
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Error", str(e))
                 return
 
             self.reload_costs()
@@ -130,7 +141,10 @@ class CostActionsMixin:
             QMessageBox.warning(self, "Error", str(e))
             return
         except BusinessRuleError as e:
-            QMessageBox.information(self, "Approval required", str(e))
+            show_cost_business_rule(self, e)
             self.reload_costs()
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
             return
         self.reload_costs()

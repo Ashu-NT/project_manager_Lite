@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
@@ -19,6 +21,7 @@ from core.exceptions import BusinessRuleError, NotFoundError
 from core.models import ApprovalRequest, ApprovalStatus
 from core.services.approval import ApprovalService
 from core.services.project import ProjectService
+from ui.settings import MainWindowSettingsStore
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -33,6 +36,7 @@ class GovernanceTab(QWidget):
         super().__init__(parent)
         self._approval_service = approval_service
         self._project_service = project_service
+        self._settings_store = MainWindowSettingsStore()
         self._rows: list[ApprovalRequest] = []
         self._setup_ui()
         self.reload_requests()
@@ -50,7 +54,21 @@ class GovernanceTab(QWidget):
         layout.addWidget(title)
         layout.addWidget(subtitle)
 
+        mode_default = os.getenv("PM_GOVERNANCE_MODE", "off")
+        self._governance_mode = self._settings_store.load_governance_mode(
+            default_mode=mode_default
+        )
+        os.environ["PM_GOVERNANCE_MODE"] = self._governance_mode
+
         toolbar = QHBoxLayout()
+        toolbar.addWidget(QLabel("Governance:"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItem("Off", userData="off")
+        self.mode_combo.addItem("On (Approval Required)", userData="required")
+        mode_idx = self.mode_combo.findData(self._governance_mode)
+        self.mode_combo.setCurrentIndex(mode_idx if mode_idx >= 0 else 0)
+        self.mode_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        toolbar.addWidget(self.mode_combo)
         toolbar.addWidget(QLabel("Status:"))
         self.status_combo = QComboBox()
         self.status_combo.addItem("Pending", userData=ApprovalStatus.PENDING)
@@ -85,6 +103,7 @@ class GovernanceTab(QWidget):
         layout.addWidget(self.table, 1)
 
         self.status_combo.currentIndexChanged.connect(self.reload_requests)
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
         self.btn_refresh.clicked.connect(self.reload_requests)
         self.btn_approve.clicked.connect(self.approve_selected)
         self.btn_reject.clicked.connect(self.reject_selected)
@@ -171,6 +190,23 @@ class GovernanceTab(QWidget):
         self.btn_approve.setEnabled(can_decide)
         self.btn_reject.setEnabled(can_decide)
 
+    def _on_mode_changed(self, _index: int) -> None:
+        mode = str(self.mode_combo.currentData() or "off").strip().lower()
+        if mode not in {"off", "required"}:
+            mode = "off"
+        self._governance_mode = mode
+        os.environ["PM_GOVERNANCE_MODE"] = mode
+        self._settings_store.save_governance_mode(mode)
+        QMessageBox.information(
+            self,
+            "Governance",
+            (
+                "Governance mode is now ON.\n"
+                "Governed actions will create approval requests."
+                if mode == "required"
+                else "Governance mode is now OFF.\nGoverned actions apply immediately."
+            ),
+        )
+
 
 __all__ = ["GovernanceTab"]
-

@@ -12,6 +12,7 @@ from core.interfaces import (
     ResourceRepository,
 )
 from core.events.domain_events import domain_events
+from core.services.auth.authorization import require_permission
 
 DEFAULT_CURRENCY_CODE = "EUR"
 
@@ -28,10 +29,12 @@ class ProjectResourceService:
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
         session: Session,
+        user_session=None,
     ):
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._resource_repo: ResourceRepository = resource_repo
         self._session: Session = session
+        self._user_session = user_session
 
     # -------------------------
     # Query methods
@@ -57,6 +60,11 @@ class ProjectResourceService:
         planned_hours: float = 0.0,
         is_active: bool = True,
     ) -> ProjectResource:
+        require_permission(
+            self._user_session,
+            "project.manage",
+            operation_label="add project resource",
+        )
         # Validate resource exists
         res = self._resource_repo.get(resource_id)
         if not res:
@@ -111,6 +119,11 @@ class ProjectResourceService:
         planned_hours: float,
         is_active: bool,
     ) -> None:
+        require_permission(
+            self._user_session,
+            "project.manage",
+            operation_label="update project resource",
+        )
         pr = self._project_resource_repo.get(pr_id)
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
@@ -135,6 +148,11 @@ class ProjectResourceService:
         domain_events.project_changed.emit(pr.project_id)
 
     def set_active(self, pr_id: str, is_active: bool) -> None:
+        require_permission(
+            self._user_session,
+            "project.manage",
+            operation_label="toggle project resource active",
+        )
         pr = self._project_resource_repo.get(pr_id)
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
@@ -149,6 +167,11 @@ class ProjectResourceService:
         domain_events.project_changed.emit(pr.project_id)
 
     def delete(self, pr_id: str) -> None:
+        require_permission(
+            self._user_session,
+            "project.manage",
+            operation_label="delete project resource",
+        )
         pr = self._project_resource_repo.get(pr_id)
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")

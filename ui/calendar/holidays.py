@@ -40,8 +40,11 @@ class CalendarHolidaysMixin:
 
         try:
             self._wc_service.add_holiday(d, name)
-        except ValidationError as e:
+        except (ValidationError, BusinessRuleError) as e:
             QMessageBox.warning(self, "Validation error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Holiday", str(e))
             return
 
         self.holiday_name_edit.clear()
@@ -70,6 +73,9 @@ class CalendarHolidaysMixin:
             self._wc_service.delete_holiday(hol_id)
         except BusinessRuleError as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
             return
 
         self.load_holidays()

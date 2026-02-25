@@ -3,12 +3,15 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QMessageBox
 
 from core.exceptions import BusinessRuleError
+from core.services.auth.authorization import require_permission
 from core.services.project import ProjectService
 from core.services.scheduling import SchedulingEngine
+from core.services.task import TaskService
 
 
 class CalendarProjectOpsMixin:
     _project_service: ProjectService
+    _task_service: TaskService
     _scheduling_engine: SchedulingEngine
     project_combo: QComboBox
 
@@ -49,9 +52,17 @@ class CalendarProjectOpsMixin:
         pid = self.project_combo.itemData(idx)
         name = self.project_combo.currentText()
         try:
+            require_permission(
+                getattr(self._task_service, "_user_session", None),
+                "task.manage",
+                operation_label="recalculate schedule",
+            )
             schedule = self._scheduling_engine.recalculate_project_schedule(pid)
         except BusinessRuleError as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
             return
 
         QMessageBox.information(

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.exceptions import BusinessRuleError, ValidationError
+from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import Task
 from core.services.task import TaskService
 from ui.styles.style_utils import style_table
@@ -124,8 +124,11 @@ class DependencyListDialog(QDialog):
                 dependency_type=dlg.dependency_type,
                 lag_days=dlg.lag_days,
             )
-        except (ValidationError, BusinessRuleError) as exc:
+        except (ValidationError, BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Dependency", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Dependency", str(exc))
             return
         self.reload_dependencies()
 
@@ -140,8 +143,11 @@ class DependencyListDialog(QDialog):
             return
         try:
             self._task_service.remove_dependency(dep_id)
-        except BusinessRuleError as exc:
+        except (BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Dependency", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Dependency", str(exc))
             return
         self.reload_dependencies()
 

@@ -30,7 +30,11 @@ def main():
     app = QApplication(sys.argv)
     settings_store = MainWindowSettingsStore()
     startup_theme = settings_store.load_theme_mode(default_mode=os.getenv("PM_THEME", "light"))
+    startup_governance = settings_store.load_governance_mode(
+        default_mode=os.getenv("PM_GOVERNANCE_MODE", "off")
+    )
     os.environ["PM_THEME"] = startup_theme
+    os.environ["PM_GOVERNANCE_MODE"] = startup_governance
     icon_path = resource_path("assets/icons/app.ico")
     app.setWindowIcon(QIcon(icon_path))
     

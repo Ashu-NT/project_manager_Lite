@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from core.events.domain_events import domain_events
+from core.services.auth.authorization import require_permission
 from core.services.dashboard.alerts import DashboardAlertsMixin
 from core.services.dashboard.burndown import DashboardBurndownMixin
 from core.services.dashboard.evm import DashboardEvmMixin
@@ -38,6 +39,7 @@ class DashboardService(
         resource_service: ResourceService,
         scheduling_engine: SchedulingEngine,
         work_calendar_engine: WorkCalendarEngine,
+        user_session=None,
     ):
         self._reporting: ReportingService = reporting_service
         self._tasks: TaskService = task_service
@@ -45,6 +47,7 @@ class DashboardService(
         self._resources: ResourceService = resource_service
         self._sched: SchedulingEngine = scheduling_engine
         self._calendar: WorkCalendarEngine = work_calendar_engine
+        self._user_session = user_session
 
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
         self._sched.recalculate_project_schedule(project_id)
@@ -84,6 +87,11 @@ class DashboardService(
         max_iterations: int = 60,
         threshold_percent: float = 100.0,
     ) -> ResourceLevelingResult:
+        require_permission(
+            self._user_session,
+            "task.manage",
+            operation_label="auto-level resource conflicts",
+        )
         result = self._sched.auto_level_resources(
             project_id=project_id,
             max_iterations=max_iterations,
@@ -101,6 +109,11 @@ class DashboardService(
         shift_working_days: int = 1,
         reason: str = "Manual dashboard leveling",
     ) -> ResourceLevelingAction:
+        require_permission(
+            self._user_session,
+            "task.manage",
+            operation_label="manual task shift",
+        )
         action = self._sched.resolve_resource_conflict_manual(
             project_id=project_id,
             task_id=task_id,
