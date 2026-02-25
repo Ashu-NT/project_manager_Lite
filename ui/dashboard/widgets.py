@@ -4,6 +4,7 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from PySide6.QtGui import QResizeEvent
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 from ui.dashboard.styles import dashboard_card_style
 from ui.styles.ui_config import UIConfig as CFG
@@ -21,20 +22,23 @@ class KpiCard(QWidget):
         self._accent: str = color
         self.setObjectName("kpiStrip")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(CFG.SPACING_SM, 6, CFG.SPACING_SM, 6)
-        layout.setSpacing(3)
+        layout.setContentsMargins(CFG.SPACING_SM, 4, CFG.SPACING_SM, 4)
+        layout.setSpacing(1)
         self._lbl_title: QLabel = QLabel(title)
         self._lbl_title.setStyleSheet(
             f"font-size: 9pt; font-weight: 600; color: {CFG.COLOR_TEXT_SECONDARY};"
         )
+        self._lbl_title.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self._lbl_value: QLabel = QLabel(value)
         self._lbl_value.setStyleSheet(
             f"font-size: 13pt; font-weight: 800; color: {self._accent};"
         )
+        self._lbl_value.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self._lbl_sub: QLabel = QLabel(subtitle)
         self._lbl_sub.setStyleSheet(
             f"font-size: 9pt; color: {CFG.COLOR_TEXT_MUTED};"
         )
+        self._lbl_sub.setAlignment(Qt.AlignLeft | Qt.AlignTop)
         self._lbl_sub.setWordWrap(True)
         self._lbl_sub.setVisible(bool(subtitle))
         layout.addWidget(self._lbl_title)
@@ -61,7 +65,7 @@ class KpiCard(QWidget):
         )
 
     def _sync_height(self) -> None:
-        self.setMinimumHeight(88 if self._lbl_sub.isVisible() else 72)
+        self.setMinimumHeight(80 if self._lbl_sub.isVisible() else 60)
 
     def set_value(self, value: str) -> None:
         self._lbl_value.setText(value)
