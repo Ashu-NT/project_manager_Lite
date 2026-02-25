@@ -6,6 +6,7 @@ from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.task.assignment_helpers import show_overallocation_warning_if_any
 from ui.task.dialogs import AssignmentAddDialog
 
 
@@ -13,14 +14,6 @@ class TaskAssignmentActionsMixin:
     _task_service: TaskService
     _resource_service: ResourceService
     _project_resource_service: ProjectResourceService
-
-    def _show_overallocation_warning_if_any(self) -> None:
-        consume = getattr(self._task_service, "consume_last_overallocation_warning", None)
-        if not callable(consume):
-            return
-        warning = consume()
-        if warning:
-            QMessageBox.information(self, "Allocation Warning", warning)
 
     def add_assignment_inline(self) -> None:
         task = self._get_selected_task()
@@ -62,7 +55,7 @@ class TaskAssignmentActionsMixin:
             QMessageBox.warning(self, "Error", str(exc))
             return
 
-        self._show_overallocation_warning_if_any()
+        show_overallocation_warning_if_any(self, self._task_service)
         self.reload_tasks()
         self._select_task_by_id(task.id)
 
@@ -116,7 +109,7 @@ class TaskAssignmentActionsMixin:
             QMessageBox.warning(self, "Error", str(exc))
             return
 
-        self._show_overallocation_warning_if_any()
+        show_overallocation_warning_if_any(self, self._task_service)
         self.reload_tasks()
         self._select_task_by_id(assignment.task_id)
 

@@ -8,6 +8,7 @@ from core.models import Task
 from core.services.project import ProjectService
 from core.services.task import TaskService
 from ui.task.models import TaskTableModel
+from ui.shared.combo import current_data
 
 
 class TaskProjectFlowMixin:
@@ -57,10 +58,7 @@ class TaskProjectFlowMixin:
             self._on_project_changed(0)
 
     def _current_project_id(self) -> Optional[str]:
-        idx = self.project_combo.currentIndex()
-        if idx < 0:
-            return None
-        return self.project_combo.itemData(idx)
+        return current_data(self.project_combo)
 
     def _on_project_changed(self, _index: int):
         self.reload_tasks()

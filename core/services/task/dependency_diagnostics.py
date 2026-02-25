@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 
 from core.interfaces import DependencyRepository, TaskRepository
 from core.models import DependencyType, Task, TaskDependency
+from core.services.scheduling.date_compute import compute_task_dates_common
 from core.services.scheduling.graph import build_project_dependency_graph
 from core.services.scheduling.models import CPMTaskInfo
 from core.services.scheduling.passes import run_backward_pass, run_forward_pass
@@ -330,12 +331,15 @@ class TaskDependencyDiagnosticsMixin:
         es: Dict[str, Optional[date]],
         ef: Dict[str, Optional[date]],
     ) -> tuple[Optional[date], Optional[date]]:
-        duration = int(task.duration_days or 0)
-        if duration <= 0:
-            est, eft = self._compute_dates_milestone(task, incoming_deps, es, ef)
-        else:
-            est, eft = self._compute_dates_with_duration(task, incoming_deps, es, ef, duration)
-        return self._apply_actual_constraints(task, est, eft, duration)
+        return compute_task_dates_common(
+            task=task,
+            incoming_deps=incoming_deps,
+            es=es,
+            ef=ef,
+            compute_milestone=self._compute_dates_milestone,
+            compute_with_duration=self._compute_dates_with_duration,
+            apply_actual_constraints=self._apply_actual_constraints,
+        )
 
     def _compute_dates_milestone(
         self,

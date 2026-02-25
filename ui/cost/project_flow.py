@@ -11,6 +11,7 @@ from core.services.reporting import ReportingService
 from core.services.task import TaskService
 from ui.cost.filters import CostFiltersMixin
 from ui.cost.models import CostTableModel
+from ui.shared.combo import current_data
 from ui.styles.formatting import currency_symbol_from_code, fmt_currency
 
 
@@ -84,10 +85,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
         self.reload_costs()
 
     def _current_project_id(self) -> Optional[str]:
-        idx = self.project_combo.currentIndex()
-        if idx < 0:
-            return None
-        return self.project_combo.itemData(idx)
+        return current_data(self.project_combo)
 
     def _load_tasks_for_current_project(self):
         pid = self._current_project_id()

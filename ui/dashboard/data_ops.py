@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QComboBox, QInputDialog, QMessageBox
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.project import ProjectService
+from ui.shared.combo import current_data_and_text
 
 
 class DashboardDataOpsMixin:
@@ -85,10 +86,7 @@ class DashboardDataOpsMixin:
         self.refresh_dashboard()
 
     def _current_project_id_and_name(self):
-        idx = self.project_combo.currentIndex()
-        if idx < 0:
-            return None, None
-        return self.project_combo.itemData(idx), self.project_combo.currentText()
+        return current_data_and_text(self.project_combo)
 
     def refresh_dashboard(self):
         proj_id, proj_name = self._current_project_id_and_name()

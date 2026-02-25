@@ -72,9 +72,7 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         self.session.query(TaskAssignmentORM).filter_by(task_id=task_id).delete()
 
     def list_by_assignment(self, task_id: str) -> List[TaskAssignment]:
-        stmt = select(TaskAssignmentORM).where(TaskAssignmentORM.task_id == task_id)
-        rows = self.session.execute(stmt).scalars().all()
-        return [assignment_from_orm(row) for row in rows]
+        return self.list_by_task(task_id)
 
     def list_by_tasks(self, task_ids: List[str]) -> List[TaskAssignment]:
         if not task_ids:

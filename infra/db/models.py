@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date,datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Date
+from sqlalchemy import DateTime
 
 from sqlalchemy import (
     String,

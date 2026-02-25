@@ -15,16 +15,9 @@ from PySide6.QtWidgets import (
 )
 
 from core.services.reporting import ReportingService
-from ui.report.dialog_helpers import metric_card, setup_dialog_size
+from ui.report.dialog_helpers import fmt_money_or_dash, metric_card, setup_dialog_size
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
-
-
-def _fmt_money(value: float | None) -> str:
-    if value is None:
-        return "-"
-    return f"{float(value):,.2f}"
-
 
 def _fmt_ratio(value: float | None) -> str:
     if value is None:
@@ -72,10 +65,12 @@ class EvmReportDialog(QDialog):
 
         cards_1 = QHBoxLayout()
         cards_1.setSpacing(CFG.SPACING_SM)
-        cards_1.addWidget(metric_card("BAC", _fmt_money(evm.BAC), "Baseline at completion", CFG.COLOR_ACCENT))
-        cards_1.addWidget(metric_card("PV", _fmt_money(evm.PV), "Planned value", CFG.COLOR_WARNING))
-        cards_1.addWidget(metric_card("EV", _fmt_money(evm.EV), "Earned value", CFG.COLOR_SUCCESS))
-        cards_1.addWidget(metric_card("AC", _fmt_money(evm.AC), "Actual cost", CFG.COLOR_DANGER))
+        cards_1.addWidget(
+            metric_card("BAC", fmt_money_or_dash(evm.BAC), "Baseline at completion", CFG.COLOR_ACCENT)
+        )
+        cards_1.addWidget(metric_card("PV", fmt_money_or_dash(evm.PV), "Planned value", CFG.COLOR_WARNING))
+        cards_1.addWidget(metric_card("EV", fmt_money_or_dash(evm.EV), "Earned value", CFG.COLOR_SUCCESS))
+        cards_1.addWidget(metric_card("AC", fmt_money_or_dash(evm.AC), "Actual cost", CFG.COLOR_DANGER))
         layout.addLayout(cards_1)
 
         cpi_color = CFG.COLOR_SUCCESS if (evm.CPI or 0.0) >= 1.0 else CFG.COLOR_DANGER
@@ -85,8 +80,10 @@ class EvmReportDialog(QDialog):
         cards_2.setSpacing(CFG.SPACING_SM)
         cards_2.addWidget(metric_card("CPI", _fmt_ratio(evm.CPI), "Cost performance", cpi_color))
         cards_2.addWidget(metric_card("SPI", _fmt_ratio(evm.SPI), "Schedule performance", spi_color))
-        cards_2.addWidget(metric_card("EAC", _fmt_money(evm.EAC), "Estimate at completion", CFG.COLOR_TEXT_SECONDARY))
-        cards_2.addWidget(metric_card("VAC", _fmt_money(evm.VAC), "Variance at completion", vac_color))
+        cards_2.addWidget(
+            metric_card("EAC", fmt_money_or_dash(evm.EAC), "Estimate at completion", CFG.COLOR_TEXT_SECONDARY)
+        )
+        cards_2.addWidget(metric_card("VAC", fmt_money_or_dash(evm.VAC), "Variance at completion", vac_color))
         layout.addLayout(cards_2)
 
         notes = QLabel(evm.notes or "No calculation notes.")
@@ -107,12 +104,12 @@ class EvmReportDialog(QDialog):
         for row, point in enumerate(series):
             table.setItem(row, 0, QTableWidgetItem(point.period_end.isoformat()))
             for col, value in [
-                (1, _fmt_money(point.PV)),
-                (2, _fmt_money(point.EV)),
-                (3, _fmt_money(point.AC)),
+                (1, fmt_money_or_dash(point.PV)),
+                (2, fmt_money_or_dash(point.EV)),
+                (3, fmt_money_or_dash(point.AC)),
                 (4, _fmt_ratio(point.CPI)),
                 (5, _fmt_ratio(point.SPI)),
-                (6, _fmt_money(point.BAC)),
+                (6, fmt_money_or_dash(point.BAC)),
             ]:
                 item = QTableWidgetItem(value)
                 item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -130,4 +127,3 @@ class EvmReportDialog(QDialog):
 
 
 __all__ = ["EvmReportDialog"]
-

@@ -335,7 +335,6 @@ class ReportingCostPolicyMixin:
                 manual_raw_actual += actual_amt
 
         manual_planned = manual_raw_planned if snapshot.include_manual_labor_planned else 0.0
-        manual_committed = manual_raw_committed if snapshot.include_manual_labor_committed else 0.0
         manual_actual = manual_raw_actual if snapshot.include_manual_labor_actual else 0.0
 
         computed_planned = max(0.0, float(labor_planned_total - manual_planned))

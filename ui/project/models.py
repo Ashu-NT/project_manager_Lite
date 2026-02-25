@@ -5,6 +5,7 @@ from typing import Optional
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 
 from core.models import Project
+from ui.shared.table_model import horizontal_header_data
 from ui.styles.formatting import fmt_currency
 
 
@@ -52,9 +53,13 @@ class ProjectTableModel(QAbstractTableModel):
         return None
 
     def headerData(self, section: int, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.HEADERS[section]
-        return super().headerData(section, orientation, role)
+        return horizontal_header_data(
+            self.HEADERS,
+            section,
+            orientation,
+            role,
+            super().headerData,
+        )
 
     def get_project(self, row: int) -> Optional[Project]:
         if 0 <= row < len(self._projects):

@@ -81,3 +81,9 @@ def soft_brush(hex_color: str, alpha: int) -> QBrush:
     color = QColor(hex_color)
     color.setAlpha(max(0, min(alpha, 255)))
     return QBrush(color)
+
+
+def fmt_money_or_dash(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"{float(value):,.2f}"

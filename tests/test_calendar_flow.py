@@ -3,7 +3,6 @@ from datetime import date
 
 def test_work_calendar_and_holiday_effect(services):
     wc_s = services["work_calendar_service"]
-    wc_engine = services["work_calendar_engine"]
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]
@@ -12,7 +11,7 @@ def test_work_calendar_and_holiday_effect(services):
     wc_s.set_working_days({0, 1, 2, 3, 4}, hours_per_day=8.0)
 
     # Add a holiday on 2023-11-08 (Wed)
-    h = wc_s.add_holiday(date(2023, 11, 8), "Mid-week break")
+    wc_s.add_holiday(date(2023, 11, 8), "Mid-week break")
 
     # Create project and one task of 3 working days starting 2023-11-07 (Tue)
     project = ps.create_project("Cal Test", "")

@@ -1,12 +1,9 @@
 from datetime import date
 
-from core.models import TaskStatus, DependencyType
+from core.models import DependencyType
 from core.exceptions import BusinessRuleError
 
 def test_cpm_forward_backward_basic(services):
-    from datetime import date
-    from core.models import DependencyType
-
     ps = services["project_service"]
     ts = services["task_service"]
     sched = services["scheduling_engine"]

@@ -7,7 +7,6 @@ def test_project_delete_cascade(services):
     rs = services["resource_service"]
     cost_s = services["cost_service"]
     cs = services["calendar_service"]
-    session = services["session"]
 
     project = ps.create_project("Delete Test", "")
     pid = project.id
@@ -15,8 +14,8 @@ def test_project_delete_cascade(services):
     # Create task, resource, assignment, cost, event
     t = ts.create_task(pid, "Task 1", start_date=date(2023, 11, 6), duration_days=2)
     r = rs.create_resource("Dev", "Developer", 100.0)
-    a = ts.assign_resource(t.id, r.id, allocation_percent=50.0)
-    cost = cost_s.add_cost_item(pid, "Cost 1", planned_amount=100.0, task_id=t.id)
+    ts.assign_resource(t.id, r.id, allocation_percent=50.0)
+    cost_s.add_cost_item(pid, "Cost 1", planned_amount=100.0, task_id=t.id)
     event = cs.sync_task_to_calendar(t)
 
     # Confirm they exist in DB

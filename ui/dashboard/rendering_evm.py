@@ -147,23 +147,27 @@ class DashboardEvmRenderingMixin:
             return clean
         return f"{heading}: {clean}"
 
+    def _reset_evm_view(self) -> None:
+        if hasattr(self, "evm_hint"):
+            self.evm_hint.setText("Create a baseline to enable EVM metrics.")
+        if hasattr(self, "evm_cost_summary"):
+            self.evm_cost_summary.setText("Cost: -")
+            self.evm_schedule_summary.setText("Schedule: -")
+            self.evm_forecast_summary.setText("Forecast: -")
+            self.evm_TCPI_summary.setText("TCPI: -")
+        self.lbl_cpi.setText("-")
+        self.lbl_spi.setText("-")
+        self.lbl_eac.setText("-")
+        self.lbl_vac.setText("-")
+        self.lbl_pv.setText("-")
+        self.lbl_ev.setText("-")
+        self.lbl_ac.setText("-")
+        self.lbl_tcpi.setText("-")
+        self.lbl_tcpi_eac.setText("-")
+
     def _update_evm(self, data: DashboardData):
         if data.evm is None:
-            self.evm_hint.setText("Create a baseline to enable EVM metrics.")
-            if hasattr(self, "evm_cost_summary"):
-                self.evm_cost_summary.setText("Cost: -")
-                self.evm_schedule_summary.setText("Schedule: -")
-                self.evm_forecast_summary.setText("Forecast: -")
-                self.evm_TCPI_summary.setText("TCPI: -")
-            self.lbl_cpi.setText("-")
-            self.lbl_spi.setText("-")
-            self.lbl_eac.setText("-")
-            self.lbl_vac.setText("-")
-            self.lbl_pv.setText("-")
-            self.lbl_ev.setText("-")
-            self.lbl_ac.setText("-")
-            self.lbl_tcpi.setText("-")
-            self.lbl_tcpi_eac.setText("-")
+            self._reset_evm_view()
             return
         evm = data.evm
         selected_id = self._selected_baseline_id()

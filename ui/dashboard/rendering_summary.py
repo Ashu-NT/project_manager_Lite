@@ -56,22 +56,8 @@ class DashboardSummaryRenderingMixin:
             self.project_meta_end.setText("")
             self.project_meta_duration.setText("")
 
-        if hasattr(self, "evm_hint"):
-            self.evm_hint.setText("Create a baseline to enable EVM metrics.")
-            if hasattr(self, "evm_cost_summary"):
-                self.evm_cost_summary.setText("Cost: -")
-                self.evm_schedule_summary.setText("Schedule: -")
-                self.evm_forecast_summary.setText("Forecast: -")
-                self.evm_TCPI_summary.setText("TCPI: -")
-            self.lbl_cpi.setText("-")
-            self.lbl_spi.setText("-")
-            self.lbl_eac.setText("-")
-            self.lbl_vac.setText("-")
-            self.lbl_pv.setText("-")
-            self.lbl_ev.setText("-")
-            self.lbl_ac.setText("-")
-            self.lbl_tcpi.setText("-")
-            self.lbl_tcpi_eac.setText("-")
+        if hasattr(self, "_reset_evm_view"):
+            self._reset_evm_view()
 
     def _update_summary(self, project_name: str, data: DashboardData):
         k = data.kpi

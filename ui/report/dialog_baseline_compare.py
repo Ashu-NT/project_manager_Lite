@@ -19,19 +19,13 @@ from PySide6.QtWidgets import (
 
 from core.exceptions import DomainError
 from core.services.reporting import ReportingService
-from ui.report.dialog_helpers import setup_dialog_size, soft_brush
+from ui.report.dialog_helpers import fmt_money_or_dash, setup_dialog_size, soft_brush
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
 def _fmt_date(value) -> str:
     return value.isoformat() if value else "-"
-
-
-def _fmt_money(value: float | None) -> str:
-    if value is None:
-        return "-"
-    return f"{float(value):,.2f}"
 
 
 def _fmt_delta(value: int | None) -> str:
@@ -214,9 +208,9 @@ class BaselineCompareDialog(QDialog):
                 _fmt_date(row.baseline_a_finish),
                 _fmt_date(row.baseline_b_finish),
                 _fmt_delta(row.finish_shift_days),
-                _fmt_money(row.baseline_a_planned_cost),
-                _fmt_money(row.baseline_b_planned_cost),
-                _fmt_money(row.planned_cost_delta),
+                fmt_money_or_dash(row.baseline_a_planned_cost),
+                fmt_money_or_dash(row.baseline_b_planned_cost),
+                fmt_money_or_dash(row.planned_cost_delta),
                 change.title(),
             ]
 

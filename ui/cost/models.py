@@ -5,6 +5,7 @@ from typing import Any, Optional
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from core.models import CostItem, CostType, Task
+from ui.shared.table_model import horizontal_header_data
 from ui.styles.formatting import fmt_currency, currency_symbol_from_code
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -66,9 +67,13 @@ class CostTableModel(QAbstractTableModel):
         return None
 
     def headerData(self, section: int, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.HEADERS[section]
-        return super().headerData(section, orientation, role)
+        return horizontal_header_data(
+            self.HEADERS,
+            section,
+            orientation,
+            role,
+            super().headerData,
+        )
 
     def get_cost(self, row: int) -> Optional[CostItem]:
         if 0 <= row < len(self._costs):
@@ -123,9 +128,13 @@ class LaborPlanVsActualTableModel(QAbstractTableModel):
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.HEADERS[section]
-        return super().headerData(section, orientation, role)
+        return horizontal_header_data(
+            self.HEADERS,
+            section,
+            orientation,
+            role,
+            super().headerData,
+        )
 
     def get_row(self, row: int):
         if 0 <= row < len(self._rows):
