@@ -5,6 +5,7 @@ from .audit import AuditService
 from .calendar import CalendarService
 from .cost import CostService
 from .dashboard import DashboardService, DashboardData, DashboardEVM, UpcomingTask, BurndownPoint
+from .finance import FinanceService
 from .project import ProjectService, ProjectResourceService
 from .reporting import ReportingService
 from .resource import ResourceService
@@ -21,6 +22,7 @@ __all__ = [
     "TaskService",
     "ResourceService",
     "CostService",
+    "FinanceService",
     "CalendarService",
     "WorkCalendarEngine",
     "WorkCalendarService",

@@ -265,5 +265,134 @@ class ExcelReportRenderer:
             ws_s.column_dimensions["C"].width = 14
             ws_s.column_dimensions["D"].width = 14
 
+        # ---------------- Finance ----------------
+        if ctx.finance_snapshot:
+            snap = ctx.finance_snapshot
+            ws_f = wb.create_sheet("Finance")
+            ws_f["A1"] = "Finance Summary"
+            ws_f["A1"].font = title_font
+
+            row = 3
+
+            def finance_kv(key, value):
+                nonlocal row
+                ws_f[f"A{row}"] = key
+                ws_f[f"B{row}"] = value
+                ws_f[f"A{row}"].font = header_font
+                ws_f[f"A{row}"].border = thin_border
+                ws_f[f"B{row}"].border = thin_border
+                row += 1
+
+            finance_kv("Budget", float(snap.budget))
+            finance_kv("Planned", float(snap.planned))
+            finance_kv("Committed", float(snap.committed))
+            finance_kv("Actual", float(snap.actual))
+            finance_kv("Exposure", float(snap.exposure))
+            finance_kv("Available", "" if snap.available is None else float(snap.available))
+
+            row += 1
+            ws_f[f"A{row}"] = "Cashflow / Forecast by Period"
+            ws_f[f"A{row}"].font = header_font
+            row += 1
+            headers = ["Period", "Planned", "Committed", "Actual", "Forecast", "Exposure"]
+            for idx, h in enumerate(headers, start=1):
+                cell = ws_f.cell(row=row, column=idx, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+                cell.border = thin_border
+            row += 1
+            for p in snap.cashflow:
+                values = [
+                    p.period_key,
+                    float(p.planned),
+                    float(p.committed),
+                    float(p.actual),
+                    float(p.forecast),
+                    float(p.exposure),
+                ]
+                for idx, val in enumerate(values, start=1):
+                    cell = ws_f.cell(row=row, column=idx, value=val)
+                    cell.border = thin_border
+                row += 1
+
+            row += 1
+            ws_f[f"A{row}"] = "Expense Analytics (By Source)"
+            ws_f[f"A{row}"].font = header_font
+            row += 1
+            headers = ["Category", "Planned", "Committed", "Actual", "Forecast", "Exposure"]
+            for idx, h in enumerate(headers, start=1):
+                cell = ws_f.cell(row=row, column=idx, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+                cell.border = thin_border
+            row += 1
+            for a in snap.by_source:
+                values = [
+                    a.label,
+                    float(a.planned),
+                    float(a.committed),
+                    float(a.actual),
+                    float(a.forecast),
+                    float(a.exposure),
+                ]
+                for idx, val in enumerate(values, start=1):
+                    cell = ws_f.cell(row=row, column=idx, value=val)
+                    cell.border = thin_border
+                row += 1
+
+            ws_f.column_dimensions["A"].width = 32
+            ws_f.column_dimensions["B"].width = 14
+            ws_f.column_dimensions["C"].width = 14
+            ws_f.column_dimensions["D"].width = 14
+            ws_f.column_dimensions["E"].width = 14
+            ws_f.column_dimensions["F"].width = 14
+
+            ws_ledger = wb.create_sheet("Finance Ledger")
+            ledger_headers = [
+                "Date",
+                "Source",
+                "Stage",
+                "Type",
+                "Reference",
+                "Task",
+                "Resource",
+                "Amount",
+                "In Policy",
+            ]
+            for idx, h in enumerate(ledger_headers, start=1):
+                cell = ws_ledger.cell(row=1, column=idx, value=h)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = center
+                cell.border = thin_border
+
+            for row_idx, row_data in enumerate(snap.ledger[:2000], start=2):
+                values = [
+                    row_data.occurred_on.isoformat() if row_data.occurred_on else "",
+                    row_data.source_label,
+                    row_data.stage,
+                    row_data.cost_type,
+                    row_data.reference_label,
+                    row_data.task_name or "",
+                    row_data.resource_name or "",
+                    float(row_data.amount),
+                    "Yes" if row_data.included_in_policy else "No",
+                ]
+                for idx, val in enumerate(values, start=1):
+                    cell = ws_ledger.cell(row=row_idx, column=idx, value=val)
+                    cell.border = thin_border
+
+            ws_ledger.column_dimensions["A"].width = 12
+            ws_ledger.column_dimensions["B"].width = 18
+            ws_ledger.column_dimensions["C"].width = 12
+            ws_ledger.column_dimensions["D"].width = 14
+            ws_ledger.column_dimensions["E"].width = 34
+            ws_ledger.column_dimensions["F"].width = 24
+            ws_ledger.column_dimensions["G"].width = 22
+            ws_ledger.column_dimensions["H"].width = 14
+            ws_ledger.column_dimensions["I"].width = 10
+
         wb.save(output_path)
         return output_path

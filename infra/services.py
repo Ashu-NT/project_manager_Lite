@@ -15,6 +15,7 @@ from core.services.auth.session import UserSessionContext
 from core.services.calendar import CalendarService
 from core.services.cost import CostService
 from core.services.dashboard import DashboardService
+from core.services.finance import FinanceService
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
@@ -76,6 +77,7 @@ class ServiceGraph:
     calendar_service: CalendarService
     resource_service: ResourceService
     cost_service: CostService
+    finance_service: FinanceService
     work_calendar_engine: WorkCalendarEngine
     work_calendar_service: WorkCalendarService
     scheduling_engine: SchedulingEngine
@@ -96,6 +98,7 @@ class ServiceGraph:
             "calendar_service": self.calendar_service,
             "resource_service": self.resource_service,
             "cost_service": self.cost_service,
+            "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
             "work_calendar_service": self.work_calendar_service,
             "scheduling_engine": self.scheduling_engine,
@@ -227,6 +230,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
         baseline_repo=baseline_repo,
         project_resource_repo=project_resource_repo,
     )
+    finance_service = FinanceService(
+        project_repo=project_repo,
+        task_repo=task_repo,
+        resource_repo=resource_repo,
+        cost_repo=cost_repo,
+        project_resource_repo=project_resource_repo,
+        reporting_service=reporting_service,
+    )
     baseline_service = BaselineService(
         session=session,
         project_repo=project_repo,
@@ -328,6 +339,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         calendar_service=calendar_service,
         resource_service=resource_service,
         cost_service=cost_service,
+        finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         work_calendar_service=work_calendar_service,
         scheduling_engine=scheduling_engine,

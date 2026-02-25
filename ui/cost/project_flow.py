@@ -86,13 +86,6 @@ class CostProjectFlowMixin(CostFiltersMixin):
     def _current_project_id(self) -> Optional[str]:
         return current_data(self.project_combo)
 
-    def _load_tasks_for_current_project(self):
-        pid = self._current_project_id()
-        if not pid:
-            self._project_tasks = []
-            return
-        self._project_tasks = self._task_service.list_tasks_for_project(pid)
-
     def _on_project_changed(self, index: int):
         pid = self._current_project_id()
         if not pid:
@@ -109,7 +102,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
             return
         projects = self._project_service.list_projects()
         self._current_project = next((p for p in projects if p.id == pid), None)
-        self._load_tasks_for_current_project()
+        self._project_tasks = self._task_service.list_tasks_for_project(pid)
         self._reload_cost_type_filter_options()
         self._reload_task_filter_options()
         tasks_by_id = {t.id: t for t in self._project_tasks}
@@ -168,8 +161,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
         summary = f"Showing {len(filtered_costs)} of {len(costs)} cost item(s)."
         if source_breakdown and source_breakdown.rows:
             actuals = {row.source_key: float(row.actual or 0.0) for row in source_breakdown.rows}
-            summary += ("  Actual sources: Direct Cost {0:.2f}, Computed Labor {1:.2f}, Labor Adjustment {2:.2f}."
-                        .format(actuals.get("DIRECT_COST", 0.0), actuals.get("COMPUTED_LABOR", 0.0), actuals.get("LABOR_ADJUSTMENT", 0.0)))
+            summary += ("  Actual sources: Direct Cost {0:.2f}, Computed Labor {1:.2f}, Labor Adjustment {2:.2f}.".format(actuals.get("DIRECT_COST", 0.0), actuals.get("COMPUTED_LABOR", 0.0), actuals.get("LABOR_ADJUSTMENT", 0.0)))
         self.lbl_costs_summary.setText(summary)
         try:
             self.reload_labor_summary(pid)

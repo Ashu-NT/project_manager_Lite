@@ -1,6 +1,7 @@
 from .dialogs import (
     CriticalPathDialog,
     EvmReportDialog,
+    FinanceReportDialog,
     GanttPreviewDialog,
     KPIReportDialog,
     PerformanceVarianceDialog,
@@ -15,5 +16,6 @@ __all__ = [
     "CriticalPathDialog",
     "ResourceLoadDialog",
     "EvmReportDialog",
+    "FinanceReportDialog",
     "PerformanceVarianceDialog",
 ]

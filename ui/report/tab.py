@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.events.domain_events import domain_events
+from core.services.finance import FinanceService
 from core.services.project import ProjectService
 from core.services.reporting import ReportingService
 from core.services.auth import UserSessionContext
@@ -30,12 +31,14 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self,
         project_service: ProjectService,
         reporting_service: ReportingService,
+        finance_service: FinanceService | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._project_service: ProjectService = project_service
         self._reporting_service: ReportingService = reporting_service
+        self._finance_service: FinanceService | None = finance_service
         self._user_session = user_session
         self._setup_ui()
         self._load_projects()
@@ -93,6 +96,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self.btn_show_resource_load = QPushButton(CFG.SHOW_RESOURCE_LOAD_LABEL)
         self.btn_show_performance = QPushButton("Show Performance Variance")
         self.btn_show_evm = QPushButton("Show EVM Analysis")
+        self.btn_show_finance = QPushButton("Show Finance View")
         self.btn_show_baseline_compare = QPushButton(CFG.SHOW_BASELINE_COMPARE_LABEL)
         for btn in [
             self.btn_load_kpi,
@@ -101,6 +105,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
             self.btn_show_resource_load,
             self.btn_show_performance,
             self.btn_show_evm,
+            self.btn_show_finance,
             self.btn_show_baseline_compare,
         ]:
             btn.setMinimumHeight(CFG.BUTTON_HEIGHT)
@@ -113,6 +118,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self.btn_show_resource_load.setToolTip("Resource loading overview by assignment pressure.")
         self.btn_show_performance.setToolTip("Schedule variance and cost variance against baseline.")
         self.btn_show_evm.setToolTip("Earned Value metrics and trend for project controls.")
+        self.btn_show_finance.setToolTip("Ledger, cashflow/forecast, and expense analytics view.")
         self.btn_show_baseline_compare.setToolTip("Compare two baselines to review task-level planning drift.")
 
         ons_layout.addWidget(self.btn_load_kpi, 0, 0)
@@ -122,6 +128,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         ons_layout.addWidget(self.btn_show_performance, 1, 1)
         ons_layout.addWidget(self.btn_show_evm, 1, 2)
         ons_layout.addWidget(self.btn_show_baseline_compare, 2, 0)
+        ons_layout.addWidget(self.btn_show_finance, 2, 1)
         for col in range(3):
             ons_layout.setColumnStretch(col, 1)
         layout.addWidget(group_on_screen)
@@ -180,6 +187,9 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self.btn_show_evm.clicked.connect(
             make_guarded_slot(self, title="Reports", callback=self.show_evm)
         )
+        self.btn_show_finance.clicked.connect(
+            make_guarded_slot(self, title="Reports", callback=self.show_finance)
+        )
         self.btn_show_baseline_compare.clicked.connect(self.show_baseline_comparison)
         self.btn_export_gantt.clicked.connect(
             make_guarded_slot(self, title="Reports", callback=self.export_gantt_png)
@@ -196,6 +206,7 @@ class ReportTab(ReportProjectFlowMixin, ReportActionsMixin, QWidget):
         self._apply_permissions()
 
     def _apply_permissions(self) -> None:
+        self.btn_show_finance.setEnabled(self._finance_service is not None)
         if self._user_session is None:
             return
         can_export = self._user_session.has_permission("report.export")

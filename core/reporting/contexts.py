@@ -8,6 +8,7 @@ from core.services.reporting import (
     ProjectKPI,
     ResourceLoadRow,
 )
+from core.services.finance.models import FinanceSnapshot
 
 @dataclass
 class GanttContext:
@@ -28,6 +29,7 @@ class ReportExportContext:
     baseline_variance: Optional[list]
     cost_breakdown: Optional[list]
     cost_sources: Optional[CostSourceBreakdown]
+    finance_snapshot: Optional[FinanceSnapshot]
     as_of: date
 
 @dataclass

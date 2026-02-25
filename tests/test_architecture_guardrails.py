@@ -308,6 +308,23 @@ def test_dashboard_service_is_orchestrator_only():
     assert "def _interpret_evm" not in text
 
 
+def test_finance_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "services" / "finance" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.finance.analytics import" in text
+    assert "from core.services.finance.cashflow import" in text
+    assert "from core.services.finance.ledger import" in text
+    assert "from core.services.finance.policy import" in text
+    assert "def _manual_labor_raw_totals" not in text
+    assert "def _build_cost_item_ledger_rows" not in text
+    assert "def _build_computed_labor_plan_rows" not in text
+    assert "def _build_computed_labor_actual_rows" not in text
+    assert "def _build_source_analytics" not in text
+    assert "def _build_dimension_analytics" not in text
+    assert "def _build_period_cashflow" not in text
+
+
 def test_resource_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "resource" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
@@ -581,6 +598,12 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/dashboard/upcoming.py": 150,
         "core/services/dashboard/burndown.py": 120,
         "core/services/dashboard/evm.py": 160,
+        "core/services/finance/service.py": 220,
+        "core/services/finance/ledger.py": 260,
+        "core/services/finance/analytics.py": 160,
+        "core/services/finance/cashflow.py": 120,
+        "core/services/finance/policy.py": 120,
+        "core/services/finance/helpers.py": 120,
         "ui/styles/ui_config.py": 320,
         "core/services/task/service.py": 140,
         "core/services/project/service.py": 90,

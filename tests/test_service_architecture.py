@@ -10,6 +10,8 @@ from core.services.baseline_service import BaselineService as LegacyBaselineServ
 from core.services.calendar import CalendarService
 from core.services.cost import CostService
 from core.services.dashboard import DashboardService
+from core.services.finance import FinanceService
+from core.services.finance_service import FinanceService as LegacyFinanceService
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.project_calendar_service import CalendarService as LegacyCalendarService
 from core.services.project_resource_service import ProjectResourceService as LegacyProjectResourceService
@@ -41,6 +43,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.resource_service, ResourceService)
     assert isinstance(graph.calendar_service, CalendarService)
     assert isinstance(graph.cost_service, CostService)
+    assert isinstance(graph.finance_service, FinanceService)
     assert isinstance(graph.work_calendar_engine, WorkCalendarEngine)
     assert isinstance(graph.work_calendar_service, WorkCalendarService)
     assert isinstance(graph.scheduling_engine, SchedulingEngine)
@@ -54,6 +57,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["auth_service"] is graph.auth_service
     assert as_dict["audit_service"] is graph.audit_service
     assert as_dict["dashboard_service"] is graph.dashboard_service
+    assert as_dict["finance_service"] is graph.finance_service
     assert as_dict["project_resource_service"] is graph.project_resource_service
     assert as_dict["session"] is session
 
@@ -74,3 +78,4 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyWorkCalendarService is WorkCalendarService
     assert LegacyReportingService is ReportingService
     assert LegacyBaselineService is BaselineService
+    assert LegacyFinanceService is FinanceService

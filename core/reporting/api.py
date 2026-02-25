@@ -6,6 +6,7 @@ from contextlib import suppress
 
 
 from core.services.reporting import ReportingService
+from core.services.finance import FinanceService
 from core.exceptions import BusinessRuleError
 from core.reporting.renderers.gantt import GanttPngRenderer
 from core.reporting.renderers.evm import EvmCurveRenderer
@@ -73,6 +74,7 @@ def generate_excel_report(
     reporting_service: ReportingService,
     project_id: str,
     output_path: str | Path,
+    finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
 ) -> Path:
@@ -82,6 +84,11 @@ def generate_excel_report(
     get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
     get_cost = getattr(reporting_service, "get_cost_breakdown", None)
     get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
+    finance_snapshot = (
+        finance_service.get_finance_snapshot(project_id, as_of=as_of)
+        if finance_service is not None
+        else None
+    )
 
     ctx = ExcelReportContext(
         kpi=reporting_service.get_project_kpis(project_id),
@@ -92,6 +99,7 @@ def generate_excel_report(
         baseline_variance=get_variance(project_id, baseline_id=baseline_id) if callable(get_variance) else None,
         cost_breakdown=get_cost(project_id, as_of=as_of, baseline_id=baseline_id) if callable(get_cost) else None,
         cost_sources=get_cost_sources(project_id, as_of=as_of) if callable(get_cost_sources) else None,
+        finance_snapshot=finance_snapshot,
         as_of=as_of,
     )
     return ExcelReportRenderer().render(ctx, _ensure_parent(Path(output_path)))
@@ -102,6 +110,7 @@ def generate_pdf_report(
     project_id: str,
     output_path: str | Path,
     temp_dir: str | Path = "tmp_reports",
+    finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
 ) -> Path:
@@ -119,6 +128,11 @@ def generate_pdf_report(
     get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
     get_cost = getattr(reporting_service, "get_cost_breakdown", None)
     get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
+    finance_snapshot = (
+        finance_service.get_finance_snapshot(project_id, as_of=as_of)
+        if finance_service is not None
+        else None
+    )
 
     ctx = PdfReportContext(
         kpi=reporting_service.get_project_kpis(project_id),
@@ -129,6 +143,7 @@ def generate_pdf_report(
         baseline_variance=get_variance(project_id, baseline_id=baseline_id) if callable(get_variance) else None,
         cost_breakdown=get_cost(project_id, as_of=as_of, baseline_id=baseline_id) if callable(get_cost) else None,
         cost_sources=get_cost_sources(project_id, as_of=as_of) if callable(get_cost_sources) else None,
+        finance_snapshot=finance_snapshot,
         as_of=as_of,
     )
     try:

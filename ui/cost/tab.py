@@ -30,8 +30,6 @@ from ui.shared.guards import (
     can_execute_governed_action,
 )
 from ui.styles.ui_config import UIConfig as CFG
-
-
 def _kpi_card(title: str, value: str = "-") -> tuple[QFrame, QLabel]:
     card = QFrame()
     card.setStyleSheet(CFG.PROJECT_SUMMARY_BOX_STYLE)
@@ -192,21 +190,16 @@ class CostTab(
         self.tbl_labor_summary.itemSelectionChanged.connect(self._on_labor_table_selected)
         self.table.selectionModel().selectionChanged.connect(self._sync_cost_actions)
 
-        apply_permission_hint(
-            self.btn_new,
-            allowed=self._can_create_cost,
-            missing_permission="cost.manage or approval.request",
-        )
-        apply_permission_hint(
-            self.btn_edit,
-            allowed=self._can_edit_cost,
-            missing_permission="cost.manage or approval.request",
-        )
-        apply_permission_hint(
-            self.btn_delete,
-            allowed=self._can_delete_cost,
-            missing_permission="cost.manage or approval.request",
-        )
+        for btn, allowed in (
+            (self.btn_new, self._can_create_cost),
+            (self.btn_edit, self._can_edit_cost),
+            (self.btn_delete, self._can_delete_cost),
+        ):
+            apply_permission_hint(
+                btn,
+                allowed=allowed,
+                missing_permission="cost.manage or approval.request",
+            )
         self._sync_cost_actions()
 
     def _sync_cost_actions(self, *_args) -> None:

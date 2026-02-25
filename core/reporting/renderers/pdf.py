@@ -172,6 +172,80 @@ class PdfReportRenderer:
                     story.append(Paragraph(note, styles["Normal"]))
             story.append(Spacer(1, 16))
 
+        # ---------------- Finance ----------------
+        if ctx.finance_snapshot:
+            snap = ctx.finance_snapshot
+            story.append(Paragraph("Finance Summary", styles["Heading2"]))
+            story.append(Spacer(1, 8))
+
+            summary_rows = [
+                ["Metric", "Value"],
+                ["Budget", f"{float(snap.budget or 0.0):.2f}"],
+                ["Planned", f"{float(snap.planned or 0.0):.2f}"],
+                ["Committed", f"{float(snap.committed or 0.0):.2f}"],
+                ["Actual", f"{float(snap.actual or 0.0):.2f}"],
+                ["Exposure", f"{float(snap.exposure or 0.0):.2f}"],
+                [
+                    "Available",
+                    "-" if snap.available is None else f"{float(snap.available or 0.0):.2f}",
+                ],
+            ]
+            table = Table(summary_rows, colWidths=[180, 140])
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+            ]))
+            story.append(table)
+            story.append(Spacer(1, 12))
+
+            if snap.cashflow:
+                story.append(Paragraph("Cashflow / Forecast by Period (Top 18)", styles["Heading3"]))
+                story.append(Spacer(1, 6))
+                cash_rows = [["Period", "Planned", "Committed", "Actual", "Forecast", "Exposure"]]
+                for p in snap.cashflow[:18]:
+                    cash_rows.append([
+                        p.period_key,
+                        f"{float(p.planned or 0.0):.2f}",
+                        f"{float(p.committed or 0.0):.2f}",
+                        f"{float(p.actual or 0.0):.2f}",
+                        f"{float(p.forecast or 0.0):.2f}",
+                        f"{float(p.exposure or 0.0):.2f}",
+                    ])
+                table = Table(cash_rows, colWidths=[90, 90, 90, 90, 90, 90])
+                table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 10))
+
+            if snap.by_source:
+                story.append(Paragraph("Expense Analytics by Source", styles["Heading3"]))
+                story.append(Spacer(1, 6))
+                source_rows = [["Source", "Planned", "Committed", "Actual", "Forecast", "Exposure"]]
+                for row in snap.by_source:
+                    source_rows.append([
+                        row.label,
+                        f"{float(row.planned or 0.0):.2f}",
+                        f"{float(row.committed or 0.0):.2f}",
+                        f"{float(row.actual or 0.0):.2f}",
+                        f"{float(row.forecast or 0.0):.2f}",
+                        f"{float(row.exposure or 0.0):.2f}",
+                    ])
+                table = Table(source_rows, colWidths=[180, 85, 85, 85, 85, 85])
+                table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 16))
+
         # ---------------- Resources ----------------
         if ctx.resources:
             story.append(Paragraph("Resource Load Summary", styles["Heading2"]))

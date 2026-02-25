@@ -1,21 +1,15 @@
 from __future__ import annotations
-
 from pathlib import Path
-
 from PySide6.QtWidgets import QFileDialog, QMessageBox
-
 from core.exceptions import BusinessRuleError, NotFoundError
-from core.reporting.api import (
-    generate_evm_png,
-    generate_excel_report,
-    generate_gantt_png,
-    generate_pdf_report,
-)
+from core.reporting.api import generate_evm_png, generate_excel_report, generate_gantt_png, generate_pdf_report
+from core.services.finance import FinanceService
 from core.services.reporting import ReportingService
 from ui.report.dialogs import (
     BaselineCompareDialog,
     CriticalPathDialog,
     EvmReportDialog,
+    FinanceReportDialog,
     GanttPreviewDialog,
     KPIReportDialog,
     PerformanceVarianceDialog,
@@ -25,6 +19,7 @@ from ui.report.dialogs import (
 
 class ReportActionsMixin:
     _reporting_service: ReportingService
+    _finance_service: FinanceService | None
 
     def _require_project(self, action_label: str) -> tuple[str, str] | None:
         project_id, project_name = self._current_project_id_and_name()
@@ -32,6 +27,31 @@ class ReportActionsMixin:
             QMessageBox.information(self, action_label, "Please select a project.")
             return None
         return project_id, (project_name or "project")
+
+    def _open_dialog(self, action_label: str, error_title: str, dialog_factory) -> None:
+        selected = self._require_project(action_label)
+        if not selected:
+            return
+        project_id, project_name = selected
+        try:
+            dialog_factory(project_id, project_name).exec()
+        except NotFoundError as exc:
+            QMessageBox.warning(self, error_title, f"Failed to show {error_title.lower()}: {exc}")
+
+    def _export_file(self, *, action_label: str, save_title: str, file_suffix: str, file_filter: str, success_title: str, error_prefix: str, exporter) -> None:
+        selected = self._require_project(action_label)
+        if not selected:
+            return
+        project_id, project_name = selected
+        path = self._choose_export_path(save_title, f"{project_name}_{file_suffix}", file_filter)
+        if not path:
+            return
+        try:
+            exporter(project_id, path)
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "Error", f"{error_prefix}: {exc}")
+            return
+        QMessageBox.information(self, success_title, f"{success_title} saved to:\n{path}")
 
     def load_kpis(self) -> None:
         selected = self._require_project("Load KPIs")
@@ -41,34 +61,13 @@ class ReportActionsMixin:
         KPIReportDialog(self, self._reporting_service, project_id).exec()
 
     def show_gantt(self) -> None:
-        selected = self._require_project("Show Gantt")
-        if not selected:
-            return
-        project_id, project_name = selected
-        try:
-            GanttPreviewDialog(self, self._reporting_service, project_id, project_name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Gantt", f"Failed to generate Gantt {e}")
+        self._open_dialog("Show Gantt", "Gantt", lambda project_id, project_name: GanttPreviewDialog(self, self._reporting_service, project_id, project_name))
 
     def show_critical_path(self) -> None:
-        selected = self._require_project("Show Critical Path")
-        if not selected:
-            return
-        project_id, project_name = selected
-        try:
-            CriticalPathDialog(self, self._reporting_service, project_id, project_name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Critical Path", f"Failed to show critical path {e}")
+        self._open_dialog("Show Critical Path", "Critical Path", lambda project_id, project_name: CriticalPathDialog(self, self._reporting_service, project_id, project_name))
 
     def show_resource_load(self) -> None:
-        selected = self._require_project("Show Resource Load")
-        if not selected:
-            return
-        project_id, project_name = selected
-        try:
-            ResourceLoadDialog(self, self._reporting_service, project_id, project_name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Resource Load", f"Failed to show resource load {e}")
+        self._open_dialog("Show Resource Load", "Resource Load", lambda project_id, project_name: ResourceLoadDialog(self, self._reporting_service, project_id, project_name))
 
     def show_evm(self) -> None:
         selected = self._require_project("Show EVM")
@@ -77,122 +76,82 @@ class ReportActionsMixin:
         project_id, project_name = selected
         try:
             EvmReportDialog(self, self._reporting_service, project_id, project_name).exec()
-        except BusinessRuleError as e:
-            if getattr(e, "code", None) == "NO_BASELINE":
-                QMessageBox.information(
-                    self,
-                    "EVM Analysis",
-                    "EVM requires a baseline. Please create a baseline first.",
-                )
+        except BusinessRuleError as exc:
+            if getattr(exc, "code", None) == "NO_BASELINE":
+                QMessageBox.information(self, "EVM Analysis", "EVM requires a baseline. Please create a baseline first.")
                 return
-            QMessageBox.warning(self, "EVM Analysis", f"Failed to generate EVM analysis: {e}")
-        except NotFoundError as e:
-            QMessageBox.warning(self, "EVM Analysis", f"Failed to generate EVM analysis: {e}")
+            QMessageBox.warning(self, "EVM Analysis", f"Failed to generate EVM analysis: {exc}")
+        except NotFoundError as exc:
+            QMessageBox.warning(self, "EVM Analysis", f"Failed to generate EVM analysis: {exc}")
 
     def show_performance(self) -> None:
-        selected = self._require_project("Show Performance")
-        if not selected:
+        self._open_dialog("Show Performance", "Performance", lambda project_id, project_name: PerformanceVarianceDialog(self, self._reporting_service, project_id, project_name))
+
+    def show_finance(self) -> None:
+        if self._finance_service is None:
+            QMessageBox.information(self, "Finance", "Finance service is not available.")
             return
-        project_id, project_name = selected
-        try:
-            PerformanceVarianceDialog(self, self._reporting_service, project_id, project_name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Performance", f"Failed to generate performance view: {e}")
+        self._open_dialog("Show Finance", "Finance", lambda project_id, project_name: FinanceReportDialog(self, self._finance_service, project_id, project_name))
 
     def show_baseline_comparison(self) -> None:
-        selected = self._require_project("Compare Baselines")
-        if not selected:
-            return
-        project_id, project_name = selected
-        try:
-            BaselineCompareDialog(self, self._reporting_service, project_id, project_name).exec()
-        except NotFoundError as e:
-            QMessageBox.warning(self, "Baseline Comparison", f"Failed to compare baselines: {e}")
+        self._open_dialog("Compare Baselines", "Baseline Comparison", lambda project_id, project_name: BaselineCompareDialog(self, self._reporting_service, project_id, project_name))
 
     def export_gantt_png(self) -> None:
-        selected = self._require_project("Export Gantt")
-        if not selected:
-            return
-        project_id, project_name = selected
-
-        path = self._choose_export_path("Save Gantt chart", f"{project_name}_gantt.png", "PNG image (*.png)")
-        if not path:
-            return
-
-        try:
-            generate_gantt_png(self._reporting_service, project_id, path)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export Gantt: {e}")
-            return
-        QMessageBox.information(self, "Export Gantt", f"Gantt chart saved to:\n{path}")
+        self._export_file(
+            action_label="Export Gantt",
+            save_title="Save Gantt chart",
+            file_suffix="gantt.png",
+            file_filter="PNG image (*.png)",
+            success_title="Export Gantt",
+            error_prefix="Failed to export Gantt",
+            exporter=lambda project_id, path: generate_gantt_png(self._reporting_service, project_id, path),
+        )
 
     def export_evm_png(self) -> None:
         selected = self._require_project("Export EVM")
         if not selected:
             return
         project_id, project_name = selected
-
         path = self._choose_export_path("Save EVM chart", f"{project_name}_evm.png", "PNG image (*.png)")
         if not path:
             return
-
         out_path = Path(path)
         if out_path.exists():
             try:
                 out_path.unlink()
             except OSError:
                 pass
-
         try:
-            exported = generate_evm_png(self._reporting_service, project_id, out_path)
-            exported_path = Path(exported)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export EVM chart: {e}")
+            exported_path = Path(generate_evm_png(self._reporting_service, project_id, out_path))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.warning(self, "Error", f"Failed to export EVM chart: {exc}")
             return
-
         if not exported_path.exists() or exported_path.stat().st_size == 0:
-            QMessageBox.information(
-                self,
-                "Export EVM",
-                "No EVM data available for export. Create a baseline and update progress first.",
-            )
+            QMessageBox.information(self, "Export EVM", "No EVM data available for export. Create a baseline and update progress first.")
             return
-
         QMessageBox.information(self, "Export EVM", f"EVM chart saved to:\n{exported_path}")
 
     def export_excel(self) -> None:
-        selected = self._require_project("Export Excel")
-        if not selected:
-            return
-        project_id, project_name = selected
-
-        path = self._choose_export_path("Save Excel report", f"{project_name}_report.xlsx", "Excel files (*.xlsx)")
-        if not path:
-            return
-
-        try:
-            generate_excel_report(self._reporting_service, project_id, path)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export Excel report: {e}")
-            return
-        QMessageBox.information(self, "Export Excel", f"Excel report saved to:\n{path}")
+        self._export_file(
+            action_label="Export Excel",
+            save_title="Save Excel report",
+            file_suffix="report.xlsx",
+            file_filter="Excel files (*.xlsx)",
+            success_title="Export Excel",
+            error_prefix="Failed to export Excel report",
+            exporter=lambda project_id, path: generate_excel_report(self._reporting_service, project_id, path, finance_service=self._finance_service),
+        )
 
     def export_pdf(self) -> None:
-        selected = self._require_project("Export PDF")
-        if not selected:
-            return
-        project_id, project_name = selected
-
-        path = self._choose_export_path("Save PDF report", f"{project_name}_report.pdf", "PDF files (*.pdf)")
-        if not path:
-            return
-
-        try:
-            generate_pdf_report(self._reporting_service, project_id, path)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Failed to export PDF report: {e}")
-            return
-        QMessageBox.information(self, "Export PDF", f"PDF report saved to:\n{path}")
+        self._export_file(
+            action_label="Export PDF",
+            save_title="Save PDF report",
+            file_suffix="report.pdf",
+            file_filter="PDF files (*.pdf)",
+            success_title="Export PDF",
+            error_prefix="Failed to export PDF report",
+            exporter=lambda project_id, path: generate_pdf_report(self._reporting_service, project_id, path, finance_service=self._finance_service),
+        )
 
     def _choose_export_path(self, title: str, suggested_name: str, file_filter: str) -> str | None:
         sanitized_name = self._sanitize_filename(suggested_name)
@@ -202,8 +161,7 @@ class ReportActionsMixin:
     @staticmethod
     def _sanitize_filename(filename: str) -> str:
         invalid_chars = '<>:"/\\|?*'
-        sanitized = "".join("_" if c in invalid_chars else c for c in filename)
-        sanitized = sanitized.strip().strip(".")
+        sanitized = "".join("_" if c in invalid_chars else c for c in filename).strip().strip(".")
         return sanitized or "report"
 
 

@@ -16,6 +16,7 @@ from core.reporting.api import (
     generate_gantt_png as _generate_gantt_png,
     generate_pdf_report as _generate_pdf_report,
 )
+from core.services.finance import FinanceService
 from core.services.reporting import ReportingService
 
 
@@ -60,6 +61,7 @@ def generate_excel_report(
     reporting_service: ReportingService,
     project_id: str,
     output_path: str | Path,
+    finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
 ) -> Path:
@@ -68,6 +70,7 @@ def generate_excel_report(
         reporting_service,
         project_id,
         output_path,
+        finance_service=finance_service,
         baseline_id=baseline_id,
         as_of=as_of,
     )
@@ -78,6 +81,7 @@ def generate_pdf_report(
     project_id: str,
     output_path: str | Path,
     temp_dir: str | Path = "tmp_reports",
+    finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
 ) -> Path:
@@ -87,6 +91,7 @@ def generate_pdf_report(
         project_id,
         output_path,
         temp_dir=temp_dir,
+        finance_service=finance_service,
         baseline_id=baseline_id,
         as_of=as_of,
     )
@@ -98,4 +103,3 @@ __all__ = [
     "generate_excel_report",
     "generate_pdf_report",
 ]
-

@@ -144,6 +144,7 @@ class MainWindow(QMainWindow):
             report_tab = ReportTab(
                 project_service=self.services["project_service"],
                 reporting_service=self.services["reporting_service"],
+                finance_service=self.services.get("finance_service"),
                 user_session=self._user_session,
             )
             self.tabs.addTab(report_tab, "Reports")
