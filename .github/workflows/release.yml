@@ -51,6 +51,32 @@ jobs:
           "download_url=$downloadUrl" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "Resolved release: tag=$tag version=$version installer=$installer"
 
+      - name: Resolve Project Paths
+        id: paths
+        shell: pwsh
+        run: |
+          $spec = Get-ChildItem -Path . -Recurse -File -Filter "main_qt.spec" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $spec) {
+            Write-Host "Could not find main_qt.spec in workspace."
+            Write-Host "Workspace root: $PWD"
+            Get-ChildItem -Path . -Force
+            throw "Spec file main_qt.spec not found."
+          }
+
+          $nsi = Get-ChildItem -Path . -Recurse -File -Filter "ProjectManagerLite.nsi" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $nsi) {
+            Write-Host "Could not find installer/ProjectManagerLite.nsi in workspace."
+            Write-Host "Workspace root: $PWD"
+            Get-ChildItem -Path . -Force
+            throw "NSIS script ProjectManagerLite.nsi not found."
+          }
+
+          "spec_path=$($spec.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "nsi_path=$($nsi.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "project_root=$($spec.Directory.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "Resolved paths: spec=$($spec.FullName)"
+          "Resolved paths: nsi=$($nsi.FullName)"
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -116,12 +142,12 @@ jobs:
       - name: Build PyInstaller Bundle
         shell: pwsh
         run: |
-          python -m PyInstaller main_qt.spec --noconfirm --clean
+          python -m PyInstaller "${{ steps.paths.outputs.spec_path }}" --noconfirm --clean
 
       - name: Build NSIS Installer
         shell: pwsh
         run: |
-          & "${{ steps.nsis.outputs.nsis_exe }}" /DAPP_VERSION=${{ steps.meta.outputs.version }} installer\ProjectManagerLite.nsi
+          & "${{ steps.nsis.outputs.nsis_exe }}" /DAPP_VERSION=${{ steps.meta.outputs.version }} "${{ steps.paths.outputs.nsi_path }}"
 
       - name: Collect Installer Artifact
         shell: pwsh
