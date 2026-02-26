@@ -67,20 +67,44 @@ jobs:
         shell: pwsh
         run: |
           choco install nsis -y --no-progress
-          $candidates = @(
-            "$env:ProgramFiles(x86)\NSIS\makensis.exe",
-            "$env:ProgramFiles\NSIS\makensis.exe"
+          $candidateRoots = @(
+            "${env:ProgramFiles(x86)}\NSIS\makensis.exe",
+            "${env:ProgramFiles}\NSIS\makensis.exe",
+            "C:\ProgramData\chocolatey\bin\makensis.exe",
+            "C:\ProgramData\chocolatey\lib\nsis\tools\makensis.exe",
+            "C:\ProgramData\chocolatey\lib\nsis.install\tools\makensis.exe"
           )
-          $nsisExe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          $nsisExe = $candidateRoots | Where-Object { Test-Path $_ } | Select-Object -First 1
 
           if (-not $nsisExe) {
-            $fromChoco = Get-ChildItem "C:\ProgramData\chocolatey\lib" -Recurse -Filter "makensis.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($fromChoco) {
-              $nsisExe = $fromChoco.FullName
+            $cmd = Get-Command makensis.exe -ErrorAction SilentlyContinue
+            if ($cmd) {
+              $nsisExe = $cmd.Source
             }
           }
 
           if (-not $nsisExe) {
+            $searchRoots = @(
+              "C:\ProgramData\chocolatey\lib\nsis",
+              "C:\ProgramData\chocolatey\lib\nsis.install",
+              "${env:ProgramFiles(x86)}\NSIS",
+              "${env:ProgramFiles}\NSIS"
+            ) | Where-Object { Test-Path $_ }
+
+            foreach ($root in $searchRoots) {
+              $hit = Get-ChildItem $root -Recurse -File -Filter "makensis.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($hit) {
+                $nsisExe = $hit.FullName
+                break
+              }
+            }
+          }
+
+          if (-not $nsisExe) {
+            Write-Host "NSIS path probes failed."
+            Write-Host "ProgramFiles: $env:ProgramFiles"
+            Write-Host "ProgramFiles(x86): ${env:ProgramFiles(x86)}"
+            Get-ChildItem "C:\ProgramData\chocolatey\lib" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName | ForEach-Object { Write-Host $_ }
             throw "NSIS installed but makensis.exe was not found."
           }
 
