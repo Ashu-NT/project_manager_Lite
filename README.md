@@ -124,7 +124,7 @@ python main_qt.py
 - Optional app version override for packaged builds:
 
 ```powershell
-$env:PM_APP_VERSION = "2.1.0"
+$env:PM_APP_VERSION = "2.1.1"
 python main_qt.py
 ```
 
@@ -134,8 +134,8 @@ python main_qt.py
 {
   "channels": {
     "stable": {
-      "version": "2.1.0",
-      "url": "https://example.com/ProjectManagerLite-2.1.0.exe",
+      "version": "2.1.1",
+      "url": "https://example.com/ProjectManagerLite-2.1.1.exe",
       "notes": "Production release",
       "sha256": "..."
     },
@@ -214,7 +214,8 @@ https://github.com/<owner>/<repo>/releases/latest/download/release-manifest.json
 Notes:
 
 - The workflow injects NSIS installer version from the Git tag (`/DAPP_VERSION=...`).
-- `installer/ProjectManagerLite.nsi` supports CI override and still falls back to `2.1.0` locally.
+- The workflow also stamps `infra/app_version.txt`, so Support tab compares against the installed release version.
+- `installer/ProjectManagerLite.nsi` supports CI override and still falls back to `2.1.1` locally.
 
 ## Notes
 

@@ -97,6 +97,17 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Stamp Runtime App Version
+        shell: pwsh
+        run: |
+          $projectRoot = "${{ steps.paths.outputs.project_root }}"
+          if ([string]::IsNullOrWhiteSpace($projectRoot)) {
+            throw "Project root path is missing; cannot stamp app version."
+          }
+          $versionFile = Join-Path $projectRoot "infra\app_version.txt"
+          "${{ steps.meta.outputs.version }}" | Set-Content $versionFile -Encoding utf8
+          Write-Host "Stamped runtime app version: $versionFile -> ${{ steps.meta.outputs.version }}"
+
       - name: Install Python Dependencies
         shell: pwsh
         run: |
@@ -172,6 +183,7 @@ jobs:
 
           $assets = "$projectRoot\assets;assets"
           $migration = "$projectRoot\migration;migration"
+          $appVersion = "$projectRoot\infra\app_version.txt;infra"
           $icon = "$projectRoot\assets\icons\app.ico"
 
           Write-Host "Using script-based build: $entryPath"
@@ -184,6 +196,7 @@ jobs:
             --icon "$icon" `
             --add-data "$assets" `
             --add-data "$migration" `
+            --add-data "$appVersion" `
             --collect-submodules "infra" `
             --collect-submodules "core" `
             --collect-submodules "ui" `

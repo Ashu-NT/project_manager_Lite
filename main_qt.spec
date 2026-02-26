@@ -17,6 +17,7 @@ a = Analysis(
     datas=[
         (str(project_root / "assets"), "assets"),
         (str(project_root / "migration"), "migration"),
+        (str(project_root / "infra" / "app_version.txt"), "infra"),
     ],
     # Ensure stdlib logging.config is included for Alembic env imports
     hiddenimports=hidden + ["logging.config"],
