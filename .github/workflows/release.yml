@@ -35,6 +35,12 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($tag)) {
             throw "Release tag is required."
           }
+          if ($tag -match "\s") {
+            throw "Release tag cannot contain spaces. Use a tag like v2.1.1."
+          }
+          if ($tag -notmatch "^v?[0-9]+(\.[0-9]+){1,3}([\-+][0-9A-Za-z\.-]+)?$") {
+            throw "Invalid release tag '$tag'. Expected v<major>.<minor>.<patch> (optionally with prerelease suffix)."
+          }
           if (-not $tag.StartsWith("v")) {
             $tag = "v$tag"
           }
@@ -186,13 +192,29 @@ jobs:
       - name: Build NSIS Installer
         shell: pwsh
         run: |
-          & "${{ steps.nsis.outputs.nsis_exe }}" /DAPP_VERSION=${{ steps.meta.outputs.version }} "${{ steps.paths.outputs.nsi_path }}"
+          & "${{ steps.nsis.outputs.nsis_exe }}" "/DAPP_VERSION=${{ steps.meta.outputs.version }}" "${{ steps.paths.outputs.nsi_path }}"
 
       - name: Collect Installer Artifact
         shell: pwsh
         run: |
           $installerName = "${{ steps.meta.outputs.installer }}"
-          $found = Get-ChildItem -Path . -Filter $installerName -Recurse | Select-Object -First 1
+          $found = $null
+          $preferred = @(
+            (Join-Path "installer" $installerName),
+            $installerName
+          )
+          foreach ($candidate in $preferred) {
+            if (Test-Path $candidate) {
+              $found = Get-Item $candidate
+              break
+            }
+          }
+
+          if (-not $found) {
+            $found = Get-ChildItem -Path . -Filter $installerName -Recurse -File |
+              Sort-Object LastWriteTimeUtc -Descending |
+              Select-Object -First 1
+          }
           if (-not $found) {
             throw "Installer '$installerName' not found after NSIS build."
           }
