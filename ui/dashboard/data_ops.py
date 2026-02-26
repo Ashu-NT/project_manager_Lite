@@ -1,10 +1,10 @@
 from __future__ import annotations
-from PySide6.QtWidgets import QComboBox, QInputDialog, QMessageBox
+from PySide6.QtWidgets import QComboBox, QMessageBox
 
-from core.exceptions import BusinessRuleError
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.project import ProjectService
+from ui.dashboard.async_actions import run_generate_baseline_async, run_refresh_dashboard_async
 from ui.dashboard.access import sync_dashboard_baseline_actions
 from ui.shared.combo import current_data_and_text
 
@@ -18,25 +18,7 @@ class DashboardDataOpsMixin:
     _current_data: DashboardData | None
 
     def _generate_baseline(self):
-        proj_id, _ = self._current_project_id_and_name()
-        if not proj_id:
-            return
-
-        name, ok = QInputDialog.getText(
-            self, "Create Baseline", "Baseline name:", text="Baseline"
-        )
-        if not ok:
-            return
-
-        try:
-            self._baseline_service.create_baseline(proj_id, name.strip() or "Baseline")
-            self._load_baselines_for_project(proj_id)
-            self.baseline_combo.setCurrentIndex(0)
-            self.refresh_dashboard()
-        except BusinessRuleError as exc:
-            QMessageBox.information(self, "Baseline", str(exc))
-        except Exception as exc:
-            QMessageBox.critical(self, "Baseline error", f"Could not create baseline:\n{exc}")
+        run_generate_baseline_async(self)
 
     def _on_domain_changed(self, project_id: str):
         current_id, _ = self._current_project_id_and_name()
@@ -102,29 +84,7 @@ class DashboardDataOpsMixin:
         return current_data_and_text(self.project_combo)
 
     def refresh_dashboard(self):
-        proj_id, proj_name = self._current_project_id_and_name()
-        if not proj_id:
-            self._clear_dashboard()
-            return
-        try:
-            baseline_id = self._selected_baseline_id() if hasattr(self, "baseline_combo") else None
-            data = self._dashboard_service.get_dashboard_data(proj_id, baseline_id=baseline_id)
-            if not hasattr(self, "evm_hint"):
-                self.evm_group = self._build_evm_panel()
-        except Exception:
-            self._clear_dashboard()
-            return
-
-        self._current_data = data
-        self._update_summary(proj_name, data)
-        self._update_kpis(data)
-        self._update_burndown_chart(data)
-        self._update_resource_chart(data)
-        self._update_alerts(data)
-        if hasattr(self, "_refresh_conflicts"):
-            self._refresh_conflicts(proj_id)
-        self._update_upcoming(data)
-        self._update_evm(data)
+        run_refresh_dashboard_async(self)
 
     def _load_baselines_for_project(self, project_id: str):
         self.baseline_combo.blockSignals(True)

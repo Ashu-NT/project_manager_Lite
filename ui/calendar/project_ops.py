@@ -7,6 +7,8 @@ from core.services.auth.authorization import require_permission
 from core.services.project import ProjectService
 from core.services.scheduling import SchedulingEngine
 from core.services.task import TaskService
+from ui.shared.async_job import JobUiConfig, start_async_job
+from ui.shared.worker_services import worker_service_scope
 
 
 class CalendarProjectOpsMixin:
@@ -57,18 +59,38 @@ class CalendarProjectOpsMixin:
                 "task.manage",
                 operation_label="recalculate schedule",
             )
-            schedule = self._scheduling_engine.recalculate_project_schedule(pid)
         except BusinessRuleError as e:
             QMessageBox.warning(self, "Error", str(e))
             return
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-            return
 
-        QMessageBox.information(
-            self,
-            "Schedule recalculated",
-            f"Schedule recalculated for project '{name}'.\n"
-            f"Tasks updated: {len(schedule)}.\n\n"
-            "Tip: Open the Tasks or Reports tab to see the updated dates and Gantt.",
+        def _work(token, progress):
+            token.raise_if_cancelled()
+            progress(None, "Schedule recalculation started...")
+            with worker_service_scope(getattr(self._task_service, "_user_session", None)) as services:
+                token.raise_if_cancelled()
+                schedule = services["scheduling_engine"].recalculate_project_schedule(pid)
+                token.raise_if_cancelled()
+                return len(schedule)
+
+        start_async_job(
+            parent=self,
+            ui=JobUiConfig(
+                title="Recalculate Schedule",
+                label="Recalculating project schedule...",
+                allow_retry=True,
+            ),
+            work=_work,
+            on_success=lambda task_count: QMessageBox.information(
+                self,
+                "Schedule recalculated",
+                f"Schedule recalculated for project '{name}'.\n"
+                f"Tasks updated: {task_count}.\n\n"
+                "Tip: Open the Tasks or Reports tab to see the updated dates and Gantt.",
+            ),
+            on_error=lambda msg: QMessageBox.critical(self, "Error", msg),
+            on_cancel=lambda: QMessageBox.information(
+                self,
+                "Schedule",
+                "Schedule recalculation canceled.",
+            ),
         )

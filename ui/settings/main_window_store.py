@@ -13,6 +13,9 @@ class MainWindowSettingsStore:
     _KEY_TAB_INDEX = "ui/current_tab_index"
     _KEY_GEOMETRY = "ui/main_window_geometry"
     _KEY_GOVERNANCE_MODE = "governance/mode"
+    _KEY_UPDATE_CHANNEL = "updates/channel"
+    _KEY_UPDATE_AUTO_CHECK = "updates/auto_check"
+    _KEY_UPDATE_MANIFEST_URL = "updates/manifest_url"
 
     def __init__(self, settings: QSettings | None = None) -> None:
         self._settings = settings or QSettings(self.ORG_NAME, self.APP_NAME)
@@ -40,6 +43,38 @@ class MainWindowSettingsStore:
         normalized = (mode or "off").strip().lower()
         value = "required" if normalized == "required" else "off"
         self._settings.setValue(self._KEY_GOVERNANCE_MODE, value)
+        self._settings.sync()
+
+    def load_update_channel(self, default_channel: str = "stable") -> str:
+        default = (default_channel or "stable").strip().lower()
+        if default not in {"stable", "beta"}:
+            default = "stable"
+        raw = str(self._settings.value(self._KEY_UPDATE_CHANNEL, default)).strip().lower()
+        return raw if raw in {"stable", "beta"} else default
+
+    def save_update_channel(self, channel: str) -> None:
+        normalized = (channel or "stable").strip().lower()
+        value = "beta" if normalized == "beta" else "stable"
+        self._settings.setValue(self._KEY_UPDATE_CHANNEL, value)
+        self._settings.sync()
+
+    def load_update_auto_check(self, default_enabled: bool = False) -> bool:
+        raw = self._settings.value(self._KEY_UPDATE_AUTO_CHECK, default_enabled)
+        if isinstance(raw, bool):
+            return raw
+        text = str(raw).strip().lower()
+        return text in {"1", "true", "yes", "on"}
+
+    def save_update_auto_check(self, enabled: bool) -> None:
+        self._settings.setValue(self._KEY_UPDATE_AUTO_CHECK, bool(enabled))
+        self._settings.sync()
+
+    def load_update_manifest_url(self, default_url: str = "") -> str:
+        raw = self._settings.value(self._KEY_UPDATE_MANIFEST_URL, default_url)
+        return str(raw or "").strip()
+
+    def save_update_manifest_url(self, url: str) -> None:
+        self._settings.setValue(self._KEY_UPDATE_MANIFEST_URL, (url or "").strip())
         self._settings.sync()
 
     def load_tab_index(self, default_index: int = 0) -> int:

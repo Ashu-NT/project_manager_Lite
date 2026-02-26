@@ -15,6 +15,8 @@ from ui.report.dialogs import (
     PerformanceVarianceDialog,
     ResourceLoadDialog,
 )
+from ui.shared.async_job import JobUiConfig, start_async_job
+from ui.shared.worker_services import worker_service_scope
 
 
 class ReportActionsMixin:
@@ -38,7 +40,18 @@ class ReportActionsMixin:
         except NotFoundError as exc:
             QMessageBox.warning(self, error_title, f"Failed to show {error_title.lower()}: {exc}")
 
-    def _export_file(self, *, action_label: str, save_title: str, file_suffix: str, file_filter: str, success_title: str, error_prefix: str, exporter) -> None:
+    def _export_file(
+        self,
+        *,
+        action_label: str,
+        save_title: str,
+        file_suffix: str,
+        file_filter: str,
+        success_title: str,
+        error_prefix: str,
+        exporter,
+        empty_hint: str | None = None,
+    ) -> None:
         selected = self._require_project(action_label)
         if not selected:
             return
@@ -46,12 +59,31 @@ class ReportActionsMixin:
         path = self._choose_export_path(save_title, f"{project_name}_{file_suffix}", file_filter)
         if not path:
             return
-        try:
-            exporter(project_id, path)
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Error", f"{error_prefix}: {exc}")
-            return
-        QMessageBox.information(self, success_title, f"{success_title} saved to:\n{path}")
+
+        def _work(token, progress):
+            token.raise_if_cancelled()
+            progress(None, f"{success_title}: preparing...")
+            with worker_service_scope(getattr(self, "_user_session", None)) as services:
+                token.raise_if_cancelled()
+                progress(None, f"{success_title}: generating file...")
+                out_path = exporter(services, project_id, Path(path))
+                token.raise_if_cancelled()
+                return Path(out_path)
+
+        def _on_success(exported_path: Path) -> None:
+            if empty_hint and (not exported_path.exists() or exported_path.stat().st_size == 0):
+                QMessageBox.information(self, success_title, empty_hint)
+                return
+            QMessageBox.information(self, success_title, f"{success_title} saved to:\n{exported_path}")
+
+        start_async_job(
+            parent=self,
+            ui=JobUiConfig(title=success_title, label=f"{success_title} in progress...", allow_retry=True),
+            work=_work,
+            on_success=_on_success,
+            on_error=lambda msg: QMessageBox.warning(self, "Error", f"{error_prefix}: {msg}"),
+            on_cancel=lambda: QMessageBox.information(self, success_title, f"{success_title} canceled."),
+        )
 
     def load_kpis(self) -> None:
         selected = self._require_project("Load KPIs")
@@ -104,32 +136,20 @@ class ReportActionsMixin:
             file_filter="PNG image (*.png)",
             success_title="Export Gantt",
             error_prefix="Failed to export Gantt",
-            exporter=lambda project_id, path: generate_gantt_png(self._reporting_service, project_id, path),
+            exporter=lambda services, project_id, path: generate_gantt_png(services["reporting_service"], project_id, path),
         )
 
     def export_evm_png(self) -> None:
-        selected = self._require_project("Export EVM")
-        if not selected:
-            return
-        project_id, project_name = selected
-        path = self._choose_export_path("Save EVM chart", f"{project_name}_evm.png", "PNG image (*.png)")
-        if not path:
-            return
-        out_path = Path(path)
-        if out_path.exists():
-            try:
-                out_path.unlink()
-            except OSError:
-                pass
-        try:
-            exported_path = Path(generate_evm_png(self._reporting_service, project_id, out_path))
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Error", f"Failed to export EVM chart: {exc}")
-            return
-        if not exported_path.exists() or exported_path.stat().st_size == 0:
-            QMessageBox.information(self, "Export EVM", "No EVM data available for export. Create a baseline and update progress first.")
-            return
-        QMessageBox.information(self, "Export EVM", f"EVM chart saved to:\n{exported_path}")
+        self._export_file(
+            action_label="Export EVM",
+            save_title="Save EVM chart",
+            file_suffix="evm.png",
+            file_filter="PNG image (*.png)",
+            success_title="Export EVM",
+            error_prefix="Failed to export EVM chart",
+            exporter=lambda services, project_id, path: generate_evm_png(services["reporting_service"], project_id, path),
+            empty_hint="No EVM data available for export. Create a baseline and update progress first.",
+        )
 
     def export_excel(self) -> None:
         self._export_file(
@@ -139,7 +159,12 @@ class ReportActionsMixin:
             file_filter="Excel files (*.xlsx)",
             success_title="Export Excel",
             error_prefix="Failed to export Excel report",
-            exporter=lambda project_id, path: generate_excel_report(self._reporting_service, project_id, path, finance_service=self._finance_service),
+            exporter=lambda services, project_id, path: generate_excel_report(
+                services["reporting_service"],
+                project_id,
+                path,
+                finance_service=services.get("finance_service"),
+            ),
         )
 
     def export_pdf(self) -> None:
@@ -150,7 +175,12 @@ class ReportActionsMixin:
             file_filter="PDF files (*.pdf)",
             success_title="Export PDF",
             error_prefix="Failed to export PDF report",
-            exporter=lambda project_id, path: generate_pdf_report(self._reporting_service, project_id, path, finance_service=self._finance_service),
+            exporter=lambda services, project_id, path: generate_pdf_report(
+                services["reporting_service"],
+                project_id,
+                path,
+                finance_service=services.get("finance_service"),
+            ),
         )
 
     def _choose_export_path(self, title: str, suggested_name: str, file_filter: str) -> str | None:
