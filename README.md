@@ -129,6 +129,30 @@ conda run -n pmenv python -m pytest -q tests/test_exporters_configuration.py -p 
 conda run -n pmenv python -m pytest -q tests/test_architecture_guardrails.py -p no:cacheprovider
 ```
 
+Run the opt-in large-scale performance workflow test:
+
+```powershell
+$env:PM_RUN_PERF_TESTS = "1"
+conda run -n pmenv python -m pytest -q tests/test_large_scale_performance.py -p no:cacheprovider
+```
+
+Optional scale and SLA knobs (defaults shown):
+
+```powershell
+$env:PM_PERF_TASKS = "1500"
+$env:PM_PERF_RESOURCES = "200"
+$env:PM_PERF_COST_ITEMS = "1500"
+$env:PM_PERF_ASSIGNMENT_STRIDE = "1"
+$env:PM_PERF_CROSS_DEP_GAP = "9"
+$env:PM_PERF_START_DATE = "2025-01-06"
+$env:PM_PERF_SLA_SEED_SECONDS = "180"
+$env:PM_PERF_SLA_SCHEDULE_SECONDS = "45"
+$env:PM_PERF_SLA_BASELINE_SECONDS = "60"
+$env:PM_PERF_SLA_REPORT_SECONDS = "90"
+$env:PM_PERF_SLA_DASHBOARD_SECONDS = "90"
+$env:PM_PERF_SLA_TOTAL_SECONDS = "360"
+```
+
 ## Build and Distribution
 
 - PyInstaller is used for packaging
