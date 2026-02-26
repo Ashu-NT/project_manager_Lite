@@ -6,10 +6,14 @@
 !include "LogicLib.nsh"
 
 !define APP_NAME       "ProjectManagerLite"
+!ifndef APP_VERSION
 !define APP_VERSION    "2.1.0"
+!endif
 !define APP_PUBLISHER  "TECHBASE"
 !define APP_EXE        "ProjectManagerLite.exe"
+!ifndef APP_SOURCE_DIR
 !define APP_SOURCE_DIR "..\dist\ProjectManagerLite"
+!endif
 
 ; NOTE: NSIS does not provide a simple "if file exists" preprocessor directive that works across
 ; platforms. Make sure you've already built the project with PyInstaller and that

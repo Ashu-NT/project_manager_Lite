@@ -194,6 +194,28 @@ $env:PM_PERF_SLA_TOTAL_SECONDS = "360"
 - PyInstaller is used for packaging
 - NSIS installer script and artifact are under `installer/`
 
+### GitHub Actions Release Automation
+
+This repo now includes a release workflow:
+
+- workflow file: `.github/workflows/release.yml`
+- trigger: push a tag like `v2.1.1` (or run manually with `workflow_dispatch`)
+- output assets:
+  - `Setup_ProjectManagerLite_<version>.exe`
+  - `Setup_ProjectManagerLite_<version>.exe.sha256`
+  - `release-manifest.json`
+
+After release, you can use this manifest URL in the Support tab:
+
+```text
+https://github.com/<owner>/<repo>/releases/latest/download/release-manifest.json
+```
+
+Notes:
+
+- The workflow injects NSIS installer version from the Git tag (`/DAPP_VERSION=...`).
+- `installer/ProjectManagerLite.nsi` supports CI override and still falls back to `2.1.0` locally.
+
 ## Notes
 
 - No `.env` file is required by default

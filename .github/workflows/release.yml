@@ -1,0 +1,154 @@
+name: Build And Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag (for example: v2.1.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve Release Metadata
+        id: meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tag = "${{ inputs.release_tag }}".Trim()
+          } else {
+            $tag = "${{ github.ref_name }}".Trim()
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+            throw "Release tag is required."
+          }
+          if (-not $tag.StartsWith("v")) {
+            $tag = "v$tag"
+          }
+          $version = $tag.Substring(1)
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Could not parse version from tag '$tag'."
+          }
+          $installer = "Setup_ProjectManagerLite_$version.exe"
+          $repo = "${{ github.repository }}"
+          $downloadUrl = "https://github.com/$repo/releases/download/$tag/$installer"
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "installer=$installer" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "download_url=$downloadUrl" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "Resolved release: tag=$tag version=$version installer=$installer"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python Dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          makensis /VERSION
+
+      - name: Build PyInstaller Bundle
+        shell: pwsh
+        run: |
+          python -m PyInstaller main_qt.spec --noconfirm --clean
+
+      - name: Build NSIS Installer
+        shell: pwsh
+        run: |
+          makensis /DAPP_VERSION=${{ steps.meta.outputs.version }} installer\ProjectManagerLite.nsi
+
+      - name: Collect Installer Artifact
+        shell: pwsh
+        run: |
+          $installerName = "${{ steps.meta.outputs.installer }}"
+          $found = Get-ChildItem -Path . -Filter $installerName -Recurse | Select-Object -First 1
+          if (-not $found) {
+            throw "Installer '$installerName' not found after NSIS build."
+          }
+          New-Item -ItemType Directory -Path installer -Force | Out-Null
+          $target = Join-Path "installer" $installerName
+          Copy-Item $found.FullName -Destination $target -Force
+          Write-Host "Installer ready at $target"
+
+      - name: Generate Checksum And Manifest
+        shell: pwsh
+        run: |
+          $installerPath = "installer\${{ steps.meta.outputs.installer }}"
+          if (-not (Test-Path $installerPath)) {
+            throw "Installer file missing at $installerPath"
+          }
+
+          $hash = (Get-FileHash -Path $installerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  ${{ steps.meta.outputs.installer }}" | Set-Content "installer\${{ steps.meta.outputs.installer }}.sha256"
+
+          $manifest = @{
+            channels = @{
+              stable = @{
+                version = "${{ steps.meta.outputs.version }}"
+                url = "${{ steps.meta.outputs.download_url }}"
+                notes = "Automated release from tag ${{ steps.meta.outputs.tag }}"
+                sha256 = $hash
+              }
+              beta = @{
+                version = "${{ steps.meta.outputs.version }}"
+                url = "${{ steps.meta.outputs.download_url }}"
+                notes = "Automated release from tag ${{ steps.meta.outputs.tag }}"
+                sha256 = $hash
+              }
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content "release-manifest.json"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ steps.meta.outputs.tag }}
+          path: |
+            installer/${{ steps.meta.outputs.installer }}
+            installer/${{ steps.meta.outputs.installer }}.sha256
+            release-manifest.json
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.meta.outputs.tag, '-') }}
+          files: |
+            installer/${{ steps.meta.outputs.installer }}
+            installer/${{ steps.meta.outputs.installer }}.sha256
+            release-manifest.json
+          fail_on_unmatched_files: true
+
+      - name: Release Summary
+        shell: pwsh
+        run: |
+          @"
+          Release published for tag: ${{ steps.meta.outputs.tag }}
+          Installer: ${{ steps.meta.outputs.installer }}
+          Manifest asset URL (latest release):
+          https://github.com/${{ github.repository }}/releases/latest/download/release-manifest.json
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
