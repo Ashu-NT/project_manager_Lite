@@ -117,14 +117,16 @@ python main_qt.py
 
 - New admin `Support` tab includes:
   - update channel selection (`stable` / `beta`)
-  - manifest source setting (URL or local file path)
+  - manifest source setting (URL or local file path), prefilled to GitHub `latest` by default
   - manual update checks
+  - `Install Now` flow (Windows): downloads installer, verifies SHA256, closes app, runs installer, relaunches app
   - diagnostics bundle export (metadata + logs + DB snapshot)
   - quick links to logs/data folders
 - Optional app version override for packaged builds:
 
 ```powershell
 $env:PM_APP_VERSION = "2.1.1"
+$env:PM_UPDATE_MANIFEST_URL = "https://github.com/Ashu-NT/project_manager_Lite/releases/latest/download/release-manifest.json"
 python main_qt.py
 ```
 

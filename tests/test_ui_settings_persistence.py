@@ -52,6 +52,15 @@ def test_main_window_settings_store_normalizes_invalid_values(tmp_path):
     assert store.load_tab_index(default_index=2) == 0
 
 
+def test_manifest_url_defaults_from_env_when_unset(tmp_path, monkeypatch):
+    monkeypatch.setenv("PM_UPDATE_MANIFEST_URL", "https://example.com/latest-manifest.json")
+    store, settings = _store_with_ini(tmp_path)
+    settings.remove("updates/manifest_url")
+    settings.sync()
+
+    assert store.load_update_manifest_url(default_url="") == "https://example.com/latest-manifest.json"
+
+
 def test_main_qt_loads_theme_from_settings_before_app_style():
     text = (Path(__file__).resolve().parents[1] / "main_qt.py").read_text(
         encoding="utf-8",

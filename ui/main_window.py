@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.services.auth import UserSessionContext
-from infra.update import check_for_updates
+from infra.update import check_for_updates, default_update_manifest_source
 from infra.version import get_app_version
 from ui.admin.audit_tab import AuditLogTab
 from ui.admin.users_tab import UserAdminTab
@@ -233,7 +233,9 @@ class MainWindow(QMainWindow):
     def _run_startup_update_check(self) -> None:
         if not self._settings_store.load_update_auto_check(default_enabled=False):
             return
-        manifest = self._settings_store.load_update_manifest_url(default_url="")
+        manifest = self._settings_store.load_update_manifest_url(
+            default_url=default_update_manifest_source()
+        )
         if not manifest:
             return
         channel = self._settings_store.load_update_channel(default_channel="stable")

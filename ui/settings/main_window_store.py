@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from PySide6.QtCore import QByteArray, QSettings
 
+from infra.update import default_update_manifest_source
+
 
 class MainWindowSettingsStore:
     """Adapter around QSettings for persisted main-window UI state."""
@@ -70,8 +72,10 @@ class MainWindowSettingsStore:
         self._settings.sync()
 
     def load_update_manifest_url(self, default_url: str = "") -> str:
-        raw = self._settings.value(self._KEY_UPDATE_MANIFEST_URL, default_url)
-        return str(raw or "").strip()
+        fallback = (default_url or default_update_manifest_source()).strip()
+        raw = self._settings.value(self._KEY_UPDATE_MANIFEST_URL, fallback)
+        value = str(raw or "").strip()
+        return value or fallback
 
     def save_update_manifest_url(self, url: str) -> None:
         self._settings.setValue(self._KEY_UPDATE_MANIFEST_URL, (url or "").strip())

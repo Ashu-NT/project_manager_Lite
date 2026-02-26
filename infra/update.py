@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import urlopen
+
+_DEFAULT_UPDATE_MANIFEST_SOURCE = (
+    "https://github.com/Ashu-NT/project_manager_Lite/releases/latest/download/release-manifest.json"
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +28,11 @@ class UpdateCheckResult:
     latest: UpdateRelease | None
     update_available: bool
     message: str
+
+
+def default_update_manifest_source() -> str:
+    env_override = (os.getenv("PM_UPDATE_MANIFEST_URL") or "").strip()
+    return env_override or _DEFAULT_UPDATE_MANIFEST_SOURCE
 
 
 def _parse_version(value: str) -> tuple[int, ...]:
@@ -133,4 +143,9 @@ def check_for_updates(
     )
 
 
-__all__ = ["UpdateCheckResult", "UpdateRelease", "check_for_updates"]
+__all__ = [
+    "UpdateCheckResult",
+    "UpdateRelease",
+    "check_for_updates",
+    "default_update_manifest_source",
+]

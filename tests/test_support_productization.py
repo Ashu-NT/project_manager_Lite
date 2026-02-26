@@ -4,7 +4,7 @@ import json
 from zipfile import ZipFile
 
 from infra.diagnostics import build_diagnostics_bundle
-from infra.update import check_for_updates
+from infra.update import check_for_updates, default_update_manifest_source
 
 
 def test_check_for_updates_detects_newer_release_from_manifest_file(tmp_path):
@@ -46,3 +46,8 @@ def test_diagnostics_bundle_includes_metadata(tmp_path):
     with ZipFile(out_path) as bundle:
         names = set(bundle.namelist())
     assert "metadata.json" in names
+
+
+def test_default_manifest_source_uses_env_override(monkeypatch):
+    monkeypatch.setenv("PM_UPDATE_MANIFEST_URL", "https://example.com/manifest.json")
+    assert default_update_manifest_source() == "https://example.com/manifest.json"
