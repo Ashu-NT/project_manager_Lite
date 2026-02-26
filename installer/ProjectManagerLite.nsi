@@ -7,7 +7,7 @@
 
 !define APP_NAME       "ProjectManagerLite"
 !ifndef APP_VERSION
-!define APP_VERSION    "2.1.0"
+!define APP_VERSION    "2.1.1"
 !endif
 !define APP_PUBLISHER  "TECHBASE"
 !define APP_EXE        "ProjectManagerLite.exe"
