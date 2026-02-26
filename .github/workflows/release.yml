@@ -56,11 +56,20 @@ jobs:
         shell: pwsh
         run: |
           $spec = Get-ChildItem -Path . -Recurse -File -Filter "main_qt.spec" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $spec) {
-            Write-Host "Could not find main_qt.spec in workspace."
+          if ($spec) {
+            "spec_path=$($spec.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "Resolved paths: spec=$($spec.FullName)"
+          } else {
+            "spec_path=" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "No main_qt.spec found. Will use script-based PyInstaller build."
+          }
+
+          $entry = Get-ChildItem -Path . -Recurse -File -Filter "main_qt.py" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $entry) {
+            Write-Host "Could not find main_qt.py in workspace."
             Write-Host "Workspace root: $PWD"
             Get-ChildItem -Path . -Force
-            throw "Spec file main_qt.spec not found."
+            throw "Entry script main_qt.py not found."
           }
 
           $nsi = Get-ChildItem -Path . -Recurse -File -Filter "ProjectManagerLite.nsi" -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -71,10 +80,10 @@ jobs:
             throw "NSIS script ProjectManagerLite.nsi not found."
           }
 
-          "spec_path=$($spec.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "entry_path=$($entry.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "nsi_path=$($nsi.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "project_root=$($spec.Directory.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "Resolved paths: spec=$($spec.FullName)"
+          "project_root=$($entry.Directory.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "Resolved paths: entry=$($entry.FullName)"
           "Resolved paths: nsi=$($nsi.FullName)"
 
       - name: Setup Python
@@ -142,7 +151,37 @@ jobs:
       - name: Build PyInstaller Bundle
         shell: pwsh
         run: |
-          python -m PyInstaller "${{ steps.paths.outputs.spec_path }}" --noconfirm --clean
+          $specPath = "${{ steps.paths.outputs.spec_path }}".Trim()
+          if (-not [string]::IsNullOrWhiteSpace($specPath)) {
+            Write-Host "Using spec file build: $specPath"
+            python -m PyInstaller "$specPath" --noconfirm --clean
+            exit $LASTEXITCODE
+          }
+
+          $entryPath = "${{ steps.paths.outputs.entry_path }}"
+          $projectRoot = "${{ steps.paths.outputs.project_root }}"
+          if ([string]::IsNullOrWhiteSpace($entryPath) -or [string]::IsNullOrWhiteSpace($projectRoot)) {
+            throw "Cannot run script-based build: entry path or project root missing."
+          }
+
+          $assets = "$projectRoot\assets;assets"
+          $migration = "$projectRoot\migration;migration"
+          $icon = "$projectRoot\assets\icons\app.ico"
+
+          Write-Host "Using script-based build: $entryPath"
+          python -m PyInstaller `
+            "$entryPath" `
+            --noconfirm `
+            --clean `
+            --name "ProjectManagerLite" `
+            --windowed `
+            --icon "$icon" `
+            --add-data "$assets" `
+            --add-data "$migration" `
+            --collect-submodules "infra" `
+            --collect-submodules "core" `
+            --collect-submodules "ui" `
+            --hidden-import "logging.config"
 
       - name: Build NSIS Installer
         shell: pwsh
