@@ -55,7 +55,7 @@ def run_generate_baseline_async(tab) -> None:
     )
 
 
-def run_refresh_dashboard_async(tab) -> None:
+def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
     proj_id, proj_name = tab._current_project_id_and_name()
     if not proj_id:
         tab._clear_dashboard()
@@ -72,7 +72,7 @@ def run_refresh_dashboard_async(tab) -> None:
             tab.btn_refresh_dashboard.setEnabled(not busy)
         if not busy and bool(getattr(tab, "_dashboard_refresh_pending", False)):
             setattr(tab, "_dashboard_refresh_pending", False)
-            run_refresh_dashboard_async(tab)
+            run_refresh_dashboard_async(tab, show_progress=show_progress)
 
     def _work(token, progress):
         token.raise_if_cancelled()
@@ -101,6 +101,7 @@ def run_refresh_dashboard_async(tab) -> None:
             title="Dashboard Refresh",
             label="Refreshing portfolio metrics and charts...",
             allow_retry=True,
+            show_progress=show_progress,
         ),
         work=_work,
         on_success=_on_success,

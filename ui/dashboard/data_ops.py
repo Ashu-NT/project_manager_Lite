@@ -83,8 +83,10 @@ class DashboardDataOpsMixin:
     def _current_project_id_and_name(self):
         return current_data_and_text(self.project_combo)
 
-    def refresh_dashboard(self):
-        run_refresh_dashboard_async(self)
+    def refresh_dashboard(self, *_args, show_progress: bool | None = None):
+        if show_progress is None:
+            show_progress = self.sender() is getattr(self, "btn_refresh_dashboard", None)
+        run_refresh_dashboard_async(self, show_progress=bool(show_progress))
 
     def _load_baselines_for_project(self, project_id: str):
         self.baseline_combo.blockSignals(True)
