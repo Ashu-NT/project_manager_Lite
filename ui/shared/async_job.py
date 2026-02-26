@@ -78,6 +78,7 @@ class JobUiConfig:
     label: str
     cancel_label: str = "Cancel"
     allow_retry: bool = False
+    show_progress: bool = True
 
 
 class AsyncJobHandle(Generic[_T], QObject):
@@ -115,19 +116,20 @@ class AsyncJobHandle(Generic[_T], QObject):
         self._signals.failure.connect(self._handle_failure)
         self._signals.cancelled.connect(self._handle_cancelled)
 
-        self._dialog = QProgressDialog(
-            self._ui.label,
-            self._ui.cancel_label,
-            0,
-            0,
-            self._parent,
-        )
-        self._dialog.setWindowTitle(self._ui.title)
-        self._dialog.setWindowModality(Qt.WindowModal)
-        self._dialog.setAutoClose(False)
-        self._dialog.setAutoReset(False)
-        self._dialog.canceled.connect(self._request_cancel)
-        self._dialog.show()
+        if self._ui.show_progress:
+            self._dialog = QProgressDialog(
+                self._ui.label,
+                self._ui.cancel_label,
+                0,
+                0,
+                self._parent,
+            )
+            self._dialog.setWindowTitle(self._ui.title)
+            self._dialog.setWindowModality(Qt.WindowModal)
+            self._dialog.setAutoClose(False)
+            self._dialog.setAutoReset(False)
+            self._dialog.canceled.connect(self._request_cancel)
+            self._dialog.show()
 
         if self._set_busy is not None:
             self._set_busy(True)

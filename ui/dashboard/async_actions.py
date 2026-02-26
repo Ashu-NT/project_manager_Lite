@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox, QInputDialog
 
-from core.exceptions import BusinessRuleError
 from ui.shared.async_job import JobUiConfig, start_async_job
 from ui.shared.worker_services import worker_service_scope
 

@@ -113,6 +113,42 @@ $env:PM_THEME = "light"
 python main_qt.py
 ```
 
+## Support And Updates
+
+- New admin `Support` tab includes:
+  - update channel selection (`stable` / `beta`)
+  - manifest source setting (URL or local file path)
+  - manual update checks
+  - diagnostics bundle export (metadata + logs + DB snapshot)
+  - quick links to logs/data folders
+- Optional app version override for packaged builds:
+
+```powershell
+$env:PM_APP_VERSION = "2.1.0"
+python main_qt.py
+```
+
+- Update manifest JSON shape (example):
+
+```json
+{
+  "channels": {
+    "stable": {
+      "version": "2.1.0",
+      "url": "https://example.com/ProjectManagerLite-2.1.0.exe",
+      "notes": "Production release",
+      "sha256": "..."
+    },
+    "beta": {
+      "version": "2.2.0-beta1",
+      "url": "https://example.com/ProjectManagerLite-2.2.0-beta1.exe",
+      "notes": "Preview release",
+      "sha256": "..."
+    }
+  }
+}
+```
+
 ## Testing
 
 Run full test suite:

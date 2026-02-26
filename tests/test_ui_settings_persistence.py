@@ -19,11 +19,17 @@ def test_main_window_settings_store_round_trip(tmp_path):
 
     store.save_theme_mode("dark")
     store.save_governance_mode("required")
+    store.save_update_channel("beta")
+    store.save_update_auto_check(True)
+    store.save_update_manifest_url("https://example.com/manifest.json")
     store.save_tab_index(5)
     store.save_geometry(geometry)
 
     assert store.load_theme_mode(default_mode="light") == "dark"
     assert store.load_governance_mode(default_mode="off") == "required"
+    assert store.load_update_channel(default_channel="stable") == "beta"
+    assert store.load_update_auto_check(default_enabled=False) is True
+    assert store.load_update_manifest_url(default_url="") == "https://example.com/manifest.json"
     assert store.load_tab_index(default_index=0) == 5
     loaded_geometry = store.load_geometry()
     assert loaded_geometry is not None
@@ -34,11 +40,15 @@ def test_main_window_settings_store_normalizes_invalid_values(tmp_path):
     store, settings = _store_with_ini(tmp_path)
     settings.setValue("ui/theme_mode", "INVALID")
     settings.setValue("governance/mode", "INVALID")
+    settings.setValue("updates/channel", "INVALID")
+    settings.setValue("updates/auto_check", "invalid")
     settings.setValue("ui/current_tab_index", "-3")
     settings.sync()
 
     assert store.load_theme_mode(default_mode="dark") == "dark"
     assert store.load_governance_mode(default_mode="required") == "required"
+    assert store.load_update_channel(default_channel="stable") == "stable"
+    assert store.load_update_auto_check(default_enabled=False) is False
     assert store.load_tab_index(default_index=2) == 0
 
 

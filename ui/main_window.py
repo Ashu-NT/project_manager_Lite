@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QMainWindow,
     QTabWidget,
     QVBoxLayout,
@@ -16,6 +17,8 @@ from PySide6.QtWidgets import (
 )
 
 from core.services.auth import UserSessionContext
+from infra.update import check_for_updates
+from infra.version import get_app_version
 from ui.admin.audit_tab import AuditLogTab
 from ui.admin.users_tab import UserAdminTab
 from ui.calendar.tab import CalendarTab
@@ -26,8 +29,10 @@ from ui.project.tab import ProjectTab
 from ui.report.tab import ReportTab
 from ui.resource.tab import ResourceTab
 from ui.settings import MainWindowSettingsStore
+from ui.shared.async_job import JobUiConfig, start_async_job
 from ui.styles.theme import apply_app_style
 from ui.styles.ui_config import UIConfig as CFG
+from ui.support.tab import SupportTab
 from ui.task.tab import TaskTab
 
 
@@ -79,6 +84,7 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central)
         self._restore_persisted_state()
+        self._run_startup_update_check()
 
     def _build_tabs(self) -> None:
         if self._has_permission("project.read") or self._has_permission("report.view"):
@@ -167,6 +173,13 @@ class MainWindow(QMainWindow):
             )
             self.tabs.addTab(audit_tab, "Audit")
 
+        if self._has_permission("auth.manage"):
+            support_tab = SupportTab(
+                settings_store=self._settings_store,
+                user_session=self._user_session,
+            )
+            self.tabs.addTab(support_tab, "Support")
+
         if self._has_permission("approval.request") or self._has_permission("approval.decide"):
             governance_tab = GovernanceTab(
                 approval_service=self.services["approval_service"],
@@ -216,6 +229,47 @@ class MainWindow(QMainWindow):
             saved_index = self._settings_store.load_tab_index(default_index=0)
             safe_index = max(0, min(saved_index, self.tabs.count() - 1))
             self.tabs.setCurrentIndex(safe_index)
+
+    def _run_startup_update_check(self) -> None:
+        if not self._settings_store.load_update_auto_check(default_enabled=False):
+            return
+        manifest = self._settings_store.load_update_manifest_url(default_url="")
+        if not manifest:
+            return
+        channel = self._settings_store.load_update_channel(default_channel="stable")
+
+        def _work(token, progress):
+            token.raise_if_cancelled()
+            return check_for_updates(
+                current_version=get_app_version(),
+                channel=channel,
+                manifest_source=manifest,
+            )
+
+        def _on_success(result) -> None:
+            if not getattr(result, "update_available", False):
+                return
+            latest = getattr(result, "latest", None)
+            QMessageBox.information(
+                self,
+                "Update Available",
+                (
+                    f"{result.message}\n\n"
+                    f"Channel: {result.channel}\n"
+                    f"Download: {getattr(latest, 'url', None) or 'N/A'}"
+                ),
+            )
+
+        start_async_job(
+            parent=self,
+            ui=JobUiConfig(
+                title="Update Check",
+                label="Checking for updates...",
+                show_progress=False,
+            ),
+            work=_work,
+            on_success=_on_success,
+        )
 
     def _on_tab_changed(self, index: int) -> None:
         if index >= 0:
