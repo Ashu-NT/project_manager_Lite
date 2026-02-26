@@ -62,11 +62,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Install NSIS
+      - name: Install And Resolve NSIS
+        id: nsis
         shell: pwsh
         run: |
           choco install nsis -y --no-progress
-          makensis /VERSION
+          $candidates = @(
+            "$env:ProgramFiles(x86)\NSIS\makensis.exe",
+            "$env:ProgramFiles\NSIS\makensis.exe"
+          )
+          $nsisExe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+          if (-not $nsisExe) {
+            $fromChoco = Get-ChildItem "C:\ProgramData\chocolatey\lib" -Recurse -Filter "makensis.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($fromChoco) {
+              $nsisExe = $fromChoco.FullName
+            }
+          }
+
+          if (-not $nsisExe) {
+            throw "NSIS installed but makensis.exe was not found."
+          }
+
+          $nsisDir = Split-Path -Parent $nsisExe
+          $nsisDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "nsis_exe=$nsisExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          & $nsisExe /VERSION
 
       - name: Build PyInstaller Bundle
         shell: pwsh
@@ -76,7 +97,7 @@ jobs:
       - name: Build NSIS Installer
         shell: pwsh
         run: |
-          makensis /DAPP_VERSION=${{ steps.meta.outputs.version }} installer\ProjectManagerLite.nsi
+          & "${{ steps.nsis.outputs.nsis_exe }}" /DAPP_VERSION=${{ steps.meta.outputs.version }} installer\ProjectManagerLite.nsi
 
       - name: Collect Installer Artifact
         shell: pwsh
