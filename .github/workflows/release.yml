@@ -198,7 +198,13 @@ jobs:
           }
           New-Item -ItemType Directory -Path installer -Force | Out-Null
           $target = Join-Path "installer" $installerName
-          Copy-Item $found.FullName -Destination $target -Force
+          $sourceFull = [System.IO.Path]::GetFullPath($found.FullName)
+          $targetFull = [System.IO.Path]::GetFullPath($target)
+          if ($sourceFull -ieq $targetFull) {
+            Write-Host "Installer already in target location: $targetFull"
+          } else {
+            Copy-Item $found.FullName -Destination $target -Force
+          }
           Write-Host "Installer ready at $target"
 
       - name: Generate Checksum And Manifest
