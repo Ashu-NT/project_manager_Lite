@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from core.interfaces import CostRepository, ProjectResourceRepository, ResourceRepository
 from core.models import CostType, Project

@@ -1,9 +1,7 @@
 from __future__ import annotations
 from typing import List
-from sqlalchemy.orm import Session
 from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.interfaces import DependencyRepository, TaskRepository
 from core.models import DependencyType, TaskDependency
 from core.services.approval.policy import is_governance_required
 from core.services.audit.helpers import record_audit
