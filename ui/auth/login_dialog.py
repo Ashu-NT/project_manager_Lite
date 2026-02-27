@@ -41,7 +41,7 @@ class LoginDialog(QDialog):
         root.setContentsMargins(CFG.MARGIN_LG, CFG.MARGIN_LG, CFG.MARGIN_LG, CFG.MARGIN_LG)
         root.setSpacing(CFG.SPACING_MD)
 
-        title = QLabel("ProjectPulse Sign In")
+        title = QLabel("ProjectMangerLite Sign In")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
         subtitle = QLabel("Use your account credentials to access the workspace.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
