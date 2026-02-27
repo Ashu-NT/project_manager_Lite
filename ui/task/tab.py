@@ -28,6 +28,7 @@ from ui.shared.guards import (
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 from ui.task.assignment_actions import TaskAssignmentActionsMixin
+from ui.task.dependency_panel import TaskDependencyPanelMixin
 from ui.task.assignment_panel import TaskAssignmentPanelMixin
 from ui.task.actions import TaskActionsMixin
 from ui.task.filtering import TaskFiltersMixin
@@ -40,6 +41,7 @@ class TaskTab(
     TaskProjectFlowMixin,
     TaskAssignmentActionsMixin,
     TaskActionsMixin,
+    TaskDependencyPanelMixin,
     TaskAssignmentPanelMixin,
     QWidget,
 ):

@@ -91,6 +91,10 @@ class TaskProjectFlowMixin:
         self._set_visible_tasks(visible_tasks, preferred_task_id=current_task_id)
 
     def _apply_task_filters(self, tasks: list[Task]) -> list[Task]:
+        """ 
+        Just a fallback if TaskFiltersMixin is not used. 
+        Should be overridden by TaskFiltersMixin to apply actual filters.
+        """
         return tasks
 
     def _set_visible_tasks(self, tasks: list[Task], preferred_task_id: Optional[str]) -> None:

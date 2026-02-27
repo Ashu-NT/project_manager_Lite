@@ -193,12 +193,15 @@ def test_task_actions_module_contains_task_workflows():
 
 def test_task_assignment_panel_includes_inline_dependency_section():
     panel_path = ROOT / "ui" / "task" / "assignment_panel.py"
+    dep_panel_path = ROOT / "ui" / "task" / "dependency_panel.py"
     text = panel_path.read_text(encoding="utf-8", errors="ignore")
+    dep_text = dep_panel_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "self.panel_splitter = QSplitter(Qt.Vertical)" in text
-    assert "self.dependency_table = QTableWidget(0, 5)" in text
-    assert "def add_dependency_inline" in text
-    assert "def remove_dependency_inline" in text
+    assert "self.panel_splitter.addWidget(self._build_dependency_section())" in text
+    assert "self.dependency_table = QTableWidget(0, 5)" in dep_text
+    assert "def add_dependency_inline" in dep_text
+    assert "def remove_dependency_inline" in dep_text
 
 
 def test_task_project_flow_module_contains_loading_helpers():
