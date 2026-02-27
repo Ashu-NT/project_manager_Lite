@@ -123,7 +123,16 @@ class ReportActionsMixin:
         if self._finance_service is None:
             QMessageBox.information(self, "Finance", "Finance service is not available.")
             return
-        self._open_dialog("Show Finance", "Finance", lambda project_id, project_name: FinanceReportDialog(self, self._finance_service, project_id, project_name))
+        self._open_dialog(
+            "Show Finance",
+            "Finance",
+            lambda project_id, project_name: FinanceReportDialog(
+                self,
+                finance_service=self._finance_service,
+                project_id=project_id,
+                project_name=project_name,
+            ),
+        )
 
     def show_baseline_comparison(self) -> None:
         self._open_dialog("Compare Baselines", "Baseline Comparison", lambda project_id, project_name: BaselineCompareDialog(self, self._reporting_service, project_id, project_name))

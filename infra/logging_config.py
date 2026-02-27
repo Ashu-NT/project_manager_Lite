@@ -5,6 +5,11 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from infra.path import user_data_dir  # or infra.paths if that's your filename
+from infra.operational_support import (
+    TraceIdLogFilter,
+    get_operational_support,
+    install_global_exception_hooks,
+)
 
 def setup_logging():
     """
@@ -29,15 +34,24 @@ def setup_logging():
         backupCount=5,
         encoding="utf-8",
     )
+    trace_filter = TraceIdLogFilter()
+    file_handler.addFilter(trace_filter)
     file_formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+        "%(asctime)s [%(levelname)s] trace=%(trace_id)s %(name)s - %(message)s"
     )
     file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
     # Optional: console handler (useful in dev, harmless in frozen app)
     console = logging.StreamHandler()
-    console.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+    console.addFilter(trace_filter)
+    console.setFormatter(logging.Formatter("%(levelname)s [trace=%(trace_id)s]: %(message)s"))
     logger.addHandler(console)
 
     logger.info("Logging initialized. Log file at %s", log_file)
+    install_global_exception_hooks()
+    get_operational_support().emit_event(
+        event_type="app.logging.initialized",
+        message=f"Logging initialized at {log_file}",
+        data={"log_file": str(log_file)},
+    )

@@ -378,6 +378,20 @@ def test_calendar_tab_is_coordinator_only():
     assert "def recalc_project_schedule" not in text
 
 
+def test_support_tab_is_coordinator_only():
+    tab_path = ROOT / "ui" / "support" / "tab.py"
+    text = tab_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.support.ui_layout import SupportUiLayoutMixin" in text
+    assert "from ui.support.telemetry import SupportTelemetryMixin" in text
+    assert "from ui.support.update_flow import SupportUpdateFlowMixin" in text
+    assert "from ui.support.diagnostics_flow import SupportDiagnosticsFlowMixin" in text
+    assert "def _check_updates" not in text
+    assert "def _download_and_install_update" not in text
+    assert "def _export_diagnostics" not in text
+    assert "def _emit_support_event" not in text
+
+
 def test_infra_repositories_module_is_facade_only():
     repo_path = ROOT / "infra" / "db" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -590,6 +604,11 @@ def test_known_large_modules_have_growth_budgets():
         "ui/calendar/holidays.py": 120,
         "ui/calendar/calculator.py": 100,
         "ui/calendar/project_ops.py": 120,
+        "ui/support/tab.py": 80,
+        "ui/support/ui_layout.py": 160,
+        "ui/support/telemetry.py": 140,
+        "ui/support/update_flow.py": 340,
+        "ui/support/diagnostics_flow.py": 140,
         "core/services/scheduling/engine.py": 360,
         "core/services/scheduling/models.py": 80,
         "core/services/scheduling/graph.py": 180,
