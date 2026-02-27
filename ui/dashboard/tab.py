@@ -2,8 +2,8 @@ from __future__ import annotations
 from typing import Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
-                               QHeaderView, QLabel, QPushButton, QSplitter,
-                               QTableWidget, QVBoxLayout, QWidget)
+                               QLabel, QPushButton, QSplitter, QVBoxLayout,
+                               QWidget)
 from core.events.domain_events import domain_events
 from core.services.auth import UserSessionContext
 from core.services.baseline import BaselineService
@@ -17,13 +17,13 @@ from ui.dashboard.alerts_panel import DashboardAlertsPanelMixin
 from ui.dashboard.data_ops import DashboardDataOpsMixin
 from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
 from ui.dashboard.rendering import DashboardRenderingMixin
+from ui.dashboard.workqueue_button import DashboardQueueButton
+from ui.dashboard.workqueue_actions import DashboardWorkqueueActionsMixin
 from ui.dashboard.styles import (
     dashboard_action_button_style,
-    dashboard_meta_chip_style,
-    dashboard_summary_style,
+    dashboard_meta_chip_style, dashboard_summary_style,
 )
 from ui.dashboard.widgets import ChartWidget, KpiCard
-from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -32,6 +32,7 @@ class DashboardTab(
     DashboardLevelingOpsMixin,
     DashboardRenderingMixin,
     DashboardAlertsPanelMixin,
+    DashboardWorkqueueActionsMixin,
     QWidget,
 ):
     def __init__(
@@ -47,7 +48,14 @@ class DashboardTab(
         self._dashboard_service: DashboardService = dashboard_service
         self._baseline_service: BaselineService = baseline_service
         configure_dashboard_access(self, user_session)
-        self._current_data: Optional[DashboardData] = None; self._current_conflicts = []
+        self._current_data: Optional[DashboardData] = None
+        self._current_conflicts = []
+        self._current_alert_rows: list[tuple[str, str, str]] = []
+        self._current_alert_summary: str = "0 active alerts"
+        self._current_upcoming_rows: list[dict[str, object]] = []
+        self._conflicts_dialog = None
+        self._alerts_dialog = None
+        self._upcoming_dialog = None
         self._setup_ui()
         self.reload_projects()
         domain_events.costs_changed.connect(self._on_domain_changed)
@@ -76,6 +84,9 @@ class DashboardTab(
 
         self.btn_reload_projects = QPushButton(CFG.RELOAD_BUTTON_LABEL)
         self.btn_refresh_dashboard = QPushButton(CFG.REFRESH_DASHBOARD_LABEL)
+        self.btn_open_conflicts = DashboardQueueButton("Conflicts", active_variant="danger")
+        self.btn_open_alerts = DashboardQueueButton("Alerts", active_variant="warning")
+        self.btn_open_upcoming = DashboardQueueButton("Upcoming", active_variant="info")
 
         self.baseline_combo = QComboBox()
         self.baseline_combo.setSizePolicy(CFG.INPUT_POLICY)
@@ -89,6 +100,9 @@ class DashboardTab(
         for btn in (
             self.btn_reload_projects,
             self.btn_refresh_dashboard,
+            self.btn_open_conflicts,
+            self.btn_open_alerts,
+            self.btn_open_upcoming,
             self.btn_create_baseline,
             self.btn_delete_baseline,
         ):
@@ -97,12 +111,18 @@ class DashboardTab(
 
         self.btn_refresh_dashboard.setStyleSheet(dashboard_action_button_style("primary"))
         self.btn_reload_projects.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_open_conflicts.set_variants(active="danger", inactive="success")
+        self.btn_open_alerts.set_variants(active="warning", inactive="success")
+        self.btn_open_upcoming.set_variants(active="info", inactive="neutral")
         self.btn_create_baseline.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_delete_baseline.setStyleSheet(dashboard_action_button_style("danger"))
 
         top.addWidget(self.project_combo)
         top.addWidget(self.btn_reload_projects)
         top.addWidget(self.btn_refresh_dashboard)
+        top.addWidget(self.btn_open_conflicts)
+        top.addWidget(self.btn_open_alerts)
+        top.addWidget(self.btn_open_upcoming)
         top.addStretch()
         top.addWidget(QLabel("Baseline:"))
         top.addWidget(self.baseline_combo)
@@ -193,33 +213,7 @@ class DashboardTab(
         self.evm_group = self._build_evm_panel()
         left_layout.addWidget(self.evm_group, 1)
 
-        middle_panel = QWidget()
-        middle_panel.setMinimumWidth(400)
-        middle_layout = QVBoxLayout(middle_panel)
-        middle_layout.setContentsMargins(0, 0, 0, 0)
-        middle_layout.setSpacing(CFG.SPACING_SM)
-        self.middle_splitter = QSplitter(Qt.Vertical)
-        self.middle_splitter.setChildrenCollapsible(False)
-        self.middle_splitter.setHandleWidth(8)
-
-        alerts_group = self._build_alerts_panel()
-        self.middle_splitter.addWidget(alerts_group)
-
-        upcoming_group = QGroupBox("Upcoming tasks (next 14 days)")
-        upcoming_group.setFont(CFG.GROUPBOX_TITLE_FONT)
-        up_layout = QVBoxLayout(upcoming_group)
-        up_layout.addSpacing(CFG.SPACING_XS)
-
-        self.upcoming_table = QTableWidget(0, len(CFG.UPCOMING_TASKS_HEADERS))
-        self.upcoming_table.setHorizontalHeaderLabels(CFG.UPCOMING_TASKS_HEADERS)
-        self.upcoming_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        style_table(self.upcoming_table)
-        up_layout.addWidget(self.upcoming_table)
-        self.middle_splitter.addWidget(upcoming_group)
-        self.middle_splitter.setStretchFactor(0, 2)
-        self.middle_splitter.setStretchFactor(1, 3)
-        self.middle_splitter.setSizes([350, 520])
-        middle_layout.addWidget(self.middle_splitter, 1)
+        self._prepare_conflicts_dialog()
 
         right_panel = QWidget()
         right_panel.setMinimumWidth(360)
@@ -239,22 +233,19 @@ class DashboardTab(
         right_layout.addWidget(self.chart_splitter)
 
         self.main_splitter.addWidget(left_panel)
-        self.main_splitter.addWidget(middle_panel)
         self.main_splitter.addWidget(right_panel)
-        self.main_splitter.setStretchFactor(0, 4)
-        self.main_splitter.setStretchFactor(1, 3)
-        self.main_splitter.setStretchFactor(2, 3)
-        self.main_splitter.setSizes([620, 520, 560])
+        self.main_splitter.setStretchFactor(0, 5)
+        self.main_splitter.setStretchFactor(1, 5)
+        self.main_splitter.setSizes([700, 700])
         layout.addWidget(self.main_splitter, 1)
 
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_refresh_dashboard.clicked.connect(self.refresh_dashboard)
+        self.btn_open_conflicts.clicked.connect(self._open_conflicts_dialog)
+        self.btn_open_alerts.clicked.connect(self._open_alerts_dialog)
+        self.btn_open_upcoming.clicked.connect(self._open_upcoming_dialog)
         self.btn_create_baseline.clicked.connect(self._generate_baseline)
         self.btn_delete_baseline.clicked.connect(self._delete_selected_baseline)
         self.project_combo.currentIndexChanged.connect(self._on_project_changed)
         self.baseline_combo.currentIndexChanged.connect(self.refresh_dashboard)
-        self.btn_preview_conflicts.clicked.connect(self._preview_conflicts)
-        self.btn_auto_level.clicked.connect(self._auto_level_conflicts)
-        self.btn_manual_shift.clicked.connect(self._manual_shift_selected_conflict)
-        self.conflicts_table.itemSelectionChanged.connect(self._sync_leveling_buttons)
         wire_dashboard_access(self)

@@ -105,6 +105,9 @@ def test_dashboard_service_manual_shift_emits_tasks_changed_event(services):
 def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     root = Path(__file__).resolve().parents[1]
     tab_text = (root / "ui" / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
+    actions_text = (root / "ui" / "dashboard" / "workqueue_actions.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
     ops_text = (root / "ui" / "dashboard" / "leveling_ops.py").read_text(
         encoding="utf-8", errors="ignore"
     )
@@ -120,12 +123,21 @@ def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     assert "self.btn_auto_level.setToolTip(" in panel_text
     assert "self.btn_manual_shift.setToolTip(" in panel_text
     assert "self.conflicts_table = QTableWidget(0, 4)" in panel_text
-    assert "self.btn_auto_level.clicked.connect(self._auto_level_conflicts)" in tab_text
-    assert "self.btn_manual_shift.clicked.connect(self._manual_shift_selected_conflict)" in tab_text
+    assert "DashboardQueueButton(\"Conflicts\", active_variant=\"danger\")" in tab_text
+    assert "DashboardQueueButton(\"Alerts\", active_variant=\"warning\")" in tab_text
+    assert "DashboardQueueButton(\"Upcoming\", active_variant=\"info\")" in tab_text
+    assert "self.btn_open_conflicts.clicked.connect(self._open_conflicts_dialog)" in tab_text
+    assert "self.btn_open_alerts.clicked.connect(self._open_alerts_dialog)" in tab_text
+    assert "self.btn_open_upcoming.clicked.connect(self._open_upcoming_dialog)" in tab_text
+    assert "self.upcoming_table = QTableWidget(" not in tab_text
+    assert "def _prepare_conflicts_dialog" in actions_text
+    assert "self.btn_auto_level.clicked.connect(self._auto_level_conflicts)" in actions_text
+    assert "self.btn_manual_shift.clicked.connect(self._manual_shift_selected_conflict)" in actions_text
 
     assert "def _preview_conflicts" in ops_text
     assert "def _auto_level_conflicts" in ops_text
     assert "def _manual_shift_selected_conflict" in ops_text
+    assert "self.btn_open_conflicts.setText(" in ops_text
     assert "self._update_conflicts_from_load(overloaded)" in ops_text
     assert "Date shifts:" in ops_text
     assert "No eligible task was shifted." in ops_text
@@ -134,6 +146,12 @@ def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     assert "def preview_resource_conflicts" in service_text
     assert "def auto_level_overallocations" in service_text
     assert "domain_events.tasks_changed.emit(project_id)" in service_text
-    assert "def _update_conflicts_from_load" in (root / "ui" / "dashboard" / "rendering_alerts.py").read_text(
+    rendering_alerts_text = (root / "ui" / "dashboard" / "rendering_alerts.py").read_text(
         encoding="utf-8", errors="ignore"
     )
+    rendering_charts_text = (root / "ui" / "dashboard" / "rendering_charts.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "def _update_conflicts_from_load" in rendering_alerts_text
+    assert "self.btn_open_alerts.set_badge(" in rendering_alerts_text
+    assert "self.btn_open_upcoming.set_badge(" in rendering_charts_text

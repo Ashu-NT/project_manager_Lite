@@ -258,6 +258,7 @@ def test_dashboard_tab_is_coordinator_only():
 
     assert "from ui.dashboard.data_ops import" in text
     assert "from ui.dashboard.rendering import" in text
+    assert "from ui.dashboard.workqueue_button import DashboardQueueButton" in text
     assert "from ui.dashboard.styles import" in text
     assert "from ui.dashboard.widgets import" in text
     assert "class KpiCard" not in text
@@ -269,12 +270,13 @@ def test_dashboard_tab_uses_splitter_layout_for_right_side_charts():
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "self.main_splitter = QSplitter(Qt.Horizontal)" in text
-    assert "self.middle_splitter = QSplitter(Qt.Vertical)" in text
     assert "self.chart_splitter = QSplitter(Qt.Vertical)" in text
-    assert "self.main_splitter.addWidget(middle_panel)" in text
+    assert "self.main_splitter.addWidget(middle_panel)" not in text
     assert "self.main_splitter.addWidget(right_panel)" in text
-    assert "self.middle_splitter.addWidget(alerts_group)" in text
-    assert "self.middle_splitter.addWidget(upcoming_group)" in text
+    assert "self._prepare_conflicts_dialog()" in text
+    assert "DashboardQueueButton(\"Conflicts\", active_variant=\"danger\")" in text
+    assert "DashboardQueueButton(\"Alerts\", active_variant=\"warning\")" in text
+    assert "DashboardQueueButton(\"Upcoming\", active_variant=\"info\")" in text
 
 
 def test_dashboard_rendering_module_is_facade_only():

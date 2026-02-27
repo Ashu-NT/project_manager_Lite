@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import matplotlib.dates as mdates
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 
 from core.services.dashboard import DashboardData
 from ui.dashboard.widgets import ChartWidget
@@ -11,7 +9,6 @@ from ui.styles.ui_config import UIConfig as CFG
 class DashboardChartsRenderingMixin:
     burndown_chart: ChartWidget
     resource_chart: ChartWidget
-    upcoming_table: QTableWidget
 
     def _update_burndown_chart(self, data: DashboardData):
         self.burndown_chart.ax.clear()
@@ -98,26 +95,28 @@ class DashboardChartsRenderingMixin:
         self.resource_chart.redraw()
 
     def _update_upcoming(self, data: DashboardData):
-        self.upcoming_table.setRowCount(0)
         ups = data.upcoming_tasks
-        if not ups:
-            return
+        upcoming_rows = [
+            {
+                "name": u.name,
+                "start_date": u.start_date.isoformat() if u.start_date else "-",
+                "end_date": u.end_date.isoformat() if u.end_date else "-",
+                "progress": f"{u.percent_complete:.0f}%",
+                "resource": u.main_resource or "-",
+                "is_late": bool(u.is_late),
+            }
+            for u in ups
+        ]
+        late_count = sum(1 for row in upcoming_rows if bool(row["is_late"]))
+        if late_count > 0:
+            badge_variant = "danger"
+        elif upcoming_rows:
+            badge_variant = "info"
+        else:
+            badge_variant = "neutral"
+        self._current_upcoming_rows = upcoming_rows
+        self.btn_open_upcoming.set_badge(len(upcoming_rows), badge_variant)
 
-        self.upcoming_table.setRowCount(len(ups))
-        for row, u in enumerate(ups):
-            def set_cell(col, text, color_bg=None):
-                item = QTableWidgetItem(text)
-                if color_bg:
-                    item.setBackground(color_bg)
-                self.upcoming_table.setItem(row, col, item)
-
-            set_cell(0, u.name)
-            set_cell(1, u.start_date.isoformat() if u.start_date else "-")
-            set_cell(2, u.end_date.isoformat() if u.end_date else "-")
-            set_cell(3, f"{u.percent_complete:.0f}%")
-            set_cell(4, u.main_resource or "-")
-
-            if u.is_late:
-                for col in range(5):
-                    it = self.upcoming_table.item(row, col)
-                    it.setBackground(QColor("#ffe5e5"))
+        dlg = getattr(self, "_upcoming_dialog", None)
+        if dlg is not None and dlg.isVisible():
+            dlg.set_upcoming_rows(upcoming_rows)

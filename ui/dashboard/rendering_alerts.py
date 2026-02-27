@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QLabel, QTableWidget, QTableWidgetItem
+from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 
 from core.services.reporting.models import ResourceLoadRow
 from core.services.dashboard import DashboardData
@@ -11,43 +11,38 @@ from ui.styles.ui_config import UIConfig as CFG
 
 
 class DashboardAlertsRenderingMixin:
-    alerts_table: QTableWidget
     conflicts_table: QTableWidget
-    alerts_status: QLabel
 
     def _update_alerts(self, data: DashboardData):
         alerts = data.alerts or []
-        self.alerts_table.setRowCount(0)
-
+        alert_rows: list[tuple[str, str, str]] = []
+        summary = "0 active alerts"
         if not alerts:
-            self.alerts_table.setRowCount(1)
-            self._set_alert_row(0, "OK", "No active alerts", "No action required")
-            self.alerts_status.setText("0 active alerts")
-            self.alerts_status.setStyleSheet(
-                f"font-weight: 700; color: {CFG.COLOR_SUCCESS}; font-size: 10pt;"
-            )
-            return
+            alert_rows.append(("OK", "No active alerts", "No action required"))
+            badge_variant = "success"
+        else:
+            high = 0
+            medium = 0
+            low = 0
+            for msg in alerts:
+                severity, action = self._classify_alert(msg)
+                if severity == "HIGH":
+                    high += 1
+                elif severity == "MEDIUM":
+                    medium += 1
+                else:
+                    low += 1
+                alert_rows.append((severity, msg, action))
+            summary = f"{len(alerts)} active alerts  |  H:{high}  M:{medium}  L:{low}"
+            badge_variant = "danger" if high else ("warning" if medium else "info")
 
-        high = 0
-        medium = 0
-        low = 0
-        self.alerts_table.setRowCount(len(alerts))
-        for row, msg in enumerate(alerts):
-            severity, action = self._classify_alert(msg)
-            if severity == "HIGH":
-                high += 1
-            elif severity == "MEDIUM":
-                medium += 1
-            else:
-                low += 1
-            self._set_alert_row(row, severity, msg, action)
+        self._current_alert_rows = alert_rows
+        self._current_alert_summary = summary
+        self.btn_open_alerts.set_badge(len(alerts), badge_variant)
 
-        self.alerts_status.setText(
-            f"{len(alerts)} active alerts  |  H:{high}  M:{medium}  L:{low}"
-        )
-        self.alerts_status.setStyleSheet(
-            f"font-weight: 700; color: {CFG.COLOR_TEXT_PRIMARY}; font-size: 10pt;"
-        )
+        dlg = getattr(self, "_alerts_dialog", None)
+        if dlg is not None and dlg.isVisible():
+            dlg.set_alert_rows(alert_rows, summary)
 
     def _update_conflicts(self, conflicts: list[ResourceConflict]):
         self.conflicts_table.setRowCount(0)
@@ -118,24 +113,6 @@ class DashboardAlertsRenderingMixin:
                         "Auto/manual leveling uses daily conflicts only."
                     )
                 self.conflicts_table.setItem(row, col, item)
-
-    def _set_alert_row(self, row: int, severity: str, issue: str, action: str) -> None:
-        sev_item = QTableWidgetItem(severity)
-        issue_item = QTableWidgetItem(issue)
-        action_item = QTableWidgetItem(action)
-
-        if severity == "HIGH":
-            sev_item.setForeground(QColor(CFG.COLOR_DANGER))
-        elif severity == "MEDIUM":
-            sev_item.setForeground(QColor(CFG.COLOR_WARNING))
-        else:
-            sev_item.setForeground(QColor(CFG.COLOR_TEXT_SECONDARY))
-        issue_item.setToolTip(issue)
-        action_item.setToolTip(action)
-
-        self.alerts_table.setItem(row, 0, sev_item)
-        self.alerts_table.setItem(row, 1, issue_item)
-        self.alerts_table.setItem(row, 2, action_item)
 
     @staticmethod
     def _classify_alert(message: str) -> tuple[str, str]:

@@ -1,13 +1,10 @@
 from __future__ import annotations
-
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QPushButton, QTableWidget
-
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.scheduling.leveling_models import ResourceConflict
-
-
 class DashboardLevelingOpsMixin:
     conflicts_table: QTableWidget
+    btn_open_conflicts: QPushButton
     btn_auto_level: QPushButton
     btn_manual_shift: QPushButton
     _dashboard_service: DashboardService
@@ -16,6 +13,7 @@ class DashboardLevelingOpsMixin:
 
     def _refresh_conflicts(self, project_id: str, *, show_feedback: bool = False) -> None:
         error_text = None
+        display_count = 0
         try:
             conflicts = self._dashboard_service.preview_resource_conflicts(project_id)
         except Exception as exc:
@@ -23,6 +21,7 @@ class DashboardLevelingOpsMixin:
             error_text = str(exc)
         self._current_conflicts = conflicts
         if conflicts:
+            display_count = len(conflicts)
             self._update_conflicts(conflicts)
             if show_feedback:
                 QMessageBox.information(
@@ -43,6 +42,7 @@ class DashboardLevelingOpsMixin:
                 if float(getattr(row, "total_allocation_percent", 0.0) or 0.0) > 100.0
             ]
             if overloaded and hasattr(self, "_update_conflicts_from_load"):
+                display_count = len(overloaded)
                 self._update_conflicts_from_load(overloaded)
                 if show_feedback:
                     QMessageBox.information(
@@ -61,6 +61,8 @@ class DashboardLevelingOpsMixin:
                         "Conflicts",
                         "No daily conflicts detected for this project.",
                     )
+        if hasattr(self, "btn_open_conflicts"):
+            self.btn_open_conflicts.setText(f"Conflicts ({display_count})")
         if show_feedback and error_text:
             QMessageBox.warning(self, "Conflicts", f"Could not preview conflicts:\n{error_text}")
         self._sync_leveling_buttons()
@@ -134,7 +136,6 @@ class DashboardLevelingOpsMixin:
         if not conflict.entries:
             QMessageBox.information(self, "Manual Shift", "No tasks available in selected conflict.")
             return
-
         choices = [f"{e.task_name} ({e.allocation_percent:.0f}%)" for e in conflict.entries]
         selected, ok = QInputDialog.getItem(
             self,
@@ -147,7 +148,6 @@ class DashboardLevelingOpsMixin:
         if not ok:
             return
         task_id = conflict.entries[choices.index(selected)].task_id
-
         shift_days, ok = QInputDialog.getInt(self, "Manual Shift", "Shift by working days:", 1, 1, 60, 1)
         if not ok:
             return

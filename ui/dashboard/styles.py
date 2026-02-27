@@ -79,9 +79,34 @@ def dashboard_action_button_style(variant: str) -> str:
     """
 
 
+def dashboard_queue_button_style() -> str:
+    return f"""
+    QPushButton {{
+        background-color: {CFG.COLOR_BG_SURFACE_ALT};
+        color: {CFG.COLOR_TEXT_PRIMARY};
+        border: 1px solid {CFG.COLOR_BORDER_STRONG};
+        border-radius: 10px;
+        padding: 6px 34px 6px 12px;
+        font-weight: 700;
+    }}
+    QPushButton:hover {{
+        background-color: {CFG.COLOR_ACCENT_SOFT};
+    }}
+    QPushButton:pressed {{
+        background-color: #C8DAF6;
+    }}
+    QPushButton:disabled {{
+        background-color: {CFG.COLOR_BORDER};
+        border-color: {CFG.COLOR_BORDER_STRONG};
+        color: {CFG.COLOR_TEXT_MUTED};
+    }}
+    """
+
+
 __all__ = [
     "dashboard_action_button_style",
     "dashboard_card_style",
     "dashboard_meta_chip_style",
+    "dashboard_queue_button_style",
     "dashboard_summary_style",
 ]

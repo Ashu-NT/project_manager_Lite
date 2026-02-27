@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel, QTableWidget
+from PySide6.QtWidgets import QLabel
 
 from core.services.dashboard import DashboardData
 from ui.dashboard.widgets import ChartWidget, KpiCard
@@ -9,12 +9,12 @@ from ui.styles.ui_config import UIConfig as CFG
 
 
 class DashboardSummaryRenderingMixin:
-    alerts_table: QTableWidget
-    conflicts_table: QTableWidget
-    alerts_status: QLabel
+    conflicts_table: object
     btn_auto_level: object
     btn_manual_shift: object
-    upcoming_table: QTableWidget
+    btn_open_conflicts: object
+    btn_open_alerts: object
+    btn_open_upcoming: object
     burndown_chart: ChartWidget
     resource_chart: ChartWidget
     kpi_tasks: KpiCard
@@ -28,14 +28,24 @@ class DashboardSummaryRenderingMixin:
     project_meta_duration: QLabel
 
     def _clear_dashboard(self):
-        self.alerts_table.setRowCount(0)
         self.conflicts_table.setRowCount(0)
-        self.alerts_status.setText("0 active alerts")
         if hasattr(self, "btn_auto_level"):
             self.btn_auto_level.setEnabled(False)
         if hasattr(self, "btn_manual_shift"):
             self.btn_manual_shift.setEnabled(False)
-        self.upcoming_table.setRowCount(0)
+        self._current_alert_rows = []
+        self._current_alert_summary = "0 active alerts"
+        self._current_upcoming_rows = []
+        if hasattr(self, "btn_open_conflicts"):
+            self.btn_open_conflicts.set_badge(0, "success")
+        if hasattr(self, "btn_open_alerts"):
+            self.btn_open_alerts.set_badge(0, "success")
+        if hasattr(self, "btn_open_upcoming"):
+            self.btn_open_upcoming.set_badge(0, "neutral")
+        if getattr(self, "_alerts_dialog", None) is not None:
+            self._alerts_dialog.set_alert_rows([], self._current_alert_summary)
+        if getattr(self, "_upcoming_dialog", None) is not None:
+            self._upcoming_dialog.set_upcoming_rows([])
 
         self.burndown_chart.ax.clear()
         self.resource_chart.ax.clear()
