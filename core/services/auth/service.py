@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Iterable
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.exceptions import NotFoundError, ValidationError
+from core.exceptions import ValidationError
 from core.interfaces import (
     PermissionRepository,
     RolePermissionRepository,
@@ -21,17 +20,18 @@ from core.models import Permission, Role, RolePermissionBinding, UserAccount, Us
 from core.services.auth.authorization import require_permission
 from core.services.auth.passwords import hash_password, verify_password
 from core.services.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
+from core.services.auth.query import AuthQueryMixin
 from core.services.auth.session import UserSessionContext, UserSessionPrincipal
+from core.services.auth.validation import AuthValidationMixin
 
 if TYPE_CHECKING:
     from core.services.audit.service import AuditService
 
 
-_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 logger = logging.getLogger(__name__)
 
 
-class AuthService:
+class AuthService(AuthQueryMixin, AuthValidationMixin):
     def __init__(
         self,
         session: Session,
@@ -194,19 +194,6 @@ class AuthService:
         self._user_role_repo.delete(user.id, role.id)
         self._session.commit()
 
-    def get_user_permissions(self, user_id: str) -> set[str]:
-        self._require_user(user_id)
-        role_ids = self._user_role_repo.list_role_ids(user_id)
-        permission_ids: set[str] = set()
-        for role_id in role_ids:
-            permission_ids.update(self._role_permission_repo.list_permission_ids(role_id))
-
-        all_permissions = {perm.id: perm.code for perm in self._permission_repo.list_all()}
-        return {all_permissions[pid] for pid in permission_ids if pid in all_permissions}
-
-    def has_permission(self, user_id: str, permission_code: str) -> bool:
-        return permission_code in self.get_user_permissions(user_id)
-
     def list_users(self) -> list[UserAccount]:
         require_permission(self._user_session, "auth.manage", operation_label="list users")
         return self._user_repo.list_all()
@@ -269,16 +256,6 @@ class AuthService:
             raise
         return user
 
-    def get_user_role_names(self, user_id: str) -> set[str]:
-        self._require_user(user_id)
-        role_ids = self._user_role_repo.list_role_ids(user_id)
-        names: set[str] = set()
-        for role_id in role_ids:
-            role = self._role_repo.get(role_id)
-            if role:
-                names.add(role.name)
-        return names
-
     def build_principal(self, user: UserAccount) -> UserSessionPrincipal:
         return UserSessionPrincipal(
             user_id=user.id,
@@ -326,57 +303,6 @@ class AuthService:
                             permission_id=permission_id,
                         )
                     )
-
-    def _require_role_by_name(self, role_name: str) -> Role:
-        role = self._role_repo.get_by_name((role_name or "").strip().lower())
-        if not role:
-            raise NotFoundError("Role not found.", code="ROLE_NOT_FOUND")
-        return role
-
-    def _require_user(self, user_id: str) -> UserAccount:
-        user = self._user_repo.get(user_id)
-        if not user:
-            raise NotFoundError("User not found.", code="USER_NOT_FOUND")
-        return user
-
-    @staticmethod
-    def _validate_password(password: str) -> None:
-        pwd = password or ""
-        if len(pwd) < 8:
-            raise ValidationError(
-                "Password must be at least 8 characters.",
-                code="WEAK_PASSWORD",
-            )
-        if not any(ch.islower() for ch in pwd):
-            raise ValidationError(
-                "Password must include a lowercase letter.",
-                code="WEAK_PASSWORD",
-            )
-        if not any(ch.isupper() for ch in pwd):
-            raise ValidationError(
-                "Password must include an uppercase letter.",
-                code="WEAK_PASSWORD",
-            )
-        if not any(ch.isdigit() for ch in pwd):
-            raise ValidationError(
-                "Password must include a digit.",
-                code="WEAK_PASSWORD",
-            )
-
-    @staticmethod
-    def _normalize_email(email: str | None) -> str | None:
-        value = (email or "").strip().lower()
-        return value or None
-
-    @staticmethod
-    def _validate_email(email: str | None) -> None:
-        if email is None:
-            return
-        if not _EMAIL_RE.match(email):
-            raise ValidationError(
-                "Invalid email format.",
-                code="INVALID_EMAIL",
-            )
 
     def _record_auth_event(
         self,

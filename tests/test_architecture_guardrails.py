@@ -474,6 +474,22 @@ def test_task_service_is_orchestrator_only():
     assert "def query_tasks" not in text
 
 
+def test_auth_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "services" / "auth" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.auth.query import AuthQueryMixin" in text
+    assert "from core.services.auth.validation import AuthValidationMixin" in text
+    assert "class AuthService(AuthQueryMixin, AuthValidationMixin)" in text
+    assert "def get_user_permissions" not in text
+    assert "def get_user_role_names" not in text
+    assert "def _require_user" not in text
+    assert "def _require_role_by_name" not in text
+    assert "def _validate_password" not in text
+    assert "def _validate_email" not in text
+    assert "def _normalize_email" not in text
+
+
 def test_project_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "project" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
