@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox, QInputDialog
 
+from ui.shared.incident_support import emit_error_event, message_with_incident
 from ui.shared.async_job import JobUiConfig, start_async_job
 from ui.shared.worker_services import worker_service_scope
 
@@ -40,6 +41,19 @@ def run_generate_baseline_async(tab) -> None:
         tab.baseline_combo.setCurrentIndex(0)
         run_refresh_dashboard_async(tab)
 
+    def _on_error(msg: str) -> None:
+        incident_id = emit_error_event(
+            event_type="business.baseline.create.error",
+            message="Baseline creation failed.",
+            parent=tab,
+            data={"project_id": proj_id, "baseline_name": baseline_name, "error": msg},
+        )
+        QMessageBox.critical(
+            tab,
+            "Baseline error",
+            message_with_incident(f"Could not create baseline:\n{msg}", incident_id),
+        )
+
     start_async_job(
         parent=tab,
         ui=JobUiConfig(
@@ -49,7 +63,7 @@ def run_generate_baseline_async(tab) -> None:
         ),
         work=_work,
         on_success=_on_success,
-        on_error=lambda msg: QMessageBox.critical(tab, "Baseline error", f"Could not create baseline:\n{msg}"),
+        on_error=_on_error,
         on_cancel=lambda: QMessageBox.information(tab, "Baseline", "Baseline creation canceled."),
         set_busy=_set_busy,
     )

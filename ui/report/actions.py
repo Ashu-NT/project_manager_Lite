@@ -16,9 +16,8 @@ from ui.report.dialogs import (
     ResourceLoadDialog,
 )
 from ui.shared.async_job import JobUiConfig, start_async_job
+from ui.shared.incident_support import emit_error_event, message_with_incident
 from ui.shared.worker_services import worker_service_scope
-
-
 class ReportActionsMixin:
     _reporting_service: ReportingService
     _finance_service: FinanceService | None
@@ -49,6 +48,7 @@ class ReportActionsMixin:
         file_filter: str,
         success_title: str,
         error_prefix: str,
+        error_event_type: str,
         exporter,
         empty_hint: str | None = None,
     ) -> None:
@@ -76,12 +76,21 @@ class ReportActionsMixin:
                 return
             QMessageBox.information(self, success_title, f"{success_title} saved to:\n{exported_path}")
 
+        def _on_error(msg: str) -> None:
+            incident_id = emit_error_event(
+                event_type=error_event_type,
+                message=f"{error_prefix}.",
+                parent=self,
+                data={"project_id": project_id, "path": path, "error": msg},
+            )
+            QMessageBox.warning(self, "Error", message_with_incident(f"{error_prefix}: {msg}", incident_id))
+
         start_async_job(
             parent=self,
             ui=JobUiConfig(title=success_title, label=f"{success_title} in progress...", allow_retry=True),
             work=_work,
             on_success=_on_success,
-            on_error=lambda msg: QMessageBox.warning(self, "Error", f"{error_prefix}: {msg}"),
+            on_error=_on_error,
             on_cancel=lambda: QMessageBox.information(self, success_title, f"{success_title} canceled."),
         )
 
@@ -145,6 +154,7 @@ class ReportActionsMixin:
             file_filter="PNG image (*.png)",
             success_title="Export Gantt",
             error_prefix="Failed to export Gantt",
+            error_event_type="business.export.gantt.error",
             exporter=lambda services, project_id, path: generate_gantt_png(services["reporting_service"], project_id, path),
         )
 
@@ -156,6 +166,7 @@ class ReportActionsMixin:
             file_filter="PNG image (*.png)",
             success_title="Export EVM",
             error_prefix="Failed to export EVM chart",
+            error_event_type="business.export.evm.error",
             exporter=lambda services, project_id, path: generate_evm_png(services["reporting_service"], project_id, path),
             empty_hint="No EVM data available for export. Create a baseline and update progress first.",
         )
@@ -168,6 +179,7 @@ class ReportActionsMixin:
             file_filter="Excel files (*.xlsx)",
             success_title="Export Excel",
             error_prefix="Failed to export Excel report",
+            error_event_type="business.export.excel.error",
             exporter=lambda services, project_id, path: generate_excel_report(
                 services["reporting_service"],
                 project_id,
@@ -184,6 +196,7 @@ class ReportActionsMixin:
             file_filter="PDF files (*.pdf)",
             success_title="Export PDF",
             error_prefix="Failed to export PDF report",
+            error_event_type="business.export.pdf.error",
             exporter=lambda services, project_id, path: generate_pdf_report(
                 services["reporting_service"],
                 project_id,
@@ -202,6 +215,5 @@ class ReportActionsMixin:
         invalid_chars = '<>:"/\\|?*'
         sanitized = "".join("_" if c in invalid_chars else c for c in filename).strip().strip(".")
         return sanitized or "report"
-
 
 __all__ = ["ReportActionsMixin"]

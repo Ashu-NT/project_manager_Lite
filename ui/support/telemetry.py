@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from infra.operational_support import bind_trace_id
 from infra.path import user_data_dir
+from ui.shared.incident_support import message_with_incident
 
 
 class SupportTelemetryMixin:
@@ -68,14 +69,16 @@ class SupportTelemetryMixin:
         message: str,
     ) -> None:
         text = (message or "Operation failed.").strip()
+        incident_id = self._current_incident_id()
         self._append_result(f"{context} failed: {text}")
         self._emit_support_event(
             event_type=event_type,
             level="ERROR",
             message=f"{context} failed.",
             data={"error": text},
+            trace_id=incident_id,
         )
-        QMessageBox.warning(self, title, text)
+        QMessageBox.warning(self, title, message_with_incident(text, incident_id))
 
     def _open_logs_folder(self) -> None:
         target = user_data_dir() / "logs"

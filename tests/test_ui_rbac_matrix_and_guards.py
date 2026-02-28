@@ -121,3 +121,17 @@ def test_assignment_and_project_resource_panels_respect_manage_permissions():
     assert "can_add_dependencies" in task_panel_text
     assert "can_remove_dependencies" in task_panel_text
     assert "can_manage = bool(getattr(self, \"_can_manage_project_resources\", True))" in project_panel_text
+
+
+def test_guarded_errors_include_incident_context_and_business_event_mappings():
+    guards_text = (ROOT / "ui" / "shared" / "guards.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    assert "_CALLBACK_ERROR_EVENT_MAP" in guards_text
+    assert "\"create_task\": \"business.task.add.error\"" in guards_text
+    assert "\"edit_task\": \"business.task.update.error\"" in guards_text
+    assert "\"recalc_project_schedule\": \"business.schedule.recalculate.error\"" in guards_text
+    assert "\"_generate_baseline\": \"business.baseline.create.error\"" in guards_text
+    assert "message_with_incident" in guards_text
+    assert "emit_error_event" in guards_text

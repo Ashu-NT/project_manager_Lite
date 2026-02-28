@@ -92,9 +92,15 @@ class SupportUiLayoutMixin:
 
         diag_buttons = QHBoxLayout()
         self.btn_export_diagnostics = QPushButton("Export Diagnostics Bundle")
+        self.btn_report_incident = QPushButton("Report Incident")
         self.btn_open_logs = QPushButton("Open Logs Folder")
         self.btn_open_data = QPushButton("Open Data Folder")
-        for btn in (self.btn_export_diagnostics, self.btn_open_logs, self.btn_open_data):
+        for btn in (
+            self.btn_export_diagnostics,
+            self.btn_report_incident,
+            self.btn_open_logs,
+            self.btn_open_data,
+        ):
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             diag_buttons.addWidget(btn)
@@ -122,6 +128,9 @@ class SupportUiLayoutMixin:
         )
         self.btn_export_diagnostics.clicked.connect(
             make_guarded_slot(self, title="Support", callback=self._export_diagnostics)
+        )
+        self.btn_report_incident.clicked.connect(
+            make_guarded_slot(self, title="Support", callback=self._report_incident)
         )
         self.btn_open_logs.clicked.connect(
             make_guarded_slot(self, title="Support", callback=self._open_logs_folder)

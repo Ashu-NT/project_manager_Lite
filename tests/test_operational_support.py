@@ -135,6 +135,18 @@ def test_support_tab_wires_incident_tracing_and_operational_support():
         encoding="utf-8",
         errors="ignore",
     )
+    diagnostics_export_text = (root / "ui" / "support" / "diagnostics_export.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    incident_report_text = (root / "ui" / "support" / "incident_report.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    layout_text = (root / "ui" / "support" / "ui_layout.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
 
     assert "SupportUiLayoutMixin" in tab_text
     assert "SupportTelemetryMixin" in tab_text
@@ -143,4 +155,9 @@ def test_support_tab_wires_incident_tracing_and_operational_support():
     assert "get_operational_support()" in tab_text
     assert "def _current_incident_id" in telemetry_text
     assert "incident_id=incident_id" in update_text
-    assert 'event_type="support.diagnostics.exported"' in diagnostics_text
+    assert 'event_type="support.diagnostics.exported"' in diagnostics_export_text
+    assert "DEFAULT_SUPPORT_EMAIL = \"tech_ash_673@info.tech\"" in incident_report_text
+    assert "def _report_incident" in incident_report_text
+    assert "SupportIncidentReportMixin" in diagnostics_text
+    assert "SupportDiagnosticsExportMixin" in diagnostics_text
+    assert "btn_report_incident" in layout_text

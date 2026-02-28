@@ -7,6 +7,7 @@ from core.services.auth.authorization import require_permission
 from core.services.project import ProjectService
 from core.services.scheduling import SchedulingEngine
 from core.services.task import TaskService
+from ui.shared.incident_support import emit_error_event, message_with_incident
 from ui.shared.async_job import JobUiConfig, start_async_job
 from ui.shared.worker_services import worker_service_scope
 
@@ -60,7 +61,14 @@ class CalendarProjectOpsMixin:
                 operation_label="recalculate schedule",
             )
         except BusinessRuleError as e:
-            QMessageBox.warning(self, "Error", str(e))
+            incident_id = emit_error_event(
+                event_type="business.schedule.recalculate.error",
+                message="Schedule recalculation blocked by permission/governance policy.",
+                parent=self,
+                error=e,
+                data={"project_id": pid},
+            )
+            QMessageBox.warning(self, "Error", message_with_incident(str(e), incident_id))
             return
 
         def _work(token, progress):
@@ -71,6 +79,15 @@ class CalendarProjectOpsMixin:
                 schedule = services["scheduling_engine"].recalculate_project_schedule(pid)
                 token.raise_if_cancelled()
                 return len(schedule)
+
+        def _on_error(msg: str) -> None:
+            incident_id = emit_error_event(
+                event_type="business.schedule.recalculate.error",
+                message="Schedule recalculation failed.",
+                parent=self,
+                data={"project_id": pid, "error": msg},
+            )
+            QMessageBox.critical(self, "Error", message_with_incident(msg, incident_id))
 
         start_async_job(
             parent=self,
@@ -87,7 +104,7 @@ class CalendarProjectOpsMixin:
                 f"Tasks updated: {task_count}.\n\n"
                 "Tip: Open the Tasks or Reports tab to see the updated dates and Gantt.",
             ),
-            on_error=lambda msg: QMessageBox.critical(self, "Error", msg),
+            on_error=_on_error,
             on_cancel=lambda: QMessageBox.information(
                 self,
                 "Schedule",

@@ -11,6 +11,7 @@ from core.exceptions import (
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.shared.incident_support import emit_error_event, message_with_incident
 from ui.task.dialogs import (
     DependencyListDialog,
     TaskEditDialog,
@@ -45,10 +46,24 @@ class TaskActionsMixin:
                     deadline=dlg.deadline,
                 )
             except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Error", str(exc))
+                incident_id = emit_error_event(
+                    event_type="business.task.add.error",
+                    message="Task creation failed.",
+                    parent=self,
+                    error=exc,
+                    data={"project_id": pid},
+                )
+                QMessageBox.warning(self, "Error", message_with_incident(str(exc), incident_id))
                 continue
             except Exception as exc:
-                QMessageBox.critical(self, "Error", str(exc))
+                incident_id = emit_error_event(
+                    event_type="business.task.add.error",
+                    message="Task creation failed with unexpected error.",
+                    parent=self,
+                    error=exc,
+                    data={"project_id": pid},
+                )
+                QMessageBox.critical(self, "Error", message_with_incident(str(exc), incident_id))
                 return
             self.reload_tasks()
             return
@@ -75,10 +90,24 @@ class TaskActionsMixin:
                     deadline=dlg.deadline,
                 )
             except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Error", str(exc))
+                incident_id = emit_error_event(
+                    event_type="business.task.update.error",
+                    message="Task update failed.",
+                    parent=self,
+                    error=exc,
+                    data={"task_id": task.id},
+                )
+                QMessageBox.warning(self, "Error", message_with_incident(str(exc), incident_id))
                 continue
             except Exception as exc:
-                QMessageBox.critical(self, "Error", str(exc))
+                incident_id = emit_error_event(
+                    event_type="business.task.update.error",
+                    message="Task update failed with unexpected error.",
+                    parent=self,
+                    error=exc,
+                    data={"task_id": task.id},
+                )
+                QMessageBox.critical(self, "Error", message_with_incident(str(exc), incident_id))
                 return
             self.reload_tasks()
             return

@@ -13,6 +13,7 @@ from core.exceptions import (
 )
 from core.services.approval.policy import is_governance_required
 from core.services.auth import UserSessionContext
+from ui.shared.incident_support import emit_error_event, message_with_incident
 
 
 _T = TypeVar("_T")
@@ -23,6 +24,16 @@ _UI_KNOWN_ERRORS = (
     ConcurrencyError,
     ValueError,
 )
+_CALLBACK_ERROR_EVENT_MAP = {
+    "create_task": "business.task.add.error",
+    "edit_task": "business.task.update.error",
+    "recalc_project_schedule": "business.schedule.recalculate.error",
+    "_generate_baseline": "business.baseline.create.error",
+    "export_gantt_png": "business.export.gantt.error",
+    "export_evm_png": "business.export.evm.error",
+    "export_excel": "business.export.excel.error",
+    "export_pdf": "business.export.pdf.error",
+}
 
 
 def has_permission(user_session: UserSessionContext | None, permission_code: str) -> bool:
@@ -62,14 +73,31 @@ def run_guarded_action(
     *,
     title: str,
     action: Callable[[], _T],
+    callback_name: str | None = None,
 ) -> _T | None:
+    name = str(callback_name or "").strip()
+    event_type = _CALLBACK_ERROR_EVENT_MAP.get(name, "ui.action.error")
     try:
         return action()
     except _UI_KNOWN_ERRORS as exc:
-        QMessageBox.warning(parent, title, str(exc))
+        incident_id = emit_error_event(
+            event_type=event_type,
+            message=f"{title} action failed.",
+            parent=parent,
+            error=exc,
+            data={"callback": name or "unknown", "known_error": True},
+        )
+        QMessageBox.warning(parent, title, message_with_incident(str(exc), incident_id))
         return None
     except Exception as exc:
-        QMessageBox.critical(parent, title, str(exc))
+        incident_id = emit_error_event(
+            event_type=event_type,
+            message=f"{title} action failed with unexpected error.",
+            parent=parent,
+            error=exc,
+            data={"callback": name or "unknown", "known_error": False},
+        )
+        QMessageBox.critical(parent, title, message_with_incident(str(exc), incident_id))
         return None
 
 
@@ -79,10 +107,13 @@ def make_guarded_slot(
     title: str,
     callback: Callable[..., object],
 ) -> Callable[..., None]:
+    callback_name = getattr(callback, "__name__", "") or ""
+
     def _wrapped(*_args, **_kwargs) -> None:
         run_guarded_action(
             parent,
             title=title,
+            callback_name=callback_name,
             action=lambda: callback(),
         )
 
