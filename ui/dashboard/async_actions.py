@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox, QInputDialog
 
-from ui.dashboard.tab import DashboardTab
 from ui.shared.incident_support import emit_error_event, message_with_incident
 from ui.shared.async_job import CancelToken, JobUiConfig, start_async_job
 from ui.shared.worker_services import worker_service_scope
 
 
-def run_generate_baseline_async(tab:DashboardTab) -> None:
+def run_generate_baseline_async(tab) -> None:
     proj_id, _ = tab._current_project_id_and_name()
     if not proj_id:
         return
@@ -70,7 +69,7 @@ def run_generate_baseline_async(tab:DashboardTab) -> None:
     )
 
 
-def run_refresh_dashboard_async(tab: DashboardTab, *, show_progress: bool = False) -> None:
+def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
     proj_id, proj_name = tab._current_project_id_and_name()
     if not proj_id:
         tab._clear_dashboard()
