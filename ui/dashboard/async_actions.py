@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox, QInputDialog
 
+from ui.dashboard.tab import DashboardTab
 from ui.shared.incident_support import emit_error_event, message_with_incident
-from ui.shared.async_job import JobUiConfig, start_async_job
+from ui.shared.async_job import CancelToken, JobUiConfig, start_async_job
 from ui.shared.worker_services import worker_service_scope
 
 
-def run_generate_baseline_async(tab) -> None:
+def run_generate_baseline_async(tab:DashboardTab) -> None:
     proj_id, _ = tab._current_project_id_and_name()
     if not proj_id:
         return
@@ -27,7 +28,7 @@ def run_generate_baseline_async(tab) -> None:
         if hasattr(tab, "btn_refresh_dashboard"):
             tab.btn_refresh_dashboard.setEnabled(not busy)
 
-    def _work(token, progress):
+    def _work(token:CancelToken, progress):
         token.raise_if_cancelled()
         progress(None, "Creating baseline snapshot...")
         with worker_service_scope(getattr(tab, "_user_session", None)) as services:
@@ -69,7 +70,7 @@ def run_generate_baseline_async(tab) -> None:
     )
 
 
-def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
+def run_refresh_dashboard_async(tab: DashboardTab, *, show_progress: bool = False) -> None:
     proj_id, proj_name = tab._current_project_id_and_name()
     if not proj_id:
         tab._clear_dashboard()
@@ -88,7 +89,7 @@ def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
             setattr(tab, "_dashboard_refresh_pending", False)
             run_refresh_dashboard_async(tab, show_progress=show_progress)
 
-    def _work(token, progress):
+    def _work(token: CancelToken, progress):
         token.raise_if_cancelled()
         progress(None, "Loading dashboard data...")
         with worker_service_scope(getattr(tab, "_user_session", None)) as services:
