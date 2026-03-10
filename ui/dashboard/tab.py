@@ -142,7 +142,7 @@ class DashboardTab(
         self.main_splitter.setHandleWidth(8)
 
         left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
+        self.left_layout = left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(CFG.SPACING_SM)
         left_panel.setMinimumWidth(420)

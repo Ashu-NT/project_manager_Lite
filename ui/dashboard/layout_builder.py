@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QComboBox,
     QDialog,
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QSlider,
     QVBoxLayout,
@@ -57,6 +60,24 @@ class DashboardLayoutDialog(QDialog):
         self.preset_combo.addItem("Resource Focus", userData="resource_focus")
         root.addWidget(self.preset_combo)
 
+        self.left_order_list = QListWidget()
+        self.left_order_list.setDragDropMode(QAbstractItemView.InternalMove)
+        self.left_order_list.setDefaultDropAction(Qt.MoveAction)
+        self.left_order_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.left_order_list.setAlternatingRowColors(True)
+        self.left_order_list.setMinimumHeight(96)
+        root.addWidget(QLabel("Left Panel Order (drag to reorder):"))
+        root.addWidget(self.left_order_list)
+
+        self.chart_order_list = QListWidget()
+        self.chart_order_list.setDragDropMode(QAbstractItemView.InternalMove)
+        self.chart_order_list.setDefaultDropAction(Qt.MoveAction)
+        self.chart_order_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.chart_order_list.setAlternatingRowColors(True)
+        self.chart_order_list.setMinimumHeight(80)
+        root.addWidget(QLabel("Chart Order (drag to reorder):"))
+        root.addWidget(self.chart_order_list)
+
         self.slider_main = QSlider(Qt.Horizontal)
         self.slider_main.setRange(20, 80)
         self.slider_main.setValue(50)
@@ -91,6 +112,16 @@ class DashboardLayoutDialog(QDialog):
         self.chk_resource.setChecked(bool(state.get("show_resource", True)))
         self.slider_main.setValue(int(state.get("main_left_percent", 50)))
         self.slider_chart.setValue(int(state.get("chart_top_percent", 50)))
+        self._set_order_list(
+            self.left_order_list,
+            self._normalize_order(state.get("left_order"), ("summary", "kpi", "evm")),
+            self._left_order_labels(),
+        )
+        self._set_order_list(
+            self.chart_order_list,
+            self._normalize_order(state.get("chart_order"), ("burndown", "resource")),
+            self._chart_order_labels(),
+        )
 
     def _apply_preset(self) -> None:
         mode = str(self.preset_combo.currentData() or "balanced")
@@ -102,6 +133,16 @@ class DashboardLayoutDialog(QDialog):
             self.chk_resource.setChecked(True)
             self.slider_main.setValue(60)
             self.slider_chart.setValue(35)
+            self._set_order_list(
+                self.left_order_list,
+                ("summary", "evm", "kpi"),
+                self._left_order_labels(),
+            )
+            self._set_order_list(
+                self.chart_order_list,
+                ("resource", "burndown"),
+                self._chart_order_labels(),
+            )
             return
         if mode in {"resource_focus", "execution"}:
             self.chk_summary.setChecked(True)
@@ -111,6 +152,16 @@ class DashboardLayoutDialog(QDialog):
             self.chk_resource.setChecked(True)
             self.slider_main.setValue(45)
             self.slider_chart.setValue(30)
+            self._set_order_list(
+                self.left_order_list,
+                ("summary", "kpi", "evm"),
+                self._left_order_labels(),
+            )
+            self._set_order_list(
+                self.chart_order_list,
+                ("resource", "burndown"),
+                self._chart_order_labels(),
+            )
             return
         self.chk_summary.setChecked(True)
         self.chk_kpi.setChecked(True)
@@ -119,6 +170,16 @@ class DashboardLayoutDialog(QDialog):
         self.chk_resource.setChecked(True)
         self.slider_main.setValue(50)
         self.slider_chart.setValue(50)
+        self._set_order_list(
+            self.left_order_list,
+            ("summary", "kpi", "evm"),
+            self._left_order_labels(),
+        )
+        self._set_order_list(
+            self.chart_order_list,
+            ("burndown", "resource"),
+            self._chart_order_labels(),
+        )
 
     @property
     def layout_payload(self) -> dict[str, object]:
@@ -130,7 +191,62 @@ class DashboardLayoutDialog(QDialog):
             "show_resource": self.chk_resource.isChecked(),
             "main_left_percent": int(self.slider_main.value()),
             "chart_top_percent": int(self.slider_chart.value()),
+            "left_order": self._order_from_list(self.left_order_list, ("summary", "kpi", "evm")),
+            "chart_order": self._order_from_list(self.chart_order_list, ("burndown", "resource")),
         }
+
+    @staticmethod
+    def _left_order_labels() -> dict[str, str]:
+        return {
+            "summary": "Project Summary",
+            "kpi": "Portfolio KPI Cards",
+            "evm": "EVM Panel",
+        }
+
+    @staticmethod
+    def _chart_order_labels() -> dict[str, str]:
+        return {
+            "burndown": "Burndown Chart",
+            "resource": "Resource Load Chart",
+        }
+
+    @staticmethod
+    def _normalize_order(value: object, defaults: tuple[str, ...]) -> list[str]:
+        allowed = set(defaults)
+        normalized: list[str] = []
+        if isinstance(value, (list, tuple)):
+            for row in value:
+                key = str(row or "").strip().lower()
+                if key in allowed and key not in normalized:
+                    normalized.append(key)
+        for key in defaults:
+            if key not in normalized:
+                normalized.append(key)
+        return normalized
+
+    @staticmethod
+    def _set_order_list(list_widget: QListWidget, order: tuple[str, ...] | list[str], labels: dict[str, str]) -> None:
+        list_widget.clear()
+        for key in order:
+            token = str(key or "").strip().lower()
+            if token not in labels:
+                continue
+            item = QListWidgetItem(labels[token])
+            item.setData(Qt.UserRole, token)
+            list_widget.addItem(item)
+
+    @staticmethod
+    def _order_from_list(list_widget: QListWidget, defaults: tuple[str, ...]) -> list[str]:
+        order: list[str] = []
+        for idx in range(list_widget.count()):
+            item = list_widget.item(idx)
+            token = str(item.data(Qt.UserRole) or "").strip().lower()
+            if token and token not in order:
+                order.append(token)
+        for key in defaults:
+            if key not in order:
+                order.append(key)
+        return order
 
 
 __all__ = ["DashboardLayoutDialog"]

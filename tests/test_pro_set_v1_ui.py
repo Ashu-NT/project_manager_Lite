@@ -69,7 +69,10 @@ def test_dashboard_builder_is_persisted():
     assert 'self.btn_customize_dashboard = QPushButton("Customize Dashboard")' in tab_text
     assert "class DashboardLayoutStateMixin" in state_text
     assert "QDialog.Accepted" in state_text
+    assert '"left_order"' in state_text
+    assert '"chart_order"' in state_text
     assert "class DashboardLayoutDialog(QDialog):" in builder_text
+    assert "QAbstractItemView.InternalMove" in builder_text
 
 
 def test_collaboration_baseline_store_and_dialog_exist():
