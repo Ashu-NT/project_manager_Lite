@@ -41,12 +41,21 @@ def test_gantt_dialog_uses_interactive_mixin():
     interactive_text = (ROOT / "ui" / "report" / "gantt_interactive.py").read_text(
         encoding="utf-8", errors="ignore"
     )
+    interactive_actions_text = (ROOT / "ui" / "report" / "gantt_interactive_actions.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    interactive_bar_text = (ROOT / "ui" / "report" / "gantt_interactive_bar.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
     assert "class GanttPreviewDialog(GanttInteractiveMixin, QDialog):" in dialog_text
     assert 'self.btn_open_interactive = QPushButton("Open Interactive")' in dialog_text
     assert "class GanttInteractiveMixin" in interactive_text
-    assert "class _InteractiveGanttBar" in interactive_text
+    assert "class _InteractiveGanttBar" in interactive_bar_text
     assert 'self.btn_toggle_grid = QPushButton("Grid: On")' in interactive_text
     assert "drag the right edge to change duration" in interactive_text
+    assert 'self.btn_review_changes = QPushButton("Review Changes")' in interactive_text
+    assert 'self.btn_undo_last_apply = QPushButton("Undo Last Apply")' in interactive_text
+    assert "def _apply_single_edit_with_retry" in interactive_actions_text
 
 
 def test_dashboard_builder_is_persisted():

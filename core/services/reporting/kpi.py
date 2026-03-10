@@ -36,7 +36,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
-        cpm_result = self._scheduling_engine.recalculate_project_schedule(project_id)
+        cpm_result = self._scheduling_engine.recalculate_project_schedule(project_id, persist=False)
         # cpm_result: Dict[task_id, CPMTaskInfo]
         bars: List[GanttTaskBar] = []
 
@@ -83,7 +83,10 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         tasks_not_started = tasks_total - tasks_completed - tasks_in_progress- task_blocked
 
         # Reuse CPM data for critical & late tasks
-        cpm_result: Dict[str, CPMTaskInfo] = self._scheduling_engine.recalculate_project_schedule(project_id)
+        cpm_result: Dict[str, CPMTaskInfo] = self._scheduling_engine.recalculate_project_schedule(
+            project_id,
+            persist=False,
+        )
         critical_tasks = sum(1 for info in cpm_result.values() if info.is_critical)
         late_tasks = sum(
             1
@@ -141,7 +144,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         """
         Return critical tasks in topological order (approximate critical path).
         """
-        cpm_result = self._scheduling_engine.recalculate_project_schedule(project_id)
+        cpm_result = self._scheduling_engine.recalculate_project_schedule(project_id, persist=False)
         critical = [info for info in cpm_result.values() if info.is_critical]
         # Sort by ES to show actual path order
         critical.sort(key=lambda info: (info.earliest_start or date.min))

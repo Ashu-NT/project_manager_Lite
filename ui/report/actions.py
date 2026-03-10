@@ -5,6 +5,7 @@ from core.reporting.api import generate_evm_png, generate_excel_report, generate
 from core.services.finance import FinanceService
 from core.services.reporting import ReportingService
 from core.services.task import TaskService
+from ui.shared.guards import can_execute_governed_action, has_permission
 from ui.report.action_helpers import ReportActionHelpersMixin
 from ui.report.dialogs import (
     BaselineCompareDialog,
@@ -32,10 +33,13 @@ class ReportActionsMixin(ReportActionHelpersMixin):
         KPIReportDialog(self, self._reporting_service, project_id).exec()
 
     def show_gantt(self) -> None:
-        can_edit = True
         session = getattr(self, "_user_session", None)
-        if session is not None and hasattr(session, "has_permission"):
-            can_edit = bool(session.has_permission("task.manage"))
+        can_edit = has_permission(session, "task.manage")
+        can_open_interactive = can_execute_governed_action(
+            user_session=session,
+            manage_permission="task.manage",
+            governance_action="task.update",
+        )
         self._open_dialog(
             "Show Gantt",
             "Gantt",
@@ -46,6 +50,7 @@ class ReportActionsMixin(ReportActionHelpersMixin):
                 project_name,
                 task_service=getattr(self, "_task_service", None),
                 can_edit=can_edit,
+                can_open_interactive=can_open_interactive,
             ),
         )
 

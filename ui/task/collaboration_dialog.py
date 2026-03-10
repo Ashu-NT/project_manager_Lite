@@ -45,7 +45,7 @@ class TaskCollaborationDialog(QDialog):
         self._pending_attachments: list[str] = []
         self.setWindowTitle(f"Task Collaboration - {task_name}")
         self._setup_ui()
-        self.reload_comments()
+        self.reload_comments(mark_read=True)
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -59,6 +59,12 @@ class TaskCollaborationDialog(QDialog):
         intro.setStyleSheet(CFG.INFO_TEXT_STYLE)
         intro.setWordWrap(True)
         root.addWidget(intro)
+        if self._mention_aliases:
+            handles = ", ".join(f"@{alias}" for alias in self._mention_aliases[:4])
+            self._handles_hint = QLabel(f"Your mention handles: {handles}")
+            self._handles_hint.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+            self._handles_hint.setWordWrap(True)
+            root.addWidget(self._handles_hint)
 
         self.activity_list = QListWidget()
         self.activity_list.setAlternatingRowColors(True)
@@ -86,7 +92,7 @@ class TaskCollaborationDialog(QDialog):
         root.addLayout(row)
 
         self.btn_add_attachment.clicked.connect(self._add_attachment)
-        self.btn_refresh.clicked.connect(self.reload_comments)
+        self.btn_refresh.clicked.connect(lambda: self.reload_comments(mark_read=True))
         self.btn_post.clicked.connect(self._post_comment)
         self.btn_close.clicked.connect(self.accept)
 
@@ -105,9 +111,10 @@ class TaskCollaborationDialog(QDialog):
         preview = ", ".join(names[:4]) + ("..." if len(names) > 4 else "")
         self.attachments_label.setText(f"Attachments: {preview}")
 
-    def reload_comments(self) -> None:
-        for alias in self._mention_aliases:
-            self._store.mark_task_mentions_read(task_id=self._task_id, username=alias)
+    def reload_comments(self, *, mark_read: bool = True) -> None:
+        if mark_read:
+            for alias in self._mention_aliases:
+                self._store.mark_task_mentions_read(task_id=self._task_id, username=alias)
         comments = self._store.list_comments(self._task_id)
         self.activity_list.clear()
         for row in comments:
@@ -144,7 +151,8 @@ class TaskCollaborationDialog(QDialog):
         self.comment_input.clear()
         self._pending_attachments.clear()
         self._refresh_attachment_label()
-        self.reload_comments()
+        # Keep newly posted mentions unread until user explicitly refreshes.
+        self.reload_comments(mark_read=False)
 
 
 __all__ = ["TaskCollaborationDialog"]

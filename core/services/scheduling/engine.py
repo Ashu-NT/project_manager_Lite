@@ -47,7 +47,12 @@ class SchedulingEngine(ResourceLevelingMixin):
         self._assignment_repo: AssignmentRepository | None = assignment_repo
         self._resource_repo: ResourceRepository | None = resource_repo
 
-    def recalculate_project_schedule(self, project_id: str) -> Dict[str, CPMTaskInfo]:
+    def recalculate_project_schedule(
+        self,
+        project_id: str,
+        *,
+        persist: bool = True,
+    ) -> Dict[str, CPMTaskInfo]:
         """
         Full CPM calculation for a project:
         - computes ES/EF (forward) and LS/LF (backward)
@@ -92,13 +97,14 @@ class SchedulingEngine(ResourceLevelingMixin):
             calendar=self._calendar,
         )
 
-        try:
-            for info in result.values():
-                self._task_repo.update(info.task)
-            self._session.commit()
-        except Exception:
-            self._session.rollback()
-            raise
+        if persist:
+            try:
+                for info in result.values():
+                    self._task_repo.update(info.task)
+                self._session.commit()
+            except Exception:
+                self._session.rollback()
+                raise
 
         return result
 

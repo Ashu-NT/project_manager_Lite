@@ -13,6 +13,7 @@ from core.services.reporting import ReportingService
 from core.services.task import TaskService
 from ui.report.dialog_helpers import setup_dialog_size
 from ui.report.gantt_interactive import GanttInteractiveMixin
+from ui.shared.guards import apply_permission_hint
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -26,11 +27,13 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         *,
         task_service: TaskService | None = None,
         can_edit: bool = False,
+        can_open_interactive: bool = False,
     ):
         super().__init__(parent)
         self._reporting_service: ReportingService = reporting_service
         self._task_service: TaskService | None = task_service
         self._can_edit: bool = bool(can_edit and task_service is not None)
+        self._can_open_interactive: bool = bool(can_open_interactive and task_service is not None)
         self._project_id: str = project_id
         self._project_name: str = project_name
         self._raw_pixmap: QPixmap = QPixmap()
@@ -109,10 +112,18 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         self.btn_open_interactive.clicked.connect(self._toggle_interactive_panel)
         self.btn_refresh.clicked.connect(self._load_image)
         self.btn_close.clicked.connect(self.accept)
+        apply_permission_hint(
+            self.btn_open_interactive,
+            allowed=self._can_open_interactive,
+            missing_permission="task.manage or approval.request",
+        )
+        self.btn_open_interactive.setEnabled(self._can_open_interactive)
         self._set_interactive_visible(False)
         self._load_image()
 
     def _toggle_interactive_panel(self) -> None:
+        if not self._can_open_interactive:
+            return
         visible = not self.interactive_container.isVisible()
         self._set_interactive_visible(visible)
         self.btn_open_interactive.setText("Hide Interactive" if visible else "Open Interactive")
