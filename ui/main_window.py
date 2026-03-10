@@ -92,6 +92,7 @@ class MainWindow(QMainWindow):
                 dashboard_service=self.services["dashboard_service"],
                 project_service=self.services["project_service"],
                 baseline_service=self.services["baseline_service"],
+                settings_store=self._settings_store,
                 user_session=self._user_session,
             )
             self.tabs.addTab(dashboard_tab, "Dashboard")
@@ -131,6 +132,7 @@ class MainWindow(QMainWindow):
                 task_service=self.services["task_service"],
                 resource_service=self.services["resource_service"],
                 project_resource_service=self.services["project_resource_service"],
+                settings_store=self._settings_store,
                 user_session=self._user_session,
             )
             self.tabs.addTab(task_tab, "Tasks")
@@ -150,6 +152,7 @@ class MainWindow(QMainWindow):
             report_tab = ReportTab(
                 project_service=self.services["project_service"],
                 reporting_service=self.services["reporting_service"],
+                task_service=self.services["task_service"],
                 finance_service=self.services.get("finance_service"),
                 user_session=self._user_session,
             )

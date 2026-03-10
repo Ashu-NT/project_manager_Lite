@@ -10,14 +10,27 @@ from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QScroll
 
 from core.reporting.api import generate_gantt_png
 from core.services.reporting import ReportingService
+from core.services.task import TaskService
 from ui.report.dialog_helpers import setup_dialog_size
+from ui.report.gantt_interactive import GanttInteractiveMixin
 from ui.styles.ui_config import UIConfig as CFG
 
 
-class GanttPreviewDialog(QDialog):
-    def __init__(self, parent, reporting_service: ReportingService, project_id: str, project_name: str):
+class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
+    def __init__(
+        self,
+        parent,
+        reporting_service: ReportingService,
+        project_id: str,
+        project_name: str,
+        *,
+        task_service: TaskService | None = None,
+        can_edit: bool = False,
+    ):
         super().__init__(parent)
         self._reporting_service: ReportingService = reporting_service
+        self._task_service: TaskService | None = task_service
+        self._can_edit: bool = bool(can_edit and task_service is not None)
         self._project_id: str = project_id
         self._project_name: str = project_name
         self._raw_pixmap: QPixmap = QPixmap()
@@ -55,6 +68,8 @@ class GanttPreviewDialog(QDialog):
         self.image_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.scroll.setWidget(self.image_label)
         layout.addWidget(self.scroll)
+
+        self._init_interactive_widgets(layout)
 
         btn_row = QHBoxLayout()
         self.btn_fit = QPushButton("Fit Width")
@@ -114,7 +129,6 @@ class GanttPreviewDialog(QDialog):
     def _render_preview(self):
         if self._raw_pixmap.isNull():
             return
-
         if self._fit_mode:
             target_width = max(380, self.scroll.viewport().width() - 14)
             pix = self._raw_pixmap.scaledToWidth(target_width, Qt.SmoothTransformation)
@@ -129,7 +143,6 @@ class GanttPreviewDialog(QDialog):
                 Qt.SmoothTransformation,
             )
             self.lbl_zoom.setText(f"{int(self._zoom_factor * 100)}%")
-
         self.image_label.setPixmap(pix)
         self.image_label.resize(pix.size())
 
@@ -159,10 +172,13 @@ class GanttPreviewDialog(QDialog):
                 else:
                     self.meta_label.setText("No scheduled tasks with valid dates.")
                 self._render_preview()
-        except Exception as e:
-            self.image_label.setText(f"Error generating Gantt: {e}")
+                self._build_interactive_timeline()
+        except Exception as exc:
+            self.image_label.setText(f"Error generating Gantt: {exc}")
+            self._build_interactive_timeline(error_text=str(exc))
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         if self._fit_mode:
             self._render_preview()
+

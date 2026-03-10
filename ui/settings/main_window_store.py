@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from PySide6.QtCore import QByteArray, QSettings
 
 from infra.update import default_update_manifest_source
@@ -18,6 +20,8 @@ class MainWindowSettingsStore:
     _KEY_UPDATE_CHANNEL = "updates/channel"
     _KEY_UPDATE_AUTO_CHECK = "updates/auto_check"
     _KEY_UPDATE_MANIFEST_URL = "updates/manifest_url"
+    _KEY_TASK_SAVED_VIEWS = "task/saved_views"
+    _KEY_DASHBOARD_LAYOUT = "dashboard/layout"
 
     def __init__(self, settings: QSettings | None = None) -> None:
         self._settings = settings or QSettings(self.ORG_NAME, self.APP_NAME)
@@ -103,3 +107,38 @@ class MainWindowSettingsStore:
         if geometry is not None and not geometry.isEmpty():
             self._settings.setValue(self._KEY_GEOMETRY, geometry)
             self._settings.sync()
+
+    def load_task_saved_views(self) -> dict[str, dict[str, object]]:
+        raw = self._settings.value(self._KEY_TASK_SAVED_VIEWS, "{}")
+        try:
+            payload = json.loads(str(raw or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        normalized: dict[str, dict[str, object]] = {}
+        for key, value in payload.items():
+            if isinstance(key, str) and isinstance(value, dict):
+                normalized[key] = dict(value)
+        return normalized
+
+    def save_task_saved_views(self, views: dict[str, dict[str, object]]) -> None:
+        payload = {}
+        for key, value in (views or {}).items():
+            if isinstance(key, str) and isinstance(value, dict):
+                payload[key] = value
+        self._settings.setValue(self._KEY_TASK_SAVED_VIEWS, json.dumps(payload, sort_keys=True))
+        self._settings.sync()
+
+    def load_dashboard_layout(self) -> dict[str, object]:
+        raw = self._settings.value(self._KEY_DASHBOARD_LAYOUT, "{}")
+        try:
+            payload = json.loads(str(raw or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        return dict(payload) if isinstance(payload, dict) else {}
+
+    def save_dashboard_layout(self, layout: dict[str, object]) -> None:
+        payload = dict(layout) if isinstance(layout, dict) else {}
+        self._settings.setValue(self._KEY_DASHBOARD_LAYOUT, json.dumps(payload, sort_keys=True))
+        self._settings.sync()

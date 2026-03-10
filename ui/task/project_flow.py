@@ -118,6 +118,18 @@ class TaskProjectFlowMixin:
         row = indexes[0].row()
         return self.model.get_task(row)
 
+    def _get_selected_tasks(self) -> list[Task]:
+        indexes = self.table.selectionModel().selectedRows()
+        tasks: list[Task] = []
+        seen_ids: set[str] = set()
+        for index in indexes:
+            task = self.model.get_task(index.row())
+            if not task or task.id in seen_ids:
+                continue
+            tasks.append(task)
+            seen_ids.add(task.id)
+        return tasks
+
     def _select_task_by_id(self, task_id: str) -> None:
         for row in range(self.model.rowCount()):
             task = self.model.get_task(row)

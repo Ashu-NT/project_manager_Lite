@@ -139,7 +139,7 @@ def base_stylesheet() -> str:
     }}
     QTabWidget::pane {{
         border: 1px solid {CFG.COLOR_BORDER};
-        border-radius: 10px;
+        border-radius: 12px;
         background: {CFG.COLOR_BG_SURFACE};
         top: -1px;
     }}
@@ -173,10 +173,10 @@ def base_stylesheet() -> str:
     }}
     QGroupBox {{
         border: 1px solid {CFG.COLOR_BORDER};
-        border-radius: 10px;
+        border-radius: 12px;
         margin-top: 10px;
         background-color: {CFG.COLOR_BG_SURFACE};
-        padding-top: 8px;
+        padding-top: 10px;
     }}
     QGroupBox::title {{
         subcontrol-origin: margin;
@@ -191,8 +191,8 @@ def base_stylesheet() -> str:
         background-color: {CFG.COLOR_ACCENT};
         color: white;
         border: 1px solid {CFG.COLOR_ACCENT_HOVER};
-        border-radius: 7px;
-        padding: 5px 12px;
+        border-radius: 10px;
+        padding: 6px 14px;
         font-weight: 600;
     }}
     QPushButton:hover {{
@@ -206,11 +206,14 @@ def base_stylesheet() -> str:
         border-color: {CFG.COLOR_BORDER_STRONG};
         color: {CFG.COLOR_TEXT_MUTED};
     }}
+    QPushButton:focus {{
+        border: 2px solid {CFG.COLOR_ACCENT_HOVER};
+    }}
     QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QTextEdit {{
         background-color: {CFG.COLOR_BG_SURFACE};
         border: 1px solid {CFG.COLOR_BORDER};
-        border-radius: 6px;
-        padding: 4px 6px;
+        border-radius: 10px;
+        padding: 5px 8px;
         color: {CFG.COLOR_TEXT_PRIMARY};
         selection-background-color: {CFG.COLOR_ACCENT_SOFT};
         selection-color: {CFG.COLOR_TEXT_PRIMARY};

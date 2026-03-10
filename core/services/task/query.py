@@ -12,6 +12,9 @@ class TaskQueryMixin:
     _task_repo: TaskRepository
     _assignment_repo: AssignmentRepository
 
+    def get_task(self, task_id: str) -> Task | None:
+        return self._task_repo.get(task_id)
+
     def list_tasks_for_project(self, project_id: str) -> List[Task]:
         return self._task_repo.list_by_project(project_id)
 

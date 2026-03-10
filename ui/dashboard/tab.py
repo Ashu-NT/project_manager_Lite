@@ -16,6 +16,7 @@ from ui.dashboard.access import (
 from ui.dashboard.alerts_panel import DashboardAlertsPanelMixin
 from ui.dashboard.data_ops import DashboardDataOpsMixin
 from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
+from ui.dashboard.layout_state import DashboardLayoutStateMixin
 from ui.dashboard.rendering import DashboardRenderingMixin
 from ui.dashboard.workqueue_button import DashboardQueueButton
 from ui.dashboard.workqueue_actions import DashboardWorkqueueActionsMixin
@@ -24,11 +25,12 @@ from ui.dashboard.styles import (
     dashboard_meta_chip_style, dashboard_summary_style,
 )
 from ui.dashboard.widgets import ChartWidget, KpiCard
+from ui.settings.main_window_store import MainWindowSettingsStore
 from ui.styles.ui_config import UIConfig as CFG
-
 
 class DashboardTab(
     DashboardDataOpsMixin,
+    DashboardLayoutStateMixin,
     DashboardLevelingOpsMixin,
     DashboardRenderingMixin,
     DashboardAlertsPanelMixin,
@@ -40,6 +42,7 @@ class DashboardTab(
         project_service: ProjectService,
         dashboard_service: DashboardService,
         baseline_service: BaselineService,
+        settings_store: MainWindowSettingsStore | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
@@ -47,6 +50,7 @@ class DashboardTab(
         self._project_service: ProjectService = project_service
         self._dashboard_service: DashboardService = dashboard_service
         self._baseline_service: BaselineService = baseline_service
+        self._settings_store = settings_store
         configure_dashboard_access(self, user_session)
         self._current_data: Optional[DashboardData] = None
         self._current_conflicts = []
@@ -63,7 +67,6 @@ class DashboardTab(
         domain_events.project_changed.connect(self._on_project_catalog_changed)
         domain_events.resources_changed.connect(self._on_resources_changed)
         domain_events.baseline_changed.connect(self._on_baseline_changed)
-
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_SM)
@@ -84,6 +87,7 @@ class DashboardTab(
 
         self.btn_reload_projects = QPushButton(CFG.RELOAD_BUTTON_LABEL)
         self.btn_refresh_dashboard = QPushButton(CFG.REFRESH_DASHBOARD_LABEL)
+        self.btn_customize_dashboard = QPushButton("Customize Dashboard")
         self.btn_open_conflicts = DashboardQueueButton("Conflicts", active_variant="danger")
         self.btn_open_alerts = DashboardQueueButton("Alerts", active_variant="warning")
         self.btn_open_upcoming = DashboardQueueButton("Upcoming", active_variant="info")
@@ -100,6 +104,7 @@ class DashboardTab(
         for btn in (
             self.btn_reload_projects,
             self.btn_refresh_dashboard,
+            self.btn_customize_dashboard,
             self.btn_open_conflicts,
             self.btn_open_alerts,
             self.btn_open_upcoming,
@@ -111,6 +116,7 @@ class DashboardTab(
 
         self.btn_refresh_dashboard.setStyleSheet(dashboard_action_button_style("primary"))
         self.btn_reload_projects.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_customize_dashboard.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_open_conflicts.set_variants(active="danger", inactive="success")
         self.btn_open_alerts.set_variants(active="warning", inactive="success")
         self.btn_open_upcoming.set_variants(active="info", inactive="neutral")
@@ -120,6 +126,7 @@ class DashboardTab(
         top.addWidget(self.project_combo)
         top.addWidget(self.btn_reload_projects)
         top.addWidget(self.btn_refresh_dashboard)
+        top.addWidget(self.btn_customize_dashboard)
         top.addWidget(self.btn_open_conflicts)
         top.addWidget(self.btn_open_alerts)
         top.addWidget(self.btn_open_upcoming)
@@ -189,8 +196,8 @@ class DashboardTab(
 
         left_layout.addWidget(self.summary_widget)
 
-        kpi_group = QGroupBox("Portfolio Summary")
-        kpi_layout = QGridLayout(kpi_group)
+        self.kpi_group = QGroupBox("Portfolio Summary")
+        kpi_layout = QGridLayout(self.kpi_group)
         kpi_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
         kpi_layout.setSpacing(CFG.SPACING_SM)
 
@@ -208,7 +215,7 @@ class DashboardTab(
         kpi_layout.setColumnStretch(0, 1)
         kpi_layout.setColumnStretch(1, 1)
         kpi_layout.setColumnStretch(2, 1)
-        left_layout.addWidget(kpi_group)
+        left_layout.addWidget(self.kpi_group)
 
         self.evm_group = self._build_evm_panel()
         left_layout.addWidget(self.evm_group, 1)
@@ -241,6 +248,7 @@ class DashboardTab(
 
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_refresh_dashboard.clicked.connect(self.refresh_dashboard)
+        self.btn_customize_dashboard.clicked.connect(self._open_dashboard_layout_builder)
         self.btn_open_conflicts.clicked.connect(self._open_conflicts_dialog)
         self.btn_open_alerts.clicked.connect(self._open_alerts_dialog)
         self.btn_open_upcoming.clicked.connect(self._open_upcoming_dialog)
@@ -248,4 +256,5 @@ class DashboardTab(
         self.btn_delete_baseline.clicked.connect(self._delete_selected_baseline)
         self.project_combo.currentIndexChanged.connect(self._on_project_changed)
         self.baseline_combo.currentIndexChanged.connect(self.refresh_dashboard)
+        self._apply_persisted_dashboard_layout()
         wire_dashboard_access(self)

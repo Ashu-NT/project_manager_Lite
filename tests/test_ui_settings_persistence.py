@@ -16,12 +16,16 @@ def _store_with_ini(tmp_path):
 def test_main_window_settings_store_round_trip(tmp_path):
     store, _settings = _store_with_ini(tmp_path)
     geometry = QByteArray(b"\x01\x02\x03\x04")
+    views = {"Sprint View": {"query": "status:in_progress", "status": 2}}
+    layout = {"show_kpi": True, "main_left_percent": 55}
 
     store.save_theme_mode("dark")
     store.save_governance_mode("required")
     store.save_update_channel("beta")
     store.save_update_auto_check(True)
     store.save_update_manifest_url("https://example.com/manifest.json")
+    store.save_task_saved_views(views)
+    store.save_dashboard_layout(layout)
     store.save_tab_index(5)
     store.save_geometry(geometry)
 
@@ -30,6 +34,8 @@ def test_main_window_settings_store_round_trip(tmp_path):
     assert store.load_update_channel(default_channel="stable") == "beta"
     assert store.load_update_auto_check(default_enabled=False) is True
     assert store.load_update_manifest_url(default_url="") == "https://example.com/manifest.json"
+    assert store.load_task_saved_views() == views
+    assert store.load_dashboard_layout() == layout
     assert store.load_tab_index(default_index=0) == 5
     loaded_geometry = store.load_geometry()
     assert loaded_geometry is not None
