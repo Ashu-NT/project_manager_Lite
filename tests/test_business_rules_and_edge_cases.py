@@ -237,6 +237,22 @@ def test_dashboard_returns_none_evm_without_baseline(services):
     assert data.evm is None
 
 
+def test_dashboard_alerts_when_planned_cost_exceeds_budget(services):
+    ps = services["project_service"]
+    cs = services["cost_service"]
+    ds = services["dashboard_service"]
+
+    project = ps.create_project("Budget Alert Project", "", planned_budget=100.0, currency="EUR")
+    cs.add_cost_item(
+        project_id=project.id,
+        description="Budget overrun line",
+        planned_amount=140.0,
+    )
+
+    data = ds.get_dashboard_data(project.id)
+    assert any("Budget warning" in msg for msg in data.alerts)
+
+
 def test_resource_load_summary_sorted_descending(services):
     ps = services["project_service"]
     ts = services["task_service"]

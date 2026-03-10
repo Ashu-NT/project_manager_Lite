@@ -124,6 +124,8 @@ class DashboardAlertsRenderingMixin:
         text = (message or "").lower()
         if "overloaded" in text or "over-allocated" in text:
             return "HIGH", "Run Auto-Level or shift a task in Resource Conflicts."
+        if "budget warning" in text or ("budget" in text and "exceed" in text):
+            return "MEDIUM", "Review Cost tab and rebalance planned costs vs project budget."
         if "late" in text or "delayed" in text or "missed its deadline" in text:
             return "MEDIUM", "Review schedule and baseline variance."
         return "LOW", "Inspect task data quality and dates."

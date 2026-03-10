@@ -159,6 +159,11 @@ class CostProjectFlowMixin(CostFiltersMixin):
         filtered_costs = self._apply_cost_filters(costs=costs, task_names=task_names)
         self.model.set_costs(filtered_costs, task_names)
         summary = f"Showing {len(filtered_costs)} of {len(costs)} cost item(s)."
+        if budget > 0 and total_planned > budget + 1e-9:
+            summary = (
+                f"Budget warning: Planned {fmt_currency(total_planned, sym)} is above budget "
+                f"{fmt_currency(budget, sym)}.  " + summary
+            )
         if source_breakdown and source_breakdown.rows:
             actuals = {row.source_key: float(row.actual or 0.0) for row in source_breakdown.rows}
             summary += ("  Actual sources: Direct Cost {0:.2f}, Computed Labor {1:.2f}, Labor Adjustment {2:.2f}.".format(actuals.get("DIRECT_COST", 0.0), actuals.get("COMPUTED_LABOR", 0.0), actuals.get("LABOR_ADJUSTMENT", 0.0)))

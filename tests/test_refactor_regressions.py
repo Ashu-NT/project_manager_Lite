@@ -241,6 +241,13 @@ def test_cost_tab_has_filter_row_and_committed_kpi():
     assert 'self.filter_task_combo.addItem("All Tasks", userData="")' in layout_text
 
 
+def test_cost_project_flow_surfaces_budget_warning_text():
+    text = (Path(__file__).resolve().parents[1] / "ui" / "cost" / "project_flow.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "Budget warning: Planned" in text
+
+
 def test_no_table_forces_horizontal_scrollbar_off():
     text = (Path(__file__).resolve().parents[1] / "ui" / "task" / "assignment_panel.py").read_text(
         encoding="utf-8", errors="ignore"

@@ -3,12 +3,14 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
+from core.services.project.service import ProjectService
 from core.services.task.service import TaskService
 from core.services.reporting.models import ProjectKPI, ResourceLoadRow
 
 
 class DashboardAlertsMixin:
     _tasks: TaskService
+    _projects: ProjectService
 
     def _build_alerts(
         self,
@@ -18,6 +20,15 @@ class DashboardAlertsMixin:
     ) -> List[str]:
         alerts: List[str] = []
         today = date.today()
+        project = self._projects.get_project(project_id)
+        budget = float(getattr(project, "planned_budget", 0.0) or 0.0)
+
+        if budget > 0.0 and float(kpi.total_planned_cost or 0.0) > budget + 1e-9:
+            planned = float(kpi.total_planned_cost or 0.0)
+            alerts.append(
+                "Budget warning: planned cost exceeds project budget "
+                f"({planned:.2f} vs {budget:.2f})."
+            )
 
         for row in resource_load:
             utilization = float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0)
