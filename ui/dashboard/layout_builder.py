@@ -53,8 +53,8 @@ class DashboardLayoutDialog(QDialog):
 
         self.preset_combo = QComboBox()
         self.preset_combo.addItem("Balanced (Recommended)", userData="balanced")
-        self.preset_combo.addItem("Analytics Heavy", userData="analytics")
-        self.preset_combo.addItem("Execution Focus", userData="execution")
+        self.preset_combo.addItem("Cost & EVM", userData="cost_evm")
+        self.preset_combo.addItem("Resource Focus", userData="resource_focus")
         root.addWidget(self.preset_combo)
 
         self.slider_main = QSlider(Qt.Horizontal)
@@ -94,23 +94,23 @@ class DashboardLayoutDialog(QDialog):
 
     def _apply_preset(self) -> None:
         mode = str(self.preset_combo.currentData() or "balanced")
-        if mode == "analytics":
+        if mode in {"cost_evm", "analytics"}:
             self.chk_summary.setChecked(True)
             self.chk_kpi.setChecked(True)
             self.chk_evm.setChecked(True)
-            self.chk_burndown.setChecked(True)
+            self.chk_burndown.setChecked(False)
             self.chk_resource.setChecked(True)
-            self.slider_main.setValue(45)
-            self.slider_chart.setValue(45)
+            self.slider_main.setValue(60)
+            self.slider_chart.setValue(35)
             return
-        if mode == "execution":
+        if mode in {"resource_focus", "execution"}:
             self.chk_summary.setChecked(True)
             self.chk_kpi.setChecked(True)
             self.chk_evm.setChecked(False)
-            self.chk_burndown.setChecked(True)
+            self.chk_burndown.setChecked(False)
             self.chk_resource.setChecked(True)
-            self.slider_main.setValue(55)
-            self.slider_chart.setValue(55)
+            self.slider_main.setValue(45)
+            self.slider_chart.setValue(30)
             return
         self.chk_summary.setChecked(True)
         self.chk_kpi.setChecked(True)
@@ -134,4 +134,3 @@ class DashboardLayoutDialog(QDialog):
 
 
 __all__ = ["DashboardLayoutDialog"]
-
