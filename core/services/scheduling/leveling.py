@@ -22,6 +22,7 @@ def build_resource_conflicts(
     calendar: WorkCalendarEngine,
     resource_name_by_id: dict[str, str],
     threshold_percent: float = 100.0,
+    threshold_by_resource_id: dict[str, float] | None = None,
 ) -> list[ResourceConflict]:
     bucket: dict[tuple[str, date], list[tuple[Task, float]]] = defaultdict(list)
     for assignment in assignments:
@@ -37,7 +38,10 @@ def build_resource_conflicts(
     conflicts: list[ResourceConflict] = []
     for (resource_id, day), values in bucket.items():
         total = sum(alloc for _, alloc in values)
-        if total <= threshold_percent + 1e-9:
+        threshold = float(
+            (threshold_by_resource_id or {}).get(resource_id, threshold_percent)
+        )
+        if total <= threshold + 1e-9:
             continue
         task_alloc: dict[str, float] = defaultdict(float)
         task_name: dict[str, str] = {}

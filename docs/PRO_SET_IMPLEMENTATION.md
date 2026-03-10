@@ -31,3 +31,9 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
 
 - This is an initial integrated delivery (v1) across all seven areas.
 - Next iterations should expand each capability beyond Task/Report/Dashboard focus.
+
+## Resource Capacity Rollout (Phase 1-3)
+
+- [x] 1. Resource profile expanded with `capacity_percent`, `address`, `contact`
+- [x] 2. Capacity applied to assignment validation and dashboard utilization views
+- [x] 3. Capacity integrated into reporting and resource leveling thresholds

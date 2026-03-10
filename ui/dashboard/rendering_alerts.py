@@ -93,12 +93,15 @@ class DashboardAlertsRenderingMixin:
 
         self.conflicts_table.setRowCount(len(rows))
         for row, load in enumerate(rows):
+            util = float(getattr(load, "utilization_percent", load.total_allocation_percent) or 0.0)
+            total_alloc = float(getattr(load, "total_allocation_percent", 0.0) or 0.0)
+            capacity = float(getattr(load, "capacity_percent", 100.0) or 100.0)
             vals = [
                 load.resource_name,
                 "-",
-                f"{float(load.total_allocation_percent or 0.0):.1f}%",
+                f"{util:.1f}%",
                 (
-                    f"Aggregate {int(load.tasks_count or 0)} assignment(s); "
+                    f"Peak load from {int(load.tasks_count or 0)} assignment(s); "
                     "no same-day overlap conflict detected."
                 ),
             ]
@@ -109,6 +112,8 @@ class DashboardAlertsRenderingMixin:
                     item.setForeground(QColor(CFG.COLOR_WARNING))
                 if col == 3:
                     item.setToolTip(
+                        f"Assigned {total_alloc:.1f}% / capacity {capacity:.1f}% "
+                        f"({util:.1f}% utilization). "
                         "This row indicates allocation risk from aggregate project load. "
                         "Auto/manual leveling uses daily conflicts only."
                     )

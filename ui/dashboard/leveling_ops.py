@@ -39,7 +39,7 @@ class DashboardLevelingOpsMixin:
             overloaded = [
                 row
                 for row in getattr(data, "resource_load", []) or []
-                if float(getattr(row, "total_allocation_percent", 0.0) or 0.0) > 100.0
+                if float(getattr(row, "utilization_percent", 0.0) or 0.0) > 100.0
             ]
             if overloaded and hasattr(self, "_update_conflicts_from_load"):
                 display_count = len(overloaded)

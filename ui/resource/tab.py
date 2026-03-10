@@ -90,7 +90,12 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
         hh.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         hh.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         hh.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        hh.setSectionResizeMode(6, QHeaderView.Interactive)
+        hh.setSectionResizeMode(7, QHeaderView.Interactive)
+        hh.setSectionResizeMode(8, QHeaderView.ResizeToContents)
         hh.resizeSection(1, 180)
+        hh.resizeSection(6, 220)
+        hh.resizeSection(7, 180)
         layout.addWidget(self.table)
 
         self.btn_reload_resources.clicked.connect(self.reload_resources)

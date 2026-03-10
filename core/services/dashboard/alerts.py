@@ -20,10 +20,14 @@ class DashboardAlertsMixin:
         today = date.today()
 
         for row in resource_load:
-            if row.total_allocation_percent > 100.0:
+            utilization = float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0)
+            capacity = float(getattr(row, "capacity_percent", 100.0) or 100.0)
+            if utilization > 100.0:
                 alerts.append(
                     f'Resource "{row.resource_name}" is overloaded '
-                    f"({row.total_allocation_percent:.1f}% allocation on {row.tasks_count} tasks)."
+                    f"({utilization:.1f}% utilization, "
+                    f"{row.total_allocation_percent:.1f}% assigned / {capacity:.1f}% capacity "
+                    f"across {row.tasks_count} tasks)."
                 )
 
         if kpi.late_tasks > 0:

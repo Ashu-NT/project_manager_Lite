@@ -81,6 +81,9 @@ class ResourceORM(Base):
     role: Mapped[str] = mapped_column(String, default="")
     hourly_rate: Mapped[float] = mapped_column(Float, default=0.0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    capacity_percent: Mapped[float] = mapped_column(Float, nullable=False, default=100.0, server_default="100.0")
+    address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    contact: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     cost_type: Mapped[CostType] = mapped_column(SAEnum(CostType), default=CostType.LABOR, nullable=False)
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)

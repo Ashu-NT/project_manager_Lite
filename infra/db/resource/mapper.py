@@ -11,6 +11,9 @@ def resource_to_orm(resource: Resource) -> ResourceORM:
         role=resource.role,
         hourly_rate=resource.hourly_rate,
         is_active=resource.is_active,
+        capacity_percent=float(getattr(resource, "capacity_percent", 100.0) or 100.0),
+        address=(getattr(resource, "address", "") or None),
+        contact=(getattr(resource, "contact", "") or None),
         cost_type=resource.cost_type,
         currency_code=resource.currency_code,
         version=getattr(resource, "version", 1),
@@ -27,6 +30,9 @@ def resource_from_orm(obj: ResourceORM) -> Resource:
         cost_type=obj.cost_type,
         currency_code=obj.currency_code,
         version=getattr(obj, "version", 1),
+        capacity_percent=float(getattr(obj, "capacity_percent", 100.0) or 100.0),
+        address=getattr(obj, "address", None) or "",
+        contact=getattr(obj, "contact", None) or "",
     )
 
 

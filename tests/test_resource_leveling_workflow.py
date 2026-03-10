@@ -30,6 +30,29 @@ def test_preview_resource_conflicts_detects_overallocation(services):
     assert {entry.task_name for entry in first.entries} == {"Task A", "Task B"}
 
 
+def test_preview_resource_conflicts_respects_resource_capacity(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    sched = services["scheduling_engine"]
+
+    project = ps.create_project("Leveling Capacity Threshold", "")
+    task_a = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=2)
+    task_b = ts.create_task(project.id, "Task B", start_date=date(2024, 1, 5), duration_days=2)
+    resource = rs.create_resource("Capacity Shared", "Developer", hourly_rate=100.0, capacity_percent=80.0)
+
+    ts.assign_resource(task_a.id, resource.id, allocation_percent=50.0)
+    ts.assign_resource(task_b.id, resource.id, allocation_percent=40.0)
+    ts.update_task(task_b.id, start_date=date(2024, 1, 1), duration_days=2)
+
+    conflicts = sched.preview_resource_conflicts(project.id)
+    assert conflicts
+    assert conflicts[0].total_allocation_percent == pytest.approx(90.0)
+
+    relaxed = sched.preview_resource_conflicts(project.id, threshold_percent=120.0)
+    assert relaxed == []
+
+
 def test_auto_level_resources_reduces_conflicts(services):
     ps = services["project_service"]
     ts = services["task_service"]

@@ -9,7 +9,17 @@ from ui.shared.table_model import horizontal_header_data
 
 
 class ResourceTableModel(QAbstractTableModel):
-    HEADERS = ["Name", "Role", "Category", "Hourly rate", "Currency", "Active"]
+    HEADERS = [
+        "Name",
+        "Role",
+        "Category",
+        "Hourly rate",
+        "Capacity",
+        "Currency",
+        "Address",
+        "Contact",
+        "Active",
+    ]
 
     def __init__(self, resources: list[Resource] | None = None, parent=None):
         super().__init__(parent)
@@ -40,8 +50,14 @@ class ResourceTableModel(QAbstractTableModel):
         if col == 3:
             return f"{(r.hourly_rate or 0.0):.2f}"
         if col == 4:
-            return r.currency_code or ""
+            return f"{float(getattr(r, 'capacity_percent', 100.0) or 100.0):.1f}%"
         if col == 5:
+            return r.currency_code or ""
+        if col == 6:
+            return getattr(r, "address", "") or ""
+        if col == 7:
+            return getattr(r, "contact", "") or ""
+        if col == 8:
             return "Yes" if getattr(r, "is_active", True) else "No"
         return None
 

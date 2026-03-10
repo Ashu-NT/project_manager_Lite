@@ -7,6 +7,7 @@ from core.interfaces import (
     AssignmentRepository,
     DependencyRepository,
     ProjectRepository,
+    ResourceRepository,
     TaskRepository,
 )
 
@@ -15,6 +16,7 @@ class TaskValidationMixin:
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
+    _resource_repo: ResourceRepository | None
     _project_repo: ProjectRepository | None
     _overallocation_policy: str
     _last_overallocation_warning: str | None
@@ -138,6 +140,14 @@ class TaskValidationMixin:
         if not ns or not ne:
             return None
 
+        capacity_percent = 100.0
+        resource_repo = getattr(self, "_resource_repo", None)
+        if resource_repo is not None:
+            resource = resource_repo.get(resource_id)
+            raw_capacity = float(getattr(resource, "capacity_percent", 100.0) or 100.0) if resource else 100.0
+            if raw_capacity > 0.0:
+                capacity_percent = raw_capacity
+
         assigns = self._assignment_repo.list_by_resource(resource_id)
         if not assigns:
             return None
@@ -176,12 +186,12 @@ class TaskValidationMixin:
 
         for d in sorted(daily_total.keys()):
             tot = daily_total[d]
-            if tot > 100.0 + 1e-9:
+            if tot > capacity_percent + 1e-9:
                 tasks = daily_tasks.get(d, [])[:6]
                 extra = "..." if len(daily_tasks.get(d, [])) > 6 else ""
                 msg = (
                     f"Resource would be over-allocated on {d.isoformat()} "
-                    f"({tot:.1f}% > 100%).\n"
+                    f"({tot:.1f}% > {capacity_percent:.1f}%).\n"
                     f"Tasks: {', '.join(tasks)}{extra}"
                 )
                 if getattr(self, "_overallocation_policy", "warn") == "strict":

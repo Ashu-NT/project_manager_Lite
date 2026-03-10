@@ -110,6 +110,8 @@ class ResourceLoadRow:
     resource_name: str
     total_allocation_percent: float
     tasks_count: int
+    capacity_percent: float = 100.0
+    utilization_percent: float = 0.0
 
 
 @dataclass
@@ -187,4 +189,3 @@ class CostSourceBreakdown:
     total_committed: float
     total_actual: float
     notes: list[str]
-

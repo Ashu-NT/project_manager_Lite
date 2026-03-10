@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CURRENCY_CODE = "EUR"
 
+
+def _normalize_capacity_percent(value: float | None) -> float:
+    resolved = float(value if value is not None else 100.0)
+    if resolved <= 0.0:
+        raise ValidationError("Capacity percent must be greater than zero.")
+    return resolved
+
 class ResourceService:
     def __init__(self, session: Session, 
                  resource_repo: ResourceRepository, 
@@ -38,11 +45,17 @@ class ResourceService:
         is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,
+        capacity_percent: float = 100.0,
+        address: str = "",
+        contact: str = "",
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="create resource")
         if not name or not name.strip():
             raise ValidationError("Resource name cannot be empty.")
+        if hourly_rate < 0:
+            raise ValidationError("Hourly rate cannot be negative.")
         resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
+        resolved_capacity = _normalize_capacity_percent(capacity_percent)
         resource = Resource.create(
             name=name.strip(),
             role=role.strip(),
@@ -50,6 +63,9 @@ class ResourceService:
             is_active=is_active,
             cost_type=cost_type,
             currency_code=resolved_currency,
+            capacity_percent=resolved_capacity,
+            address=(address or "").strip(),
+            contact=(contact or "").strip(),
         )
         try:
             self._resource_repo.add(resource)
@@ -59,7 +75,11 @@ class ResourceService:
                 action="resource.create",
                 entity_type="resource",
                 entity_id=resource.id,
-                details={"name": resource.name, "role": resource.role},
+                details={
+                    "name": resource.name,
+                    "role": resource.role,
+                    "capacity_percent": resource.capacity_percent,
+                },
             )
             logger.info(f"Created resource {resource.id} - {resource.name}")
         except Exception as e:
@@ -78,6 +98,9 @@ class ResourceService:
         is_active: bool | None = None,
         cost_type: CostType | None = None,
         currency_code: str | None = None,
+        capacity_percent: float | None = None,
+        address: str | None = None,
+        contact: str | None = None,
         expected_version: int | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
@@ -106,6 +129,12 @@ class ResourceService:
             resource.cost_type = cost_type
         if currency_code is not None:
             resource.currency_code = currency_code.strip().upper() or None
+        if capacity_percent is not None:
+            resource.capacity_percent = _normalize_capacity_percent(capacity_percent)
+        if address is not None:
+            resource.address = address.strip()
+        if contact is not None:
+            resource.contact = contact.strip()
 
         try:
             self._resource_repo.update(resource)
@@ -115,7 +144,11 @@ class ResourceService:
                 action="resource.update",
                 entity_type="resource",
                 entity_id=resource.id,
-                details={"name": resource.name, "role": resource.role},
+                details={
+                    "name": resource.name,
+                    "role": resource.role,
+                    "capacity_percent": resource.capacity_percent,
+                },
             )
             
         except Exception as e:

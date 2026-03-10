@@ -23,7 +23,9 @@ class ResourceEditDialog(QDialog):
 
         self.name_edit = QLineEdit()
         self.role_edit = QLineEdit()
-        for edit in (self.name_edit, self.role_edit):
+        self.address_edit = QLineEdit()
+        self.contact_edit = QLineEdit()
+        for edit in (self.name_edit, self.role_edit, self.address_edit, self.contact_edit):
             edit.setSizePolicy(CFG.INPUT_POLICY)
             edit.setFixedHeight(CFG.INPUT_HEIGHT)
             edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
@@ -36,6 +38,15 @@ class ResourceEditDialog(QDialog):
         self.rate_spin.setDecimals(CFG.MONEY_DECIMALS)
         self.rate_spin.setSingleStep(CFG.MONEY_STEP)
         self.rate_spin.setAlignment(CFG.ALIGN_RIGHT)
+
+        self.capacity_spin = QDoubleSpinBox()
+        self.capacity_spin.setSizePolicy(CFG.INPUT_POLICY)
+        self.capacity_spin.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.capacity_spin.setMinimum(1.0)
+        self.capacity_spin.setMaximum(500.0)
+        self.capacity_spin.setDecimals(1)
+        self.capacity_spin.setSingleStep(5.0)
+        self.capacity_spin.setAlignment(CFG.ALIGN_RIGHT)
 
         self.category_combo = QComboBox()
         self._cost_types: list[CostType] = [
@@ -67,6 +78,9 @@ class ResourceEditDialog(QDialog):
             self.role_edit.setText(resource.role or "")
             if resource.hourly_rate is not None:
                 self.rate_spin.setValue(resource.hourly_rate)
+            self.capacity_spin.setValue(float(getattr(resource, "capacity_percent", 100.0) or 100.0))
+            self.address_edit.setText(getattr(resource, "address", "") or "")
+            self.contact_edit.setText(getattr(resource, "contact", "") or "")
             for i, ct in enumerate(self._cost_types):
                 if ct == getattr(resource, "cost_type", CostType.LABOR):
                     self.category_combo.setCurrentIndex(i)
@@ -75,6 +89,7 @@ class ResourceEditDialog(QDialog):
                 self.currency_combo.setCurrentText(resource.currency_code)
             self.active_check.setChecked(getattr(resource, "is_active", True))
         else:
+            self.capacity_spin.setValue(100.0)
             self.currency_combo.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
             self.active_check.setChecked(True)
 
@@ -89,7 +104,10 @@ class ResourceEditDialog(QDialog):
         form.addRow("Role:", self.role_edit)
         form.addRow("Category:", self.category_combo)
         form.addRow("Hourly rate:", self.rate_spin)
+        form.addRow("Capacity (%):", self.capacity_spin)
         form.addRow("Currency:", self.currency_combo)
+        form.addRow("Address:", self.address_edit)
+        form.addRow("Contact:", self.contact_edit)
         form.addRow("", self.active_check)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -117,6 +135,18 @@ class ResourceEditDialog(QDialog):
     @property
     def hourly_rate(self) -> float:
         return self.rate_spin.value()
+
+    @property
+    def capacity_percent(self) -> float:
+        return self.capacity_spin.value()
+
+    @property
+    def address(self) -> str:
+        return self.address_edit.text().strip()
+
+    @property
+    def contact(self) -> str:
+        return self.contact_edit.text().strip()
 
     @property
     def is_active(self) -> bool:

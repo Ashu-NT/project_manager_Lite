@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Dict, List, Tuple
 
 from core.exceptions import NotFoundError
@@ -152,8 +152,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
 
     def get_resource_load_summary(self, project_id: str) -> List[ResourceLoadRow]:
         """
-        Simple resource load: for a given project, sum allocation_percent across its tasks.
-        Not a time-phased histogram, but a quick overview.
+        Capacity-aware load summary by resource using peak concurrent allocation.
         """
         tasks = self._task_repo.list_by_project(project_id)
         task_ids = [t.id for t in tasks]
@@ -161,27 +160,60 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             return []
 
         assignments = self._assignment_repo.list_by_tasks(task_ids)
+        tasks_by_id = {t.id: t for t in tasks}
         # group by resource
-        load_by_res: Dict[str, Tuple[float, int]] = {}
+        load_by_res: Dict[str, Tuple[float, int, float]] = {}
+        daily_by_res: Dict[str, Dict[date, float]] = {}
         for a in assignments:
-            total, count = load_by_res.get(a.resource_id, (0.0, 0))
-            total += a.allocation_percent or 0.0
+            rid = a.resource_id
+            _peak, count, unscheduled = load_by_res.get(rid, (0.0, 0, 0.0))
+            alloc = float(a.allocation_percent or 0.0)
             count += 1
-            load_by_res[a.resource_id] = (total, count)
+            task = tasks_by_id.get(a.task_id)
+            ts = getattr(task, "start_date", None) if task is not None else None
+            te = getattr(task, "end_date", None) if task is not None else None
+            if alloc > 0.0 and ts and te:
+                bucket = daily_by_res.setdefault(rid, {})
+                for d in self._iter_workdays(ts, te):
+                    bucket[d] = bucket.get(d, 0.0) + alloc
+            elif alloc > 0.0:
+                # Unscheduled assignments are treated conservatively as additional risk.
+                unscheduled += alloc
+            load_by_res[rid] = (0.0, count, unscheduled)
 
         rows: List[ResourceLoadRow] = []
-        for res_id, (total_alloc, count) in load_by_res.items():
+        for res_id, (_unused_peak, count, unscheduled_alloc) in load_by_res.items():
+            peak_daily_alloc = max(daily_by_res.get(res_id, {}).values(), default=0.0)
+            total_alloc = float(peak_daily_alloc + unscheduled_alloc)
             res = self._resource_repo.get(res_id)
             name = res.name if res else "<unknown>"
+            capacity = float(getattr(res, "capacity_percent", 100.0) or 100.0) if res else 100.0
+            if capacity <= 0.0:
+                capacity = 100.0
+            utilization = (float(total_alloc) / capacity) * 100.0
             rows.append(
                 ResourceLoadRow(
                     resource_id=res_id,
                     resource_name=name,
                     total_allocation_percent=total_alloc,
                     tasks_count=count,
+                    capacity_percent=capacity,
+                    utilization_percent=utilization,
                 )
             )
 
-        # Sort by highest total allocation
-        rows.sort(key=lambda r: r.total_allocation_percent, reverse=True)
+        # Sort by highest utilization pressure.
+        rows.sort(
+            key=lambda r: (r.utilization_percent, r.total_allocation_percent),
+            reverse=True,
+        )
         return rows
+
+    def _iter_workdays(self, start: date, end: date):
+        if end < start:
+            start, end = end, start
+        cur = start
+        while cur <= end:
+            if self._calendar.is_working_day(cur):
+                yield cur
+            cur += timedelta(days=1)

@@ -1,9 +1,6 @@
 from __future__ import annotations
-
 from datetime import date
-
 from sqlalchemy.orm import Session
-
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.interfaces import AssignmentRepository, DependencyRepository, ResourceRepository, TaskRepository
 from core.models import Task, TaskAssignment
@@ -18,8 +15,6 @@ from core.services.scheduling.leveling_models import (
     ResourceLevelingResult,
 )
 from core.services.work_calendar.engine import WorkCalendarEngine
-
-
 class ResourceLevelingMixin:
     _session: Session
     _task_repo: TaskRepository
@@ -27,6 +22,7 @@ class ResourceLevelingMixin:
     _assignment_repo: AssignmentRepository | None
     _resource_repo: ResourceRepository | None
     _calendar: WorkCalendarEngine
+    _resource_threshold_by_id: dict[str, float]
 
     def preview_resource_conflicts(
         self,
@@ -48,13 +44,17 @@ class ResourceLevelingMixin:
             return []
 
         tasks_by_id = {task.id: task for task in tasks}
-        resource_names = self._build_resource_name_map(assignments)
+        resource_names = self._build_resource_name_map(
+            assignments,
+            threshold_percent=threshold_percent,
+        )
         return build_resource_conflicts(
             tasks_by_id=tasks_by_id,
             assignments=assignments,
             calendar=self._calendar,
             resource_name_by_id=resource_names,
             threshold_percent=threshold_percent,
+            threshold_by_resource_id=getattr(self, "_resource_threshold_by_id", None),
         )
 
     def resolve_resource_conflict_manual(
@@ -141,13 +141,17 @@ class ResourceLevelingMixin:
                 break
 
             tasks_by_id = {task.id: task for task in tasks}
-            resource_names = self._build_resource_name_map(assignments)
+            resource_names = self._build_resource_name_map(
+                assignments,
+                threshold_percent=threshold_percent,
+            )
             conflicts = build_resource_conflicts(
                 tasks_by_id=tasks_by_id,
                 assignments=assignments,
                 calendar=self._calendar,
                 resource_name_by_id=resource_names,
                 threshold_percent=threshold_percent,
+                threshold_by_resource_id=getattr(self, "_resource_threshold_by_id", None),
             )
             if not conflicts:
                 break
@@ -213,11 +217,16 @@ class ResourceLevelingMixin:
     def _build_resource_name_map(
         self,
         assignments: list[TaskAssignment],
+        threshold_percent: float = 100.0,
     ) -> dict[str, str]:
+        scale = float(threshold_percent or 100.0) / 100.0
+        self._resource_threshold_by_id = {}
         names: dict[str, str] = {}
         if self._resource_repo is None:
             for assignment in assignments:
-                names.setdefault(assignment.resource_id, assignment.resource_id)
+                rid = assignment.resource_id
+                names.setdefault(rid, rid)
+                self._resource_threshold_by_id.setdefault(rid, 100.0 * scale)
             return names
         for assignment in assignments:
             rid = assignment.resource_id
@@ -225,6 +234,10 @@ class ResourceLevelingMixin:
                 continue
             resource = self._resource_repo.get(rid)
             names[rid] = resource.name if resource else rid
+            capacity = float(getattr(resource, "capacity_percent", 100.0) or 100.0) if resource else 100.0
+            if capacity <= 0.0:
+                capacity = 100.0
+            self._resource_threshold_by_id[rid] = capacity * scale
         return names
 
     def _shift_task_for_leveling(
@@ -244,8 +257,6 @@ class ResourceLevelingMixin:
                 "Task must have a start date for leveling.",
                 code="RESOURCE_LEVELING_NO_START",
             )
-
-        # add_working_days is inclusive (1 returns same day), so +1 to shift by N days.
         new_start = self._calendar.add_working_days(old_start, shift_working_days + 1)
         duration = int(task.duration_days or 0)
         new_end = new_start if duration <= 0 else self._calendar.add_working_days(new_start, duration)

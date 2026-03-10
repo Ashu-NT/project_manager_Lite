@@ -17,6 +17,9 @@ class Resource:
     cost_type: CostType = CostType.LABOR
     currency_code: Optional[str] = None
     version: int = 1
+    capacity_percent: float = 100.0
+    address: str = ""
+    contact: str = ""
 
     @staticmethod
     def create(
@@ -26,6 +29,9 @@ class Resource:
         is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
         currency_code: Optional[str] = None,
+        capacity_percent: float = 100.0,
+        address: str = "",
+        contact: str = "",
     ) -> "Resource":
         return Resource(
             id=generate_id(),
@@ -35,6 +41,9 @@ class Resource:
             is_active=is_active,
             cost_type=cost_type,
             currency_code=currency_code,
+            capacity_percent=capacity_percent,
+            address=address,
+            contact=contact,
         )
 
 

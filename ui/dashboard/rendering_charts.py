@@ -60,31 +60,37 @@ class DashboardChartsRenderingMixin:
             self.resource_chart.redraw()
             return
 
-        rows_sorted = sorted(rows, key=lambda r: r.total_allocation_percent, reverse=True)
+        rows_sorted = sorted(
+            rows,
+            key=lambda r: float(getattr(r, "utilization_percent", r.total_allocation_percent) or 0.0),
+            reverse=True,
+        )
         names = [r.resource_name for r in rows_sorted]
-        allocs = [r.total_allocation_percent for r in rows_sorted]
+        utils = [float(getattr(r, "utilization_percent", r.total_allocation_percent) or 0.0) for r in rows_sorted]
 
         y = range(len(names))
-        colors = [CFG.COLOR_DANGER if v > 100.0 else CFG.COLOR_ACCENT for v in allocs]
-        bars = self.resource_chart.ax.barh(y, allocs, color=colors, alpha=0.9, height=0.58)
+        colors = [CFG.COLOR_DANGER if v > 100.0 else CFG.COLOR_ACCENT for v in utils]
+        bars = self.resource_chart.ax.barh(y, utils, color=colors, alpha=0.9, height=0.58)
 
         self.resource_chart.ax.set_yticks(list(y))
         self.resource_chart.ax.set_yticklabels(names, fontsize=8)
         self.resource_chart.ax.invert_yaxis()
-        self.resource_chart.ax.set_xlabel("Allocation %", fontsize=10)
-        self.resource_chart.ax.set_title("Resource load")
+        self.resource_chart.ax.set_xlabel("Utilization %", fontsize=10)
+        self.resource_chart.ax.set_title("Resource load vs capacity")
         self.resource_chart.ax.axvline(100.0, color=CFG.COLOR_DANGER, linestyle="--", linewidth=0.8)
         self.resource_chart.ax.grid(True, axis="x", linestyle=":", linewidth=0.5, alpha=0.6)
-        max_alloc = max(allocs) if allocs else 100.0
-        axis_max = max(110.0, max_alloc * 1.2)
+        max_util = max(utils) if utils else 100.0
+        axis_max = max(110.0, max_util * 1.2)
         self.resource_chart.ax.set_xlim(0.0, axis_max)
         for i, bar in enumerate(bars):
-            val = allocs[i]
+            val = utils[i]
+            total_alloc = float(getattr(rows_sorted[i], "total_allocation_percent", 0.0) or 0.0)
+            capacity = float(getattr(rows_sorted[i], "capacity_percent", 100.0) or 100.0)
             x = min(val + 2.0, axis_max - 2.0)
             self.resource_chart.ax.text(
                 x,
                 bar.get_y() + bar.get_height() / 2.0,
-                f"{val:.0f}%",
+                f"{val:.0f}% ({total_alloc:.0f}/{capacity:.0f})",
                 va="center",
                 ha="left",
                 fontsize=8,

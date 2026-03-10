@@ -97,7 +97,14 @@ class ExcelReportRenderer:
 
         # ---------------- Resources ----------------
         ws_res = wb.create_sheet("Resources")
-        headers = ["Resource ID", "Name", "Total allocation (%)", "Tasks count"]
+        headers = [
+            "Resource ID",
+            "Name",
+            "Assigned (%)",
+            "Capacity (%)",
+            "Utilization (%)",
+            "Tasks count",
+        ]
         for c, h in enumerate(headers, start=1):
             cell = ws_res.cell(1, c, h)
             cell.font = header_font
@@ -110,6 +117,8 @@ class ExcelReportRenderer:
                 res.resource_id,
                 res.resource_name,
                 res.total_allocation_percent,
+                float(getattr(res, "capacity_percent", 100.0) or 100.0),
+                float(getattr(res, "utilization_percent", res.total_allocation_percent) or 0.0),
                 res.tasks_count,
             ]
             for c, v in enumerate(values, 1):
@@ -119,7 +128,9 @@ class ExcelReportRenderer:
         ws_res.column_dimensions["A"].width = 34
         ws_res.column_dimensions["B"].width = 28
         ws_res.column_dimensions["C"].width = 20
-        ws_res.column_dimensions["D"].width = 15
+        ws_res.column_dimensions["D"].width = 14
+        ws_res.column_dimensions["E"].width = 16
+        ws_res.column_dimensions["F"].width = 15
 
         # ---------------- EVM ----------------
         if ctx.evm or ctx.evm_series:

@@ -88,6 +88,9 @@ class ResourceFiltersMixin:
                         resource.role or "",
                         resource_category,
                         resource.currency_code or "",
+                        getattr(resource, "address", "") or "",
+                        getattr(resource, "contact", "") or "",
+                        f"{float(getattr(resource, 'capacity_percent', 100.0) or 100.0):.1f}",
                     ]
                 ).lower()
                 if query not in haystack:
