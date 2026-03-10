@@ -42,8 +42,11 @@ def test_gantt_dialog_uses_interactive_mixin():
         encoding="utf-8", errors="ignore"
     )
     assert "class GanttPreviewDialog(GanttInteractiveMixin, QDialog):" in dialog_text
+    assert 'self.btn_open_interactive = QPushButton("Open Interactive")' in dialog_text
     assert "class GanttInteractiveMixin" in interactive_text
     assert "class _InteractiveGanttBar" in interactive_text
+    assert 'self.btn_toggle_grid = QPushButton("Grid: On")' in interactive_text
+    assert "drag the right edge to change duration" in interactive_text
 
 
 def test_dashboard_builder_is_persisted():
@@ -56,6 +59,7 @@ def test_dashboard_builder_is_persisted():
     )
     assert 'self.btn_customize_dashboard = QPushButton("Customize Dashboard")' in tab_text
     assert "class DashboardLayoutStateMixin" in state_text
+    assert "QDialog.Accepted" in state_text
     assert "class DashboardLayoutDialog(QDialog):" in builder_text
 
 
@@ -66,6 +70,7 @@ def test_collaboration_baseline_store_and_dialog_exist():
     )
     assert "class TaskCollaborationStore" in store_text
     assert "def unread_mentions_count" in store_text
+    assert "def unread_mentions_count_for_users" in store_text
     assert "class TaskCollaborationDialog(QDialog):" in dialog_text
+    assert "mention_aliases" in dialog_text
     assert "@username" in dialog_text
-

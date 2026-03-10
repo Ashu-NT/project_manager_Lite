@@ -1,6 +1,7 @@
 # ui/task/tab.py
 from __future__ import annotations
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QWidget
 
 from core.events.domain_events import domain_events
@@ -95,6 +96,10 @@ class TaskTab(
         self._sync_toolbar_actions()
         self._sync_undo_redo_state()
         self._refresh_mentions_badge()
+        self._mentions_refresh_timer = QTimer(self)
+        self._mentions_refresh_timer.setInterval(4000)
+        self._mentions_refresh_timer.timeout.connect(self._refresh_mentions_badge)
+        self._mentions_refresh_timer.start()
         domain_events.tasks_changed.connect(self._on_task_changed)
         domain_events.project_changed.connect(self._on_project_changed_event)
         domain_events.resources_changed.connect(self._on_resources_changed)

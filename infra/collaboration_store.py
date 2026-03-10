@@ -65,16 +65,26 @@ class TaskCollaborationStore:
         user = (username or "").strip().lower()
         if not user:
             return 0
+        return self.unread_mentions_count_for_users([user])
+
+    def unread_mentions_count_for_users(self, usernames: list[str]) -> int:
+        aliases = {
+            str(name).strip().lower()
+            for name in (usernames or [])
+            if str(name).strip()
+        }
+        if not aliases:
+            return 0
         payload = self._read_payload()
         total = 0
         for row in payload.get("comments", []):
             if not isinstance(row, dict):
                 continue
-            mentions = [str(m).lower() for m in row.get("mentions", [])]
-            if user not in mentions:
+            mentions = {str(m).lower() for m in row.get("mentions", [])}
+            if mentions.isdisjoint(aliases):
                 continue
-            read_by = [str(v).lower() for v in row.get("read_by", [])]
-            if user in read_by:
+            read_by = {str(v).lower() for v in row.get("read_by", [])}
+            if not read_by.isdisjoint(aliases):
                 continue
             total += 1
         return total
@@ -112,4 +122,3 @@ class TaskCollaborationStore:
 
 
 __all__ = ["TaskCollaborationStore"]
-

@@ -28,12 +28,20 @@ class TaskCollaborationDialog(QDialog):
         task_id: str,
         task_name: str,
         username: str,
+        mention_aliases: list[str] | None = None,
     ) -> None:
         super().__init__(parent)
         self._store = store
         self._task_id = task_id
         self._task_name = task_name
         self._username = username
+        self._mention_aliases = [
+            str(alias).strip().lower()
+            for alias in (mention_aliases or [])
+            if str(alias).strip()
+        ]
+        if not self._mention_aliases and self._username:
+            self._mention_aliases.append(str(self._username).strip().lower())
         self._pending_attachments: list[str] = []
         self.setWindowTitle(f"Task Collaboration - {task_name}")
         self._setup_ui()
@@ -98,7 +106,8 @@ class TaskCollaborationDialog(QDialog):
         self.attachments_label.setText(f"Attachments: {preview}")
 
     def reload_comments(self) -> None:
-        self._store.mark_task_mentions_read(task_id=self._task_id, username=self._username)
+        for alias in self._mention_aliases:
+            self._store.mark_task_mentions_read(task_id=self._task_id, username=alias)
         comments = self._store.list_comments(self._task_id)
         self.activity_list.clear()
         for row in comments:
@@ -139,4 +148,3 @@ class TaskCollaborationDialog(QDialog):
 
 
 __all__ = ["TaskCollaborationDialog"]
-

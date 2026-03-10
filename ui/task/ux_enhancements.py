@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import getpass
+import os
+
 from PySide6.QtGui import QKeySequence, QShortcut
 
 from ui.styles.ui_config import UIConfig as CFG
@@ -45,14 +48,42 @@ class TaskUxEnhancementsMixin:
         self.task_schedule_filter.setAccessibleName("Task Schedule Filter")
 
     def _current_username(self) -> str:
+        identities = self._mention_identities()
+        return identities[0] if identities else "unknown"
+
+    def _mention_identities(self) -> list[str]:
+        identities: list[str] = []
         principal = getattr(self._user_session, "principal", None)
-        username = getattr(principal, "username", "") if principal is not None else ""
-        return str(username or "").strip() or "unknown"
+        if principal is not None:
+            raw_username = str(getattr(principal, "username", "") or "").strip().lower()
+            if raw_username:
+                identities.append(raw_username)
+            display_name = str(getattr(principal, "display_name", "") or "").strip().lower()
+            if display_name:
+                compact = display_name.replace(" ", "")
+                dotted = display_name.replace(" ", ".")
+                for value in (display_name, compact, dotted):
+                    token = value.strip(" @")
+                    if token:
+                        identities.append(token)
+        for fallback in (
+            os.getenv("PM_USERNAME"),
+            os.getenv("USERNAME"),
+            getpass.getuser(),
+        ):
+            token = str(fallback or "").strip().lower().strip(" @")
+            if token:
+                identities.append(token)
+        deduped = list(dict.fromkeys(identities))
+        return deduped or ["unknown"]
 
     def _refresh_mentions_badge(self) -> None:
-        username = self._current_username()
-        unread = self._collaboration_store.unread_mentions_count(username)
+        identities = self._mention_identities()
+        unread = self._collaboration_store.unread_mentions_count_for_users(identities)
         self.lbl_mentions.setText(f"Mentions: {unread}")
+        self.lbl_mentions.setToolTip(
+            "Watching aliases: " + ", ".join(f"@{name}" for name in identities[:4])
+        )
         self.lbl_mentions.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
 
     def _open_task_collaboration(self) -> None:
@@ -65,10 +96,10 @@ class TaskUxEnhancementsMixin:
             task_id=task.id,
             task_name=task.name,
             username=self._current_username(),
+            mention_aliases=self._mention_identities(),
         )
         dialog.exec()
         self._refresh_mentions_badge()
 
 
 __all__ = ["TaskUxEnhancementsMixin"]
-

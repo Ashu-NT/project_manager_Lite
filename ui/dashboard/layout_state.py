@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PySide6.QtWidgets import QDialog
+
 from ui.dashboard.layout_builder import DashboardLayoutDialog
 
 
@@ -12,7 +14,7 @@ class DashboardLayoutStateMixin:
     def _open_dashboard_layout_builder(self) -> None:
         current = self._current_dashboard_layout_payload()
         dlg = DashboardLayoutDialog(self, current_layout=current)
-        if dlg.exec() != dlg.accepted:
+        if dlg.exec() != QDialog.Accepted:
             return
         payload = dlg.layout_payload
         self._apply_dashboard_layout(payload)
@@ -55,4 +57,3 @@ class DashboardLayoutStateMixin:
 
 
 __all__ = ["DashboardLayoutStateMixin"]
-

@@ -76,6 +76,7 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         self.btn_actual_size = QPushButton("100%")
         self.btn_zoom_out = QPushButton("Zoom -")
         self.btn_zoom_in = QPushButton("Zoom +")
+        self.btn_open_interactive = QPushButton("Open Interactive")
         self.lbl_zoom = QLabel("Fit width")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_close = QPushButton(CFG.CLOSE_BUTTON_LABEL)
@@ -84,6 +85,7 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
             self.btn_actual_size,
             self.btn_zoom_out,
             self.btn_zoom_in,
+            self.btn_open_interactive,
             self.btn_refresh,
             self.btn_close,
         ]:
@@ -93,6 +95,7 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         btn_row.addWidget(self.btn_actual_size)
         btn_row.addWidget(self.btn_zoom_out)
         btn_row.addWidget(self.btn_zoom_in)
+        btn_row.addWidget(self.btn_open_interactive)
         btn_row.addWidget(self.lbl_zoom)
         btn_row.addStretch()
         btn_row.addWidget(self.btn_refresh)
@@ -103,9 +106,16 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         self.btn_actual_size.clicked.connect(self._set_actual_size)
         self.btn_zoom_in.clicked.connect(self._zoom_in)
         self.btn_zoom_out.clicked.connect(self._zoom_out)
+        self.btn_open_interactive.clicked.connect(self._toggle_interactive_panel)
         self.btn_refresh.clicked.connect(self._load_image)
         self.btn_close.clicked.connect(self.accept)
+        self._set_interactive_visible(False)
         self._load_image()
+
+    def _toggle_interactive_panel(self) -> None:
+        visible = not self.interactive_container.isVisible()
+        self._set_interactive_visible(visible)
+        self.btn_open_interactive.setText("Hide Interactive" if visible else "Open Interactive")
 
     def _set_fit_width(self):
         self._fit_mode = True
@@ -181,4 +191,3 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         super().resizeEvent(event)
         if self._fit_mode:
             self._render_preview()
-
