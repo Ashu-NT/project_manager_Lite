@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
+from datetime import date
 
+from tests.ui_runtime_helpers import make_settings_store, register_and_login
+from ui.main_window import MainWindow
+from ui.project.tab import ProjectTab
+from ui.resource.tab import ResourceTab
+from ui.shared import guards as guards_mod
 from ui.shared.guards import can_execute_governed_action, has_permission
-
-
-ROOT = Path(__file__).resolve().parents[1]
+from ui.task.tab import TaskTab
 
 
 class _FakeSession:
@@ -62,76 +65,85 @@ def test_guard_permission_helpers_resolve_manage_vs_governed_modes(monkeypatch):
     )
 
 
-def test_main_window_passes_user_session_to_action_tabs():
-    text = (ROOT / "ui" / "main_window.py").read_text(encoding="utf-8", errors="ignore")
-    assert "dashboard_tab = DashboardTab(" in text
-    assert "calendar_tab = CalendarTab(" in text
-    assert "resource_tab = ResourceTab(" in text
-    assert "project_tab = ProjectTab(" in text
-    assert "task_tab = TaskTab(" in text
-    assert "cost_tab = CostTab(" in text
-    assert "user_session=self._user_session" in text
+def test_main_window_runtime_hides_admin_tabs_for_viewer(qapp, services, repo_workspace, monkeypatch):
+    register_and_login(services, username_prefix="viewer-main-window", role_names=("viewer",))
+    store = make_settings_store(repo_workspace, prefix="main-window-viewer")
+    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+    labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
+
+    assert "Projects" in labels
+    assert "Tasks" in labels
+    assert "Costs" in labels
+    assert "Users" not in labels
+    assert "Audit" not in labels
+    assert "Support" not in labels
 
 
-def test_tabs_apply_rbac_hints_and_guarded_slots():
-    root = ROOT / "ui"
-    task_text = (root / "task" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    project_text = (root / "project" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    resource_text = (root / "resource" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    cost_text = (root / "cost" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    calendar_text = (root / "calendar" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    users_text = (root / "admin" / "users_tab.py").read_text(encoding="utf-8", errors="ignore")
-    dashboard_text = (root / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    dashboard_access_text = (root / "dashboard" / "access.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
+def test_tabs_apply_permission_hints_and_disable_manage_actions_for_viewer(qapp, services, repo_workspace):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    prs = services["project_resource_service"]
+
+    project = ps.create_project("Viewer Project")
+    task = ts.create_task(project.id, "Viewer Task", start_date=date(2026, 4, 1), duration_days=2)
+    rs.create_resource("Viewer Resource", hourly_rate=100.0)
+    register_and_login(services, username_prefix="viewer-tabs", role_names=("viewer",))
+
+    resource_tab = ResourceTab(
+        resource_service=rs,
+        user_session=services["user_session"],
     )
-    governance_text = (root / "governance" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-
-    assert "can_execute_governed_action(" in task_text
-    assert "apply_permission_hint(" in task_text
-    assert "make_guarded_slot(" in task_text
-    assert "apply_permission_hint(" in project_text
-    assert "make_guarded_slot(" in project_text
-    assert "apply_permission_hint(" in resource_text
-    assert "make_guarded_slot(" in resource_text
-    assert "can_execute_governed_action(" in cost_text
-    assert "apply_permission_hint(" in cost_text
-    assert "apply_permission_hint(" in calendar_text
-    assert "make_guarded_slot(" in calendar_text
-    assert "apply_permission_hint(" in users_text
-    assert "make_guarded_slot(" in users_text
-    assert "can_execute_governed_action(" in dashboard_access_text
-    assert "apply_permission_hint(" in dashboard_access_text
-    assert "wire_dashboard_access(" in dashboard_text
-    assert "make_guarded_slot(" in governance_text
-
-
-def test_assignment_and_project_resource_panels_respect_manage_permissions():
-    task_panel_text = (ROOT / "ui" / "task" / "assignment_panel.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
+    project_tab = ProjectTab(
+        project_service=ps,
+        task_service=ts,
+        reporting_service=services["reporting_service"],
+        project_resource_service=prs,
+        resource_service=rs,
+        data_import_service=services["data_import_service"],
+        user_session=services["user_session"],
     )
-    project_panel_text = (ROOT / "ui" / "project" / "resource_panel.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
+    task_tab = TaskTab(
+        project_service=ps,
+        task_service=ts,
+        resource_service=rs,
+        project_resource_service=prs,
+        collaboration_store=services["task_collaboration_store"],
+        settings_store=make_settings_store(repo_workspace, prefix="task-viewer"),
+        user_session=services["user_session"],
     )
 
-    assert "can_manage_assignments" in task_panel_text
-    assert "can_add_dependencies" in task_panel_text
-    assert "can_remove_dependencies" in task_panel_text
-    assert "can_manage = bool(getattr(self, \"_can_manage_project_resources\", True))" in project_panel_text
+    project_tab.table.selectRow(0)
+    project_tab._sync_actions()
+    task_tab._select_task_by_id(task.id)
+    task_tab._set_assignment_panel_actions_state(
+        task_selected=True,
+        assignment_selected=False,
+        dependency_selected=False,
+    )
+
+    assert resource_tab.btn_new.isEnabled() is False
+    assert "resource.manage" in resource_tab.btn_new.toolTip()
+    assert project_tab.btn_new.isEnabled() is False
+    assert project_tab.btn_import_csv.isEnabled() is False
+    assert "project.manage" in project_tab.btn_import_csv.toolTip()
+    assert project_tab._btn_project_resource_add.isEnabled() is False
+    assert task_tab.btn_new.isEnabled() is False
+    assert task_tab.btn_assignment_add.isEnabled() is False
+    assert task_tab.btn_assignment_log_hours.isEnabled() is False
+    task_tab._mentions_refresh_timer.stop()
 
 
 def test_guarded_errors_include_incident_context_and_business_event_mappings():
-    guards_text = (ROOT / "ui" / "shared" / "guards.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
+    assert guards_mod._CALLBACK_ERROR_EVENT_MAP["create_task"] == "business.task.add.error"
+    assert guards_mod._CALLBACK_ERROR_EVENT_MAP["edit_task"] == "business.task.update.error"
+    assert (
+        guards_mod._CALLBACK_ERROR_EVENT_MAP["recalc_project_schedule"]
+        == "business.schedule.recalculate.error"
     )
-    assert "_CALLBACK_ERROR_EVENT_MAP" in guards_text
-    assert "\"create_task\": \"business.task.add.error\"" in guards_text
-    assert "\"edit_task\": \"business.task.update.error\"" in guards_text
-    assert "\"recalc_project_schedule\": \"business.schedule.recalculate.error\"" in guards_text
-    assert "\"_generate_baseline\": \"business.baseline.create.error\"" in guards_text
-    assert "message_with_incident" in guards_text
-    assert "emit_error_event" in guards_text
+    assert guards_mod._CALLBACK_ERROR_EVENT_MAP["_generate_baseline"] == "business.baseline.create.error"
+    assert callable(guards_mod.message_with_incident)
+    assert callable(guards_mod.emit_error_event)

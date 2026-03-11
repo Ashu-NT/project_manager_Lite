@@ -1,96 +1,128 @@
-from pathlib import Path
+from __future__ import annotations
+
+from datetime import date
+
+from PySide6.QtWidgets import QDialog, QLineEdit
+
+from core.models import Task, TaskStatus
+from tests.ui_runtime_helpers import make_settings_store
+from ui.admin.user_dialog import PasswordResetDialog, UserEditDialog
+from ui.admin.users_tab import UserAdminTab
+from ui.auth.login_dialog import LoginDialog
+from ui.main_window import MainWindow
+from ui.task.task_progress_dialog import TaskProgressDialog
 
 
-ROOT = Path(__file__).resolve().parents[1]
+def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, repo_workspace, monkeypatch):
+    store = make_settings_store(repo_workspace, prefix="main-window-admin")
+    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+    labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
+
+    assert "Projects" in labels
+    assert "Tasks" in labels
+    assert "Users" in labels
+    assert "Audit" in labels
+    assert "Support" in labels
 
 
-def test_main_window_exposes_users_tab_for_auth_manage():
-    text = (ROOT / "ui" / "main_window.py").read_text(encoding="utf-8", errors="ignore")
-    assert "from ui.admin.users_tab import UserAdminTab" in text
-    assert 'self.tabs.addTab(users_tab, "Users")' in text
-
-
-def test_main_window_exposes_audit_tab_for_auth_manage():
-    text = (ROOT / "ui" / "main_window.py").read_text(encoding="utf-8", errors="ignore")
-    assert "from ui.admin.audit_tab import AuditLogTab" in text
-    assert 'self.tabs.addTab(audit_tab, "Audit")' in text
-
-
-def test_audit_tab_resolves_reference_ids_to_display_names():
-    text = (ROOT / "ui" / "admin" / "audit_tab.py").read_text(encoding="utf-8", errors="ignore")
-    assert "def _resolve_detail_value" in text
-    assert "self._task_name_by_id.get(raw, raw)" in text
-    assert "self._resource_name_by_id.get(raw, raw)" in text
-    assert "self._cost_label_by_id.get(raw, raw)" in text
-
-
-def test_audit_tab_supports_date_and_date_range_filters():
-    text = (ROOT / "ui" / "admin" / "audit_tab.py").read_text(encoding="utf-8", errors="ignore")
-    assert "self.date_mode_filter = QComboBox()" in text
-    assert 'self.date_mode_filter.addItem("All Dates", userData="all")' in text
-    assert 'self.date_mode_filter.addItem("On Date", userData="on")' in text
-    assert 'self.date_mode_filter.addItem("Date Range", userData="range")' in text
-    assert "self.date_from_filter = QDateEdit()" in text
-    assert "self.date_to_filter = QDateEdit()" in text
-    assert "def _date_matches" in text
-
-
-def test_user_admin_tab_exposes_reset_password_action():
-    text = (ROOT / "ui" / "admin" / "users_tab.py").read_text(encoding="utf-8", errors="ignore")
-    assert 'self.btn_reset_password = QPushButton("Reset Password")' in text
-    assert "def reset_password(self) -> None:" in text
-    assert "PasswordResetDialog(username=user.username, parent=self)" in text
-    assert "self._auth_service.reset_user_password(user.id, new_password)" in text
-
-
-def test_user_admin_tab_exposes_edit_user_action():
-    tab_text = (ROOT / "ui" / "admin" / "users_tab.py").read_text(
-        encoding="utf-8", errors="ignore"
+def test_user_admin_tab_runtime_enables_edit_and_reset_actions_after_selection(qapp, services):
+    tab = UserAdminTab(
+        auth_service=services["auth_service"],
+        user_session=services["user_session"],
     )
-    dialog_text = (ROOT / "ui" / "admin" / "user_dialog.py").read_text(
-        encoding="utf-8", errors="ignore"
+
+    assert tab.table.rowCount() >= 1
+    assert tab.btn_new_user.isEnabled() is True
+    assert tab.btn_edit_user.isEnabled() is False
+    assert tab.btn_reset_password.isEnabled() is False
+
+    tab.table.selectRow(0)
+    tab._sync_actions()
+
+    assert tab.btn_edit_user.isEnabled() is True
+    assert tab.btn_reset_password.isEnabled() is True
+    assert tab.btn_toggle_active.isEnabled() is True
+
+
+def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_services):
+    auth_service = anonymous_services["auth_service"]
+    user_session = anonymous_services["user_session"]
+    dialog = LoginDialog(auth_service=auth_service, user_session=user_session)
+
+    assert dialog.password_input.echoMode() == QLineEdit.Password
+    dialog.btn_toggle_password.setChecked(True)
+    assert dialog.password_input.echoMode() == QLineEdit.Normal
+    assert dialog.btn_toggle_password.text() == "Hide"
+
+    dialog.username_input.setText("admin")
+    dialog.password_input.setText("ChangeMe123!")
+    dialog._try_sign_in()
+
+    assert dialog.result() == QDialog.Accepted
+    assert dialog.principal is not None
+    assert dialog.principal.username == "admin"
+
+
+def test_password_reset_dialog_runtime_validates_match_and_accepts(qapp, monkeypatch):
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        "ui.admin.user_dialog.QMessageBox.warning",
+        lambda _parent, _title, message: warnings.append(message),
     )
-    assert 'self.btn_edit_user = QPushButton("Edit User")' in tab_text
-    assert "def edit_user(self) -> None:" in tab_text
-    assert "UserEditDialog(" in tab_text
-    assert "self._auth_service.update_user_profile(" in tab_text
-    assert "class UserEditDialog(QDialog):" in dialog_text
+    dialog = PasswordResetDialog(username="alice")
+
+    dialog.btn_toggle_password.setChecked(True)
+    assert dialog.password_input.echoMode() == QLineEdit.Normal
+    assert dialog.confirm_password_input.echoMode() == QLineEdit.Normal
+
+    dialog.password_input.setText("StrongPass123")
+    dialog.confirm_password_input.setText("Mismatch123")
+    dialog._validate_and_accept()
+    assert warnings[-1] == "Password and confirm password must match."
+    assert dialog.result() != QDialog.Accepted
+
+    dialog.confirm_password_input.setText("StrongPass123")
+    dialog._validate_and_accept()
+    assert dialog.result() == QDialog.Accepted
 
 
-def test_project_tab_exposes_update_status_action():
-    tab_text = (ROOT / "ui" / "project" / "tab.py").read_text(
-        encoding="utf-8", errors="ignore"
+def test_user_edit_dialog_runtime_validates_email(qapp, monkeypatch):
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        "ui.admin.user_dialog.QMessageBox.warning",
+        lambda _parent, _title, message: warnings.append(message),
     )
-    actions_text = (ROOT / "ui" / "project" / "actions.py").read_text(
-        encoding="utf-8", errors="ignore"
+    dialog = UserEditDialog(username="alice", display_name="Alice", email="alice@example.com")
+
+    dialog.email_input.setText("not-an-email")
+    dialog._validate_and_accept()
+    assert warnings[-1] == "Invalid email format."
+    assert dialog.result() != QDialog.Accepted
+
+    dialog.email_input.setText("updated@example.com")
+    dialog._validate_and_accept()
+    assert dialog.result() == QDialog.Accepted
+
+
+def test_task_progress_dialog_runtime_supports_status_checkbox_update(qapp, monkeypatch):
+    task = Task.create(
+        project_id="project-1",
+        name="Progress Task",
+        start_date=date(2026, 3, 1),
+        duration_days=2,
+        status=TaskStatus.TODO,
     )
-    assert "self.btn_update_status = QPushButton(CFG.UPDATE_PROJECT_STATUS_LABEL)" in tab_text
-    assert "callback=self.update_project_status" in tab_text
-    assert "def update_project_status(self) -> None:" in actions_text
-    assert "self._project_service.set_status(proj.id, selected_status)" in actions_text
+    dialog = TaskProgressDialog(task=task)
+    monkeypatch.setattr(dialog, "_prompt_iso_date", lambda *_args, **_kwargs: date(2026, 3, 2))
 
+    dialog.status_check.setChecked(True)
+    dialog.status_combo.setCurrentIndex(dialog.status_combo.findData(TaskStatus.IN_PROGRESS))
+    payload = dialog.build_payload()
 
-def test_login_dialog_has_show_hide_password_toggle():
-    text = (ROOT / "ui" / "auth" / "login_dialog.py").read_text(encoding="utf-8", errors="ignore")
-    assert "self.btn_toggle_password = QPushButton(\"Show\")" in text
-    assert "def _toggle_password_visibility" in text
-
-
-def test_password_reset_dialog_has_strength_toggle_and_confirm_logic():
-    text = (ROOT / "ui" / "admin" / "user_dialog.py").read_text(encoding="utf-8", errors="ignore")
-    assert "class PasswordResetDialog(QDialog):" in text
-    assert "self.btn_toggle_password = QPushButton(\"Show\")" in text
-    assert "self.password_input.textChanged.connect(self._update_password_strength)" in text
-    assert "Password and confirm password must match." in text
-
-
-def test_task_progress_dialog_supports_status_checkbox_update():
-    text = (ROOT / "ui" / "task" / "task_progress_dialog.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-    assert "self.status_check = QCheckBox()" in text
-    assert "self.status_combo = QComboBox()" in text
-    assert "form.addRow(\"Status:\", self._with_checkbox(self.status_combo, self.status_check))" in text
-    assert "def status_set(self) -> bool:" in text
-    assert "def status(self) -> TaskStatus | None:" in text
+    assert dialog.status_set is True
+    assert payload is not None
+    assert payload["status"] == TaskStatus.IN_PROGRESS
+    assert payload["actual_start"] == date(2026, 3, 2)
