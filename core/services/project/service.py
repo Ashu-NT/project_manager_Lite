@@ -9,6 +9,7 @@ from core.interfaces import (
     DependencyRepository,
     ProjectRepository,
     TaskRepository,
+    TimeEntryRepository,
 )
 from core.services.audit.service import AuditService
 from core.services.auth.session import UserSessionContext
@@ -26,6 +27,7 @@ class ProjectService(ProjectLifecycleMixin, ProjectQueryMixin):
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         assignment_repo: AssignmentRepository,
+        time_entry_repo: TimeEntryRepository | None,
         calendar_repo: CalendarEventRepository,
         cost_repo: CostRepository,
         user_session: UserSessionContext | None = None,
@@ -36,6 +38,7 @@ class ProjectService(ProjectLifecycleMixin, ProjectQueryMixin):
         self._task_repo: TaskRepository = task_repo
         self._dependency_repo: DependencyRepository = dependency_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
+        self._time_entry_repo = time_entry_repo
         self._calendar_repo: CalendarEventRepository = calendar_repo
         self._cost_repo: CostRepository = cost_repo
         self._user_session: UserSessionContext | None = user_session

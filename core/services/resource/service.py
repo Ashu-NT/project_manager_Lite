@@ -4,7 +4,12 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from core.models import Resource, CostType
-from core.interfaces import ResourceRepository, AssignmentRepository, ProjectResourceRepository
+from core.interfaces import (
+    ResourceRepository,
+    AssignmentRepository,
+    ProjectResourceRepository,
+    TimeEntryRepository,
+)
 from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.events.domain_events import domain_events
 from core.services.audit.helpers import record_audit
@@ -27,6 +32,7 @@ class ResourceService:
                  resource_repo: ResourceRepository, 
                  assignment_repo: AssignmentRepository,
                  project_resource_repo: ProjectResourceRepository | None = None,
+                 time_entry_repo: TimeEntryRepository | None = None,
                  user_session=None,
                  audit_service=None,
         ):
@@ -34,6 +40,7 @@ class ResourceService:
         self._resource_repo: ResourceRepository = resource_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
+        self._time_entry_repo: TimeEntryRepository | None = time_entry_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -176,6 +183,8 @@ class ResourceService:
             # delete assignments and Project- Resource first
             assignments = self._assignment_repo.list_by_resource(resource_id)
             for a in assignments:
+                if self._time_entry_repo is not None:
+                    self._time_entry_repo.delete_by_assignment(a.id)
                 self._assignment_repo.delete(a.id)
             if self._project_resource_repo is not None:
                 self._project_resource_repo.delete_by_resource(resource_id)

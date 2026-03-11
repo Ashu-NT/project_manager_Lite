@@ -167,6 +167,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         task_repo,
         dependency_repo,
         assignment_repo,
+        time_entry_repo,
         calendar_repo,
         cost_repo,
         user_session=user_session,
@@ -201,6 +202,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_repo,
         assignment_repo,
         project_resource_repo,
+        time_entry_repo,
         user_session=user_session,
         audit_service=audit_service,
     )

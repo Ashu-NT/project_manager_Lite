@@ -14,6 +14,7 @@ from core.interfaces import (
     DependencyRepository,
     ProjectRepository,
     TaskRepository,
+    TimeEntryRepository,
 )
 from core.models import Project, ProjectStatus
 from core.services.audit.helpers import record_audit
@@ -30,6 +31,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
+    _time_entry_repo: TimeEntryRepository | None
     _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
 
@@ -195,6 +197,10 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             tasks = self._task_repo.list_by_project(project_id)
             for task in tasks:
                 self._dependency_repo.delete_for_task(task.id)
+                assignments = self._assignment_repo.list_by_task(task.id)
+                if self._time_entry_repo is not None:
+                    for assignment in assignments:
+                        self._time_entry_repo.delete_by_assignment(assignment.id)
                 self._assignment_repo.delete_by_task(task.id)
                 self._calendar_repo.delete_for_task(task.id)
                 self._task_repo.delete(task.id)
