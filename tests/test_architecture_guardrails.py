@@ -279,8 +279,9 @@ def test_dashboard_tab_is_coordinator_only():
     assert "from ui.dashboard.data_ops import" in text
     assert "from ui.dashboard.portfolio_panel import DashboardPortfolioPanelMixin" in text
     assert "from ui.dashboard.rendering import" in text
+    assert "from ui.dashboard.control_rail import DashboardControlRailMixin" in text
+    assert "from ui.dashboard.top_bar import DashboardTopBarMixin" in text
     assert "from ui.dashboard.workqueue_button import DashboardQueueButton" in text
-    assert "from ui.dashboard.styles import" in text
     assert "from ui.dashboard.widgets import" in text
     assert "class KpiCard" not in text
     assert "class ChartWidget" not in text
@@ -289,17 +290,24 @@ def test_dashboard_tab_is_coordinator_only():
 def test_dashboard_tab_uses_panel_workspace_layout():
     tab_path = ROOT / "ui" / "dashboard" / "tab.py"
     top_bar_path = ROOT / "ui" / "dashboard" / "top_bar.py"
+    control_rail_path = ROOT / "ui" / "dashboard" / "control_rail.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
     top_bar_text = top_bar_path.read_text(encoding="utf-8", errors="ignore")
+    control_rail_text = control_rail_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "self.panel_scroll = QScrollArea()" in text
     assert "self.panel_grid = QGridLayout(self.panel_canvas)" in text
+    assert "workspace_layout = QHBoxLayout(workspace)" in text
+    assert "workspace_layout.addWidget(self._build_dashboard_control_sidebar())" in text
+    assert "self.summary_widget = self._build_dashboard_top_bar()" in text
     assert "layout.addWidget(self.summary_widget)" in text
-    assert "layout.addWidget(self.panel_scroll, 1)" in text
+    assert "workspace_layout.addWidget(self.panel_scroll, 1)" in text
     assert "self._prepare_conflicts_dialog()" in text
     assert "DashboardQueueButton(\"Conflicts\", active_variant=\"danger\")" in top_bar_text
     assert "DashboardQueueButton(\"Alerts\", active_variant=\"warning\")" in top_bar_text
     assert "DashboardQueueButton(\"Upcoming\", active_variant=\"info\")" in top_bar_text
+    assert "self.dashboard_control_stack = QStackedWidget()" in control_rail_text
+    assert "self._set_dashboard_controls_collapsed(False)" in control_rail_text
 
 
 def test_dashboard_rendering_module_is_facade_only():

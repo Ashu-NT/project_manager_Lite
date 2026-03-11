@@ -177,6 +177,7 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
     assert project.id == tab.project_combo.currentData()
     assert tab.btn_customize_dashboard.text() == "Customize Dashboard"
     assert tab.summary_widget.isHidden() is False
+    assert tab.project_label_prefix.text() == "PROJECT OVERVIEW"
     assert tab.kpi_group.isHidden() is False
     assert tab.resource_chart.isHidden() is False
     assert tab.evm_group.isHidden() is True
@@ -253,6 +254,27 @@ def test_dashboard_layout_dialog_enforces_mode_specific_selection_runtime(qapp):
     dialog._panel_checks["resource"].setChecked(True)
     dialog._sync_selection_state()
     assert dialog.btn_save.isEnabled() is True
+
+
+def test_dashboard_control_rail_collapses_runtime(qapp, services, repo_workspace, monkeypatch):
+    services["project_service"].create_project("Dashboard Rail")
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+
+    tab = DashboardTab(
+        project_service=services["project_service"],
+        dashboard_service=services["dashboard_service"],
+        baseline_service=services["baseline_service"],
+        settings_store=make_settings_store(repo_workspace, prefix="dashboard-rail"),
+        user_session=services["user_session"],
+    )
+
+    assert tab.dashboard_control_stack.currentIndex() == 0
+    tab._set_dashboard_controls_collapsed(True)
+    assert tab.dashboard_control_stack.currentIndex() == 1
+    assert tab.dashboard_control_stack.width() == 128
+    tab.btn_show_dashboard_controls.click()
+    assert tab.dashboard_control_stack.currentIndex() == 0
+    assert tab.kpi_group.layout().count() == 8
 
 
 def test_collaboration_dialog_posts_mentions_and_attachments_at_runtime(qapp, repo_workspace):

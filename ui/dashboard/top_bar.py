@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import (
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
-from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_summary_style
+from ui.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style, dashboard_summary_style
 from ui.dashboard.workqueue_button import DashboardQueueButton
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -25,90 +19,94 @@ class DashboardTopBarMixin:
                 border-radius: 18px;
                 border: 1px solid {CFG.COLOR_BORDER};
             }}
-            QFrame#dashboardControlCard {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 14px;
-            }}
-            QFrame#dashboardSignalCard {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 14px;
-            }}
-            QLabel#dashboardEyebrow {{
-                color: {CFG.COLOR_TEXT_MUTED};
-                font-size: 9pt;
-                font-weight: 700;
-                letter-spacing: 1px;
-            }}
-            QLabel#dashboardHeading {{
+            QLabel#dashboardTopTitle {{
                 color: {CFG.COLOR_TEXT_PRIMARY};
                 font-size: 18pt;
                 font-weight: 800;
             }}
-            QLabel#dashboardSubheading {{
+            QLabel#dashboardTopSubtitle {{
                 color: {CFG.COLOR_TEXT_SECONDARY};
-                font-size: 9.5pt;
+                font-size: 9pt;
             }}
-            QLabel#dashboardControlTitle {{
-                color: {CFG.COLOR_TEXT_MUTED};
-                font-size: 8.5pt;
-                font-weight: 700;
-                letter-spacing: 1px;
-            }}
-            QLabel#dashboardSignalEyebrow {{
+            QLabel#dashboardTopEyebrow {{
                 color: {CFG.COLOR_TEXT_MUTED};
                 font-size: 8pt;
                 font-weight: 700;
                 letter-spacing: 1px;
             }}
-            QLabel#dashboardSignalMeta {{
+            QFrame#dashboardTopStatus {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 14px;
+            }}
+            QLabel#dashboardTopStatusCopy {{
                 color: {CFG.COLOR_TEXT_SECONDARY};
-                font-size: 9pt;
+                font-size: 8.5pt;
             }}
             """
         )
 
-        root = QVBoxLayout(top_bar)
-        root.setContentsMargins(CFG.SPACING_MD, CFG.SPACING_MD, CFG.SPACING_MD, CFG.SPACING_MD)
-        root.setSpacing(CFG.SPACING_MD)
+        root = QHBoxLayout(top_bar)
+        root.setContentsMargins(CFG.SPACING_MD, CFG.SPACING_SM, CFG.SPACING_MD, CFG.SPACING_SM)
+        root.setSpacing(CFG.SPACING_SM)
 
-        header_row = QHBoxLayout()
-        header_row.setSpacing(CFG.SPACING_MD)
+        overview = QVBoxLayout()
+        overview.setSpacing(CFG.SPACING_XS)
 
-        header_copy = QVBoxLayout()
-        header_copy.setSpacing(CFG.SPACING_XS)
-        eyebrow = QLabel("DELIVERY CONTROL")
-        eyebrow.setObjectName("dashboardEyebrow")
-        heading = QLabel("Dashboard Control Center")
-        heading.setObjectName("dashboardHeading")
-        subheading = QLabel(
-            "Keep the overview pinned, switch between project and portfolio lenses, "
-            "and keep the main surface intentionally focused."
-        )
-        subheading.setObjectName("dashboardSubheading")
-        subheading.setWordWrap(True)
-        header_copy.addWidget(eyebrow)
-        header_copy.addWidget(heading)
-        header_copy.addWidget(subheading)
-        header_row.addLayout(header_copy, 1)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(CFG.SPACING_SM)
+        self.project_label_prefix = QLabel("PROJECT OVERVIEW")
+        self.project_label_prefix.setObjectName("dashboardTopEyebrow")
+        title_copy = QVBoxLayout()
+        title_copy.setSpacing(0)
+        title_copy.addWidget(self.project_label_prefix)
+        self.project_title_lbl = QLabel("Select a project to see schedule and cost health.")
+        self.project_title_lbl.setObjectName("dashboardTopTitle")
+        self.project_title_lbl.setWordWrap(True)
+        title_copy.addWidget(self.project_title_lbl)
+        self.project_subtitle_lbl = QLabel("")
+        self.project_subtitle_lbl.setObjectName("dashboardTopSubtitle")
+        self.project_subtitle_lbl.setWordWrap(True)
+        self.project_subtitle_lbl.hide()
+        title_copy.addWidget(self.project_subtitle_lbl)
+        title_row.addLayout(title_copy, 1)
+        self.project_mode_badge = QLabel("Project View")
+        self.project_mode_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        title_row.addWidget(self.project_mode_badge, 0, Qt.AlignTop)
+        overview.addLayout(title_row)
 
-        signal_card = QFrame()
-        signal_card.setObjectName("dashboardSignalCard")
-        signal_layout = QVBoxLayout(signal_card)
-        signal_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        signal_layout.setSpacing(CFG.SPACING_XS)
-        signal_label = QLabel("ACTIVE VIEW")
-        signal_label.setObjectName("dashboardSignalEyebrow")
+        meta_row = QHBoxLayout()
+        meta_row.setSpacing(CFG.SPACING_XS)
+        chip_style = dashboard_meta_chip_style()
+        self.project_meta_scope = QLabel("")
+        self.project_meta_start = QLabel("")
+        self.project_meta_end = QLabel("")
+        self.project_meta_duration = QLabel("")
+        for label in (
+            self.project_meta_scope,
+            self.project_meta_start,
+            self.project_meta_end,
+            self.project_meta_duration,
+        ):
+            label.setStyleSheet(chip_style)
+            label.hide()
+            meta_row.addWidget(label)
+        meta_row.addStretch()
+        overview.addLayout(meta_row)
+        root.addLayout(overview, 1)
+
+        status_card = QFrame()
+        status_card.setObjectName("dashboardTopStatus")
+        status_layout = QVBoxLayout(status_card)
+        status_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
+        status_layout.setSpacing(CFG.SPACING_XS)
         self.dashboard_mode_badge = QLabel("Project View")
         self.dashboard_mode_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
-        self.dashboard_scope_hint = QLabel("4 panels active | Overview pinned")
-        self.dashboard_scope_hint.setObjectName("dashboardSignalMeta")
-        self.dashboard_scope_hint.setWordWrap(True)
-        signal_layout.addWidget(signal_label)
-        signal_layout.addWidget(self.dashboard_mode_badge)
-        signal_layout.addWidget(self.dashboard_scope_hint)
-        header_row.addWidget(signal_card)
+        self.dashboard_scope_hint = QLabel("4 panels active")
+        self.dashboard_scope_hint.setObjectName("dashboardTopStatusCopy")
+        status_layout.addWidget(self.dashboard_mode_badge)
+        status_layout.addWidget(self.dashboard_scope_hint)
+        root.addWidget(status_card)
 
         queue_row = QHBoxLayout()
         queue_row.setSpacing(CFG.SPACING_SM)
@@ -119,45 +117,12 @@ class DashboardTopBarMixin:
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             queue_row.addWidget(btn)
-        header_row.addLayout(queue_row)
-        root.addLayout(header_row)
+        root.addLayout(queue_row)
 
-        controls_row = QHBoxLayout()
-        controls_row.setSpacing(CFG.SPACING_SM)
-        controls_row.addWidget(self._control_card("View", self.project_combo, self.btn_reload_projects), 3)
-        controls_row.addWidget(self._control_card("Baseline", self.baseline_combo, self.btn_create_baseline, self.btn_delete_baseline), 3)
-        controls_row.addWidget(self._control_card("Actions", self.btn_refresh_dashboard, self.btn_customize_dashboard), 2)
-        root.addLayout(controls_row)
-
-        self.btn_refresh_dashboard.setStyleSheet(dashboard_action_button_style("primary"))
-        self.btn_reload_projects.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_customize_dashboard.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_create_baseline.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_delete_baseline.setStyleSheet(dashboard_action_button_style("danger"))
         self.btn_open_conflicts.set_variants(active="danger", inactive="success")
         self.btn_open_alerts.set_variants(active="warning", inactive="success")
         self.btn_open_upcoming.set_variants(active="info", inactive="neutral")
         return top_bar
-
-    def _control_card(self, title: str, *widgets: QWidget) -> QFrame:
-        card = QFrame()
-        card.setObjectName("dashboardControlCard")
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        layout.setSpacing(CFG.SPACING_SM)
-        title_label = QLabel(title.upper())
-        title_label.setObjectName("dashboardControlTitle")
-        layout.addWidget(title_label)
-
-        row = QHBoxLayout()
-        row.setSpacing(CFG.SPACING_SM)
-        for widget in widgets:
-            if isinstance(widget, QPushButton):
-                widget.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-                widget.setFixedHeight(CFG.BUTTON_HEIGHT)
-            row.addWidget(widget)
-        layout.addLayout(row)
-        return card
 
 
 __all__ = ["DashboardTopBarMixin"]
