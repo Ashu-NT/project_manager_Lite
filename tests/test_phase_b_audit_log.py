@@ -155,6 +155,34 @@ def test_assignment_and_project_resource_audit_use_business_labels(services):
     assert project_resource_add.details.get("resource_name") == "Backend Dev"
 
 
+def test_legacy_hours_bootstrap_into_timesheet_is_audited(services):
+    _login_admin(services)
+    ps = services["project_service"]
+    rs = services["resource_service"]
+    ts = services["task_service"]
+    audit = services["audit_service"]
+
+    project = ps.create_project("Bootstrap Audit")
+    task = ts.create_task(
+        project_id=project.id,
+        name="Bootstrap Task",
+        start_date=date(2026, 3, 1),
+        duration_days=2,
+    )
+    resource = rs.create_resource("Bootstrap Dev", hourly_rate=120.0)
+    assignment = ts.assign_resource(task.id, resource.id, 50.0)
+    ts.set_assignment_hours(assignment.id, 5.0)
+
+    seeded_entries = ts.initialize_timesheet_for_assignment(assignment.id)
+
+    assert len(seeded_entries) == 1
+    entries = audit.list_recent(limit=80, project_id=project.id)
+    bootstrap = next(e for e in entries if e.action == "time_entry.bootstrap_legacy_hours")
+    assert bootstrap.details.get("task_name") == "Bootstrap Task"
+    assert bootstrap.details.get("resource_name") == "Bootstrap Dev"
+    assert bootstrap.details.get("legacy_hours_migrated") == pytest.approx(5.0)
+
+
 def test_auth_login_attempts_are_audited(services):
     auth = services["auth_service"]
     audit = services["audit_service"]

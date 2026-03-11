@@ -245,6 +245,11 @@ class AssignmentListDialog(QDialog):
             resource_name = resource.name
         except NotFoundError:
             resource_name = assignment.resource_id
+        try:
+            self._task_service.initialize_timesheet_for_assignment(assignment.id)
+        except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Timesheet", str(exc))
+            return
         dialog = TimesheetDialog(
             self,
             task_service=self._task_service,

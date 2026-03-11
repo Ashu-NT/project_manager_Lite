@@ -4,8 +4,9 @@ from datetime import date, datetime, timezone
 
 from core.events.domain_events import domain_events
 from core.exceptions import NotFoundError, ValidationError
+from core.domain.task import Task
 from core.interfaces import AssignmentRepository, ResourceRepository, TaskRepository, TimeEntryRepository
-from core.models import TimeEntry
+from core.models import TaskAssignment, TimeEntry
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 
@@ -15,6 +16,36 @@ class TaskTimeEntryMixin:
     _resource_repo: ResourceRepository
     _task_repo: TaskRepository
     _time_entry_repo: TimeEntryRepository | None
+
+    def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
+        require_permission(self._user_session, "task.manage", operation_label="open timesheet")
+        assignment, task, resource = self._load_assignment_context(assignment_id)
+        if self._time_entry_repo is None:
+            return []
+        seeded_entry = None
+        try:
+            seeded_entry = self._seed_legacy_hours_entry(assignment, task)
+            if seeded_entry is not None:
+                self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        if seeded_entry is not None:
+            record_audit(
+                self,
+                action="time_entry.bootstrap_legacy_hours",
+                entity_type="time_entry",
+                entity_id=seeded_entry.id,
+                project_id=task.project_id,
+                details=self._build_time_entry_audit_details(
+                    assignment=assignment,
+                    task=task,
+                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    entry=seeded_entry,
+                    extra={"legacy_hours_migrated": seeded_entry.hours},
+                ),
+            )
+        return self._time_entry_repo.list_by_assignment(assignment_id)
 
     def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
         assignment = self._assignment_repo.get(assignment_id)
@@ -34,6 +65,8 @@ class TaskTimeEntryMixin:
     ) -> TimeEntry:
         require_permission(self._user_session, "task.manage", operation_label="add time entry")
         assignment, task, resource = self._load_assignment_context(assignment_id)
+        if self._time_entry_repo is None:
+            raise ValidationError("Time entry repository is not configured.")
         entry = TimeEntry.create(
             assignment_id=assignment.id,
             entry_date=entry_date,
@@ -42,25 +75,40 @@ class TaskTimeEntryMixin:
             author_user_id=getattr(getattr(self._user_session, "principal", None), "user_id", None),
             author_username=getattr(getattr(self._user_session, "principal", None), "username", None),
         )
-        if self._time_entry_repo is None:
-            raise ValidationError("Time entry repository is not configured.")
+        seeded_entry = None
         try:
+            seeded_entry = self._seed_legacy_hours_entry(assignment, task)
             self._time_entry_repo.add(entry)
             self._session.flush()
             self._sync_assignment_hours_from_entries(assignment.id)
             self._session.commit()
+            if seeded_entry is not None:
+                record_audit(
+                    self,
+                    action="time_entry.bootstrap_legacy_hours",
+                    entity_type="time_entry",
+                    entity_id=seeded_entry.id,
+                    project_id=task.project_id,
+                    details=self._build_time_entry_audit_details(
+                        assignment=assignment,
+                        task=task,
+                        resource_name=resource.name if resource is not None else assignment.resource_id,
+                        entry=seeded_entry,
+                        extra={"legacy_hours_migrated": seeded_entry.hours},
+                    ),
+                )
             record_audit(
                 self,
                 action="time_entry.add",
                 entity_type="time_entry",
                 entity_id=entry.id,
                 project_id=task.project_id,
-                details={
-                    "task_name": task.name,
-                    "resource_name": resource.name if resource is not None else assignment.resource_id,
-                    "hours": entry.hours,
-                    "entry_date": str(entry.entry_date),
-                },
+                details=self._build_time_entry_audit_details(
+                    assignment=assignment,
+                    task=task,
+                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    entry=entry,
+                ),
             )
         except Exception:
             self._session.rollback()
@@ -97,12 +145,12 @@ class TaskTimeEntryMixin:
                 entity_type="time_entry",
                 entity_id=entry.id,
                 project_id=task.project_id,
-                details={
-                    "task_name": task.name,
-                    "resource_name": resource.name if resource is not None else assignment.resource_id,
-                    "hours": entry.hours,
-                    "entry_date": str(entry.entry_date),
-                },
+                details=self._build_time_entry_audit_details(
+                    assignment=assignment,
+                    task=task,
+                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    entry=entry,
+                ),
             )
         except Exception:
             self._session.rollback()
@@ -125,12 +173,12 @@ class TaskTimeEntryMixin:
                 entity_type="time_entry",
                 entity_id=entry.id,
                 project_id=task.project_id,
-                details={
-                    "task_name": task.name,
-                    "resource_name": resource.name if resource is not None else assignment.resource_id,
-                    "hours": entry.hours,
-                    "entry_date": str(entry.entry_date),
-                },
+                details=self._build_time_entry_audit_details(
+                    assignment=assignment,
+                    task=task,
+                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    entry=entry,
+                ),
             )
         except Exception:
             self._session.rollback()
@@ -164,6 +212,50 @@ class TaskTimeEntryMixin:
         entries = self._time_entry_repo.list_by_assignment(assignment_id)
         assignment.hours_logged = sum(float(item.hours or 0.0) for item in entries)
         self._assignment_repo.update(assignment)
+
+    def _seed_legacy_hours_entry(self, assignment: TaskAssignment, task: Task) -> TimeEntry | None:
+        if self._time_entry_repo is None:
+            return None
+        if self._time_entry_repo.list_by_assignment(assignment.id):
+            return None
+        hours = float(getattr(assignment, "hours_logged", 0.0) or 0.0)
+        if hours <= 0:
+            return None
+        seeded_entry = TimeEntry.create(
+            assignment_id=assignment.id,
+            entry_date=self._resolve_legacy_time_entry_date(task),
+            hours=hours,
+            note="Opening balance migrated from existing logged hours.",
+            author_username="system",
+        )
+        self._time_entry_repo.add(seeded_entry)
+        self._session.flush()
+        self._sync_assignment_hours_from_entries(assignment.id)
+        return seeded_entry
+
+    @staticmethod
+    def _resolve_legacy_time_entry_date(task: Task) -> date:
+        return task.actual_start or task.start_date or date.today()
+
+    @staticmethod
+    def _build_time_entry_audit_details(
+        *,
+        assignment: TaskAssignment,
+        task: Task,
+        resource_name: str,
+        entry: TimeEntry,
+        extra: dict[str, object] | None = None,
+    ) -> dict[str, object]:
+        details: dict[str, object] = {
+            "task_name": task.name,
+            "resource_name": resource_name or assignment.resource_id,
+            "hours": entry.hours,
+            "entry_date": str(entry.entry_date),
+        }
+        for key, value in (extra or {}).items():
+            if value is not None:
+                details[key] = value
+        return details
 
     @staticmethod
     def _validate_time_entry_hours(hours: float) -> float:

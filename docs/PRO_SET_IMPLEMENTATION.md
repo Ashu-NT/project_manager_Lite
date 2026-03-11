@@ -52,8 +52,9 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
   - `time_entries` persistence added at the assignment level
   - task assignment totals now roll up from time entries
   - task UI now opens a timesheet dialog instead of editing aggregate hours directly
+  - existing aggregate `hours_logged` now seeds an opening-balance entry on first timesheet use
 
 ## Follow-ups
 
 - Shared collaboration becomes truly multi-user when the app is pointed at a shared database via `PM_DB_URL`.
-- Legacy aggregate `hours_logged` is still preserved as a compatibility field for reporting and older workflows.
+- Legacy aggregate `hours_logged` is still preserved as the reporting compatibility field, but it now syncs from timesheet rows once an assignment is initialized for timesheets.

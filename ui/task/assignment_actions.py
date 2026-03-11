@@ -128,6 +128,11 @@ class TaskAssignmentActionsMixin:
             resource_name = self._resource_service.get_resource(assignment.resource_id).name
         except NotFoundError:
             pass
+        try:
+            self._task_service.initialize_timesheet_for_assignment(assignment.id)
+        except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Timesheet", str(exc))
+            return
         dialog = TimesheetDialog(
             self,
             task_service=self._task_service,

@@ -73,6 +73,40 @@ def test_time_entries_roll_up_assignment_hours_and_replace_aggregate_edit(servic
         ts.set_assignment_hours(assignment.id, 10.0)
 
 
+def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("Legacy Hours Project")
+    task = ts.create_task(project.id, "Legacy Hours Task", start_date=date(2026, 3, 4), duration_days=2)
+    resource = rs.create_resource("Legacy Logger", hourly_rate=95.0)
+    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
+
+    ts.set_assignment_hours(assignment.id, 4.0)
+    seeded_entries = ts.initialize_timesheet_for_assignment(assignment.id)
+
+    assert len(seeded_entries) == 1
+    assert seeded_entries[0].hours == pytest.approx(4.0)
+    assert seeded_entries[0].entry_date == date(2026, 3, 4)
+    assert seeded_entries[0].author_username == "system"
+    assert "Opening balance" in seeded_entries[0].note
+
+    ts.add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 3, 5),
+        hours=2.0,
+        note="Testing",
+    )
+
+    entries = ts.list_time_entries_for_assignment(assignment.id)
+    assert len(entries) == 2
+    assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(6.0)
+
+    with pytest.raises(ValidationError, match="timesheet"):
+        ts.set_assignment_hours(assignment.id, 8.0)
+
+
 def test_data_import_service_imports_projects_resources_tasks_and_costs(services):
     importer = services["data_import_service"]
     ps = services["project_service"]
