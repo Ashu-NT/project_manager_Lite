@@ -1,31 +1,20 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel
-
 from core.services.dashboard import DashboardData
 from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.styles.formatting import fmt_float, fmt_int, fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
 
-
 class DashboardSummaryRenderingMixin:
     conflicts_table: object
-    btn_auto_level: object
-    btn_manual_shift: object
-    btn_open_conflicts: object
-    btn_open_alerts: object
-    btn_open_upcoming: object
-    burndown_chart: ChartWidget
-    resource_chart: ChartWidget
-    kpi_tasks: KpiCard
-    kpi_critical: KpiCard
-    kpi_late: KpiCard
-    kpi_cost: KpiCard
-    kpi_progress: KpiCard
-    project_title_lbl: QLabel
-    project_meta_start: QLabel
-    project_meta_end: QLabel
-    project_meta_duration: QLabel
+    btn_auto_level: object; btn_manual_shift: object; btn_open_conflicts: object
+    btn_open_alerts: object; btn_open_upcoming: object
+    burndown_chart: ChartWidget; resource_chart: ChartWidget
+    kpi_tasks: KpiCard; kpi_critical: KpiCard; kpi_late: KpiCard; kpi_cost: KpiCard; kpi_progress: KpiCard
+    project_title_lbl: QLabel; project_subtitle_lbl: QLabel; project_mode_badge: QLabel
+    project_meta_scope: QLabel; project_meta_start: QLabel; project_meta_end: QLabel; project_meta_duration: QLabel
+    dashboard_mode_badge: QLabel; dashboard_scope_hint: QLabel
 
     def _clear_dashboard(self):
         self.conflicts_table.setRowCount(0)
@@ -69,14 +58,20 @@ class DashboardSummaryRenderingMixin:
 
         if hasattr(self, "project_title_lbl"):
             self.project_title_lbl.setText("Select a project to see schedule and cost health.")
-            self.project_meta_start.setText("")
-            self.project_meta_end.setText("")
-            self.project_meta_duration.setText("")
+            self.project_subtitle_lbl.setText("The overview header stays pinned while the dashboard panels stay focused.")
+            self.project_mode_badge.setText("Project View")
+            self.project_meta_scope.setText(""); self.project_meta_start.setText("")
+            self.project_meta_end.setText(""); self.project_meta_duration.setText("")
+        if hasattr(self, "dashboard_mode_badge"):
+            self.dashboard_mode_badge.setText("Project View")
+            self.dashboard_scope_hint.setText("4 panels available | Overview pinned")
 
         if hasattr(self, "_reset_evm_view"):
             self._reset_evm_view()
         if hasattr(self, "_clear_portfolio_panel"):
             self._clear_portfolio_panel()
+        if hasattr(self, "_sync_dashboard_panel_visibility"):
+            self._sync_dashboard_panel_visibility()
 
     def _update_summary(self, project_name: str, data: DashboardData):
         k = data.kpi
@@ -86,23 +81,34 @@ class DashboardSummaryRenderingMixin:
         title = project_name or (getattr(k, "name", None) or "")
         if portfolio is not None:
             title = "Portfolio Overview"
-        self.project_title_lbl.setText(title)
-        self.project_title_lbl.setVisible(True)
-        self.project_title_lbl.setWordWrap(portfolio is not None)
-
-        self.project_meta_start.setText(f"{CFG.DASHBOARD_META_START_PREFIX} {start}")
-        self.project_meta_start.setVisible(True)
-        self.project_meta_end.setText(f"{CFG.DASHBOARD_META_END_PREFIX} {end}")
-        self.project_meta_end.setVisible(True)
-        if portfolio is None:
-            self.project_meta_duration.setText(
-                f"{CFG.DASHBOARD_META_DURATION_PREFIX} {k.duration_working_days} working days"
+            subtitle, mode_text, scope_text = (
+                "Cross-project delivery health, ranking, and capacity hotspots.",
+                "Portfolio View",
+                "Scope Cross-project control",
             )
         else:
-            self.project_meta_duration.setText(
-                f"Projects {portfolio.projects_total} | Active {portfolio.active_projects} | At risk {portfolio.at_risk_projects}"
+            subtitle, mode_text, scope_text = (
+                "Schedule health, budget pressure, and delivery status for the selected project.",
+                "Project View",
+                "Scope Project execution",
             )
-        self.project_meta_duration.setVisible(True)
+        self.project_title_lbl.setText(title)
+        self.project_subtitle_lbl.setText(subtitle)
+        self.project_mode_badge.setText(mode_text)
+        self.project_meta_scope.setText(scope_text)
+        self.project_meta_start.setText(f"{CFG.DASHBOARD_META_START_PREFIX} {start}")
+        self.project_meta_end.setText(f"{CFG.DASHBOARD_META_END_PREFIX} {end}")
+        self.project_meta_duration.setText(
+            f"{CFG.DASHBOARD_META_DURATION_PREFIX} {k.duration_working_days} working days"
+            if portfolio is None
+            else f"Projects {portfolio.projects_total} | Active {portfolio.active_projects} | At risk {portfolio.at_risk_projects}"
+        )
+        if hasattr(self, "_sync_dashboard_panel_visibility"):
+            self._sync_dashboard_panel_visibility()
+        if hasattr(self, "dashboard_mode_badge"):
+            active_count = self._active_dashboard_panel_count() if hasattr(self, "_active_dashboard_panel_count") else 0
+            self.dashboard_mode_badge.setText(mode_text)
+            self.dashboard_scope_hint.setText(f"{active_count} panels active | Overview pinned")
 
     def _update_kpis(self, data: DashboardData):
         k = data.kpi
@@ -130,9 +136,7 @@ class DashboardSummaryRenderingMixin:
             self.kpi_critical.set_value(fmt_int(k.critical_tasks))
         else:
             self.kpi_critical.set_value(fmt_int(portfolio.at_risk_projects))
-
         self.kpi_late.set_value(fmt_int(k.late_tasks))
-
         self.kpi_cost.set_value(f"{fmt_float(k.cost_variance,2)}")
         cost_subtitle = "Actual - Planned"
         sources = getattr(data, "cost_sources", None)

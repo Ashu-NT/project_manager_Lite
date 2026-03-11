@@ -105,6 +105,7 @@ def test_dashboard_service_manual_shift_emits_tasks_changed_event(services):
 def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     root = Path(__file__).resolve().parents[1]
     tab_text = (root / "ui" / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
+    top_bar_text = (root / "ui" / "dashboard" / "top_bar.py").read_text(encoding="utf-8", errors="ignore")
     actions_text = (root / "ui" / "dashboard" / "workqueue_actions.py").read_text(
         encoding="utf-8", errors="ignore"
     )
@@ -123,9 +124,9 @@ def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
     assert "self.btn_auto_level.setToolTip(" in panel_text
     assert "self.btn_manual_shift.setToolTip(" in panel_text
     assert "self.conflicts_table = QTableWidget(0, 4)" in panel_text
-    assert "DashboardQueueButton(\"Conflicts\", active_variant=\"danger\")" in tab_text
-    assert "DashboardQueueButton(\"Alerts\", active_variant=\"warning\")" in tab_text
-    assert "DashboardQueueButton(\"Upcoming\", active_variant=\"info\")" in tab_text
+    assert "DashboardQueueButton(\"Conflicts\", active_variant=\"danger\")" in top_bar_text
+    assert "DashboardQueueButton(\"Alerts\", active_variant=\"warning\")" in top_bar_text
+    assert "DashboardQueueButton(\"Upcoming\", active_variant=\"info\")" in top_bar_text
     assert "self.btn_open_conflicts.clicked.connect(self._open_conflicts_dialog)" in tab_text
     assert "self.btn_open_alerts.clicked.connect(self._open_alerts_dialog)" in tab_text
     assert "self.btn_open_upcoming.clicked.connect(self._open_upcoming_dialog)" in tab_text

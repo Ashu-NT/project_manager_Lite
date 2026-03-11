@@ -23,6 +23,20 @@ def dashboard_summary_style() -> str:
     """
 
 
+def dashboard_badge_style(background: str, foreground: str = "#FFFFFF") -> str:
+    return f"""
+    QLabel {{
+        background-color: {background};
+        border: 1px solid {background};
+        border-radius: 10px;
+        color: {foreground};
+        font-size: 9pt;
+        font-weight: 700;
+        padding: 4px 10px;
+    }}
+    """
+
+
 def dashboard_meta_chip_style() -> str:
     return f"""
     QLabel {{
@@ -105,6 +119,7 @@ def dashboard_queue_button_style() -> str:
 
 __all__ = [
     "dashboard_action_button_style",
+    "dashboard_badge_style",
     "dashboard_card_style",
     "dashboard_meta_chip_style",
     "dashboard_queue_button_style",

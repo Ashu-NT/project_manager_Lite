@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ui.dashboard.styles import dashboard_action_button_style, dashboard_summary_style
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_summary_style
 from ui.dashboard.workqueue_button import DashboardQueueButton
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -26,6 +26,11 @@ class DashboardTopBarMixin:
                 border: 1px solid {CFG.COLOR_BORDER};
             }}
             QFrame#dashboardControlCard {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 14px;
+            }}
+            QFrame#dashboardSignalCard {{
                 background-color: {CFG.COLOR_BG_SURFACE_ALT};
                 border: 1px solid {CFG.COLOR_BORDER};
                 border-radius: 14px;
@@ -51,6 +56,16 @@ class DashboardTopBarMixin:
                 font-weight: 700;
                 letter-spacing: 1px;
             }}
+            QLabel#dashboardSignalEyebrow {{
+                color: {CFG.COLOR_TEXT_MUTED};
+                font-size: 8pt;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }}
+            QLabel#dashboardSignalMeta {{
+                color: {CFG.COLOR_TEXT_SECONDARY};
+                font-size: 9pt;
+            }}
             """
         )
 
@@ -68,8 +83,8 @@ class DashboardTopBarMixin:
         heading = QLabel("Dashboard Control Center")
         heading.setObjectName("dashboardHeading")
         subheading = QLabel(
-            "Switch between project and portfolio views, tune visible panels, "
-            "and keep execution pressure in one place."
+            "Keep the overview pinned, switch between project and portfolio lenses, "
+            "and keep the main surface intentionally focused."
         )
         subheading.setObjectName("dashboardSubheading")
         subheading.setWordWrap(True)
@@ -77,6 +92,23 @@ class DashboardTopBarMixin:
         header_copy.addWidget(heading)
         header_copy.addWidget(subheading)
         header_row.addLayout(header_copy, 1)
+
+        signal_card = QFrame()
+        signal_card.setObjectName("dashboardSignalCard")
+        signal_layout = QVBoxLayout(signal_card)
+        signal_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
+        signal_layout.setSpacing(CFG.SPACING_XS)
+        signal_label = QLabel("ACTIVE VIEW")
+        signal_label.setObjectName("dashboardSignalEyebrow")
+        self.dashboard_mode_badge = QLabel("Project View")
+        self.dashboard_mode_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        self.dashboard_scope_hint = QLabel("4 panels active | Overview pinned")
+        self.dashboard_scope_hint.setObjectName("dashboardSignalMeta")
+        self.dashboard_scope_hint.setWordWrap(True)
+        signal_layout.addWidget(signal_label)
+        signal_layout.addWidget(self.dashboard_mode_badge)
+        signal_layout.addWidget(self.dashboard_scope_hint)
+        header_row.addWidget(signal_card)
 
         queue_row = QHBoxLayout()
         queue_row.setSpacing(CFG.SPACING_SM)

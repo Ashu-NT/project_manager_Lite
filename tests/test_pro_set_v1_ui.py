@@ -6,8 +6,10 @@ from pathlib import Path
 from PySide6.QtWidgets import QDialog
 
 from core.domain.enums import TaskStatus
+from core.services.dashboard import PORTFOLIO_SCOPE_ID
 from infra.collaboration_store import TaskCollaborationStore
 from tests.ui_runtime_helpers import make_settings_store
+from ui.dashboard.layout_builder import DashboardLayoutDialog
 from ui.dashboard.tab import DashboardTab
 from ui.report.dialog_gantt import GanttPreviewDialog
 from ui.task.collaboration_dialog import TaskCollaborationDialog
@@ -152,15 +154,14 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
     store = make_settings_store(repo_workspace, prefix="dashboard-layout")
     store.save_dashboard_layout(
         {
-            "show_summary": True,
-            "show_kpi": False,
-            "show_evm": True,
-            "show_burndown": True,
-            "show_resource": True,
-            "main_left_percent": 60,
-            "chart_top_percent": 35,
-            "left_order": ["summary", "evm", "kpi"],
-            "chart_order": ["resource", "burndown"],
+            "project": {
+                "visible_panels": ["resource", "kpi"],
+                "panel_order": ["resource", "kpi", "evm", "burndown"],
+            },
+            "portfolio": {
+                "visible_panels": ["portfolio", "resource", "burndown"],
+                "panel_order": ["portfolio", "resource", "burndown", "kpi"],
+            },
         }
     )
     monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
@@ -175,25 +176,31 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
 
     assert project.id == tab.project_combo.currentData()
     assert tab.btn_customize_dashboard.text() == "Customize Dashboard"
-    assert tab.kpi_group.isHidden() is True
-    assert tab._current_left_order()[:3] == ["summary", "evm", "kpi"]
-    assert tab._current_chart_order()[:2] == ["resource", "burndown"]
+    assert tab.summary_widget.isHidden() is False
+    assert tab.kpi_group.isHidden() is False
+    assert tab.resource_chart.isHidden() is False
+    assert tab.evm_group.isHidden() is True
+    assert tab.burndown_chart.isHidden() is True
+    assert tab.portfolio_group.isHidden() is True
+    assert tab._current_visible_panel_ids() == ["resource", "kpi"]
+    assert tab._current_panel_order() == ["resource", "kpi", "evm", "burndown"]
+    assert tab._active_dashboard_panel_count() == 2
 
     applied_payload = {
-        "show_summary": True,
-        "show_kpi": True,
-        "show_evm": False,
-        "show_burndown": False,
-        "show_resource": True,
-        "main_left_percent": 55,
-        "chart_top_percent": 30,
-        "left_order": ["kpi", "summary", "evm"],
-        "chart_order": ["resource", "burndown"],
+        "project": {
+            "visible_panels": ["evm", "kpi", "burndown"],
+            "panel_order": ["evm", "kpi", "burndown", "resource"],
+        },
+        "portfolio": {
+            "visible_panels": ["portfolio", "resource"],
+            "panel_order": ["portfolio", "resource", "burndown", "kpi"],
+        },
     }
 
     class _AcceptedLayoutDialog:
-        def __init__(self, _parent, *, current_layout=None):
+        def __init__(self, _parent, *, current_layout=None, portfolio_mode=False):
             self.current_layout = current_layout
+            self.portfolio_mode = portfolio_mode
             self.layout_payload = applied_payload
 
         def exec(self):
@@ -203,9 +210,49 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
     tab._open_dashboard_layout_builder()
 
     assert store.load_dashboard_layout() == applied_payload
-    assert tab._current_left_order()[:3] == ["kpi", "summary", "evm"]
-    assert tab.evm_group.isHidden() is True
+    assert tab._current_visible_panel_ids() == ["evm", "kpi", "burndown"]
+    assert tab._active_dashboard_panel_count() == 3
+    assert tab.evm_group.isHidden() is False
+    assert tab.kpi_group.isHidden() is False
+    assert tab.burndown_chart.isHidden() is False
+    assert tab.resource_chart.isHidden() is True
+    assert tab.portfolio_group.isHidden() is True
+
+    portfolio_index = tab.project_combo.findData(PORTFOLIO_SCOPE_ID)
+    tab.project_combo.setCurrentIndex(portfolio_index)
+
+    assert tab._current_visible_panel_ids() == ["portfolio", "resource"]
+    assert tab.portfolio_group.isHidden() is False
+    assert tab.resource_chart.isHidden() is False
+    assert tab.kpi_group.isHidden() is True
     assert tab.burndown_chart.isHidden() is True
+
+
+def test_dashboard_layout_dialog_enforces_mode_specific_selection_runtime(qapp):
+    dialog = DashboardLayoutDialog(
+        None,
+        current_layout={
+            "project": {
+                "visible_panels": ["kpi", "evm", "burndown"],
+                "panel_order": ["evm", "kpi", "burndown", "resource"],
+            },
+            "portfolio": {
+                "visible_panels": ["portfolio", "resource", "burndown"],
+                "panel_order": ["portfolio", "resource", "burndown", "kpi"],
+            },
+        },
+        portfolio_mode=True,
+    )
+
+    assert dialog.mode_badge.text() == "Portfolio View"
+    assert dialog.btn_save.isEnabled() is True
+    dialog._panel_checks["portfolio"].setChecked(False)
+    dialog._panel_checks["resource"].setChecked(False)
+    dialog._sync_selection_state()
+    assert dialog.btn_save.isEnabled() is False
+    dialog._panel_checks["resource"].setChecked(True)
+    dialog._sync_selection_state()
+    assert dialog.btn_save.isEnabled() is True
 
 
 def test_collaboration_dialog_posts_mentions_and_attachments_at_runtime(qapp, repo_workspace):

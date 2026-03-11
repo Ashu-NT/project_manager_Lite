@@ -17,7 +17,7 @@ class DashboardPortfolioRenderingMixin:
         if not hasattr(self, "portfolio_group"):
             return
         self.portfolio_table.setRowCount(0)
-        self.portfolio_group.setHidden(True)
+        self.portfolio_group.setTitle("Portfolio Ranking")
 
     def _update_portfolio_panel(self, data: DashboardData) -> None:
         portfolio = getattr(data, "portfolio", None)
@@ -28,7 +28,7 @@ class DashboardPortfolioRenderingMixin:
             return
 
         rows = portfolio.project_rankings
-        self.portfolio_group.setHidden(False)
+        self.portfolio_group.setTitle(f"Portfolio Ranking ({len(rows)})")
         self.portfolio_table.setRowCount(len(rows))
         for row, item in enumerate(rows):
             values = [

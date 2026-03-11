@@ -1,31 +1,41 @@
 from __future__ import annotations
+
 from typing import Optional
+
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QComboBox, QGridLayout, QGroupBox, QHBoxLayout,
-                               QLabel, QPushButton, QSplitter, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (
+    QComboBox,
+    QFrame,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
+)
+
 from core.events.domain_events import domain_events
 from core.services.auth import UserSessionContext
 from core.services.baseline import BaselineService
 from core.services.dashboard import DashboardData, DashboardService
 from core.services.project import ProjectService
-from ui.dashboard.access import (
-    configure_dashboard_access,
-    wire_dashboard_access,
-)
+from ui.dashboard.access import configure_dashboard_access, wire_dashboard_access
 from ui.dashboard.alerts_panel import DashboardAlertsPanelMixin
 from ui.dashboard.data_ops import DashboardDataOpsMixin
-from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
 from ui.dashboard.layout_state import DashboardLayoutStateMixin
+from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
 from ui.dashboard.portfolio_panel import DashboardPortfolioPanelMixin
 from ui.dashboard.rendering import DashboardRenderingMixin
+from ui.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style, dashboard_summary_style
 from ui.dashboard.top_bar import DashboardTopBarMixin
+from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.dashboard.workqueue_button import DashboardQueueButton
 from ui.dashboard.workqueue_actions import DashboardWorkqueueActionsMixin
-from ui.dashboard.styles import dashboard_meta_chip_style, dashboard_summary_style
-from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.settings.main_window_store import MainWindowSettingsStore
 from ui.styles.ui_config import UIConfig as CFG
+
 
 class DashboardTab(
     DashboardDataOpsMixin,
@@ -68,7 +78,8 @@ class DashboardTab(
         domain_events.project_changed.connect(self._on_project_catalog_changed)
         domain_events.resources_changed.connect(self._on_resources_changed)
         domain_events.baseline_changed.connect(self._on_baseline_changed)
-    def _setup_ui(self):
+
+    def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_SM)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
@@ -91,7 +102,6 @@ class DashboardTab(
 
         self.btn_create_baseline = QPushButton(CFG.CREATE_BASELINE_LABEL)
         self.btn_delete_baseline = QPushButton(CFG.DELETE_BASELINE_LABEL)
-
         for btn in (
             self.btn_reload_projects,
             self.btn_refresh_dashboard,
@@ -101,119 +111,22 @@ class DashboardTab(
         ):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
+
         layout.addWidget(self._build_dashboard_top_bar())
+        self._build_overview_card()
+        layout.addWidget(self.summary_widget)
+        self._build_dashboard_panels()
 
-        self.main_splitter = QSplitter(Qt.Horizontal)
-        self.main_splitter.setChildrenCollapsible(False)
-        self.main_splitter.setHandleWidth(8)
-
-        left_panel = QWidget()
-        self.left_layout = left_layout = QVBoxLayout(left_panel)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(CFG.SPACING_SM)
-        left_panel.setMinimumWidth(420)
-
-        self.summary_widget = QWidget()
-        self.summary_widget.setStyleSheet(dashboard_summary_style())
-        s_layout = QVBoxLayout(self.summary_widget)
-        s_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        s_layout.setSpacing(CFG.SPACING_SM)
-
-        title_row = QWidget()
-        pt_layout = QHBoxLayout(title_row)
-        pt_layout.setContentsMargins(0, 0, 0, 0)
-        pt_layout.setSpacing(CFG.SPACING_XS)
-
-        self.project_label_prefix = QLabel(CFG.DASHBOARD_PROJECT_LABEL)
-        self.project_label_prefix.setStyleSheet(CFG.DASHBOARD_PROJECT_LABEL_STYLE)
-        self.project_label_prefix.setTextInteractionFlags(Qt.TextSelectableByMouse)
-
-        self.project_title_lbl = QLabel("Select a project to see schedule and cost health.")
-        self.project_title_lbl.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
-        self.project_title_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.project_title_lbl.setWordWrap(True)
-        self.project_title_lbl.setMinimumWidth(220)
-
-        pt_layout.addWidget(self.project_label_prefix)
-        pt_layout.addWidget(self.project_title_lbl)
-        pt_layout.addStretch()
-
-        meta_row = QWidget()
-        meta_layout = QHBoxLayout(meta_row)
-        meta_layout.setContentsMargins(0, 0, 0, 0)
-        meta_layout.setSpacing(CFG.SPACING_XS)
-
-        self.project_meta_start = QLabel("")
-        self.project_meta_end = QLabel("")
-        self.project_meta_duration = QLabel("")
-
-        chip_style = dashboard_meta_chip_style()
-        self.project_meta_start.setStyleSheet(chip_style)
-        self.project_meta_end.setStyleSheet(chip_style)
-        self.project_meta_duration.setStyleSheet(chip_style)
-
-        meta_layout.addWidget(self.project_meta_start)
-        meta_layout.addWidget(self.project_meta_end)
-        meta_layout.addWidget(self.project_meta_duration)
-        meta_layout.addStretch()
-
-        s_layout.addWidget(title_row)
-        s_layout.addWidget(meta_row)
-
-        left_layout.addWidget(self.summary_widget)
-
-        self.kpi_group = QGroupBox("KPI Cards")
-        kpi_layout = QGridLayout(self.kpi_group)
-        kpi_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        kpi_layout.setSpacing(CFG.SPACING_SM)
-
-        self.kpi_tasks = KpiCard("Tasks", "0 / 0", "Completed / Total")
-        self.kpi_critical = KpiCard("Critical tasks", "0", "", CFG.COLOR_WARNING)
-        self.kpi_late = KpiCard("Late tasks", "0", "", CFG.COLOR_DANGER)
-        self.kpi_cost = KpiCard("Cost variance", "0.00", "Actual - Planned", CFG.COLOR_ACCENT)
-        self.kpi_progress = KpiCard("% complete", "0%", "", CFG.COLOR_SUCCESS)
-
-        kpi_layout.addWidget(self.kpi_tasks, 0, 0)
-        kpi_layout.addWidget(self.kpi_critical, 0, 1)
-        kpi_layout.addWidget(self.kpi_late, 0, 2)
-        kpi_layout.addWidget(self.kpi_cost, 1, 0, 1, 2)
-        kpi_layout.addWidget(self.kpi_progress, 1, 2)
-        kpi_layout.setColumnStretch(0, 1)
-        kpi_layout.setColumnStretch(1, 1)
-        kpi_layout.setColumnStretch(2, 1)
-        left_layout.addWidget(self.kpi_group)
-
-        self.portfolio_group = self._build_portfolio_panel()
-        left_layout.addWidget(self.portfolio_group)
-
-        self.evm_group = self._build_evm_panel()
-        left_layout.addWidget(self.evm_group, 1)
-
-        self._prepare_conflicts_dialog()
-
-        right_panel = QWidget()
-        right_panel.setMinimumWidth(360)
-        right_layout = QVBoxLayout(right_panel)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(CFG.SPACING_SM)
-
-        self.chart_splitter = QSplitter(Qt.Vertical)
-        self.chart_splitter.setChildrenCollapsible(False)
-        self.chart_splitter.setHandleWidth(8)
-        self.burndown_chart = ChartWidget("Burndown (remaining tasks)")
-        self.resource_chart = ChartWidget("Resource load (allocation %)")
-        self.chart_splitter.addWidget(self.burndown_chart)
-        self.chart_splitter.addWidget(self.resource_chart)
-        self.chart_splitter.setStretchFactor(0, 1)
-        self.chart_splitter.setStretchFactor(1, 1)
-        right_layout.addWidget(self.chart_splitter)
-
-        self.main_splitter.addWidget(left_panel)
-        self.main_splitter.addWidget(right_panel)
-        self.main_splitter.setStretchFactor(0, 5)
-        self.main_splitter.setStretchFactor(1, 5)
-        self.main_splitter.setSizes([700, 700])
-        layout.addWidget(self.main_splitter, 1)
+        self.panel_scroll = QScrollArea()
+        self.panel_scroll.setWidgetResizable(True)
+        self.panel_scroll.setFrameShape(QFrame.NoFrame)
+        self.panel_canvas = QWidget()
+        self.panel_grid = QGridLayout(self.panel_canvas)
+        self.panel_grid.setContentsMargins(0, 0, 0, 0)
+        self.panel_grid.setHorizontalSpacing(CFG.SPACING_SM)
+        self.panel_grid.setVerticalSpacing(CFG.SPACING_SM)
+        self.panel_scroll.setWidget(self.panel_canvas)
+        layout.addWidget(self.panel_scroll, 1)
 
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_refresh_dashboard.clicked.connect(self.refresh_dashboard)
@@ -227,3 +140,108 @@ class DashboardTab(
         self.baseline_combo.currentIndexChanged.connect(self.refresh_dashboard)
         self._apply_persisted_dashboard_layout()
         wire_dashboard_access(self)
+
+    def _build_overview_card(self) -> None:
+        self.summary_widget = QFrame()
+        self.summary_widget.setObjectName("dashboardOverviewCard")
+        self.summary_widget.setStyleSheet(
+            dashboard_summary_style()
+            + f"""
+            QFrame#dashboardOverviewCard {{
+                border-radius: 18px;
+            }}
+            QLabel#dashboardOverviewEyebrow {{
+                color: {CFG.COLOR_TEXT_MUTED};
+                font-size: 8.5pt;
+                font-weight: 700;
+                letter-spacing: 1px;
+            }}
+            QLabel#dashboardOverviewSubtitle {{
+                color: {CFG.COLOR_TEXT_SECONDARY};
+                font-size: 9.5pt;
+            }}
+            """
+        )
+        root = QVBoxLayout(self.summary_widget)
+        root.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
+        root.setSpacing(CFG.SPACING_SM)
+
+        title_row = QWidget()
+        title_layout = QHBoxLayout(title_row)
+        title_layout.setContentsMargins(0, 0, 0, 0)
+        title_layout.setSpacing(CFG.SPACING_SM)
+
+        title_copy = QVBoxLayout()
+        title_copy.setContentsMargins(0, 0, 0, 0)
+        title_copy.setSpacing(CFG.SPACING_XS)
+        self.project_label_prefix = QLabel("OVERVIEW")
+        self.project_label_prefix.setObjectName("dashboardOverviewEyebrow")
+        self.project_title_lbl = QLabel("Select a project to see schedule and cost health.")
+        self.project_title_lbl.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
+        self.project_title_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.project_title_lbl.setWordWrap(True)
+        self.project_subtitle_lbl = QLabel(
+            "The overview stays fixed while the workspace below shows only the panels you selected."
+        )
+        self.project_subtitle_lbl.setObjectName("dashboardOverviewSubtitle")
+        self.project_subtitle_lbl.setWordWrap(True)
+        title_copy.addWidget(self.project_label_prefix)
+        title_copy.addWidget(self.project_title_lbl)
+        title_copy.addWidget(self.project_subtitle_lbl)
+
+        self.project_mode_badge = QLabel("Project View")
+        self.project_mode_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+
+        title_layout.addLayout(title_copy, 1)
+        title_layout.addWidget(self.project_mode_badge, 0, Qt.AlignTop)
+
+        meta_row = QWidget()
+        meta_layout = QHBoxLayout(meta_row)
+        meta_layout.setContentsMargins(0, 0, 0, 0)
+        meta_layout.setSpacing(CFG.SPACING_XS)
+        self.project_meta_scope = QLabel("")
+        self.project_meta_start = QLabel("")
+        self.project_meta_end = QLabel("")
+        self.project_meta_duration = QLabel("")
+        chip_style = dashboard_meta_chip_style()
+        for label in (
+            self.project_meta_scope,
+            self.project_meta_start,
+            self.project_meta_end,
+            self.project_meta_duration,
+        ):
+            label.setStyleSheet(chip_style)
+            meta_layout.addWidget(label)
+        meta_layout.addStretch()
+
+        root.addWidget(title_row)
+        root.addWidget(meta_row)
+
+    def _build_dashboard_panels(self) -> None:
+        self.kpi_group = QGroupBox("KPI Cards")
+        kpi_layout = QGridLayout(self.kpi_group)
+        kpi_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
+        kpi_layout.setSpacing(CFG.SPACING_SM)
+        self.kpi_tasks = KpiCard("Tasks", "0 / 0", "Completed / Total")
+        self.kpi_critical = KpiCard("Critical tasks", "0", "", CFG.COLOR_WARNING)
+        self.kpi_late = KpiCard("Late tasks", "0", "", CFG.COLOR_DANGER)
+        self.kpi_cost = KpiCard("Cost variance", "0.00", "Actual - Planned", CFG.COLOR_ACCENT)
+        self.kpi_progress = KpiCard("% complete", "0%", "", CFG.COLOR_SUCCESS)
+        kpi_layout.addWidget(self.kpi_tasks, 0, 0)
+        kpi_layout.addWidget(self.kpi_critical, 0, 1)
+        kpi_layout.addWidget(self.kpi_late, 0, 2)
+        kpi_layout.addWidget(self.kpi_cost, 1, 0, 1, 2)
+        kpi_layout.addWidget(self.kpi_progress, 1, 2)
+        kpi_layout.setColumnStretch(0, 1)
+        kpi_layout.setColumnStretch(1, 1)
+        kpi_layout.setColumnStretch(2, 1)
+
+        self.portfolio_group = self._build_portfolio_panel()
+        self.portfolio_group.setTitle("Portfolio Ranking")
+        self.evm_group = self._build_evm_panel()
+        self.burndown_chart = ChartWidget("Burndown (remaining tasks)")
+        self.resource_chart = ChartWidget("Resource load (allocation %)")
+        self._prepare_conflicts_dialog()
+
+
+__all__ = ["DashboardTab"]

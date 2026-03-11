@@ -189,8 +189,10 @@ def test_dashboard_tab_switches_into_portfolio_mode_at_runtime(
     assert tab.project_title_lbl.text() == "Portfolio Overview"
     assert tab.baseline_combo.currentText() == "Portfolio view"
     assert tab.portfolio_group.isHidden() is False
+    assert tab.evm_group.isHidden() is True
     assert tab.portfolio_table.rowCount() == 2
     assert tab.burndown_chart.ax.get_title() == "Portfolio status rollup"
     assert tab.resource_chart.ax.get_title() == "Cross-project resource capacity"
+    assert tab._active_dashboard_panel_count() == 4
     assert tab.btn_auto_level.isEnabled() is False
     assert tab.btn_manual_shift.isEnabled() is False

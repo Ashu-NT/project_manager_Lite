@@ -56,6 +56,8 @@ class DashboardDataOpsMixin:
             self.baseline_combo.setCurrentIndex(0)
         else:
             self._load_baselines_for_project(PORTFOLIO_SCOPE_ID)
+        if hasattr(self, "_sync_dashboard_panel_visibility"):
+            self._sync_dashboard_panel_visibility()
         self.refresh_dashboard()
 
     def reload_projects(self):
@@ -89,6 +91,8 @@ class DashboardDataOpsMixin:
             self._load_baselines_for_project(PORTFOLIO_SCOPE_ID)
             self.baseline_combo.setCurrentIndex(0)
             self.refresh_dashboard()
+        if hasattr(self, "_sync_dashboard_panel_visibility"):
+            self._sync_dashboard_panel_visibility()
         sync_dashboard_baseline_actions(self)
 
     def _current_project_id_and_name(self):
