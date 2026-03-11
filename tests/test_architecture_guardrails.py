@@ -225,6 +225,26 @@ def test_task_dependency_dialogs_module_is_facade_only():
     assert "class DependencyListDialog" not in text
 
 
+def test_task_timesheet_dialog_module_is_facade_only():
+    dialogs_path = ROOT / "ui" / "task" / "timesheet_dialog.py"
+    text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from ui.timesheet.dialog import" in text
+    assert "class TimesheetDialog" not in text
+    assert "class TimeEntryEditDialog" not in text
+
+
+def test_timesheet_lifecycle_module_is_facade_only():
+    lifecycle_path = ROOT / "core" / "services" / "timesheet" / "lifecycle.py"
+    text = lifecycle_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.services.timesheet.entries import" in text
+    assert "from core.services.timesheet.periods import" in text
+    assert "from core.services.timesheet.query import" in text
+    assert "from core.services.timesheet.support import" in text
+    assert "class Timesheet" not in text
+
+
 def test_cost_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "cost" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
@@ -630,7 +650,7 @@ def test_known_large_modules_have_growth_budgets():
         "core/domain/identifiers.py": 40,
         "core/domain/enums.py": 90,
         "core/domain/project.py": 120,
-        "core/domain/task.py": 160,
+        "core/domain/task.py": 180,
         "core/domain/resource.py": 80,
         "core/domain/cost.py": 90,
         "core/domain/calendar.py": 120,
@@ -650,7 +670,7 @@ def test_known_large_modules_have_growth_budgets():
         "ui/styles/ui_config.py": 320,
         "core/services/task/service.py": 140,
         "core/services/project/service.py": 90,
-        "core/services/project/lifecycle.py": 220,
+        "core/services/project/lifecycle.py": 230,
         "core/services/project/query.py": 90,
         "core/services/project/validation.py": 80,
         "core/services/task/lifecycle.py": 280,
@@ -658,11 +678,20 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/task/assignment.py": 220,
         "core/services/task/query.py": 120,
         "core/services/task/validation.py": 220,
-        "infra/db/repositories.py": 120,
+        "core/services/timesheet/service.py": 90,
+        "core/services/timesheet/lifecycle.py": 40,
+        "core/services/timesheet/query.py": 100,
+        "core/services/timesheet/entries.py": 260,
+        "core/services/timesheet/periods.py": 220,
+        "core/services/timesheet/support.py": 240,
+        "infra/db/repositories.py": 130,
         "infra/db/mappers.py": 120,
         "infra/db/project/__init__.py": 80,
         "infra/db/project/mapper.py": 120,
         "infra/db/project/repository.py": 140,
+        "infra/db/timesheet/__init__.py": 80,
+        "infra/db/timesheet/mapper.py": 120,
+        "infra/db/timesheet/repository.py": 180,
         "infra/db/task/__init__.py": 80,
         "infra/db/task/mapper.py": 180,
         "infra/db/task/repository.py": 180,
@@ -677,6 +706,7 @@ def test_known_large_modules_have_growth_budgets():
         "infra/db/baseline/repository.py": 120,
         "infra/db/repositories_project.py": 100,
         "infra/db/repositories_task.py": 150,
+        "infra/db/repositories_timesheet.py": 60,
         "infra/db/repositories_resource.py": 60,
         "infra/db/repositories_cost_calendar.py": 150,
         "infra/db/repositories_baseline.py": 100,

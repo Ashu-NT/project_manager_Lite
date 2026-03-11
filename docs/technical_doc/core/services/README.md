@@ -39,6 +39,7 @@ events after state changes.
 
 - `project/service.py` with lifecycle and query mixins
 - `task/service.py` with lifecycle, dependency, assignment, query, validation mixins
+- `timesheet/service.py` with reusable time-entry and period lifecycle workflows
 - `resource/service.py` for resource CRUD and optimistic lock checks
 - `cost/service.py` for cost CRUD and cost summaries
 

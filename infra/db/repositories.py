@@ -57,6 +57,8 @@ from infra.db.repositories_task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
+)
+from infra.db.repositories_timesheet import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )

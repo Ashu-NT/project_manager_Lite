@@ -9,6 +9,7 @@ from core.services.auth import UserSessionContext
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from core.services.timesheet import TimesheetService
 from infra.collaboration_store import TaskCollaborationStore
 from ui.settings.main_window_store import MainWindowSettingsStore
 from ui.shared.guards import (
@@ -64,6 +65,7 @@ class TaskTab(
         task_service: TaskService,
         resource_service: ResourceService,
         project_resource_service: ProjectResourceService,
+        timesheet_service: TimesheetService | None = None,
         collaboration_store: TaskCollaborationStore | None = None,
         settings_store: MainWindowSettingsStore | None = None,
         user_session: UserSessionContext | None = None,
@@ -72,6 +74,7 @@ class TaskTab(
         super().__init__(parent)
         self._project_service: ProjectService = project_service
         self._task_service: TaskService = task_service
+        self._timesheet_service: TimesheetService | TaskService = timesheet_service or task_service
         self._resource_service: ResourceService = resource_service
         self._project_resource_service: ProjectResourceService = project_resource_service
         self._settings_store = settings_store

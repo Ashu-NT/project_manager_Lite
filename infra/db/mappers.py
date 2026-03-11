@@ -47,8 +47,12 @@ from infra.db.task.mapper import (
     task_from_orm,
     task_to_orm,
 )
-from infra.db.task.time_entry_mapper import time_entry_from_orm, time_entry_to_orm
-from infra.db.task.timesheet_period_mapper import timesheet_period_from_orm, timesheet_period_to_orm
+from infra.db.timesheet.mapper import (
+    time_entry_from_orm,
+    time_entry_to_orm,
+    timesheet_period_from_orm,
+    timesheet_period_to_orm,
+)
 
 __all__ = [
     "project_to_orm",

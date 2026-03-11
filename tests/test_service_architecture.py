@@ -25,6 +25,7 @@ from core.services.scheduling_service import CPMTaskInfo as LegacyCPMTaskInfo
 from core.services.scheduling_service import SchedulingEngine as LegacySchedulingEngine
 from core.services.task import TaskService
 from core.services.task_service import TaskService as LegacyTaskService
+from core.services.timesheet import TimesheetService
 from core.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from core.services.work_calendar_engine import WorkCalendarEngine as LegacyWorkCalendarEngine
 from core.services.work_calendar_service import WorkCalendarService as LegacyWorkCalendarService
@@ -40,6 +41,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.audit_service, AuditService)
     assert isinstance(graph.project_service, ProjectService)
     assert isinstance(graph.task_service, TaskService)
+    assert isinstance(graph.timesheet_service, TimesheetService)
     assert isinstance(graph.resource_service, ResourceService)
     assert isinstance(graph.calendar_service, CalendarService)
     assert isinstance(graph.cost_service, CostService)
@@ -59,6 +61,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["dashboard_service"] is graph.dashboard_service
     assert as_dict["finance_service"] is graph.finance_service
     assert as_dict["project_resource_service"] is graph.project_resource_service
+    assert as_dict["timesheet_service"] is graph.timesheet_service
     assert as_dict["session"] is session
 
 

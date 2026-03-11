@@ -27,6 +27,7 @@ from core.services.task.lifecycle import TaskLifecycleMixin
 from core.services.task.time_entries import TaskTimeEntryMixin
 from core.services.task.query import TaskQueryMixin
 from core.services.task.validation import TaskValidationMixin
+from core.services.timesheet import TimesheetService
 from core.services.work_calendar.engine import WorkCalendarEngine
 
 
@@ -48,6 +49,7 @@ class TaskService(
         assignment_repo: AssignmentRepository,
         time_entry_repo: TimeEntryRepository | None,
         timesheet_period_repo: TimesheetPeriodRepository | None,
+        timesheet_service: TimesheetService | None,
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
         calendar_repo: CalendarEventRepository,
@@ -64,6 +66,7 @@ class TaskService(
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._time_entry_repo = time_entry_repo
         self._timesheet_period_repo = timesheet_period_repo
+        self._timesheet_service = timesheet_service
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
         self._calendar_repo: CalendarEventRepository = calendar_repo

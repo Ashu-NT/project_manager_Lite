@@ -6,13 +6,15 @@ from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from core.services.timesheet import TimesheetService
 from ui.task.assignment_helpers import show_overallocation_warning_if_any
 from ui.task.dialogs import AssignmentAddDialog
-from ui.task.timesheet_dialog import TimesheetDialog
+from ui.timesheet.dialog import TimesheetDialog
 
 
 class TaskAssignmentActionsMixin:
     _task_service: TaskService
+    _timesheet_service: TimesheetService | TaskService
     _resource_service: ResourceService
     _project_resource_service: ProjectResourceService
 
@@ -129,16 +131,17 @@ class TaskAssignmentActionsMixin:
         except NotFoundError:
             pass
         try:
-            self._task_service.initialize_timesheet_for_assignment(assignment.id)
+            self._timesheet_service.initialize_timesheet_for_assignment(assignment.id)
         except (ValidationError, BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Timesheet", str(exc))
             return
         dialog = TimesheetDialog(
             self,
-            task_service=self._task_service,
+            timesheet_service=self._timesheet_service,
             assignment=assignment,
             task_name=task.name if task is not None else assignment.task_id,
             resource_name=resource_name,
+            user_session=getattr(self, "_user_session", None),
         )
         dialog.exec()
         self.reload_tasks()

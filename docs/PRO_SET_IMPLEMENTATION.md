@@ -70,6 +70,7 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
   - submit / approve / reject / explicit lock-unlock lifecycle
   - edit blocking for submitted, approved, and locked periods
   - progress: backend/service lifecycle shipped and covered by targeted tests on 2026-03-11
+  - progress: extracted into dedicated `timesheet` core/infra/ui modules and upgraded runtime dialog to manage monthly period state on 2026-03-11
 - [ ] 3. Richer import wizard
   - preview + validation before commit
   - dry-run summaries and row-level error handling

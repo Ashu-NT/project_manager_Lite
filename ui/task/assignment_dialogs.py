@@ -18,8 +18,9 @@ from core.models import ProjectResource, Resource, Task
 from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from core.services.timesheet import TimesheetService
 from ui.task.assignment_helpers import show_overallocation_warning_if_any
-from ui.task.timesheet_dialog import TimesheetDialog
+from ui.timesheet.dialog import TimesheetDialog
 from ui.styles.formatting import fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -101,16 +102,20 @@ class AssignmentListDialog(QDialog):
         self,
         parent,
         task_service: TaskService,
+        timesheet_service: TimesheetService | TaskService,
         resource_service: ResourceService,
         project_resource_service: ProjectResourceService,
         task: Task,
+        user_session=None,
     ):
         super().__init__(parent)
         self.setWindowTitle(f"Assignments for: {task.name}")
         self._task_service: TaskService = task_service
+        self._timesheet_service: TimesheetService | TaskService = timesheet_service
         self._resource_service: ResourceService = resource_service
         self._task: Task = task
         self._project_resource_service: ProjectResourceService = project_resource_service
+        self._user_session = user_session
 
         self.list_widget = QListWidget()
         self.btn_add = QPushButton(CFG.ADD_BUTTON_LABEL)
@@ -246,16 +251,17 @@ class AssignmentListDialog(QDialog):
         except NotFoundError:
             resource_name = assignment.resource_id
         try:
-            self._task_service.initialize_timesheet_for_assignment(assignment.id)
+            self._timesheet_service.initialize_timesheet_for_assignment(assignment.id)
         except (ValidationError, BusinessRuleError, NotFoundError) as exc:
             QMessageBox.warning(self, "Timesheet", str(exc))
             return
         dialog = TimesheetDialog(
             self,
-            task_service=self._task_service,
+            timesheet_service=self._timesheet_service,
             assignment=assignment,
             task_name=self._task.name,
             resource_name=resource_name,
+            user_session=self._user_session,
         )
         dialog.exec()
         self.reload_assignments()

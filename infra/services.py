@@ -22,6 +22,7 @@ from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
 from core.services.scheduling import SchedulingEngine
 from core.services.task import TaskService
+from core.services.timesheet import TimesheetService
 from core.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from infra.collaboration_store import TaskCollaborationStore
 from infra.db.repositories import (
@@ -78,6 +79,7 @@ class ServiceGraph:
     approval_service: ApprovalService
     project_service: ProjectService
     task_service: TaskService
+    timesheet_service: TimesheetService
     calendar_service: CalendarService
     resource_service: ResourceService
     cost_service: CostService
@@ -101,6 +103,7 @@ class ServiceGraph:
             "approval_service": self.approval_service,
             "project_service": self.project_service,
             "task_service": self.task_service,
+            "timesheet_service": self.timesheet_service,
             "calendar_service": self.calendar_service,
             "resource_service": self.resource_service,
             "cost_service": self.cost_service,
@@ -175,6 +178,16 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_session=user_session,
         audit_service=audit_service,
     )
+    timesheet_service = TimesheetService(
+        session=session,
+        assignment_repo=assignment_repo,
+        task_repo=task_repo,
+        resource_repo=resource_repo,
+        time_entry_repo=time_entry_repo,
+        timesheet_period_repo=timesheet_period_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
     project_resource_service = ProjectResourceService(
         project_resource_repo=project_resource_repo,
         resource_repo=resource_repo,
@@ -189,6 +202,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         assignment_repo,
         time_entry_repo,
         timesheet_period_repo,
+        timesheet_service,
         resource_repo,
         cost_repo,
         calendar_repo,
@@ -357,6 +371,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         approval_service=approval_service,
         project_service=project_service,
         task_service=task_service,
+        timesheet_service=timesheet_service,
         calendar_service=calendar_service,
         resource_service=resource_service,
         cost_service=cost_service,
