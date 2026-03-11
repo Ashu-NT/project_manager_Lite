@@ -100,8 +100,10 @@ class DashboardTopBarMixin:
         status_layout = QVBoxLayout(status_card)
         status_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
         status_layout.setSpacing(CFG.SPACING_XS)
-        self.dashboard_mode_badge = QLabel("Project View")
-        self.dashboard_mode_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        self.dashboard_mode_badge = QLabel("Live Panels")
+        self.dashboard_mode_badge.setStyleSheet(
+            dashboard_badge_style(CFG.COLOR_ACCENT_SOFT, CFG.COLOR_TEXT_PRIMARY)
+        )
         self.dashboard_scope_hint = QLabel("4 panels active")
         self.dashboard_scope_hint.setObjectName("dashboardTopStatusCopy")
         status_layout.addWidget(self.dashboard_mode_badge)

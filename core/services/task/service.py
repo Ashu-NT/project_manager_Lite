@@ -19,6 +19,7 @@ from core.interfaces import (
 from core.services.approval.service import ApprovalService
 from core.services.audit.service import AuditService
 from core.services.auth.session import UserSessionContext
+from core.services.scheduling import SchedulingEngine
 from core.services.task.assignment import TaskAssignmentMixin
 from core.services.task.assignment_bridge import TaskAssignmentBridgeMixin
 from core.services.task.dependency import TaskDependencyMixin
@@ -26,12 +27,14 @@ from core.services.task.dependency_diagnostics import TaskDependencyDiagnosticsM
 from core.services.task.lifecycle import TaskLifecycleMixin
 from core.services.task.time_entries import TaskTimeEntryMixin
 from core.services.task.query import TaskQueryMixin
+from core.services.task.schedule_sync import TaskScheduleSyncMixin
 from core.services.task.validation import TaskValidationMixin
 from core.services.timesheet import TimesheetService
 from core.services.work_calendar.engine import WorkCalendarEngine
 
 
 class TaskService(
+    TaskScheduleSyncMixin,
     TaskLifecycleMixin,
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
@@ -54,6 +57,7 @@ class TaskService(
         cost_repo: CostRepository,
         calendar_repo: CalendarEventRepository,
         work_calendar_engine: WorkCalendarEngine,
+        scheduling_engine: SchedulingEngine | None = None,
         project_resource_repo: ProjectResourceRepository | None = None,
         project_repo: ProjectRepository | None = None,
         user_session: UserSessionContext | None = None,
@@ -71,6 +75,7 @@ class TaskService(
         self._cost_repo: CostRepository = cost_repo
         self._calendar_repo: CalendarEventRepository = calendar_repo
         self._work_calendar_engine: WorkCalendarEngine = work_calendar_engine
+        self._scheduling_engine: SchedulingEngine | None = scheduling_engine
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
         self._project_repo: ProjectRepository | None = project_repo
         self._user_session: UserSessionContext | None = user_session

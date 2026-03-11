@@ -63,6 +63,7 @@ class TaskDependencyMixin:
         try:
             self._dependency_repo.add(dep)
             self._session.commit()
+            self._sync_project_schedule(pred.project_id)
             record_audit(
                 self,
                 action="dependency.add",
@@ -116,6 +117,7 @@ class TaskDependencyMixin:
             self._dependency_repo.delete(dep_id)
             self._session.commit()
             project_id = pred.project_id if pred else (succ.project_id if succ else None)
+            self._sync_project_schedule(project_id)
             record_audit(
                 self,
                 action="dependency.remove",

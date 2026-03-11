@@ -60,7 +60,7 @@ class DashboardSummaryRenderingMixin:
             self._set_optional_label(self.project_meta_end, "")
             self._set_optional_label(self.project_meta_duration, "")
         if hasattr(self, "dashboard_mode_badge"):
-            self.dashboard_mode_badge.setText("Project View"); self.dashboard_scope_hint.setText("4 panels active")
+            self.dashboard_mode_badge.setText("Live Panels"); self.dashboard_scope_hint.setText("4 panels active")
         if hasattr(self, "_reset_evm_view"): self._reset_evm_view()
         if hasattr(self, "_clear_portfolio_panel"): self._clear_portfolio_panel()
         if hasattr(self, "_sync_dashboard_panel_visibility"): self._sync_dashboard_panel_visibility()
@@ -90,7 +90,7 @@ class DashboardSummaryRenderingMixin:
         if hasattr(self, "_sync_dashboard_panel_visibility"): self._sync_dashboard_panel_visibility()
         if hasattr(self, "dashboard_mode_badge"):
             active_count = self._active_dashboard_panel_count() if hasattr(self, "_active_dashboard_panel_count") else 0
-            self.dashboard_mode_badge.setText(mode_text); self.dashboard_scope_hint.setText(f"{active_count} panels active")
+            self.dashboard_mode_badge.setText("Live Panels"); self.dashboard_scope_hint.setText(f"{active_count} panels active")
 
     def _update_kpis(self, data: DashboardData):
         k = data.kpi

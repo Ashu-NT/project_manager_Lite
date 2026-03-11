@@ -195,6 +195,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_session=user_session,
         audit_service=audit_service,
     )
+    scheduling_engine = SchedulingEngine(
+        session,
+        task_repo,
+        dependency_repo,
+        work_calendar_engine,
+        assignment_repo=assignment_repo,
+        resource_repo=resource_repo,
+    )
     task_service = TaskService(
         session,
         task_repo,
@@ -207,6 +215,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         cost_repo,
         calendar_repo,
         work_calendar_engine,
+        scheduling_engine,
         project_resource_repo,
         project_repo,
         user_session=user_session,
@@ -237,14 +246,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         work_calendar_repo,
         work_calendar_engine,
         user_session=user_session,
-    )
-    scheduling_engine = SchedulingEngine(
-        session,
-        task_repo,
-        dependency_repo,
-        work_calendar_engine,
-        assignment_repo=assignment_repo,
-        resource_repo=resource_repo,
     )
     reporting_service = ReportingService(
         session=session,

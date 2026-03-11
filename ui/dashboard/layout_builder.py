@@ -15,7 +15,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ui.dashboard.styles import dashboard_badge_style, dashboard_summary_style
+from ui.dashboard.styles import (
+    dashboard_action_button_style,
+    dashboard_badge_style,
+    dashboard_summary_style,
+)
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -162,6 +166,9 @@ class DashboardLayoutDialog(QDialog):
         self.btn_apply_preset = QPushButton("Apply Profile")
         self.btn_cancel = QPushButton("Cancel")
         self.btn_save = QPushButton("Save Layout")
+        self.btn_apply_preset.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_cancel.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_save.setStyleSheet(dashboard_action_button_style("primary"))
         buttons.addWidget(self.btn_apply_preset)
         buttons.addStretch()
         buttons.addWidget(self.btn_cancel)

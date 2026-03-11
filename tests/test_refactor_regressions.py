@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from core.exceptions import NotFoundError
+from core.models import DependencyType
 from infra.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
 from ui.styles.theme import base_stylesheet
 from ui.styles.theme import set_theme_mode
@@ -190,6 +191,24 @@ def test_dependency_repository_filters_by_project(session, services):
     assert len(deps_p2) == 1
     assert deps_p1[0].predecessor_task_id == a1.id
     assert deps_p2[0].predecessor_task_id == a2.id
+
+
+def test_dependency_add_persists_recalculated_dates_for_task_lists(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    wc = services["work_calendar_engine"]
+
+    project = ps.create_project("Dependency Schedule Sync", "")
+    predecessor = ts.create_task(project.id, "Pred", start_date=date(2024, 1, 1), duration_days=2)
+    successor = ts.create_task(project.id, "Succ", start_date=date(2024, 1, 1), duration_days=1)
+
+    ts.add_dependency(predecessor.id, successor.id, DependencyType.FINISH_TO_START, lag_days=0)
+
+    refreshed = {task.id: task for task in ts.list_tasks_for_project(project.id)}
+    expected_start = wc.next_working_day(refreshed[predecessor.id].end_date, include_today=False)
+    expected_end = wc.add_working_days(expected_start, refreshed[successor.id].duration_days)
+    assert refreshed[successor.id].start_date == expected_start
+    assert refreshed[successor.id].end_date == expected_end
 
 
 def test_remove_dependency_raises_not_found(services):

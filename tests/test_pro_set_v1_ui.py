@@ -6,12 +6,15 @@ from pathlib import Path
 from PySide6.QtWidgets import QDialog
 
 from core.domain.enums import TaskStatus
+from core.models import DependencyType
 from core.services.dashboard import PORTFOLIO_SCOPE_ID
 from infra.collaboration_store import TaskCollaborationStore
 from tests.ui_runtime_helpers import make_settings_store
 from ui.dashboard.layout_builder import DashboardLayoutDialog
 from ui.dashboard.tab import DashboardTab
 from ui.report.dialog_gantt import GanttPreviewDialog
+from ui.styles.theme import set_theme_mode
+from ui.styles.ui_config import UIConfig as CFG
 from ui.task.collaboration_dialog import TaskCollaborationDialog
 from ui.task.tab import TaskTab
 
@@ -178,6 +181,8 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
     assert tab.btn_customize_dashboard.text() == "Customize Dashboard"
     assert tab.summary_widget.isHidden() is False
     assert tab.project_label_prefix.text() == "PROJECT OVERVIEW"
+    assert tab.project_mode_badge.text() == "Project View"
+    assert tab.dashboard_mode_badge.text() == "Live Panels"
     assert tab.kpi_group.isHidden() is False
     assert tab.resource_chart.isHidden() is False
     assert tab.evm_group.isHidden() is True
@@ -230,6 +235,7 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
 
 
 def test_dashboard_layout_dialog_enforces_mode_specific_selection_runtime(qapp):
+    set_theme_mode("light")
     dialog = DashboardLayoutDialog(
         None,
         current_layout={
@@ -246,6 +252,8 @@ def test_dashboard_layout_dialog_enforces_mode_specific_selection_runtime(qapp):
     )
 
     assert dialog.mode_badge.text() == "Portfolio View"
+    assert CFG.COLOR_TEXT_PRIMARY in dialog.btn_apply_preset.styleSheet()
+    assert CFG.COLOR_ACCENT in dialog.btn_save.styleSheet()
     assert dialog.btn_save.isEnabled() is True
     dialog._panel_checks["portfolio"].setChecked(False)
     dialog._panel_checks["resource"].setChecked(False)
@@ -275,6 +283,57 @@ def test_dashboard_control_rail_collapses_runtime(qapp, services, repo_workspace
     tab.btn_show_dashboard_controls.click()
     assert tab.dashboard_control_stack.currentIndex() == 0
     assert tab.kpi_group.layout().count() == 8
+
+
+def test_task_dependency_add_recalculates_dates_in_table_runtime(qapp, services, repo_workspace, monkeypatch):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    wc = services["work_calendar_engine"]
+    settings_store = make_settings_store(repo_workspace, prefix="task-dependency")
+    project = ps.create_project("Dependency UI Project")
+    predecessor = ts.create_task(project.id, "Predecessor", start_date=date(2026, 4, 1), duration_days=2)
+    successor = ts.create_task(project.id, "Successor", start_date=date(2026, 4, 1), duration_days=1)
+
+    tab = TaskTab(
+        project_service=ps,
+        task_service=ts,
+        resource_service=services["resource_service"],
+        project_resource_service=services["project_resource_service"],
+        collaboration_store=services["task_collaboration_store"],
+        settings_store=settings_store,
+        user_session=services["user_session"],
+    )
+    tab._select_task_by_id(successor.id)
+
+    class _AcceptedDependencyDialog:
+        predecessor_id = predecessor.id
+        successor_id = successor.id
+        dependency_type = DependencyType.FINISH_TO_START
+        lag_days = 0
+
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def exec(self):
+            return QDialog.Accepted
+
+    monkeypatch.setattr("ui.task.dependency_panel.DependencyAddDialog", _AcceptedDependencyDialog)
+    tab.add_dependency_inline()
+
+    refreshed = {task.id: task for task in ts.list_tasks_for_project(project.id)}
+    expected_start = wc.next_working_day(refreshed[predecessor.id].end_date, include_today=False)
+    assert refreshed[successor.id].start_date == expected_start
+
+    for row in range(tab.model.rowCount()):
+        task = tab.model.get_task(row)
+        if task and task.id == successor.id:
+            assert tab.model.data(tab.model.index(row, 2)) == expected_start.isoformat()
+            assert tab.model.data(tab.model.index(row, 3)) == refreshed[successor.id].end_date.isoformat()
+            break
+    else:
+        assert False, "Successor task not found in table model"
+
+    tab._mentions_refresh_timer.stop()
 
 
 def test_collaboration_dialog_posts_mentions_and_attachments_at_runtime(qapp, repo_workspace):
