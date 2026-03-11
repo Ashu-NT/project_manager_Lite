@@ -23,6 +23,7 @@ from .models import (
     ApprovalStatus,
     UserAccount,
     UserRoleBinding,
+    TimeEntry,
 )
 
 
@@ -99,6 +100,21 @@ class AssignmentRepository(ABC):
     def list_by_assignment(self, task_id: str) -> List[TaskAssignment]: ...
     @abstractmethod
     def list_by_tasks(self, task_ids: List[str]) -> List[TaskAssignment]: ...
+
+
+class TimeEntryRepository(ABC):
+    @abstractmethod
+    def add(self, entry: TimeEntry) -> None: ...
+    @abstractmethod
+    def get(self, entry_id: str) -> Optional[TimeEntry]: ...
+    @abstractmethod
+    def update(self, entry: TimeEntry) -> None: ...
+    @abstractmethod
+    def delete(self, entry_id: str) -> None: ...
+    @abstractmethod
+    def list_by_assignment(self, assignment_id: str) -> List[TimeEntry]: ...
+    @abstractmethod
+    def delete_by_assignment(self, assignment_id: str) -> None: ...
 
 
 class DependencyRepository(ABC):

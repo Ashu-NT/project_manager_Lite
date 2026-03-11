@@ -21,7 +21,6 @@ from core.services.auth.authorization import require_permission
 from core.services.work_calendar.engine import WorkCalendarEngine
 
 logger = logging.getLogger(__name__)
-
 class TaskLifecycleMixin:
     _session: Session
     _task_repo: TaskRepository
@@ -116,17 +115,19 @@ class TaskLifecycleMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found")
-
         try:
+            time_entry_repo = getattr(self, "_time_entry_repo", None)
+            assignments = self._assignment_repo.list_by_task(task_id)
+            if time_entry_repo is not None:
+                for assignment in assignments:
+                    time_entry_repo.delete_by_assignment(assignment.id)
             self._dependency_repo.delete_for_task(task_id)
             self._assignment_repo.delete_by_task(task_id)
             self._calendar_repo.delete_for_task(task_id)
-
             cost_items = self._cost_repo.list_by_project(task.project_id)
             for c in cost_items:
                 if c.task_id == task_id:
                     self._cost_repo.delete(c.id)
-
             self._task_repo.delete(task_id)
             self._session.commit()
             record_audit(
@@ -208,7 +209,6 @@ class TaskLifecycleMixin:
         except Exception as exc:
             self._session.rollback()
             raise exc
-
         domain_events.tasks_changed.emit(task.project_id)
         return task
 

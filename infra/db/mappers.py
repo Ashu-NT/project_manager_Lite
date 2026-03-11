@@ -47,6 +47,7 @@ from infra.db.task.mapper import (
     task_from_orm,
     task_to_orm,
 )
+from infra.db.task.time_entry_mapper import time_entry_from_orm, time_entry_to_orm
 
 __all__ = [
     "project_to_orm",
@@ -59,6 +60,8 @@ __all__ = [
     "assignment_from_orm",
     "dependency_to_orm",
     "dependency_from_orm",
+    "time_entry_to_orm",
+    "time_entry_from_orm",
     "cost_to_orm",
     "cost_from_orm",
     "event_to_orm",

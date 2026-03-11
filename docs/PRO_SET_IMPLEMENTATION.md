@@ -37,3 +37,23 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
 - [x] 1. Resource profile expanded with `capacity_percent`, `address`, `contact`
 - [x] 2. Capacity applied to assignment validation and dashboard utilization views
 - [x] 3. Capacity integrated into reporting and resource leveling thresholds
+
+## Expansion Tracker (2026-03-11)
+
+- [x] 1. Shared collaboration foundation
+  - runtime default moved from local JSON-only comments to DB-backed task comments
+  - mentions/read-state preserved
+  - attachments stored as app-managed references during comment post
+- [x] 4. Import workflows
+  - CSV import flows added for projects, resources, tasks, and costs
+  - import runs through canonical service-layer validation/update rules
+  - Projects tab now exposes an `Import CSV` action
+- [x] 5. Real timesheets
+  - `time_entries` persistence added at the assignment level
+  - task assignment totals now roll up from time entries
+  - task UI now opens a timesheet dialog instead of editing aggregate hours directly
+
+## Follow-ups
+
+- Shared collaboration becomes truly multi-user when the app is pointed at a shared database via `PM_DB_URL`.
+- Legacy aggregate `hours_logged` is still preserved as a compatibility field for reporting and older workflows.

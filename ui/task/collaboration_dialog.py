@@ -54,7 +54,7 @@ class TaskCollaborationDialog(QDialog):
         self.resize(780, 560)
 
         intro = QLabel(
-            "Post comments, mention teammates with @username, and attach file paths for context."
+            "Post comments, mention teammates with @username, and attach files for shared context."
         )
         intro.setStyleSheet(CFG.INFO_TEXT_STYLE)
         intro.setWordWrap(True)

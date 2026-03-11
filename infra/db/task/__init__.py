@@ -6,11 +6,13 @@ from infra.db.task.mapper import (
     task_from_orm,
     task_to_orm,
 )
+from infra.db.task.time_entry_mapper import time_entry_from_orm, time_entry_to_orm
 from infra.db.task.repository import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
+from infra.db.task.time_entry_repository import SqlAlchemyTimeEntryRepository
 
 __all__ = [
     "task_to_orm",
@@ -19,7 +21,10 @@ __all__ = [
     "assignment_from_orm",
     "dependency_to_orm",
     "dependency_from_orm",
+    "time_entry_to_orm",
+    "time_entry_from_orm",
     "SqlAlchemyTaskRepository",
     "SqlAlchemyAssignmentRepository",
     "SqlAlchemyDependencyRepository",
+    "SqlAlchemyTimeEntryRepository",
 ]

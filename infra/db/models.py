@@ -106,6 +106,28 @@ class TaskAssignmentORM(Base):
 
 Index("idx_task_assignments_project_resource", TaskAssignmentORM.project_resource_id)
 
+
+class TimeEntryORM(Base):
+    __tablename__ = "time_entries"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    assignment_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("task_assignments.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    entry_date: Mapped[date] = mapped_column(Date, nullable=False)
+    hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    author_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+Index("idx_time_entries_assignment", TimeEntryORM.assignment_id)
+Index("idx_time_entries_date", TimeEntryORM.entry_date)
+
 class TaskDependencyORM(Base):
     __tablename__ = "task_dependencies"
 
@@ -309,6 +331,25 @@ class ApprovalRequestORM(Base):
     decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+class TaskCommentORM(Base):
+    __tablename__ = "task_comments"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    task_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    author_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    mentions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
+    attachments_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
+    read_by_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+
 Index("idx_users_username", UserORM.username, unique=True)
 Index("idx_roles_name", RoleORM.name, unique=True)
 Index("idx_permissions_code", PermissionORM.code, unique=True)
@@ -322,3 +363,5 @@ Index("idx_audit_logs_entity", AuditLogORM.entity_type, AuditLogORM.entity_id)
 Index("idx_approval_status", ApprovalRequestORM.status)
 Index("idx_approval_project", ApprovalRequestORM.project_id)
 Index("idx_approval_type", ApprovalRequestORM.request_type)
+Index("idx_task_comments_task", TaskCommentORM.task_id)
+Index("idx_task_comments_created", TaskCommentORM.created_at)

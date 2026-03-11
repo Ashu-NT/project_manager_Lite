@@ -35,6 +35,9 @@ class TaskAssignmentMixin:
         task = self._task_repo.get(assignment.task_id)
         resource = self._resource_repo.get(assignment.resource_id)
         try:
+            time_entry_repo = getattr(self, "_time_entry_repo", None)
+            if time_entry_repo is not None:
+                time_entry_repo.delete_by_assignment(assignment.id)
             self._assignment_repo.delete(assignment_id)
             self._session.commit()
             if task is not None:
@@ -63,6 +66,11 @@ class TaskAssignmentMixin:
         a = self._assignment_repo.get(assignment_id)
         if not a:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
+        time_entry_repo = getattr(self, "_time_entry_repo", None)
+        if time_entry_repo is not None and time_entry_repo.list_by_assignment(assignment_id):
+            raise ValidationError(
+                "This assignment already uses timesheet entries. Edit the timesheet instead of the aggregate hours."
+            )
         task = self._task_repo.get(a.task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")

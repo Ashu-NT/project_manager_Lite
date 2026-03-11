@@ -13,6 +13,7 @@ from core.interfaces import (
     ProjectResourceRepository,
     ResourceRepository,
     TaskRepository,
+    TimeEntryRepository,
 )
 from core.services.approval.service import ApprovalService
 from core.services.audit.service import AuditService
@@ -22,6 +23,7 @@ from core.services.task.assignment_bridge import TaskAssignmentBridgeMixin
 from core.services.task.dependency import TaskDependencyMixin
 from core.services.task.dependency_diagnostics import TaskDependencyDiagnosticsMixin
 from core.services.task.lifecycle import TaskLifecycleMixin
+from core.services.task.time_entries import TaskTimeEntryMixin
 from core.services.task.query import TaskQueryMixin
 from core.services.task.validation import TaskValidationMixin
 from core.services.work_calendar.engine import WorkCalendarEngine
@@ -32,6 +34,7 @@ class TaskService(
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
     TaskAssignmentMixin,
+    TaskTimeEntryMixin,
     TaskAssignmentBridgeMixin,
     TaskQueryMixin,
     TaskValidationMixin,
@@ -42,6 +45,7 @@ class TaskService(
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         assignment_repo: AssignmentRepository,
+        time_entry_repo: TimeEntryRepository | None,
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
         calendar_repo: CalendarEventRepository,
@@ -56,6 +60,7 @@ class TaskService(
         self._task_repo: TaskRepository = task_repo
         self._dependency_repo: DependencyRepository = dependency_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
+        self._time_entry_repo = time_entry_repo
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
         self._calendar_repo: CalendarEventRepository = calendar_repo

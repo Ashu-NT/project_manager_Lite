@@ -16,12 +16,14 @@ from core.services.calendar import CalendarService
 from core.services.cost import CostService
 from core.services.dashboard import DashboardService
 from core.services.finance import FinanceService
+from core.services.import_service import DataImportService
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
 from core.services.scheduling import SchedulingEngine
 from core.services.task import TaskService
 from core.services.work_calendar import WorkCalendarEngine, WorkCalendarService
+from infra.collaboration_store import TaskCollaborationStore
 from infra.db.repositories import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyBaselineRepository,
@@ -35,6 +37,7 @@ from infra.db.repositories import (
     SqlAlchemyRoleRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyTaskRepository,
+    SqlAlchemyTimeEntryRepository,
     SqlAlchemyUserRepository,
     SqlAlchemyUserRoleRepository,
     SqlAlchemyWorkingCalendarRepository,
@@ -85,6 +88,8 @@ class ServiceGraph:
     baseline_service: BaselineService
     dashboard_service: DashboardService
     project_resource_service: ProjectResourceService
+    data_import_service: DataImportService
+    task_collaboration_store: TaskCollaborationStore
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -106,6 +111,8 @@ class ServiceGraph:
             "baseline_service": self.baseline_service,
             "dashboard_service": self.dashboard_service,
             "project_resource_service": self.project_resource_service,
+            "data_import_service": self.data_import_service,
+            "task_collaboration_store": self.task_collaboration_store,
         }
 
 
@@ -115,6 +122,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     task_repo = SqlAlchemyTaskRepository(session)
     resource_repo = SqlAlchemyResourceRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
+    time_entry_repo = SqlAlchemyTimeEntryRepository(session)
     dependency_repo = SqlAlchemyDependencyRepository(session)
     cost_repo = SqlAlchemyCostRepository(session)
     calendar_repo = SqlAlchemyCalendarEventRepository(session)
@@ -176,6 +184,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         task_repo,
         dependency_repo,
         assignment_repo,
+        time_entry_repo,
         resource_repo,
         cost_repo,
         calendar_repo,
@@ -261,6 +270,13 @@ def build_service_graph(session: Session) -> ServiceGraph:
         work_calendar_engine=work_calendar_engine,
         user_session=user_session,
     )
+    data_import_service = DataImportService(
+        project_service=project_service,
+        task_service=task_service,
+        resource_service=resource_service,
+        cost_service=cost_service,
+    )
+    task_collaboration_store = TaskCollaborationStore(session_factory=lambda: session)
     approval_service.register_apply_handler(
         "baseline.create",
         lambda req: baseline_service.create_baseline(
@@ -347,6 +363,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         baseline_service=baseline_service,
         dashboard_service=dashboard_service,
         project_resource_service=project_resource_service,
+        data_import_service=data_import_service,
+        task_collaboration_store=task_collaboration_store,
     )
 
 

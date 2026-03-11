@@ -134,7 +134,7 @@ class TaskAssignmentPanelMixin:
         self.btn_assignment_add = QPushButton("Add")
         self.btn_assignment_remove = QPushButton("Remove")
         self.btn_assignment_set_alloc = QPushButton("Set Allocation")
-        self.btn_assignment_log_hours = QPushButton("Log Hours")
+        self.btn_assignment_log_hours = QPushButton("Timesheet")
         for btn in (
             self.btn_assignment_add,
             self.btn_assignment_remove,

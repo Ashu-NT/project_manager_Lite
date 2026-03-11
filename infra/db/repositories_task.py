@@ -5,10 +5,12 @@ from infra.db.task.repository import (
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
+from infra.db.task.time_entry_repository import SqlAlchemyTimeEntryRepository
 
 
 __all__ = [
     "SqlAlchemyTaskRepository",
     "SqlAlchemyAssignmentRepository",
     "SqlAlchemyDependencyRepository",
+    "SqlAlchemyTimeEntryRepository",
 ]

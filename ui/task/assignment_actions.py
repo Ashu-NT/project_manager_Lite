@@ -8,6 +8,7 @@ from core.services.resource import ResourceService
 from core.services.task import TaskService
 from ui.task.assignment_helpers import show_overallocation_warning_if_any
 from ui.task.dialogs import AssignmentAddDialog
+from ui.task.timesheet_dialog import TimesheetDialog
 
 
 class TaskAssignmentActionsMixin:
@@ -121,24 +122,19 @@ class TaskAssignmentActionsMixin:
         if not assignment:
             QMessageBox.information(self, "Assignments", "Please select an assignment.")
             return
-
-        value, ok = QInputDialog.getDouble(
-            self,
-            "Log hours",
-            "Hours logged:",
-            float(getattr(assignment, "hours_logged", 0.0) or 0.0),
-            0.0,
-            1000000.0,
-            2,
-        )
-        if not ok:
-            return
-
+        task = self._get_selected_task()
+        resource_name = assignment.resource_id
         try:
-            self._task_service.set_assignment_hours(assignment.id, value)
-        except (ValidationError, BusinessRuleError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Error", str(exc))
-            return
-
+            resource_name = self._resource_service.get_resource(assignment.resource_id).name
+        except NotFoundError:
+            pass
+        dialog = TimesheetDialog(
+            self,
+            task_service=self._task_service,
+            assignment=assignment,
+            task_name=task.name if task is not None else assignment.task_id,
+            resource_name=resource_name,
+        )
+        dialog.exec()
         self.reload_tasks()
         self._select_task_by_id(assignment.task_id)

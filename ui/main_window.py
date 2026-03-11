@@ -122,6 +122,7 @@ class MainWindow(QMainWindow):
                 reporting_service=self.services["reporting_service"],
                 project_resource_service=self.services["project_resource_service"],
                 resource_service=self.services["resource_service"],
+                data_import_service=self.services["data_import_service"],
                 user_session=self._user_session,
             )
             self.tabs.addTab(project_tab, "Projects")
@@ -132,6 +133,7 @@ class MainWindow(QMainWindow):
                 task_service=self.services["task_service"],
                 resource_service=self.services["resource_service"],
                 project_resource_service=self.services["project_resource_service"],
+                collaboration_store=self.services["task_collaboration_store"],
                 settings_store=self._settings_store,
                 user_session=self._user_session,
             )

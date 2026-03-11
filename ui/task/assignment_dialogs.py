@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
-    QInputDialog,
     QListWidget,
     QMessageBox,
     QPushButton,
@@ -20,8 +19,11 @@ from core.services.project import ProjectResourceService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
 from ui.task.assignment_helpers import show_overallocation_warning_if_any
+from ui.task.timesheet_dialog import TimesheetDialog
 from ui.styles.formatting import fmt_percent
 from ui.styles.ui_config import UIConfig as CFG
+
+
 class AssignmentAddDialog(QDialog):
     def __init__(
         self,
@@ -113,7 +115,7 @@ class AssignmentListDialog(QDialog):
         self.list_widget = QListWidget()
         self.btn_add = QPushButton(CFG.ADD_BUTTON_LABEL)
         self.btn_remove = QPushButton(CFG.REMOVE_SELECTED_LABEL)
-        self.btn_edit_hours = QPushButton(CFG.EDIT_HOURS_LABEL)
+        self.btn_edit_hours = QPushButton("Timesheet")
 
         button = QDialogButtonBox(QDialogButtonBox.Close)
         button.rejected.connect(self.reject)
@@ -226,38 +228,30 @@ class AssignmentListDialog(QDialog):
     def edit_selected_hours(self):
         item = self.list_widget.currentItem()
         if not item:
-            QMessageBox.information(self, "Edit hours", "Please select an assignment.")
+            QMessageBox.information(self, "Timesheet", "Please select an assignment.")
             return
 
         assignment_id = item.data(Qt.UserRole)
         if not assignment_id:
-            QMessageBox.warning(self, "Edit hours", "Failed to locate assignment.")
+            QMessageBox.warning(self, "Timesheet", "Failed to locate assignment.")
             return
 
         assignment = self._task_service.get_assignment(assignment_id)
         if not assignment:
-            QMessageBox.warning(self, "Edit hours", "Failed to locate assignment.")
-            return
-
-        current = getattr(assignment, "hours_logged", 0.0)
-        value, ok = QInputDialog.getDouble(
-            self,
-            "Edit hours",
-            "Hours logged:",
-            current,
-            0.0,
-            1000000.0,
-            2,
-        )
-        if not ok:
+            QMessageBox.warning(self, "Timesheet", "Failed to locate assignment.")
             return
         try:
-            self._task_service.set_assignment_hours(assignment_id, value)
-        except (ValidationError, BusinessRuleError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Error", str(exc))
-            return
-        except Exception as exc:
-            QMessageBox.critical(self, "Error", str(exc))
-            return
+            resource = self._resource_service.get_resource(assignment.resource_id)
+            resource_name = resource.name
+        except NotFoundError:
+            resource_name = assignment.resource_id
+        dialog = TimesheetDialog(
+            self,
+            task_service=self._task_service,
+            assignment=assignment,
+            task_name=self._task.name,
+            resource_name=resource_name,
+        )
+        dialog.exec()
         self.reload_assignments()
 __all__ = ["AssignmentAddDialog", "AssignmentListDialog"]

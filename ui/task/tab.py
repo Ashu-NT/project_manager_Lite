@@ -64,6 +64,7 @@ class TaskTab(
         task_service: TaskService,
         resource_service: ResourceService,
         project_resource_service: ProjectResourceService,
+        collaboration_store: TaskCollaborationStore | None = None,
         settings_store: MainWindowSettingsStore | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
@@ -76,7 +77,7 @@ class TaskTab(
         self._settings_store = settings_store
         self._user_session = user_session
         self._undo_stack = UndoStack(max_depth=100)
-        self._collaboration_store = TaskCollaborationStore()
+        self._collaboration_store = collaboration_store or TaskCollaborationStore()
         self._can_manage_tasks = has_permission(self._user_session, "task.manage")
         self._can_manage_assignments = self._can_manage_tasks
         self._can_add_dependencies = can_execute_governed_action(

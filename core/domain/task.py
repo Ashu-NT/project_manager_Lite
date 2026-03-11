@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from core.domain.enums import DependencyType, TaskStatus
@@ -85,4 +85,40 @@ class TaskDependency:
         )
 
 
-__all__ = ["Task", "TaskAssignment", "TaskDependency"]
+@dataclass
+class TimeEntry:
+    id: str
+    assignment_id: str
+    entry_date: date
+    hours: float
+    note: str = ""
+    author_user_id: str | None = None
+    author_username: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    @staticmethod
+    def create(
+        assignment_id: str,
+        *,
+        entry_date: date,
+        hours: float,
+        note: str = "",
+        author_user_id: str | None = None,
+        author_username: str | None = None,
+    ) -> "TimeEntry":
+        now = datetime.now(timezone.utc)
+        return TimeEntry(
+            id=generate_id(),
+            assignment_id=assignment_id,
+            entry_date=entry_date,
+            hours=hours,
+            note=note,
+            author_user_id=author_user_id,
+            author_username=author_username,
+            created_at=now,
+            updated_at=now,
+        )
+
+
+__all__ = ["Task", "TaskAssignment", "TaskDependency", "TimeEntry"]

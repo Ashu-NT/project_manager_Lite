@@ -55,6 +55,7 @@ from infra.db.repositories_task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
+    SqlAlchemyTimeEntryRepository,
 )
 from infra.db.repositories_auth import (
     SqlAlchemyPermissionRepository,
@@ -105,6 +106,7 @@ __all__ = [
     "SqlAlchemyResourceRepository",
     "SqlAlchemyAssignmentRepository",
     "SqlAlchemyDependencyRepository",
+    "SqlAlchemyTimeEntryRepository",
     "SqlAlchemyCostRepository",
     "SqlAlchemyCalendarEventRepository",
     "SqlAlchemyWorkingCalendarRepository",

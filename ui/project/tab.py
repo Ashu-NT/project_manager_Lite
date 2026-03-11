@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from core.events.domain_events import domain_events
 from core.models import Project
 from core.services.auth import UserSessionContext
+from core.services.import_service import DataImportService
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
@@ -22,6 +23,7 @@ from core.services.task import TaskService
 from ui.project.actions import ProjectActionsMixin
 from ui.project.dialogs import ProjectEditDialog  # noqa: F401
 from ui.project.filtering import ProjectFiltersMixin
+from ui.project.import_actions import ProjectImportActionsMixin
 from ui.project.models import ProjectTableModel
 from ui.project.resource_panel import ProjectResourcePanelMixin
 from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
@@ -29,7 +31,13 @@ from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
 
 
-class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelMixin, QWidget):
+class ProjectTab(
+    ProjectImportActionsMixin,
+    ProjectActionsMixin,
+    ProjectFiltersMixin,
+    ProjectResourcePanelMixin,
+    QWidget,
+):
     def __init__(
         self,
         project_service: ProjectService,
@@ -37,6 +45,7 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         reporting_service: ReportingService,
         project_resource_service: ProjectResourceService,
         resource_service: ResourceService,
+        data_import_service: DataImportService,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
@@ -46,6 +55,7 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         self._reporting_service: ReportingService = reporting_service
         self._project_resource_service: ProjectResourceService = project_resource_service
         self._resource_service: ResourceService = resource_service
+        self._data_import_service: DataImportService = data_import_service
         self._user_session = user_session
         self._can_manage_projects = has_permission(self._user_session, "project.manage")
         self._can_manage_project_resources = self._can_manage_projects
@@ -70,6 +80,7 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         self.btn_edit = QPushButton(CFG.EDIT_LABEL)
         self.btn_update_status = QPushButton(CFG.UPDATE_PROJECT_STATUS_LABEL)
         self.btn_delete = QPushButton(CFG.DELETE_LABEL)
+        self.btn_import_csv = QPushButton("Import CSV")
         self.btn_refresh = QPushButton(CFG.REFRESH_PROJECTS_LABEL)
 
         for btn in (
@@ -77,6 +88,7 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
             self.btn_edit,
             self.btn_update_status,
             self.btn_delete,
+            self.btn_import_csv,
             self.btn_refresh,
         ):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
@@ -86,6 +98,7 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         toolbar.addWidget(self.btn_edit)
         toolbar.addWidget(self.btn_update_status)
         toolbar.addWidget(self.btn_delete)
+        toolbar.addWidget(self.btn_import_csv)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
 
@@ -134,6 +147,9 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         self.btn_delete.clicked.connect(
             make_guarded_slot(self, title="Projects", callback=self.delete_project)
         )
+        self.btn_import_csv.clicked.connect(
+            make_guarded_slot(self, title="Projects", callback=self.import_csv_data)
+        )
         self.btn_refresh.clicked.connect(self.reload_projects)
         self.table.selectionModel().selectionChanged.connect(self._on_project_selection_changed)
 
@@ -154,6 +170,11 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         )
         apply_permission_hint(
             self.btn_delete,
+            allowed=self._can_manage_projects,
+            missing_permission="project.manage",
+        )
+        apply_permission_hint(
+            self.btn_import_csv,
             allowed=self._can_manage_projects,
             missing_permission="project.manage",
         )
@@ -188,4 +209,5 @@ class ProjectTab(ProjectActionsMixin, ProjectFiltersMixin, ProjectResourcePanelM
         self.btn_edit.setEnabled(self._can_manage_projects and has_project)
         self.btn_update_status.setEnabled(self._can_manage_projects and has_project)
         self.btn_delete.setEnabled(self._can_manage_projects and has_project)
+        self.btn_import_csv.setEnabled(self._can_manage_projects)
 

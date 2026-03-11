@@ -8,7 +8,7 @@ from core.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatu
 from core.domain.identifiers import generate_id
 from core.domain.project import Project, ProjectResource
 from core.domain.resource import Resource
-from core.domain.task import Task, TaskAssignment, TaskDependency
+from core.domain.task import Task, TaskAssignment, TaskDependency, TimeEntry
 
 __all__ = [
     "generate_id",
@@ -22,6 +22,7 @@ __all__ = [
     "Resource",
     "TaskAssignment",
     "TaskDependency",
+    "TimeEntry",
     "CostItem",
     "CalendarEvent",
     "WorkingCalendar",
