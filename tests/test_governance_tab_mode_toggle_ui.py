@@ -1,29 +1,80 @@
-from pathlib import Path
+from __future__ import annotations
+
+import os
+
+from core.models import ApprovalStatus
+from tests.ui_runtime_helpers import make_settings_store, register_and_login
+from ui.governance.tab import GovernanceTab
+from ui.main_window import MainWindow
 
 
-ROOT = Path(__file__).resolve().parents[1]
-
-
-def test_governance_tab_exposes_mode_switch_controls():
-    text = (ROOT / "ui" / "governance" / "tab.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
+def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    project = services["project_service"].create_project("Governance Project")
+    request = services["approval_service"].request_change(
+        request_type="baseline.create",
+        entity_type="baseline",
+        entity_id="baseline-1",
+        project_id=project.id,
+        payload={"name": "March Baseline"},
     )
-    assert "self.mode_combo = QComboBox()" in text
-    assert 'self.mode_combo.addItem("Off", userData="off")' in text
-    assert 'self.mode_combo.addItem("On (Approval Required)", userData="required")' in text
-    assert 'self.status_combo.addItem("Approved", userData=ApprovalStatus.APPROVED)' in text
-    assert 'self.status_combo.addItem("Rejected", userData=ApprovalStatus.REJECTED)' in text
-    assert "def _on_mode_changed" in text
-    assert 'os.environ["PM_GOVERNANCE_MODE"] = mode' in text
-    assert "def _entity_display_label" in text
-    assert 'f"{request.entity_type}:{request.entity_id}"' not in text
-    assert "domain_events.approvals_changed.connect(self._on_approvals_changed)" in text
 
-
-def test_main_window_exposes_governance_tab_for_request_or_decide_permissions():
-    text = (ROOT / "ui" / "main_window.py").read_text(
-        encoding="utf-8",
-        errors="ignore",
+    store = make_settings_store(repo_workspace, prefix="governance")
+    info_messages: list[str] = []
+    monkeypatch.setattr("ui.governance.tab.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(
+        "ui.governance.tab.QMessageBox.information",
+        lambda _parent, _title, message: info_messages.append(message),
     )
-    assert 'if self._has_permission("approval.request") or self._has_permission("approval.decide")' in text
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
+
+    tab = GovernanceTab(
+        approval_service=services["approval_service"],
+        project_service=services["project_service"],
+        task_service=services["task_service"],
+        cost_service=services["cost_service"],
+        user_session=services["user_session"],
+    )
+
+    assert [tab.mode_combo.itemData(i) for i in range(tab.mode_combo.count())] == ["off", "required"]
+    assert tab.status_combo.findData(ApprovalStatus.APPROVED) >= 0
+    assert tab.status_combo.findData(ApprovalStatus.REJECTED) >= 0
+    assert tab.table.rowCount() == 1
+
+    label = tab._entity_display_label(
+        request=request,
+        project_name_by_id={project.id: project.name},
+        task_name_by_id={},
+        cost_desc_by_id={},
+    )
+    assert "March Baseline" in label
+    assert project.name in label
+
+    tab.mode_combo.setCurrentIndex(tab.mode_combo.findData("required"))
+
+    assert os.environ["PM_GOVERNANCE_MODE"] == "required"
+    assert store.load_governance_mode(default_mode="off") == "required"
+    assert any("Governance mode is now ON" in message for message in info_messages)
+
+
+def test_main_window_runtime_exposes_governance_tab_for_request_permissions(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    register_and_login(services, username_prefix="planner-governance", role_names=("planner",))
+    store = make_settings_store(repo_workspace, prefix="governance-main-window")
+    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+    labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
+
+    assert "Governance" in labels
+    assert "Users" not in labels
+    assert "Audit" not in labels

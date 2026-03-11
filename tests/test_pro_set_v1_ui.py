@@ -1,4 +1,17 @@
+from __future__ import annotations
+
+from datetime import date
 from pathlib import Path
+
+from PySide6.QtWidgets import QDialog
+
+from core.domain.enums import TaskStatus
+from infra.collaboration_store import TaskCollaborationStore
+from tests.ui_runtime_helpers import make_settings_store
+from ui.dashboard.tab import DashboardTab
+from ui.report.dialog_gantt import GanttPreviewDialog
+from ui.task.collaboration_dialog import TaskCollaborationDialog
+from ui.task.tab import TaskTab
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,78 +24,216 @@ def test_pro_set_tracker_is_persisted():
     assert "- [x] 7. Material Design 3 modernization" in text
 
 
-def test_task_layout_has_bulk_and_collaboration_controls():
-    text = (ROOT / "ui" / "task" / "layout.py").read_text(encoding="utf-8", errors="ignore")
-    assert 'self.btn_bulk_status = QPushButton("Apply Status")' in text
-    assert 'self.btn_bulk_delete = QPushButton("Bulk Delete")' in text
-    assert 'self.btn_comments = QPushButton("Comments")' in text
-    assert 'self.lbl_mentions = QLabel("Mentions: 0")' in text
-
-
-def test_task_filtering_has_advanced_query_and_saved_views():
-    text = (ROOT / "ui" / "task" / "filtering.py").read_text(encoding="utf-8", errors="ignore")
-    assert "advanced: status:done priority>=70 progress<100" in text
-    assert "self.task_view_combo = QComboBox()" in text
-    assert "def _parse_advanced_task_query" in text
-    assert "def _save_current_task_view" in text
-
-
-def test_undo_stack_wired_into_task_tab():
-    tab_text = (ROOT / "ui" / "task" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    undo_text = (ROOT / "ui" / "shared" / "undo.py").read_text(encoding="utf-8", errors="ignore")
-    bulk_text = (ROOT / "ui" / "task" / "bulk_actions.py").read_text(encoding="utf-8", errors="ignore")
-    assert "self._undo_stack = UndoStack(max_depth=100)" in tab_text
-    assert "class UndoStack" in undo_text
-    assert "stack.push_and_execute(command)" in bulk_text
-
-
-def test_gantt_dialog_uses_interactive_mixin():
-    dialog_text = (ROOT / "ui" / "report" / "dialog_gantt.py").read_text(encoding="utf-8", errors="ignore")
-    interactive_text = (ROOT / "ui" / "report" / "gantt_interactive.py").read_text(
-        encoding="utf-8", errors="ignore"
+def test_task_tab_pro_controls_saved_views_and_undo_work_at_runtime(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    project = services["project_service"].create_project("Pro Set Tasks")
+    services["task_service"].create_task(
+        project.id,
+        "High Priority Task",
+        description="Critical path task",
+        start_date=date(2026, 4, 1),
+        duration_days=2,
+        priority=90,
     )
-    interactive_actions_text = (ROOT / "ui" / "report" / "gantt_interactive_actions.py").read_text(
-        encoding="utf-8", errors="ignore"
+    services["task_service"].create_task(
+        project.id,
+        "Routine Task",
+        description="Normal task",
+        start_date=date(2026, 4, 2),
+        duration_days=2,
+        priority=20,
     )
-    interactive_bar_text = (ROOT / "ui" / "report" / "gantt_interactive_bar.py").read_text(
-        encoding="utf-8", errors="ignore"
+
+    tab = TaskTab(
+        project_service=services["project_service"],
+        task_service=services["task_service"],
+        resource_service=services["resource_service"],
+        project_resource_service=services["project_resource_service"],
+        collaboration_store=services["task_collaboration_store"],
+        settings_store=make_settings_store(repo_workspace, prefix="pro-set-task"),
+        user_session=services["user_session"],
     )
-    assert "class GanttPreviewDialog(GanttInteractiveMixin, QDialog):" in dialog_text
-    assert 'self.btn_open_interactive = QPushButton("Open Interactive")' in dialog_text
-    assert "class GanttInteractiveMixin" in interactive_text
-    assert "class _InteractiveGanttBar" in interactive_bar_text
-    assert 'self.btn_toggle_grid = QPushButton("Grid: On")' in interactive_text
-    assert "drag the right edge to change duration" in interactive_text
-    assert 'self.btn_review_changes = QPushButton("Review Changes")' in interactive_text
-    assert 'self.btn_undo_last_apply = QPushButton("Undo Last Apply")' in interactive_text
-    assert "def _apply_single_edit_with_retry" in interactive_actions_text
+
+    assert tab.btn_bulk_status.text() == "Apply Status"
+    assert tab.btn_bulk_delete.text() == "Bulk Delete"
+    assert tab.btn_comments.text() == "Comments"
+    assert tab.lbl_mentions.text() == "Mentions: 0"
+    assert "advanced:" in tab.task_search_filter.placeholderText()
+    assert tab.task_view_combo.count() >= 1
+
+    monkeypatch.setattr(
+        "ui.task.filtering.QInputDialog.getText",
+        lambda *_args, **_kwargs: ("High Focus", True),
+    )
+    tab.task_search_filter.setText("priority>=70")
+    tab._save_current_task_view()
+    saved_index = tab.task_view_combo.findData("High Focus")
+    assert saved_index >= 0
+
+    tab._clear_task_filters()
+    tab.task_view_combo.setCurrentIndex(saved_index)
+    tab._apply_selected_task_view()
+    assert tab.task_search_filter.text() == "priority>=70"
+    assert tab.model.rowCount() == 1
+
+    tab._clear_task_filters()
+    tab.table.selectAll()
+    tab.bulk_status_combo.setCurrentIndex(tab.bulk_status_combo.findData(TaskStatus.DONE.value))
+    tab.apply_bulk_status()
+
+    status_by_name = {
+        task.name: task.status for task in services["task_service"].list_tasks_for_project(project.id)
+    }
+    assert status_by_name == {
+        "High Priority Task": TaskStatus.DONE,
+        "Routine Task": TaskStatus.DONE,
+    }
+    assert tab._undo_stack.can_undo() is True
+
+    tab.undo_last_task_action()
+    status_by_name = {
+        task.name: task.status for task in services["task_service"].list_tasks_for_project(project.id)
+    }
+    assert status_by_name == {
+        "High Priority Task": TaskStatus.TODO,
+        "Routine Task": TaskStatus.TODO,
+    }
+
+    tab.redo_last_task_action()
+    status_by_name = {
+        task.name: task.status for task in services["task_service"].list_tasks_for_project(project.id)
+    }
+    assert status_by_name == {
+        "High Priority Task": TaskStatus.DONE,
+        "Routine Task": TaskStatus.DONE,
+    }
+
+    tab._mentions_refresh_timer.stop()
 
 
-def test_dashboard_builder_is_persisted():
-    tab_text = (ROOT / "ui" / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    state_text = (ROOT / "ui" / "dashboard" / "layout_state.py").read_text(
-        encoding="utf-8", errors="ignore"
+def test_gantt_preview_dialog_supports_interactive_controls_runtime(qapp, services, monkeypatch):
+    project = services["project_service"].create_project("Interactive Gantt")
+    monkeypatch.setattr(GanttPreviewDialog, "_load_image", lambda self: None)
+
+    dialog = GanttPreviewDialog(
+        None,
+        services["reporting_service"],
+        project.id,
+        project.name,
+        task_service=services["task_service"],
+        can_edit=True,
+        can_open_interactive=True,
     )
-    builder_text = (ROOT / "ui" / "dashboard" / "layout_builder.py").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    assert 'self.btn_customize_dashboard = QPushButton("Customize Dashboard")' in tab_text
-    assert "class DashboardLayoutStateMixin" in state_text
-    assert "QDialog.Accepted" in state_text
-    assert '"left_order"' in state_text
-    assert '"chart_order"' in state_text
-    assert "class DashboardLayoutDialog(QDialog):" in builder_text
-    assert "QAbstractItemView.InternalMove" in builder_text
+
+    assert dialog.btn_open_interactive.text() == "Open Interactive"
+    assert dialog.btn_open_interactive.isEnabled() is True
+    assert dialog.btn_toggle_grid.text() == "Grid: On"
+    assert dialog.btn_review_changes.text() == "Review Changes"
+    assert dialog.btn_undo_last_apply.isEnabled() is False
+    assert dialog.interactive_container.isHidden() is True
+
+    dialog._toggle_interactive_panel()
+
+    assert dialog.interactive_container.isHidden() is False
+    assert dialog.btn_open_interactive.text() == "Hide Interactive"
 
 
-def test_collaboration_baseline_store_and_dialog_exist():
-    store_text = (ROOT / "infra" / "collaboration_store.py").read_text(encoding="utf-8", errors="ignore")
-    dialog_text = (ROOT / "ui" / "task" / "collaboration_dialog.py").read_text(
-        encoding="utf-8", errors="ignore"
+def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    project = services["project_service"].create_project("Dashboard Project")
+    store = make_settings_store(repo_workspace, prefix="dashboard-layout")
+    store.save_dashboard_layout(
+        {
+            "show_summary": True,
+            "show_kpi": False,
+            "show_evm": True,
+            "show_burndown": True,
+            "show_resource": True,
+            "main_left_percent": 60,
+            "chart_top_percent": 35,
+            "left_order": ["summary", "evm", "kpi"],
+            "chart_order": ["resource", "burndown"],
+        }
     )
-    assert "class TaskCollaborationStore" in store_text
-    assert "def unread_mentions_count" in store_text
-    assert "def unread_mentions_count_for_users" in store_text
-    assert "class TaskCollaborationDialog(QDialog):" in dialog_text
-    assert "mention_aliases" in dialog_text
-    assert "@username" in dialog_text
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+
+    tab = DashboardTab(
+        project_service=services["project_service"],
+        dashboard_service=services["dashboard_service"],
+        baseline_service=services["baseline_service"],
+        settings_store=store,
+        user_session=services["user_session"],
+    )
+
+    assert project.id == tab.project_combo.currentData()
+    assert tab.btn_customize_dashboard.text() == "Customize Dashboard"
+    assert tab.kpi_group.isHidden() is True
+    assert tab._current_left_order()[:3] == ["summary", "evm", "kpi"]
+    assert tab._current_chart_order()[:2] == ["resource", "burndown"]
+
+    applied_payload = {
+        "show_summary": True,
+        "show_kpi": True,
+        "show_evm": False,
+        "show_burndown": False,
+        "show_resource": True,
+        "main_left_percent": 55,
+        "chart_top_percent": 30,
+        "left_order": ["kpi", "summary", "evm"],
+        "chart_order": ["resource", "burndown"],
+    }
+
+    class _AcceptedLayoutDialog:
+        def __init__(self, _parent, *, current_layout=None):
+            self.current_layout = current_layout
+            self.layout_payload = applied_payload
+
+        def exec(self):
+            return QDialog.Accepted
+
+    monkeypatch.setattr("ui.dashboard.layout_state.DashboardLayoutDialog", _AcceptedLayoutDialog)
+    tab._open_dashboard_layout_builder()
+
+    assert store.load_dashboard_layout() == applied_payload
+    assert tab._current_left_order()[:3] == ["kpi", "summary", "evm"]
+    assert tab.evm_group.isHidden() is True
+    assert tab.burndown_chart.isHidden() is True
+
+
+def test_collaboration_dialog_posts_mentions_and_attachments_at_runtime(qapp, repo_workspace):
+    store = TaskCollaborationStore(storage_path=repo_workspace / "comments.json")
+    attachment = repo_workspace / "proof.txt"
+    attachment.write_text("proof", encoding="utf-8")
+
+    dialog = TaskCollaborationDialog(
+        None,
+        store=store,
+        task_id="task-1",
+        task_name="Task One",
+        username="bob",
+        mention_aliases=["alice"],
+    )
+
+    dialog._pending_attachments = [str(attachment)]
+    dialog._refresh_attachment_label()
+    assert "proof.txt" in dialog.attachments_label.text()
+
+    dialog.comment_input.setPlainText("Please review this update @alice")
+    dialog._post_comment()
+
+    comments = store.list_comments("task-1")
+    assert len(comments) == 1
+    assert comments[0]["mentions"] == ["alice"]
+    assert comments[0]["attachments"] == [str(attachment)]
+    assert store.unread_mentions_count("alice") == 1
+    assert dialog.activity_list.count() == 1
+    assert "@alice" in dialog.activity_list.item(0).text()
+    assert "proof.txt" in dialog.activity_list.item(0).text()
