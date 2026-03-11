@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
+    QInputDialog,
+    QMessageBox,
     QVBoxLayout,
 )
 
@@ -140,6 +142,93 @@ class TaskProgressDialog(QDialog):
         row.addWidget(editor)
         row.addWidget(checkbox)
         return row
+
+    def _prompt_iso_date(self, title: str, prompt: str, seed: date | None = None) -> date | None:
+        default_date = seed or date.today()
+        while True:
+            raw_text, ok = QInputDialog.getText(
+                self,
+                title,
+                prompt,
+                text=default_date.isoformat(),
+            )
+            if not ok:
+                return None
+            value = str(raw_text or "").strip()
+            try:
+                return date.fromisoformat(value)
+            except ValueError:
+                QMessageBox.warning(self, title, "Enter a valid date as YYYY-MM-DD.")
+
+    def build_payload(self) -> dict[str, object] | None:
+        payload: dict[str, object] = {}
+        if self.percent_set:
+            payload["percent_complete"] = self.percent_complete
+        if self.actual_start_set:
+            payload["actual_start"] = self.actual_start
+        if self.actual_end_set:
+            payload["actual_end"] = self.actual_end
+        if self.status_set and self.status is not None:
+            payload["status"] = self.status
+
+        if self._task is None:
+            return payload
+        target_status = self.status
+        if not self.status_set or target_status is None or target_status == self._task.status:
+            return payload
+
+        previous_status = self._task.status
+        if previous_status == TaskStatus.DONE and target_status != TaskStatus.DONE:
+            decision = QMessageBox.question(
+                self,
+                "Reopen completed task",
+                "This task is already Done. Do you want to change it?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if decision != QMessageBox.Yes:
+                return None
+
+        if target_status == TaskStatus.DONE:
+            payload["percent_complete"] = 100.0
+            if payload.get("actual_end") is None:
+                actual_end = self._prompt_iso_date(
+                    "Actual end date",
+                    "Enter actual end date (YYYY-MM-DD):",
+                    seed=getattr(self._task, "actual_end", None) or getattr(self._task, "end_date", None),
+                )
+                if actual_end is None:
+                    return None
+                payload["actual_end"] = actual_end
+        elif target_status == TaskStatus.TODO:
+            payload["percent_complete"] = 0.0
+        elif previous_status == TaskStatus.TODO and target_status == TaskStatus.IN_PROGRESS:
+            if payload.get("actual_start") is None:
+                actual_start = self._prompt_iso_date(
+                    "Actual start date",
+                    "Enter actual start date (YYYY-MM-DD):",
+                    seed=getattr(self._task, "actual_start", None) or getattr(self._task, "start_date", None),
+                )
+                if actual_start is None:
+                    return None
+                payload["actual_start"] = actual_start
+        elif previous_status == TaskStatus.DONE and target_status == TaskStatus.IN_PROGRESS:
+            current_progress = float(payload.get("percent_complete", getattr(self._task, "percent_complete", 100.0) or 100.0))
+            if not 0.0 < current_progress < 100.0:
+                default_progress = max(1.0, min(99.0, current_progress if current_progress < 100.0 else 50.0))
+                percent, ok = QInputDialog.getDouble(
+                    self,
+                    "Completion percentage",
+                    "Enter completion % for In Progress:",
+                    default_progress,
+                    1.0,
+                    99.0,
+                    1,
+                )
+                if not ok:
+                    return None
+                payload["percent_complete"] = float(percent)
+        return payload
 
     @property
     def percent_set(self) -> bool:

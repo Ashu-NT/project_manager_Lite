@@ -20,9 +20,7 @@ from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 from core.services.work_calendar.engine import WorkCalendarEngine
 
-
 logger = logging.getLogger(__name__)
-
 
 class TaskLifecycleMixin:
     _session: Session
@@ -89,7 +87,14 @@ class TaskLifecycleMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        prior_status = task.status
         task.status = status
+        if status == TaskStatus.DONE:
+            task.percent_complete = 100.0
+        elif status == TaskStatus.TODO:
+            task.percent_complete = 0.0
+        elif status == TaskStatus.IN_PROGRESS and not 0.0 < float(task.percent_complete or 0.0) < 100.0:
+            task.percent_complete = 50.0 if prior_status == TaskStatus.DONE else 1.0
         try:
             self._task_repo.update(task)
             self._session.commit()

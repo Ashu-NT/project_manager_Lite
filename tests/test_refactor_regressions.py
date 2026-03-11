@@ -60,6 +60,70 @@ def test_dashboard_high_priority_without_deadline_does_not_crash(services):
     assert not any("High-priority task" in msg for msg in data.alerts)
 
 
+def test_dashboard_refresh_recalculation_is_read_only(services, monkeypatch):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    ds = services["dashboard_service"]
+
+    project = ps.create_project("Dashboard Read Only Recalc", "")
+    pid = project.id
+    ts.create_task(pid, "Task X", start_date=date(2023, 11, 6), duration_days=1)
+
+    seen: dict[str, object] = {}
+    original = ds._sched.recalculate_project_schedule
+
+    def _spy(project_id: str, *, persist: bool = True):
+        seen["project_id"] = project_id
+        seen["persist"] = persist
+        return original(project_id, persist=persist)
+
+    monkeypatch.setattr(ds._sched, "recalculate_project_schedule", _spy)
+    ds.get_dashboard_data(pid)
+    assert seen["project_id"] == pid
+    assert seen["persist"] is False
+
+
+def test_dashboard_done_task_skips_deadline_alert_and_reports_late_completion(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    ds = services["dashboard_service"]
+
+    project = ps.create_project("Dashboard Done Deadline", "")
+    pid = project.id
+    task = ts.create_task(
+        pid,
+        "Done Late Task",
+        start_date=date(2023, 11, 6),
+        duration_days=2,
+        deadline=date(2023, 11, 7),
+    )
+    ts.update_progress(task.id, percent_complete=100.0, actual_end=date(2023, 11, 9))
+
+    data = ds.get_dashboard_data(pid)
+    assert not any("missed its deadline" in msg for msg in data.alerts)
+    assert any("Done Late Task" in msg and "completed late" in msg for msg in data.alerts)
+
+
+def test_dashboard_done_task_reports_on_time_completion(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    ds = services["dashboard_service"]
+
+    project = ps.create_project("Dashboard Done On Time", "")
+    pid = project.id
+    task = ts.create_task(
+        pid,
+        "Done On Time Task",
+        start_date=date(2023, 11, 6),
+        duration_days=2,
+        deadline=date(2023, 11, 15),
+    )
+    ts.update_progress(task.id, percent_complete=100.0, actual_end=date(2023, 11, 7))
+
+    data = ds.get_dashboard_data(pid)
+    assert any("Done On Time Task" in msg and "completed on time" in msg for msg in data.alerts)
+
+
 def test_dashboard_upcoming_populates_main_resource_name(services):
     ps = services["project_service"]
     ts = services["task_service"]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from core.domain.enums import TaskStatus
 from ui.shared.undo import UndoCommand
@@ -29,9 +29,50 @@ class TaskBulkActionsMixin:
             QMessageBox.information(self, "Bulk status", "Selected tasks already have this status.")
             return
 
+        reopened_count = sum(
+            1 for _, old_status, _ in changes if old_status == TaskStatus.DONE and target_status != TaskStatus.DONE
+        )
+        reopen_percent: float | None = None
+        if reopened_count:
+            decision = QMessageBox.question(
+                self,
+                "Bulk status",
+                f"{reopened_count} completed task(s) will be reopened. Continue?",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No,
+            )
+            if decision != QMessageBox.Yes:
+                return
+            if target_status == TaskStatus.IN_PROGRESS:
+                percent, ok = QInputDialog.getDouble(
+                    self,
+                    "Bulk status",
+                    "Set completion % for reopened tasks:",
+                    50.0,
+                    1.0,
+                    99.0,
+                    1,
+                )
+                if not ok:
+                    return
+                reopen_percent = float(percent)
+
         def _apply(target_idx: int) -> None:
             for task_id, old_status, new_status in changes:
-                self._task_service.set_status(task_id, (old_status, new_status)[target_idx])
+                status = (old_status, new_status)[target_idx]
+                if (
+                    target_idx == 1
+                    and reopen_percent is not None
+                    and old_status == TaskStatus.DONE
+                    and new_status == TaskStatus.IN_PROGRESS
+                ):
+                    self._task_service.update_progress(
+                        task_id=task_id,
+                        status=TaskStatus.IN_PROGRESS,
+                        percent_complete=reopen_percent,
+                    )
+                else:
+                    self._task_service.set_status(task_id, status)
 
         label = f"Bulk status -> {target_status.value} ({len(changes)} tasks)"
         command = UndoCommand(
@@ -120,4 +161,3 @@ class TaskBulkActionsMixin:
 
 
 __all__ = ["TaskBulkActionsMixin"]
-

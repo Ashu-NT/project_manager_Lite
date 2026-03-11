@@ -50,7 +50,8 @@ class DashboardService(
         self._user_session = user_session
 
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
-        self._sched.recalculate_project_schedule(project_id)
+        # Dashboard refresh should be read-only and never contend with task edits.
+        self._sched.recalculate_project_schedule(project_id, persist=False)
 
         kpi = self._reporting.get_project_kpis(project_id)
         resource_load = self._reporting.get_resource_load_summary(project_id)

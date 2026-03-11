@@ -39,3 +39,25 @@ def test_task_progress_accepts_explicit_status_updates(services):
     t = ts.update_progress(t.id, percent_complete=100.0, status=TaskStatus.BLOCKED)
     assert t.percent_complete == 100.0
     assert t.status == TaskStatus.BLOCKED
+
+
+def test_set_status_updates_percent_complete_defaults(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+
+    project = ps.create_project("Status Defaults", "")
+    pid = project.id
+    task = ts.create_task(pid, "Task Defaults", start_date=date(2023, 11, 6), duration_days=2)
+
+    ts.set_status(task.id, TaskStatus.DONE)
+    task = ts.get_task(task.id)
+    assert task.percent_complete == 100.0
+
+    ts.set_status(task.id, TaskStatus.TODO)
+    task = ts.get_task(task.id)
+    assert task.percent_complete == 0.0
+
+    ts.set_status(task.id, TaskStatus.DONE)
+    ts.set_status(task.id, TaskStatus.IN_PROGRESS)
+    task = ts.get_task(task.id)
+    assert 0.0 < float(task.percent_complete or 0.0) < 100.0

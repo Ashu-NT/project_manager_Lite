@@ -79,16 +79,20 @@ class TaskActionsMixin:
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
+                transition_kwargs = getattr(dlg, "status_transition_kwargs", {})
+                status_value = dlg.status if not transition_kwargs else task.status
                 self._task_service.update_task(
                     task_id=task.id,
                     name=dlg.name,
                     description=dlg.description,
                     start_date=dlg.start_date,
                     duration_days=dlg.duration_days,
-                    status=dlg.status,
+                    status=status_value,
                     priority=dlg.priority,
                     deadline=dlg.deadline,
                 )
+                if transition_kwargs:
+                    self._task_service.update_progress(task_id=task.id, status=dlg.status, **transition_kwargs)
             except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
                 incident_id = emit_error_event(
                     event_type="business.task.update.error",
@@ -145,15 +149,9 @@ class TaskActionsMixin:
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                kwargs = {}
-                if dlg.percent_set:
-                    kwargs["percent_complete"] = dlg.percent_complete
-                if dlg.actual_start_set:
-                    kwargs["actual_start"] = dlg.actual_start
-                if dlg.actual_end_set:
-                    kwargs["actual_end"] = dlg.actual_end
-                if dlg.status_set:
-                    kwargs["status"] = dlg.status
+                kwargs = dlg.build_payload()
+                if kwargs is None:
+                    continue
 
                 if not kwargs:
                     QMessageBox.information(
