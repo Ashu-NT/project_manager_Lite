@@ -1,4 +1,3 @@
-# core/services/dashboard_service.py
 from __future__ import annotations
 
 from core.events.domain_events import domain_events
@@ -8,6 +7,7 @@ from core.services.dashboard.burndown import DashboardBurndownMixin
 from core.services.dashboard.evm import DashboardEvmMixin
 from core.services.dashboard.models import BurndownPoint, DashboardData, DashboardEVM, UpcomingTask
 from core.services.dashboard.portfolio import DashboardPortfolioMixin
+from core.services.dashboard.professional import DashboardProfessionalMixin
 from core.services.dashboard.upcoming import DashboardUpcomingMixin
 from core.services.project.service import ProjectService
 from core.services.reporting.service import ReportingService
@@ -28,11 +28,8 @@ class DashboardService(
     DashboardBurndownMixin,
     DashboardEvmMixin,
     DashboardPortfolioMixin,
+    DashboardProfessionalMixin,
 ):
-    """
-    Aggregates data for the Dashboard tab.
-    """
-
     def __init__(
         self,
         reporting_service: ReportingService,
@@ -50,16 +47,17 @@ class DashboardService(
         self._sched: SchedulingEngine = scheduling_engine
         self._calendar: WorkCalendarEngine = work_calendar_engine
         self._user_session = user_session
-
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
         # Dashboard refresh should be read-only and never contend with task edits.
-        self._sched.recalculate_project_schedule(project_id, persist=False)
+        schedule = self._sched.recalculate_project_schedule(project_id, persist=False)
 
         kpi = self._reporting.get_project_kpis(project_id)
         resource_load = self._reporting.get_resource_load_summary(project_id)
         alerts = self._build_alerts(project_id, kpi, resource_load)
         upcoming = self._build_upcoming_tasks(project_id)
         burndown = self._build_burndown(project_id)
+        milestones = self._build_milestone_health(project_id, schedule=schedule)
+        critical_watchlist = self._build_critical_watchlist(project_id, schedule=schedule)
         cost_sources = self._reporting.get_project_cost_source_breakdown(project_id)
         evm_obj = self._build_evm(project_id, baseline_id=baseline_id)
 
@@ -68,6 +66,8 @@ class DashboardService(
             alerts=alerts,
             resource_load=resource_load,
             burndown=burndown,
+            milestone_health=milestones,
+            critical_watchlist=critical_watchlist,
             cost_sources=cost_sources,
             evm=evm_obj,
             upcoming_tasks=upcoming,
@@ -126,7 +126,6 @@ class DashboardService(
         self._sched.recalculate_project_schedule(project_id)
         domain_events.tasks_changed.emit(project_id)
         return action
-
 
 __all__ = [
     "DashboardService",

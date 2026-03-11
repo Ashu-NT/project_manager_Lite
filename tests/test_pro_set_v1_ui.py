@@ -189,7 +189,7 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
     assert tab.burndown_chart.isHidden() is True
     assert tab.portfolio_group.isHidden() is True
     assert tab._current_visible_panel_ids() == ["resource", "kpi"]
-    assert tab._current_panel_order() == ["resource", "kpi", "evm", "burndown"]
+    assert tab._current_panel_order() == ["resource", "kpi", "evm", "burndown", "milestones", "watchlist"]
     assert tab._active_dashboard_panel_count() == 2
 
     applied_payload = {
@@ -218,6 +218,7 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
     assert store.load_dashboard_layout() == applied_payload
     assert tab._current_visible_panel_ids() == ["evm", "kpi", "burndown"]
     assert tab._active_dashboard_panel_count() == 3
+    assert tab._current_panel_order() == ["evm", "kpi", "burndown", "resource", "milestones", "watchlist"]
     assert tab.evm_group.isHidden() is False
     assert tab.kpi_group.isHidden() is False
     assert tab.burndown_chart.isHidden() is False

@@ -1,4 +1,11 @@
-from .models import BurndownPoint, DashboardData, DashboardEVM, UpcomingTask
+from .models import (
+    BurndownPoint,
+    CriticalPathRow,
+    DashboardData,
+    DashboardEVM,
+    MilestoneHealthRow,
+    UpcomingTask,
+)
 from .portfolio_models import (
     PORTFOLIO_SCOPE_ID,
     DashboardPortfolio,
@@ -13,6 +20,8 @@ __all__ = [
     "DashboardEVM",
     "UpcomingTask",
     "BurndownPoint",
+    "MilestoneHealthRow",
+    "CriticalPathRow",
     "PORTFOLIO_SCOPE_ID",
     "DashboardPortfolio",
     "PortfolioProjectRow",

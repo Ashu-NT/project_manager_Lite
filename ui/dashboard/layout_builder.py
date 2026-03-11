@@ -25,13 +25,15 @@ from ui.styles.ui_config import UIConfig as CFG
 
 PANEL_CATALOG: dict[str, tuple[str, str, str]] = {
     "kpi": ("KPI Cards", "Snap summary", "Fast health signals for scope, schedule, and cost."),
+    "milestones": ("Milestone Health", "Project only", "Upcoming checkpoints with due-soon and late visibility."),
+    "watchlist": ("Critical Path Watchlist", "Project only", "Critical or tight-float tasks that need active control."),
     "evm": ("EVM Analysis", "Project only", "Earned value metrics for cost and schedule control."),
     "portfolio": ("Portfolio Ranking", "Portfolio only", "Cross-project ranking with at-risk visibility."),
     "burndown": ("Status Trend", "Chart", "Trend view for remaining work or portfolio status rollup."),
     "resource": ("Resource Capacity", "Chart", "Utilization and over-allocation pressure by resource."),
 }
 
-PROJECT_PANELS: tuple[str, ...] = ("kpi", "evm", "burndown", "resource")
+PROJECT_PANELS: tuple[str, ...] = ("kpi", "milestones", "watchlist", "resource", "evm", "burndown")
 PORTFOLIO_PANELS: tuple[str, ...] = ("kpi", "portfolio", "burndown", "resource")
 
 
@@ -257,7 +259,7 @@ class DashboardLayoutDialog(QDialog):
             )
             return
         self.mode_badge.setText("Project View")
-        self.view_hint.setText("Project view keeps EVM available for detailed control.")
+        self.view_hint.setText("Project view adds milestone and critical-path control panels.")
 
     def _selected_panel_ids(self) -> list[str]:
         ordered = self._order_from_list(self.panel_order_list, self._available_panels())
@@ -276,16 +278,16 @@ class DashboardLayoutDialog(QDialog):
         panels = self._available_panels()
         analysis = "portfolio" if self._portfolio_mode else "evm"
         presets = {
-            "balanced": list(panels),
-            "executive": [analysis, "kpi", "burndown"],
-            "delivery": [analysis, "resource", "burndown"],
-            "lean": ["kpi", "burndown"],
+            "balanced": list(panels if self._portfolio_mode else ("kpi", "milestones", "watchlist", "resource")),
+            "executive": [analysis, "kpi", "burndown"] if self._portfolio_mode else ["kpi", "milestones", "watchlist"],
+            "delivery": [analysis, "resource", "burndown"] if self._portfolio_mode else ["watchlist", "resource", "burndown", "evm"],
+            "lean": ["kpi", "burndown"] if self._portfolio_mode else ["kpi", "milestones"],
         }
         order_presets = {
             "balanced": list(panels),
-            "executive": [analysis, "kpi", "burndown", "resource"],
-            "delivery": [analysis, "resource", "burndown", "kpi"],
-            "lean": ["kpi", "burndown", analysis, "resource"],
+            "executive": [analysis, "kpi", "burndown", "resource"] if self._portfolio_mode else ["kpi", "milestones", "watchlist", "resource", "evm", "burndown"],
+            "delivery": [analysis, "resource", "burndown", "kpi"] if self._portfolio_mode else ["watchlist", "resource", "burndown", "evm", "kpi", "milestones"],
+            "lean": ["kpi", "burndown", analysis, "resource"] if self._portfolio_mode else ["kpi", "milestones", "watchlist", "resource", "evm", "burndown"],
         }
         preset = str(self.preset_combo.currentData() or "balanced")
         selected = set(presets.get(preset, list(panels)))

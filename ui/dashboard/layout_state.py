@@ -183,6 +183,8 @@ class DashboardLayoutStateMixin:
     def _panel_widgets(self) -> dict[str, object]:
         return {
             "kpi": self.kpi_group,
+            "milestones": self.milestone_group,
+            "watchlist": self.watchlist_group,
             "evm": self.evm_group,
             "portfolio": self.portfolio_group,
             "burndown": self.burndown_chart,

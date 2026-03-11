@@ -126,6 +126,8 @@ def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
         tab._update_evm(data)
         if hasattr(tab, "_update_portfolio_panel"):
             tab._update_portfolio_panel(data)
+        if hasattr(tab, "_update_professional_panels"):
+            tab._update_professional_panels(data)
 
     start_async_job(
         parent=tab,

@@ -318,9 +318,11 @@ def test_dashboard_rendering_module_is_facade_only():
     assert "from ui.dashboard.rendering_charts import" in text
     assert "from ui.dashboard.rendering_evm import" in text
     assert "from ui.dashboard.rendering_portfolio import" in text
+    assert "from ui.dashboard.rendering_professional import" in text
     assert "def _update_kpis" not in text
     assert "def _update_burndown_chart" not in text
     assert "def _update_evm" not in text
+    assert "def _update_professional_panels" not in text
 
 
 def test_dashboard_summary_rendering_avoids_widget_index_lookups():
@@ -340,10 +342,12 @@ def test_dashboard_service_is_orchestrator_only():
     assert "from core.services.dashboard.burndown import" in text
     assert "from core.services.dashboard.evm import" in text
     assert "from core.services.dashboard.portfolio import" in text
+    assert "from core.services.dashboard.professional import" in text
     assert "def _build_alerts" not in text
     assert "def _build_upcoming_tasks" not in text
     assert "def _build_burndown" not in text
     assert "def _interpret_evm" not in text
+    assert "def _build_milestone_health" not in text
 
 
 def test_finance_service_is_orchestrator_only():

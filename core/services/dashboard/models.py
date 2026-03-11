@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import List, Optional
 
@@ -44,12 +44,35 @@ class BurndownPoint:
 
 
 @dataclass
+class MilestoneHealthRow:
+    task_id: str
+    task_name: str
+    owner_name: str | None
+    target_date: date | None
+    status_label: str
+    slip_days: int | None
+
+
+@dataclass
+class CriticalPathRow:
+    task_id: str
+    task_name: str
+    owner_name: str | None
+    finish_date: date | None
+    total_float_days: int | None
+    late_by_days: int | None
+    status_label: str
+
+
+@dataclass
 class DashboardData:
     kpi: ProjectKPI
     resource_load: List[ResourceLoadRow]
     alerts: List[str]
     upcoming_tasks: List[UpcomingTask]
     burndown: List[BurndownPoint]
+    milestone_health: list[MilestoneHealthRow] = field(default_factory=list)
+    critical_watchlist: list[CriticalPathRow] = field(default_factory=list)
     cost_sources: CostSourceBreakdown | None = None
     evm: Optional[DashboardEVM] = None
     portfolio: DashboardPortfolio | None = None

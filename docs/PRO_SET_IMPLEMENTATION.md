@@ -66,6 +66,7 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
   - portfolio ranking and status rollups
   - resource capacity across projects
   - progress: dashboard now supports a `Portfolio Overview` mode with aggregated KPIs, project ranking, status rollup, and cross-project capacity on 2026-03-11
+  - progress: project view now exposes `Milestone Health` and `Critical Path Watchlist` as selectable professional panels on 2026-03-11
 - [ ] 2. Timesheet approvals / lock periods
   - monthly resource timesheet periods
   - submit / approve / reject / explicit lock-unlock lifecycle

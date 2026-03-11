@@ -26,6 +26,7 @@ from ui.dashboard.data_ops import DashboardDataOpsMixin
 from ui.dashboard.layout_state import DashboardLayoutStateMixin
 from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
 from ui.dashboard.portfolio_panel import DashboardPortfolioPanelMixin
+from ui.dashboard.professional_panel import DashboardProfessionalPanelMixin
 from ui.dashboard.rendering import DashboardRenderingMixin
 from ui.dashboard.top_bar import DashboardTopBarMixin
 from ui.dashboard.widgets import ChartWidget, KpiCard
@@ -42,6 +43,7 @@ class DashboardTab(
     DashboardRenderingMixin,
     DashboardAlertsPanelMixin,
     DashboardWorkqueueActionsMixin,
+    DashboardProfessionalPanelMixin,
     DashboardPortfolioPanelMixin,
     DashboardControlRailMixin,
     DashboardTopBarMixin,
@@ -175,6 +177,8 @@ class DashboardTab(
         for col in range(4):
             kpi_layout.setColumnStretch(col, 1)
 
+        self.milestone_group = self._build_milestone_panel()
+        self.watchlist_group = self._build_watchlist_panel()
         self.portfolio_group = self._build_portfolio_panel()
         self.portfolio_group.setTitle("Portfolio Ranking")
         self.evm_group = self._build_evm_panel()

@@ -63,6 +63,7 @@ class DashboardSummaryRenderingMixin:
             self.dashboard_mode_badge.setText("Live Panels"); self.dashboard_scope_hint.setText("4 panels active")
         if hasattr(self, "_reset_evm_view"): self._reset_evm_view()
         if hasattr(self, "_clear_portfolio_panel"): self._clear_portfolio_panel()
+        if hasattr(self, "_clear_professional_panels"): self._clear_professional_panels()
         if hasattr(self, "_sync_dashboard_panel_visibility"): self._sync_dashboard_panel_visibility()
 
     def _update_summary(self, project_name: str, data: DashboardData):
