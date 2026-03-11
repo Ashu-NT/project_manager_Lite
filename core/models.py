@@ -13,6 +13,12 @@ from core.domain.cost import CostItem
 from core.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatus
 from core.domain.identifiers import generate_id
 from core.domain.project import Project, ProjectResource
+from core.domain.register import (
+    RegisterEntry,
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
+)
 from core.domain.resource import Resource
 from core.domain.task import Task, TaskAssignment, TaskDependency, TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
@@ -24,6 +30,10 @@ __all__ = [
     "CostType",
     "Project",
     "ProjectResource",
+    "RegisterEntry",
+    "RegisterEntryType",
+    "RegisterEntrySeverity",
+    "RegisterEntryStatus",
     "Task",
     "Resource",
     "TaskAssignment",

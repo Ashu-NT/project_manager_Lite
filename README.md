@@ -15,12 +15,13 @@ It is built with Python + PySide6 and follows a layered architecture designed fo
 ### Execution and Control
 - Resource catalog with rates, activity status, and currency
 - Project-specific resource planning (`ProjectResource`) with planned hours/rates
-- Task assignment with allocation `%` and logged hours
+- Task assignment with allocation `%`, time entries, and monthly timesheet approval periods
 - Cost tracking (planned, committed, actual) with labor integration
 - Baseline creation and schedule/cost variance analysis
+- Risk / issue / change register with ownership, severity, status, and due dates
 
 ### Reporting and Exports
-- Dashboard: KPIs, alerts, upcoming tasks, resource load, burndown, EVM snapshot, portfolio overview
+- Dashboard: KPIs, alerts, upcoming tasks, resource load, burndown, EVM snapshot, portfolio overview, milestone health, critical-path watchlist, register summary
 - Report views: KPI, Gantt, Critical Path, Resource Load, Performance Variance, EVM
 - Exports:
   - Gantt PNG
@@ -102,6 +103,11 @@ python main.py
   - Linux: `~/.local/share/TECHASH/ProjectManagerLite/project_manager.db`
 - Application log file:
   - `<user_data_dir>/logs/app.log`
+
+## Data Import
+
+- Projects tab now opens an import wizard for `projects`, `resources`, `tasks`, and `costs`
+- Supports CSV preview before commit, column mapping, dry-run diagnostics, and partial-valid imports
 
 ## Theme
 

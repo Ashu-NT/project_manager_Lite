@@ -27,13 +27,14 @@ PANEL_CATALOG: dict[str, tuple[str, str, str]] = {
     "kpi": ("KPI Cards", "Snap summary", "Fast health signals for scope, schedule, and cost."),
     "milestones": ("Milestone Health", "Project only", "Upcoming checkpoints with due-soon and late visibility."),
     "watchlist": ("Critical Path Watchlist", "Project only", "Critical or tight-float tasks that need active control."),
+    "register": ("Risk / Issue / Change Summary", "Project only", "Urgent register counts and action-heavy items."),
     "evm": ("EVM Analysis", "Project only", "Earned value metrics for cost and schedule control."),
     "portfolio": ("Portfolio Ranking", "Portfolio only", "Cross-project ranking with at-risk visibility."),
     "burndown": ("Status Trend", "Chart", "Trend view for remaining work or portfolio status rollup."),
     "resource": ("Resource Capacity", "Chart", "Utilization and over-allocation pressure by resource."),
 }
 
-PROJECT_PANELS: tuple[str, ...] = ("kpi", "milestones", "watchlist", "resource", "evm", "burndown")
+PROJECT_PANELS: tuple[str, ...] = ("kpi", "milestones", "watchlist", "register", "resource", "evm", "burndown")
 PORTFOLIO_PANELS: tuple[str, ...] = ("kpi", "portfolio", "burndown", "resource")
 
 
@@ -278,16 +279,16 @@ class DashboardLayoutDialog(QDialog):
         panels = self._available_panels()
         analysis = "portfolio" if self._portfolio_mode else "evm"
         presets = {
-            "balanced": list(panels if self._portfolio_mode else ("kpi", "milestones", "watchlist", "resource")),
-            "executive": [analysis, "kpi", "burndown"] if self._portfolio_mode else ["kpi", "milestones", "watchlist"],
-            "delivery": [analysis, "resource", "burndown"] if self._portfolio_mode else ["watchlist", "resource", "burndown", "evm"],
-            "lean": ["kpi", "burndown"] if self._portfolio_mode else ["kpi", "milestones"],
+            "balanced": list(panels if self._portfolio_mode else ("kpi", "milestones", "watchlist", "register")),
+            "executive": [analysis, "kpi", "burndown"] if self._portfolio_mode else ["kpi", "milestones", "register"],
+            "delivery": [analysis, "resource", "burndown"] if self._portfolio_mode else ["watchlist", "register", "resource", "evm"],
+            "lean": ["kpi", "burndown"] if self._portfolio_mode else ["kpi", "register"],
         }
         order_presets = {
             "balanced": list(panels),
-            "executive": [analysis, "kpi", "burndown", "resource"] if self._portfolio_mode else ["kpi", "milestones", "watchlist", "resource", "evm", "burndown"],
-            "delivery": [analysis, "resource", "burndown", "kpi"] if self._portfolio_mode else ["watchlist", "resource", "burndown", "evm", "kpi", "milestones"],
-            "lean": ["kpi", "burndown", analysis, "resource"] if self._portfolio_mode else ["kpi", "milestones", "watchlist", "resource", "evm", "burndown"],
+            "executive": [analysis, "kpi", "burndown", "resource"] if self._portfolio_mode else ["kpi", "milestones", "register", "watchlist", "resource", "evm", "burndown"],
+            "delivery": [analysis, "resource", "burndown", "kpi"] if self._portfolio_mode else ["watchlist", "register", "resource", "burndown", "evm", "kpi", "milestones"],
+            "lean": ["kpi", "burndown", analysis, "resource"] if self._portfolio_mode else ["kpi", "register", "milestones", "watchlist", "resource", "evm", "burndown"],
         }
         preset = str(self.preset_combo.currentData() or "balanced")
         selected = set(presets.get(preset, list(panels)))

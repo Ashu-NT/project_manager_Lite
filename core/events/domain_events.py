@@ -1,5 +1,5 @@
 
-"""Domain event hub for project/task/cost/baseline change notifications."""
+"""Domain event hub for project/task/cost/baseline/register change notifications."""
 
 from dataclasses import dataclass, field
 
@@ -14,6 +14,7 @@ class DomainEvents:
     resources_changed: Signal[str] = field(default_factory=Signal)  # resource_id
     baseline_changed: Signal[str] = field(default_factory=Signal)  # project_id
     approvals_changed: Signal[str] = field(default_factory=Signal)  # approval_request_id
+    register_changed: Signal[str] = field(default_factory=Signal)  # project_id
 
 
 # SINGLE global instance

@@ -15,6 +15,10 @@ from .models import (
     ProjectBaseline,
     BaselineTask,
     ProjectResource,
+    RegisterEntry,
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
     AuditLogEntry,
     ApprovalRequest,
     Permission,
@@ -211,6 +215,26 @@ class BaselineRepository(ABC):
     def list_tasks(self, baseline_id: str) -> List[BaselineTask]: ...
     @abstractmethod
     def delete_tasks(self, baseline_id: str) -> None: ...
+
+
+class RegisterEntryRepository(ABC):
+    @abstractmethod
+    def add(self, entry: RegisterEntry) -> None: ...
+    @abstractmethod
+    def update(self, entry: RegisterEntry) -> None: ...
+    @abstractmethod
+    def delete(self, entry_id: str) -> None: ...
+    @abstractmethod
+    def get(self, entry_id: str) -> Optional[RegisterEntry]: ...
+    @abstractmethod
+    def list_entries(
+        self,
+        *,
+        project_id: str | None = None,
+        entry_type: RegisterEntryType | None = None,
+        status: RegisterEntryStatus | None = None,
+        severity: RegisterEntrySeverity | None = None,
+    ) -> List[RegisterEntry]: ...
 
 
 class UserRepository(ABC):

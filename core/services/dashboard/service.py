@@ -5,12 +5,14 @@ from core.services.auth.authorization import require_permission
 from core.services.dashboard.alerts import DashboardAlertsMixin
 from core.services.dashboard.burndown import DashboardBurndownMixin
 from core.services.dashboard.evm import DashboardEvmMixin
+from core.services.dashboard.register import DashboardRegisterMixin
 from core.services.dashboard.models import BurndownPoint, DashboardData, DashboardEVM, UpcomingTask
 from core.services.dashboard.portfolio import DashboardPortfolioMixin
 from core.services.dashboard.professional import DashboardProfessionalMixin
 from core.services.dashboard.upcoming import DashboardUpcomingMixin
 from core.services.project.service import ProjectService
 from core.services.reporting.service import ReportingService
+from core.services.register import RegisterService
 from core.services.resource import ResourceService
 from core.services.scheduling.engine import SchedulingEngine
 from core.services.scheduling.leveling_models import (
@@ -27,6 +29,7 @@ class DashboardService(
     DashboardUpcomingMixin,
     DashboardBurndownMixin,
     DashboardEvmMixin,
+    DashboardRegisterMixin,
     DashboardPortfolioMixin,
     DashboardProfessionalMixin,
 ):
@@ -36,6 +39,7 @@ class DashboardService(
         task_service: TaskService,
         project_service: ProjectService,
         resource_service: ResourceService,
+        register_service: RegisterService | None,
         scheduling_engine: SchedulingEngine,
         work_calendar_engine: WorkCalendarEngine,
         user_session=None,
@@ -44,6 +48,7 @@ class DashboardService(
         self._tasks: TaskService = task_service
         self._projects: ProjectService = project_service
         self._resources: ResourceService = resource_service
+        self._registers: RegisterService | None = register_service
         self._sched: SchedulingEngine = scheduling_engine
         self._calendar: WorkCalendarEngine = work_calendar_engine
         self._user_session = user_session
@@ -58,6 +63,7 @@ class DashboardService(
         burndown = self._build_burndown(project_id)
         milestones = self._build_milestone_health(project_id, schedule=schedule)
         critical_watchlist = self._build_critical_watchlist(project_id, schedule=schedule)
+        register_summary = self._build_register_summary(project_id)
         cost_sources = self._reporting.get_project_cost_source_breakdown(project_id)
         evm_obj = self._build_evm(project_id, baseline_id=baseline_id)
 
@@ -68,6 +74,7 @@ class DashboardService(
             burndown=burndown,
             milestone_health=milestones,
             critical_watchlist=critical_watchlist,
+            register_summary=register_summary,
             cost_sources=cost_sources,
             evm=evm_obj,
             upcoming_tasks=upcoming,
@@ -127,10 +134,4 @@ class DashboardService(
         domain_events.tasks_changed.emit(project_id)
         return action
 
-__all__ = [
-    "DashboardService",
-    "DashboardData",
-    "DashboardEVM",
-    "UpcomingTask",
-    "BurndownPoint",
-]
+__all__ = ["DashboardService", "DashboardData", "DashboardEVM", "UpcomingTask", "BurndownPoint"]

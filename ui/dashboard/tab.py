@@ -79,6 +79,7 @@ class DashboardTab(
         domain_events.project_changed.connect(self._on_project_catalog_changed)
         domain_events.resources_changed.connect(self._on_resources_changed)
         domain_events.baseline_changed.connect(self._on_baseline_changed)
+        domain_events.register_changed.connect(self._on_register_changed)
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -179,6 +180,7 @@ class DashboardTab(
 
         self.milestone_group = self._build_milestone_panel()
         self.watchlist_group = self._build_watchlist_panel()
+        self.register_group = self._build_register_panel()
         self.portfolio_group = self._build_portfolio_panel()
         self.portfolio_group.setTitle("Portfolio Ranking")
         self.evm_group = self._build_evm_panel()

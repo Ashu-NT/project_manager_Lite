@@ -5,6 +5,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGroupBox, QTableWidget, QTableWidgetItem
 
 from core.services.dashboard import DashboardData
+from core.services.register.models import RegisterProjectSummary
 from ui.styles.ui_config import UIConfig as CFG
 
 
@@ -13,20 +14,30 @@ class DashboardProfessionalRenderingMixin:
     milestone_table: QTableWidget
     watchlist_group: QGroupBox
     watchlist_table: QTableWidget
+    register_group: QGroupBox
+    register_summary_label: QTableWidget
+    register_urgent_table: QTableWidget
 
     def _clear_professional_panels(self) -> None:
         if hasattr(self, "milestone_table"):
             self.milestone_table.setRowCount(0)
         if hasattr(self, "watchlist_table"):
             self.watchlist_table.setRowCount(0)
+        if hasattr(self, "register_summary_label"):
+            self.register_summary_label.setRowCount(0)
+        if hasattr(self, "register_urgent_table"):
+            self.register_urgent_table.setRowCount(0)
         if hasattr(self, "milestone_group"):
             self.milestone_group.setTitle("Milestone Health")
         if hasattr(self, "watchlist_group"):
             self.watchlist_group.setTitle("Critical Path Watchlist")
+        if hasattr(self, "register_group"):
+            self.register_group.setTitle("Risk / Issue / Change Summary")
 
     def _update_professional_panels(self, data: DashboardData) -> None:
         self._update_milestones(data)
         self._update_watchlist(data)
+        self._update_register_summary(getattr(data, "register_summary", None))
 
     def _update_milestones(self, data: DashboardData) -> None:
         rows = getattr(data, "milestone_health", []) or []
@@ -70,6 +81,45 @@ class DashboardProfessionalRenderingMixin:
                     cell.setForeground(QColor(self._status_color(item.status_label)))
                 self.watchlist_table.setItem(row_idx, col, cell)
 
+    def _update_register_summary(self, summary: RegisterProjectSummary | None) -> None:
+        if summary is None:
+            self.register_group.setTitle("Risk / Issue / Change Summary")
+            self.register_summary_label.setRowCount(0)
+            self.register_urgent_table.setRowCount(0)
+            return
+        signals = [
+            ("Open risks", summary.open_risks),
+            ("Open issues", summary.open_issues),
+            ("Pending changes", summary.pending_changes),
+            ("Overdue items", summary.overdue_items),
+            ("Critical items", summary.critical_items),
+        ]
+        total = sum(count for _, count in signals)
+        self.register_group.setTitle(f"Risk / Issue / Change Summary ({total})")
+        self.register_summary_label.setRowCount(len(signals))
+        for row_idx, (label, count) in enumerate(signals):
+            label_item = QTableWidgetItem(label)
+            count_item = QTableWidgetItem(str(int(count)))
+            count_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            if label in {"Overdue items", "Critical items"} and int(count) > 0:
+                count_item.setForeground(QColor(CFG.COLOR_DANGER))
+            self.register_summary_label.setItem(row_idx, 0, label_item)
+            self.register_summary_label.setItem(row_idx, 1, count_item)
+        self.register_urgent_table.setRowCount(len(summary.urgent_items))
+        for row_idx, item in enumerate(summary.urgent_items):
+            values = [
+                item.entry_type.value.title(),
+                item.title,
+                item.severity.value.title(),
+                item.owner_name or "-",
+                item.due_date.isoformat() if item.due_date else "-",
+            ]
+            for col, value in enumerate(values):
+                cell = QTableWidgetItem(value)
+                if col == 2:
+                    cell.setForeground(QColor(self._severity_color(item.severity.value)))
+                self.register_urgent_table.setItem(row_idx, col, cell)
+
     @staticmethod
     def _status_color(status_label: str) -> str:
         label = str(status_label or "").strip().lower()
@@ -79,6 +129,15 @@ class DashboardProfessionalRenderingMixin:
             return CFG.COLOR_WARNING
         if label == "done":
             return CFG.COLOR_SUCCESS
+        return CFG.COLOR_ACCENT
+
+    @staticmethod
+    def _severity_color(label: str) -> str:
+        normalized = str(label or "").strip().lower()
+        if normalized == "critical":
+            return CFG.COLOR_DANGER
+        if normalized == "high":
+            return CFG.COLOR_WARNING
         return CFG.COLOR_ACCENT
 
 

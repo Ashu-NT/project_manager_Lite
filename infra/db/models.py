@@ -25,6 +25,9 @@ from core.models import (
     TaskStatus,
     DependencyType,
     CostType,
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
     TimesheetPeriodStatus,
 ) 
 
@@ -277,6 +280,39 @@ Index("idx_project_resource_resource", ProjectResourceORM.resource_id)
 Index("ux_project_resource_project_resource", ProjectResourceORM.project_id, ProjectResourceORM.resource_id, unique=True)
 
 
+class RegisterEntryORM(Base):
+    __tablename__ = "register_entries"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    project_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    entry_type: Mapped[RegisterEntryType] = mapped_column(SAEnum(RegisterEntryType), nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    severity: Mapped[RegisterEntrySeverity] = mapped_column(
+        SAEnum(RegisterEntrySeverity),
+        nullable=False,
+        default=RegisterEntrySeverity.MEDIUM,
+        server_default=RegisterEntrySeverity.MEDIUM.value,
+    )
+    status: Mapped[RegisterEntryStatus] = mapped_column(
+        SAEnum(RegisterEntryStatus),
+        nullable=False,
+        default=RegisterEntryStatus.OPEN,
+        server_default=RegisterEntryStatus.OPEN.value,
+    )
+    owner_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    impact_summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    response_plan: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 class UserORM(Base):
     __tablename__ = "users"
 
@@ -381,7 +417,10 @@ class TaskCommentORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
-
+Index("idx_register_entries_project", RegisterEntryORM.project_id)
+Index("idx_register_entries_type", RegisterEntryORM.entry_type)
+Index("idx_register_entries_status", RegisterEntryORM.status)
+Index("idx_register_entries_due", RegisterEntryORM.due_date)
 Index("idx_users_username", UserORM.username, unique=True)
 Index("idx_roles_name", RoleORM.name, unique=True)
 Index("idx_permissions_code", PermissionORM.code, unique=True)

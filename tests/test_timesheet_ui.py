@@ -199,3 +199,55 @@ def test_timesheet_dialog_permission_states_distinguish_planner_from_admin(
     )
 
     assert admin_dialog.btn_lock.isEnabled() is True
+
+
+def test_timesheet_dialog_surfaces_period_review_lane_and_navigation(
+    qapp,
+    services,
+    monkeypatch,
+):
+    ctx = _build_timesheet_context(services)
+    notes = iter(
+        [
+            ("Submit June", True),
+            ("Freeze July", True),
+        ]
+    )
+    monkeypatch.setattr(
+        "ui.timesheet.dialog.QInputDialog.getMultiLineText",
+        lambda *_args, **_kwargs: next(notes),
+    )
+    services["timesheet_service"].add_time_entry(
+        ctx["assignment_a"].id,
+        entry_date=date(2026, 7, 6),
+        hours=2.5,
+        note="July execution",
+    )
+    services["timesheet_service"].submit_timesheet_period(
+        ctx["resource"].id,
+        period_start=date(2026, 6, 1),
+        note="Ready for approval",
+    )
+    services["timesheet_service"].lock_timesheet_period(
+        ctx["resource"].id,
+        period_start=date(2026, 7, 1),
+        note="Payroll close",
+    )
+
+    dialog = TimesheetDialog(
+        None,
+        timesheet_service=services["timesheet_service"],
+        assignment=ctx["assignment_a"],
+        task_name=ctx["task_a"].name,
+        resource_name=ctx["resource"].name,
+        user_session=services["user_session"],
+    )
+    dialog.period_edit.setDate(dialog.period_edit.date().addMonths(-1))
+
+    assert dialog.period_table.rowCount() >= 2
+    assert "Approval queue" in dialog.period_queue_label.text()
+    assert dialog.period_badge.text() == "SUBMITTED"
+
+    dialog.period_table.selectRow(0)
+    selected_period = dialog._current_period_start()
+    assert selected_period in {date(2026, 6, 1), date(2026, 7, 1)}

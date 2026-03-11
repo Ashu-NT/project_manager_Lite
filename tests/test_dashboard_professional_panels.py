@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from core.domain.enums import TaskStatus
+from core.domain.register import RegisterEntrySeverity, RegisterEntryType
 from core.models import DependencyType
 from tests.ui_runtime_helpers import make_settings_store
 from ui.dashboard.layout_builder import DashboardLayoutDialog
@@ -73,13 +74,42 @@ def test_dashboard_service_builds_milestone_and_watchlist_rows(services):
     assert any(row.total_float_days == 0 for row in data.critical_watchlist)
 
 
+def test_dashboard_service_builds_register_summary_rows(services):
+    seeded = _seed_professional_project(services)
+    services["register_service"].create_entry(
+        seeded["project"].id,
+        entry_type=RegisterEntryType.RISK,
+        title="Critical supplier dependency",
+        severity=RegisterEntrySeverity.CRITICAL,
+        owner_name="Lead Planner",
+        due_date=date(2026, 4, 3),
+    )
+    services["register_service"].create_entry(
+        seeded["project"].id,
+        entry_type=RegisterEntryType.ISSUE,
+        title="Blocked test environment",
+        severity=RegisterEntrySeverity.HIGH,
+        owner_name="Execution Lead",
+    )
+
+    data = services["dashboard_service"].get_dashboard_data(seeded["project"].id)
+
+    assert data.register_summary is not None
+    assert data.register_summary.open_risks == 1
+    assert data.register_summary.open_issues == 1
+    assert data.register_summary.critical_items == 1
+    assert data.register_summary.urgent_items[0].title == "Critical supplier dependency"
+
+
 def test_dashboard_layout_dialog_exposes_professional_project_panels(qapp):
     dialog = DashboardLayoutDialog(None, current_layout={}, portfolio_mode=False)
 
     assert "milestones" in dialog._panel_checks
     assert "watchlist" in dialog._panel_checks
+    assert "register" in dialog._panel_checks
     assert dialog._panel_checks["milestones"].isChecked() is True
     assert dialog._panel_checks["watchlist"].isChecked() is True
+    assert dialog._panel_checks["register"].isChecked() is True
 
 
 def test_dashboard_tab_can_surface_professional_panels_at_runtime(
@@ -89,12 +119,19 @@ def test_dashboard_tab_can_surface_professional_panels_at_runtime(
     monkeypatch,
 ):
     seeded = _seed_professional_project(services)
+    services["register_service"].create_entry(
+        seeded["project"].id,
+        entry_type=RegisterEntryType.RISK,
+        title="Runtime risk",
+        severity=RegisterEntrySeverity.CRITICAL,
+        owner_name="Lead Planner",
+    )
     store = make_settings_store(repo_workspace, prefix="dashboard-professional")
     store.save_dashboard_layout(
         {
             "project": {
-                "visible_panels": ["milestones", "watchlist", "kpi"],
-                "panel_order": ["milestones", "watchlist", "kpi", "resource", "evm", "burndown"],
+                "visible_panels": ["milestones", "watchlist", "register", "kpi"],
+                "panel_order": ["milestones", "watchlist", "register", "kpi", "resource", "evm", "burndown"],
             },
             "portfolio": {
                 "visible_panels": ["portfolio", "resource", "burndown"],
@@ -131,10 +168,13 @@ def test_dashboard_tab_can_surface_professional_panels_at_runtime(
     )
 
     assert tab.project_combo.currentData() == seeded["project"].id
-    assert tab._current_visible_panel_ids() == ["milestones", "watchlist", "kpi"]
-    assert tab._active_dashboard_panel_count() == 3
+    assert tab._current_visible_panel_ids() == ["milestones", "watchlist", "register", "kpi"]
+    assert tab._active_dashboard_panel_count() == 4
     assert tab.milestone_group.isHidden() is False
     assert tab.watchlist_group.isHidden() is False
+    assert tab.register_group.isHidden() is False
     assert tab.kpi_group.isHidden() is False
     assert tab.milestone_table.rowCount() >= 2
     assert tab.watchlist_table.rowCount() >= 1
+    assert tab.register_summary_label.rowCount() == 5
+    assert tab.register_urgent_table.rowCount() >= 1

@@ -92,6 +92,7 @@ class AuditLogTab(QWidget):
         self.entity_filter.addItem("Project Resource", userData="project_resource")
         self.entity_filter.addItem("Cost", userData="cost_item")
         self.entity_filter.addItem("Baseline", userData="project_baseline")
+        self.entity_filter.addItem("Register", userData="register_entry")
         toolbar.addWidget(self.entity_filter)
         toolbar.addWidget(QLabel("Action:"))
         self.action_filter = QLineEdit()
@@ -164,6 +165,7 @@ class AuditLogTab(QWidget):
         domain_events.resources_changed.connect(self._on_domain_event)
         domain_events.baseline_changed.connect(self._on_domain_event)
         domain_events.approvals_changed.connect(self._on_domain_event)
+        domain_events.register_changed.connect(self._on_domain_event)
 
     def _on_domain_event(self, _payload: str) -> None:
         self.reload_logs()

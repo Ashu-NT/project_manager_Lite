@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from core.services.reporting.models import CostSourceBreakdown, ProjectKPI, ResourceLoadRow
 from core.services.dashboard.portfolio_models import DashboardPortfolio
+from core.services.register.models import RegisterProjectSummary
 
 
 @dataclass
@@ -73,6 +74,7 @@ class DashboardData:
     burndown: List[BurndownPoint]
     milestone_health: list[MilestoneHealthRow] = field(default_factory=list)
     critical_watchlist: list[CriticalPathRow] = field(default_factory=list)
+    register_summary: RegisterProjectSummary | None = None
     cost_sources: CostSourceBreakdown | None = None
     evm: Optional[DashboardEVM] = None
     portfolio: DashboardPortfolio | None = None

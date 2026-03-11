@@ -185,6 +185,7 @@ class DashboardLayoutStateMixin:
             "kpi": self.kpi_group,
             "milestones": self.milestone_group,
             "watchlist": self.watchlist_group,
+            "register": self.register_group,
             "evm": self.evm_group,
             "portfolio": self.portfolio_group,
             "burndown": self.burndown_chart,
@@ -199,7 +200,7 @@ class DashboardLayoutStateMixin:
         self._arrange_dashboard_panels()
         if hasattr(self, "dashboard_scope_hint"):
             count = self._active_dashboard_panel_count()
-            self.dashboard_scope_hint.setText(f"{count} panels active | 14-inch profile")
+            self.dashboard_scope_hint.setText(f"{count} panels active")
 
     def _arrange_dashboard_panels(self) -> None:
         layout = getattr(self, "panel_grid", None)

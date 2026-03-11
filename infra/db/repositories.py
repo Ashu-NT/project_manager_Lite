@@ -52,6 +52,7 @@ from infra.db.repositories_project import (
     SqlAlchemyProjectRepository,
     SqlAlchemyProjectResourceRepository,
 )
+from infra.db.repositories_register import SqlAlchemyRegisterEntryRepository
 from infra.db.repositories_resource import SqlAlchemyResourceRepository
 from infra.db.repositories_task import (
     SqlAlchemyAssignmentRepository,
@@ -109,6 +110,7 @@ __all__ = [
     "role_permission_from_orm",
     "SqlAlchemyProjectRepository",
     "SqlAlchemyProjectResourceRepository",
+    "SqlAlchemyRegisterEntryRepository",
     "SqlAlchemyTaskRepository",
     "SqlAlchemyResourceRepository",
     "SqlAlchemyAssignmentRepository",

@@ -18,6 +18,7 @@ from core.services.dashboard import DashboardService
 from core.services.finance import FinanceService
 from core.services.import_service import DataImportService
 from core.services.project import ProjectResourceService, ProjectService
+from core.services.register import RegisterService
 from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
 from core.services.scheduling import SchedulingEngine
@@ -46,6 +47,7 @@ from infra.db.repositories import (
 )
 from infra.db.repositories_approval import SqlAlchemyApprovalRepository
 from infra.db.repositories_audit import SqlAlchemyAuditLogRepository
+from infra.db.repositories_register import SqlAlchemyRegisterEntryRepository
 
 
 def _parse_date(value: Any) -> date | None:
@@ -90,6 +92,7 @@ class ServiceGraph:
     reporting_service: ReportingService
     baseline_service: BaselineService
     dashboard_service: DashboardService
+    register_service: RegisterService
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
     task_collaboration_store: TaskCollaborationStore
@@ -114,6 +117,7 @@ class ServiceGraph:
             "reporting_service": self.reporting_service,
             "baseline_service": self.baseline_service,
             "dashboard_service": self.dashboard_service,
+            "register_service": self.register_service,
             "project_resource_service": self.project_resource_service,
             "data_import_service": self.data_import_service,
             "task_collaboration_store": self.task_collaboration_store,
@@ -141,6 +145,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     role_permission_repo = SqlAlchemyRolePermissionRepository(session)
     audit_repo = SqlAlchemyAuditLogRepository(session)
     approval_repo = SqlAlchemyApprovalRepository(session)
+    register_repo = SqlAlchemyRegisterEntryRepository(session)
 
     work_calendar_engine = WorkCalendarEngine(work_calendar_repo, calendar_id="default")
     audit_service = AuditService(
@@ -192,6 +197,13 @@ def build_service_graph(session: Session) -> ServiceGraph:
         project_resource_repo=project_resource_repo,
         resource_repo=resource_repo,
         session=session,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    register_service = RegisterService(
+        session=session,
+        project_repo=project_repo,
+        register_repo=register_repo,
         user_session=user_session,
         audit_service=audit_service,
     )
@@ -286,6 +298,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         task_service=task_service,
         project_service=project_service,
         resource_service=resource_service,
+        register_service=register_service,
         scheduling_engine=scheduling_engine,
         work_calendar_engine=work_calendar_engine,
         user_session=user_session,
@@ -383,6 +396,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         reporting_service=reporting_service,
         baseline_service=baseline_service,
         dashboard_service=dashboard_service,
+        register_service=register_service,
         project_resource_service=project_resource_service,
         data_import_service=data_import_service,
         task_collaboration_store=task_collaboration_store,

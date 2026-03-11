@@ -8,6 +8,7 @@ from .dashboard import DashboardService, DashboardData, DashboardEVM, UpcomingTa
 from .finance import FinanceService
 from .import_service import DataImportService, ImportSummary
 from .project import ProjectService, ProjectResourceService
+from .register import RegisterService, RegisterProjectSummary, RegisterUrgentItem
 from .reporting import ReportingService
 from .resource import ResourceService
 from .scheduling import SchedulingEngine, CPMTaskInfo
@@ -17,6 +18,9 @@ from .work_calendar import WorkCalendarEngine, WorkCalendarService
 __all__ = [
     "ProjectService",
     "ProjectResourceService",
+    "RegisterService",
+    "RegisterProjectSummary",
+    "RegisterUrgentItem",
     "AuthService",
     "ApprovalService",
     "AuditService",

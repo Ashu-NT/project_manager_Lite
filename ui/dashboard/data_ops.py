@@ -49,6 +49,9 @@ class DashboardDataOpsMixin:
         self.baseline_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.refresh_dashboard()
 
+    def _on_register_changed(self, project_id: str):
+        self._on_domain_changed(project_id)
+
     def _on_project_changed(self, index: int = 0):
         proj_id, _ = self._current_project_id_and_name()
         if proj_id and proj_id != PORTFOLIO_SCOPE_ID:

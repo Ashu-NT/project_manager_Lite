@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QTableWidgetSelectionRange,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -135,6 +136,11 @@ class TimesheetDialog(QDialog):
         period_row.addStretch()
         root.addLayout(period_row)
 
+        self.period_badge = QLabel("OPEN")
+        self.period_badge.setAlignment(Qt.AlignCenter)
+        self.period_badge.setFixedHeight(CFG.INPUT_HEIGHT)
+        root.addWidget(self.period_badge, 0, Qt.AlignLeft)
+
         self.period_status_label = QLabel("")
         self.period_status_label.setWordWrap(True)
         self.period_status_label.setStyleSheet(CFG.NOTE_STYLE_SHEET)
@@ -148,6 +154,22 @@ class TimesheetDialog(QDialog):
         self.scope_label.setWordWrap(True)
         self.scope_label.setStyleSheet(CFG.INFO_TEXT_STYLE)
         root.addWidget(self.scope_label)
+
+        self.period_queue_label = QLabel("")
+        self.period_queue_label.setWordWrap(True)
+        self.period_queue_label.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+        root.addWidget(self.period_queue_label)
+
+        self.period_table = QTableWidget(0, 5)
+        self.period_table.setHorizontalHeaderLabels(["Period", "Status", "Hours", "Submitted", "Decided"])
+        self.period_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.period_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.period_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.period_table.horizontalHeader().setStretchLastSection(True)
+        style_table(self.period_table)
+        self.period_table.setMaximumHeight(190)
+        self.period_table.itemSelectionChanged.connect(self._sync_period_picker_from_table)
+        root.addWidget(self.period_table)
 
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(["Date", "Hours", "User", "Note"])
@@ -253,6 +275,8 @@ class TimesheetDialog(QDialog):
             f"Resource period total: {resource_total:.2f} hours across {len(resource_entries)} entries."
         )
         self.period_status_label.setText(self._format_period_status(period))
+        self._update_period_badge(period)
+        self._update_period_review_table(current_period=period_start)
         self._sync_period_action_state(
             period=period,
             has_task_entries=bool(task_entries),
@@ -275,6 +299,88 @@ class TimesheetDialog(QDialog):
         if period.decision_note:
             details.append(f"note: {period.decision_note}")
         return base + " | ".join(details)
+
+    def _update_period_badge(self, period: TimesheetPeriod | None) -> None:
+        status = (period.status if period is not None else TimesheetPeriodStatus.OPEN).value
+        self.period_badge.setText(status.replace("_", " "))
+        color = CFG.COLOR_ACCENT
+        if status == TimesheetPeriodStatus.SUBMITTED.value:
+            color = CFG.COLOR_WARNING
+        elif status == TimesheetPeriodStatus.APPROVED.value:
+            color = CFG.COLOR_SUCCESS
+        elif status == TimesheetPeriodStatus.REJECTED.value:
+            color = CFG.COLOR_DANGER
+        elif status == TimesheetPeriodStatus.LOCKED.value:
+            color = CFG.COLOR_TEXT_MUTED
+        self.period_badge.setStyleSheet(
+            f"border: 1px solid {color}; border-radius: 12px; padding: 2px 10px; font-weight: 700; color: {color};"
+        )
+
+    def _update_period_review_table(self, *, current_period: date) -> None:
+        known_periods = {
+            period.period_start: period
+            for period in self._timesheet_service.list_timesheet_periods_for_resource(self._assignment.resource_id)
+        }
+        current_entries = self._timesheet_service.list_time_entries_for_assignment(self._assignment.id)
+        for entry in current_entries:
+            known_periods.setdefault(_period_start(entry.entry_date), None)
+        ordered = sorted(known_periods.keys(), reverse=True)
+        self.period_table.setRowCount(len(ordered))
+        submitted_count = 0
+        for row_idx, period_start in enumerate(ordered):
+            period = known_periods[period_start]
+            entries = self._timesheet_service.list_time_entries_for_resource_period(
+                self._assignment.resource_id,
+                period_start=period_start,
+            )
+            if period is not None and period.status == TimesheetPeriodStatus.SUBMITTED:
+                submitted_count += 1
+            values = [
+                period_start.strftime("%b %Y"),
+                (period.status.value if period is not None else TimesheetPeriodStatus.OPEN.value).replace("_", " "),
+                f"{sum(float(entry.hours or 0.0) for entry in entries):.2f}",
+                period.submitted_by_username if period is not None and period.submitted_by_username else "-",
+                period.decided_by_username if period is not None and period.decided_by_username else "-",
+            ]
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                if col == 0:
+                    item.setData(Qt.UserRole, period_start.isoformat())
+                if col == 2:
+                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.period_table.setItem(row_idx, col, item)
+            if period_start == current_period:
+                self.period_table.setRangeSelected(
+                    QTableWidgetSelectionRange(row_idx, 0, row_idx, self.period_table.columnCount() - 1),
+                    True,
+                )
+        if self._can_decide_period:
+            self.period_queue_label.setText(
+                f"Approval queue: {submitted_count} submitted period(s) awaiting a decision for this resource."
+            )
+        else:
+            self.period_queue_label.setText(
+                f"Resource review lane: {submitted_count} submitted period(s) currently waiting for approval."
+            )
+
+    def _sync_period_picker_from_table(self) -> None:
+        row = self.period_table.currentRow()
+        if row < 0:
+            return
+        item = self.period_table.item(row, 0)
+        if item is None:
+            return
+        text = str(item.data(Qt.UserRole) or "").strip()
+        if not text:
+            return
+        value = date.fromisoformat(text)
+        current = self._current_period_start()
+        if current == value:
+            return
+        self.period_edit.blockSignals(True)
+        self.period_edit.setDate(QDate(value.year, value.month, value.day))
+        self.period_edit.blockSignals(False)
+        self.reload_entries()
 
     def _sync_period_action_state(
         self,

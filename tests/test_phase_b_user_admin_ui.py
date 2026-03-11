@@ -22,6 +22,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
 
     assert "Projects" in labels
+    assert "Register" in labels
     assert "Tasks" in labels
     assert "Users" in labels
     assert "Audit" in labels

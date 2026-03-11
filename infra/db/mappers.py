@@ -38,6 +38,7 @@ from infra.db.project.mapper import (
     project_resource_to_orm,
     project_to_orm,
 )
+from infra.db.register.mapper import register_entry_from_orm, register_entry_to_orm
 from infra.db.resource.mapper import resource_from_orm, resource_to_orm
 from infra.db.task.mapper import (
     assignment_from_orm,
@@ -83,6 +84,8 @@ __all__ = [
     "baseline_task_to_orm",
     "project_resource_from_orm",
     "project_resource_to_orm",
+    "register_entry_to_orm",
+    "register_entry_from_orm",
     "user_to_orm",
     "user_from_orm",
     "role_to_orm",

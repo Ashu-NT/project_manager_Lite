@@ -67,19 +67,22 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
   - resource capacity across projects
   - progress: dashboard now supports a `Portfolio Overview` mode with aggregated KPIs, project ranking, status rollup, and cross-project capacity on 2026-03-11
   - progress: project view now exposes `Milestone Health` and `Critical Path Watchlist` as selectable professional panels on 2026-03-11
-- [ ] 2. Timesheet approvals / lock periods
+- [x] 2. Timesheet approvals / lock periods
   - monthly resource timesheet periods
   - submit / approve / reject / explicit lock-unlock lifecycle
   - edit blocking for submitted, approved, and locked periods
   - progress: backend/service lifecycle shipped and covered by targeted tests on 2026-03-11
   - progress: extracted into dedicated `timesheet` core/infra/ui modules and upgraded runtime dialog to manage monthly period state on 2026-03-11
-- [ ] 3. Richer import wizard
+  - progress: timesheet dialog now surfaces a period review lane, approval queue summary, and faster month navigation for approvers on 2026-03-11
+- [x] 3. Richer import wizard
   - preview + validation before commit
   - dry-run summaries and row-level error handling
   - broader mapping flow beyond raw CSV entrypoint
-- [ ] 4. Risk / issue / change register
+  - progress: projects workspace now opens an import wizard with column mapping, preview counts, row diagnostics, and partial-valid import execution on 2026-03-11
+- [x] 4. Risk / issue / change register
   - dedicated records, ownership, status, due dates
   - audit-friendly workflow and reporting
+  - progress: new persisted register aggregate shipped with dedicated UI tab, dashboard summary panel, audit coverage, and project-level refresh wiring on 2026-03-11
 
 Execution note:
 - The implementation order starts with the timesheet backend because it has the strongest existing foundation and lowest migration risk.

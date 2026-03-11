@@ -26,6 +26,7 @@ from ui.cost.tab import CostTab
 from ui.dashboard.tab import DashboardTab
 from ui.governance.tab import GovernanceTab
 from ui.project.tab import ProjectTab
+from ui.register.tab import RegisterTab
 from ui.report.tab import ReportTab
 from ui.resource.tab import ResourceTab
 from ui.settings import MainWindowSettingsStore
@@ -126,6 +127,14 @@ class MainWindow(QMainWindow):
                 user_session=self._user_session,
             )
             self.tabs.addTab(project_tab, "Projects")
+
+        if self._has_permission("project.read"):
+            register_tab = RegisterTab(
+                register_service=self.services["register_service"],
+                project_service=self.services["project_service"],
+                user_session=self._user_session,
+            )
+            self.tabs.addTab(register_tab, "Register")
 
         if self._has_permission("task.read"):
             task_tab = TaskTab(
