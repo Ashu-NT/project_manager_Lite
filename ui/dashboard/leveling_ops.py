@@ -1,6 +1,6 @@
 from __future__ import annotations
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QPushButton, QTableWidget
-from core.services.dashboard import DashboardData, DashboardService
+from core.services.dashboard import DashboardData, DashboardService, PORTFOLIO_SCOPE_ID
 from core.services.scheduling.leveling_models import ResourceConflict
 class DashboardLevelingOpsMixin:
     conflicts_table: QTableWidget
@@ -72,12 +72,43 @@ class DashboardLevelingOpsMixin:
         if not project_id:
             QMessageBox.information(self, "Conflicts", "Please select a project.")
             return
+        if project_id == PORTFOLIO_SCOPE_ID:
+            data = getattr(self, "_current_data", None)
+            if data is None:
+                try:
+                    data = self._dashboard_service.get_portfolio_data()
+                except Exception as exc:
+                    QMessageBox.warning(self, "Conflicts", str(exc))
+                    return
+            overloaded = [
+                row
+                for row in getattr(data, "resource_load", []) or []
+                if float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0) > 100.0
+            ]
+            self._current_conflicts = []
+            self._update_conflicts_from_load(overloaded)
+            if hasattr(self, "btn_open_conflicts"):
+                self.btn_open_conflicts.setText(f"Conflicts ({len(overloaded)})")
+            QMessageBox.information(
+                self,
+                "Conflicts",
+                f"Showing {len(overloaded)} cross-project overload row(s).",
+            )
+            self._sync_leveling_buttons()
+            return
         self._refresh_conflicts(project_id, show_feedback=True)
 
     def _auto_level_conflicts(self) -> None:
         project_id, _ = self._current_project_id_and_name()
         if not project_id:
             QMessageBox.information(self, "Auto-Level", "Please select a project.")
+            return
+        if project_id == PORTFOLIO_SCOPE_ID:
+            QMessageBox.information(
+                self,
+                "Auto-Level",
+                "Portfolio mode is read-only for leveling. Open a specific project to level resources.",
+            )
             return
         iterations, ok = QInputDialog.getInt(self, "Auto-Level", "Maximum iterations:", 20, 1, 300, 1)
         if not ok:
@@ -128,6 +159,13 @@ class DashboardLevelingOpsMixin:
         if not project_id:
             QMessageBox.information(self, "Manual Shift", "Please select a project.")
             return
+        if project_id == PORTFOLIO_SCOPE_ID:
+            QMessageBox.information(
+                self,
+                "Manual Shift",
+                "Portfolio mode is read-only for leveling. Open a specific project to shift tasks.",
+            )
+            return
         row = self.conflicts_table.currentRow()
         if row < 0 or row >= len(self._current_conflicts):
             QMessageBox.information(self, "Manual Shift", "Please select a conflict row first.")
@@ -170,9 +208,11 @@ class DashboardLevelingOpsMixin:
     def _sync_leveling_buttons(self) -> None:
         has_conflicts = bool(getattr(self, "_current_conflicts", []))
         can_level = bool(getattr(self, "_can_level_resources", True))
-        self.btn_auto_level.setEnabled(can_level and has_conflicts)
+        project_id, _ = self._current_project_id_and_name()
+        can_mutate = can_level and project_id != PORTFOLIO_SCOPE_ID
+        self.btn_auto_level.setEnabled(can_mutate and has_conflicts)
         self.btn_manual_shift.setEnabled(
-            can_level and has_conflicts and self.conflicts_table.currentRow() >= 0
+            can_mutate and has_conflicts and self.conflicts_table.currentRow() >= 0
         )
 
 

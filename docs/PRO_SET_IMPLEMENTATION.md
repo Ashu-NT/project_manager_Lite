@@ -61,10 +61,11 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
 
 ## Pro Phase 2 Roadmap (Tracked 2026-03-11)
 
-- [ ] 1. Portfolio dashboard
+- [x] 1. Portfolio dashboard
   - cross-project executive KPIs
   - portfolio ranking and status rollups
   - resource capacity across projects
+  - progress: dashboard now supports a `Portfolio Overview` mode with aggregated KPIs, project ranking, status rollup, and cross-project capacity on 2026-03-11
 - [ ] 2. Timesheet approvals / lock periods
   - monthly resource timesheet periods
   - submit / approve / reject / explicit lock-unlock lifecycle

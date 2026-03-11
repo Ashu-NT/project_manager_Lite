@@ -17,13 +17,12 @@ from ui.dashboard.alerts_panel import DashboardAlertsPanelMixin
 from ui.dashboard.data_ops import DashboardDataOpsMixin
 from ui.dashboard.leveling_ops import DashboardLevelingOpsMixin
 from ui.dashboard.layout_state import DashboardLayoutStateMixin
+from ui.dashboard.portfolio_panel import DashboardPortfolioPanelMixin
 from ui.dashboard.rendering import DashboardRenderingMixin
+from ui.dashboard.top_bar import DashboardTopBarMixin
 from ui.dashboard.workqueue_button import DashboardQueueButton
 from ui.dashboard.workqueue_actions import DashboardWorkqueueActionsMixin
-from ui.dashboard.styles import (
-    dashboard_action_button_style,
-    dashboard_meta_chip_style, dashboard_summary_style,
-)
+from ui.dashboard.styles import dashboard_meta_chip_style, dashboard_summary_style
 from ui.dashboard.widgets import ChartWidget, KpiCard
 from ui.settings.main_window_store import MainWindowSettingsStore
 from ui.styles.ui_config import UIConfig as CFG
@@ -35,6 +34,8 @@ class DashboardTab(
     DashboardRenderingMixin,
     DashboardAlertsPanelMixin,
     DashboardWorkqueueActionsMixin,
+    DashboardPortfolioPanelMixin,
+    DashboardTopBarMixin,
     QWidget,
 ):
     def __init__(
@@ -72,13 +73,6 @@ class DashboardTab(
         layout.setSpacing(CFG.SPACING_SM)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        top_bar = QWidget()
-        top_bar.setStyleSheet(dashboard_summary_style())
-        top = QHBoxLayout(top_bar)
-        top.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        top.setSpacing(CFG.SPACING_SM)
-        top.addWidget(QLabel("Project:"))
-
         self.project_combo = QComboBox()
         self.project_combo.setSizePolicy(CFG.INPUT_POLICY)
         self.project_combo.setFixedHeight(CFG.INPUT_HEIGHT)
@@ -88,9 +82,6 @@ class DashboardTab(
         self.btn_reload_projects = QPushButton(CFG.RELOAD_BUTTON_LABEL)
         self.btn_refresh_dashboard = QPushButton(CFG.REFRESH_DASHBOARD_LABEL)
         self.btn_customize_dashboard = QPushButton("Customize Dashboard")
-        self.btn_open_conflicts = DashboardQueueButton("Conflicts", active_variant="danger")
-        self.btn_open_alerts = DashboardQueueButton("Alerts", active_variant="warning")
-        self.btn_open_upcoming = DashboardQueueButton("Upcoming", active_variant="info")
 
         self.baseline_combo = QComboBox()
         self.baseline_combo.setSizePolicy(CFG.INPUT_POLICY)
@@ -105,37 +96,12 @@ class DashboardTab(
             self.btn_reload_projects,
             self.btn_refresh_dashboard,
             self.btn_customize_dashboard,
-            self.btn_open_conflicts,
-            self.btn_open_alerts,
-            self.btn_open_upcoming,
             self.btn_create_baseline,
             self.btn_delete_baseline,
         ):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-
-        self.btn_refresh_dashboard.setStyleSheet(dashboard_action_button_style("primary"))
-        self.btn_reload_projects.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_customize_dashboard.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_open_conflicts.set_variants(active="danger", inactive="success")
-        self.btn_open_alerts.set_variants(active="warning", inactive="success")
-        self.btn_open_upcoming.set_variants(active="info", inactive="neutral")
-        self.btn_create_baseline.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_delete_baseline.setStyleSheet(dashboard_action_button_style("danger"))
-
-        top.addWidget(self.project_combo)
-        top.addWidget(self.btn_reload_projects)
-        top.addWidget(self.btn_refresh_dashboard)
-        top.addWidget(self.btn_customize_dashboard)
-        top.addWidget(self.btn_open_conflicts)
-        top.addWidget(self.btn_open_alerts)
-        top.addWidget(self.btn_open_upcoming)
-        top.addStretch()
-        top.addWidget(QLabel("Baseline:"))
-        top.addWidget(self.baseline_combo)
-        top.addWidget(self.btn_create_baseline)
-        top.addWidget(self.btn_delete_baseline)
-        layout.addWidget(top_bar)
+        layout.addWidget(self._build_dashboard_top_bar())
 
         self.main_splitter = QSplitter(Qt.Horizontal)
         self.main_splitter.setChildrenCollapsible(False)
@@ -196,7 +162,7 @@ class DashboardTab(
 
         left_layout.addWidget(self.summary_widget)
 
-        self.kpi_group = QGroupBox("Portfolio Summary")
+        self.kpi_group = QGroupBox("KPI Cards")
         kpi_layout = QGridLayout(self.kpi_group)
         kpi_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
         kpi_layout.setSpacing(CFG.SPACING_SM)
@@ -216,6 +182,9 @@ class DashboardTab(
         kpi_layout.setColumnStretch(1, 1)
         kpi_layout.setColumnStretch(2, 1)
         left_layout.addWidget(self.kpi_group)
+
+        self.portfolio_group = self._build_portfolio_panel()
+        left_layout.addWidget(self.portfolio_group)
 
         self.evm_group = self._build_evm_panel()
         left_layout.addWidget(self.evm_group, 1)

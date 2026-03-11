@@ -7,6 +7,7 @@ from core.services.dashboard.alerts import DashboardAlertsMixin
 from core.services.dashboard.burndown import DashboardBurndownMixin
 from core.services.dashboard.evm import DashboardEvmMixin
 from core.services.dashboard.models import BurndownPoint, DashboardData, DashboardEVM, UpcomingTask
+from core.services.dashboard.portfolio import DashboardPortfolioMixin
 from core.services.dashboard.upcoming import DashboardUpcomingMixin
 from core.services.project.service import ProjectService
 from core.services.reporting.service import ReportingService
@@ -26,6 +27,7 @@ class DashboardService(
     DashboardUpcomingMixin,
     DashboardBurndownMixin,
     DashboardEvmMixin,
+    DashboardPortfolioMixin,
 ):
     """
     Aggregates data for the Dashboard tab.

@@ -12,6 +12,30 @@ class DashboardChartsRenderingMixin:
 
     def _update_burndown_chart(self, data: DashboardData):
         self.burndown_chart.ax.clear()
+        if getattr(data, "portfolio", None) is not None:
+            rollup = getattr(data.portfolio, "status_rollup", [])
+            if not rollup:
+                self.burndown_chart.ax.set_title("No portfolio status data")
+                self.burndown_chart.redraw()
+                return
+            labels = [row.status_label.replace("_", " ").title() for row in rollup]
+            counts = [int(row.project_count or 0) for row in rollup]
+            bars = self.burndown_chart.ax.bar(labels, counts, color=CFG.COLOR_ACCENT, alpha=0.9)
+            self.burndown_chart.ax.set_title("Portfolio status rollup")
+            self.burndown_chart.ax.set_ylabel("Projects", fontsize=10)
+            self.burndown_chart.ax.grid(True, axis="y", linestyle=":", linewidth=0.5, alpha=0.6)
+            for bar, count in zip(bars, counts):
+                self.burndown_chart.ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    bar.get_height() + 0.05,
+                    str(count),
+                    ha="center",
+                    va="bottom",
+                    fontsize=8,
+                )
+            self.burndown_chart.fig.tight_layout()
+            self.burndown_chart.redraw()
+            return
         pts = data.burndown
         if not pts:
             self.burndown_chart.ax.set_title("No burndown data")
@@ -76,7 +100,10 @@ class DashboardChartsRenderingMixin:
         self.resource_chart.ax.set_yticklabels(names, fontsize=8)
         self.resource_chart.ax.invert_yaxis()
         self.resource_chart.ax.set_xlabel("Utilization %", fontsize=10)
-        self.resource_chart.ax.set_title("Resource load vs capacity")
+        if getattr(data, "portfolio", None) is not None:
+            self.resource_chart.ax.set_title("Cross-project resource capacity")
+        else:
+            self.resource_chart.ax.set_title("Resource load vs capacity")
         self.resource_chart.ax.axvline(100.0, color=CFG.COLOR_DANGER, linestyle="--", linewidth=0.8)
         self.resource_chart.ax.grid(True, axis="x", linestyle=":", linewidth=0.5, alpha=0.6)
         max_util = max(utils) if utils else 100.0

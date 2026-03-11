@@ -2,7 +2,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QMessageBox
 
 from core.services.baseline import BaselineService
-from core.services.dashboard import DashboardData, DashboardService
+from core.services.dashboard import DashboardData, DashboardService, PORTFOLIO_SCOPE_ID
 from core.services.project import ProjectService
 from ui.dashboard.async_actions import run_generate_baseline_async, run_refresh_dashboard_async
 from ui.dashboard.access import sync_dashboard_baseline_actions
@@ -22,7 +22,9 @@ class DashboardDataOpsMixin:
 
     def _on_domain_changed(self, project_id: str):
         current_id, _ = self._current_project_id_and_name()
-        if current_id == project_id:
+        if current_id == PORTFOLIO_SCOPE_ID:
+            self.refresh_dashboard()
+        elif current_id == project_id:
             self.reload_projects()
 
     def _on_project_catalog_changed(self, _project_id: str):
@@ -36,6 +38,9 @@ class DashboardDataOpsMixin:
 
     def _on_baseline_changed(self, project_id: str):
         current_id, _ = self._current_project_id_and_name()
+        if current_id == PORTFOLIO_SCOPE_ID:
+            self.refresh_dashboard()
+            return
         if current_id != project_id:
             return
         selected_baseline = self._selected_baseline_id()
@@ -46,9 +51,11 @@ class DashboardDataOpsMixin:
 
     def _on_project_changed(self, index: int = 0):
         proj_id, _ = self._current_project_id_and_name()
-        if proj_id:
+        if proj_id and proj_id != PORTFOLIO_SCOPE_ID:
             self._load_baselines_for_project(proj_id)
             self.baseline_combo.setCurrentIndex(0)
+        else:
+            self._load_baselines_for_project(PORTFOLIO_SCOPE_ID)
         self.refresh_dashboard()
 
     def reload_projects(self):
@@ -56,27 +63,31 @@ class DashboardDataOpsMixin:
         self.project_combo.blockSignals(True)
         self.project_combo.clear()
         projects = self._project_service.list_projects()
+        self.project_combo.addItem("Portfolio Overview", userData=PORTFOLIO_SCOPE_ID)
         for p in projects:
             self.project_combo.addItem(p.name, userData=p.id)
         selected_id = None
         if projects:
             if previous_id and any(p.id == previous_id for p in projects):
                 selected_id = previous_id
+            elif previous_id == PORTFOLIO_SCOPE_ID:
+                selected_id = PORTFOLIO_SCOPE_ID
             else:
                 selected_id = projects[0].id
             idx = self.project_combo.findData(selected_id)
             if idx >= 0:
                 self.project_combo.setCurrentIndex(idx)
+        else:
+            self.project_combo.setCurrentIndex(self.project_combo.findData(PORTFOLIO_SCOPE_ID))
         self.project_combo.blockSignals(False)
 
-        if not projects:
-            self.baseline_combo.clear()
-            self.baseline_combo.addItem("Latest baseline", userData=None)
-            self._clear_dashboard()
+        if selected_id:
+            self._load_baselines_for_project(selected_id)
+            self.baseline_combo.setCurrentIndex(0)
+            self.refresh_dashboard()
         else:
-            if selected_id:
-                self._load_baselines_for_project(selected_id)
-                self.baseline_combo.setCurrentIndex(0)
+            self._load_baselines_for_project(PORTFOLIO_SCOPE_ID)
+            self.baseline_combo.setCurrentIndex(0)
             self.refresh_dashboard()
         sync_dashboard_baseline_actions(self)
 
@@ -91,6 +102,10 @@ class DashboardDataOpsMixin:
     def _load_baselines_for_project(self, project_id: str):
         self.baseline_combo.blockSignals(True)
         self.baseline_combo.clear()
+        if project_id == PORTFOLIO_SCOPE_ID:
+            self.baseline_combo.addItem("Portfolio view", userData=None)
+            self.baseline_combo.blockSignals(False)
+            return
 
         baselines = self._baseline_service.list_baselines(project_id)
 
@@ -109,7 +124,7 @@ class DashboardDataOpsMixin:
 
     def _delete_selected_baseline(self):
         proj_id, _ = self._current_project_id_and_name()
-        if not proj_id:
+        if not proj_id or proj_id == PORTFOLIO_SCOPE_ID:
             return
 
         baseline_id = self._selected_baseline_id()

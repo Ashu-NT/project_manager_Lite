@@ -53,12 +53,19 @@ class DashboardSummaryRenderingMixin:
         self.resource_chart.redraw()
 
         self.kpi_tasks.set_value("0 / 0")
+        self.kpi_tasks.set_title("Tasks")
         self.kpi_tasks.set_subtitle("Completed / Total")
+        self.kpi_critical.set_title("Critical tasks")
         self.kpi_critical.set_value("0")
+        self.kpi_late.set_title("Late tasks")
         self.kpi_late.set_value("0")
+        self.kpi_cost.set_title("Cost variance")
         self.kpi_cost.set_value("0.00")
         self.kpi_cost.set_subtitle("Actual - Planned")
+        self.kpi_progress.set_title("% complete")
         self.kpi_progress.set_value("0%")
+        if hasattr(self, "kpi_group"):
+            self.kpi_group.setTitle("Project Summary")
 
         if hasattr(self, "project_title_lbl"):
             self.project_title_lbl.setText("Select a project to see schedule and cost health.")
@@ -68,31 +75,61 @@ class DashboardSummaryRenderingMixin:
 
         if hasattr(self, "_reset_evm_view"):
             self._reset_evm_view()
+        if hasattr(self, "_clear_portfolio_panel"):
+            self._clear_portfolio_panel()
 
     def _update_summary(self, project_name: str, data: DashboardData):
         k = data.kpi
+        portfolio = getattr(data, "portfolio", None)
         start = k.start_date.isoformat() if k.start_date else "-"
         end = k.end_date.isoformat() if k.end_date else "-"
         title = project_name or (getattr(k, "name", None) or "")
+        if portfolio is not None:
+            title = "Portfolio Overview"
         self.project_title_lbl.setText(title)
         self.project_title_lbl.setVisible(True)
-        self.project_title_lbl.setWordWrap(False)
+        self.project_title_lbl.setWordWrap(portfolio is not None)
 
         self.project_meta_start.setText(f"{CFG.DASHBOARD_META_START_PREFIX} {start}")
         self.project_meta_start.setVisible(True)
         self.project_meta_end.setText(f"{CFG.DASHBOARD_META_END_PREFIX} {end}")
         self.project_meta_end.setVisible(True)
-        self.project_meta_duration.setText(
-            f"{CFG.DASHBOARD_META_DURATION_PREFIX} {k.duration_working_days} working days"
-        )
+        if portfolio is None:
+            self.project_meta_duration.setText(
+                f"{CFG.DASHBOARD_META_DURATION_PREFIX} {k.duration_working_days} working days"
+            )
+        else:
+            self.project_meta_duration.setText(
+                f"Projects {portfolio.projects_total} | Active {portfolio.active_projects} | At risk {portfolio.at_risk_projects}"
+            )
         self.project_meta_duration.setVisible(True)
 
     def _update_kpis(self, data: DashboardData):
         k = data.kpi
-        self.kpi_tasks.set_value(f"{fmt_int(k.tasks_completed)} / {fmt_int(k.tasks_total)}")
-        self.kpi_tasks.set_subtitle("Completed / Total")
+        portfolio = getattr(data, "portfolio", None)
+        if portfolio is None:
+            self.kpi_group.setTitle("Project Summary")
+            self.kpi_tasks.set_title("Tasks")
+            self.kpi_critical.set_title("Critical tasks")
+            self.kpi_late.set_title("Late tasks")
+            self.kpi_cost.set_title("Cost variance")
+            self.kpi_progress.set_title("% complete")
+            self.kpi_tasks.set_value(f"{fmt_int(k.tasks_completed)} / {fmt_int(k.tasks_total)}")
+            self.kpi_tasks.set_subtitle("Completed / Total")
+        else:
+            self.kpi_group.setTitle("Portfolio Summary")
+            self.kpi_tasks.set_title("Projects")
+            self.kpi_critical.set_title("At-risk projects")
+            self.kpi_late.set_title("Late tasks")
+            self.kpi_cost.set_title("Portfolio variance")
+            self.kpi_progress.set_title("Task progress")
+            self.kpi_tasks.set_value(f"{fmt_int(portfolio.completed_projects)} / {fmt_int(portfolio.projects_total)}")
+            self.kpi_tasks.set_subtitle("Completed / Total")
 
-        self.kpi_critical.set_value(fmt_int(k.critical_tasks))
+        if portfolio is None:
+            self.kpi_critical.set_value(fmt_int(k.critical_tasks))
+        else:
+            self.kpi_critical.set_value(fmt_int(portfolio.at_risk_projects))
 
         self.kpi_late.set_value(fmt_int(k.late_tasks))
 

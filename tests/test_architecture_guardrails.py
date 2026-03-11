@@ -277,6 +277,7 @@ def test_dashboard_tab_is_coordinator_only():
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "from ui.dashboard.data_ops import" in text
+    assert "from ui.dashboard.portfolio_panel import DashboardPortfolioPanelMixin" in text
     assert "from ui.dashboard.rendering import" in text
     assert "from ui.dashboard.workqueue_button import DashboardQueueButton" in text
     assert "from ui.dashboard.styles import" in text
@@ -306,6 +307,7 @@ def test_dashboard_rendering_module_is_facade_only():
     assert "from ui.dashboard.rendering_summary import" in text
     assert "from ui.dashboard.rendering_charts import" in text
     assert "from ui.dashboard.rendering_evm import" in text
+    assert "from ui.dashboard.rendering_portfolio import" in text
     assert "def _update_kpis" not in text
     assert "def _update_burndown_chart" not in text
     assert "def _update_evm" not in text
@@ -327,6 +329,7 @@ def test_dashboard_service_is_orchestrator_only():
     assert "from core.services.dashboard.upcoming import" in text
     assert "from core.services.dashboard.burndown import" in text
     assert "from core.services.dashboard.evm import" in text
+    assert "from core.services.dashboard.portfolio import" in text
     assert "def _build_alerts" not in text
     assert "def _build_upcoming_tasks" not in text
     assert "def _build_burndown" not in text
@@ -597,15 +600,17 @@ def test_known_large_modules_have_growth_budgets():
         "ui/cost/project_flow.py": 180,
         "ui/cost/labor_summary.py": 200,
         "ui/cost/actions.py": 150,
-        "ui/dashboard/tab.py": 260,
+        "ui/dashboard/tab.py": 270,
         "ui/dashboard/widgets.py": 120,
         "ui/dashboard/data_ops.py": 180,
-        "ui/dashboard/leveling_ops.py": 180,
+        "ui/dashboard/leveling_ops.py": 230,
         "ui/dashboard/alerts_panel.py": 140,
+        "ui/dashboard/portfolio_panel.py": 100,
         "ui/dashboard/rendering.py": 80,
-        "ui/dashboard/rendering_summary.py": 120,
-        "ui/dashboard/rendering_charts.py": 140,
+        "ui/dashboard/rendering_summary.py": 160,
+        "ui/dashboard/rendering_charts.py": 170,
         "ui/dashboard/rendering_evm.py": 240,
+        "ui/dashboard/rendering_portfolio.py": 120,
         "ui/report/tab.py": 220,
         "ui/report/actions.py": 220,
         "ui/report/project_flow.py": 80,
@@ -661,6 +666,8 @@ def test_known_large_modules_have_growth_budgets():
         "core/services/dashboard/upcoming.py": 150,
         "core/services/dashboard/burndown.py": 120,
         "core/services/dashboard/evm.py": 160,
+        "core/services/dashboard/portfolio.py": 300,
+        "core/services/dashboard/portfolio_models.py": 100,
         "core/services/finance/service.py": 220,
         "core/services/finance/ledger.py": 260,
         "core/services/finance/analytics.py": 160,

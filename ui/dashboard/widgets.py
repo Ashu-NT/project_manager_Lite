@@ -70,6 +70,9 @@ class KpiCard(QWidget):
     def set_value(self, value: str) -> None:
         self._lbl_value.setText(value)
 
+    def set_title(self, title: str) -> None:
+        self._lbl_title.setText(title)
+
     def set_subtitle(self, subtitle: str) -> None:
         self._lbl_sub.setText(subtitle)
         self._lbl_sub.setVisible(bool(subtitle))

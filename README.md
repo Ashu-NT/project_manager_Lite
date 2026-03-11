@@ -20,7 +20,7 @@ It is built with Python + PySide6 and follows a layered architecture designed fo
 - Baseline creation and schedule/cost variance analysis
 
 ### Reporting and Exports
-- Dashboard: KPIs, alerts, upcoming tasks, resource load, burndown, EVM snapshot
+- Dashboard: KPIs, alerts, upcoming tasks, resource load, burndown, EVM snapshot, portfolio overview
 - Report views: KPI, Gantt, Critical Path, Resource Load, Performance Variance, EVM
 - Exports:
   - Gantt PNG

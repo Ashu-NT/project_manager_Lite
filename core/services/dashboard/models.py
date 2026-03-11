@@ -5,6 +5,7 @@ from datetime import date
 from typing import List, Optional
 
 from core.services.reporting.models import CostSourceBreakdown, ProjectKPI, ResourceLoadRow
+from core.services.dashboard.portfolio_models import DashboardPortfolio
 
 
 @dataclass
@@ -51,3 +52,4 @@ class DashboardData:
     burndown: List[BurndownPoint]
     cost_sources: CostSourceBreakdown | None = None
     evm: Optional[DashboardEVM] = None
+    portfolio: DashboardPortfolio | None = None

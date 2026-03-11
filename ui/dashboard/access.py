@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from core.services.auth import UserSessionContext
+from core.services.dashboard import PORTFOLIO_SCOPE_ID
 from ui.shared.guards import apply_permission_hint, can_execute_governed_action, has_permission
 
 
@@ -50,7 +51,7 @@ def apply_dashboard_permission_hints(owner: object) -> None:
 
 def sync_dashboard_baseline_actions(owner: object) -> None:
     project_id, _ = owner._current_project_id_and_name()
-    has_project = bool(project_id)
+    has_project = bool(project_id) and project_id != PORTFOLIO_SCOPE_ID
     selected_baseline = owner.baseline_combo.currentData()
     can_delete_selected = has_project and selected_baseline is not None
     owner.btn_create_baseline.setEnabled(owner._can_create_baseline and has_project)

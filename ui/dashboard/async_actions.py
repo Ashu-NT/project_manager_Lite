@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox, QInputDialog
 
+from core.services.dashboard import PORTFOLIO_SCOPE_ID
 from ui.shared.incident_support import emit_error_event, message_with_incident
 from ui.shared.async_job import CancelToken, JobUiConfig, start_async_job
 from ui.shared.worker_services import worker_service_scope
@@ -9,7 +10,7 @@ from ui.shared.worker_services import worker_service_scope
 
 def run_generate_baseline_async(tab) -> None:
     proj_id, _ = tab._current_project_id_and_name()
-    if not proj_id:
+    if not proj_id or proj_id == PORTFOLIO_SCOPE_ID:
         return
 
     name, ok = QInputDialog.getText(
@@ -93,7 +94,10 @@ def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
         progress(None, "Loading dashboard data...")
         with worker_service_scope(getattr(tab, "_user_session", None)) as services:
             token.raise_if_cancelled()
-            data = services["dashboard_service"].get_dashboard_data(proj_id, baseline_id=baseline_id)
+            if proj_id == PORTFOLIO_SCOPE_ID:
+                data = services["dashboard_service"].get_portfolio_data()
+            else:
+                data = services["dashboard_service"].get_dashboard_data(proj_id, baseline_id=baseline_id)
             token.raise_if_cancelled()
             return data
 
@@ -104,10 +108,24 @@ def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
         tab._update_burndown_chart(data)
         tab._update_resource_chart(data)
         tab._update_alerts(data)
-        if hasattr(tab, "_refresh_conflicts"):
+        if proj_id == PORTFOLIO_SCOPE_ID and hasattr(tab, "_update_conflicts_from_load"):
+            overloaded = [
+                row
+                for row in getattr(data, "resource_load", []) or []
+                if float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0) > 100.0
+            ]
+            tab._current_conflicts = []
+            tab._update_conflicts_from_load(overloaded)
+            if hasattr(tab, "btn_open_conflicts"):
+                tab.btn_open_conflicts.setText(f"Conflicts ({len(overloaded)})")
+            if hasattr(tab, "_sync_leveling_buttons"):
+                tab._sync_leveling_buttons()
+        elif hasattr(tab, "_refresh_conflicts"):
             tab._refresh_conflicts(proj_id)
         tab._update_upcoming(data)
         tab._update_evm(data)
+        if hasattr(tab, "_update_portfolio_panel"):
+            tab._update_portfolio_panel(data)
 
     start_async_job(
         parent=tab,
