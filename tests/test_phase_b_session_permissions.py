@@ -170,3 +170,39 @@ def test_governance_permissions_are_split_between_request_and_decide(services, m
         cs.update_cost_item(item.id, actual_amount=30.0)
     with pytest.raises(BusinessRuleError, match="approval.decide"):
         approvals.approve_and_apply(request_id)
+
+
+def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(services):
+    auth = services["auth_service"]
+    auth.register_user("planner-timesheet", "StrongPass123", role_names=["planner"])
+    auth.register_user("viewer-timesheet", "StrongPass123", role_names=["viewer"])
+    _login_as(services, "admin", "ChangeMe123!")
+
+    ps = services["project_service"]
+    rs = services["resource_service"]
+    ts = services["task_service"]
+
+    project = ps.create_project("Timesheet Permission Split")
+    task = ts.create_task(project.id, "Timesheet Permission Task", start_date=date(2026, 6, 1), duration_days=2)
+    resource = rs.create_resource("Planner Logger", hourly_rate=100.0)
+    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
+    ts.add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 6, 2),
+        hours=5.0,
+        note="Initial work",
+    )
+
+    _login_as(services, "planner-timesheet", "StrongPass123")
+    submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 9))
+    assert submitted.status.value == "SUBMITTED"
+
+    with pytest.raises(BusinessRuleError, match="approval.decide"):
+        ts.approve_timesheet_period(submitted.id)
+
+    with pytest.raises(BusinessRuleError, match="settings.manage"):
+        ts.lock_timesheet_period(resource.id, period_start=date(2026, 7, 1))
+
+    _login_as(services, "viewer-timesheet", "StrongPass123")
+    with pytest.raises(BusinessRuleError, match="task.manage"):
+        ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))

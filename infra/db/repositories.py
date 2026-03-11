@@ -33,6 +33,8 @@ from infra.db.mappers import (
     role_to_orm,
     task_from_orm,
     task_to_orm,
+    timesheet_period_from_orm,
+    timesheet_period_to_orm,
     user_from_orm,
     user_role_from_orm,
     user_role_to_orm,
@@ -56,6 +58,7 @@ from infra.db.repositories_task import (
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
     SqlAlchemyTimeEntryRepository,
+    SqlAlchemyTimesheetPeriodRepository,
 )
 from infra.db.repositories_auth import (
     SqlAlchemyPermissionRepository,
@@ -70,6 +73,8 @@ __all__ = [
     "project_from_orm",
     "task_to_orm",
     "task_from_orm",
+    "timesheet_period_to_orm",
+    "timesheet_period_from_orm",
     "resource_to_orm",
     "resource_from_orm",
     "assignment_to_orm",
@@ -107,6 +112,7 @@ __all__ = [
     "SqlAlchemyAssignmentRepository",
     "SqlAlchemyDependencyRepository",
     "SqlAlchemyTimeEntryRepository",
+    "SqlAlchemyTimesheetPeriodRepository",
     "SqlAlchemyCostRepository",
     "SqlAlchemyCalendarEventRepository",
     "SqlAlchemyWorkingCalendarRepository",

@@ -6,6 +6,7 @@ from infra.db.task.repository import (
     SqlAlchemyTaskRepository,
 )
 from infra.db.task.time_entry_repository import SqlAlchemyTimeEntryRepository
+from infra.db.task.timesheet_period_repository import SqlAlchemyTimesheetPeriodRepository
 
 
 __all__ = [
@@ -13,4 +14,5 @@ __all__ = [
     "SqlAlchemyAssignmentRepository",
     "SqlAlchemyDependencyRepository",
     "SqlAlchemyTimeEntryRepository",
+    "SqlAlchemyTimesheetPeriodRepository",
 ]

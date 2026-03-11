@@ -38,6 +38,7 @@ from infra.db.repositories import (
     SqlAlchemyResourceRepository,
     SqlAlchemyTaskRepository,
     SqlAlchemyTimeEntryRepository,
+    SqlAlchemyTimesheetPeriodRepository,
     SqlAlchemyUserRepository,
     SqlAlchemyUserRoleRepository,
     SqlAlchemyWorkingCalendarRepository,
@@ -123,6 +124,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     resource_repo = SqlAlchemyResourceRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
     time_entry_repo = SqlAlchemyTimeEntryRepository(session)
+    timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(session)
     dependency_repo = SqlAlchemyDependencyRepository(session)
     cost_repo = SqlAlchemyCostRepository(session)
     calendar_repo = SqlAlchemyCalendarEventRepository(session)
@@ -186,6 +188,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         dependency_repo,
         assignment_repo,
         time_entry_repo,
+        timesheet_period_repo,
         resource_repo,
         cost_repo,
         calendar_repo,

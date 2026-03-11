@@ -14,6 +14,7 @@ from core.interfaces import (
     ResourceRepository,
     TaskRepository,
     TimeEntryRepository,
+    TimesheetPeriodRepository,
 )
 from core.services.approval.service import ApprovalService
 from core.services.audit.service import AuditService
@@ -46,6 +47,7 @@ class TaskService(
         dependency_repo: DependencyRepository,
         assignment_repo: AssignmentRepository,
         time_entry_repo: TimeEntryRepository | None,
+        timesheet_period_repo: TimesheetPeriodRepository | None,
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
         calendar_repo: CalendarEventRepository,
@@ -61,6 +63,7 @@ class TaskService(
         self._dependency_repo: DependencyRepository = dependency_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._time_entry_repo = time_entry_repo
+        self._timesheet_period_repo = timesheet_period_repo
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
         self._calendar_repo: CalendarEventRepository = calendar_repo

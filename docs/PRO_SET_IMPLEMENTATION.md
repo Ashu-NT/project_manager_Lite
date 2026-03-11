@@ -58,3 +58,26 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
 
 - Shared collaboration becomes truly multi-user when the app is pointed at a shared database via `PM_DB_URL`.
 - Legacy aggregate `hours_logged` is still preserved as the reporting compatibility field, but it now syncs from timesheet rows once an assignment is initialized for timesheets.
+
+## Pro Phase 2 Roadmap (Tracked 2026-03-11)
+
+- [ ] 1. Portfolio dashboard
+  - cross-project executive KPIs
+  - portfolio ranking and status rollups
+  - resource capacity across projects
+- [ ] 2. Timesheet approvals / lock periods
+  - monthly resource timesheet periods
+  - submit / approve / reject / explicit lock-unlock lifecycle
+  - edit blocking for submitted, approved, and locked periods
+  - progress: backend/service lifecycle shipped and covered by targeted tests on 2026-03-11
+- [ ] 3. Richer import wizard
+  - preview + validation before commit
+  - dry-run summaries and row-level error handling
+  - broader mapping flow beyond raw CSV entrypoint
+- [ ] 4. Risk / issue / change register
+  - dedicated records, ownership, status, due dates
+  - audit-friendly workflow and reporting
+
+Execution note:
+- The implementation order starts with the timesheet backend because it has the strongest existing foundation and lowest migration risk.
+- Each item ships with targeted tests before being marked complete.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from enum import Enum
 from typing import Optional
 
 from core.domain.enums import DependencyType, TaskStatus
@@ -85,6 +86,14 @@ class TaskDependency:
         )
 
 
+class TimesheetPeriodStatus(str, Enum):
+    OPEN = "OPEN"
+    SUBMITTED = "SUBMITTED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    LOCKED = "LOCKED"
+
+
 @dataclass
 class TimeEntry:
     id: str
@@ -121,4 +130,42 @@ class TimeEntry:
         )
 
 
-__all__ = ["Task", "TaskAssignment", "TaskDependency", "TimeEntry"]
+@dataclass
+class TimesheetPeriod:
+    id: str
+    resource_id: str
+    period_start: date
+    period_end: date
+    status: TimesheetPeriodStatus = TimesheetPeriodStatus.OPEN
+    submitted_at: datetime | None = None
+    submitted_by_user_id: str | None = None
+    submitted_by_username: str | None = None
+    decided_at: datetime | None = None
+    decided_by_user_id: str | None = None
+    decided_by_username: str | None = None
+    decision_note: str | None = None
+    locked_at: datetime | None = None
+
+    @staticmethod
+    def create(
+        resource_id: str,
+        *,
+        period_start: date,
+        period_end: date,
+    ) -> "TimesheetPeriod":
+        return TimesheetPeriod(
+            id=generate_id(),
+            resource_id=resource_id,
+            period_start=period_start,
+            period_end=period_end,
+        )
+
+
+__all__ = [
+    "Task",
+    "TaskAssignment",
+    "TaskDependency",
+    "TimeEntry",
+    "TimesheetPeriod",
+    "TimesheetPeriodStatus",
+]

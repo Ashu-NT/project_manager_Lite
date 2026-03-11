@@ -25,6 +25,7 @@ from core.models import (
     TaskStatus,
     DependencyType,
     CostType,
+    TimesheetPeriodStatus,
 ) 
 
 
@@ -127,6 +128,37 @@ class TimeEntryORM(Base):
 
 Index("idx_time_entries_assignment", TimeEntryORM.assignment_id)
 Index("idx_time_entries_date", TimeEntryORM.entry_date)
+
+
+class TimesheetPeriodORM(Base):
+    __tablename__ = "timesheet_periods"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    resource_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("resources.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[TimesheetPeriodStatus] = mapped_column(
+        SAEnum(TimesheetPeriodStatus),
+        nullable=False,
+        default=TimesheetPeriodStatus.OPEN,
+        server_default=TimesheetPeriodStatus.OPEN.value,
+    )
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    submitted_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    submitted_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    decided_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    decided_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    locked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+
+Index("idx_timesheet_periods_resource", TimesheetPeriodORM.resource_id)
+Index("ux_timesheet_periods_resource_start", TimesheetPeriodORM.resource_id, TimesheetPeriodORM.period_start, unique=True)
 
 class TaskDependencyORM(Base):
     __tablename__ = "task_dependencies"

@@ -24,6 +24,7 @@ from .models import (
     UserAccount,
     UserRoleBinding,
     TimeEntry,
+    TimesheetPeriod,
 )
 
 
@@ -115,6 +116,19 @@ class TimeEntryRepository(ABC):
     def list_by_assignment(self, assignment_id: str) -> List[TimeEntry]: ...
     @abstractmethod
     def delete_by_assignment(self, assignment_id: str) -> None: ...
+
+
+class TimesheetPeriodRepository(ABC):
+    @abstractmethod
+    def add(self, period: TimesheetPeriod) -> None: ...
+    @abstractmethod
+    def get(self, period_id: str) -> Optional[TimesheetPeriod]: ...
+    @abstractmethod
+    def update(self, period: TimesheetPeriod) -> None: ...
+    @abstractmethod
+    def get_by_resource_period(self, resource_id: str, period_start) -> Optional[TimesheetPeriod]: ...
+    @abstractmethod
+    def list_by_resource(self, resource_id: str) -> List[TimesheetPeriod]: ...
 
 
 class DependencyRepository(ABC):

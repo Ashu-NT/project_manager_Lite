@@ -183,6 +183,53 @@ def test_legacy_hours_bootstrap_into_timesheet_is_audited(services):
     assert bootstrap.details.get("legacy_hours_migrated") == pytest.approx(5.0)
 
 
+def test_timesheet_period_transitions_are_audited(services):
+    _login_admin(services)
+    ps = services["project_service"]
+    rs = services["resource_service"]
+    ts = services["task_service"]
+    audit = services["audit_service"]
+
+    project = ps.create_project("Timesheet Audit")
+    task = ts.create_task(
+        project_id=project.id,
+        name="Timesheet Audit Task",
+        start_date=date(2026, 6, 1),
+        duration_days=2,
+    )
+    resource = rs.create_resource("Timesheet Auditor", hourly_rate=115.0)
+    assignment = ts.assign_resource(task.id, resource.id, 100.0)
+    ts.add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 6, 2),
+        hours=4.5,
+        note="Audit period work",
+    )
+
+    submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 15), note="Submit June")
+    ts.reject_timesheet_period(submitted.id, note="Needs correction")
+    ts.lock_timesheet_period(resource.id, period_start=date(2026, 7, 1), note="Freeze July")
+    ts.unlock_timesheet_period(
+        ts.get_timesheet_period(resource.id, period_start=date(2026, 7, 20)).id,
+        note="Open July",
+    )
+    resubmitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 1), note="Resubmit June")
+    ts.approve_timesheet_period(resubmitted.id, note="Approved June")
+
+    entries = audit.list_recent(limit=120, entity_type="timesheet_period")
+    actions = {entry.action for entry in entries}
+    assert "timesheet_period.submit" in actions
+    assert "timesheet_period.reject" in actions
+    assert "timesheet_period.lock" in actions
+    assert "timesheet_period.unlock" in actions
+    assert "timesheet_period.approve" in actions
+
+    approved = next(entry for entry in entries if entry.action == "timesheet_period.approve")
+    assert approved.details.get("resource_name") == "Timesheet Auditor"
+    assert approved.details.get("period_start") == "2026-06-01"
+    assert approved.details.get("total_hours") == pytest.approx(4.5)
+
+
 def test_auth_login_attempts_are_audited(services):
     auth = services["auth_service"]
     audit = services["audit_service"]
