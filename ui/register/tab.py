@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSplitter,
-    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -124,7 +123,7 @@ class RegisterTab(QWidget):
         filters.addWidget(self.owner_filter, 2, 1, 1, 3)
         root.addLayout(filters)
 
-        splitter = QSplitter(Qt.Vertical)
+        splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
         splitter.setHandleWidth(8)
         root.addWidget(splitter, 1)
@@ -142,22 +141,34 @@ class RegisterTab(QWidget):
         table_layout.addWidget(self.table)
         splitter.addWidget(table_panel)
 
-        narrative_panel = QGroupBox("Entry Narrative")
+        narrative_panel = QWidget()
+        narrative_panel.setMinimumWidth(420)
         narrative_layout = QVBoxLayout(narrative_panel)
-        narrative_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        narrative_layout.setContentsMargins(0, 0, 0, 0)
         narrative_layout.setSpacing(CFG.SPACING_SM)
-        self.detail_tabs = QTabWidget()
-        self.description_view = self._build_narrative_view(placeholder="No description")
-        self.impact_view = self._build_narrative_view(placeholder="No impact summary")
-        self.response_view = self._build_narrative_view(placeholder="No response plan")
-        self.detail_tabs.addTab(self.description_view, "Description")
-        self.detail_tabs.addTab(self.impact_view, "Impact")
-        self.detail_tabs.addTab(self.response_view, "Response Plan")
-        narrative_layout.addWidget(self.detail_tabs)
+        narrative_title = QLabel("Entry Narrative")
+        narrative_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
+        narrative_layout.addWidget(narrative_title)
+        self.description_view = self._build_narrative_section(
+            narrative_layout,
+            title="Description",
+            placeholder="No description",
+        )
+        self.impact_view = self._build_narrative_section(
+            narrative_layout,
+            title="Impact",
+            placeholder="No impact summary",
+        )
+        self.response_view = self._build_narrative_section(
+            narrative_layout,
+            title="Response Plan",
+            placeholder="No response plan",
+        )
+        narrative_layout.addStretch(1)
         splitter.addWidget(narrative_panel)
         splitter.setStretchFactor(0, 5)
-        splitter.setStretchFactor(1, 2)
-        splitter.setSizes([520, 220])
+        splitter.setStretchFactor(1, 3)
+        splitter.setSizes([900, 420])
 
         self.btn_new.clicked.connect(make_guarded_slot(self, title="Register", callback=self.create_entry))
         self.btn_edit.clicked.connect(make_guarded_slot(self, title="Register", callback=self.edit_entry))
@@ -174,11 +185,17 @@ class RegisterTab(QWidget):
         apply_permission_hint(self.btn_edit, allowed=self._can_manage, missing_permission="project.manage")
         apply_permission_hint(self.btn_delete, allowed=self._can_manage, missing_permission="project.manage")
 
-    def _build_narrative_view(self, *, placeholder: str) -> QTextEdit:
+    def _build_narrative_section(self, layout: QVBoxLayout, *, title: str, placeholder: str) -> QTextEdit:
+        group = QGroupBox(title)
+        section_layout = QVBoxLayout(group)
+        section_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        section_layout.setSpacing(CFG.SPACING_XS)
         view = QTextEdit()
         view.setReadOnly(True)
         view.setPlaceholderText(placeholder)
-        view.setMinimumHeight(150)
+        view.setMinimumHeight(135)
+        section_layout.addWidget(view)
+        layout.addWidget(group)
         return view
 
     def reload_entries(self) -> None:
