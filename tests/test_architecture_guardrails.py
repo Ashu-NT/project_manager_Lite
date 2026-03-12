@@ -215,6 +215,23 @@ def test_task_project_flow_module_contains_loading_helpers():
     assert "def _get_selected_task" in text
 
 
+def test_import_service_is_split_into_package_modules():
+    package_dir = ROOT / "core" / "services" / "import_service"
+    service_path = package_dir / "service.py"
+    init_path = package_dir / "__init__.py"
+    support_path = package_dir / "support.py"
+    preview_path = package_dir / "preview.py"
+    execution_path = package_dir / "execution.py"
+
+    assert package_dir.is_dir()
+    assert service_path.exists()
+    assert init_path.exists()
+    assert support_path.exists()
+    assert preview_path.exists()
+    assert execution_path.exists()
+    assert not (ROOT / "core" / "services" / "import_service.py").exists()
+
+
 def test_task_dependency_dialogs_module_is_facade_only():
     dialogs_path = ROOT / "ui" / "task" / "dependency_dialogs.py"
     text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
