@@ -10,9 +10,11 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QTableView,
     QVBoxLayout,
+    QWidget,
 )
 
 from core.domain.enums import TaskStatus
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_meta_chip_style
 from ui.shared.guards import apply_permission_hint, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
@@ -31,21 +33,32 @@ class TaskLayoutMixin:
         )
 
         top = QHBoxLayout()
-        top.addWidget(QLabel("Project:"))
+        scope_badge = QLabel("TASK SCOPE")
+        scope_badge.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        top.addWidget(scope_badge)
         self.project_combo = QComboBox()
         self.project_combo.setSizePolicy(CFG.INPUT_POLICY)
         self.project_combo.setFixedHeight(CFG.INPUT_HEIGHT)
         self.btn_reload_projects = QPushButton(CFG.RELOAD_PROJECTS_LABEL)
+        top.addWidget(QLabel("Project"))
         top.addWidget(self.project_combo)
         top.addWidget(self.btn_reload_projects)
         top.addStretch()
-        root.addLayout(top)
+        self.btn_refresh_tasks = QPushButton(CFG.REFRESH_TASKS_LABEL)
+        self.lbl_mentions = QLabel("Mentions: 0")
+        self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
+        top.addWidget(self.lbl_mentions)
+        top.addWidget(self.btn_refresh_tasks)
 
         toolbar = QHBoxLayout()
+        actions_badge = QLabel("EXECUTION")
+        actions_badge.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        toolbar.addWidget(actions_badge)
         self.btn_new = QPushButton(CFG.NEW_TASK_LABEL)
         self.btn_edit = QPushButton(CFG.EDIT_LABEL)
         self.btn_delete = QPushButton(CFG.DELETE_LABEL)
         self.btn_progress = QPushButton(CFG.UPDATE_PROGRESS_LABEL)
+        self.btn_comments = QPushButton("Comments")
         self.bulk_status_combo = QComboBox()
         self.bulk_status_combo.setMinimumWidth(140)
         self.bulk_status_combo.addItem("Bulk: To Do", userData=TaskStatus.TODO.value)
@@ -55,43 +68,78 @@ class TaskLayoutMixin:
         self.btn_bulk_delete = QPushButton("Bulk Delete")
         self.btn_undo = QPushButton("Undo")
         self.btn_redo = QPushButton("Redo")
-        self.btn_comments = QPushButton("Comments")
-        self.lbl_mentions = QLabel("Mentions: 0")
-        self.lbl_mentions.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
-        self.btn_refresh_tasks = QPushButton(CFG.REFRESH_TASKS_LABEL)
 
         for btn in [
             self.btn_reload_projects,
+            self.btn_refresh_tasks,
             self.btn_new,
             self.btn_edit,
             self.btn_delete,
             self.btn_progress,
+            self.btn_comments,
             self.btn_bulk_status,
             self.btn_bulk_delete,
             self.btn_undo,
             self.btn_redo,
-            self.btn_comments,
-            self.btn_refresh_tasks,
         ]:
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.bulk_status_combo.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.bulk_status_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.btn_new.setStyleSheet(dashboard_action_button_style("primary"))
+        for btn in (
+            self.btn_reload_projects,
+            self.btn_refresh_tasks,
+            self.btn_edit,
+            self.btn_progress,
+            self.btn_comments,
+            self.btn_bulk_status,
+            self.btn_undo,
+            self.btn_redo,
+        ):
+            btn.setStyleSheet(dashboard_action_button_style("secondary"))
+        for btn in (self.btn_delete, self.btn_bulk_delete):
+            btn.setStyleSheet(dashboard_action_button_style("danger"))
 
         toolbar.addWidget(self.btn_new)
         toolbar.addWidget(self.btn_edit)
-        toolbar.addWidget(self.btn_delete)
         toolbar.addWidget(self.btn_progress)
-        toolbar.addWidget(self.bulk_status_combo)
-        toolbar.addWidget(self.btn_bulk_status)
-        toolbar.addWidget(self.btn_bulk_delete)
+        toolbar.addWidget(self.btn_delete)
+        toolbar.addWidget(self.btn_comments)
+        toolbar.addStretch()
+        history_badge = QLabel("HISTORY")
+        history_badge.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        toolbar.addWidget(history_badge)
         toolbar.addWidget(self.btn_undo)
         toolbar.addWidget(self.btn_redo)
-        toolbar.addWidget(self.btn_comments)
-        toolbar.addWidget(self.lbl_mentions)
-        toolbar.addStretch()
-        toolbar.addWidget(self.btn_refresh_tasks)
-        root.addLayout(toolbar)
+
+        bulk_row = QHBoxLayout()
+        bulk_badge = QLabel("BULK")
+        bulk_badge.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        bulk_row.addWidget(bulk_badge)
+        bulk_row.addWidget(self.bulk_status_combo)
+        bulk_row.addWidget(self.btn_bulk_status)
+        bulk_row.addWidget(self.btn_bulk_delete)
+        bulk_row.addStretch()
+
+        controls = QWidget()
+        controls.setObjectName("taskControlSurface")
+        controls.setStyleSheet(
+            f"""
+            QWidget#taskControlSurface {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        controls_layout.setSpacing(CFG.SPACING_SM)
+        controls_layout.addLayout(top)
+        controls_layout.addLayout(toolbar)
+        controls_layout.addLayout(bulk_row)
+        root.addWidget(controls)
         self._build_task_filters(root)
 
         self.table = QTableView()
@@ -180,4 +228,3 @@ class TaskLayoutMixin:
 
 
 __all__ = ["TaskLayoutMixin"]
-

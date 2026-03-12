@@ -5,6 +5,7 @@ import os
 
 from PySide6.QtGui import QKeySequence, QShortcut
 
+from ui.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style
 from ui.styles.ui_config import UIConfig as CFG
 from ui.task.collaboration_dialog import TaskCollaborationDialog
 
@@ -84,7 +85,12 @@ class TaskUxEnhancementsMixin:
         self.lbl_mentions.setToolTip(
             "Watching aliases: " + ", ".join(f"@{name}" for name in identities[:4])
         )
-        self.lbl_mentions.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+        if unread > 0:
+            self.lbl_mentions.setStyleSheet(
+                dashboard_badge_style(CFG.COLOR_ACCENT_SOFT, CFG.COLOR_TEXT_PRIMARY)
+            )
+        else:
+            self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
 
     def _open_task_collaboration(self) -> None:
         task = self._get_selected_task()

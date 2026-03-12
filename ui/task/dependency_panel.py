@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
+    QGridLayout,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import Task
 from core.services.task import TaskService
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_meta_chip_style
 from ui.shared.guards import apply_permission_hint, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
@@ -43,23 +45,49 @@ class TaskDependencyPanelMixin:
 
     def _build_dependency_section(self) -> QWidget:
         box = QWidget()
+        box.setObjectName("taskWorkSection")
         layout = QVBoxLayout(box)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
         layout.setSpacing(CFG.SPACING_SM)
 
-        section_title = QLabel("Dependencies")
-        section_title.setStyleSheet("font-weight: 700;")
+        eyebrow = QLabel("DEPENDENCY NETWORK")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        layout.addWidget(eyebrow)
+
+        section_title = QLabel("Predecessor and successor flow")
+        section_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
         layout.addWidget(section_title)
 
-        self.dependency_title_label = QLabel("Select a task to view dependencies.")
+        self.dependency_title_label = QLabel("Select a task to review predecessor and successor links.")
         self.dependency_title_label.setStyleSheet(CFG.INFO_TEXT_STYLE)
         self.dependency_title_label.setWordWrap(True)
         layout.addWidget(self.dependency_title_label)
 
-        self.dependency_summary_label = QLabel("")
+        self.dependency_summary_label = QLabel("Critical sequencing and handoff logic appears here.")
         self.dependency_summary_label.setStyleSheet(CFG.NOTE_STYLE_SHEET)
         self.dependency_summary_label.setWordWrap(True)
         layout.addWidget(self.dependency_summary_label)
+
+        metrics_row = QHBoxLayout()
+        metrics_row.setSpacing(CFG.SPACING_SM)
+        self.dependency_count_chip = self._build_metric_chip("Links 0")
+        self.dependency_pred_chip = self._build_metric_chip("Predecessors 0")
+        self.dependency_succ_chip = self._build_metric_chip("Successors 0")
+        metrics_row.addWidget(self.dependency_count_chip)
+        metrics_row.addWidget(self.dependency_pred_chip)
+        metrics_row.addWidget(self.dependency_succ_chip)
+        metrics_row.addStretch()
+        layout.addLayout(metrics_row)
+
+        self.btn_dependency_add = QPushButton("Create Dependency")
+        self.btn_dependency_remove = QPushButton("Remove Dependency")
+        for btn in (self.btn_dependency_add, self.btn_dependency_remove):
+            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_dependency_add.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_dependency_remove.setStyleSheet(dashboard_action_button_style("danger"))
+        self.btn_dependency_add.setToolTip("Create a predecessor or successor link for the selected task")
+        self.btn_dependency_remove.setToolTip("Remove the selected dependency link")
 
         self.dependency_table = QTableWidget(0, 5)
         self.dependency_table.setHorizontalHeaderLabels(
@@ -69,21 +97,22 @@ class TaskDependencyPanelMixin:
         self.dependency_table.setSelectionMode(QTableWidget.SingleSelection)
         self.dependency_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.dependency_table.setWordWrap(False)
-        self.dependency_table.setMinimumHeight(150)
+        self.dependency_table.setMinimumHeight(170)
         style_table(self.dependency_table)
         self._configure_dependency_table_columns()
         layout.addWidget(self.dependency_table)
 
-        button_row = QHBoxLayout()
-        self.btn_dependency_add = QPushButton("Add")
-        self.btn_dependency_remove = QPushButton("Remove")
-        for btn in (self.btn_dependency_add, self.btn_dependency_remove):
-            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-        button_row.addWidget(self.btn_dependency_add)
-        button_row.addWidget(self.btn_dependency_remove)
-        button_row.addStretch()
-        layout.addLayout(button_row)
+        actions_label = QLabel("Actions")
+        actions_label.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        layout.addWidget(actions_label)
+        action_grid = QGridLayout()
+        action_grid.setHorizontalSpacing(CFG.SPACING_SM)
+        action_grid.setVerticalSpacing(CFG.SPACING_SM)
+        action_grid.addWidget(self.btn_dependency_add, 0, 0)
+        action_grid.addWidget(self.btn_dependency_remove, 0, 1)
+        action_grid.setColumnStretch(0, 1)
+        action_grid.setColumnStretch(1, 1)
+        layout.addLayout(action_grid)
 
         self.dependency_table.itemSelectionChanged.connect(self._on_dependency_selection_changed)
         self.btn_dependency_add.clicked.connect(
@@ -106,6 +135,11 @@ class TaskDependencyPanelMixin:
         )
         return box
 
+    def _build_metric_chip(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setStyleSheet(dashboard_meta_chip_style())
+        return label
+
     def _on_dependency_selection_changed(self, *_args) -> None:
         self._set_assignment_panel_actions_state(
             task_selected=self._get_selected_task() is not None,
@@ -115,8 +149,11 @@ class TaskDependencyPanelMixin:
 
     def _clear_dependency_panel_for_no_task(self) -> None:
         self.dependency_table.setRowCount(0)
-        self.dependency_title_label.setText("Select a task to view dependencies.")
-        self.dependency_summary_label.setText("")
+        self.dependency_title_label.setText("Select a task to review predecessor and successor links.")
+        self.dependency_summary_label.setText("Critical sequencing and handoff logic appears here.")
+        self.dependency_count_chip.setText("Links 0")
+        self.dependency_pred_chip.setText("Predecessors 0")
+        self.dependency_succ_chip.setText("Successors 0")
 
     def _reload_dependency_panel_for_selected_task(self, task: Task) -> None:
         deps = self._task_service.list_dependencies_for_task(task.id)
@@ -159,10 +196,13 @@ class TaskDependencyPanelMixin:
             self.dependency_table.item(r, 0).setData(Qt.UserRole, dep_id)
 
         succ_count = len(rows) - pred_count
-        self.dependency_title_label.setText(f"Task: {task.name}")
+        self.dependency_title_label.setText(task.name)
         self.dependency_summary_label.setText(
-            f"Dependencies: {len(rows)} | Predecessors: {pred_count} | Successors: {succ_count}"
+            "Critical sequencing and handoff logic for the active task."
         )
+        self.dependency_count_chip.setText(f"Links {len(rows)}")
+        self.dependency_pred_chip.setText(f"Predecessors {pred_count}")
+        self.dependency_succ_chip.setText(f"Successors {succ_count}")
         self.dependency_table.clearSelection()
 
     def _get_selected_dependency_id(self) -> str | None:

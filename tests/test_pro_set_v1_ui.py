@@ -67,6 +67,15 @@ def test_task_tab_pro_controls_saved_views_and_undo_work_at_runtime(
     assert tab.btn_bulk_delete.text() == "Bulk Delete"
     assert tab.btn_comments.text() == "Comments"
     assert tab.lbl_mentions.text() == "Mentions: 0"
+    assert tab.btn_assignment_add.text() == "Assign Resource"
+    assert tab.btn_assignment_remove.text() == "Remove Assignment"
+    assert tab.btn_assignment_set_alloc.text() == "Adjust Allocation"
+    assert tab.btn_assignment_log_hours.text() == "Open Timesheet"
+    assert tab.btn_dependency_add.text() == "Create Dependency"
+    assert tab.btn_dependency_remove.text() == "Remove Dependency"
+    assert tab.work_tabs.count() == 2
+    assert tab.work_tabs.tabText(0) == "Assignments"
+    assert tab.work_tabs.tabText(1) == "Dependencies"
     assert "advanced:" in tab.task_search_filter.placeholderText()
     assert tab.task_view_combo.count() >= 1
 

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
+    QGridLayout,
     QHeaderView,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSplitter,
+    QTabWidget,
     QTableView,
     QTableWidget,
     QVBoxLayout,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
 from core.models import TaskAssignment
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_meta_chip_style
 from ui.shared.guards import apply_permission_hint, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
@@ -70,25 +72,50 @@ class TaskAssignmentPanelMixin:
             QWidget#taskAssignmentsPanel QLabel {{
                 color: {CFG.COLOR_TEXT_PRIMARY};
             }}
+            QWidget#taskWorkSection {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            QTabWidget#taskWorkTabs::pane {{
+                border: none;
+                background: transparent;
+            }}
+            QTabWidget#taskWorkTabs QTabBar::tab {{
+                background: {CFG.COLOR_BG_SURFACE_ALT};
+                color: {CFG.COLOR_TEXT_SECONDARY};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-bottom: none;
+                min-width: 120px;
+                padding: 6px 12px;
+                margin-right: 4px;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+                font-weight: 600;
+            }}
+            QTabWidget#taskWorkTabs QTabBar::tab:selected {{
+                background: {CFG.COLOR_BG_SURFACE};
+                color: {CFG.COLOR_TEXT_PRIMARY};
+                border-color: {CFG.COLOR_BORDER_STRONG};
+                border-top: 3px solid {CFG.COLOR_ACCENT};
+            }}
             """
         )
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setSpacing(CFG.SPACING_SM)
+        panel_layout.setSpacing(CFG.SPACING_MD)
         panel_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
 
-        title = QLabel("Task Work")
+        title = QLabel("Execution Workspace")
         title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
         panel_layout.addWidget(title)
 
-        self.panel_splitter = QSplitter(Qt.Vertical)
-        self.panel_splitter.setChildrenCollapsible(False)
-        self.panel_splitter.setHandleWidth(8)
-        self.panel_splitter.addWidget(self._build_assignment_section())
-        self.panel_splitter.addWidget(self._build_dependency_section())
-        self.panel_splitter.setStretchFactor(0, 3)
-        self.panel_splitter.setStretchFactor(1, 2)
-        self.panel_splitter.setSizes([360, 260])
-        panel_layout.addWidget(self.panel_splitter, 1)
+        self.work_tabs = QTabWidget()
+        self.work_tabs.setObjectName("taskWorkTabs")
+        self.work_tabs.setDocumentMode(True)
+        self.work_tabs.tabBar().setExpanding(True)
+        self.work_tabs.addTab(self._build_assignment_section(), "Assignments")
+        self.work_tabs.addTab(self._build_dependency_section(), "Dependencies")
+        panel_layout.addWidget(self.work_tabs, 1)
 
         self._set_assignment_panel_actions_state(
             task_selected=False,
@@ -99,12 +126,17 @@ class TaskAssignmentPanelMixin:
 
     def _build_assignment_section(self) -> QWidget:
         box = QWidget()
+        box.setObjectName("taskWorkSection")
         layout = QVBoxLayout(box)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
         layout.setSpacing(CFG.SPACING_SM)
 
-        section_title = QLabel("Assignments")
-        section_title.setStyleSheet("font-weight: 700;")
+        eyebrow = QLabel("ASSIGNMENTS")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        layout.addWidget(eyebrow)
+
+        section_title = QLabel("Resource coverage for the selected task")
+        section_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
         layout.addWidget(section_title)
 
         self.assignment_title_label = QLabel("Select a task to view assignments.")
@@ -112,10 +144,21 @@ class TaskAssignmentPanelMixin:
         self.assignment_title_label.setWordWrap(True)
         layout.addWidget(self.assignment_title_label)
 
-        self.assignment_summary_label = QLabel("")
+        self.assignment_summary_label = QLabel("Resource coverage, allocation pressure, and logged effort appear here.")
         self.assignment_summary_label.setStyleSheet(CFG.NOTE_STYLE_SHEET)
         self.assignment_summary_label.setWordWrap(True)
         layout.addWidget(self.assignment_summary_label)
+
+        metrics_row = QHBoxLayout()
+        metrics_row.setSpacing(CFG.SPACING_SM)
+        self.assignment_count_chip = self._build_metric_chip("Resources 0")
+        self.assignment_alloc_chip = self._build_metric_chip("Allocation 0.0%")
+        self.assignment_hours_chip = self._build_metric_chip("Hours 0.00")
+        metrics_row.addWidget(self.assignment_count_chip)
+        metrics_row.addWidget(self.assignment_alloc_chip)
+        metrics_row.addWidget(self.assignment_hours_chip)
+        metrics_row.addStretch()
+        layout.addLayout(metrics_row)
 
         self.assignment_table = QTableView()
         self.assignment_model = AssignmentTableModel()
@@ -130,11 +173,16 @@ class TaskAssignmentPanelMixin:
         QTimer.singleShot(0, self._configure_assignment_table_columns)
         layout.addWidget(self.assignment_table)
 
-        button_row = QHBoxLayout()
-        self.btn_assignment_add = QPushButton("Add")
-        self.btn_assignment_remove = QPushButton("Remove")
-        self.btn_assignment_set_alloc = QPushButton("Set Allocation")
-        self.btn_assignment_log_hours = QPushButton("Timesheet")
+        actions_label = QLabel("Actions")
+        actions_label.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        layout.addWidget(actions_label)
+        action_grid = QGridLayout()
+        action_grid.setHorizontalSpacing(CFG.SPACING_SM)
+        action_grid.setVerticalSpacing(CFG.SPACING_SM)
+        self.btn_assignment_add = QPushButton("Assign Resource")
+        self.btn_assignment_remove = QPushButton("Remove Assignment")
+        self.btn_assignment_set_alloc = QPushButton("Adjust Allocation")
+        self.btn_assignment_log_hours = QPushButton("Open Timesheet")
         for btn in (
             self.btn_assignment_add,
             self.btn_assignment_remove,
@@ -143,12 +191,21 @@ class TaskAssignmentPanelMixin:
         ):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-        button_row.addWidget(self.btn_assignment_add)
-        button_row.addWidget(self.btn_assignment_remove)
-        button_row.addWidget(self.btn_assignment_set_alloc)
-        button_row.addWidget(self.btn_assignment_log_hours)
-        button_row.addStretch()
-        layout.addLayout(button_row)
+        self.btn_assignment_add.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_assignment_remove.setStyleSheet(dashboard_action_button_style("danger"))
+        self.btn_assignment_set_alloc.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_assignment_log_hours.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_assignment_add.setToolTip("Assign a project resource to the selected task")
+        self.btn_assignment_remove.setToolTip("Remove the selected task assignment")
+        self.btn_assignment_set_alloc.setToolTip("Adjust allocation for the selected assignment")
+        self.btn_assignment_log_hours.setToolTip("Open the timesheet for the selected assignment")
+        action_grid.addWidget(self.btn_assignment_add, 0, 0)
+        action_grid.addWidget(self.btn_assignment_set_alloc, 0, 1)
+        action_grid.addWidget(self.btn_assignment_log_hours, 1, 0)
+        action_grid.addWidget(self.btn_assignment_remove, 1, 1)
+        action_grid.setColumnStretch(0, 1)
+        action_grid.setColumnStretch(1, 1)
+        layout.addLayout(action_grid)
 
         self.assignment_table.selectionModel().selectionChanged.connect(
             self._on_assignment_selection_changed
@@ -192,6 +249,11 @@ class TaskAssignmentPanelMixin:
         )
         return box
 
+    def _build_metric_chip(self, text: str) -> QLabel:
+        label = QLabel(text)
+        label.setStyleSheet(dashboard_meta_chip_style())
+        return label
+
     def _on_task_selection_changed(self, *_args) -> None:
         self._reload_assignment_panel_for_selected_task()
 
@@ -207,7 +269,12 @@ class TaskAssignmentPanelMixin:
         if not task:
             self.assignment_model.set_rows([])
             self.assignment_title_label.setText("Select a task to view assignments.")
-            self.assignment_summary_label.setText("")
+            self.assignment_summary_label.setText(
+                "Resource coverage, allocation pressure, and logged effort appear here."
+            )
+            self.assignment_count_chip.setText("Resources 0")
+            self.assignment_alloc_chip.setText("Allocation 0.0%")
+            self.assignment_hours_chip.setText("Hours 0.00")
             self._clear_dependency_panel_for_no_task()
             self._set_assignment_panel_actions_state(
                 task_selected=False,
@@ -230,11 +297,13 @@ class TaskAssignmentPanelMixin:
 
         rows.sort(key=lambda row: row.resource_name.lower())
         self.assignment_model.set_rows(rows)
-        self.assignment_title_label.setText(f"Task: {task.name}")
+        self.assignment_title_label.setText(task.name)
         self.assignment_summary_label.setText(
-            f"{len(rows)} assigned | Total allocation: {total_alloc:.1f}% | "
-            f"Hours logged: {total_hours:.2f}"
+            "Resource coverage, allocation pressure, and logged effort for the active task."
         )
+        self.assignment_count_chip.setText(f"Resources {len(rows)}")
+        self.assignment_alloc_chip.setText(f"Allocation {total_alloc:.1f}%")
+        self.assignment_hours_chip.setText(f"Hours {total_hours:.2f}")
 
         self._reload_dependency_panel_for_selected_task(task)
         self._set_assignment_panel_actions_state(

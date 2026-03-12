@@ -197,8 +197,9 @@ def test_task_assignment_panel_includes_inline_dependency_section():
     text = panel_path.read_text(encoding="utf-8", errors="ignore")
     dep_text = dep_panel_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "self.panel_splitter = QSplitter(Qt.Vertical)" in text
-    assert "self.panel_splitter.addWidget(self._build_dependency_section())" in text
+    assert "self.work_tabs = QTabWidget()" in text
+    assert 'self.work_tabs.addTab(self._build_assignment_section(), "Assignments")' in text
+    assert 'self.work_tabs.addTab(self._build_dependency_section(), "Dependencies")' in text
     assert "self.dependency_table = QTableWidget(0, 5)" in dep_text
     assert "def add_dependency_inline" in dep_text
     assert "def remove_dependency_inline" in dep_text
