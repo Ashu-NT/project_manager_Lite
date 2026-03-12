@@ -33,6 +33,9 @@ class SupportUpdateFlowMixin:
                 default_url=default_update_manifest_source()
             )
         )
+        updater = getattr(self, "_update_support_header_badges", None)
+        if callable(updater):
+            updater()
         self._append_result(
             f"Current app version: {get_app_version()} | channel={channel} | auto-check={self.auto_check.isChecked()}"
         )
@@ -62,6 +65,9 @@ class SupportUpdateFlowMixin:
                 "manifest_source": manifest,
             },
         )
+        updater = getattr(self, "_update_support_header_badges", None)
+        if callable(updater):
+            updater()
         if show_feedback:
             QMessageBox.information(self, "Support", "Update settings saved.")
 

@@ -40,12 +40,25 @@ class CalendarProjectOpsMixin:
         idx = self.project_combo.findData(target)
         if idx >= 0:
             self.project_combo.setCurrentIndex(idx)
+        updater = getattr(self, "_update_calendar_header_badges", None)
+        if callable(updater):
+            updater(project_name=self.project_combo.currentText())
 
     def reload_projects(self):
+        previous = self.project_combo.currentData()
         self.project_combo.clear()
         projects = self._project_service.list_projects()
         for p in projects:
             self.project_combo.addItem(p.name, userData=p.id)
+        if previous:
+            idx = self.project_combo.findData(previous)
+            if idx >= 0:
+                self.project_combo.setCurrentIndex(idx)
+        elif self.project_combo.count() > 0:
+            self.project_combo.setCurrentIndex(0)
+        updater = getattr(self, "_update_calendar_header_badges", None)
+        if callable(updater):
+            updater(project_name=self.project_combo.currentText() or "No Project")
 
     def recalc_project_schedule(self):
         idx = self.project_combo.currentIndex()

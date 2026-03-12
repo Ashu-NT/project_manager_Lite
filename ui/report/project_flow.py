@@ -20,6 +20,9 @@ class ReportProjectFlowMixin:
             idx = self.project_combo.findData(previous_id)
             if idx >= 0:
                 self.project_combo.setCurrentIndex(idx)
+        updater = getattr(self, "_update_report_header_badges", None)
+        if callable(updater):
+            updater()
 
     def _on_project_changed_event(self, _project_id: str) -> None:
         self._load_projects()

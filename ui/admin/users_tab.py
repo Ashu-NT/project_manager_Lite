@@ -19,6 +19,7 @@ from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import UserAccount
 from core.services.auth import AuthService, UserSessionContext
 from ui.admin.user_dialog import PasswordResetDialog, UserCreateDialog, UserEditDialog
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
@@ -44,13 +45,66 @@ class UserAdminTab(QWidget):
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
+        header = QWidget()
+        header.setObjectName("userAdminHeaderCard")
+        header.setStyleSheet(
+            f"""
+            QWidget#userAdminHeaderCard {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
+        header_layout.setSpacing(CFG.SPACING_MD)
+        intro = QVBoxLayout()
+        intro.setSpacing(CFG.SPACING_XS)
+        eyebrow = QLabel("IDENTITY")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        intro.addWidget(eyebrow)
         title = QLabel("User Administration")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        subtitle = QLabel("Manage user accounts, roles, and active status.")
+        intro.addWidget(title)
+        subtitle = QLabel("Manage user accounts, roles, access posture, and active status.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
+        intro.addWidget(subtitle)
+        header_layout.addLayout(intro, 1)
+        status_layout = QVBoxLayout()
+        status_layout.setSpacing(CFG.SPACING_SM)
+        self.user_scope_badge = QLabel("Account Directory")
+        self.user_scope_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        self.user_count_badge = QLabel("0 users")
+        self.user_count_badge.setStyleSheet(dashboard_meta_chip_style())
+        self.user_active_badge = QLabel("0 active")
+        self.user_active_badge.setStyleSheet(dashboard_meta_chip_style())
+        access_label = "Manage Enabled" if self._can_manage_users else "Read Only"
+        self.user_access_badge = QLabel(access_label)
+        self.user_access_badge.setStyleSheet(dashboard_meta_chip_style())
+        status_layout.addWidget(self.user_scope_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.user_count_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.user_active_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.user_access_badge, 0, Qt.AlignRight)
+        status_layout.addStretch(1)
+        header_layout.addLayout(status_layout)
+        layout.addWidget(header)
+
+        controls = QWidget()
+        controls.setObjectName("userAdminControlSurface")
+        controls.setStyleSheet(
+            f"""
+            QWidget#userAdminControlSurface {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        controls_layout.setSpacing(CFG.SPACING_SM)
 
         toolbar = QHBoxLayout()
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
@@ -71,7 +125,13 @@ class UserAdminTab(QWidget):
         ):
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        toolbar.addWidget(self.btn_refresh)
+        self.btn_new_user.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_edit_user.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_assign_role.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_revoke_role.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_reset_password.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_toggle_active.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         toolbar.addWidget(self.btn_new_user)
         toolbar.addWidget(self.btn_edit_user)
         toolbar.addWidget(self.btn_assign_role)
@@ -79,7 +139,9 @@ class UserAdminTab(QWidget):
         toolbar.addWidget(self.btn_reset_password)
         toolbar.addWidget(self.btn_toggle_active)
         toolbar.addStretch()
-        layout.addLayout(toolbar)
+        toolbar.addWidget(self.btn_refresh)
+        controls_layout.addLayout(toolbar)
+        layout.addWidget(controls)
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["Username", "Display Name", "Email", "Active", "Roles"])
@@ -159,12 +221,14 @@ class UserAdminTab(QWidget):
             QMessageBox.warning(self, "Users", str(exc))
             self._rows = []
             self.table.setRowCount(0)
+            self._update_header_badges([])
             self._sync_actions()
             return
         except Exception as exc:
             QMessageBox.critical(self, "Users", f"Failed to load users: {exc}")
             self._rows = []
             self.table.setRowCount(0)
+            self._update_header_badges([])
             self._sync_actions()
             return
         self.table.setRowCount(len(self._rows))
@@ -183,6 +247,7 @@ class UserAdminTab(QWidget):
                 self.table.setItem(row, col, item)
             self.table.item(row, 0).setData(Qt.UserRole, user.id)
         self.table.clearSelection()
+        self._update_header_badges(self._rows)
         self._sync_actions()
 
     def _selected_user(self) -> UserAccount | None:
@@ -353,6 +418,11 @@ class UserAdminTab(QWidget):
         self.btn_revoke_role.setEnabled(self._can_manage_users and has_user)
         self.btn_reset_password.setEnabled(self._can_manage_users and has_user)
         self.btn_toggle_active.setEnabled(self._can_manage_users and has_user)
+
+    def _update_header_badges(self, rows: list[UserAccount]) -> None:
+        active_count = sum(1 for row in rows if row.is_active)
+        self.user_count_badge.setText(f"{len(rows)} users")
+        self.user_active_badge.setText(f"{active_count} active")
 
 
 __all__ = ["UserAdminTab"]

@@ -79,6 +79,9 @@ class ProjectFiltersMixin:
     def _render_project_rows(self, preferred_project_id: Optional[str]) -> None:
         visible_projects = self._apply_project_filters(list(self._all_projects))
         self.model.set_projects(visible_projects)
+        updater = getattr(self, "_update_project_header_badges", None)
+        if callable(updater):
+            updater(visible_projects)
         if not visible_projects:
             self._reload_project_resource_panel_for_selected_project()
             self._sync_actions()

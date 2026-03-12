@@ -44,6 +44,10 @@ def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
     assert tab.status_combo.findData(ApprovalStatus.APPROVED) >= 0
     assert tab.status_combo.findData(ApprovalStatus.REJECTED) >= 0
     assert tab.table.rowCount() == 1
+    assert tab.governance_mode_badge.text() == "Off"
+    assert tab.governance_status_badge.text() == "Pending"
+    assert tab.governance_count_badge.text() == "1 requests"
+    assert tab.governance_access_badge.text() == "Decision Enabled"
 
     label = tab._entity_display_label(
         request=request,
@@ -58,6 +62,7 @@ def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
 
     assert os.environ["PM_GOVERNANCE_MODE"] == "required"
     assert store.load_governance_mode(default_mode="off") == "required"
+    assert tab.governance_mode_badge.text() == "On"
     assert any("Governance mode is now ON" in message for message in info_messages)
 
 

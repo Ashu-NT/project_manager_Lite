@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QDialog, QLineEdit
 
 from core.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
+from ui.admin.audit_tab import AuditLogTab
 from ui.admin.user_dialog import PasswordResetDialog, UserEditDialog
 from ui.admin.users_tab import UserAdminTab
 from ui.auth.login_dialog import LoginDialog
@@ -36,6 +37,10 @@ def test_user_admin_tab_runtime_enables_edit_and_reset_actions_after_selection(q
     )
 
     assert tab.table.rowCount() >= 1
+    assert tab.user_scope_badge.text() == "Account Directory"
+    assert tab.user_count_badge.text().endswith("users")
+    assert tab.user_active_badge.text().endswith("active")
+    assert tab.user_access_badge.text() == "Manage Enabled"
     assert tab.btn_new_user.isEnabled() is True
     assert tab.btn_edit_user.isEnabled() is False
     assert tab.btn_reset_password.isEnabled() is False
@@ -46,6 +51,25 @@ def test_user_admin_tab_runtime_enables_edit_and_reset_actions_after_selection(q
     assert tab.btn_edit_user.isEnabled() is True
     assert tab.btn_reset_password.isEnabled() is True
     assert tab.btn_toggle_active.isEnabled() is True
+
+
+def test_audit_log_tab_runtime_uses_compact_header_and_updates_badges(qapp, services):
+    project = services["project_service"].create_project("Audit Header Project")
+    tab = AuditLogTab(
+        audit_service=services["audit_service"],
+        project_service=services["project_service"],
+        task_service=services["task_service"],
+        resource_service=services["resource_service"],
+        cost_service=services["cost_service"],
+        baseline_service=services["baseline_service"],
+    )
+
+    assert tab.table.rowCount() >= 1
+    assert tab.audit_scope_badge.text() == "Append-only"
+    assert tab.audit_project_badge.text() == "All"
+    assert tab.audit_count_badge.text().endswith("rows")
+    assert tab.audit_date_badge.text() == "All Dates"
+    assert tab.btn_refresh.isEnabled() is True
 
 
 def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_services):

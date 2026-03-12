@@ -28,6 +28,7 @@ from core.exceptions import BusinessRuleError, ValidationError
 from core.services.auth import UserSessionContext
 from core.services.project import ProjectService
 from core.services.register import RegisterService
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.register.dialogs import RegisterEntryDialog
 from ui.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.styles.style_utils import style_table
@@ -60,16 +61,67 @@ class RegisterTab(QWidget):
         root.setSpacing(CFG.SPACING_MD)
         root.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
+        header = QWidget()
+        header.setObjectName("registerHeaderCard")
+        header.setStyleSheet(
+            f"""
+            QWidget#registerHeaderCard {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
+        header_layout.setSpacing(CFG.SPACING_MD)
+        intro = QVBoxLayout()
+        intro.setSpacing(CFG.SPACING_XS)
+        eyebrow = QLabel("REGISTER")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        intro.addWidget(eyebrow)
         title = QLabel("Risk / Issue / Change Register")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        intro.addWidget(title)
         subtitle = QLabel(
             "Track delivery risks, execution issues, and project changes with owners, due dates, and action context."
         )
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        root.addWidget(title)
-        root.addWidget(subtitle)
+        intro.addWidget(subtitle)
+        header_layout.addLayout(intro, 1)
+        status_layout = QVBoxLayout()
+        status_layout.setSpacing(CFG.SPACING_SM)
+        self.register_scope_badge = QLabel("All Projects")
+        self.register_scope_badge.setStyleSheet(
+            dashboard_badge_style(CFG.COLOR_ACCENT_SOFT, CFG.COLOR_TEXT_PRIMARY)
+        )
+        self.register_count_badge = QLabel("0 visible")
+        self.register_count_badge.setStyleSheet(dashboard_meta_chip_style())
+        access_label = "Manage Enabled" if self._can_manage else "Read Only"
+        self.register_access_badge = QLabel(access_label)
+        self.register_access_badge.setStyleSheet(dashboard_meta_chip_style())
+        status_layout.addWidget(self.register_scope_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.register_count_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.register_access_badge, 0, Qt.AlignRight)
+        status_layout.addStretch(1)
+        header_layout.addLayout(status_layout)
+        root.addWidget(header)
 
+        controls = QWidget()
+        controls.setObjectName("registerControlSurface")
+        controls.setStyleSheet(
+            f"""
+            QWidget#registerControlSurface {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        controls_layout.setSpacing(CFG.SPACING_SM)
         toolbar = QHBoxLayout()
         self.btn_new = QPushButton("New Entry")
         self.btn_edit = QPushButton(CFG.EDIT_LABEL)
@@ -78,12 +130,16 @@ class RegisterTab(QWidget):
         for btn in (self.btn_new, self.btn_edit, self.btn_delete, self.btn_refresh):
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        self.btn_new.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_edit.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_delete.setStyleSheet(dashboard_action_button_style("danger"))
+        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         toolbar.addWidget(self.btn_new)
         toolbar.addWidget(self.btn_edit)
         toolbar.addWidget(self.btn_delete)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
-        root.addLayout(toolbar)
+        controls_layout.addLayout(toolbar)
 
         filters = QGridLayout()
         filters.setHorizontalSpacing(CFG.SPACING_MD)
@@ -121,7 +177,8 @@ class RegisterTab(QWidget):
         filters.addWidget(self.severity_filter, 1, 3)
         filters.addWidget(QLabel("Owner"), 2, 0)
         filters.addWidget(self.owner_filter, 2, 1, 1, 3)
-        root.addLayout(filters)
+        controls_layout.addLayout(filters)
+        root.addWidget(controls)
 
         splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
@@ -258,7 +315,13 @@ class RegisterTab(QWidget):
             self.table.selectRow(0)
         else:
             self._render_entry(None)
+        self._update_header_badges(len(filtered))
         self._sync_actions()
+
+    def _update_header_badges(self, visible_count: int) -> None:
+        scope = self.project_filter.currentText().strip() or "All Projects"
+        self.register_scope_badge.setText(scope)
+        self.register_count_badge.setText(f"{visible_count} visible")
 
     def _selected_entry(self) -> RegisterEntry | None:
         row = self.table.currentRow()

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.domain.enums import TaskStatus
 from core.models import Task
+from ui.dashboard.styles import dashboard_action_button_style
 from ui.settings.main_window_store import MainWindowSettingsStore
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -68,6 +69,7 @@ class TaskFiltersMixin:
         self.btn_clear_task_filters = QPushButton("Clear Filters")
         self.btn_clear_task_filters.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.btn_clear_task_filters.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_clear_task_filters.setStyleSheet(dashboard_action_button_style("secondary"))
         bar.addWidget(self.btn_clear_task_filters)
         layout.addLayout(bar)
 
@@ -80,9 +82,14 @@ class TaskFiltersMixin:
         self.btn_apply_task_view = QPushButton("Apply View")
         self.btn_save_task_view = QPushButton("Save View")
         self.btn_delete_task_view = QPushButton("Delete View")
-        for btn in (self.btn_apply_task_view, self.btn_save_task_view, self.btn_delete_task_view):
+        for btn, variant in (
+            (self.btn_apply_task_view, "secondary"),
+            (self.btn_save_task_view, "primary"),
+            (self.btn_delete_task_view, "danger"),
+        ):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
+            btn.setStyleSheet(dashboard_action_button_style(variant))
             saved_bar.addWidget(btn)
         saved_bar.addStretch()
         layout.addLayout(saved_bar)

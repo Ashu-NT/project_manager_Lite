@@ -5,6 +5,7 @@ from typing import Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
+    QLabel,
     QPushButton,
     QSplitter,
     QTableView,
@@ -20,6 +21,7 @@ from core.services.project import ProjectResourceService, ProjectService
 from core.services.reporting import ReportingService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.project.actions import ProjectActionsMixin
 from ui.project.dialogs import ProjectEditDialog  # noqa: F401
 from ui.project.filtering import ProjectFiltersMixin
@@ -74,7 +76,64 @@ class ProjectTab(
             CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD
         )
 
-        # Toolbar
+        header = QWidget()
+        header.setObjectName("projectHeaderCard")
+        header.setStyleSheet(
+            f"""
+            QWidget#projectHeaderCard {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
+        header_layout.setSpacing(CFG.SPACING_MD)
+        intro = QVBoxLayout()
+        intro.setSpacing(CFG.SPACING_XS)
+        eyebrow = QLabel("PROJECTS")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        intro.addWidget(eyebrow)
+        title = QLabel("Project Workspace")
+        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        intro.addWidget(title)
+        subtitle = QLabel("Manage project delivery, imports, status updates, and staffing from one workspace.")
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        subtitle.setWordWrap(True)
+        intro.addWidget(subtitle)
+        header_layout.addLayout(intro, 1)
+        status_layout = QVBoxLayout()
+        status_layout.setSpacing(CFG.SPACING_SM)
+        self.project_scope_badge = QLabel("All Statuses")
+        self.project_scope_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        self.project_count_badge = QLabel("0 visible")
+        self.project_count_badge.setStyleSheet(dashboard_meta_chip_style())
+        access_label = "Manage Enabled" if self._can_manage_projects else "Read Only"
+        self.project_access_badge = QLabel(access_label)
+        self.project_access_badge.setStyleSheet(dashboard_meta_chip_style())
+        status_layout.addWidget(self.project_scope_badge, 0)
+        status_layout.addWidget(self.project_count_badge, 0)
+        status_layout.addWidget(self.project_access_badge, 0)
+        status_layout.addStretch(1)
+        header_layout.addLayout(status_layout)
+        layout.addWidget(header)
+
+        controls = QWidget()
+        controls.setObjectName("projectControlSurface")
+        controls.setStyleSheet(
+            f"""
+            QWidget#projectControlSurface {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        controls_layout.setSpacing(CFG.SPACING_SM)
+
         toolbar = QHBoxLayout()
         self.btn_new = QPushButton(CFG.NEW_PROJECT_LABEL)
         self.btn_edit = QPushButton(CFG.EDIT_LABEL)
@@ -93,6 +152,12 @@ class ProjectTab(
         ):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_new.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_edit.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_update_status.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_delete.setStyleSheet(dashboard_action_button_style("danger"))
+        self.btn_import_csv.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
 
         toolbar.addWidget(self.btn_new)
         toolbar.addWidget(self.btn_edit)
@@ -102,8 +167,10 @@ class ProjectTab(
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
 
-        layout.addLayout(toolbar)
-        self._build_project_filters(layout)
+        controls_layout.addLayout(toolbar)
+        self._build_project_filters(controls_layout)
+        self.btn_clear_project_filters.setStyleSheet(dashboard_action_button_style("secondary"))
+        layout.addWidget(controls)
 
         content = QSplitter(Qt.Horizontal)
         content.setChildrenCollapsible(False)
@@ -210,4 +277,9 @@ class ProjectTab(
         self.btn_update_status.setEnabled(self._can_manage_projects and has_project)
         self.btn_delete.setEnabled(self._can_manage_projects and has_project)
         self.btn_import_csv.setEnabled(self._can_manage_projects)
+
+    def _update_project_header_badges(self, visible_projects: list[Project]) -> None:
+        status_label = self.project_status_filter.currentText() if self.project_status_filter.currentIndex() > 0 else "All Statuses"
+        self.project_scope_badge.setText(status_label)
+        self.project_count_badge.setText(f"{len(visible_projects)} visible")
 

@@ -34,6 +34,9 @@ class CalendarWorkingTimeMixin:
             f"Currently: {', '.join(active_names) or 'no days'} are working days, "
             f"{hours_per_day:g} hours per day."
         )
+        updater = getattr(self, "_update_calendar_header_badges", None)
+        if callable(updater):
+            updater(working_days=working_days, hours_per_day=hours_per_day)
 
     def save_calendar(self):
         working_days = {cb.day_index for cb in self.day_checks if cb.isChecked()}

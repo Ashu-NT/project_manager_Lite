@@ -26,6 +26,9 @@ class CalendarHolidaysMixin:
             item_date.setData(Qt.UserRole, h.id)
             self.holiday_table.setItem(row, 0, item_date)
             self.holiday_table.setItem(row, 1, item_name)
+        updater = getattr(self, "_update_calendar_header_badges", None)
+        if callable(updater):
+            updater(holiday_count=len(holidays))
 
     def add_holiday(self):
         qd = self.holiday_date_edit.date()

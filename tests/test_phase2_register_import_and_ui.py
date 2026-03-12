@@ -142,6 +142,8 @@ def test_register_tab_and_main_window_surface_register_runtime(qapp, services, r
     assert tab.btn_new.isEnabled() is True
     assert tab.table.columnCount() == 6
     assert tab.table.item(0, 1).text() == "Visible runtime risk"
+    assert tab.register_scope_badge.text() == "All projects"
+    assert tab.register_count_badge.text() == "1 visible"
     assert tab.description_view.minimumHeight() >= 135
     assert tab.description_view.toPlainText() == "Register description"
     assert tab.impact_view.toPlainText() == "Register impact"

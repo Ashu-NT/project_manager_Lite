@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from PySide6.QtWidgets import QSizePolicy
+
 from core.models import CostType
 from tests.ui_runtime_helpers import make_settings_store
 from ui.project.tab import ProjectTab
@@ -32,10 +34,14 @@ def test_project_tab_filters_work_at_runtime(qapp, services):
 
     assert tab.project_search_filter.placeholderText() == "Name, client, description..."
     assert tab.btn_clear_project_filters.text() == "Clear Filters"
+    assert tab.project_scope_badge.text() == "All Statuses"
+    assert tab.project_count_badge.text() == "2 visible"
+    assert tab.project_access_badge.text() == "Manage Enabled"
     assert tab.model.rowCount() == 2
 
     tab.project_search_filter.setText("internal")
     assert tab.model.rowCount() == 1
+    assert tab.project_count_badge.text() == "1 visible"
     assert tab.model.data(tab.model.index(0, 0)) == "Alpha Internal"
 
 
@@ -54,10 +60,18 @@ def test_resource_tab_filters_work_at_runtime(qapp, services):
 
     assert tab.resource_search_filter.placeholderText() == "Name, role, category..."
     assert tab.btn_clear_resource_filters.text() == "Clear Filters"
+    assert tab.resource_scope_badge.text() == "All Resources"
+    assert tab.resource_count_badge.text() == "2 visible"
+    assert tab.resource_access_badge.text() == "Manage Enabled"
+    assert tab.resource_header_card.sizePolicy().verticalPolicy() == QSizePolicy.Fixed
+    assert tab.resource_controls_card.sizePolicy().verticalPolicy() == QSizePolicy.Fixed
+    assert tab.layout().stretch(2) == 1
     assert tab.model.rowCount() == 2
 
     tab.resource_active_filter.setCurrentIndex(tab.resource_active_filter.findData("inactive"))
     assert tab.model.rowCount() == 1
+    assert tab.resource_scope_badge.text() == "Inactive"
+    assert tab.resource_count_badge.text() == "1 visible"
     assert tab.model.data(tab.model.index(0, 0)) == "Beta Vendor"
 
     tab.resource_search_filter.setText("vendor")

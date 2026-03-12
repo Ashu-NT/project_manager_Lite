@@ -25,6 +25,7 @@ from core.services.auth import UserSessionContext
 from core.services.cost import CostService
 from core.services.project import ProjectService
 from core.services.task import TaskService
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.settings import MainWindowSettingsStore
 from ui.shared.guards import make_guarded_slot
 from ui.styles.style_utils import style_table
@@ -60,13 +61,51 @@ class GovernanceTab(QWidget):
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
+        header = QWidget()
+        header.setObjectName("governanceHeaderCard")
+        header.setStyleSheet(
+            f"""
+            QWidget#governanceHeaderCard {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
+        header_layout.setSpacing(CFG.SPACING_MD)
+        intro = QVBoxLayout()
+        intro.setSpacing(CFG.SPACING_XS)
+        eyebrow = QLabel("GOVERNANCE")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        intro.addWidget(eyebrow)
         title = QLabel("Governance Queue")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        intro.addWidget(title)
         subtitle = QLabel("Review, approve, or reject controlled baseline, dependency, and cost changes.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
+        intro.addWidget(subtitle)
+        header_layout.addLayout(intro, 1)
+        status_layout = QVBoxLayout()
+        status_layout.setSpacing(CFG.SPACING_SM)
+        self.governance_mode_badge = QLabel("Off")
+        self.governance_mode_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        self.governance_status_badge = QLabel("Pending")
+        self.governance_status_badge.setStyleSheet(dashboard_meta_chip_style())
+        self.governance_count_badge = QLabel("0 requests")
+        self.governance_count_badge.setStyleSheet(dashboard_meta_chip_style())
+        access_label = "Decision Enabled" if self._can_decide else "Read Only"
+        self.governance_access_badge = QLabel(access_label)
+        self.governance_access_badge.setStyleSheet(dashboard_meta_chip_style())
+        status_layout.addWidget(self.governance_mode_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.governance_status_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.governance_count_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.governance_access_badge, 0, Qt.AlignRight)
+        status_layout.addStretch(1)
+        header_layout.addLayout(status_layout)
+        layout.addWidget(header)
 
         mode_default = os.getenv("PM_GOVERNANCE_MODE", "off")
         self._governance_mode = self._settings_store.load_governance_mode(
@@ -74,8 +113,23 @@ class GovernanceTab(QWidget):
         )
         os.environ["PM_GOVERNANCE_MODE"] = self._governance_mode
 
+        controls = QWidget()
+        controls.setObjectName("governanceControlSurface")
+        controls.setStyleSheet(
+            f"""
+            QWidget#governanceControlSurface {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        controls_layout.setSpacing(CFG.SPACING_SM)
+
         toolbar = QHBoxLayout()
-        toolbar.addWidget(QLabel("Governance:"))
+        toolbar.addWidget(QLabel("Governance"))
         self.mode_combo = QComboBox()
         self.mode_combo.addItem("Off", userData="off")
         self.mode_combo.addItem("On (Approval Required)", userData="required")
@@ -99,12 +153,16 @@ class GovernanceTab(QWidget):
         for btn in (self.btn_refresh, self.btn_approve, self.btn_reject):
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_approve.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_reject.setStyleSheet(dashboard_action_button_style("danger"))
         toolbar.addWidget(self.status_combo)
         toolbar.addWidget(self.btn_refresh)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_approve)
         toolbar.addWidget(self.btn_reject)
-        layout.addLayout(toolbar)
+        controls_layout.addLayout(toolbar)
+        layout.addWidget(controls)
 
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels(
@@ -146,12 +204,14 @@ class GovernanceTab(QWidget):
             QMessageBox.warning(self, "Governance", str(exc))
             self._rows = []
             self.table.setRowCount(0)
+            self._update_header_badges(0)
             self._sync_buttons()
             return
         except Exception as exc:
             QMessageBox.critical(self, "Governance", f"Failed to load requests:\n{exc}")
             self._rows = []
             self.table.setRowCount(0)
+            self._update_header_badges(0)
             self._sync_buttons()
             return
 
@@ -185,6 +245,7 @@ class GovernanceTab(QWidget):
                 self.table.setItem(row, col, item)
             self.table.item(row, 0).setData(Qt.UserRole, request.id)
         self.table.clearSelection()
+        self._update_header_badges(len(self._rows))
         self._sync_buttons()
 
     def _selected_request_id(self) -> str | None:
@@ -260,6 +321,7 @@ class GovernanceTab(QWidget):
                 else "Governance mode is now OFF.\nGoverned actions apply immediately."
             ),
         )
+        self._update_header_badges(len(self._rows))
 
     def _on_approvals_changed(self, _request_id: str) -> None:
         self.reload_requests()
@@ -328,6 +390,16 @@ class GovernanceTab(QWidget):
 
         fallback = (request.entity_type or "governed change").replace("_", " ").strip()
         return fallback.title()
+
+    def _update_header_badges(self, visible_count: int) -> None:
+        mode_label = "On" if self._governance_mode == "required" else "Off"
+        badge_color = CFG.COLOR_ACCENT if self._governance_mode == "required" else CFG.COLOR_ACCENT_SOFT
+        badge_foreground = "#FFFFFF" if self._governance_mode == "required" else CFG.COLOR_TEXT_PRIMARY
+        self.governance_mode_badge.setText(mode_label)
+        self.governance_mode_badge.setStyleSheet(dashboard_badge_style(badge_color, badge_foreground))
+        status = self.status_combo.currentText() or "Pending"
+        self.governance_status_badge.setText(status)
+        self.governance_count_badge.setText(f"{visible_count} requests")
 
 
 __all__ = ["GovernanceTab"]

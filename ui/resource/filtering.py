@@ -101,6 +101,9 @@ class ResourceFiltersMixin:
     def _render_resource_rows(self, preferred_resource_id: Optional[str]) -> None:
         visible_resources = self._apply_resource_filters(list(self._all_resources))
         self.model.set_resources(visible_resources)
+        updater = getattr(self, "_update_resource_header_badges", None)
+        if callable(updater):
+            updater(visible_resources)
         if not visible_resources:
             self._sync_actions()
             return

@@ -130,3 +130,7 @@ class TaskTab(
             self.btn_delete.setText(f"Delete ({len(selected_tasks)})")
         else:
             self.btn_delete.setText(CFG.DELETE_LABEL)
+
+    def _update_task_header_badges(self, visible_count: int) -> None:
+        self.task_project_badge.setText(self.project_combo.currentText().strip() or "No Project")
+        self.task_count_badge.setText(f"{visible_count} visible")

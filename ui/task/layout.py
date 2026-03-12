@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.domain.enums import TaskStatus
-from ui.dashboard.styles import dashboard_action_button_style, dashboard_meta_chip_style
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.shared.guards import apply_permission_hint, make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
@@ -31,6 +31,53 @@ class TaskLayoutMixin:
             CFG.MARGIN_MD,
             CFG.MARGIN_MD,
         )
+
+        header = QWidget()
+        self.task_header_card = header
+        header.setObjectName("taskHeaderCard")
+        header.setSizePolicy(CFG.H_EXPAND_V_FIXED)
+        header.setStyleSheet(
+            f"""
+            QWidget#taskHeaderCard {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
+        header_layout.setSpacing(CFG.SPACING_MD)
+        header_layout.setAlignment(Qt.AlignTop)
+        intro = QVBoxLayout()
+        intro.setSpacing(CFG.SPACING_XS)
+        eyebrow = QLabel("TASKS")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        title = QLabel("Task Delivery Workspace")
+        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        subtitle = QLabel("Coordinate execution, dependencies, assignments, collaboration, and task-level control in one focused workspace.")
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        subtitle.setWordWrap(True)
+        subtitle.setMaximumWidth(760)
+        intro.addWidget(eyebrow)
+        intro.addWidget(title)
+        intro.addWidget(subtitle)
+        header_layout.addLayout(intro, 1)
+        status_layout = QVBoxLayout()
+        status_layout.setSpacing(CFG.SPACING_SM)
+        self.task_project_badge = QLabel("No Project")
+        self.task_project_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        self.task_count_badge = QLabel("0 visible")
+        self.task_count_badge.setStyleSheet(dashboard_meta_chip_style())
+        access_label = "Manage Enabled" if self._can_manage_tasks else "Read Only"
+        self.task_access_badge = QLabel(access_label)
+        self.task_access_badge.setStyleSheet(dashboard_meta_chip_style())
+        status_layout.addWidget(self.task_project_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.task_count_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.task_access_badge, 0, Qt.AlignRight)
+        status_layout.addStretch(1)
+        header_layout.addLayout(status_layout)
+        root.addWidget(header)
 
         top = QHBoxLayout()
         scope_badge = QLabel("TASK SCOPE")
@@ -123,7 +170,9 @@ class TaskLayoutMixin:
         bulk_row.addStretch()
 
         controls = QWidget()
+        self.task_controls_card = controls
         controls.setObjectName("taskControlSurface")
+        controls.setSizePolicy(CFG.H_EXPAND_V_FIXED)
         controls.setStyleSheet(
             f"""
             QWidget#taskControlSurface {{

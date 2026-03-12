@@ -19,11 +19,17 @@ class SupportTelemetryMixin:
             return value
         value = self._ops_support.new_incident_id()
         self.incident_id_input.setText(value)
+        updater = getattr(self, "_update_support_header_badges", None)
+        if callable(updater):
+            updater()
         return value
 
     def _new_incident_id(self) -> None:
         incident = self._ops_support.new_incident_id()
         self.incident_id_input.setText(incident)
+        updater = getattr(self, "_update_support_header_badges", None)
+        if callable(updater):
+            updater()
         self._append_result(f"New incident trace ID: {incident}")
         self._emit_support_event(
             event_type="support.incident.renewed",
@@ -36,6 +42,9 @@ class SupportTelemetryMixin:
         clipboard = QApplication.clipboard()
         if clipboard is not None:
             clipboard.setText(incident)
+        updater = getattr(self, "_update_support_header_badges", None)
+        if callable(updater):
+            updater()
         self._append_result(f"Copied incident ID: {incident}")
 
     def _emit_support_event(

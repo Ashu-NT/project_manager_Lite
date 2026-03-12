@@ -28,6 +28,7 @@ from core.services.cost import CostService
 from core.services.project import ProjectService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
+from ui.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.shared.guards import make_guarded_slot
 from ui.styles.style_utils import style_table
 from ui.styles.ui_config import UIConfig as CFG
@@ -66,20 +67,72 @@ class AuditLogTab(QWidget):
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
+        header = QWidget()
+        header.setObjectName("auditHeaderCard")
+        header.setStyleSheet(
+            f"""
+            QWidget#auditHeaderCard {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
+        header_layout.setSpacing(CFG.SPACING_MD)
+        intro = QVBoxLayout()
+        intro.setSpacing(CFG.SPACING_XS)
+        eyebrow = QLabel("AUDIT TRAIL")
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        intro.addWidget(eyebrow)
         title = QLabel("Audit Log")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        intro.addWidget(title)
         subtitle = QLabel("Immutable activity trail for governance and core create/update/delete operations.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
+        intro.addWidget(subtitle)
+        header_layout.addLayout(intro, 1)
+        status_layout = QVBoxLayout()
+        status_layout.setSpacing(CFG.SPACING_SM)
+        self.audit_scope_badge = QLabel("Append-only")
+        self.audit_scope_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        self.audit_project_badge = QLabel("All Projects")
+        self.audit_project_badge.setStyleSheet(dashboard_meta_chip_style())
+        self.audit_count_badge = QLabel("0 rows")
+        self.audit_count_badge.setStyleSheet(dashboard_meta_chip_style())
+        self.audit_date_badge = QLabel("All Dates")
+        self.audit_date_badge.setStyleSheet(dashboard_meta_chip_style())
+        status_layout.addWidget(self.audit_scope_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.audit_project_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.audit_count_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.audit_date_badge, 0, Qt.AlignRight)
+        status_layout.addStretch(1)
+        header_layout.addLayout(status_layout)
+        layout.addWidget(header)
 
-        toolbar = QHBoxLayout()
-        toolbar.addWidget(QLabel("Project:"))
+        controls = QWidget()
+        controls.setObjectName("auditControlSurface")
+        controls.setStyleSheet(
+            f"""
+            QWidget#auditControlSurface {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        controls_layout = QVBoxLayout(controls)
+        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        controls_layout.setSpacing(CFG.SPACING_SM)
+
+        primary_row = QHBoxLayout()
+        primary_row.addWidget(QLabel("Project"))
         self.project_filter = QComboBox()
         self.project_filter.setFixedHeight(CFG.INPUT_HEIGHT)
-        toolbar.addWidget(self.project_filter)
-        toolbar.addWidget(QLabel("Entity:"))
+        primary_row.addWidget(self.project_filter)
+        primary_row.addWidget(QLabel("Entity"))
         self.entity_filter = QComboBox()
         self.entity_filter.setFixedHeight(CFG.INPUT_HEIGHT)
         self.entity_filter.addItem("All", userData="")
@@ -93,43 +146,49 @@ class AuditLogTab(QWidget):
         self.entity_filter.addItem("Cost", userData="cost_item")
         self.entity_filter.addItem("Baseline", userData="project_baseline")
         self.entity_filter.addItem("Register", userData="register_entry")
-        toolbar.addWidget(self.entity_filter)
-        toolbar.addWidget(QLabel("Action:"))
+        primary_row.addWidget(self.entity_filter)
+        primary_row.addWidget(QLabel("Action"))
         self.action_filter = QLineEdit()
         self.action_filter.setPlaceholderText("Contains...")
         self.action_filter.setMinimumHeight(CFG.INPUT_HEIGHT)
-        toolbar.addWidget(self.action_filter)
-        toolbar.addWidget(QLabel("Actor:"))
+        primary_row.addWidget(self.action_filter, 1)
+        primary_row.addWidget(QLabel("Actor"))
         self.actor_filter = QLineEdit()
         self.actor_filter.setPlaceholderText("Username...")
         self.actor_filter.setMinimumHeight(CFG.INPUT_HEIGHT)
-        toolbar.addWidget(self.actor_filter)
-        toolbar.addWidget(QLabel("Date:"))
+        primary_row.addWidget(self.actor_filter, 1)
+        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
+        self.btn_refresh.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_refresh.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        self.btn_refresh.setStyleSheet(dashboard_action_button_style("primary"))
+        primary_row.addWidget(self.btn_refresh)
+        controls_layout.addLayout(primary_row)
+
+        date_row = QHBoxLayout()
+        date_row.addWidget(QLabel("Date"))
         self.date_mode_filter = QComboBox()
         self.date_mode_filter.setFixedHeight(CFG.INPUT_HEIGHT)
         self.date_mode_filter.addItem("All Dates", userData="all")
         self.date_mode_filter.addItem("On Date", userData="on")
         self.date_mode_filter.addItem("Date Range", userData="range")
-        toolbar.addWidget(self.date_mode_filter)
-        toolbar.addWidget(QLabel("From:"))
+        date_row.addWidget(self.date_mode_filter)
+        date_row.addWidget(QLabel("From"))
         self.date_from_filter = QDateEdit()
         self.date_from_filter.setDisplayFormat(CFG.DATE_FORMAT)
         self.date_from_filter.setCalendarPopup(True)
         self.date_from_filter.setDate(QDate.currentDate())
         self.date_from_filter.setMinimumHeight(CFG.INPUT_HEIGHT)
-        toolbar.addWidget(self.date_from_filter)
-        toolbar.addWidget(QLabel("To:"))
+        date_row.addWidget(self.date_from_filter)
+        date_row.addWidget(QLabel("To"))
         self.date_to_filter = QDateEdit()
         self.date_to_filter.setDisplayFormat(CFG.DATE_FORMAT)
         self.date_to_filter.setCalendarPopup(True)
         self.date_to_filter.setDate(QDate.currentDate())
         self.date_to_filter.setMinimumHeight(CFG.INPUT_HEIGHT)
-        toolbar.addWidget(self.date_to_filter)
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_refresh.setFixedHeight(CFG.BUTTON_HEIGHT)
-        self.btn_refresh.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        toolbar.addWidget(self.btn_refresh)
-        layout.addLayout(toolbar)
+        date_row.addWidget(self.date_to_filter)
+        date_row.addStretch()
+        controls_layout.addLayout(date_row)
+        layout.addWidget(controls)
 
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(["Occurred At", "Actor", "Action", "Entity", "Project", "Details"])
@@ -259,6 +318,7 @@ class AuditLogTab(QWidget):
             and self._date_matches(row.occurred_at.date())
         ]
         self._populate_table(filtered)
+        self._update_header_badges(len(filtered))
 
     def _on_date_mode_changed(self) -> None:
         mode = str(self.date_mode_filter.currentData() or "all")
@@ -267,6 +327,18 @@ class AuditLogTab(QWidget):
         self.date_from_filter.setEnabled(use_from)
         self.date_to_filter.setEnabled(use_to)
         self._apply_filters()
+
+    def _update_header_badges(self, visible_count: int) -> None:
+        project_text = self.project_filter.currentText().strip() or "All Projects"
+        mode = str(self.date_mode_filter.currentData() or "all")
+        date_mode_label = {
+            "all": "All Dates",
+            "on": "On Date",
+            "range": "Date Range",
+        }.get(mode, "All Dates")
+        self.audit_project_badge.setText(project_text)
+        self.audit_count_badge.setText(f"{visible_count} rows")
+        self.audit_date_badge.setText(date_mode_label)
 
     def _date_matches(self, occurred_on: date) -> bool:
         mode = str(self.date_mode_filter.currentData() or "all")

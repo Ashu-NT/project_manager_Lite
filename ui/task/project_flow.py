@@ -60,6 +60,10 @@ class TaskProjectFlowMixin:
         if self.project_combo.count() > 0:
             self.project_combo.setCurrentIndex(0)
             self._on_project_changed(0)
+        else:
+            updater = getattr(self, "_update_task_header_badges", None)
+            if callable(updater):
+                updater(0)
         sync_toolbar = getattr(self, "_sync_toolbar_actions", None)
         if callable(sync_toolbar):
             sync_toolbar()
@@ -99,6 +103,9 @@ class TaskProjectFlowMixin:
 
     def _set_visible_tasks(self, tasks: list[Task], preferred_task_id: Optional[str]) -> None:
         self.model.set_tasks(tasks)
+        updater = getattr(self, "_update_task_header_badges", None)
+        if callable(updater):
+            updater(len(tasks))
         if preferred_task_id:
             self._select_task_by_id(preferred_task_id)
         elif tasks:

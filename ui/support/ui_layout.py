@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from ui.support.surface import build_support_header, style_support_button, update_support_header_badges
 from ui.shared.guards import make_guarded_slot
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -23,15 +24,7 @@ class SupportUiLayoutMixin:
         root.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
         root.setSpacing(CFG.SPACING_MD)
 
-        title = QLabel("Support & Updates")
-        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        subtitle = QLabel(
-            "Admin tooling for release checks, diagnostics export, and operational incident tracing."
-        )
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        root.addWidget(title)
-        root.addWidget(subtitle)
+        build_support_header(self, root)
 
         update_group = QGroupBox("Release Channel")
         update_group.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -55,9 +48,9 @@ class SupportUiLayoutMixin:
         update_buttons = QHBoxLayout()
         self.btn_save_update_settings = QPushButton("Save Update Settings")
         self.btn_check_updates = QPushButton("Check for Updates")
+        style_support_button(self.btn_save_update_settings, "secondary")
+        style_support_button(self.btn_check_updates, "primary")
         for btn in (self.btn_save_update_settings, self.btn_check_updates):
-            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             update_buttons.addWidget(btn)
         update_buttons.addStretch()
         update_form.addRow(update_buttons)
@@ -81,9 +74,8 @@ class SupportUiLayoutMixin:
         self.incident_id_input.setPlaceholderText("Incident trace ID")
         self.btn_new_incident = QPushButton("New Incident")
         self.btn_copy_incident = QPushButton("Copy ID")
-        for btn in (self.btn_new_incident, self.btn_copy_incident):
-            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        style_support_button(self.btn_new_incident, "secondary")
+        style_support_button(self.btn_copy_incident, "secondary")
         incident_row.addWidget(QLabel("Incident ID:"))
         incident_row.addWidget(self.incident_id_input, 1)
         incident_row.addWidget(self.btn_new_incident)
@@ -95,14 +87,13 @@ class SupportUiLayoutMixin:
         self.btn_report_incident = QPushButton("Report Incident")
         self.btn_open_logs = QPushButton("Open Logs Folder")
         self.btn_open_data = QPushButton("Open Data Folder")
-        for btn in (
-            self.btn_export_diagnostics,
-            self.btn_report_incident,
-            self.btn_open_logs,
-            self.btn_open_data,
+        for btn, variant in (
+            (self.btn_export_diagnostics, "primary"),
+            (self.btn_report_incident, "secondary"),
+            (self.btn_open_logs, "secondary"),
+            (self.btn_open_data, "secondary"),
         ):
-            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+            style_support_button(btn, variant)
             diag_buttons.addWidget(btn)
         diag_buttons.addStretch()
         diag_layout.addLayout(diag_buttons)
@@ -138,6 +129,9 @@ class SupportUiLayoutMixin:
         self.btn_open_data.clicked.connect(
             make_guarded_slot(self, title="Support", callback=self._open_data_folder)
         )
+
+    def _update_support_header_badges(self) -> None:
+        update_support_header_badges(self)
 
 
 __all__ = ["SupportUiLayoutMixin"]

@@ -46,6 +46,10 @@ class CostProjectFlowMixin(CostFiltersMixin):
         if self.project_combo.count() > 0:
             self.project_combo.setCurrentIndex(0)
             self._on_project_changed(0)
+            return
+        self._current_project = None
+        self._project_tasks = []
+        if callable(updater := getattr(self, "_update_cost_header_badges", None)): updater(0, 0)
 
     def _on_costs_or_tasks_changed(self, project_id: str):
         pid = self._current_project_id()
@@ -64,10 +68,8 @@ class CostProjectFlowMixin(CostFiltersMixin):
         for p in projects:
             self.project_combo.addItem(p.name, userData=p.id)
         self.project_combo.blockSignals(False)
-        if prev_pid and prev_pid in [p.id for p in projects]:
-            idx = self.project_combo.findData(prev_pid)
-            if idx != -1:
-                self.project_combo.setCurrentIndex(idx)
+        if prev_pid and (idx := self.project_combo.findData(prev_pid)) != -1:
+            self.project_combo.setCurrentIndex(idx)
         elif self.project_combo.count() > 0:
             self.project_combo.setCurrentIndex(0)
         pid = self._current_project_id()
@@ -99,6 +101,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
             self.lbl_kpi_committed.setText("-")
             self.lbl_kpi_actual.setText("-")
             self.lbl_kpi_remaining.setText("-")
+            if callable(updater := getattr(self, "_update_cost_header_badges", None)): updater(0, 0)
             return
         projects = self._project_service.list_projects()
         self._current_project = next((p for p in projects if p.id == pid), None)
@@ -122,8 +125,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
             self.lbl_kpi_committed.setText("-")
             self.lbl_kpi_actual.setText("-")
             self.lbl_kpi_remaining.setText("-")
-            if callable(getattr(self, "_sync_cost_actions", None)):
-                self._sync_cost_actions()
+            if callable(sync := getattr(self, "_sync_cost_actions", None)): sync()
             return
         costs = self._cost_service.list_cost_items_for_project(pid)
         task_names = {t.id: t.name for t in self._project_tasks}
@@ -158,6 +160,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
 
         filtered_costs = self._apply_cost_filters(costs=costs, task_names=task_names)
         self.model.set_costs(filtered_costs, task_names)
+        if callable(updater := getattr(self, "_update_cost_header_badges", None)): updater(len(filtered_costs), len(costs))
         summary = f"Showing {len(filtered_costs)} of {len(costs)} cost item(s)."
         if budget > 0 and total_planned > budget + 1e-9:
             summary = (
@@ -173,5 +176,4 @@ class CostProjectFlowMixin(CostFiltersMixin):
         except Exception as exc:
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_labor_note.setText(f"Labor summary unavailable: {exc}")
-        if callable(getattr(self, "_sync_cost_actions", None)):
-            self._sync_cost_actions()
+        if callable(sync := getattr(self, "_sync_cost_actions", None)): sync()
