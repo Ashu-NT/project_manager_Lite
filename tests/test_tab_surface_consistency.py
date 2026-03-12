@@ -64,7 +64,7 @@ def test_support_tab_uses_compact_header_and_updates_badges(
     assert tab.support_policy_badge.text() == "Auto-check On"
 
 
-def test_task_tab_uses_header_badges_and_fixed_top_surfaces(qapp, services, repo_workspace):
+def test_task_tab_uses_compact_control_surface_without_header_bar(qapp, services, repo_workspace):
     project = services["project_service"].create_project("Task Surface Project")
     services["task_service"].create_task(
         project.id,
@@ -84,9 +84,7 @@ def test_task_tab_uses_header_badges_and_fixed_top_surfaces(qapp, services, repo
         user_session=services["user_session"],
     )
 
-    assert tab.task_project_badge.text() == project.name
-    assert tab.task_count_badge.text() == "1 visible"
-    assert tab.task_access_badge.text() == "Manage Enabled"
-    assert tab.task_header_card.sizePolicy().verticalPolicy() == QSizePolicy.Fixed
+    assert tab.project_combo.currentText() == project.name
+    assert not hasattr(tab, "task_header_card")
     assert tab.task_controls_card.sizePolicy().verticalPolicy() == QSizePolicy.Fixed
     tab._mentions_refresh_timer.stop()
