@@ -8,10 +8,11 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QSplitter,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from core.services.finance import FinanceAnalyticsRow, FinanceService, FinanceSnapshot
@@ -85,6 +86,11 @@ class FinanceReportDialog(QDialog):
         self.lbl_summary.setWordWrap(True)
         layout.addWidget(self.lbl_summary)
 
+        self.finance_tabs = QTabWidget()
+        self.finance_tabs.setDocumentMode(True)
+        self.finance_tabs.setElideMode(Qt.ElideRight)
+        layout.addWidget(self.finance_tabs, 1)
+
         grp_cash = QGroupBox("Cashflow / Forecast by Period")
         grp_cash.setFont(CFG.GROUPBOX_TITLE_FONT)
         cash_layout = QVBoxLayout(grp_cash)
@@ -94,6 +100,7 @@ class FinanceReportDialog(QDialog):
         )
         style_table(self.tbl_cashflow)
         cash_layout.addWidget(self.tbl_cashflow)
+        self.finance_tabs.addTab(self._wrap_tab_panel(grp_cash), "Cashflow")
 
         grp_analytics = QGroupBox("Expense Analytics")
         grp_analytics.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -104,6 +111,7 @@ class FinanceReportDialog(QDialog):
         )
         style_table(self.tbl_analytics)
         analytics_layout.addWidget(self.tbl_analytics)
+        self.finance_tabs.addTab(self._wrap_tab_panel(grp_analytics), "Analytics")
 
         grp_ledger = QGroupBox("Ledger Trail")
         grp_ledger.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -114,18 +122,8 @@ class FinanceReportDialog(QDialog):
         )
         style_table(self.tbl_ledger)
         ledger_layout.addWidget(self.tbl_ledger)
-
-        self.main_splitter = QSplitter(Qt.Vertical)
-        self.main_splitter.setChildrenCollapsible(False)
-        self.main_splitter.setHandleWidth(8)
-        self.main_splitter.addWidget(grp_cash)
-        self.main_splitter.addWidget(grp_analytics)
-        self.main_splitter.addWidget(grp_ledger)
-        self.main_splitter.setStretchFactor(0, 1)
-        self.main_splitter.setStretchFactor(1, 1)
-        self.main_splitter.setStretchFactor(2, 2)
-        self.main_splitter.setSizes([220, 220, 360])
-        layout.addWidget(self.main_splitter, 1)
+        self.finance_tabs.addTab(self._wrap_tab_panel(grp_ledger), "Ledger Trail")
+        self.finance_tabs.setCurrentIndex(0)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
@@ -246,6 +244,15 @@ class FinanceReportDialog(QDialog):
         if align_right:
             item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         table.setItem(row, col, item)
+
+    @staticmethod
+    def _wrap_tab_panel(panel: QWidget) -> QWidget:
+        page = QWidget()
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(0)
+        page_layout.addWidget(panel, 1)
+        return page
 
 
 __all__ = ["FinanceReportDialog"]

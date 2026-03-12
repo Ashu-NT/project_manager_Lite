@@ -7,11 +7,13 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QTabWidget,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QHeaderView,
+    QWidget,
 )
 
 from core.services.reporting import ReportingService
@@ -53,6 +55,12 @@ class PerformanceVarianceDialog(QDialog):
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         layout.addWidget(subtitle)
+
+        self.variance_tabs = QTabWidget()
+        self.variance_tabs.setDocumentMode(True)
+        self.variance_tabs.setElideMode(Qt.ElideRight)
+        layout.addWidget(self.variance_tabs, 1)
+
         grp_sources = QGroupBox("Cost Sources (Policy Applied)")
         grp_sources.setFont(CFG.GROUPBOX_TITLE_FONT)
         sources_layout = QVBoxLayout(grp_sources)
@@ -84,7 +92,7 @@ class PerformanceVarianceDialog(QDialog):
             src_note.setWordWrap(True)
             src_note.setStyleSheet(CFG.NOTE_STYLE_SHEET)
             sources_layout.addWidget(src_note)
-        layout.addWidget(grp_sources, 0)
+        self.variance_tabs.addTab(self._wrap_tab_panel(grp_sources), "Cost Sources")
 
         grp_sched = QGroupBox("Schedule Variance (Baseline vs Current)")
         grp_sched.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -137,7 +145,7 @@ class PerformanceVarianceDialog(QDialog):
         )
         sched_info.setStyleSheet(CFG.NOTE_STYLE_SHEET)
         sched_layout.addWidget(sched_info)
-        layout.addWidget(grp_sched, 1)
+        self.variance_tabs.addTab(self._wrap_tab_panel(grp_sched), "Schedule Variance")
 
         grp_cost = QGroupBox("Cost Breakdown (Planned vs Actual)")
         grp_cost.setFont(CFG.GROUPBOX_TITLE_FONT)
@@ -177,7 +185,8 @@ class PerformanceVarianceDialog(QDialog):
         cost_info = QLabel(f"Cost categories: {len(rows_cost)} | Overrun lines: {overrun_lines}")
         cost_info.setStyleSheet(CFG.NOTE_STYLE_SHEET)
         cost_layout.addWidget(cost_info)
-        layout.addWidget(grp_cost, 1)
+        self.variance_tabs.addTab(self._wrap_tab_panel(grp_cost), "Cost Breakdown")
+        self.variance_tabs.setCurrentIndex(0)
 
         btn_close = QPushButton(CFG.CLOSE_BUTTON_LABEL)
         btn_close.setFixedHeight(CFG.BUTTON_HEIGHT)
@@ -187,6 +196,15 @@ class PerformanceVarianceDialog(QDialog):
         btn_row.addStretch()
         btn_row.addWidget(btn_close)
         layout.addLayout(btn_row)
+
+    @staticmethod
+    def _wrap_tab_panel(panel: QWidget) -> QWidget:
+        page = QWidget()
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(0)
+        page_layout.addWidget(panel, 1)
+        return page
 
 
 __all__ = ["PerformanceVarianceDialog"]
