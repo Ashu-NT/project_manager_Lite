@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGroupBox, QTableWidget, QTableWidgetItem
 
+from core.domain.register import as_register_entry_severity, as_register_entry_type
 from core.services.dashboard import DashboardData
 from core.services.register.models import RegisterProjectSummary
 from ui.styles.ui_config import UIConfig as CFG
@@ -108,16 +109,16 @@ class DashboardProfessionalRenderingMixin:
         self.register_urgent_table.setRowCount(len(summary.urgent_items))
         for row_idx, item in enumerate(summary.urgent_items):
             values = [
-                item.entry_type.value.title(),
+                as_register_entry_type(item.entry_type).value.title(),
                 item.title,
-                item.severity.value.title(),
+                as_register_entry_severity(item.severity).value.title(),
                 item.owner_name or "-",
                 item.due_date.isoformat() if item.due_date else "-",
             ]
             for col, value in enumerate(values):
                 cell = QTableWidgetItem(value)
                 if col == 2:
-                    cell.setForeground(QColor(self._severity_color(item.severity.value)))
+                    cell.setForeground(QColor(self._severity_color(as_register_entry_severity(item.severity).value)))
                 self.register_urgent_table.setItem(row_idx, col, cell)
 
     @staticmethod

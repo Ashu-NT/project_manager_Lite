@@ -29,6 +29,24 @@ class RegisterEntryStatus(str, Enum):
     CLOSED = "CLOSED"
 
 
+def as_register_entry_type(value: RegisterEntryType | str) -> RegisterEntryType:
+    if isinstance(value, RegisterEntryType):
+        return value
+    return RegisterEntryType(str(value or "").strip().upper())
+
+
+def as_register_entry_severity(value: RegisterEntrySeverity | str) -> RegisterEntrySeverity:
+    if isinstance(value, RegisterEntrySeverity):
+        return value
+    return RegisterEntrySeverity(str(value or "").strip().upper())
+
+
+def as_register_entry_status(value: RegisterEntryStatus | str) -> RegisterEntryStatus:
+    if isinstance(value, RegisterEntryStatus):
+        return value
+    return RegisterEntryStatus(str(value or "").strip().upper())
+
+
 @dataclass
 class RegisterEntry:
     id: str
@@ -83,4 +101,7 @@ __all__ = [
     "RegisterEntryType",
     "RegisterEntrySeverity",
     "RegisterEntryStatus",
+    "as_register_entry_type",
+    "as_register_entry_severity",
+    "as_register_entry_status",
 ]

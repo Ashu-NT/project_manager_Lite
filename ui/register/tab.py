@@ -6,15 +6,15 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
-    QFormLayout,
-    QGridLayout,
     QGroupBox,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
     QSplitter,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.domain.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
+from core.domain.register import as_register_entry_severity, as_register_entry_status, as_register_entry_type
 from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, ValidationError
 from core.services.auth import UserSessionContext
@@ -123,7 +124,7 @@ class RegisterTab(QWidget):
         filters.addWidget(self.owner_filter, 2, 1, 1, 3)
         root.addLayout(filters)
 
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Vertical)
         splitter.setChildrenCollapsible(False)
         splitter.setHandleWidth(8)
         root.addWidget(splitter, 1)
@@ -139,13 +140,24 @@ class RegisterTab(QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         style_table(self.table)
         table_layout.addWidget(self.table)
-
-        detail_panel = self._build_detail_panel()
         splitter.addWidget(table_panel)
-        splitter.addWidget(detail_panel)
+
+        narrative_panel = QGroupBox("Entry Narrative")
+        narrative_layout = QVBoxLayout(narrative_panel)
+        narrative_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
+        narrative_layout.setSpacing(CFG.SPACING_SM)
+        self.detail_tabs = QTabWidget()
+        self.description_view = self._build_narrative_view(placeholder="No description")
+        self.impact_view = self._build_narrative_view(placeholder="No impact summary")
+        self.response_view = self._build_narrative_view(placeholder="No response plan")
+        self.detail_tabs.addTab(self.description_view, "Description")
+        self.detail_tabs.addTab(self.impact_view, "Impact")
+        self.detail_tabs.addTab(self.response_view, "Response Plan")
+        narrative_layout.addWidget(self.detail_tabs)
+        splitter.addWidget(narrative_panel)
         splitter.setStretchFactor(0, 5)
-        splitter.setStretchFactor(1, 3)
-        splitter.setSizes([880, 420])
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([520, 220])
 
         self.btn_new.clicked.connect(make_guarded_slot(self, title="Register", callback=self.create_entry))
         self.btn_edit.clicked.connect(make_guarded_slot(self, title="Register", callback=self.edit_entry))
@@ -162,39 +174,12 @@ class RegisterTab(QWidget):
         apply_permission_hint(self.btn_edit, allowed=self._can_manage, missing_permission="project.manage")
         apply_permission_hint(self.btn_delete, allowed=self._can_manage, missing_permission="project.manage")
 
-    def _build_detail_panel(self) -> QWidget:
-        panel = QWidget()
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.summary_group = QGroupBox("Entry Summary")
-        summary_layout = QFormLayout(self.summary_group)
-        summary_layout.setHorizontalSpacing(CFG.SPACING_MD)
-        summary_layout.setVerticalSpacing(CFG.SPACING_SM)
-        self.detail_type = QLabel("-")
-        self.detail_severity = QLabel("-")
-        self.detail_status = QLabel("-")
-        self.detail_owner = QLabel("-")
-        self.detail_due = QLabel("-")
-        summary_layout.addRow("Type", self.detail_type)
-        summary_layout.addRow("Severity", self.detail_severity)
-        summary_layout.addRow("Status", self.detail_status)
-        summary_layout.addRow("Owner", self.detail_owner)
-        summary_layout.addRow("Due", self.detail_due)
-        layout.addWidget(self.summary_group)
-
-        self.description_view = QTextEdit()
-        self.description_view.setReadOnly(True)
-        self.description_view.setPlaceholderText("Description")
-        self.impact_view = QTextEdit()
-        self.impact_view.setReadOnly(True)
-        self.impact_view.setPlaceholderText("Impact")
-        self.response_view = QTextEdit()
-        self.response_view.setReadOnly(True)
-        self.response_view.setPlaceholderText("Response")
-        for widget in (self.description_view, self.impact_view, self.response_view):
-            widget.setMinimumHeight(120)
-            layout.addWidget(widget)
-        return panel
+    def _build_narrative_view(self, *, placeholder: str) -> QTextEdit:
+        view = QTextEdit()
+        view.setReadOnly(True)
+        view.setPlaceholderText(placeholder)
+        view.setMinimumHeight(150)
+        return view
 
     def reload_entries(self) -> None:
         try:
@@ -240,10 +225,10 @@ class RegisterTab(QWidget):
         self.table.setRowCount(len(filtered))
         for row_idx, entry in enumerate(filtered):
             values = [
-                entry.entry_type.value.title(),
+                as_register_entry_type(entry.entry_type).value.title(),
                 entry.title,
-                entry.severity.value.title(),
-                entry.status.value.replace("_", " ").title(),
+                as_register_entry_severity(entry.severity).value.title(),
+                as_register_entry_status(entry.status).value.replace("_", " ").title(),
                 entry.owner_name or "-",
                 entry.due_date.isoformat() if entry.due_date else "-",
             ]
@@ -272,25 +257,10 @@ class RegisterTab(QWidget):
 
     def _render_entry(self, entry: RegisterEntry | None) -> None:
         if entry is None:
-            self.summary_group.setTitle("Entry Summary")
-            for label in (
-                self.detail_type,
-                self.detail_severity,
-                self.detail_status,
-                self.detail_owner,
-                self.detail_due,
-            ):
-                label.setText("-")
             self.description_view.clear()
             self.impact_view.clear()
             self.response_view.clear()
             return
-        self.summary_group.setTitle(entry.title)
-        self.detail_type.setText(entry.entry_type.value.title())
-        self.detail_severity.setText(entry.severity.value.title())
-        self.detail_status.setText(entry.status.value.replace("_", " ").title())
-        self.detail_owner.setText(entry.owner_name or "-")
-        self.detail_due.setText(entry.due_date.isoformat() if entry.due_date else "-")
         self.description_view.setPlainText(entry.description or "")
         self.impact_view.setPlainText(entry.impact_summary or "")
         self.response_view.setPlainText(entry.response_plan or "")

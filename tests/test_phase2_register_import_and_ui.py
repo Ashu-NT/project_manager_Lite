@@ -9,6 +9,7 @@ from core.events.domain_events import domain_events
 from tests.ui_runtime_helpers import make_settings_store
 from ui.main_window import MainWindow
 from ui.project.import_wizard import ImportWizardDialog
+from ui.register.dialogs import RegisterEntryDialog
 from ui.register.tab import RegisterTab
 
 
@@ -72,6 +73,47 @@ def test_register_service_tracks_summary_audit_and_domain_event(services):
     assert issue.id in {entry.id for entry in register_service.list_entries(project_id=project.id)}
 
 
+def test_register_service_accepts_raw_string_enum_values_without_crashing(services):
+    project = services["project_service"].create_project("Register Raw Strings")
+
+    entry = services["register_service"].create_entry(
+        project.id,
+        entry_type="risk",
+        title="Raw string entry",
+        severity="critical",
+        status="open",
+        owner_name="Planner",
+    )
+
+    updated = services["register_service"].update_entry(
+        entry.id,
+        expected_version=entry.version,
+        severity="high",
+        status="in_progress",
+    )
+
+    assert updated.entry_type.value == "RISK"
+    assert updated.severity.value == "HIGH"
+    assert updated.status.value == "IN_PROGRESS"
+
+
+def test_register_entry_dialog_handles_existing_entry_without_due_date(qapp, services):
+    project = services["project_service"].create_project("Register No Due Date")
+    entry = services["register_service"].create_entry(
+        project.id,
+        entry_type=RegisterEntryType.ISSUE,
+        title="Open item without due date",
+        severity=RegisterEntrySeverity.MEDIUM,
+        status=RegisterEntryStatus.OPEN,
+        due_date=None,
+    )
+
+    dialog = RegisterEntryDialog(None, entry=entry)
+
+    assert dialog.no_due_date.isChecked() is True
+    assert dialog.due_date is None
+
+
 def test_register_tab_and_main_window_surface_register_runtime(qapp, services, repo_workspace, monkeypatch):
     project = services["project_service"].create_project("Register UI Project")
     services["register_service"].create_entry(
@@ -79,6 +121,9 @@ def test_register_tab_and_main_window_surface_register_runtime(qapp, services, r
         entry_type=RegisterEntryType.RISK,
         title="Visible runtime risk",
         owner_name="Planner",
+        description="Register description",
+        impact_summary="Register impact",
+        response_plan="Register response",
     )
     store = make_settings_store(repo_workspace, prefix="main-window-register")
     monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
@@ -95,7 +140,12 @@ def test_register_tab_and_main_window_surface_register_runtime(qapp, services, r
     )
     assert tab.table.rowCount() >= 1
     assert tab.btn_new.isEnabled() is True
-    assert "Visible runtime risk" in tab.summary_group.title()
+    assert tab.table.columnCount() == 6
+    assert tab.table.item(0, 1).text() == "Visible runtime risk"
+    assert tab.detail_tabs.count() == 3
+    assert tab.description_view.toPlainText() == "Register description"
+    assert tab.impact_view.toPlainText() == "Register impact"
+    assert tab.response_view.toPlainText() == "Register response"
 
 
 def test_register_tab_create_entry_uses_qdialog_accepted_runtime(qapp, services, monkeypatch):

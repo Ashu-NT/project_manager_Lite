@@ -20,6 +20,9 @@ from core.domain.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
+    as_register_entry_severity,
+    as_register_entry_status,
+    as_register_entry_type,
 )
 from ui.styles.ui_config import UIConfig as CFG
 
@@ -57,7 +60,7 @@ class RegisterEntryDialog(QDialog):
         for editor in (self.description_edit, self.impact_edit, self.response_edit):
             editor.setMinimumHeight(90)
 
-        current_due = entry.due_date if entry is not None else date.today()
+        current_due = entry.due_date if entry is not None and entry.due_date is not None else date.today()
         self.due_date_edit.setDate(QDate(current_due.year, current_due.month, current_due.day))
         self.no_due_date.toggled.connect(self.due_date_edit.setDisabled)
 
@@ -106,7 +109,7 @@ class RegisterEntryDialog(QDialog):
 
     @property
     def entry_type(self) -> RegisterEntryType:
-        return self.type_combo.currentData()
+        return as_register_entry_type(self.type_combo.currentData() or self.type_combo.currentText())
 
     @property
     def title(self) -> str:
@@ -114,11 +117,11 @@ class RegisterEntryDialog(QDialog):
 
     @property
     def severity(self) -> RegisterEntrySeverity:
-        return self.severity_combo.currentData()
+        return as_register_entry_severity(self.severity_combo.currentData() or self.severity_combo.currentText())
 
     @property
     def status(self) -> RegisterEntryStatus:
-        return self.status_combo.currentData()
+        return as_register_entry_status(self.status_combo.currentData() or self.status_combo.currentText())
 
     @property
     def owner_name(self) -> str | None:

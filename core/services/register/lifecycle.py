@@ -3,7 +3,15 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from core.domain.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
+from core.domain.register import (
+    RegisterEntry,
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
+    as_register_entry_severity,
+    as_register_entry_status,
+    as_register_entry_type,
+)
 from core.events.domain_events import domain_events
 from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.interfaces import ProjectRepository, RegisterEntryRepository
@@ -36,11 +44,11 @@ class RegisterLifecycleMixin:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         entry = RegisterEntry.create(
             project_id,
-            entry_type=entry_type,
+            entry_type=as_register_entry_type(entry_type),
             title=self._normalize_title(title),
             description=(description or "").strip(),
-            severity=severity,
-            status=status,
+            severity=as_register_entry_severity(severity),
+            status=as_register_entry_status(status),
             owner_name=self._normalize_owner(owner_name),
             due_date=due_date,
             impact_summary=(impact_summary or "").strip(),
@@ -88,15 +96,15 @@ class RegisterLifecycleMixin:
                 code="STALE_WRITE",
             )
         if entry_type is not None:
-            entry.entry_type = entry_type
+            entry.entry_type = as_register_entry_type(entry_type)
         if title is not None:
             entry.title = self._normalize_title(title)
         if description is not None:
             entry.description = description.strip()
         if severity is not None:
-            entry.severity = severity
+            entry.severity = as_register_entry_severity(severity)
         if status is not None:
-            entry.status = status
+            entry.status = as_register_entry_status(status)
         if owner_name is not None:
             entry.owner_name = self._normalize_owner(owner_name)
         if due_date is not self._UNSET:
@@ -157,11 +165,14 @@ class RegisterLifecycleMixin:
 
     @staticmethod
     def _audit_details(entry: RegisterEntry) -> dict[str, object]:
+        entry_type = as_register_entry_type(entry.entry_type)
+        severity = as_register_entry_severity(entry.severity)
+        status = as_register_entry_status(entry.status)
         return {
-            "entry_type": entry.entry_type.value,
+            "entry_type": entry_type.value,
             "title": entry.title,
-            "severity": entry.severity.value,
-            "status": entry.status.value,
+            "severity": severity.value,
+            "status": status.value,
             "owner_name": entry.owner_name,
             "due_date": entry.due_date.isoformat() if entry.due_date else None,
         }

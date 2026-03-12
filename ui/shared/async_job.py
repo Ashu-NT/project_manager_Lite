@@ -55,21 +55,29 @@ class _JobRunnable(QRunnable):
         try:
             result = self._work(self._token, self._emit_progress)
         except JobCancelledError:
-            self._signals.cancelled.emit()
+            self._emit_signal(self._signals.cancelled)
         except Exception as exc:  # noqa: BLE001
-            self._signals.failure.emit(str(exc))
+            self._emit_signal(self._signals.failure, str(exc))
         else:
             if self._token.is_cancelled():
-                self._signals.cancelled.emit()
+                self._emit_signal(self._signals.cancelled)
             else:
-                self._signals.success.emit(result)
+                self._emit_signal(self._signals.success, result)
 
     def _emit_progress(self, percent: int | None, message: str | None) -> None:
         if percent is None:
             value = -1
         else:
             value = max(0, min(100, int(percent)))
-        self._signals.progress.emit(value, (message or "").strip())
+        self._emit_signal(self._signals.progress, value, (message or "").strip())
+
+    @staticmethod
+    def _emit_signal(signal: Signal, *args: object) -> None:
+        try:
+            signal.emit(*args)
+        except RuntimeError:
+            # The UI may already be torn down while the worker thread finishes.
+            return
 
 
 @dataclass(frozen=True)
