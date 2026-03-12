@@ -53,6 +53,7 @@ class DashboardService(
         self._calendar: WorkCalendarEngine = work_calendar_engine
         self._user_session = user_session
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
+        require_permission(self._user_session, "report.view", operation_label="view dashboard")
         # Dashboard refresh should be read-only and never contend with task edits.
         schedule = self._sched.recalculate_project_schedule(project_id, persist=False)
 
@@ -85,6 +86,7 @@ class DashboardService(
         project_id: str,
         threshold_percent: float = 100.0,
     ) -> list[ResourceConflict]:
+        require_permission(self._user_session, "report.view", operation_label="view resource conflicts")
         self._sched.recalculate_project_schedule(project_id)
         return self._sched.preview_resource_conflicts(
             project_id=project_id,

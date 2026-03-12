@@ -56,6 +56,7 @@ class TaskAssignmentMixin:
             domain_events.tasks_changed.emit(task.project_id)
 
     def list_assignments_for_task(self, task_id: str) -> List[TaskAssignment]:
+        require_permission(self._user_session, "task.read", operation_label="list task assignments")
         # Keep single-task queries aligned with primary repository API.
         return self._assignment_repo.list_by_task(task_id)
 
@@ -142,6 +143,7 @@ class TaskAssignmentMixin:
         return a
 
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
+        require_permission(self._user_session, "task.read", operation_label="view assignment")
         return self._assignment_repo.get(assignment_id)
 
     def assign_project_resource(

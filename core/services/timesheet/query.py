@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 from core.exceptions import NotFoundError
 from core.interfaces import AssignmentRepository, TimeEntryRepository, TimesheetPeriodRepository
 from core.models import TimeEntry, TimesheetPeriod
+from core.services.auth.authorization import require_permission
 
 
 class TimesheetQueryMixin:
@@ -13,6 +14,7 @@ class TimesheetQueryMixin:
     _timesheet_period_repo: TimesheetPeriodRepository | None
 
     def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
+        require_permission(self._user_session, "task.read", operation_label="list time entries")
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
@@ -26,6 +28,7 @@ class TimesheetQueryMixin:
         *,
         period_start: date,
     ) -> list[TimeEntry]:
+        require_permission(self._user_session, "task.read", operation_label="list period time entries")
         normalized_start, normalized_end = self._timesheet_period_bounds(period_start)
         return [
             entry
@@ -34,15 +37,18 @@ class TimesheetQueryMixin:
         ]
 
     def get_time_entry(self, entry_id: str) -> TimeEntry:
+        require_permission(self._user_session, "task.read", operation_label="view time entry")
         return self._require_time_entry(entry_id)
 
     def get_timesheet_period(self, resource_id: str, *, period_start: date) -> TimesheetPeriod | None:
+        require_permission(self._user_session, "task.read", operation_label="view timesheet period")
         if self._timesheet_period_repo is None:
             return None
         normalized_start, _ = self._timesheet_period_bounds(period_start)
         return self._timesheet_period_repo.get_by_resource_period(resource_id, normalized_start)
 
     def list_timesheet_periods_for_resource(self, resource_id: str) -> list[TimesheetPeriod]:
+        require_permission(self._user_session, "task.read", operation_label="list timesheet periods")
         if self._timesheet_period_repo is None:
             return []
         return self._timesheet_period_repo.list_by_resource(resource_id)
@@ -53,6 +59,7 @@ class TimesheetQueryMixin:
         *,
         period_start: date,
     ) -> list[TimeEntry]:
+        require_permission(self._user_session, "task.read", operation_label="list resource period time entries")
         if self._time_entry_repo is None:
             return []
         normalized_start, normalized_end = self._timesheet_period_bounds(period_start)

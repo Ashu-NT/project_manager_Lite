@@ -32,9 +32,8 @@ class UserSessionContext:
 
     def has_permission(self, permission_code: str) -> bool:
         if self._principal is None:
-            return True
+            return False
         return permission_code in self._principal.permissions
 
 
 __all__ = ["UserSessionPrincipal", "UserSessionContext"]
-

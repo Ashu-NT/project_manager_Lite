@@ -11,6 +11,7 @@ class ReportingBaselineCompareMixin:
     _task_repo: TaskRepository
 
     def list_project_baselines(self, project_id: str) -> list[ProjectBaseline]:
+        self._require_view("list project baselines")
         return self._baseline_repo.list_for_project(project_id)
 
     def compare_baselines(
@@ -20,6 +21,7 @@ class ReportingBaselineCompareMixin:
         baseline_b_id: str,
         include_unchanged: bool = False,
     ) -> BaselineComparisonResult:
+        self._require_view("compare baselines")
         if not baseline_a_id or not baseline_b_id:
             raise ValidationError("Two baseline IDs are required.", code="BASELINE_COMPARE_INPUT_INVALID")
         if baseline_a_id == baseline_b_id:

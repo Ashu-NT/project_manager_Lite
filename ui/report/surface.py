@@ -195,7 +195,9 @@ class ReportSurfaceMixin:
 
     def _apply_permissions(self) -> None:
         self.btn_show_finance.setEnabled(self._finance_service is not None)
-        can_export = self._user_session is None or self._user_session.has_permission("report.export")
+        can_export = bool(
+            self._user_session is not None and self._user_session.has_permission("report.export")
+        )
         for btn in (self.btn_export_gantt, self.btn_export_evm, self.btn_export_excel, self.btn_export_pdf):
             btn.setEnabled(can_export)
         self._update_report_header_badges()
@@ -206,5 +208,7 @@ class ReportSurfaceMixin:
     def _update_report_header_badges(self) -> None:
         self.report_project_badge.setText(self.project_combo.currentText().strip() or "No Project")
         self.report_finance_badge.setText("Finance Ready" if self._finance_service is not None else "Finance Off")
-        can_export = self._user_session is None or self._user_session.has_permission("report.export")
+        can_export = bool(
+            self._user_session is not None and self._user_session.has_permission("report.export")
+        )
         self.report_export_badge.setText("Export Enabled" if can_export else "On-screen only")

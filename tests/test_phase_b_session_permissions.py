@@ -32,6 +32,50 @@ def test_admin_session_can_execute_manage_operations(services):
     assert p.id
 
 
+def test_cleared_session_denies_core_read_models(services):
+    _login_as(services, "admin", "ChangeMe123!")
+
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    cs = services["cost_service"]
+    reporting = services["reporting_service"]
+    finance = services["finance_service"]
+    dashboard = services["dashboard_service"]
+    approvals = services["approval_service"]
+    audit = services["audit_service"]
+    calendar = services["calendar_service"]
+
+    project = ps.create_project("Read Permission Project")
+    task = ts.create_task(project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2)
+    resource = rs.create_resource("Read Permission Resource", hourly_rate=120.0)
+    cs.add_cost_item(project.id, "Read Permission Cost", planned_amount=100.0)
+    calendar.sync_task_to_calendar(task)
+
+    services["user_session"].clear()
+
+    with pytest.raises(BusinessRuleError, match="project.read"):
+        ps.list_projects()
+    with pytest.raises(BusinessRuleError, match="task.read"):
+        ts.list_tasks_for_project(project.id)
+    with pytest.raises(BusinessRuleError, match="resource.read"):
+        rs.list_resources()
+    with pytest.raises(BusinessRuleError, match="cost.read"):
+        cs.list_cost_items_for_project(project.id)
+    with pytest.raises(BusinessRuleError, match="report.view"):
+        reporting.get_project_kpis(project.id)
+    with pytest.raises(BusinessRuleError, match="report.view"):
+        finance.get_finance_snapshot(project.id)
+    with pytest.raises(BusinessRuleError, match="report.view"):
+        dashboard.get_dashboard_data(project.id)
+    with pytest.raises(BusinessRuleError, match="approval.request"):
+        approvals.list_requests(project_id=project.id)
+    with pytest.raises(BusinessRuleError, match="auth.manage"):
+        audit.list_recent(project_id=project.id)
+    with pytest.raises(BusinessRuleError, match="task.read"):
+        calendar.list_events_for_project(project.id)
+
+
 def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     auth = services["auth_service"]
     auth.register_user("viewer2", "StrongPass123", role_names=["viewer"])

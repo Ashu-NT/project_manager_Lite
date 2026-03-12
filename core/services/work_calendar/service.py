@@ -38,6 +38,11 @@ class WorkCalendarService:
         return cal
 
     def get_calendar(self) -> WorkingCalendar:
+        require_permission(
+            self._user_session,
+            "task.read",
+            operation_label="view working calendar",
+        )
         return self._ensure_calendar()
 
     def set_working_days(self, working_days: Set[int], hours_per_day: float | None = None) -> WorkingCalendar:
@@ -57,6 +62,11 @@ class WorkCalendarService:
         return cal
 
     def list_holidays(self) -> List[Holiday]:
+        require_permission(
+            self._user_session,
+            "task.read",
+            operation_label="list non-working days",
+        )
         cal = self._ensure_calendar()
         return self._repo.list_holidays(cal.id)
 

@@ -86,6 +86,9 @@ def test_main_qt_loads_theme_from_settings_before_app_style(repo_workspace, serv
         def setWindowIcon(self, _icon):
             return None
 
+        def setStyleSheet(self, _css):
+            return None
+
         def setFont(self, _font):
             return None
 
@@ -140,6 +143,57 @@ def test_main_qt_loads_theme_from_settings_before_app_style(repo_workspace, serv
     assert style_index < window_index
     assert calls[style_index] == ("style", "dark", ("dark", "required"))
     assert calls[window_index] == ("window", True, ("dark", "required"))
+
+
+def test_main_qt_skip_login_does_not_bypass_unauthenticated_services(
+    repo_workspace,
+    anonymous_services,
+    monkeypatch,
+):
+    store, _settings = _store_with_ini(repo_workspace)
+    calls: list[tuple[str, object, object]] = []
+
+    class _FakeApp:
+        def __init__(self, _argv):
+            calls.append(("app", None, None))
+
+        def setWindowIcon(self, _icon):
+            return None
+
+        def setStyleSheet(self, _css):
+            return None
+
+        def setFont(self, _font):
+            return None
+
+        def exec(self):
+            calls.append(("exec", None, None))
+            return 0
+
+    class _FakeLoginDialog:
+        def __init__(self, auth_service, user_session):
+            calls.append(("login", auth_service is anonymous_services["auth_service"], user_session.is_authenticated()))
+
+        def exec(self):
+            calls.append(("login-exec", None, None))
+            return main_qt.QDialog.Rejected
+
+    monkeypatch.setenv("PM_SKIP_LOGIN", "1")
+    monkeypatch.setattr(main_qt, "QApplication", _FakeApp)
+    monkeypatch.setattr(main_qt, "QIcon", lambda path: path)
+    monkeypatch.setattr(main_qt, "QFont", lambda family, size: (family, size))
+    monkeypatch.setattr(main_qt, "resource_path", lambda rel_path: rel_path)
+    monkeypatch.setattr(main_qt, "setup_logging", lambda: None)
+    monkeypatch.setattr(main_qt, "build_services", lambda: anonymous_services)
+    monkeypatch.setattr(main_qt, "MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(main_qt, "LoginDialog", _FakeLoginDialog)
+    monkeypatch.setattr(main_qt, "MainWindow", lambda _services: calls.append(("window", None, None)))
+
+    main_qt.main()
+
+    assert ("login", True, False) in calls
+    assert ("login-exec", None, None) in calls
+    assert not any(call[0] == "window" for call in calls)
 
 
 def test_main_window_persists_and_restores_ui_state_with_store_runtime(

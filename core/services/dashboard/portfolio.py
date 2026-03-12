@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from core.domain.enums import ProjectStatus
+from core.services.auth.authorization import require_permission
 from core.services.dashboard.models import DashboardData
 from core.services.dashboard.portfolio_models import (
     PORTFOLIO_SCOPE_ID,
@@ -15,6 +16,7 @@ from core.services.reporting.models import ProjectKPI, ResourceLoadRow
 
 class DashboardPortfolioMixin:
     def get_portfolio_data(self) -> DashboardData:
+        require_permission(self._user_session, "report.view", operation_label="view portfolio dashboard")
         projects = self._projects.list_projects()
         if not projects:
             return DashboardData(

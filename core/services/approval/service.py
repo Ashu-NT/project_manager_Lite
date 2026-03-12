@@ -9,7 +9,7 @@ from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, NotFoundError
 from core.interfaces import ApprovalRepository
 from core.models import ApprovalRequest, ApprovalStatus
-from core.services.auth.authorization import require_permission
+from core.services.auth.authorization import require_any_permission, require_permission
 from core.services.auth.session import UserSessionContext
 from core.services.audit.service import AuditService
 
@@ -76,6 +76,11 @@ class ApprovalService:
         project_id: str | None = None,
         limit: int = 200,
     ) -> list[ApprovalRequest]:
+        require_any_permission(
+            self._user_session,
+            ("approval.request", "approval.decide"),
+            operation_label="view governance requests",
+        )
         normalized_status: ApprovalStatus | None
         if isinstance(status, ApprovalStatus) or status is None:
             normalized_status = status

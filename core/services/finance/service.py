@@ -10,6 +10,7 @@ from core.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
+from core.services.auth.authorization import require_permission
 from core.services.finance.analytics import build_dimension_analytics, build_source_analytics
 from core.services.finance.cashflow import build_period_cashflow
 from core.services.finance.helpers import normalize_currency
@@ -35,6 +36,7 @@ class FinanceService:
         cost_repo: CostRepository,
         project_resource_repo: ProjectResourceRepository,
         reporting_service: ReportingService,
+        user_session=None,
     ) -> None:
         self._project_repo: ProjectRepository = project_repo
         self._task_repo: TaskRepository = task_repo
@@ -42,6 +44,7 @@ class FinanceService:
         self._cost_repo: CostRepository = cost_repo
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._reporting: ReportingService = reporting_service
+        self._user_session = user_session
 
     def get_finance_snapshot(
         self,
@@ -50,6 +53,7 @@ class FinanceService:
         as_of: date | None = None,
         period: str = "month",
     ) -> FinanceSnapshot:
+        require_permission(self._user_session, "report.view", operation_label="view finance snapshot")
         as_of = as_of or date.today()
         project = self._project_repo.get(project_id)
         if project is None:

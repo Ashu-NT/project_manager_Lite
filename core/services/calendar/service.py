@@ -5,6 +5,7 @@ from core.models import CalendarEvent, Task
 from core.interfaces import CalendarEventRepository, TaskRepository
 
 from core.exceptions import NotFoundError, ValidationError
+from core.services.auth.authorization import require_permission
 from sqlalchemy.orm import Session
 
 class CalendarService:
@@ -20,10 +21,12 @@ class CalendarService:
         session: Session,
         calendar_repo: CalendarEventRepository,
         task_repo: TaskRepository,
+        user_session=None,
     ):
         self._session: Session = session
         self._calendar_repo: CalendarEventRepository = calendar_repo
         self._task_repo: TaskRepository = task_repo
+        self._user_session = user_session
         
     def create_event(
         self,
@@ -35,6 +38,7 @@ class CalendarService:
         all_day: bool = True,
         description: str = "",
     ) -> CalendarEvent:
+        require_permission(self._user_session, "task.manage", operation_label="create calendar event")
         event = CalendarEvent.create(
             title=title,
             start_date=start_date,
@@ -57,6 +61,7 @@ class CalendarService:
         Simple rule: if task has start & end dates, create a calendar event.
         In a more advanced version, you'd update existing events or keep them in sync.
         """
+        require_permission(self._user_session, "task.manage", operation_label="sync task to calendar")
         if not (task.start_date and task.end_date):
             return None
 
@@ -80,9 +85,11 @@ class CalendarService:
         return event
 
     def list_events_for_project(self, project_id: str) -> List[CalendarEvent]:
+        require_permission(self._user_session, "task.read", operation_label="list calendar events")
         return self._calendar_repo.list_for_project(project_id)
 
     def list_events_in_range(self, start: date, end: date) -> List[CalendarEvent]:
+        require_permission(self._user_session, "task.read", operation_label="list calendar events in range")
         return self._calendar_repo.list_range(start, end)
 
     def update_event(
@@ -94,6 +101,7 @@ class CalendarService:
         description: str | None = None,
         all_day: bool | None = None,
     ) -> CalendarEvent:
+        require_permission(self._user_session, "task.manage", operation_label="update calendar event")
         event = self._calendar_repo.get(event_id)
         if not event:
             raise NotFoundError("Calendar event not found.", code="EVENT_NOT_FOUND")
@@ -120,6 +128,7 @@ class CalendarService:
             raise e
 
     def delete_event(self, event_id: str) -> None:
+        require_permission(self._user_session, "task.manage", operation_label="delete calendar event")
         if not self._calendar_repo.get(event_id):
             raise NotFoundError("Calendar event not found.", code="EVENT_NOT_FOUND")
         try:

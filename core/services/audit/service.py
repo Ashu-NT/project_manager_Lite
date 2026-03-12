@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from core.interfaces import AuditLogRepository
 from core.models import AuditLogEntry
+from core.services.auth.authorization import require_permission
 from core.services.auth.session import UserSessionContext
 
 
@@ -60,6 +61,7 @@ class AuditService:
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> List[AuditLogEntry]:
+        require_permission(self._user_session, "auth.manage", operation_label="view audit log")
         return self._audit_repo.list_recent(
             limit=limit,
             project_id=project_id,

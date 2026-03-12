@@ -109,10 +109,10 @@ def test_finance_snapshot_builds_policy_aligned_ledger_cashflow_and_analytics(se
     assert any(key != "__project_level__" for key in task_keys)
 
 
-def test_exporters_include_finance_sections_when_finance_service_is_provided(services, tmp_path):
+def test_exporters_include_finance_sections_when_finance_service_is_provided(services, repo_workspace):
     pid = _seed_finance_project(services)
-    output_xlsx = tmp_path / "finance_report.xlsx"
-    output_pdf = tmp_path / "finance_report.pdf"
+    output_xlsx = repo_workspace / "finance_report.xlsx"
+    output_pdf = repo_workspace / "finance_report.pdf"
 
     reporting_api.generate_excel_report(
         services["reporting_service"],
@@ -142,7 +142,10 @@ def test_exporters_include_finance_sections_when_finance_service_is_provided(ser
 def test_finance_views_are_report_only_not_duplicated_in_cost_tab():
     root = Path(__file__).resolve().parents[1]
     cost_tab = (root / "ui" / "cost" / "tab.py").read_text(encoding="utf-8", errors="ignore")
-    report_tab = (root / "ui" / "report" / "tab.py").read_text(encoding="utf-8", errors="ignore")
+    report_surface = (root / "ui" / "report" / "surface.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
     report_actions = (root / "ui" / "report" / "actions.py").read_text(encoding="utf-8", errors="ignore")
     finance_dialog = (root / "ui" / "report" / "dialog_finance.py").read_text(
         encoding="utf-8",
@@ -151,10 +154,10 @@ def test_finance_views_are_report_only_not_duplicated_in_cost_tab():
 
     assert "finance_service: FinanceService | None = None" not in cost_tab
     assert "_build_finance_group" not in cost_tab
-    assert "Show Finance View" in report_tab
+    assert "Show Finance View" in report_surface
     assert "def show_finance" in report_actions
     assert "finance_service=self._finance_service" in report_actions
-    assert "self.main_splitter = QSplitter(Qt.Vertical)" in finance_dialog
-    assert "self.main_splitter.addWidget(grp_cash)" in finance_dialog
-    assert "self.main_splitter.addWidget(grp_analytics)" in finance_dialog
-    assert "self.main_splitter.addWidget(grp_ledger)" in finance_dialog
+    assert "self.finance_tabs = QTabWidget()" in finance_dialog
+    assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_cash), "Cashflow")' in finance_dialog
+    assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_analytics), "Analytics")' in finance_dialog
+    assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_ledger), "Ledger Trail")' in finance_dialog

@@ -18,6 +18,7 @@ class ReportingEvmSeriesMixin:
         as_of: date | None = None,
         freq: str = "M",  # "M" monthly
     ) -> list[EvmSeriesPoint]:
+        self._require_view("view earned value trend")
         """
         Returns cumulative PV/EV/AC at each period end (monthly by default).
         Uses get_earned_value() repeatedly (simple + consistent).

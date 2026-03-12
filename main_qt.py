@@ -46,7 +46,9 @@ def main():
     apply_app_style(app, mode=startup_theme)
    
     services = build_services()
-    if os.getenv("PM_SKIP_LOGIN", "0").strip() not in {"1", "true", "TRUE"}:
+    skip_login = os.getenv("PM_SKIP_LOGIN", "0").strip() in {"1", "true", "TRUE"}
+    preauthenticated = bool(services["user_session"].is_authenticated())
+    if not skip_login or not preauthenticated:
         login = LoginDialog(
             auth_service=services["auth_service"],
             user_session=services["user_session"],

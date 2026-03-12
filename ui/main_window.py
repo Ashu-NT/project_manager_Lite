@@ -206,9 +206,7 @@ class MainWindow(QMainWindow):
             self.tabs.addTab(governance_tab, "Governance")
 
     def _has_permission(self, permission_code: str) -> bool:
-        if self._user_session is None:
-            return True
-        return self._user_session.has_permission(permission_code)
+        return bool(self._user_session is not None and self._user_session.has_permission(permission_code))
 
     def _rebuild_tabs(self, current_index: int) -> None:
         while self.tabs.count() > 0:

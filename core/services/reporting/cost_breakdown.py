@@ -19,6 +19,7 @@ class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
         as_of: Optional[date] = None,
         baseline_id: Optional[str] = None,
     ) -> List[CostBreakdownRow]:
+        self._require_view("view cost breakdown report")
         """
         Planned vs actual by (cost type, currency) with one canonical labor policy.
 
@@ -70,4 +71,3 @@ class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
                 )
             )
         return rows
-

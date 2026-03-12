@@ -27,7 +27,7 @@ def test_guard_permission_helpers_resolve_manage_vs_governed_modes(monkeypatch):
     requester = _FakeSession({"approval.request"})
     viewer = _FakeSession(set())
 
-    assert has_permission(None, "cost.manage") is True
+    assert has_permission(None, "cost.manage") is False
     assert has_permission(admin_like, "cost.manage") is True
     assert has_permission(viewer, "cost.manage") is False
 
@@ -63,6 +63,14 @@ def test_guard_permission_helpers_resolve_manage_vs_governed_modes(monkeypatch):
         )
         is False
     )
+    assert (
+        can_execute_governed_action(
+            user_session=None,
+            manage_permission="cost.manage",
+            governance_action="cost.update",
+        )
+        is False
+    )
 
 
 def test_main_window_runtime_hides_admin_tabs_for_viewer(qapp, services, repo_workspace, monkeypatch):
@@ -80,6 +88,21 @@ def test_main_window_runtime_hides_admin_tabs_for_viewer(qapp, services, repo_wo
     assert "Users" not in labels
     assert "Audit" not in labels
     assert "Support" not in labels
+
+
+def test_main_window_runtime_hides_business_tabs_for_anonymous_session(
+    qapp,
+    anonymous_services,
+    repo_workspace,
+    monkeypatch,
+):
+    store = make_settings_store(repo_workspace, prefix="main-window-anonymous")
+    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(anonymous_services)
+
+    assert window.tabs.count() == 0
 
 
 def test_tabs_apply_permission_hints_and_disable_manage_actions_for_viewer(qapp, services, repo_workspace):

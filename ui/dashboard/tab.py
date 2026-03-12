@@ -63,6 +63,7 @@ class DashboardTab(
         self._dashboard_service: DashboardService = dashboard_service
         self._baseline_service: BaselineService = baseline_service
         self._settings_store = settings_store
+        self._user_session = user_session
         configure_dashboard_access(self, user_session)
         self._current_data: Optional[DashboardData] = None
         self._current_conflicts = []

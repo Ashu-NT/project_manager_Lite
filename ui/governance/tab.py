@@ -50,8 +50,10 @@ class GovernanceTab(QWidget):
         self._user_session = user_session
         self._settings_store = MainWindowSettingsStore()
         self._rows: list[ApprovalRequest] = []
-        self._can_decide = user_session is None or user_session.has_permission("approval.decide")
-        self._can_change_mode = user_session is None or user_session.has_permission("settings.manage")
+        self._can_decide = bool(user_session is not None and user_session.has_permission("approval.decide"))
+        self._can_change_mode = bool(
+            user_session is not None and user_session.has_permission("settings.manage")
+        )
         self._setup_ui()
         self.reload_requests()
         domain_events.approvals_changed.connect(self._on_approvals_changed)

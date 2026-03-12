@@ -43,12 +43,27 @@ class ProjectResourceService:
     # Query methods
     # -------------------------
     def list_by_project(self, project_id: str) -> List[ProjectResource]:
+        require_permission(
+            self._user_session,
+            "project.read",
+            operation_label="list project resources",
+        )
         return self._project_resource_repo.list_by_project(project_id)
 
     def get(self, project_resource_id: str) -> Optional[ProjectResource]:
+        require_permission(
+            self._user_session,
+            "project.read",
+            operation_label="view project resource",
+        )
         return self._project_resource_repo.get(project_resource_id)
 
     def get_for_project(self, project_id: str, resource_id: str) -> Optional[ProjectResource]:
+        require_permission(
+            self._user_session,
+            "project.read",
+            operation_label="view project resource membership",
+        )
         return self._project_resource_repo.get_for_project(project_id, resource_id)
 
     # -------------------------

@@ -37,9 +37,7 @@ _CALLBACK_ERROR_EVENT_MAP = {
 
 
 def has_permission(user_session: UserSessionContext | None, permission_code: str) -> bool:
-    if user_session is None:
-        return True
-    return user_session.has_permission(permission_code)
+    return bool(user_session is not None and user_session.has_permission(permission_code))
 
 
 def can_execute_governed_action(

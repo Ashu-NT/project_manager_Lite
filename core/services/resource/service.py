@@ -165,9 +165,11 @@ class ResourceService:
         return resource
 
     def list_resources(self) -> List[Resource]:
+        require_permission(self._user_session, "resource.read", operation_label="list resources")
         return self._resource_repo.list_all()
 
     def get_resource(self, resource_id: str) -> Resource:
+        require_permission(self._user_session, "resource.read", operation_label="view resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")

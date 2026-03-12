@@ -313,9 +313,11 @@ class CostService:
         domain_events.costs_changed.emit(item.project_id)
 
     def list_cost_items_for_project(self, project_id: str) -> List[CostItem]:
+        require_permission(self._user_session, "cost.read", operation_label="list project costs")
         return self._cost_repo.list_by_project(project_id)
 
     def get_project_cost_summary(self, project_id: str) -> dict:
+        require_permission(self._user_session, "cost.read", operation_label="view project cost summary")
         if not self._project_repo.get(project_id):
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 

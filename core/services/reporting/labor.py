@@ -22,6 +22,7 @@ class ReportingLaborMixin:
     _project_resource_repo: ProjectResourceRepository
 
     def get_project_labor_details(self, project_id: str) -> List["LaborResourceRow"]:
+        self._require_view("view labor details")
         """Returns labor cost details grouped by resource for the given project.
 
         Each LaborResourceRow contains per-resource totals and a list of assignment rows
@@ -91,6 +92,7 @@ class ReportingLaborMixin:
         return result
 
     def get_project_labor_plan_vs_actual(self, project_id: str) -> list["LaborPlanActualRow"]:
+        self._require_view("view labor plan versus actual")
         """
         Professional labor view:
         - Planned hours/cost from ProjectResource (planning layer)

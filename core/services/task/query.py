@@ -6,6 +6,7 @@ from typing import List
 from core.exceptions import ValidationError
 from core.interfaces import AssignmentRepository, TaskRepository
 from core.models import Task, TaskAssignment, TaskStatus
+from core.services.auth.authorization import require_permission
 
 
 class TaskQueryMixin:
@@ -13,12 +14,15 @@ class TaskQueryMixin:
     _assignment_repo: AssignmentRepository
 
     def get_task(self, task_id: str) -> Task | None:
+        require_permission(self._user_session, "task.read", operation_label="view task")
         return self._task_repo.get(task_id)
 
     def list_tasks_for_project(self, project_id: str) -> List[Task]:
+        require_permission(self._user_session, "task.read", operation_label="list project tasks")
         return self._task_repo.list_by_project(project_id)
 
     def list_tasks_for_resource(self, resource_id: str) -> List[Task]:
+        require_permission(self._user_session, "task.read", operation_label="list resource tasks")
         assignments = self._assignment_repo.list_by_resource(resource_id)
         task_ids = {a.task_id for a in assignments}
         tasks: List[Task] = []
@@ -29,6 +33,7 @@ class TaskQueryMixin:
         return tasks
 
     def list_assignments_for_tasks(self, task_ids: list[str]) -> List[TaskAssignment]:
+        require_permission(self._user_session, "task.read", operation_label="list task assignments")
         if not task_ids:
             return []
         return self._assignment_repo.list_by_tasks(task_ids)
@@ -43,6 +48,7 @@ class TaskQueryMixin:
         end_from: date | None = None,
         end_to: date | None = None,
     ) -> List[Task]:
+        require_permission(self._user_session, "task.read", operation_label="query tasks")
         if project_id:
             tasks = self._task_repo.list_by_project(project_id)
         else:

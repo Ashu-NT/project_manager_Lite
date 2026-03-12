@@ -137,4 +137,5 @@ class TaskDependencyMixin:
             domain_events.tasks_changed.emit(project_id)
 
     def list_dependencies_for_task(self, task_id: str) -> List[TaskDependency]:
+        require_permission(self._user_session, "task.read", operation_label="list task dependencies")
         return self._dependency_repo.list_by_task(task_id)

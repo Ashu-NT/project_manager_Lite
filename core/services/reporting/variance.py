@@ -13,6 +13,7 @@ class ReportingVarianceMixin:
         project_id: str,
         baseline_id: str | None = None,
     ) -> list[TaskVarianceRow]:
+        self._require_view("view schedule variance")
         """
         Compares baseline task dates vs current task dates.
         """

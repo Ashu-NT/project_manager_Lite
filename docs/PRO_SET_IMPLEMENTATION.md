@@ -87,3 +87,24 @@ Implement the full Pro Set 1 to 7 and keep progress tracked until all items are 
 Execution note:
 - The implementation order starts with the timesheet backend because it has the strongest existing foundation and lowest migration risk.
 - Each item ships with targeted tests before being marked complete.
+
+## Enterprise RBAC Hardening Roadmap (Tracked 2026-03-12)
+
+- [x] 1. Deny-by-default auth/session semantics
+  - anonymous sessions no longer implicitly pass permission checks
+  - UI permission guards now deny unauthenticated access by default
+  - `PM_SKIP_LOGIN` no longer bypasses authentication for anonymous desktop sessions
+  - CLI startup now authenticates before opening the command workflow
+- [x] 2. Backend read enforcement on core service surfaces
+  - read/list access now enforced on project, task, assignment, dependency, resource, cost, timesheet, calendar, work-calendar, baseline, dashboard, reporting, finance, approval, and audit read paths
+  - report export UI enablement now depends on authenticated `report.export`
+- [ ] 3. Dedicated enterprise permissions
+  - split broad permissions like `auth.manage` and `project.manage` into domain-specific admin/read/export/approve capabilities
+  - add explicit permissions for register, support, audit, finance, import, portfolio, and timesheet lifecycle decisions
+- [ ] 4. Project-scoped access control / membership model
+  - move beyond global roles toward project membership, scoped roles, and row-level filtering
+- [ ] 5. Enterprise identity controls
+  - add SSO/MFA, session expiry, lockout/rate limiting, and safer bootstrap admin handling
+
+Progress note:
+- Focused RBAC hardening shipped on 2026-03-12 with deny-by-default sessions, CLI/desktop authentication tightening, and backend read enforcement across the main business-service surfaces.

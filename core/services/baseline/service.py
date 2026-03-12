@@ -273,9 +273,11 @@ class BaselineService:
         return baseline
 
     def get_latest_baseline(self, project_id: str) -> Optional[ProjectBaseline]:
+        require_permission(self._user_session, "project.read", operation_label="view latest baseline")
         return self._baselines.get_latest_for_project(project_id)
 
     def list_baselines(self, project_id: str) -> list[ProjectBaseline]:
+        require_permission(self._user_session, "project.read", operation_label="list baselines")
         return self._baselines.list_for_project(project_id)
 
     def delete_baseline(self, baseline_id: str) -> None:

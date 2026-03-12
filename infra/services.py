@@ -234,7 +234,12 @@ def build_service_graph(session: Session) -> ServiceGraph:
         audit_service=audit_service,
         approval_service=approval_service,
     )
-    calendar_service = CalendarService(session, calendar_repo, task_repo)
+    calendar_service = CalendarService(
+        session,
+        calendar_repo,
+        task_repo,
+        user_session=user_session,
+    )
     resource_service = ResourceService(
         session,
         resource_repo,
@@ -270,6 +275,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         calendar=work_calendar_engine,
         baseline_repo=baseline_repo,
         project_resource_repo=project_resource_repo,
+        user_session=user_session,
     )
     finance_service = FinanceService(
         project_repo=project_repo,
@@ -278,6 +284,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         cost_repo=cost_repo,
         project_resource_repo=project_resource_repo,
         reporting_service=reporting_service,
+        user_session=user_session,
     )
     baseline_service = BaselineService(
         session=session,

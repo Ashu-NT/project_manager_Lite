@@ -196,3 +196,27 @@ def test_dashboard_tab_switches_into_portfolio_mode_at_runtime(
     assert tab._active_dashboard_panel_count() == 4
     assert tab.btn_auto_level.isEnabled() is False
     assert tab.btn_manual_shift.isEnabled() is False
+
+
+def test_dashboard_tab_preserves_authenticated_session(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    services["project_service"].create_project(
+        "Dashboard Session Project",
+        start_date=date.today(),
+        end_date=date.today() + timedelta(days=7),
+    )
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+
+    tab = DashboardTab(
+        project_service=services["project_service"],
+        dashboard_service=services["dashboard_service"],
+        baseline_service=services["baseline_service"],
+        settings_store=make_settings_store(repo_workspace, prefix="dashboard-session"),
+        user_session=services["user_session"],
+    )
+
+    assert getattr(tab, "_user_session", None) is services["user_session"]
