@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from functools import partial
 
-import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -14,8 +13,8 @@ from ui.modules.project_management.dashboard.styles import dashboard_card_style
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
-def _close_figure(fig: Figure) -> None:
-    plt.close(fig)
+def _dispose_figure(fig: Figure) -> None:
+    fig.clear()
 
 
 class ChartWidget(QWidget):
@@ -29,7 +28,8 @@ class ChartWidget(QWidget):
         super().__init__(parent)
         self._fig: Figure
         self._ax: Axes
-        self._fig, self._ax = plt.subplots(figsize=(5.8, 2.4))
+        self._fig = Figure(figsize=(5.8, 2.4))
+        self._ax = self._fig.add_subplot(111)
         self._canvas: FigureCanvas = FigureCanvas(self._fig)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_XS, CFG.SPACING_SM, CFG.SPACING_XS)
@@ -46,7 +46,7 @@ class ChartWidget(QWidget):
         self.setMaximumHeight(self._MAXIMUM_HEIGHT)
         self.setStyleSheet(dashboard_card_style())
         self._apply_chart_theme()
-        self.destroyed.connect(partial(_close_figure, self._fig))
+        self.destroyed.connect(partial(_dispose_figure, self._fig))
 
     @property
     def ax(self) -> Axes:

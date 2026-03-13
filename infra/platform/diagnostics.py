@@ -33,10 +33,20 @@ def build_diagnostics_bundle(
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     warnings: list[str] = []
-    staging_root = user_data_dir() / "tmp"
-    staging_root.mkdir(parents=True, exist_ok=True)
-    temp_dir = staging_root / f"pm_diag_{uuid4().hex}"
-    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_dir: Path | None = None
+    for index, staging_root in enumerate((user_data_dir() / "tmp", out_path.parent / ".pm_diag_tmp")):
+        try:
+            staging_root.mkdir(parents=True, exist_ok=True)
+            candidate = staging_root / f"pm_diag_{uuid4().hex}"
+            candidate.mkdir(parents=True, exist_ok=True)
+            temp_dir = candidate
+            if index == 1:
+                warnings.append("Diagnostics staging used a local fallback directory.")
+            break
+        except PermissionError:
+            continue
+    if temp_dir is None:
+        raise PermissionError("Could not create a writable diagnostics staging directory.")
 
     try:
         logs_dir = user_data_dir() / "logs"
