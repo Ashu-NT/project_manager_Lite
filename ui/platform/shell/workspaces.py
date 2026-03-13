@@ -20,12 +20,20 @@ from ui.modules.project_management.report.tab import ReportTab
 from ui.modules.project_management.resource.tab import ResourceTab
 from ui.platform.settings import MainWindowSettingsStore
 from ui.platform.admin.support.tab import SupportTab
+from ui.platform.shell.home import PlatformHomeTab
 from ui.modules.project_management.task.tab import TaskTab
+
+PLATFORM_MODULE_CODE = "platform"
+PLATFORM_MODULE_LABEL = "Platform"
+PROJECT_MANAGEMENT_MODULE_CODE = "project_management"
+PROJECT_MANAGEMENT_MODULE_LABEL = "Project Management"
 
 
 @dataclass(frozen=True)
 class WorkspaceDefinition:
-    section: str
+    module_code: str
+    module_label: str
+    group_label: str
     label: str
     widget: QWidget
 
@@ -38,11 +46,29 @@ def build_workspace_definitions(
     parent: QWidget | None = None,
 ) -> list[WorkspaceDefinition]:
     definitions: list[WorkspaceDefinition] = []
+    module_catalog_service = services.get("module_catalog_service")
+
+    if bool(user_session is not None and user_session.is_authenticated()):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Shared Services",
+                label="Home",
+                widget=PlatformHomeTab(
+                    module_catalog_service=module_catalog_service,  # type: ignore[arg-type]
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
 
     if _has_permission(user_session, "project.read") or _has_permission(user_session, "report.view"):
         definitions.append(
             WorkspaceDefinition(
-                section="Home",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Overview",
                 label="Dashboard",
                 widget=DashboardTab(
                     dashboard_service=services["dashboard_service"],
@@ -57,35 +83,9 @@ def build_workspace_definitions(
     if _has_permission(user_session, "task.read"):
         definitions.append(
             WorkspaceDefinition(
-                section="Delivery",
-                label="Calendar",
-                widget=CalendarTab(
-                    work_calendar_service=services["work_calendar_service"],
-                    work_calendar_engine=services["work_calendar_engine"],
-                    scheduling_engine=services["scheduling_engine"],
-                    project_service=services["project_service"],
-                    task_service=services["task_service"],
-                    user_session=user_session,
-                ),
-            )
-        )
-
-    if _has_permission(user_session, "resource.read"):
-        definitions.append(
-            WorkspaceDefinition(
-                section="Delivery",
-                label="Resources",
-                widget=ResourceTab(
-                    resource_service=services["resource_service"],
-                    user_session=user_session,
-                ),
-            )
-        )
-
-    if _has_permission(user_session, "project.read"):
-        definitions.append(
-            WorkspaceDefinition(
-                section="Delivery",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Execution",
                 label="Projects",
                 widget=ProjectTab(
                     project_service=services["project_service"],
@@ -102,7 +102,9 @@ def build_workspace_definitions(
     if _has_permission(user_session, "task.read"):
         definitions.append(
             WorkspaceDefinition(
-                section="Delivery",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Execution",
                 label="Tasks",
                 widget=TaskTab(
                     project_service=services["project_service"],
@@ -118,10 +120,26 @@ def build_workspace_definitions(
             )
         )
 
+    if _has_permission(user_session, "resource.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Operations",
+                label="Resources",
+                widget=ResourceTab(
+                    resource_service=services["resource_service"],
+                    user_session=user_session,
+                ),
+            )
+        )
+
     if _has_permission(user_session, "cost.read"):
         definitions.append(
             WorkspaceDefinition(
-                section="Delivery",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Operations",
                 label="Costs",
                 widget=CostTab(
                     project_service=services["project_service"],
@@ -134,10 +152,30 @@ def build_workspace_definitions(
             )
         )
 
+    if _has_permission(user_session, "task.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Execution",
+                label="Calendar",
+                widget=CalendarTab(
+                    work_calendar_service=services["work_calendar_service"],
+                    work_calendar_engine=services["work_calendar_engine"],
+                    scheduling_engine=services["scheduling_engine"],
+                    project_service=services["project_service"],
+                    task_service=services["task_service"],
+                    user_session=user_session,
+                ),
+            )
+        )
+
     if _has_permission(user_session, "collaboration.read"):
         definitions.append(
             WorkspaceDefinition(
-                section="Team",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Execution",
                 label="Collaboration",
                 widget=CollaborationTab(
                     collaboration_service=services["collaboration_service"],
@@ -149,7 +187,9 @@ def build_workspace_definitions(
     if _has_permission(user_session, "register.read"):
         definitions.append(
             WorkspaceDefinition(
-                section="Control",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Control",
                 label="Register",
                 widget=RegisterTab(
                     register_service=services["register_service"],
@@ -162,7 +202,9 @@ def build_workspace_definitions(
     if _has_permission(user_session, "report.view"):
         definitions.append(
             WorkspaceDefinition(
-                section="Control",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Overview",
                 label="Reports",
                 widget=ReportTab(
                     project_service=services["project_service"],
@@ -177,7 +219,9 @@ def build_workspace_definitions(
     if _has_permission(user_session, "portfolio.read"):
         definitions.append(
             WorkspaceDefinition(
-                section="Control",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Overview",
                 label="Portfolio",
                 widget=PortfolioTab(
                     portfolio_service=services["portfolio_service"],
@@ -193,7 +237,9 @@ def build_workspace_definitions(
     ):
         definitions.append(
             WorkspaceDefinition(
-                section="Control",
+                module_code=PROJECT_MANAGEMENT_MODULE_CODE,
+                module_label=PROJECT_MANAGEMENT_MODULE_LABEL,
+                group_label="Control",
                 label="Governance",
                 widget=GovernanceTab(
                     approval_service=services["approval_service"],
@@ -208,7 +254,9 @@ def build_workspace_definitions(
     if _has_any_permission(user_session, "auth.read", "auth.manage"):
         definitions.append(
             WorkspaceDefinition(
-                section="Admin",
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
                 label="Users",
                 widget=UserAdminTab(
                     auth_service=services["auth_service"],
@@ -220,7 +268,9 @@ def build_workspace_definitions(
     if _has_any_permission(user_session, "access.manage", "security.manage"):
         definitions.append(
             WorkspaceDefinition(
-                section="Admin",
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
                 label="Access",
                 widget=AccessTab(
                     access_service=services["access_service"],
@@ -235,7 +285,9 @@ def build_workspace_definitions(
     if _has_permission(user_session, "audit.read"):
         definitions.append(
             WorkspaceDefinition(
-                section="Admin",
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Control",
                 label="Audit",
                 widget=AuditLogTab(
                     audit_service=services["audit_service"],
@@ -251,7 +303,9 @@ def build_workspace_definitions(
     if _has_permission(user_session, "support.manage"):
         definitions.append(
             WorkspaceDefinition(
-                section="Admin",
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
                 label="Support",
                 widget=SupportTab(
                     settings_store=settings_store,

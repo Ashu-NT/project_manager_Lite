@@ -4,6 +4,10 @@ from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from ui.platform.shell.main_window import MainWindow
 
 
+def _child_labels(item) -> list[str]:
+    return [item.child(i).text(0) for i in range(item.childCount())]
+
+
 def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-shell")
     monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
@@ -14,27 +18,42 @@ def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, rep
     assert window.tabs.tabBar().isHidden() is True
     assert window.shell_navigation.tree.topLevelItemCount() == 5
     assert [window.shell_navigation.tree.topLevelItem(i).text(0) for i in range(5)] == [
-        "Home",
-        "Delivery",
-        "Team",
+        "Platform",
+        "Project Management",
+        "Maintenance Management",
+        "QHSE",
+        "Payroll",
+    ]
+
+    platform_section = window.shell_navigation.tree.topLevelItem(0)
+    assert _child_labels(platform_section) == ["Shared Services", "Administration", "Control"]
+    shared_services_group = platform_section.child(0)
+    administration_group = platform_section.child(1)
+    control_group = platform_section.child(2)
+    assert _child_labels(shared_services_group) == ["Home"]
+    assert _child_labels(administration_group) == ["Users", "Access", "Support"]
+    assert _child_labels(control_group) == ["Audit"]
+
+    project_management_section = window.shell_navigation.tree.topLevelItem(1)
+    assert _child_labels(project_management_section) == [
+        "Overview",
+        "Execution",
+        "Operations",
         "Control",
-        "Admin",
     ]
+    overview_group = project_management_section.child(0)
+    execution_group = project_management_section.child(1)
+    operations_group = project_management_section.child(2)
+    control_group = project_management_section.child(3)
+    assert _child_labels(overview_group) == ["Dashboard", "Reports", "Portfolio"]
+    assert _child_labels(execution_group) == ["Projects", "Tasks", "Calendar", "Collaboration"]
+    assert _child_labels(operations_group) == ["Resources", "Costs"]
+    assert _child_labels(control_group) == ["Register", "Governance"]
 
-    delivery_section = window.shell_navigation.tree.topLevelItem(1)
-    assert [delivery_section.child(i).text(0) for i in range(delivery_section.childCount())] == [
-        "Calendar",
-        "Resources",
-        "Projects",
-        "Tasks",
-        "Costs",
-    ]
-
-    control_section = window.shell_navigation.tree.topLevelItem(3)
     portfolio_item = next(
-        control_section.child(i)
-        for i in range(control_section.childCount())
-        if control_section.child(i).text(0) == "Portfolio"
+        overview_group.child(i)
+        for i in range(overview_group.childCount())
+        if overview_group.child(i).text(0) == "Portfolio"
     )
     window.shell_navigation.tree.setCurrentItem(portfolio_item)
 
@@ -110,6 +129,14 @@ def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
         for i in range(window.shell_navigation.tree.topLevelItemCount())
     ]
 
-    assert "Delivery" in section_labels
-    assert "Team" in section_labels
-    assert "Admin" not in section_labels
+    assert section_labels == [
+        "Platform",
+        "Project Management",
+        "Maintenance Management",
+        "QHSE",
+        "Payroll",
+    ]
+
+    platform_section = window.shell_navigation.tree.topLevelItem(0)
+    assert _child_labels(platform_section) == ["Shared Services"]
+    assert _child_labels(platform_section.child(0)) == ["Home"]

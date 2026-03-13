@@ -10,9 +10,18 @@ from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 @dataclass(frozen=True)
 class NavigationEntry:
-    section: str
+    module_code: str
+    module_label: str
+    group_label: str
     label: str
     tab_index: int
+
+
+@dataclass(frozen=True)
+class NavigationModule:
+    code: str
+    label: str
+    enabled: bool = True
 
 
 class ShellNavigation(QWidget):
@@ -21,6 +30,8 @@ class ShellNavigation(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._item_by_tab_index: dict[int, QTreeWidgetItem] = {}
+        self._module_items: dict[str, QTreeWidgetItem] = {}
+        self._group_items: dict[tuple[str, str], QTreeWidgetItem] = {}
         self._syncing_selection = False
         self.setObjectName("shellNavigation")
         self.setMinimumWidth(240)
@@ -30,15 +41,15 @@ class ShellNavigation(QWidget):
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
         layout.setSpacing(CFG.SPACING_SM)
 
-        self.eyebrow = QLabel("Program shell")
+        self.eyebrow = QLabel("Enterprise shell")
         self.eyebrow.setObjectName("shellNavigationEyebrow")
         layout.addWidget(self.eyebrow)
 
-        self.title_label = QLabel("Workspaces")
+        self.title_label = QLabel("Navigation")
         self.title_label.setObjectName("shellNavigationTitle")
         layout.addWidget(self.title_label)
 
-        self.subtitle_label = QLabel("Grouped navigation for delivery, control, and admin work.")
+        self.subtitle_label = QLabel("Platform tools and business modules live together here.")
         self.subtitle_label.setObjectName("shellNavigationSubtitle")
         self.subtitle_label.setWordWrap(True)
         layout.addWidget(self.subtitle_label)
@@ -46,8 +57,8 @@ class ShellNavigation(QWidget):
         self.tree = QTreeWidget()
         self.tree.setObjectName("shellNavigationTree")
         self.tree.setHeaderHidden(True)
-        self.tree.setRootIsDecorated(False)
-        self.tree.setIndentation(14)
+        self.tree.setRootIsDecorated(True)
+        self.tree.setIndentation(16)
         self.tree.setUniformRowHeights(True)
         self.tree.itemSelectionChanged.connect(self._on_selection_changed)
         layout.addWidget(self.tree, 1)
@@ -88,7 +99,7 @@ class ShellNavigation(QWidget):
             }}
             QTreeWidget#shellNavigationTree::item {{
                 color: {CFG.COLOR_TEXT_SECONDARY};
-                padding: 7px 10px;
+                padding: 6px 10px;
                 border-radius: 8px;
             }}
             QTreeWidget#shellNavigationTree::item:selected {{
@@ -99,33 +110,72 @@ class ShellNavigation(QWidget):
             """
         )
 
-    def set_entries(self, entries: list[NavigationEntry]) -> None:
+    def set_entries(
+        self,
+        entries: list[NavigationEntry],
+        *,
+        modules: list[NavigationModule] | None = None,
+    ) -> None:
         self._syncing_selection = True
         try:
             self.tree.clear()
             self._item_by_tab_index.clear()
+            self._module_items.clear()
+            self._group_items.clear()
 
-            section_items: dict[str, QTreeWidgetItem] = {}
+            module_entries = modules or self._infer_modules(entries)
+            for module in module_entries:
+                module_item = QTreeWidgetItem([module.label])
+                module_item.setFirstColumnSpanned(True)
+                module_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                module_font = module_item.font(0)
+                module_font.setBold(True)
+                module_item.setFont(0, module_font)
+                module_item.setData(0, Qt.ItemDataRole.UserRole, None)
+                if not module.enabled:
+                    module_item.setDisabled(True)
+                    module_item.setToolTip(0, f"{module.label} is planned and not yet enabled.")
+                self.tree.addTopLevelItem(module_item)
+                self._module_items[module.code] = module_item
+
             for entry in entries:
-                section_item = section_items.get(entry.section)
-                if section_item is None:
-                    section_item = QTreeWidgetItem([entry.section])
-                    section_item.setFirstColumnSpanned(True)
-                    section_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
-                    section_font = section_item.font(0)
-                    section_font.setBold(True)
-                    section_item.setFont(0, section_font)
-                    section_item.setData(0, Qt.ItemDataRole.UserRole, None)
-                    self.tree.addTopLevelItem(section_item)
-                    section_items[entry.section] = section_item
+                module_item = self._module_items.get(entry.module_code)
+                if module_item is None:
+                    module_item = QTreeWidgetItem([entry.module_label])
+                    module_item.setFirstColumnSpanned(True)
+                    module_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                    module_font = module_item.font(0)
+                    module_font.setBold(True)
+                    module_item.setFont(0, module_font)
+                    module_item.setData(0, Qt.ItemDataRole.UserRole, None)
+                    self.tree.addTopLevelItem(module_item)
+                    self._module_items[entry.module_code] = module_item
+
+                group_key = (entry.module_code, entry.group_label)
+                group_item = self._group_items.get(group_key)
+                if group_item is None:
+                    group_item = QTreeWidgetItem([entry.group_label])
+                    group_item.setFirstColumnSpanned(True)
+                    group_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                    group_font = group_item.font(0)
+                    group_font.setBold(True)
+                    group_item.setFont(0, group_font)
+                    group_item.setData(0, Qt.ItemDataRole.UserRole, None)
+                    module_item.addChild(group_item)
+                    self._group_items[group_key] = group_item
 
                 item = QTreeWidgetItem([entry.label])
                 item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 item.setData(0, Qt.ItemDataRole.UserRole, entry.tab_index)
-                section_item.addChild(item)
+                group_item.addChild(item)
                 self._item_by_tab_index[entry.tab_index] = item
 
-            self.tree.expandAll()
+            for module in module_entries:
+                module_item = self._module_items.get(module.code)
+                if module_item is not None and module.enabled:
+                    module_item.setExpanded(True)
+            for group_item in self._group_items.values():
+                group_item.setExpanded(True)
             has_entries = bool(entries)
             self.tree.setVisible(has_entries)
             self.empty_state_label.setVisible(not has_entries)
@@ -150,6 +200,16 @@ class ShellNavigation(QWidget):
                 self.tree.setCurrentItem(None)
         finally:
             self._syncing_selection = False
+
+    def _infer_modules(self, entries: list[NavigationEntry]) -> list[NavigationModule]:
+        seen: list[NavigationModule] = []
+        known_codes: set[str] = set()
+        for entry in entries:
+            if entry.module_code in known_codes:
+                continue
+            seen.append(NavigationModule(code=entry.module_code, label=entry.module_label, enabled=True))
+            known_codes.add(entry.module_code)
+        return seen
 
     def _on_selection_changed(self) -> None:
         if self._syncing_selection:

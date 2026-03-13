@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from core.platform.auth import UserSessionContext
 from infra.platform.update import check_for_updates, default_update_manifest_source
 from infra.platform.version import get_app_version
-from ui.platform.shell import NavigationEntry, ShellNavigation, build_workspace_definitions
+from ui.platform.shell import NavigationEntry, NavigationModule, ShellNavigation, build_workspace_definitions
 from ui.platform.settings import MainWindowSettingsStore
 from ui.platform.shared.async_job import JobUiConfig, start_async_job
 from ui.platform.shared.styles.theme import apply_app_style
@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
         self._theme_mode: str = self._settings_store.load_theme_mode(default_mode=default_theme)
         os.environ["PM_THEME"] = self._theme_mode
 
-        self.setWindowTitle("Project Management App")
+        self.setWindowTitle("TECHASH Enterprise")
         self.resize(CFG.DEFAULT_WINDOW_SIZE)
         self.setMinimumSize(CFG.MIN_WINDOW_SIZE)
 
@@ -52,14 +52,17 @@ class MainWindow(QMainWindow):
         layout.setSpacing(CFG.SPACING_SM)
 
         header = QWidget()
+        header.setObjectName("shellHeader")
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(CFG.SPACING_SM)
         self.btn_toggle_navigation = QPushButton("Hide Menu")
         self.btn_toggle_navigation.clicked.connect(self._toggle_navigation_visibility)
         header_layout.addWidget(self.btn_toggle_navigation)
+        self.app_label = QLabel("TECHASH Enterprise")
+        self.app_label.setObjectName("shellHeaderTitle")
+        header_layout.addWidget(self.app_label)
         header_layout.addStretch()
-        header_layout.addWidget(QLabel("Theme:"))
         self.theme_combo = QComboBox()
         self.theme_combo.setObjectName("themeSwitch")
         self.theme_combo.setEditable(False)
@@ -72,8 +75,26 @@ class MainWindow(QMainWindow):
         principal = self._user_session.principal if self._user_session else None
         if principal is not None:
             label = principal.display_name or principal.username
-            self.user_label = QLabel(f"User: {label}")
+            self.user_label = QLabel(label)
+            self.user_label.setObjectName("shellUserLabel")
             header_layout.addWidget(self.user_label)
+        header.setStyleSheet(
+            f"""
+            QWidget#shellHeader {{
+                background: transparent;
+            }}
+            QLabel#shellHeaderTitle {{
+                color: {CFG.COLOR_TEXT_PRIMARY};
+                font-size: 11pt;
+                font-weight: 700;
+            }}
+            QLabel#shellUserLabel {{
+                color: {CFG.COLOR_TEXT_SECONDARY};
+                font-size: 9pt;
+                font-weight: 600;
+            }}
+            """
+        )
         layout.addWidget(header)
 
         body = QWidget()
@@ -112,13 +133,18 @@ class MainWindow(QMainWindow):
             tab_index = self.tabs.addTab(workspace.widget, workspace.label)
             navigation_entries.append(
                 NavigationEntry(
-                    section=workspace.section,
+                    module_code=workspace.module_code,
+                    module_label=workspace.module_label,
+                    group_label=workspace.group_label,
                     label=workspace.label,
                     tab_index=tab_index,
                 )
             )
 
-        self.shell_navigation.set_entries(navigation_entries)
+        self.shell_navigation.set_entries(
+            navigation_entries,
+            modules=self._build_navigation_modules(),
+        )
         self.shell_navigation.set_current_index(self.tabs.currentIndex())
         self._sync_shell_context()
         has_navigation = self.tabs.count() > 0
@@ -227,6 +253,25 @@ class MainWindow(QMainWindow):
             self.shell_navigation.set_module_summary(None)
             return
         self.shell_navigation.set_module_summary(service.shell_summary())
+
+    def _build_navigation_modules(self) -> list[NavigationModule]:
+        modules = [NavigationModule(code="platform", label="Platform", enabled=True)]
+        service = self._module_catalog_service
+        if service is None or not hasattr(service, "list_modules") or not hasattr(service, "is_enabled"):
+            modules.append(
+                NavigationModule(code="project_management", label="Project Management", enabled=True)
+            )
+            return modules
+
+        for module in service.list_modules():
+            modules.append(
+                NavigationModule(
+                    code=module.code,
+                    label=module.label,
+                    enabled=bool(service.is_enabled(module.code)),
+                )
+            )
+        return modules
 
     def _set_navigation_visible(self, visible: bool) -> None:
         can_show_navigation = self.tabs.count() > 0
