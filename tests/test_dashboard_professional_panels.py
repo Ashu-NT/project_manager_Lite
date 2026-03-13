@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from datetime import date
 
+from PySide6.QtCore import Qt
+from matplotlib.colors import to_rgba
+
 from core.domain.enums import TaskStatus
 from core.domain.register import RegisterEntrySeverity, RegisterEntryType
 from core.models import DependencyType
 from tests.ui_runtime_helpers import make_settings_store
 from ui.dashboard.layout_builder import DashboardLayoutDialog
 from ui.dashboard.tab import DashboardTab
+from ui.dashboard.widgets import ChartWidget
+from ui.styles.theme_tokens import DARK_THEME, apply_theme_tokens
+from ui.styles.ui_config import UIConfig as CFG
 
 
 def _seed_professional_project(services):
@@ -110,6 +116,55 @@ def test_dashboard_layout_dialog_exposes_professional_project_panels(qapp):
     assert dialog._panel_checks["milestones"].isChecked() is True
     assert dialog._panel_checks["watchlist"].isChecked() is True
     assert dialog._panel_checks["register"].isChecked() is True
+
+
+def test_dashboard_chart_widget_respects_dark_theme_surface_colors(qapp):
+    original_mode = "dark" if CFG.COLOR_BG_SURFACE == DARK_THEME["COLOR_BG_SURFACE"] else "light"
+    apply_theme_tokens("dark")
+    try:
+        chart = ChartWidget("Dark Theme Chart")
+        chart.ax.set_title("Burndown")
+        chart.ax.set_xlabel("Date")
+        chart.ax.set_ylabel("Remaining")
+        chart.ax.text(0.5, 0.5, "12")
+        chart.redraw()
+
+        assert chart.fig.get_facecolor()[:3] == to_rgba(CFG.COLOR_BG_SURFACE)[:3]
+        assert chart.ax.get_facecolor()[:3] == to_rgba(CFG.COLOR_BG_SURFACE_ALT)[:3]
+        assert chart.ax.title.get_color() == CFG.COLOR_TEXT_PRIMARY
+        assert chart.ax.xaxis.label.get_color() == CFG.COLOR_TEXT_SECONDARY
+        assert chart.ax.yaxis.label.get_color() == CFG.COLOR_TEXT_SECONDARY
+        assert chart.ax.texts[0].get_color() == CFG.COLOR_TEXT_PRIMARY
+    finally:
+        apply_theme_tokens(original_mode)
+
+
+def test_dashboard_tab_panel_surface_uses_theme_background(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    original_mode = "dark" if CFG.COLOR_BG_SURFACE == DARK_THEME["COLOR_BG_SURFACE"] else "light"
+    apply_theme_tokens("dark")
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    try:
+        services["project_service"].create_project("Dark Surface Dashboard")
+        tab = DashboardTab(
+            project_service=services["project_service"],
+            dashboard_service=services["dashboard_service"],
+            baseline_service=services["baseline_service"],
+            settings_store=make_settings_store(repo_workspace, prefix="dashboard-surface"),
+            user_session=services["user_session"],
+        )
+
+        assert tab.panel_scroll.objectName() == "dashboardPanelScroll"
+        assert tab.panel_scroll.viewport().objectName() == "dashboardPanelViewport"
+        assert tab.panel_canvas.objectName() == "dashboardPanelCanvas"
+        assert tab.panel_canvas.testAttribute(Qt.WA_StyledBackground) is True
+        assert CFG.COLOR_BG_APP in tab.styleSheet()
+    finally:
+        apply_theme_tokens(original_mode)
 
 
 def test_dashboard_tab_can_surface_professional_panels_at_runtime(

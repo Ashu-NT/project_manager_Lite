@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -118,9 +119,13 @@ class DashboardTab(
         self._build_dashboard_panels()
 
         self.panel_scroll = QScrollArea()
+        self.panel_scroll.setObjectName("dashboardPanelScroll")
         self.panel_scroll.setWidgetResizable(True)
         self.panel_scroll.setFrameShape(QFrame.NoFrame)
+        self.panel_scroll.viewport().setObjectName("dashboardPanelViewport")
         self.panel_canvas = QWidget()
+        self.panel_canvas.setObjectName("dashboardPanelCanvas")
+        self.panel_canvas.setAttribute(Qt.WA_StyledBackground, True)
         self.panel_grid = QGridLayout(self.panel_canvas)
         self.panel_grid.setContentsMargins(0, 0, 0, 0)
         self.panel_grid.setHorizontalSpacing(CFG.SPACING_SM)
@@ -128,12 +133,15 @@ class DashboardTab(
         self.panel_scroll.setWidget(self.panel_canvas)
 
         workspace = QWidget()
+        workspace.setObjectName("dashboardWorkspace")
+        workspace.setAttribute(Qt.WA_StyledBackground, True)
         workspace_layout = QHBoxLayout(workspace)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
         workspace_layout.setSpacing(CFG.SPACING_SM)
         workspace_layout.addWidget(self._build_dashboard_control_sidebar())
         workspace_layout.addWidget(self.panel_scroll, 1)
         layout.addWidget(workspace, 1)
+        self._apply_dashboard_surface_style()
 
         self.btn_reload_projects.clicked.connect(self.reload_projects)
         self.btn_refresh_dashboard.clicked.connect(self.refresh_dashboard)
@@ -188,6 +196,21 @@ class DashboardTab(
         self.burndown_chart = ChartWidget("Burndown (remaining tasks)")
         self.resource_chart = ChartWidget("Resource load (allocation %)")
         self._prepare_conflicts_dialog()
+
+    def _apply_dashboard_surface_style(self) -> None:
+        self.setStyleSheet(
+            f"""
+            QWidget#dashboardWorkspace,
+            QWidget#dashboardPanelCanvas,
+            QWidget#dashboardPanelViewport {{
+                background-color: {CFG.COLOR_BG_APP};
+            }}
+            QScrollArea#dashboardPanelScroll {{
+                background-color: {CFG.COLOR_BG_APP};
+                border: none;
+            }}
+            """
+        )
 
 
 __all__ = ["DashboardTab"]
