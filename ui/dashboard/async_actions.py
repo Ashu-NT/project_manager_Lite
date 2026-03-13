@@ -128,6 +128,10 @@ def run_refresh_dashboard_async(tab, *, show_progress: bool = False) -> None:
             tab._update_portfolio_panel(data)
         if hasattr(tab, "_update_professional_panels"):
             tab._update_professional_panels(data)
+        if hasattr(tab, "_schedule_dashboard_layout_sync"):
+            tab._schedule_dashboard_layout_sync()
+        elif hasattr(tab, "_sync_dashboard_panel_visibility"):
+            tab._sync_dashboard_panel_visibility()
 
     start_async_job(
         parent=tab,

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QResizeEvent
+from PySide6.QtCore import QTimer, Qt
+from PySide6.QtGui import QResizeEvent, QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -77,6 +77,7 @@ class DashboardTab(
         self._conflicts_dialog = None
         self._alerts_dialog = None
         self._upcoming_dialog = None
+        self._layout_sync_scheduled = False
         self._setup_ui()
         self.reload_projects()
         domain_events.costs_changed.connect(self._on_domain_changed)
@@ -250,6 +251,30 @@ class DashboardTab(
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self._sync_dashboard_panel_visibility()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self._schedule_dashboard_layout_sync()
+
+    def _schedule_dashboard_layout_sync(self) -> None:
+        if self._layout_sync_scheduled:
+            return
+        self._layout_sync_scheduled = True
+        QTimer.singleShot(0, self._run_scheduled_layout_sync)
+
+    def _run_scheduled_layout_sync(self) -> None:
+        self._layout_sync_scheduled = False
+        if not self.isVisible():
+            return
+        self._sync_dashboard_panel_visibility()
+        if hasattr(self, "kpi_layout"):
+            self.kpi_layout.activate()
+        if hasattr(self, "panel_grid"):
+            self.panel_grid.activate()
+        if hasattr(self, "panel_canvas"):
+            self.panel_canvas.updateGeometry()
+            self.panel_canvas.adjustSize()
+            self.panel_canvas.update()
 
 
 __all__ = ["DashboardTab"]

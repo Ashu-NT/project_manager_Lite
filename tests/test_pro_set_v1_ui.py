@@ -392,6 +392,40 @@ def test_dashboard_kpi_cards_reflow_responsively_runtime(qapp, services, repo_wo
     assert narrow_fourth == (1, 1, 1, 1)
 
 
+def test_dashboard_schedules_layout_sync_on_first_show_runtime(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    services["project_service"].create_project("Startup Dashboard")
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+
+    tab = DashboardTab(
+        project_service=services["project_service"],
+        dashboard_service=services["dashboard_service"],
+        baseline_service=services["baseline_service"],
+        settings_store=make_settings_store(repo_workspace, prefix="dashboard-first-show"),
+        user_session=services["user_session"],
+    )
+
+    calls: list[int] = []
+
+    def _count_sync() -> None:
+        calls.append(1)
+
+    monkeypatch.setattr(tab, "_sync_dashboard_panel_visibility", _count_sync)
+
+    tab.show()
+
+    assert tab._layout_sync_scheduled is True
+
+    qapp.processEvents()
+
+    assert tab._layout_sync_scheduled is False
+    assert calls
+
+
 def test_dashboard_chart_panels_stay_bounded_and_top_aligned_runtime(
     qapp,
     services,
