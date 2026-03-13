@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog
 
 from core.services.dashboard import PORTFOLIO_SCOPE_ID
@@ -198,6 +199,8 @@ class DashboardLayoutStateMixin:
     def _sync_dashboard_panel_visibility(self) -> None:
         self.summary_widget.setVisible(True)
         self._arrange_dashboard_panels()
+        if hasattr(self, "_sync_kpi_card_layout"):
+            self._sync_kpi_card_layout()
         if hasattr(self, "dashboard_scope_hint"):
             count = self._active_dashboard_panel_count()
             self.dashboard_scope_hint.setText(f"{count} panels active")
@@ -206,8 +209,10 @@ class DashboardLayoutStateMixin:
         layout = getattr(self, "panel_grid", None)
         if layout is None:
             return
+        layout.setAlignment(Qt.AlignTop)
         widgets = self._panel_widgets()
         selected = self._current_visible_panel_ids()
+        columns = self._dashboard_panel_column_count(len(selected))
 
         while layout.count():
             item = layout.takeAt(0)
@@ -224,16 +229,26 @@ class DashboardLayoutStateMixin:
         for idx, panel_id in enumerate(selected):
             widget = widgets[panel_id]
             widget.setHidden(False)
-            row = idx // 2
-            col = idx % 2
-            span = 1
-            if len(selected) % 2 == 1 and idx == len(selected) - 1:
-                col = 0
-                span = 2
-            layout.addWidget(widget, row, col, 1, span)
+            row = idx if columns == 1 else idx // columns
+            col = 0 if columns == 1 else idx % columns
+            layout.addWidget(widget, row, col, 1, 1, Qt.AlignTop)
 
         layout.setColumnStretch(0, 1)
-        layout.setColumnStretch(1, 1)
+        layout.setColumnStretch(1, 1 if columns > 1 else 0)
+        layout.setColumnStretch(2, 1 if columns > 2 else 0)
+
+    def _dashboard_panel_column_count(self, panel_count: int) -> int:
+        if panel_count <= 1:
+            return 1
+        viewport = getattr(getattr(self, "panel_scroll", None), "viewport", lambda: None)()
+        available_width = viewport.width() if viewport is not None else 0
+        if available_width <= 0:
+            return 2
+        if available_width < 920:
+            return 1
+        if panel_count == 3 and available_width >= 1050:
+            return 3
+        return 2
 
 
 __all__ = ["DashboardLayoutStateMixin"]

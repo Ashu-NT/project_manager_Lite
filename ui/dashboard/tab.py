@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QFrame,
@@ -50,6 +51,8 @@ class DashboardTab(
     DashboardTopBarMixin,
     QWidget,
 ):
+    _PANEL_CANVAS_MAX_WIDTH = 1480
+
     def __init__(
         self,
         project_service: ProjectService,
@@ -122,10 +125,12 @@ class DashboardTab(
         self.panel_scroll.setObjectName("dashboardPanelScroll")
         self.panel_scroll.setWidgetResizable(True)
         self.panel_scroll.setFrameShape(QFrame.NoFrame)
+        self.panel_scroll.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
         self.panel_scroll.viewport().setObjectName("dashboardPanelViewport")
         self.panel_canvas = QWidget()
         self.panel_canvas.setObjectName("dashboardPanelCanvas")
         self.panel_canvas.setAttribute(Qt.WA_StyledBackground, True)
+        self.panel_canvas.setMaximumWidth(self._PANEL_CANVAS_MAX_WIDTH)
         self.panel_grid = QGridLayout(self.panel_canvas)
         self.panel_grid.setContentsMargins(0, 0, 0, 0)
         self.panel_grid.setHorizontalSpacing(CFG.SPACING_SM)
@@ -158,10 +163,10 @@ class DashboardTab(
 
     def _build_dashboard_panels(self) -> None:
         self.kpi_group = QGroupBox("Key Metrics")
-        kpi_layout = QGridLayout(self.kpi_group)
-        kpi_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
-        kpi_layout.setHorizontalSpacing(CFG.SPACING_SM)
-        kpi_layout.setVerticalSpacing(CFG.SPACING_SM)
+        self.kpi_layout = QGridLayout(self.kpi_group)
+        self.kpi_layout.setContentsMargins(CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM, CFG.SPACING_SM)
+        self.kpi_layout.setHorizontalSpacing(CFG.SPACING_SM)
+        self.kpi_layout.setVerticalSpacing(CFG.SPACING_SM)
 
         self.kpi_tasks = KpiCard("Tasks", "0 / 0", "Done / Total")
         self.kpi_progress = KpiCard("Progress", "0%", "Completion", CFG.COLOR_SUCCESS)
@@ -172,7 +177,7 @@ class DashboardTab(
         self.kpi_cost = KpiCard("Cost variance", "0.00", "Actual - planned", CFG.COLOR_ACCENT)
         self.kpi_budget = KpiCard("Spend vs plan", "0 / 0", "Actual / planned", CFG.COLOR_SUCCESS)
 
-        cards = [
+        self._kpi_cards = [
             self.kpi_tasks,
             self.kpi_progress,
             self.kpi_inflight,
@@ -182,10 +187,7 @@ class DashboardTab(
             self.kpi_cost,
             self.kpi_budget,
         ]
-        for idx, card in enumerate(cards):
-            kpi_layout.addWidget(card, idx // 4, idx % 4)
-        for col in range(4):
-            kpi_layout.setColumnStretch(col, 1)
+        self._sync_kpi_card_layout()
 
         self.milestone_group = self._build_milestone_panel()
         self.watchlist_group = self._build_watchlist_panel()
@@ -211,6 +213,43 @@ class DashboardTab(
             }}
             """
         )
+
+    def _sync_kpi_card_layout(self) -> None:
+        if not hasattr(self, "kpi_layout") or not hasattr(self, "_kpi_cards"):
+            return
+        available_width = max(
+            getattr(self.kpi_group, "width", lambda: 0)(),
+            getattr(getattr(self, "panel_scroll", None), "viewport", lambda: None)().width()
+            if getattr(self, "panel_scroll", None) is not None
+            else 0,
+            self.width(),
+        )
+        if available_width <= 0:
+            available_width = 960
+        if available_width < 380:
+            columns = 1
+        elif available_width < 760:
+            columns = 2
+        elif available_width < 1100:
+            columns = 3
+        else:
+            columns = 4
+
+        while self.kpi_layout.count():
+            item = self.kpi_layout.takeAt(0)
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                self.kpi_layout.removeWidget(widget)
+
+        for idx, card in enumerate(self._kpi_cards):
+            self.kpi_layout.addWidget(card, idx // columns, idx % columns)
+
+        for col in range(4):
+            self.kpi_layout.setColumnStretch(col, 1 if col < columns else 0)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._sync_dashboard_panel_visibility()
 
 
 __all__ = ["DashboardTab"]

@@ -164,6 +164,8 @@ class DashboardControlRailMixin:
         self._dashboard_controls_collapsed = bool(collapsed)
         self.dashboard_control_stack.setCurrentIndex(1 if collapsed else 0)
         self.dashboard_control_stack.setFixedWidth(128 if collapsed else 290)
+        if hasattr(self, "_sync_dashboard_panel_visibility"):
+            self._sync_dashboard_panel_visibility()
 
 
 __all__ = ["DashboardControlRailMixin"]

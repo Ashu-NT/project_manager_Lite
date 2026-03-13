@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QGridLayout
 from PySide6.QtWidgets import QDialog
 
 from core.domain.enums import TaskStatus
@@ -293,6 +295,143 @@ def test_dashboard_control_rail_collapses_runtime(qapp, services, repo_workspace
     tab.btn_show_dashboard_controls.click()
     assert tab.dashboard_control_stack.currentIndex() == 0
     assert tab.kpi_group.layout().count() == 8
+
+
+def test_dashboard_panels_reflow_responsively_runtime(qapp, services, repo_workspace, monkeypatch):
+    services["project_service"].create_project("Responsive Dashboard")
+    store = make_settings_store(repo_workspace, prefix="dashboard-responsive")
+    store.save_dashboard_layout(
+        {
+            "project": {
+                "visible_panels": ["evm", "kpi", "burndown"],
+                "panel_order": ["evm", "kpi", "burndown", "resource"],
+            },
+            "portfolio": {
+                "visible_panels": ["portfolio", "resource"],
+                "panel_order": ["portfolio", "resource", "burndown", "kpi"],
+            },
+        }
+    )
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+
+    tab = DashboardTab(
+        project_service=services["project_service"],
+        dashboard_service=services["dashboard_service"],
+        baseline_service=services["baseline_service"],
+        settings_store=store,
+        user_session=services["user_session"],
+    )
+    tab.resize(1500, 900)
+    tab.show()
+    qapp.processEvents()
+
+    layout = tab.panel_grid
+    assert isinstance(layout, QGridLayout)
+    assert tab.panel_canvas.maximumWidth() == 1480
+    wide_evm = layout.getItemPosition(layout.indexOf(tab.evm_group))
+    wide_kpi = layout.getItemPosition(layout.indexOf(tab.kpi_group))
+    wide_burndown = layout.getItemPosition(layout.indexOf(tab.burndown_chart))
+
+    assert wide_evm == (0, 0, 1, 1)
+    assert wide_kpi == (0, 1, 1, 1)
+    assert wide_burndown == (0, 2, 1, 1)
+
+    tab.resize(860, 900)
+    qapp.processEvents()
+
+    narrow_evm = layout.getItemPosition(layout.indexOf(tab.evm_group))
+    narrow_kpi = layout.getItemPosition(layout.indexOf(tab.kpi_group))
+    narrow_burndown = layout.getItemPosition(layout.indexOf(tab.burndown_chart))
+
+    assert narrow_evm == (0, 0, 1, 1)
+    assert narrow_kpi == (1, 0, 1, 1)
+    assert narrow_burndown == (2, 0, 1, 1)
+
+
+def test_dashboard_kpi_cards_reflow_responsively_runtime(qapp, services, repo_workspace, monkeypatch):
+    services["project_service"].create_project("Responsive KPI Dashboard")
+    store = make_settings_store(repo_workspace, prefix="dashboard-kpi-responsive")
+    store.save_dashboard_layout(
+        {
+            "project": {
+                "visible_panels": ["kpi"],
+                "panel_order": ["kpi", "resource", "evm", "burndown"],
+            },
+            "portfolio": {
+                "visible_panels": ["portfolio", "resource"],
+                "panel_order": ["portfolio", "resource", "burndown", "kpi"],
+            },
+        }
+    )
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+
+    tab = DashboardTab(
+        project_service=services["project_service"],
+        dashboard_service=services["dashboard_service"],
+        baseline_service=services["baseline_service"],
+        settings_store=store,
+        user_session=services["user_session"],
+    )
+    tab.resize(1500, 900)
+    tab.show()
+    qapp.processEvents()
+
+    wide_first = tab.kpi_layout.getItemPosition(tab.kpi_layout.indexOf(tab.kpi_tasks))
+    wide_fourth = tab.kpi_layout.getItemPosition(tab.kpi_layout.indexOf(tab.kpi_blocked))
+    assert wide_first == (0, 0, 1, 1)
+    assert wide_fourth == (0, 3, 1, 1)
+
+    tab.resize(760, 900)
+    qapp.processEvents()
+
+    narrow_first = tab.kpi_layout.getItemPosition(tab.kpi_layout.indexOf(tab.kpi_tasks))
+    narrow_third = tab.kpi_layout.getItemPosition(tab.kpi_layout.indexOf(tab.kpi_inflight))
+    narrow_fourth = tab.kpi_layout.getItemPosition(tab.kpi_layout.indexOf(tab.kpi_blocked))
+    assert narrow_first == (0, 0, 1, 1)
+    assert narrow_third == (1, 0, 1, 1)
+    assert narrow_fourth == (1, 1, 1, 1)
+
+
+def test_dashboard_chart_panels_stay_bounded_and_top_aligned_runtime(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    services["project_service"].create_project("Balanced Dashboard")
+    store = make_settings_store(repo_workspace, prefix="dashboard-balanced")
+    store.save_dashboard_layout(
+        {
+            "project": {
+                "visible_panels": ["evm", "kpi", "burndown"],
+                "panel_order": ["evm", "kpi", "burndown", "resource"],
+            },
+            "portfolio": {
+                "visible_panels": ["portfolio", "resource"],
+                "panel_order": ["portfolio", "resource", "burndown", "kpi"],
+            },
+        }
+    )
+    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+
+    tab = DashboardTab(
+        project_service=services["project_service"],
+        dashboard_service=services["dashboard_service"],
+        baseline_service=services["baseline_service"],
+        settings_store=store,
+        user_session=services["user_session"],
+    )
+    tab.resize(1500, 900)
+    tab.show()
+    qapp.processEvents()
+
+    burndown_item = tab.panel_grid.itemAtPosition(0, 2)
+
+    assert burndown_item is not None
+    assert bool(burndown_item.alignment() & Qt.AlignTop)
+    assert tab.burndown_chart.maximumHeight() == 292
+    assert tab.resource_chart.maximumHeight() == 292
+    assert tab.burndown_chart.sizeHint().height() == 252
 
 
 def test_task_dependency_add_recalculates_dates_in_table_runtime(qapp, services, repo_workspace, monkeypatch):
