@@ -36,7 +36,7 @@ def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch)
     assert unlocked.locked_until is None
 
     authenticated = auth.authenticate("locked-user", "StrongPass123")
-    authenticated.session_expires_at = datetime.utcnow() - timedelta(minutes=1)
+    authenticated.session_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
     services["session"].commit()
     user_session.set_principal(auth.build_principal(authenticated))
 
@@ -87,14 +87,20 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
     task_alpha = task_service.create_task(project_alpha.id, "Alpha Task")
     task_beta = task_service.create_task(project_beta.id, "Beta Task")
     viewer = auth.register_user("collab-viewer", "StrongPass123", role_names=["viewer"])
+    beta_viewer = auth.register_user("collab-beta-viewer", "StrongPass123", role_names=["viewer"])
 
     access.assign_project_membership(
         project_id=project_alpha.id,
         user_id=viewer.id,
         scope_role="viewer",
     )
+    access.assign_project_membership(
+        project_id=project_beta.id,
+        user_id=beta_viewer.id,
+        scope_role="viewer",
+    )
     collaboration.post_comment(task_id=task_alpha.id, body="Please review @collab-viewer")
-    collaboration.post_comment(task_id=task_beta.id, body="Do not show @collab-viewer")
+    collaboration.post_comment(task_id=task_beta.id, body="Do not show @collab-beta-viewer")
 
     login_as(services, "collab-viewer", "StrongPass123")
 

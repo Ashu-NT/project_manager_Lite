@@ -40,7 +40,7 @@ def test_db_collaboration_store_copies_file_attachments_and_preserves_tokens(
     ps = services["project_service"]
     ts = services["task_service"]
     store = services["task_collaboration_store"]
-    monkeypatch.setattr("infra.collaboration_store.user_data_dir", lambda: workspace_dir)
+    monkeypatch.setattr("infra.collaboration_attachments.user_data_dir", lambda: workspace_dir)
 
     project = ps.create_project("Collab Attachments")
     task = ts.create_task(project.id, "DB Comment Task", start_date=date(2026, 3, 1), duration_days=1)

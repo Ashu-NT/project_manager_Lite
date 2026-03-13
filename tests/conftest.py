@@ -52,6 +52,13 @@ def repo_workspace():
 
 
 @pytest.fixture
+def tmp_path(repo_workspace):
+    path = repo_workspace / "tmp"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+@pytest.fixture
 def services(session):
     graph = build_service_dict(session)
     auth = graph["auth_service"]

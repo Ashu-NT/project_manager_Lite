@@ -269,6 +269,7 @@ class BaselineService:
 
         try:
             self._baselines.add_baseline(baseline)
+            self._session.flush()
             self._baselines.add_baseline_tasks(baseline_tasks)
             self._session.commit()
             record_audit(

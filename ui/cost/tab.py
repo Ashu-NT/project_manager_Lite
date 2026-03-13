@@ -13,6 +13,7 @@ from core.services.task import TaskService
 from ui.cost.actions import CostActionsMixin
 from ui.cost.layout import CostLayoutMixin
 from ui.cost.labor_summary import CostLaborSummaryMixin
+from ui.cost.models import CostTableModel  # noqa: F401
 from ui.cost.project_flow import CostProjectFlowMixin
 from ui.cost.surface import CostSurfaceMixin
 from ui.shared.guards import can_execute_governed_action

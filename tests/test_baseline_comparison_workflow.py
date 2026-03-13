@@ -101,7 +101,7 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
 
 
 def test_report_tab_wires_baseline_comparison_action():
-    tab_text = (Path(__file__).resolve().parents[1] / "ui" / "report" / "tab.py").read_text(
+    surface_text = (Path(__file__).resolve().parents[1] / "ui" / "report" / "surface.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )
@@ -110,7 +110,7 @@ def test_report_tab_wires_baseline_comparison_action():
         errors="ignore",
     )
 
-    assert "self.btn_show_baseline_compare = QPushButton" in tab_text
-    assert "self.btn_show_baseline_compare.clicked.connect(self.show_baseline_comparison)" in tab_text
+    assert "self.btn_show_baseline_compare = QPushButton" in surface_text
+    assert "self.btn_show_baseline_compare.clicked.connect(self.show_baseline_comparison)" in surface_text
     assert "def show_baseline_comparison" in actions_text
     assert "BaselineCompareDialog" in actions_text
