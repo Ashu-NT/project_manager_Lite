@@ -31,4 +31,7 @@ Thumbs.db
 # Others
 exports/
 tmp_reports/
+.pytest_cache/
+.pytest_tmp/
+.pytest_workspaces/
 main.py

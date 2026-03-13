@@ -1,7 +1,5 @@
 import os
-import shutil
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -11,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from infra.platform.db.base import Base
 from infra.platform.services import build_service_dict
 from tests.path_rewrites import REPO_ROOT, resolve_repo_path
+from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 _ORIGINAL_PATH_READ_TEXT = Path.read_text
 _ORIGINAL_PATH_EXISTS = Path.exists
@@ -65,12 +64,11 @@ def qapp():
 
 @pytest.fixture
 def repo_workspace():
-    root = Path(__file__).resolve().parents[1] / "pytest_runtime_workspace" / uuid4().hex
-    root.mkdir(parents=True, exist_ok=True)
+    root = create_test_workspace("runtime")
     try:
         yield root
     finally:
-        shutil.rmtree(root, ignore_errors=True)
+        cleanup_test_workspace(root)
 
 
 @pytest.fixture

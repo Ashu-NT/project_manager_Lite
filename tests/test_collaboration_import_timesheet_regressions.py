@@ -1,25 +1,23 @@
 from __future__ import annotations
 
-import shutil
 from datetime import date
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 
 from core.platform.common.exceptions import ValidationError
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from infra.platform.db.models import TimeEntryORM
+from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
 @pytest.fixture
 def workspace_dir():
-    root = Path(__file__).resolve().parents[1] / "pytest_regression_workspace" / uuid4().hex
-    root.mkdir(parents=True, exist_ok=True)
+    root = create_test_workspace("regression")
     try:
         yield root
     finally:
-        shutil.rmtree(root, ignore_errors=True)
+        cleanup_test_workspace(root)
 
 
 def _write_csv(workspace_dir: Path, name: str, lines: list[str]) -> Path:

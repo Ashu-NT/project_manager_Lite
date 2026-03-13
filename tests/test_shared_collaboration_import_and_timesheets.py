@@ -3,12 +3,12 @@ from __future__ import annotations
 import shutil
 from datetime import date
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 
 from core.platform.common.models import TimesheetPeriodStatus
 from core.platform.common.exceptions import ValidationError
+from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
 def test_db_backed_collaboration_store_persists_and_marks_mentions(services):
@@ -202,9 +202,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_costs(services
     rs = services["resource_service"]
     cs = services["cost_service"]
 
-    root = Path(__file__).resolve().parents[1]
-    tmp = root / "pytest_import_workspace" / uuid4().hex
-    tmp.mkdir(parents=True, exist_ok=True)
+    tmp = create_test_workspace("import")
     try:
         (tmp / "projects.csv").write_text(
             "\n".join(
@@ -280,4 +278,4 @@ def test_data_import_service_imports_projects_resources_tasks_and_costs(services
         assert updated_project.currency == "EUR"
         assert updated_project.planned_budget == pytest.approx(7500.0)
     finally:
-        shutil.rmtree(tmp, ignore_errors=True)
+        cleanup_test_workspace(tmp)
