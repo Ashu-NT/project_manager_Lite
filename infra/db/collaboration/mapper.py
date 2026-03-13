@@ -14,8 +14,10 @@ def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
         author_username=comment.author_username,
         body=comment.body,
         mentions_json=json.dumps(list(comment.mentions or [])),
+        mentioned_user_ids_json=json.dumps(list(comment.mentioned_user_ids or [])),
         attachments_json=json.dumps(list(comment.attachments or [])),
         read_by_json=json.dumps(list(comment.read_by or [])),
+        read_by_user_ids_json=json.dumps(list(comment.read_by_user_ids or [])),
         created_at=comment.created_at,
     )
 
@@ -37,8 +39,10 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         author_username=obj.author_username,
         body=obj.body,
         mentions=[item.lower() for item in _decode(obj.mentions_json)],
+        mentioned_user_ids=[item for item in _decode(obj.mentioned_user_ids_json)],
         attachments=_decode(obj.attachments_json),
         read_by=[item.lower() for item in _decode(obj.read_by_json)],
+        read_by_user_ids=[item for item in _decode(obj.read_by_user_ids_json)],
         created_at=obj.created_at,
     )
 

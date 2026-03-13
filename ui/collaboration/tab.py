@@ -62,8 +62,8 @@ class CollaborationTab(QWidget):
         badge_row.addWidget(self.btn_refresh)
         root.addLayout(badge_row)
 
-        self.inbox_table = QTableWidget(0, 5)
-        self.inbox_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Preview"])
+        self.inbox_table = QTableWidget(0, 6)
+        self.inbox_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Mentions", "Preview"])
         self.inbox_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.inbox_table.setSelectionMode(QTableWidget.SingleSelection)
         self.inbox_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -72,8 +72,8 @@ class CollaborationTab(QWidget):
         root.addWidget(QLabel("Mentions"))
         root.addWidget(self.inbox_table, 1)
 
-        self.activity_table = QTableWidget(0, 5)
-        self.activity_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Preview"])
+        self.activity_table = QTableWidget(0, 6)
+        self.activity_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Mentions", "Preview"])
         self.activity_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.activity_table.setSelectionMode(QTableWidget.SingleSelection)
         self.activity_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -108,12 +108,17 @@ class CollaborationTab(QWidget):
                 item.project_name,
                 item.task_name,
                 item.author_username,
+                ", ".join(f"@{mention}" for mention in item.mentions) if item.mentions else "-",
                 item.body_preview,
             ]
             for col, value in enumerate(values):
                 cell = QTableWidgetItem(value)
                 if col == 2:
                     cell.setData(Qt.UserRole, item.task_id)
+                if table is self.inbox_table and item.unread:
+                    font = cell.font()
+                    font.setBold(True)
+                    cell.setFont(font)
                 table.setItem(row_idx, col, cell)
 
     def _mark_selected_task_read(self) -> None:

@@ -85,7 +85,10 @@ class TaskUxEnhancementsMixin:
             self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
             return
         identities = self._mention_identities()
-        unread = self._collaboration_store.unread_mentions_count_for_users(identities)
+        if getattr(self, "_collaboration_service", None) is not None:
+            unread = int(self._collaboration_service.unread_mentions_count())
+        else:
+            unread = self._collaboration_store.unread_mentions_count_for_users(identities)
         self.lbl_mentions.setText(f"Mentions: {unread}")
         self.lbl_mentions.setToolTip(
             "Watching aliases: " + ", ".join(f"@{name}" for name in identities[:4])
@@ -110,6 +113,7 @@ class TaskUxEnhancementsMixin:
             task_name=task.name,
             username=self._current_username(),
             mention_aliases=self._mention_identities(),
+            collaboration_service=getattr(self, "_collaboration_service", None),
             can_post=self._can_manage_collaboration,
         )
         dialog.exec()

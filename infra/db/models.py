@@ -450,8 +450,10 @@ class TaskCommentORM(Base):
     author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     mentions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
+    mentioned_user_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     attachments_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     read_by_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
+    read_by_user_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 

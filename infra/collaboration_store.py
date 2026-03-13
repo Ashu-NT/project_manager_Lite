@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import re
 from contextlib import contextmanager
-from shutil import copy2
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -12,9 +11,9 @@ from uuid import uuid4
 from sqlalchemy import select
 
 from core.events.domain_events import domain_events
+from infra.collaboration_attachments import store_task_comment_attachments
 from infra.db.base import SessionLocal
 from infra.db.models import TaskCommentORM
-from infra.path import user_data_dir
 
 
 _MENTION_RE = re.compile(r"@([A-Za-z0-9_.-]+)")
@@ -185,8 +184,10 @@ class TaskCollaborationStore:
             author_username=(author or "unknown").strip() or "unknown",
             body=text,
             mentions_json=json.dumps(mentions),
+            mentioned_user_ids_json=json.dumps([]),
             attachments_json=json.dumps(stored_attachments),
             read_by_json=json.dumps([]),
+            read_by_user_ids_json=json.dumps([]),
             created_at=datetime.now(timezone.utc),
         )
         with self._session_scope() as session:
@@ -238,21 +239,11 @@ class TaskCollaborationStore:
         comment_id: str,
         attachments: list[str] | None,
     ) -> list[str]:
-        stored: list[str] = []
-        base_dir = user_data_dir() / "collaboration" / "attachments" / task_id / comment_id
-        for raw in attachments or []:
-            token = str(raw or "").strip()
-            if not token:
-                continue
-            source = Path(token)
-            if source.exists() and source.is_file():
-                base_dir.mkdir(parents=True, exist_ok=True)
-                target = base_dir / source.name
-                copy2(source, target)
-                stored.append(str(target))
-            else:
-                stored.append(str(source))
-        return stored
+        return store_task_comment_attachments(
+            task_id=task_id,
+            comment_id=comment_id,
+            attachments=attachments,
+        )
 
     @staticmethod
     def _decode_json_list(value: str | None) -> list[str]:
@@ -274,9 +265,11 @@ class TaskCollaborationStore:
             "author": row.author_username or "unknown",
             "body": row.body,
             "mentions": self._decode_json_list(row.mentions_json),
+            "mentioned_user_ids": self._decode_json_list_preserve_case(row.mentioned_user_ids_json),
             "attachments": self._decode_json_list_preserve_case(row.attachments_json),
             "created_at": created_at.astimezone(timezone.utc).isoformat(),
             "read_by": self._decode_json_list(row.read_by_json),
+            "read_by_user_ids": self._decode_json_list_preserve_case(row.read_by_user_ids_json),
         }
 
     @staticmethod

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QWidget
 
 from core.events.domain_events import domain_events
 from core.services.auth import UserSessionContext
+from core.services.collaboration import CollaborationService
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.resource import ResourceService
 from core.services.task import TaskService
@@ -67,6 +68,7 @@ class TaskTab(
         project_resource_service: ProjectResourceService,
         timesheet_service: TimesheetService | None = None,
         collaboration_store: TaskCollaborationStore | None = None,
+        collaboration_service: CollaborationService | None = None,
         settings_store: MainWindowSettingsStore | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
@@ -81,6 +83,7 @@ class TaskTab(
         self._user_session = user_session
         self._undo_stack = UndoStack(max_depth=100)
         self._collaboration_store = collaboration_store or TaskCollaborationStore()
+        self._collaboration_service = collaboration_service
         self._can_manage_tasks = has_permission(self._user_session, "task.manage")
         self._can_manage_assignments = self._can_manage_tasks
         self._can_view_collaboration = has_permission(self._user_session, "collaboration.read")

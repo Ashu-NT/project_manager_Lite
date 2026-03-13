@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFileDialog,
     QHBoxLayout,
@@ -11,12 +12,14 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
-    QTextEdit,
     QVBoxLayout,
 )
 
+from core.models import CollaborationMentionCandidate, TaskComment
+from core.services.collaboration import CollaborationService
 from infra.collaboration_store import TaskCollaborationStore
 from ui.styles.ui_config import UIConfig as CFG
+from ui.task.mention_text_edit import TaskMentionTextEdit
 
 
 class TaskCollaborationDialog(QDialog):
@@ -29,10 +32,12 @@ class TaskCollaborationDialog(QDialog):
         task_name: str,
         username: str,
         mention_aliases: list[str] | None = None,
+        collaboration_service: CollaborationService | None = None,
         can_post: bool = True,
     ) -> None:
         super().__init__(parent)
         self._store = store
+        self._collaboration_service = collaboration_service
         self._task_id = task_id
         self._task_name = task_name
         self._username = username
@@ -44,6 +49,13 @@ class TaskCollaborationDialog(QDialog):
         self._can_post = bool(can_post)
         if not self._mention_aliases and self._username:
             self._mention_aliases.append(str(self._username).strip().lower())
+        self._mention_candidates: list[CollaborationMentionCandidate] = []
+        self._mention_candidate_error: str = ""
+        if self._collaboration_service is not None:
+            try:
+                self._mention_candidates = self._collaboration_service.list_mention_candidates(task_id)
+            except Exception as exc:
+                self._mention_candidate_error = str(exc)
         self._pending_attachments: list[str] = []
         self.setWindowTitle(f"Task Collaboration - {task_name}")
         self._setup_ui()
@@ -67,6 +79,30 @@ class TaskCollaborationDialog(QDialog):
             self._handles_hint.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
             self._handles_hint.setWordWrap(True)
             root.addWidget(self._handles_hint)
+        if self._mention_candidates:
+            mention_row = QHBoxLayout()
+            mention_row.addWidget(QLabel("Mention collaborator:"))
+            self.mention_combo = QComboBox()
+            self.mention_combo.setEditable(True)
+            self.mention_combo.setInsertPolicy(QComboBox.NoInsert)
+            self.mention_combo.setMaxVisibleItems(CFG.COMBO_MAX_VISIBLE)
+            self.mention_combo.addItem("Select handle to insert", userData="")
+            for candidate in self._mention_candidates:
+                self.mention_combo.addItem(candidate.label, userData=candidate.handle)
+            self.btn_insert_mention = QPushButton("Insert Mention")
+            for widget in (self.mention_combo, self.btn_insert_mention):
+                if hasattr(widget, "setFixedHeight"):
+                    widget.setFixedHeight(CFG.INPUT_HEIGHT if widget is self.mention_combo else CFG.BUTTON_HEIGHT)
+            self.btn_insert_mention.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+            self.btn_insert_mention.clicked.connect(self._insert_selected_mention)
+            mention_row.addWidget(self.mention_combo, 1)
+            mention_row.addWidget(self.btn_insert_mention)
+            root.addLayout(mention_row)
+        elif self._mention_candidate_error:
+            warning = QLabel(f"Mention directory unavailable: {self._mention_candidate_error}")
+            warning.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+            warning.setWordWrap(True)
+            root.addWidget(warning)
         if not self._can_post:
             read_only = QLabel("Read-only access. You can review activity, but posting is disabled.")
             read_only.setStyleSheet(CFG.NOTE_STYLE_SHEET)
@@ -81,7 +117,8 @@ class TaskCollaborationDialog(QDialog):
         self.attachments_label.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
         root.addWidget(self.attachments_label)
 
-        self.comment_input = QTextEdit()
+        self.comment_input = TaskMentionTextEdit()
+        self.comment_input.set_mention_handles([candidate.handle for candidate in self._mention_candidates])
         self.comment_input.setPlaceholderText("Add activity update... (use @username for mentions)")
         self.comment_input.setMinimumHeight(120)
         root.addWidget(self.comment_input)
@@ -105,6 +142,18 @@ class TaskCollaborationDialog(QDialog):
         self.btn_add_attachment.setEnabled(self._can_post)
         self.comment_input.setReadOnly(not self._can_post)
         self.btn_post.setEnabled(self._can_post)
+        if hasattr(self, "btn_insert_mention"):
+            self.btn_insert_mention.setEnabled(self._can_post)
+
+    def _insert_selected_mention(self) -> None:
+        handle = str(getattr(self, "mention_combo", None).currentData() or "").strip()
+        if not handle:
+            return
+        cursor = self.comment_input.textCursor()
+        before = cursor.block().text()[: cursor.positionInBlock()]
+        prefix = "" if not before or before.endswith((" ", "(", "\t")) else " "
+        cursor.insertText(f"{prefix}@{handle} ")
+        self.comment_input.setFocus()
 
     def _add_attachment(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Attach file", "", "All files (*.*)")
@@ -122,10 +171,15 @@ class TaskCollaborationDialog(QDialog):
         self.attachments_label.setText(f"Attachments: {preview}")
 
     def reload_comments(self, *, mark_read: bool = True) -> None:
-        if mark_read:
-            for alias in self._mention_aliases:
-                self._store.mark_task_mentions_read(task_id=self._task_id, username=alias)
-        comments = self._store.list_comments(self._task_id)
+        if self._collaboration_service is not None:
+            if mark_read:
+                self._collaboration_service.mark_task_mentions_read(self._task_id)
+            comments = self._comment_rows_from_service(self._collaboration_service.list_comments(self._task_id))
+        else:
+            if mark_read:
+                for alias in self._mention_aliases:
+                    self._store.mark_task_mentions_read(task_id=self._task_id, username=alias)
+            comments = self._store.list_comments(self._task_id)
         self.activity_list.clear()
         for row in comments:
             author = str(row.get("author") or "unknown")
@@ -143,6 +197,21 @@ class TaskCollaborationDialog(QDialog):
             item = QListWidgetItem("\n".join(lines))
             self.activity_list.addItem(item)
 
+    @staticmethod
+    def _comment_rows_from_service(comments: list[TaskComment]) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for comment in comments:
+            rows.append(
+                {
+                    "author": comment.author_username or "unknown",
+                    "created_at": comment.created_at.strftime("%Y-%m-%d %H:%M"),
+                    "body": comment.body,
+                    "mentions": list(comment.mentions or []),
+                    "attachments": list(comment.attachments or []),
+                }
+            )
+        return rows
+
     def _post_comment(self) -> None:
         if not self._can_post:
             QMessageBox.information(self, "Post Update", "Posting is not available in read-only mode.")
@@ -152,12 +221,19 @@ class TaskCollaborationDialog(QDialog):
             QMessageBox.information(self, "Post Update", "Type a comment before posting.")
             return
         try:
-            self._store.add_comment(
-                task_id=self._task_id,
-                author=self._username or "unknown",
-                body=body,
-                attachments=list(self._pending_attachments),
-            )
+            if self._collaboration_service is not None:
+                self._collaboration_service.post_comment(
+                    task_id=self._task_id,
+                    body=body,
+                    attachments=list(self._pending_attachments),
+                )
+            else:
+                self._store.add_comment(
+                    task_id=self._task_id,
+                    author=self._username or "unknown",
+                    body=body,
+                    attachments=list(self._pending_attachments),
+                )
         except Exception as exc:
             QMessageBox.warning(self, "Post Update", str(exc))
             return

@@ -320,6 +320,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         comment_repo=task_comment_repo,
         task_repo=task_repo,
         project_repo=project_repo,
+        user_repo=user_repo,
+        project_membership_repo=project_membership_repo,
         user_session=user_session,
     )
     portfolio_service = PortfolioService(

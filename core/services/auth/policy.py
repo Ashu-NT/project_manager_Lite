@@ -11,6 +11,13 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "resource.manage": "Create and edit resources",
     "cost.read": "View costs",
     "cost.manage": "Create and edit costs",
+    "finance.read": "View finance snapshots and ledgers",
+    "finance.manage": "Manage finance controls and adjustments",
+    "finance.export": "Export finance analytics and ledgers",
+    "payroll.read": "View payroll periods and summaries",
+    "payroll.manage": "Manage payroll configuration and prepared runs",
+    "payroll.approve": "Approve or release payroll runs",
+    "payroll.export": "Export payroll reports and payment files",
     "baseline.manage": "Create baselines",
     "register.read": "View risk, issue, and change register data",
     "register.manage": "Create and edit register entries",
@@ -30,53 +37,163 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "approval.request": "Submit governed change requests",
     "approval.decide": "Approve or reject governed change requests",
     "settings.manage": "Manage app settings",
+    "auth.read": "View user and role directory data",
     "auth.manage": "Manage users and roles",
+    "security.manage": "Manage login security, lockouts, and session controls",
 }
 
+_VIEWER = {
+    "project.read",
+    "task.read",
+    "resource.read",
+    "cost.read",
+    "register.read",
+    "report.view",
+    "collaboration.read",
+}
+
+_TEAM_MEMBER = _VIEWER | {
+    "collaboration.manage",
+    "timesheet.submit",
+}
+
+_PLANNER = _TEAM_MEMBER | {
+    "project.manage",
+    "task.manage",
+    "baseline.manage",
+    "register.manage",
+    "report.export",
+    "portfolio.read",
+    "approval.request",
+    "import.manage",
+}
+
+_PROJECT_MANAGER = _PLANNER | {
+    "cost.manage",
+    "finance.read",
+    "finance.export",
+    "timesheet.approve",
+}
+
+_RESOURCE_MANAGER = {
+    "project.read",
+    "task.read",
+    "resource.read",
+    "resource.manage",
+    "report.view",
+    "report.export",
+    "collaboration.read",
+    "timesheet.approve",
+    "timesheet.lock",
+}
+
+_FINANCE_CONTROLLER = {
+    "project.read",
+    "task.read",
+    "resource.read",
+    "cost.read",
+    "cost.manage",
+    "register.read",
+    "report.view",
+    "report.export",
+    "finance.read",
+    "finance.manage",
+    "finance.export",
+    "payroll.read",
+    "approval.request",
+}
+
+_PAYROLL_MANAGER = {
+    "project.read",
+    "task.read",
+    "resource.read",
+    "report.view",
+    "payroll.read",
+    "payroll.manage",
+    "payroll.approve",
+    "payroll.export",
+    "timesheet.approve",
+    "timesheet.lock",
+    "audit.read",
+}
+
+_PORTFOLIO_MANAGER = {
+    "project.read",
+    "task.read",
+    "resource.read",
+    "cost.read",
+    "register.read",
+    "report.view",
+    "report.export",
+    "portfolio.read",
+    "portfolio.manage",
+    "collaboration.read",
+    "approval.request",
+}
+
+_APPROVER = {
+    "project.read",
+    "task.read",
+    "cost.read",
+    "register.read",
+    "report.view",
+    "portfolio.read",
+    "finance.read",
+    "payroll.read",
+    "approval.decide",
+}
+
+_AUDITOR = {
+    "project.read",
+    "task.read",
+    "resource.read",
+    "cost.read",
+    "finance.read",
+    "payroll.read",
+    "register.read",
+    "report.view",
+    "portfolio.read",
+    "collaboration.read",
+    "audit.read",
+}
+
+_SECURITY_ADMIN = {
+    "auth.read",
+    "auth.manage",
+    "access.manage",
+    "audit.read",
+    "support.manage",
+    "settings.manage",
+    "security.manage",
+}
+
+_SUPPORT_ADMIN = {
+    "project.read",
+    "task.read",
+    "register.read",
+    "report.view",
+    "auth.read",
+    "audit.read",
+    "support.manage",
+}
 
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
-    "viewer": {
-        "project.read",
-        "task.read",
-        "resource.read",
-        "cost.read",
-        "register.read",
-        "report.view",
-        "collaboration.read",
-    },
-    "planner": {
-        "project.read",
-        "project.manage",
-        "task.read",
-        "task.manage",
-        "resource.read",
-        "cost.read",
-        "baseline.manage",
-        "register.read",
-        "register.manage",
-        "report.view",
-        "report.export",
-        "portfolio.read",
-        "collaboration.read",
-        "collaboration.manage",
-        "timesheet.submit",
-        "approval.request",
-        "import.manage",
-    },
-    "finance": {
-        "project.read",
-        "task.read",
-        "resource.read",
-        "cost.read",
-        "cost.manage",
-        "register.read",
-        "report.view",
-        "report.export",
-        "timesheet.approve",
-        "approval.request",
-    },
+    "viewer": set(_VIEWER),
+    "team_member": set(_TEAM_MEMBER),
+    "planner": set(_PLANNER),
+    "project_manager": set(_PROJECT_MANAGER),
+    "resource_manager": set(_RESOURCE_MANAGER),
+    "finance": set(_FINANCE_CONTROLLER),
+    "finance_controller": set(_FINANCE_CONTROLLER),
+    "payroll_manager": set(_PAYROLL_MANAGER),
+    "portfolio_manager": set(_PORTFOLIO_MANAGER),
+    "approver": set(_APPROVER),
+    "auditor": set(_AUDITOR),
+    "security_admin": set(_SECURITY_ADMIN),
+    "support_admin": set(_SUPPORT_ADMIN),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
+
 
 def login_lockout_threshold() -> int:
     raw = os.getenv("PM_AUTH_LOCKOUT_ATTEMPTS", "5").strip() or "5"

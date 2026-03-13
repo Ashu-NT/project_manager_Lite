@@ -4,7 +4,7 @@ from core.domain.auth import Permission, Role, RolePermissionBinding, UserAccoun
 from core.domain.audit import AuditLogEntry
 from core.domain.baseline import BaselineTask, ProjectBaseline
 from core.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
-from core.domain.collaboration import CollaborationInboxItem, TaskComment
+from core.domain.collaboration import CollaborationInboxItem, CollaborationMentionCandidate, TaskComment
 from core.domain.cost import CostItem
 from core.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatus
 from core.domain.identifiers import generate_id
@@ -33,6 +33,7 @@ __all__ = [
     "ProjectMembership",
     "Project",
     "ProjectResource",
+    "CollaborationMentionCandidate",
     "TaskComment",
     "CollaborationInboxItem",
     "RegisterEntry",
