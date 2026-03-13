@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
+from core.services.auth.datetime_utils import ensure_utc_datetime
 from infra.db.models import PermissionORM, RoleORM, RolePermissionORM, UserORM, UserRoleORM
 
 
@@ -33,13 +34,13 @@ def user_from_orm(obj: UserORM) -> UserAccount:
         email=obj.email,
         is_active=obj.is_active,
         failed_login_attempts=getattr(obj, "failed_login_attempts", 0),
-        locked_until=getattr(obj, "locked_until", None),
-        last_login_at=getattr(obj, "last_login_at", None),
-        session_expires_at=getattr(obj, "session_expires_at", None),
-        password_changed_at=getattr(obj, "password_changed_at", None),
+        locked_until=ensure_utc_datetime(getattr(obj, "locked_until", None)),
+        last_login_at=ensure_utc_datetime(getattr(obj, "last_login_at", None)),
+        session_expires_at=ensure_utc_datetime(getattr(obj, "session_expires_at", None)),
+        password_changed_at=ensure_utc_datetime(getattr(obj, "password_changed_at", None)),
         must_change_password=getattr(obj, "must_change_password", False),
-        created_at=obj.created_at,
-        updated_at=obj.updated_at,
+        created_at=ensure_utc_datetime(obj.created_at),
+        updated_at=ensure_utc_datetime(obj.updated_at),
         version=getattr(obj, "version", 1),
     )
 

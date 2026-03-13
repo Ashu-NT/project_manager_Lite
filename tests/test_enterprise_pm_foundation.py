@@ -36,7 +36,7 @@ def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch)
     assert unlocked.locked_until is None
 
     authenticated = auth.authenticate("locked-user", "StrongPass123")
-    authenticated.session_expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    authenticated.session_expires_at = datetime.utcnow() - timedelta(minutes=1)
     services["session"].commit()
     user_session.set_principal(auth.build_principal(authenticated))
 

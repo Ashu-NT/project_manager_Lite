@@ -49,6 +49,49 @@ def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, rep
     assert window.shell_navigation.tree.currentItem().text(0) == "Projects"
 
 
+def test_main_window_runtime_supports_sidebar_toggle_and_auto_hide(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    store = make_settings_store(repo_workspace, prefix="main-window-shell-toggle")
+    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+    window.show()
+    qapp.processEvents()
+
+    assert window.shell_navigation.isVisible() is True
+    assert window.btn_toggle_navigation.text() == "Hide Menu"
+
+    window.btn_toggle_navigation.click()
+    qapp.processEvents()
+    assert window.shell_navigation.isVisible() is False
+    assert window.btn_toggle_navigation.text() == "Show Menu"
+
+    next_theme_index = 0 if window.theme_combo.currentData() == "light" else 1
+    window.theme_combo.setCurrentIndex(next_theme_index)
+    qapp.processEvents()
+    assert window.shell_navigation.isVisible() is False
+    assert window.btn_toggle_navigation.text() == "Show Menu"
+
+    window.btn_toggle_navigation.click()
+    qapp.processEvents()
+    assert window.shell_navigation.isVisible() is True
+
+    window.resize(980, window.height())
+    qapp.processEvents()
+    assert window.shell_navigation.isVisible() is False
+    assert window.btn_toggle_navigation.text() == "Show Menu"
+
+    window.resize(1280, window.height())
+    qapp.processEvents()
+    assert window.shell_navigation.isVisible() is True
+    assert window.btn_toggle_navigation.text() == "Hide Menu"
+
+
 def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
     qapp,
     services,

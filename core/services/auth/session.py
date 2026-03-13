@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import FrozenSet
+
+from core.services.auth.datetime_utils import ensure_utc_datetime
 
 
 @dataclass(frozen=True)
@@ -25,7 +27,10 @@ class UserSessionContext:
         return self._principal
 
     def set_principal(self, principal: UserSessionPrincipal) -> None:
-        self._principal = principal
+        self._principal = replace(
+            principal,
+            session_expires_at=ensure_utc_datetime(principal.session_expires_at),
+        )
 
     def clear(self) -> None:
         self._principal = None
@@ -84,7 +89,10 @@ class UserSessionContext:
         principal = self._principal
         if principal is None:
             return None
-        expires_at = principal.session_expires_at
+        expires_at = ensure_utc_datetime(principal.session_expires_at)
+        if expires_at != principal.session_expires_at:
+            principal = replace(principal, session_expires_at=expires_at)
+            self._principal = principal
         if expires_at is not None and datetime.now(timezone.utc) >= expires_at:
             self.clear()
             return None

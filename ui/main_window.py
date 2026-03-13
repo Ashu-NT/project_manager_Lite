@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QMainWindow,
+    QPushButton,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -27,11 +28,15 @@ from ui.styles.ui_config import UIConfig as CFG
 
 
 class MainWindow(QMainWindow):
+    _NAVIGATION_AUTO_HIDE_WIDTH = 1100
+
     def __init__(self, services: dict[str, object], parent: QWidget | None = None):
         super().__init__(parent)
         self.services: dict[str, object] = services
         self._user_session: UserSessionContext | None = services.get("user_session")  # type: ignore[assignment]
         self._settings_store = MainWindowSettingsStore()
+        self._navigation_auto_hidden = False
+        self._navigation_preferred_visible = True
         default_theme = os.getenv("PM_THEME", "light").strip().lower()
         self._theme_mode: str = self._settings_store.load_theme_mode(default_mode=default_theme)
         os.environ["PM_THEME"] = self._theme_mode
@@ -49,6 +54,9 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(CFG.SPACING_SM)
+        self.btn_toggle_navigation = QPushButton("Hide Menu")
+        self.btn_toggle_navigation.clicked.connect(self._toggle_navigation_visibility)
+        header_layout.addWidget(self.btn_toggle_navigation)
         header_layout.addStretch()
         header_layout.addWidget(QLabel("Theme:"))
         self.theme_combo = QComboBox()
@@ -89,6 +97,7 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(central)
         self._restore_persisted_state()
+        self._sync_navigation_responsiveness()
         self._run_startup_update_check()
 
     def _build_tabs(self) -> None:
@@ -110,6 +119,11 @@ class MainWindow(QMainWindow):
 
         self.shell_navigation.set_entries(navigation_entries)
         self.shell_navigation.set_current_index(self.tabs.currentIndex())
+        has_navigation = self.tabs.count() > 0
+        self.btn_toggle_navigation.setVisible(has_navigation)
+        self._set_navigation_visible(
+            has_navigation and self._navigation_preferred_visible and not self._navigation_auto_hidden
+        )
 
     def _rebuild_tabs(self, current_index: int) -> None:
         while self.tabs.count() > 0:
@@ -122,6 +136,7 @@ class MainWindow(QMainWindow):
             safe_index = max(0, min(current_index, self.tabs.count() - 1))
             self.tabs.setCurrentIndex(safe_index)
             self.shell_navigation.set_current_index(self.tabs.currentIndex())
+        self._sync_navigation_responsiveness()
 
     def _on_theme_changed(self, _index: int) -> None:
         mode = self.theme_combo.currentData()
@@ -198,6 +213,36 @@ class MainWindow(QMainWindow):
     def _on_navigation_selected(self, index: int) -> None:
         if 0 <= index < self.tabs.count() and index != self.tabs.currentIndex():
             self.tabs.setCurrentIndex(index)
+
+    def _toggle_navigation_visibility(self) -> None:
+        self._navigation_auto_hidden = False
+        self._navigation_preferred_visible = not self.shell_navigation.isVisible()
+        self._set_navigation_visible(self._navigation_preferred_visible)
+
+    def _set_navigation_visible(self, visible: bool) -> None:
+        can_show_navigation = self.tabs.count() > 0
+        should_show = bool(visible and can_show_navigation)
+        self.shell_navigation.setVisible(should_show)
+        self.btn_toggle_navigation.setVisible(can_show_navigation)
+        self.btn_toggle_navigation.setText("Hide Menu" if should_show else "Show Menu")
+
+    def _sync_navigation_responsiveness(self) -> None:
+        if self.tabs.count() == 0:
+            self._navigation_auto_hidden = False
+            self._set_navigation_visible(False)
+            return
+
+        should_auto_hide = self.width() < self._NAVIGATION_AUTO_HIDE_WIDTH
+        if should_auto_hide and self.shell_navigation.isVisible():
+            self._navigation_auto_hidden = True
+            self._set_navigation_visible(False)
+        elif not should_auto_hide and self._navigation_auto_hidden:
+            self._navigation_auto_hidden = False
+            self._set_navigation_visible(self._navigation_preferred_visible)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._sync_navigation_responsiveness()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._settings_store.save_theme_mode(self._theme_mode)

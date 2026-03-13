@@ -20,6 +20,7 @@ from core.interfaces import (
 )
 from core.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
 from core.services.auth.authorization import require_permission
+from core.services.auth.datetime_utils import ensure_utc_datetime
 from core.services.auth.passwords import hash_password, verify_password
 from core.services.auth.policy import (
     DEFAULT_PERMISSIONS,
@@ -352,7 +353,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             role_names=frozenset(self.get_user_role_names(user.id)),
             permissions=frozenset(self.get_user_permissions(user.id)),
             project_access=project_access,
-            session_expires_at=user.session_expires_at,
+            session_expires_at=ensure_utc_datetime(user.session_expires_at),
         )
 
     def _assign_roles_for_user(self, user_id: str, role_names: Iterable[str]) -> None:
