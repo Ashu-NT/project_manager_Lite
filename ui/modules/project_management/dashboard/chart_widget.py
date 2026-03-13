@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import partial
+
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -10,6 +12,10 @@ from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from ui.modules.project_management.dashboard.styles import dashboard_card_style
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
+
+
+def _close_figure(fig: Figure) -> None:
+    plt.close(fig)
 
 
 class ChartWidget(QWidget):
@@ -40,6 +46,7 @@ class ChartWidget(QWidget):
         self.setMaximumHeight(self._MAXIMUM_HEIGHT)
         self.setStyleSheet(dashboard_card_style())
         self._apply_chart_theme()
+        self.destroyed.connect(partial(_close_figure, self._fig))
 
     @property
     def ax(self) -> Axes:

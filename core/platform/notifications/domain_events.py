@@ -1,7 +1,7 @@
 
 """Domain event hub for project, auth, collaboration, and portfolio notifications."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from .signal import Signal
 
@@ -19,6 +19,10 @@ class DomainEvents:
     access_changed: Signal[str] = field(default_factory=Signal)  # project_id
     collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
     portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id
+
+    def reset(self) -> None:
+        for signal_field in fields(self):
+            getattr(self, signal_field.name).clear()
 
 
 # SINGLE global instance

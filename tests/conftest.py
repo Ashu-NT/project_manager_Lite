@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from infra.platform.db.base import Base
 from infra.platform.services import build_service_dict
+from core.platform.notifications.domain_events import domain_events
 from tests.path_rewrites import REPO_ROOT, resolve_repo_path
 from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
@@ -31,6 +32,15 @@ def _patched_is_dir(self: Path):
 Path.read_text = _patched_read_text
 Path.exists = _patched_exists
 Path.is_dir = _patched_is_dir
+
+
+@pytest.fixture(autouse=True)
+def reset_test_domain_events():
+    domain_events.reset()
+    try:
+        yield
+    finally:
+        domain_events.reset()
 
 
 @pytest.fixture

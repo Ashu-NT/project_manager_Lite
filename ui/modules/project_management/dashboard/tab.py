@@ -218,20 +218,23 @@ class DashboardTab(
     def _sync_kpi_card_layout(self) -> None:
         if not hasattr(self, "kpi_layout") or not hasattr(self, "_kpi_cards"):
             return
-        available_width = max(
-            getattr(self.kpi_group, "width", lambda: 0)(),
-            getattr(getattr(self, "panel_scroll", None), "viewport", lambda: None)().width()
-            if getattr(self, "panel_scroll", None) is not None
-            else 0,
-            self.width(),
-        )
-        if available_width <= 0:
-            available_width = 960
-        if available_width < 380:
+        width_candidates = [
+            self.kpi_group.contentsRect().width(),
+            self.kpi_group.width(),
+        ]
+        if getattr(self, "panel_scroll", None) is not None:
+            viewport = self.panel_scroll.viewport()
+            width_candidates.extend([viewport.contentsRect().width(), viewport.width()])
+        if getattr(self, "panel_canvas", None) is not None:
+            width_candidates.extend([self.panel_canvas.contentsRect().width(), self.panel_canvas.width()])
+
+        positive_widths = [width for width in width_candidates if width > 0]
+        available_width = min(positive_widths) if positive_widths else (self.width() or 960)
+        if available_width <= 380:
             columns = 1
-        elif available_width < 760:
+        elif available_width <= 760:
             columns = 2
-        elif available_width < 1100:
+        elif available_width <= 1100:
             columns = 3
         else:
             columns = 4

@@ -26,6 +26,10 @@ class Signal(Generic[T]):
             if callback in self._subscribers:
                 self._subscribers.remove(callback)
 
+    def clear(self) -> None:
+        with self._lock:
+            self._subscribers.clear()
+
     def emit(self, payload: T) -> None:
         with self._lock:
             subscribers = list(self._subscribers)
