@@ -248,5 +248,5 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
         ts.lock_timesheet_period(resource.id, period_start=date(2026, 7, 1))
 
     _login_as(services, "viewer-timesheet", "StrongPass123")
-    with pytest.raises(BusinessRuleError, match="task.manage"):
+    with pytest.raises(BusinessRuleError, match="timesheet.submit"):
         ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))

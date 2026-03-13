@@ -312,13 +312,13 @@ def test_cost_tab_removes_duplicate_budget_insights_panel():
 
 def test_cost_tab_has_filter_row_and_committed_kpi():
     root = Path(__file__).resolve().parents[1]
-    tab_text = (root / "ui" / "cost" / "tab.py").read_text(
+    surface_text = (root / "ui" / "cost" / "surface.py").read_text(
         encoding="utf-8", errors="ignore"
     )
     layout_text = (root / "ui" / "cost" / "layout.py").read_text(
         encoding="utf-8", errors="ignore"
     )
-    assert 'committed_card, self.lbl_kpi_committed = _kpi_card("Committed")' in tab_text
+    assert '("Committed", "lbl_kpi_committed")' in surface_text
     assert "self.filter_text = QLineEdit()" in layout_text
     assert 'self.filter_type_combo.addItem("All Types", userData="")' in layout_text
     assert 'self.filter_task_combo.addItem("All Tasks", userData="")' in layout_text

@@ -7,7 +7,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from infra.platform.operational_support import redact_value
@@ -33,9 +33,12 @@ def build_diagnostics_bundle(
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     warnings: list[str] = []
+    staging_root = user_data_dir() / "tmp"
+    staging_root.mkdir(parents=True, exist_ok=True)
+    temp_dir = staging_root / f"pm_diag_{uuid4().hex}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
 
-    with TemporaryDirectory(prefix="pm_diag_") as temp_dir_raw:
-        temp_dir = Path(temp_dir_raw)
+    try:
         logs_dir = user_data_dir() / "logs"
         db_path = default_db_path()
         normalized_incident = (incident_id or "").strip()
@@ -101,6 +104,8 @@ def build_diagnostics_bundle(
                     continue
                 bundle.write(file_path, arcname=file_path.name)
                 files_added += 1
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
     return DiagnosticsBundleResult(
         output_path=out_path,

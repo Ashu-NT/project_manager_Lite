@@ -1,3 +1,1 @@
-from ui.modules.project_management.collaboration.tab import CollaborationTab
-
-__all__ = ["CollaborationTab"]
+__all__: list[str] = []

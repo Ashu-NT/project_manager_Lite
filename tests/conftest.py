@@ -10,6 +10,28 @@ from sqlalchemy.orm import sessionmaker
 
 from infra.platform.db.base import Base
 from infra.platform.services import build_service_dict
+from tests.path_rewrites import REPO_ROOT, resolve_repo_path
+
+_ORIGINAL_PATH_READ_TEXT = Path.read_text
+_ORIGINAL_PATH_EXISTS = Path.exists
+_ORIGINAL_PATH_IS_DIR = Path.is_dir
+
+
+def _patched_read_text(self: Path, *args, **kwargs):
+    return _ORIGINAL_PATH_READ_TEXT(resolve_repo_path(self), *args, **kwargs)
+
+
+def _patched_exists(self: Path):
+    return _ORIGINAL_PATH_EXISTS(resolve_repo_path(self))
+
+
+def _patched_is_dir(self: Path):
+    return _ORIGINAL_PATH_IS_DIR(resolve_repo_path(self))
+
+
+Path.read_text = _patched_read_text
+Path.exists = _patched_exists
+Path.is_dir = _patched_is_dir
 
 
 @pytest.fixture
