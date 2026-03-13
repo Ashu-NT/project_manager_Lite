@@ -17,6 +17,7 @@ from core.interfaces import (
     TimeEntryRepository,
 )
 from core.models import Project, ProjectStatus
+from core.services.access.authorization import require_project_permission
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 from core.services.project.validation import ProjectValidationMixin
@@ -84,6 +85,12 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
+        require_project_permission(
+            self._user_session,
+            project.id,
+            "project.manage",
+            operation_label="set project status",
+        )
 
         project.status = status
         try:
@@ -138,6 +145,12 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            project.id,
+            "project.manage",
+            operation_label="update project",
+        )
         if expected_version is not None and project.version != expected_version:
             raise ConcurrencyError(
                 "Project changed since you opened it. Refresh and try again.",
@@ -192,6 +205,12 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found")
+        require_project_permission(
+            self._user_session,
+            project.id,
+            "project.manage",
+            operation_label="delete project",
+        )
 
         try:
             tasks = self._task_repo.list_by_project(project_id)

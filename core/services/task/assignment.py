@@ -13,6 +13,7 @@ from core.interfaces import (
     TaskRepository,
 )
 from core.models import TaskAssignment
+from core.services.access.authorization import require_project_permission
 from core.services.auth.authorization import require_permission
 from core.services.task.assignment_audit import record_assignment_action
 
@@ -24,15 +25,24 @@ class TaskAssignmentMixin:
     _resource_repo: ResourceRepository
     _project_resource_repo: ProjectResourceRepository | None
 
-    def _require_manage(self, operation_label: str) -> None:
+    def _require_manage(self, operation_label: str, *, project_id: str | None = None) -> None:
         require_permission(self._user_session, "task.manage", operation_label=operation_label)
+        if project_id:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "task.manage",
+                operation_label=operation_label,
+            )
 
     def unassign_resource(self, assignment_id: str) -> None:
-        self._require_manage("remove assignment")
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
         task = self._task_repo.get(assignment.task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        self._require_manage("remove assignment", project_id=task.project_id)
         resource = self._resource_repo.get(assignment.resource_id)
         try:
             time_entry_repo = getattr(self, "_time_entry_repo", None)
@@ -57,11 +67,19 @@ class TaskAssignmentMixin:
 
     def list_assignments_for_task(self, task_id: str) -> List[TaskAssignment]:
         require_permission(self._user_session, "task.read", operation_label="list task assignments")
+        task = self._task_repo.get(task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.read",
+            operation_label="list task assignments",
+        )
         # Keep single-task queries aligned with primary repository API.
         return self._assignment_repo.list_by_task(task_id)
 
     def set_assignment_hours(self, assignment_id: str, hours_logged: float) -> TaskAssignment:
-        self._require_manage("log assignment hours")
         if hours_logged < 0:
             raise ValidationError("hours_logged cannot be negative.")
         a = self._assignment_repo.get(assignment_id)
@@ -75,6 +93,7 @@ class TaskAssignmentMixin:
         task = self._task_repo.get(a.task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        self._require_manage("log assignment hours", project_id=task.project_id)
         a.hours_logged = hours_logged
         resource = self._resource_repo.get(a.resource_id)
         try:
@@ -100,7 +119,6 @@ class TaskAssignmentMixin:
         assignment_id: str,
         allocation_percent: float,
     ) -> TaskAssignment:
-        self._require_manage("set assignment allocation")
         alloc = float(allocation_percent or 0.0)
         if alloc <= 0 or alloc > 100:
             raise ValidationError("allocation_percent must be > 0 and <= 100.")
@@ -112,6 +130,7 @@ class TaskAssignmentMixin:
         task = self._task_repo.get(a.task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        self._require_manage("set assignment allocation", project_id=task.project_id)
 
         self._check_resource_overallocation(
             project_id=task.project_id,
@@ -144,12 +163,23 @@ class TaskAssignmentMixin:
 
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         require_permission(self._user_session, "task.read", operation_label="view assignment")
-        return self._assignment_repo.get(assignment_id)
+        assignment = self._assignment_repo.get(assignment_id)
+        if assignment is None:
+            return None
+        task = self._task_repo.get(assignment.task_id)
+        if task is None:
+            return None
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.read",
+            operation_label="view assignment",
+        )
+        return assignment
 
     def assign_project_resource(
         self, task_id: str, project_resource_id: str, allocation_percent: float
     ) -> TaskAssignment:
-        self._require_manage("add assignment")
         if not self._project_resource_repo:
             raise BusinessRuleError(
                 "Project resource repository is not configured.",
@@ -163,6 +193,7 @@ class TaskAssignmentMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        self._require_manage("add assignment", project_id=task.project_id)
 
         pr = self._project_resource_repo.get(project_resource_id)
         if not pr:

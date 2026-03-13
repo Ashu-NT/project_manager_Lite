@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
+from core.events.domain_events import domain_events
 from infra.db.base import SessionLocal
 from infra.db.models import TaskCommentORM
 from infra.path import user_data_dir
@@ -81,6 +82,7 @@ class TaskCollaborationStore:
             payload["comments"] = comments
         comments.append(row)
         self._write_payload(payload)
+        domain_events.collaboration_changed.emit(task_id)
         return row
 
     def unread_mentions_count(self, username: str) -> int:
@@ -136,6 +138,7 @@ class TaskCollaborationStore:
             changed = True
         if changed:
             self._write_payload(payload)
+            domain_events.collaboration_changed.emit(task_id)
 
     def _read_payload(self) -> dict[str, Any]:
         if self._path is None:
@@ -191,6 +194,7 @@ class TaskCollaborationStore:
             session.flush()
             result = self._comment_row_from_orm(row)
             session.commit()
+        domain_events.collaboration_changed.emit(task_id)
         return result
 
     def _unread_mentions_count_for_users_db(self, aliases: set[str]) -> int:
@@ -224,6 +228,8 @@ class TaskCollaborationStore:
                 changed = True
             if changed:
                 session.commit()
+        if changed:
+            domain_events.collaboration_changed.emit(task_id)
 
     def _store_db_attachments(
         self,

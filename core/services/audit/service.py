@@ -61,7 +61,7 @@ class AuditService:
         project_id: str | None = None,
         entity_type: str | None = None,
     ) -> List[AuditLogEntry]:
-        require_permission(self._user_session, "auth.manage", operation_label="view audit log")
+        require_permission(self._user_session, "audit.read", operation_label="view audit log")
         return self._audit_repo.list_recent(
             limit=limit,
             project_id=project_id,

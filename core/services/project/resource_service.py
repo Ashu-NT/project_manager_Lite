@@ -12,6 +12,7 @@ from core.interfaces import (
     ResourceRepository,
 )
 from core.events.domain_events import domain_events
+from core.services.access.authorization import require_project_permission
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 
@@ -48,6 +49,12 @@ class ProjectResourceService:
             "project.read",
             operation_label="list project resources",
         )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "project.read",
+            operation_label="list project resources",
+        )
         return self._project_resource_repo.list_by_project(project_id)
 
     def get(self, project_resource_id: str) -> Optional[ProjectResource]:
@@ -56,11 +63,26 @@ class ProjectResourceService:
             "project.read",
             operation_label="view project resource",
         )
-        return self._project_resource_repo.get(project_resource_id)
+        row = self._project_resource_repo.get(project_resource_id)
+        if row is None:
+            return None
+        require_project_permission(
+            self._user_session,
+            row.project_id,
+            "project.read",
+            operation_label="view project resource",
+        )
+        return row
 
     def get_for_project(self, project_id: str, resource_id: str) -> Optional[ProjectResource]:
         require_permission(
             self._user_session,
+            "project.read",
+            operation_label="view project resource membership",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
             "project.read",
             operation_label="view project resource membership",
         )
@@ -80,6 +102,12 @@ class ProjectResourceService:
     ) -> ProjectResource:
         require_permission(
             self._user_session,
+            "project.manage",
+            operation_label="add project resource",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
             "project.manage",
             operation_label="add project resource",
         )
@@ -159,6 +187,12 @@ class ProjectResourceService:
         pr = self._project_resource_repo.get(pr_id)
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            pr.project_id,
+            "project.manage",
+            operation_label="update project resource",
+        )
 
         if planned_hours < 0:
             raise BusinessRuleError("planned_hours cannot be negative.", code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID")
@@ -203,6 +237,12 @@ class ProjectResourceService:
         pr = self._project_resource_repo.get(pr_id)
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            pr.project_id,
+            "project.manage",
+            operation_label="toggle project resource active",
+        )
 
         pr.is_active = is_active
         try:
@@ -234,6 +274,12 @@ class ProjectResourceService:
         pr = self._project_resource_repo.get(pr_id)
         if not pr:
             raise NotFoundError("Project resource not found.", code="PROJECT_RESOURCE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            pr.project_id,
+            "project.manage",
+            operation_label="delete project resource",
+        )
         resource = self._resource_repo.get(pr.resource_id)
         try:
             self._project_resource_repo.delete(pr_id)

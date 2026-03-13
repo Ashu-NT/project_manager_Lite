@@ -23,7 +23,7 @@ class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
         as_of: Optional[date] = None,
         baseline_id: Optional[str] = None,
     ) -> EarnedValueMetrics:
-        self._require_view("view earned value report")
+        self._require_view("view earned value report", project_id=project_id)
         """
         PM-grade Earned Value (EVM) computation.
 

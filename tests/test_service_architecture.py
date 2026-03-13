@@ -1,4 +1,5 @@
 from core.services._base_service import ServiceBase as LegacyServiceBase
+from core.services.access import AccessControlService
 from core.services.approval import ApprovalService
 from core.services.approval_service import ApprovalService as LegacyApprovalService
 from core.services.auth import AuthService
@@ -8,10 +9,12 @@ from core.services.audit_service import AuditService as LegacyAuditService
 from core.services.baseline import BaselineService
 from core.services.baseline_service import BaselineService as LegacyBaselineService
 from core.services.calendar import CalendarService
+from core.services.collaboration import CollaborationService
 from core.services.cost import CostService
 from core.services.dashboard import DashboardService
 from core.services.finance import FinanceService
 from core.services.finance_service import FinanceService as LegacyFinanceService
+from core.services.portfolio import PortfolioService
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.register import RegisterService
 from core.services.register_service import RegisterService as LegacyRegisterService
@@ -40,7 +43,9 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph, ServiceGraph)
     assert isinstance(graph.approval_service, ApprovalService)
     assert isinstance(graph.auth_service, AuthService)
+    assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.audit_service, AuditService)
+    assert isinstance(graph.collaboration_service, CollaborationService)
     assert isinstance(graph.project_service, ProjectService)
     assert isinstance(graph.task_service, TaskService)
     assert isinstance(graph.timesheet_service, TimesheetService)
@@ -54,15 +59,19 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.reporting_service, ReportingService)
     assert isinstance(graph.baseline_service, BaselineService)
     assert isinstance(graph.dashboard_service, DashboardService)
+    assert isinstance(graph.portfolio_service, PortfolioService)
     assert isinstance(graph.register_service, RegisterService)
     assert isinstance(graph.project_resource_service, ProjectResourceService)
 
     as_dict = graph.as_dict()
     assert as_dict["approval_service"] is graph.approval_service
     assert as_dict["auth_service"] is graph.auth_service
+    assert as_dict["access_service"] is graph.access_service
     assert as_dict["audit_service"] is graph.audit_service
+    assert as_dict["collaboration_service"] is graph.collaboration_service
     assert as_dict["dashboard_service"] is graph.dashboard_service
     assert as_dict["finance_service"] is graph.finance_service
+    assert as_dict["portfolio_service"] is graph.portfolio_service
     assert as_dict["register_service"] is graph.register_service
     assert as_dict["project_resource_service"] is graph.project_resource_service
     assert as_dict["timesheet_service"] is graph.timesheet_service

@@ -29,6 +29,7 @@ class TaskCollaborationDialog(QDialog):
         task_name: str,
         username: str,
         mention_aliases: list[str] | None = None,
+        can_post: bool = True,
     ) -> None:
         super().__init__(parent)
         self._store = store
@@ -40,6 +41,7 @@ class TaskCollaborationDialog(QDialog):
             for alias in (mention_aliases or [])
             if str(alias).strip()
         ]
+        self._can_post = bool(can_post)
         if not self._mention_aliases and self._username:
             self._mention_aliases.append(str(self._username).strip().lower())
         self._pending_attachments: list[str] = []
@@ -65,6 +67,11 @@ class TaskCollaborationDialog(QDialog):
             self._handles_hint.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
             self._handles_hint.setWordWrap(True)
             root.addWidget(self._handles_hint)
+        if not self._can_post:
+            read_only = QLabel("Read-only access. You can review activity, but posting is disabled.")
+            read_only.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+            read_only.setWordWrap(True)
+            root.addWidget(read_only)
 
         self.activity_list = QListWidget()
         self.activity_list.setAlternatingRowColors(True)
@@ -95,6 +102,9 @@ class TaskCollaborationDialog(QDialog):
         self.btn_refresh.clicked.connect(lambda: self.reload_comments(mark_read=True))
         self.btn_post.clicked.connect(self._post_comment)
         self.btn_close.clicked.connect(self.accept)
+        self.btn_add_attachment.setEnabled(self._can_post)
+        self.comment_input.setReadOnly(not self._can_post)
+        self.btn_post.setEnabled(self._can_post)
 
     def _add_attachment(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, "Attach file", "", "All files (*.*)")
@@ -134,6 +144,9 @@ class TaskCollaborationDialog(QDialog):
             self.activity_list.addItem(item)
 
     def _post_comment(self) -> None:
+        if not self._can_post:
+            QMessageBox.information(self, "Post Update", "Posting is not available in read-only mode.")
+            return
         body = self.comment_input.toPlainText().strip()
         if not body:
             QMessageBox.information(self, "Post Update", "Type a comment before posting.")

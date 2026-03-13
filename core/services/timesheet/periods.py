@@ -16,7 +16,7 @@ class TimesheetPeriodsMixin:
         period_start: date,
         note: str = "",
     ) -> TimesheetPeriod:
-        require_permission(self._user_session, "task.manage", operation_label="submit timesheet period")
+        require_permission(self._user_session, "timesheet.submit", operation_label="submit timesheet period")
         entries = self.list_time_entries_for_resource_period(resource_id, period_start=period_start)
         if not entries:
             raise ValidationError("Cannot submit an empty timesheet period.")
@@ -51,7 +51,7 @@ class TimesheetPeriodsMixin:
         return period
 
     def approve_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
-        require_permission(self._user_session, "approval.decide", operation_label="approve timesheet period")
+        require_permission(self._user_session, "timesheet.approve", operation_label="approve timesheet period")
         period = self._require_timesheet_period(period_id)
         if period.status != TimesheetPeriodStatus.SUBMITTED:
             raise ValidationError("Only submitted timesheet periods can be approved.")
@@ -79,7 +79,7 @@ class TimesheetPeriodsMixin:
         return period
 
     def reject_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
-        require_permission(self._user_session, "approval.decide", operation_label="reject timesheet period")
+        require_permission(self._user_session, "timesheet.approve", operation_label="reject timesheet period")
         period = self._require_timesheet_period(period_id)
         if period.status != TimesheetPeriodStatus.SUBMITTED:
             raise ValidationError("Only submitted timesheet periods can be rejected.")
@@ -113,7 +113,7 @@ class TimesheetPeriodsMixin:
         period_start: date,
         note: str = "",
     ) -> TimesheetPeriod:
-        require_permission(self._user_session, "settings.manage", operation_label="lock timesheet period")
+        require_permission(self._user_session, "timesheet.lock", operation_label="lock timesheet period")
         period = self._get_or_create_timesheet_period(resource_id=resource_id, period_start=period_start)
         if period.status == TimesheetPeriodStatus.APPROVED:
             raise ValidationError("Approved timesheet periods are already locked.")
@@ -137,7 +137,7 @@ class TimesheetPeriodsMixin:
         return period
 
     def unlock_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
-        require_permission(self._user_session, "settings.manage", operation_label="unlock timesheet period")
+        require_permission(self._user_session, "timesheet.lock", operation_label="unlock timesheet period")
         period = self._require_timesheet_period(period_id)
         if period.status != TimesheetPeriodStatus.LOCKED:
             raise ValidationError("Only explicitly locked timesheet periods can be unlocked.")

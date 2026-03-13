@@ -79,6 +79,11 @@ class TaskUxEnhancementsMixin:
         return deduped or ["unknown"]
 
     def _refresh_mentions_badge(self) -> None:
+        if not self._can_view_collaboration:
+            self.lbl_mentions.setText("Mentions: -")
+            self.lbl_mentions.setToolTip("Requires 'collaboration.read' permission.")
+            self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
+            return
         identities = self._mention_identities()
         unread = self._collaboration_store.unread_mentions_count_for_users(identities)
         self.lbl_mentions.setText(f"Mentions: {unread}")
@@ -93,6 +98,8 @@ class TaskUxEnhancementsMixin:
             self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
 
     def _open_task_collaboration(self) -> None:
+        if not self._can_view_collaboration:
+            return
         task = self._get_selected_task()
         if task is None:
             return
@@ -103,6 +110,7 @@ class TaskUxEnhancementsMixin:
             task_name=task.name,
             username=self._current_username(),
             mention_aliases=self._mention_identities(),
+            can_post=self._can_manage_collaboration,
         )
         dialog.exec()
         self._refresh_mentions_badge()

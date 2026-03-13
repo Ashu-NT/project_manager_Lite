@@ -15,6 +15,7 @@ from core.domain.register import (
 from core.events.domain_events import domain_events
 from core.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.interfaces import ProjectRepository, RegisterEntryRepository
+from core.services.access.authorization import require_project_permission
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 
@@ -38,7 +39,13 @@ class RegisterLifecycleMixin:
         impact_summary: str = "",
         response_plan: str = "",
     ) -> RegisterEntry:
-        require_permission(self._user_session, "project.manage", operation_label="create register entry")
+        require_permission(self._user_session, "register.manage", operation_label="create register entry")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "register.manage",
+            operation_label="create register entry",
+        )
         project = self._project_repo.get(project_id)
         if project is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -86,10 +93,16 @@ class RegisterLifecycleMixin:
         impact_summary: str | None = None,
         response_plan: str | None = None,
     ) -> RegisterEntry:
-        require_permission(self._user_session, "project.manage", operation_label="update register entry")
+        require_permission(self._user_session, "register.manage", operation_label="update register entry")
         entry = self._register_repo.get(entry_id)
         if entry is None:
             raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            entry.project_id,
+            "register.manage",
+            operation_label="update register entry",
+        )
         if expected_version is not None and entry.version != expected_version:
             raise ConcurrencyError(
                 "Register entry changed since you opened it. Refresh and try again.",
@@ -132,10 +145,16 @@ class RegisterLifecycleMixin:
         return entry
 
     def delete_entry(self, entry_id: str) -> None:
-        require_permission(self._user_session, "project.manage", operation_label="delete register entry")
+        require_permission(self._user_session, "register.manage", operation_label="delete register entry")
         entry = self._register_repo.get(entry_id)
         if entry is None:
             raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            entry.project_id,
+            "register.manage",
+            operation_label="delete register entry",
+        )
         try:
             self._register_repo.delete(entry_id)
             self._session.commit()

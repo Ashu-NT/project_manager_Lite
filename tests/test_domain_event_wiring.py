@@ -253,3 +253,25 @@ def test_dashboard_subscribes_to_baseline_changed_for_refresh():
         errors="ignore",
     )
     assert "domain_events.baseline_changed.connect(self._on_baseline_changed)" in text
+
+
+def test_enterprise_tabs_subscribe_to_domain_events_for_auto_refresh():
+    root = Path(__file__).resolve().parents[1]
+    access_text = (root / "ui" / "access" / "tab.py").read_text(encoding="utf-8", errors="ignore")
+    collaboration_text = (root / "ui" / "collaboration" / "tab.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+    portfolio_text = (root / "ui" / "portfolio" / "tab.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+
+    assert "domain_events.auth_changed.connect(self._on_domain_change)" in access_text
+    assert "domain_events.access_changed.connect(self._on_domain_change)" in access_text
+    assert "domain_events.project_changed.connect(self._on_domain_change)" in access_text
+    assert "domain_events.collaboration_changed.connect(self._on_domain_change)" in collaboration_text
+    assert "domain_events.tasks_changed.connect(self._on_domain_change)" in collaboration_text
+    assert "domain_events.project_changed.connect(self._on_domain_change)" in collaboration_text
+    assert "domain_events.portfolio_changed.connect(self._on_domain_change)" in portfolio_text
+    assert "domain_events.project_changed.connect(self._on_domain_change)" in portfolio_text

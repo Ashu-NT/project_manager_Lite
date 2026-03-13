@@ -83,6 +83,8 @@ class TaskTab(
         self._collaboration_store = collaboration_store or TaskCollaborationStore()
         self._can_manage_tasks = has_permission(self._user_session, "task.manage")
         self._can_manage_assignments = self._can_manage_tasks
+        self._can_view_collaboration = has_permission(self._user_session, "collaboration.read")
+        self._can_manage_collaboration = has_permission(self._user_session, "collaboration.manage")
         self._can_add_dependencies = can_execute_governed_action(
             user_session=self._user_session,
             manage_permission="task.manage",
@@ -125,7 +127,7 @@ class TaskTab(
         self.btn_bulk_status.setEnabled(self._can_manage_tasks and has_task)
         self.bulk_status_combo.setEnabled(self._can_manage_tasks and has_task)
         self.btn_bulk_delete.setEnabled(self._can_manage_tasks and multi)
-        self.btn_comments.setEnabled(has_task)
+        self.btn_comments.setEnabled(self._can_view_collaboration and has_task)
         if multi:
             self.btn_delete.setText(f"Delete ({len(selected_tasks)})")
         else:

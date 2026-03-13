@@ -259,7 +259,7 @@ class ReportingCostPolicyMixin:
         *,
         as_of: date | None = None,
     ) -> CostControlTotals:
-        self._require_view("view cost control totals")
+        self._require_view("view cost control totals", project_id=project_id)
         snapshot = self._build_cost_policy_snapshot(project_id, as_of=as_of)
         planned = self._sum_bucket_map(snapshot.planned_map, snapshot.project_currency)
         committed = self._sum_bucket_map(snapshot.committed_map, snapshot.project_currency)
@@ -284,7 +284,7 @@ class ReportingCostPolicyMixin:
         *,
         as_of: date | None = None,
     ) -> CostSourceBreakdown:
-        self._require_view("view cost source breakdown")
+        self._require_view("view cost source breakdown", project_id=project_id)
         as_of = as_of or date.today()
         snapshot = self._build_cost_policy_snapshot(project_id, as_of=as_of)
 

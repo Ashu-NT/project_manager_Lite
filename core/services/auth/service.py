@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Iterable
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.events.domain_events import domain_events
 from core.exceptions import ValidationError
 from core.interfaces import (
     PermissionRepository,
+    ProjectMembershipRepository,
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
@@ -19,7 +21,13 @@ from core.interfaces import (
 from core.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
 from core.services.auth.authorization import require_permission
 from core.services.auth.passwords import hash_password, verify_password
-from core.services.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
+from core.services.auth.policy import (
+    DEFAULT_PERMISSIONS,
+    DEFAULT_ROLE_PERMISSIONS,
+    login_lockout_minutes,
+    login_lockout_threshold,
+    session_timeout_minutes,
+)
 from core.services.auth.query import AuthQueryMixin
 from core.services.auth.session import UserSessionContext, UserSessionPrincipal
 from core.services.auth.validation import AuthValidationMixin
@@ -40,6 +48,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         permission_repo: PermissionRepository,
         user_role_repo: UserRoleRepository,
         role_permission_repo: RolePermissionRepository,
+        project_membership_repo: ProjectMembershipRepository | None = None,
         user_session: UserSessionContext | None = None,
         audit_service: "AuditService | None" = None,
     ):
@@ -49,6 +58,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._permission_repo: PermissionRepository = permission_repo
         self._user_role_repo: UserRoleRepository = user_role_repo
         self._role_permission_repo: RolePermissionRepository = role_permission_repo
+        self._project_membership_repo: ProjectMembershipRepository | None = project_membership_repo
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
 
@@ -130,10 +140,12 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         except Exception:
             self._session.rollback()
             raise
+        domain_events.auth_changed.emit(user.id)
         return user
 
     def authenticate(self, username: str, raw_password: str) -> UserAccount:
         normalized = (username or "").strip().lower()
+        now = datetime.now(timezone.utc)
         user = self._user_repo.get_by_username(normalized)
         if not user or not user.is_active:
             self._record_auth_event(
@@ -143,19 +155,56 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
                 details={"reason": "invalid_credentials"},
             )
             raise ValidationError("Invalid credentials.", code="AUTH_FAILED")
-        if not verify_password(raw_password, user.password_hash):
+        if user.locked_until is not None and user.locked_until <= now:
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            user.updated_at = now
+            self._user_repo.update(user)
+            self._session.commit()
+            domain_events.auth_changed.emit(user.id)
+        if user.locked_until is not None and user.locked_until > now:
             self._record_auth_event(
                 action="auth.login.failed",
                 username=normalized,
                 user_id=user.id,
-                details={"reason": "invalid_credentials"},
+                details={
+                    "reason": "locked_out",
+                    "locked_until": user.locked_until.isoformat(),
+                },
+            )
+            raise ValidationError(
+                f"Account is locked until {user.locked_until.isoformat()}.",
+                code="AUTH_LOCKED",
+            )
+        if not verify_password(raw_password, user.password_hash):
+            self._register_failed_login(user, username=normalized, occurred_at=now)
+            self._record_auth_event(
+                action="auth.login.failed",
+                username=normalized,
+                user_id=user.id,
+                details={
+                    "reason": "invalid_credentials",
+                    "failed_attempts": str(user.failed_login_attempts),
+                    "locked_until": user.locked_until.isoformat() if user.locked_until else "",
+                },
             )
             raise ValidationError("Invalid credentials.", code="AUTH_FAILED")
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        user.last_login_at = now
+        user.session_expires_at = now + timedelta(minutes=session_timeout_minutes())
+        user.updated_at = now
+        self._user_repo.update(user)
+        self._session.commit()
+        domain_events.auth_changed.emit(user.id)
         self._record_auth_event(
             action="auth.login.success",
             username=user.username,
             user_id=user.id,
-            details={"result": "ok"},
+            details={
+                "result": "ok",
+                "session_expires_at": user.session_expires_at.isoformat() if user.session_expires_at else "",
+            },
         )
         return user
 
@@ -167,8 +216,11 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._validate_password(new_password)
         user.password_hash = hash_password(new_password)
         user.updated_at = datetime.now(timezone.utc)
+        user.password_changed_at = user.updated_at
         self._user_repo.update(user)
         self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+        self._refresh_current_session_if_user(user.id)
 
     def reset_user_password(self, user_id: str, new_password: str) -> None:
         require_permission(self._user_session, "auth.manage", operation_label="reset user password")
@@ -176,8 +228,12 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._validate_password(new_password)
         user.password_hash = hash_password(new_password)
         user.updated_at = datetime.now(timezone.utc)
+        user.password_changed_at = user.updated_at
+        user.must_change_password = False
         self._user_repo.update(user)
         self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+        self._refresh_current_session_if_user(user.id)
 
     def assign_role(self, user_id: str, role_name: str) -> None:
         require_permission(self._user_session, "auth.manage", operation_label="assign role")
@@ -186,6 +242,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         if not self._user_role_repo.exists(user.id, role.id):
             self._user_role_repo.add(UserRoleBinding.create(user_id=user.id, role_id=role.id))
             self._session.commit()
+            domain_events.auth_changed.emit(user.id)
+        self._refresh_current_session_if_user(user.id)
 
     def revoke_role(self, user_id: str, role_name: str) -> None:
         require_permission(self._user_session, "auth.manage", operation_label="revoke role")
@@ -193,9 +251,15 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         role = self._require_role_by_name(role_name)
         self._user_role_repo.delete(user.id, role.id)
         self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+        self._refresh_current_session_if_user(user.id)
 
     def list_users(self) -> list[UserAccount]:
-        require_permission(self._user_session, "auth.manage", operation_label="list users")
+        if self._user_session is None or (
+            not self._user_session.has_permission("auth.manage")
+            and not self._user_session.has_permission("access.manage")
+        ):
+            require_permission(self._user_session, "auth.manage", operation_label="list users")
         return self._user_repo.list_all()
 
     def list_roles(self) -> list[Role]:
@@ -209,6 +273,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.updated_at = datetime.now(timezone.utc)
         self._user_repo.update(user)
         self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+        self._refresh_current_session_if_user(user.id)
         return user
 
     def update_user_profile(
@@ -254,15 +320,39 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         except Exception:
             self._session.rollback()
             raise
+        domain_events.auth_changed.emit(user.id)
+        self._refresh_current_session_if_user(user.id)
+        return user
+
+    def unlock_user_account(self, user_id: str) -> UserAccount:
+        require_permission(self._user_session, "auth.manage", operation_label="unlock user account")
+        user = self._require_user(user_id)
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        user.updated_at = datetime.now(timezone.utc)
+        self._user_repo.update(user)
+        self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+        self._refresh_current_session_if_user(user.id)
         return user
 
     def build_principal(self, user: UserAccount) -> UserSessionPrincipal:
+        project_access: dict[str, frozenset[str]] = {}
+        if self._project_membership_repo is not None:
+            for membership in self._project_membership_repo.list_by_user(user.id):
+                project_access[membership.project_id] = frozenset(
+                    str(code).strip()
+                    for code in membership.permission_codes
+                    if str(code).strip()
+                )
         return UserSessionPrincipal(
             user_id=user.id,
             username=user.username,
             display_name=user.display_name,
             role_names=frozenset(self.get_user_role_names(user.id)),
             permissions=frozenset(self.get_user_permissions(user.id)),
+            project_access=project_access,
+            session_expires_at=user.session_expires_at,
         )
 
     def _assign_roles_for_user(self, user_id: str, role_names: Iterable[str]) -> None:
@@ -326,6 +416,40 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             )
         except Exception as exc:
             logger.warning("Failed to write auth audit event '%s': %s", action, exc)
+
+    def _register_failed_login(
+        self,
+        user: UserAccount,
+        *,
+        username: str,
+        occurred_at: datetime,
+    ) -> None:
+        user.failed_login_attempts = int(getattr(user, "failed_login_attempts", 0) or 0) + 1
+        if user.failed_login_attempts >= login_lockout_threshold():
+            user.locked_until = occurred_at + timedelta(minutes=login_lockout_minutes())
+        user.updated_at = occurred_at
+        self._user_repo.update(user)
+        self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+        if user.locked_until is not None:
+            logger.warning(
+                "User '%s' locked out until %s after %s failed attempts.",
+                username,
+                user.locked_until.isoformat(),
+                user.failed_login_attempts,
+            )
+
+    def _refresh_current_session_if_user(self, user_id: str) -> None:
+        if self._user_session is None:
+            return
+        principal = self._user_session.principal
+        if principal is None or principal.user_id != user_id:
+            return
+        user = self._user_repo.get(user_id)
+        if user is None or not user.is_active:
+            self._user_session.clear()
+            return
+        self._user_session.set_principal(self.build_principal(user))
 
 
 __all__ = ["AuthService"]

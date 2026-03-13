@@ -29,7 +29,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
     _assignment_repo: AssignmentRepository
 
     def get_gantt_data(self, project_id: str) -> List[GanttTaskBar]:
-        self._require_view("view gantt report")
+        self._require_view("view gantt report", project_id=project_id)
         """
         Returns a list of GanttTaskBars, ensuring schedule is up to date (CPM).
         """
@@ -72,7 +72,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         return bars
 
     def get_project_kpis(self, project_id: str) -> ProjectKPI:
-        self._require_view("view project kpis")
+        self._require_view("view project kpis", project_id=project_id)
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -143,7 +143,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         )
 
     def get_critical_path(self, project_id: str) -> List[CPMTaskInfo]:
-        self._require_view("view critical path report")
+        self._require_view("view critical path report", project_id=project_id)
         """
         Return critical tasks in topological order (approximate critical path).
         """
@@ -154,7 +154,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         return critical
 
     def get_resource_load_summary(self, project_id: str) -> List[ResourceLoadRow]:
-        self._require_view("view resource load report")
+        self._require_view("view resource load report", project_id=project_id)
         """
         Capacity-aware load summary by resource using peak concurrent allocation.
         """

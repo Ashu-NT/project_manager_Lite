@@ -16,6 +16,7 @@ from core.interfaces import (
     TaskRepository,
 )
 from core.models import Task, TaskStatus
+from core.services.access.authorization import require_project_permission
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 from core.services.work_calendar.engine import WorkCalendarEngine
@@ -42,6 +43,12 @@ class TaskLifecycleMixin:
         deadline: Optional[date] = None,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="create task")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "task.manage",
+            operation_label="create task",
+        )
         self._validate_dates(start_date, deadline, duration_days)
         self._validate_task_name(name)
 
@@ -86,6 +93,12 @@ class TaskLifecycleMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.manage",
+            operation_label="set task status",
+        )
         prior_status = task.status
         task.status = status
         if status == TaskStatus.DONE:
@@ -115,6 +128,12 @@ class TaskLifecycleMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.manage",
+            operation_label="delete task",
+        )
         try:
             time_entry_repo = getattr(self, "_time_entry_repo", None)
             assignments = self._assignment_repo.list_by_task(task_id)
@@ -160,6 +179,12 @@ class TaskLifecycleMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.manage",
+            operation_label="update task",
+        )
         if expected_version is not None and task.version != expected_version:
             raise ConcurrencyError(
                 "Task changed since you opened it. Refresh and try again.",
@@ -225,6 +250,12 @@ class TaskLifecycleMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.manage",
+            operation_label="update task progress",
+        )
         if expected_version is not None and task.version != expected_version:
             raise ConcurrencyError(
                 "Task changed since you opened it. Refresh and try again.",

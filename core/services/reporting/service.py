@@ -11,6 +11,7 @@ from core.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
+from core.services.access.authorization import require_project_permission
 from core.services.auth.authorization import require_permission
 from core.services.common.base import ServiceBase
 from core.services.scheduling.engine import SchedulingEngine
@@ -59,5 +60,12 @@ class ReportingService(
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._user_session = user_session
 
-    def _require_view(self, operation_label: str) -> None:
+    def _require_view(self, operation_label: str, *, project_id: str | None = None) -> None:
         require_permission(self._user_session, "report.view", operation_label=operation_label)
+        if project_id is not None:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "report.view",
+                operation_label=operation_label,
+            )

@@ -84,8 +84,11 @@ def test_main_window_runtime_hides_admin_tabs_for_viewer(qapp, services, repo_wo
 
     assert "Projects" in labels
     assert "Tasks" in labels
+    assert "Collaboration" in labels
     assert "Costs" in labels
+    assert "Portfolio" not in labels
     assert "Users" not in labels
+    assert "Access" not in labels
     assert "Audit" not in labels
     assert "Support" not in labels
 

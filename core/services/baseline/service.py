@@ -14,6 +14,7 @@ from core.interfaces import (
 )
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.services.approval.policy import is_governance_required
+from core.services.access.authorization import require_project_permission
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import is_admin_session, require_permission
 from core.services.scheduling.engine import SchedulingEngine
@@ -67,9 +68,21 @@ class BaselineService:
                 "approval.request",
                 operation_label="request baseline creation",
             )
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "approval.request",
+                operation_label="request baseline creation",
+            )
         else:
             require_permission(
                 self._user_session,
+                "baseline.manage",
+                operation_label="create baseline",
+            )
+            require_project_permission(
+                self._user_session,
+                project_id,
                 "baseline.manage",
                 operation_label="create baseline",
             )
@@ -274,10 +287,22 @@ class BaselineService:
 
     def get_latest_baseline(self, project_id: str) -> Optional[ProjectBaseline]:
         require_permission(self._user_session, "project.read", operation_label="view latest baseline")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "project.read",
+            operation_label="view latest baseline",
+        )
         return self._baselines.get_latest_for_project(project_id)
 
     def list_baselines(self, project_id: str) -> list[ProjectBaseline]:
         require_permission(self._user_session, "project.read", operation_label="list baselines")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "project.read",
+            operation_label="list baselines",
+        )
         return self._baselines.list_for_project(project_id)
 
     def delete_baseline(self, baseline_id: str) -> None:
@@ -285,6 +310,12 @@ class BaselineService:
         baseline = self._baselines.get_baseline(baseline_id)
         if not baseline:
             raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            baseline.project_id,
+            "baseline.manage",
+            operation_label="delete baseline",
+        )
         try:
             self._baselines.delete_baseline(baseline_id)
             self._session.commit()

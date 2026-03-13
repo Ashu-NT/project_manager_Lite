@@ -20,11 +20,14 @@ from core.services.auth import UserSessionContext
 from infra.update import check_for_updates, default_update_manifest_source
 from infra.version import get_app_version
 from ui.admin.audit_tab import AuditLogTab
+from ui.access.tab import AccessTab
 from ui.admin.users_tab import UserAdminTab
 from ui.calendar.tab import CalendarTab
+from ui.collaboration.tab import CollaborationTab
 from ui.cost.tab import CostTab
 from ui.dashboard.tab import DashboardTab
 from ui.governance.tab import GovernanceTab
+from ui.portfolio.tab import PortfolioTab
 from ui.project.tab import ProjectTab
 from ui.register.tab import RegisterTab
 from ui.report.tab import ReportTab
@@ -128,7 +131,7 @@ class MainWindow(QMainWindow):
             )
             self.tabs.addTab(project_tab, "Projects")
 
-        if self._has_permission("project.read"):
+        if self._has_permission("register.read"):
             register_tab = RegisterTab(
                 register_service=self.services["register_service"],
                 project_service=self.services["project_service"],
@@ -148,6 +151,13 @@ class MainWindow(QMainWindow):
                 user_session=self._user_session,
             )
             self.tabs.addTab(task_tab, "Tasks")
+
+        if self._has_permission("collaboration.read"):
+            collaboration_tab = CollaborationTab(
+                collaboration_service=self.services["collaboration_service"],
+                parent=self,
+            )
+            self.tabs.addTab(collaboration_tab, "Collaboration")
 
         if self._has_permission("cost.read"):
             cost_tab = CostTab(
@@ -170,6 +180,15 @@ class MainWindow(QMainWindow):
             )
             self.tabs.addTab(report_tab, "Reports")
 
+        if self._has_permission("portfolio.read"):
+            portfolio_tab = PortfolioTab(
+                portfolio_service=self.services["portfolio_service"],
+                project_service=self.services["project_service"],
+                user_session=self._user_session,
+                parent=self,
+            )
+            self.tabs.addTab(portfolio_tab, "Portfolio")
+
         if self._has_permission("auth.manage"):
             users_tab = UserAdminTab(
                 auth_service=self.services["auth_service"],
@@ -177,7 +196,17 @@ class MainWindow(QMainWindow):
             )
             self.tabs.addTab(users_tab, "Users")
 
-        if self._has_permission("auth.manage"):
+        if self._has_permission("access.manage"):
+            access_tab = AccessTab(
+                access_service=self.services["access_service"],
+                auth_service=self.services["auth_service"],
+                project_service=self.services["project_service"],
+                user_session=self._user_session,
+                parent=self,
+            )
+            self.tabs.addTab(access_tab, "Access")
+
+        if self._has_permission("audit.read"):
             audit_tab = AuditLogTab(
                 audit_service=self.services["audit_service"],
                 project_service=self.services["project_service"],
@@ -188,7 +217,7 @@ class MainWindow(QMainWindow):
             )
             self.tabs.addTab(audit_tab, "Audit")
 
-        if self._has_permission("auth.manage"):
+        if self._has_permission("support.manage"):
             support_tab = SupportTab(
                 settings_store=self._settings_store,
                 user_session=self._user_session,

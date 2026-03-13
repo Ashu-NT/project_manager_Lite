@@ -1,5 +1,5 @@
 
-"""Domain event hub for project/task/cost/baseline/register change notifications."""
+"""Domain event hub for project, auth, collaboration, and portfolio notifications."""
 
 from dataclasses import dataclass, field
 
@@ -15,6 +15,10 @@ class DomainEvents:
     baseline_changed: Signal[str] = field(default_factory=Signal)  # project_id
     approvals_changed: Signal[str] = field(default_factory=Signal)  # approval_request_id
     register_changed: Signal[str] = field(default_factory=Signal)  # project_id
+    auth_changed: Signal[str] = field(default_factory=Signal)  # user_id
+    access_changed: Signal[str] = field(default_factory=Signal)  # project_id
+    collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
+    portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id
 
 
 # SINGLE global instance

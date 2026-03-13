@@ -48,7 +48,7 @@ class RegisterTab(QWidget):
         self._register_service = register_service
         self._project_service = project_service
         self._user_session = user_session
-        self._can_manage = has_permission(self._user_session, "project.manage")
+        self._can_manage = has_permission(self._user_session, "register.manage")
         self._rows: list[RegisterEntry] = []
         self._project_name_by_id: dict[str, str] = {}
         self._setup_ui()
@@ -238,9 +238,9 @@ class RegisterTab(QWidget):
         self.owner_filter.textChanged.connect(self._apply_filters)
         self.table.itemSelectionChanged.connect(self._render_selected_entry)
 
-        apply_permission_hint(self.btn_new, allowed=self._can_manage, missing_permission="project.manage")
-        apply_permission_hint(self.btn_edit, allowed=self._can_manage, missing_permission="project.manage")
-        apply_permission_hint(self.btn_delete, allowed=self._can_manage, missing_permission="project.manage")
+        apply_permission_hint(self.btn_new, allowed=self._can_manage, missing_permission="register.manage")
+        apply_permission_hint(self.btn_edit, allowed=self._can_manage, missing_permission="register.manage")
+        apply_permission_hint(self.btn_delete, allowed=self._can_manage, missing_permission="register.manage")
 
     def _build_narrative_section(self, layout: QVBoxLayout, *, title: str, placeholder: str) -> QTextEdit:
         group = QGroupBox(title)

@@ -109,8 +109,8 @@ class TimesheetDialog(QDialog):
         self._resource_name = resource_name
         self._user_session = user_session
         self._can_manage_entries = has_permission(self._user_session, "task.manage")
-        self._can_decide_period = has_permission(self._user_session, "approval.decide")
-        self._can_lock_period = has_permission(self._user_session, "settings.manage")
+        self._can_decide_period = has_permission(self._user_session, "timesheet.approve")
+        self._can_lock_period = has_permission(self._user_session, "timesheet.lock")
         self.setWindowTitle(f"Timesheet - {resource_name}")
         self.resize(860, 560)
 

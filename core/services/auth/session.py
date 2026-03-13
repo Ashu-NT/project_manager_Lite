@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import FrozenSet
 
 
@@ -11,6 +12,8 @@ class UserSessionPrincipal:
     display_name: str | None
     role_names: FrozenSet[str]
     permissions: FrozenSet[str]
+    project_access: dict[str, FrozenSet[str]] = field(default_factory=dict)
+    session_expires_at: datetime | None = None
 
 
 class UserSessionContext:
@@ -28,12 +31,64 @@ class UserSessionContext:
         self._principal = None
 
     def is_authenticated(self) -> bool:
-        return self._principal is not None
+        return self._active_principal() is not None
 
     def has_permission(self, permission_code: str) -> bool:
-        if self._principal is None:
+        principal = self._active_principal()
+        if principal is None:
             return False
-        return permission_code in self._principal.permissions
+        return permission_code in principal.permissions
+
+    def has_any_project_access(self, permission_code: str) -> bool:
+        principal = self._active_principal()
+        if principal is None:
+            return False
+        if "admin" in principal.role_names:
+            return permission_code in principal.permissions
+        if permission_code not in principal.permissions:
+            return False
+        return any(permission_code in perms for perms in principal.project_access.values())
+
+    def has_project_permission(self, project_id: str, permission_code: str) -> bool:
+        principal = self._active_principal()
+        if principal is None:
+            return False
+        if "admin" in principal.role_names:
+            return permission_code in principal.permissions
+        if permission_code not in principal.permissions:
+            return False
+        access_map = principal.project_access or {}
+        if not access_map:
+            return True
+        return permission_code in access_map.get(project_id, frozenset())
+
+    def project_ids_for(self, permission_code: str) -> set[str]:
+        principal = self._active_principal()
+        if principal is None:
+            return set()
+        return {
+            project_id
+            for project_id, permissions in (principal.project_access or {}).items()
+            if permission_code in permissions
+        }
+
+    def is_project_restricted(self) -> bool:
+        principal = self._active_principal()
+        if principal is None:
+            return False
+        if "admin" in principal.role_names:
+            return False
+        return bool(principal.project_access)
+
+    def _active_principal(self) -> UserSessionPrincipal | None:
+        principal = self._principal
+        if principal is None:
+            return None
+        expires_at = principal.session_expires_at
+        if expires_at is not None and datetime.now(timezone.utc) >= expires_at:
+            self.clear()
+            return None
+        return principal
 
 
 __all__ = ["UserSessionPrincipal", "UserSessionContext"]

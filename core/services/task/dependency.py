@@ -4,6 +4,7 @@ from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.models import DependencyType, TaskDependency
 from core.services.approval.policy import is_governance_required
+from core.services.access.authorization import require_project_permission
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import is_admin_session, require_permission
 class TaskDependencyMixin:
@@ -15,11 +16,29 @@ class TaskDependencyMixin:
         lag_days: int = 0,
         bypass_approval: bool = False,
     ) -> TaskDependency:
+        pred = self._task_repo.get(predecessor_id)
+        if not pred:
+            raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
+        succ = self._task_repo.get(successor_id)
+        if not succ:
+            raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
         governed = (not bypass_approval and self._approval_service is not None and is_governance_required("dependency.add") and not is_admin_session(self._user_session))
         if governed:
             require_permission(self._user_session, "approval.request", operation_label="request dependency change")
+            require_project_permission(
+                self._user_session,
+                pred.project_id,
+                "approval.request",
+                operation_label="request dependency change",
+            )
         else:
             require_permission(self._user_session, "task.manage", operation_label="add dependency")
+            require_project_permission(
+                self._user_session,
+                pred.project_id,
+                "task.manage",
+                operation_label="add dependency",
+            )
         diagnostic = self.get_dependency_diagnostics(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
@@ -36,10 +55,6 @@ class TaskDependencyMixin:
             if diagnostic.code == "DEPENDENCY_CYCLE":
                 raise BusinessRuleError(message, code=diagnostic.code)
             raise ValidationError(message, code=diagnostic.code)
-        pred = self._task_repo.get(predecessor_id)
-        if not pred:
-            raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
-        succ = self._task_repo.get(successor_id)
         if governed:
             req = self._approval_service.request_change(
                 request_type="dependency.add",
@@ -94,8 +109,15 @@ class TaskDependencyMixin:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
         pred = self._task_repo.get(dep.predecessor_task_id)
         succ = self._task_repo.get(dep.successor_task_id)
+        project_id = pred.project_id if pred else (succ.project_id if succ else None)
+        if project_id:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "approval.request" if governed else "task.manage",
+                operation_label="request dependency removal" if governed else "remove dependency",
+            )
         if governed:
-            project_id = pred.project_id if pred else (succ.project_id if succ else None)
             req = self._approval_service.request_change(
                 request_type="dependency.remove",
                 entity_type="task_dependency",
@@ -138,4 +160,13 @@ class TaskDependencyMixin:
 
     def list_dependencies_for_task(self, task_id: str) -> List[TaskDependency]:
         require_permission(self._user_session, "task.read", operation_label="list task dependencies")
+        task = self._task_repo.get(task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.read",
+            operation_label="list task dependencies",
+        )
         return self._dependency_repo.list_by_task(task_id)

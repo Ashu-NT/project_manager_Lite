@@ -10,6 +10,7 @@ from core.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
+from core.services.access.authorization import require_project_permission
 from core.services.auth.authorization import require_permission
 from core.services.finance.analytics import build_dimension_analytics, build_source_analytics
 from core.services.finance.cashflow import build_period_cashflow
@@ -54,6 +55,12 @@ class FinanceService:
         period: str = "month",
     ) -> FinanceSnapshot:
         require_permission(self._user_session, "report.view", operation_label="view finance snapshot")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "report.view",
+            operation_label="view finance snapshot",
+        )
         as_of = as_of or date.today()
         project = self._project_repo.get(project_id)
         if project is None:

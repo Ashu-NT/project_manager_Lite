@@ -7,16 +7,19 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from core.models import CostType, DependencyType
+from core.services.access import AccessControlService
 from core.services.approval import ApprovalService
 from core.services.audit import AuditService
 from core.services.baseline import BaselineService
 from core.services.auth import AuthService
 from core.services.auth.session import UserSessionContext
 from core.services.calendar import CalendarService
+from core.services.collaboration import CollaborationService
 from core.services.cost import CostService
 from core.services.dashboard import DashboardService
 from core.services.finance import FinanceService
 from core.services.import_service import DataImportService
+from core.services.portfolio import PortfolioService
 from core.services.project import ProjectResourceService, ProjectService
 from core.services.register import RegisterService
 from core.services.reporting import ReportingService
@@ -45,8 +48,14 @@ from infra.db.repositories import (
     SqlAlchemyUserRoleRepository,
     SqlAlchemyWorkingCalendarRepository,
 )
+from infra.db.access import SqlAlchemyProjectMembershipRepository
 from infra.db.repositories_approval import SqlAlchemyApprovalRepository
 from infra.db.repositories_audit import SqlAlchemyAuditLogRepository
+from infra.db.collaboration import SqlAlchemyTaskCommentRepository
+from infra.db.portfolio import (
+    SqlAlchemyPortfolioIntakeRepository,
+    SqlAlchemyPortfolioScenarioRepository,
+)
 from infra.db.repositories_register import SqlAlchemyRegisterEntryRepository
 
 
@@ -77,8 +86,10 @@ class ServiceGraph:
     session: Session
     user_session: UserSessionContext
     auth_service: AuthService
+    access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
+    collaboration_service: CollaborationService
     project_service: ProjectService
     task_service: TaskService
     timesheet_service: TimesheetService
@@ -92,6 +103,7 @@ class ServiceGraph:
     reporting_service: ReportingService
     baseline_service: BaselineService
     dashboard_service: DashboardService
+    portfolio_service: PortfolioService
     register_service: RegisterService
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
@@ -102,8 +114,10 @@ class ServiceGraph:
             "session": self.session,
             "user_session": self.user_session,
             "auth_service": self.auth_service,
+            "access_service": self.access_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
+            "collaboration_service": self.collaboration_service,
             "project_service": self.project_service,
             "task_service": self.task_service,
             "timesheet_service": self.timesheet_service,
@@ -117,6 +131,7 @@ class ServiceGraph:
             "reporting_service": self.reporting_service,
             "baseline_service": self.baseline_service,
             "dashboard_service": self.dashboard_service,
+            "portfolio_service": self.portfolio_service,
             "register_service": self.register_service,
             "project_resource_service": self.project_resource_service,
             "data_import_service": self.data_import_service,
@@ -143,9 +158,13 @@ def build_service_graph(session: Session) -> ServiceGraph:
     permission_repo = SqlAlchemyPermissionRepository(session)
     user_role_repo = SqlAlchemyUserRoleRepository(session)
     role_permission_repo = SqlAlchemyRolePermissionRepository(session)
+    project_membership_repo = SqlAlchemyProjectMembershipRepository(session)
     audit_repo = SqlAlchemyAuditLogRepository(session)
     approval_repo = SqlAlchemyApprovalRepository(session)
     register_repo = SqlAlchemyRegisterEntryRepository(session)
+    task_comment_repo = SqlAlchemyTaskCommentRepository(session)
+    portfolio_intake_repo = SqlAlchemyPortfolioIntakeRepository(session)
+    portfolio_scenario_repo = SqlAlchemyPortfolioScenarioRepository(session)
 
     work_calendar_engine = WorkCalendarEngine(work_calendar_repo, calendar_id="default")
     audit_service = AuditService(
@@ -166,10 +185,20 @@ def build_service_graph(session: Session) -> ServiceGraph:
         permission_repo=permission_repo,
         user_role_repo=user_role_repo,
         role_permission_repo=role_permission_repo,
+        project_membership_repo=project_membership_repo,
         user_session=user_session,
         audit_service=audit_service,
     )
     auth_service.bootstrap_defaults()
+    access_service = AccessControlService(
+        session=session,
+        membership_repo=project_membership_repo,
+        project_repo=project_repo,
+        user_repo=user_repo,
+        auth_service=auth_service,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
 
     project_service = ProjectService(
         session,
@@ -286,6 +315,22 @@ def build_service_graph(session: Session) -> ServiceGraph:
         reporting_service=reporting_service,
         user_session=user_session,
     )
+    collaboration_service = CollaborationService(
+        session=session,
+        comment_repo=task_comment_repo,
+        task_repo=task_repo,
+        project_repo=project_repo,
+        user_session=user_session,
+    )
+    portfolio_service = PortfolioService(
+        session=session,
+        intake_repo=portfolio_intake_repo,
+        scenario_repo=portfolio_scenario_repo,
+        project_repo=project_repo,
+        resource_repo=resource_repo,
+        reporting_service=reporting_service,
+        user_session=user_session,
+    )
     baseline_service = BaselineService(
         session=session,
         project_repo=project_repo,
@@ -388,8 +433,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
         session=session,
         user_session=user_session,
         auth_service=auth_service,
+        access_service=access_service,
         audit_service=audit_service,
         approval_service=approval_service,
+        collaboration_service=collaboration_service,
         project_service=project_service,
         task_service=task_service,
         timesheet_service=timesheet_service,
@@ -403,6 +450,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         reporting_service=reporting_service,
         baseline_service=baseline_service,
         dashboard_service=dashboard_service,
+        portfolio_service=portfolio_service,
         register_service=register_service,
         project_resource_service=project_resource_service,
         data_import_service=data_import_service,

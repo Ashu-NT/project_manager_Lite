@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core.events.domain_events import domain_events
+from core.services.access.authorization import require_project_permission
 from core.services.auth.authorization import require_permission
 from core.services.dashboard.alerts import DashboardAlertsMixin
 from core.services.dashboard.burndown import DashboardBurndownMixin
@@ -54,6 +55,12 @@ class DashboardService(
         self._user_session = user_session
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
         require_permission(self._user_session, "report.view", operation_label="view dashboard")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "report.view",
+            operation_label="view dashboard",
+        )
         # Dashboard refresh should be read-only and never contend with task edits.
         schedule = self._sched.recalculate_project_schedule(project_id, persist=False)
 
@@ -87,6 +94,12 @@ class DashboardService(
         threshold_percent: float = 100.0,
     ) -> list[ResourceConflict]:
         require_permission(self._user_session, "report.view", operation_label="view resource conflicts")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "report.view",
+            operation_label="view resource conflicts",
+        )
         self._sched.recalculate_project_schedule(project_id)
         return self._sched.preview_resource_conflicts(
             project_id=project_id,
@@ -101,6 +114,12 @@ class DashboardService(
     ) -> ResourceLevelingResult:
         require_permission(
             self._user_session,
+            "task.manage",
+            operation_label="auto-level resource conflicts",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
             "task.manage",
             operation_label="auto-level resource conflicts",
         )
@@ -123,6 +142,12 @@ class DashboardService(
     ) -> ResourceLevelingAction:
         require_permission(
             self._user_session,
+            "task.manage",
+            operation_label="manual task shift",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
             "task.manage",
             operation_label="manual task shift",
         )

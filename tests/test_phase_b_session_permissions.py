@@ -70,7 +70,7 @@ def test_cleared_session_denies_core_read_models(services):
         dashboard.get_dashboard_data(project.id)
     with pytest.raises(BusinessRuleError, match="approval.request"):
         approvals.list_requests(project_id=project.id)
-    with pytest.raises(BusinessRuleError, match="auth.manage"):
+    with pytest.raises(BusinessRuleError, match="audit.read"):
         audit.list_recent(project_id=project.id)
     with pytest.raises(BusinessRuleError, match="task.read"):
         calendar.list_events_for_project(project.id)
@@ -241,10 +241,10 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 9))
     assert submitted.status.value == "SUBMITTED"
 
-    with pytest.raises(BusinessRuleError, match="approval.decide"):
+    with pytest.raises(BusinessRuleError, match="timesheet.approve"):
         ts.approve_timesheet_period(submitted.id)
 
-    with pytest.raises(BusinessRuleError, match="settings.manage"):
+    with pytest.raises(BusinessRuleError, match="timesheet.lock"):
         ts.lock_timesheet_period(resource.id, period_start=date(2026, 7, 1))
 
     _login_as(services, "viewer-timesheet", "StrongPass123")

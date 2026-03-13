@@ -5,6 +5,7 @@ from datetime import date
 from core.domain.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
 from core.exceptions import NotFoundError
 from core.interfaces import ProjectRepository, RegisterEntryRepository
+from core.services.access.authorization import filter_project_rows, require_project_permission
 from core.services.auth.authorization import require_permission
 from core.services.register.models import RegisterProjectSummary, RegisterUrgentItem
 
@@ -26,10 +27,16 @@ class RegisterQueryMixin:
     _register_repo: RegisterEntryRepository
 
     def get_entry(self, entry_id: str) -> RegisterEntry:
-        require_permission(self._user_session, "project.read", operation_label="view register entry")
+        require_permission(self._user_session, "register.read", operation_label="view register entry")
         entry = self._register_repo.get(entry_id)
         if entry is None:
             raise NotFoundError("Register entry not found.", code="REGISTER_ENTRY_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            entry.project_id,
+            "register.read",
+            operation_label="view register entry",
+        )
         return entry
 
     def list_entries(
@@ -40,16 +47,35 @@ class RegisterQueryMixin:
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
     ) -> list[RegisterEntry]:
-        require_permission(self._user_session, "project.read", operation_label="view risk/issue/change register")
-        return self._register_repo.list_entries(
+        require_permission(self._user_session, "register.read", operation_label="view risk/issue/change register")
+        if project_id:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "register.read",
+                operation_label="view risk/issue/change register",
+            )
+        rows = self._register_repo.list_entries(
             project_id=project_id,
             entry_type=entry_type,
             status=status,
             severity=severity,
         )
+        return filter_project_rows(
+            rows,
+            self._user_session,
+            permission_code="register.read",
+            project_id_getter=lambda entry: entry.project_id,
+        )
 
     def get_project_summary(self, project_id: str) -> RegisterProjectSummary:
-        require_permission(self._user_session, "project.read", operation_label="view register summary")
+        require_permission(self._user_session, "register.read", operation_label="view register summary")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "register.read",
+            operation_label="view register summary",
+        )
         project = self._project_repo.get(project_id)
         if project is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")

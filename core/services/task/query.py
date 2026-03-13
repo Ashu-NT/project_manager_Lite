@@ -6,6 +6,7 @@ from typing import List
 from core.exceptions import ValidationError
 from core.interfaces import AssignmentRepository, TaskRepository
 from core.models import Task, TaskAssignment, TaskStatus
+from core.services.access.authorization import require_project_permission
 from core.services.auth.authorization import require_permission
 
 
@@ -15,10 +16,25 @@ class TaskQueryMixin:
 
     def get_task(self, task_id: str) -> Task | None:
         require_permission(self._user_session, "task.read", operation_label="view task")
-        return self._task_repo.get(task_id)
+        task = self._task_repo.get(task_id)
+        if task is None:
+            return None
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.read",
+            operation_label="view task",
+        )
+        return task
 
     def list_tasks_for_project(self, project_id: str) -> List[Task]:
         require_permission(self._user_session, "task.read", operation_label="list project tasks")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "task.read",
+            operation_label="list project tasks",
+        )
         return self._task_repo.list_by_project(project_id)
 
     def list_tasks_for_resource(self, resource_id: str) -> List[Task]:
@@ -28,7 +44,7 @@ class TaskQueryMixin:
         tasks: List[Task] = []
         for tid in task_ids:
             t = self._task_repo.get(tid)
-            if t:
+            if t and self._user_session.has_project_permission(t.project_id, "task.read"):
                 tasks.append(t)
         return tasks
 
@@ -36,7 +52,14 @@ class TaskQueryMixin:
         require_permission(self._user_session, "task.read", operation_label="list task assignments")
         if not task_ids:
             return []
-        return self._assignment_repo.list_by_tasks(task_ids)
+        allowed_ids: list[str] = []
+        for task_id in task_ids:
+            task = self._task_repo.get(task_id)
+            if task is None:
+                continue
+            if self._user_session.has_project_permission(task.project_id, "task.read"):
+                allowed_ids.append(task_id)
+        return self._assignment_repo.list_by_tasks(allowed_ids)
 
     def query_tasks(
         self,
@@ -50,6 +73,12 @@ class TaskQueryMixin:
     ) -> List[Task]:
         require_permission(self._user_session, "task.read", operation_label="query tasks")
         if project_id:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "task.read",
+                operation_label="query tasks",
+            )
             tasks = self._task_repo.list_by_project(project_id)
         else:
             raise ValidationError("project_id is required for query_tasks currently.")

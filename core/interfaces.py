@@ -3,8 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from .models import (
+    CollaborationInboxItem,
     Project,
+    ProjectMembership,
     Task,
+    TaskComment,
     Resource,
     TaskAssignment,
     TaskDependency,
@@ -22,6 +25,8 @@ from .models import (
     AuditLogEntry,
     ApprovalRequest,
     Permission,
+    PortfolioIntakeItem,
+    PortfolioScenario,
     Role,
     RolePermissionBinding,
     ApprovalStatus,
@@ -43,6 +48,22 @@ class ProjectRepository(ABC):
     def get(self, project_id: str) -> Optional[Project]: ...
     @abstractmethod
     def list_all(self) -> List[Project]: ...
+
+class ProjectMembershipRepository(ABC):
+    @abstractmethod
+    def add(self, membership: ProjectMembership) -> None: ...
+    @abstractmethod
+    def update(self, membership: ProjectMembership) -> None: ...
+    @abstractmethod
+    def get(self, membership_id: str) -> Optional[ProjectMembership]: ...
+    @abstractmethod
+    def get_for_project_user(self, project_id: str, user_id: str) -> Optional[ProjectMembership]: ...
+    @abstractmethod
+    def list_by_project(self, project_id: str) -> List[ProjectMembership]: ...
+    @abstractmethod
+    def list_by_user(self, user_id: str) -> List[ProjectMembership]: ...
+    @abstractmethod
+    def delete(self, membership_id: str) -> None: ...
 
 class ProjectResourceRepository(ABC):
     @abstractmethod
@@ -133,6 +154,19 @@ class TimesheetPeriodRepository(ABC):
     def get_by_resource_period(self, resource_id: str, period_start) -> Optional[TimesheetPeriod]: ...
     @abstractmethod
     def list_by_resource(self, resource_id: str) -> List[TimesheetPeriod]: ...
+
+
+class TaskCommentRepository(ABC):
+    @abstractmethod
+    def add(self, comment: TaskComment) -> None: ...
+    @abstractmethod
+    def update(self, comment: TaskComment) -> None: ...
+    @abstractmethod
+    def get(self, comment_id: str) -> Optional[TaskComment]: ...
+    @abstractmethod
+    def list_by_task(self, task_id: str) -> List[TaskComment]: ...
+    @abstractmethod
+    def list_recent_for_tasks(self, task_ids: List[str], limit: int = 200) -> List[TaskComment]: ...
 
 
 class DependencyRepository(ABC):
@@ -322,3 +356,29 @@ class ApprovalRepository(ABC):
         limit: int = 200,
         project_id: str | None = None,
     ) -> List[ApprovalRequest]: ...
+
+
+class PortfolioIntakeRepository(ABC):
+    @abstractmethod
+    def add(self, item: PortfolioIntakeItem) -> None: ...
+    @abstractmethod
+    def update(self, item: PortfolioIntakeItem) -> None: ...
+    @abstractmethod
+    def get(self, item_id: str) -> Optional[PortfolioIntakeItem]: ...
+    @abstractmethod
+    def list_all(self) -> List[PortfolioIntakeItem]: ...
+    @abstractmethod
+    def delete(self, item_id: str) -> None: ...
+
+
+class PortfolioScenarioRepository(ABC):
+    @abstractmethod
+    def add(self, scenario: PortfolioScenario) -> None: ...
+    @abstractmethod
+    def update(self, scenario: PortfolioScenario) -> None: ...
+    @abstractmethod
+    def get(self, scenario_id: str) -> Optional[PortfolioScenario]: ...
+    @abstractmethod
+    def list_all(self) -> List[PortfolioScenario]: ...
+    @abstractmethod
+    def delete(self, scenario_id: str) -> None: ...

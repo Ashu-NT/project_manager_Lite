@@ -15,6 +15,12 @@ class UserAccount:
     display_name: Optional[str] = None
     email: Optional[str] = None
     is_active: bool = True
+    failed_login_attempts: int = 0
+    locked_until: datetime | None = None
+    last_login_at: datetime | None = None
+    session_expires_at: datetime | None = None
+    password_changed_at: datetime | None = None
+    must_change_password: bool = False
     created_at: datetime | None = None
     updated_at: datetime | None = None
     version: int = 1
@@ -35,6 +41,12 @@ class UserAccount:
             display_name=display_name,
             email=email,
             is_active=is_active,
+            failed_login_attempts=0,
+            locked_until=None,
+            last_login_at=None,
+            session_expires_at=None,
+            password_changed_at=now,
+            must_change_password=False,
             created_at=now,
             updated_at=now,
             version=1,

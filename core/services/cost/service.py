@@ -8,6 +8,7 @@ from core.interfaces import CostRepository, ProjectRepository, TaskRepository
 from core.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.events.domain_events import domain_events
 from core.services.approval.policy import is_governance_required
+from core.services.access.authorization import require_project_permission
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import is_admin_session, require_permission
 
@@ -58,8 +59,20 @@ class CostService:
                 "approval.request",
                 operation_label="request cost item creation",
             )
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "approval.request",
+                operation_label="request cost item creation",
+            )
         else:
             require_permission(self._user_session, "cost.manage", operation_label="add cost item")
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "cost.manage",
+                operation_label="add cost item",
+            )
         if not isinstance(cost_type, CostType):
             cost_type = CostType(str(cost_type))
         if not self._project_repo.get(project_id):
@@ -176,6 +189,12 @@ class CostService:
         item = self._cost_repo.get(cost_id)
         if not item:
             raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            item.project_id,
+            "approval.request" if governed else "cost.manage",
+            operation_label="request cost item update" if governed else "update cost item",
+        )
         if expected_version is not None and item.version != expected_version:
             raise ConcurrencyError(
                 "Cost item changed since you opened it. Refresh and try again.",
@@ -278,6 +297,12 @@ class CostService:
         item = self._cost_repo.get(cost_id)
         if not item:
             raise NotFoundError("Cost item not found.", code="COST_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            item.project_id,
+            "approval.request" if governed else "cost.manage",
+            operation_label="request cost item deletion" if governed else "delete cost item",
+        )
         item_task = self._task_repo.get(item.task_id) if item.task_id else None
         if governed:
             req = self._approval_service.request_change(
@@ -314,10 +339,22 @@ class CostService:
 
     def list_cost_items_for_project(self, project_id: str) -> List[CostItem]:
         require_permission(self._user_session, "cost.read", operation_label="list project costs")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "cost.read",
+            operation_label="list project costs",
+        )
         return self._cost_repo.list_by_project(project_id)
 
     def get_project_cost_summary(self, project_id: str) -> dict:
         require_permission(self._user_session, "cost.read", operation_label="view project cost summary")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "cost.read",
+            operation_label="view project cost summary",
+        )
         if not self._project_repo.get(project_id):
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 

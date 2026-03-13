@@ -224,6 +224,11 @@ class TaskLayoutMixin:
             allowed=self._can_manage_tasks,
             missing_permission="task.manage",
         )
+        apply_permission_hint(
+            self.btn_comments,
+            allowed=self._can_view_collaboration,
+            missing_permission="collaboration.read",
+        )
         self._apply_accessibility_labels()
         self._setup_shortcuts()
         self._sync_toolbar_actions()

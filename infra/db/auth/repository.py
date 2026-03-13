@@ -46,6 +46,12 @@ class SqlAlchemyUserRepository(UserRepository):
                 "display_name": user.display_name,
                 "email": user.email,
                 "is_active": user.is_active,
+                "failed_login_attempts": getattr(user, "failed_login_attempts", 0),
+                "locked_until": getattr(user, "locked_until", None),
+                "last_login_at": getattr(user, "last_login_at", None),
+                "session_expires_at": getattr(user, "session_expires_at", None),
+                "password_changed_at": getattr(user, "password_changed_at", None),
+                "must_change_password": getattr(user, "must_change_password", False),
                 "updated_at": user.updated_at,
             },
             not_found_message="User not found.",
@@ -166,4 +172,3 @@ __all__ = [
     "SqlAlchemyUserRoleRepository",
     "SqlAlchemyRolePermissionRepository",
 ]
-

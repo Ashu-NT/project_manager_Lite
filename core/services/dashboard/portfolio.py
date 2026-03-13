@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from core.domain.enums import ProjectStatus
+from core.services.access.authorization import filter_project_rows
 from core.services.auth.authorization import require_permission
 from core.services.dashboard.models import DashboardData
 from core.services.dashboard.portfolio_models import (
@@ -17,7 +18,12 @@ from core.services.reporting.models import ProjectKPI, ResourceLoadRow
 class DashboardPortfolioMixin:
     def get_portfolio_data(self) -> DashboardData:
         require_permission(self._user_session, "report.view", operation_label="view portfolio dashboard")
-        projects = self._projects.list_projects()
+        projects = filter_project_rows(
+            self._projects.list_projects(),
+            self._user_session,
+            permission_code="project.read",
+            project_id_getter=lambda project: project.id,
+        )
         if not projects:
             return DashboardData(
                 kpi=self._build_portfolio_kpi(),
