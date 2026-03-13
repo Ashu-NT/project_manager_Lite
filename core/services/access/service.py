@@ -8,7 +8,7 @@ from core.events.domain_events import domain_events
 from core.exceptions import NotFoundError, ValidationError
 from core.interfaces import ProjectMembershipRepository, ProjectRepository, UserRepository
 from core.models import ProjectMembership
-from core.services.access.policy import resolve_project_scope_permissions
+from core.services.access.policy import normalize_project_scope_role, resolve_project_scope_permissions
 from core.services.audit.helpers import record_audit
 from core.services.auth.authorization import require_permission
 
@@ -60,7 +60,7 @@ class AccessControlService:
         user = self._user_repo.get(user_id)
         if user is None:
             raise NotFoundError("User not found.", code="USER_NOT_FOUND")
-        role_name = (scope_role or "").strip().lower() or "viewer"
+        role_name = normalize_project_scope_role(scope_role)
         permissions = sorted(resolve_project_scope_permissions(role_name))
         if not permissions:
             raise ValidationError("Project membership role must resolve to at least one permission.")

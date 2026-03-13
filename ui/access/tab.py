@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from core.events.domain_events import domain_events
 from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.services.access.policy import PROJECT_SCOPE_ROLE_CHOICES
 from core.services.access import AccessControlService
 from core.services.auth import AuthService
 from core.services.auth import UserSessionContext
@@ -41,7 +42,15 @@ class AccessTab(QWidget):
         self._auth_service = auth_service
         self._project_service = project_service
         self._user_session = user_session
-        self._can_unlock_users = has_permission(self._user_session, "auth.manage")
+        self._can_manage_memberships = has_permission(self._user_session, "access.manage")
+        self._can_unlock_users = has_permission(self._user_session, "auth.manage") or has_permission(
+            self._user_session,
+            "security.manage",
+        )
+        self._can_view_user_security = any(
+            has_permission(self._user_session, permission_code)
+            for permission_code in ("auth.read", "auth.manage", "access.manage", "security.manage")
+        )
         self._user_by_id: dict[str, object] = {}
         self._setup_ui()
         self.reload_data()
@@ -74,8 +83,8 @@ class AccessTab(QWidget):
         self.project_combo = QComboBox()
         self.user_combo = QComboBox()
         self.role_combo = QComboBox()
-        for role_name in ("viewer", "editor", "owner"):
-            self.role_combo.addItem(role_name.title(), userData=role_name)
+        for role_name in PROJECT_SCOPE_ROLE_CHOICES:
+            self.role_combo.addItem(role_name.replace("_", " ").title(), userData=role_name)
         row.addWidget(QLabel("Project"), 0, 0)
         row.addWidget(self.project_combo, 0, 1)
         row.addWidget(QLabel("User"), 0, 2)
@@ -102,6 +111,7 @@ class AccessTab(QWidget):
         self.membership_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.membership_table.horizontalHeader().setStretchLastSection(True)
         style_table(self.membership_table)
+        self.membership_table.setEnabled(self._can_manage_memberships)
         controls_layout.addWidget(self.membership_table)
         root.addWidget(controls_box)
 
@@ -127,6 +137,7 @@ class AccessTab(QWidget):
         self.security_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.security_table.horizontalHeader().setStretchLastSection(True)
         style_table(self.security_table)
+        self.security_table.setEnabled(self._can_view_user_security)
         security_layout.addWidget(self.security_table)
         root.addWidget(security_box, 1)
 
@@ -135,16 +146,28 @@ class AccessTab(QWidget):
         self.btn_assign.clicked.connect(self._assign_membership)
         self.btn_remove.clicked.connect(self._remove_membership)
         self.btn_unlock.clicked.connect(self._unlock_selected_user)
+        for widget in (self.project_combo, self.user_combo, self.role_combo):
+            widget.setEnabled(self._can_manage_memberships)
+        apply_permission_hint(
+            self.btn_assign,
+            allowed=self._can_manage_memberships,
+            missing_permission="access.manage",
+        )
+        apply_permission_hint(
+            self.btn_remove,
+            allowed=self._can_manage_memberships,
+            missing_permission="access.manage",
+        )
         apply_permission_hint(
             self.btn_unlock,
             allowed=self._can_unlock_users,
-            missing_permission="auth.manage",
+            missing_permission="auth.manage or security.manage",
         )
 
     def reload_data(self) -> None:
         try:
-            projects = self._project_service.list_projects()
-            users = self._auth_service.list_users()
+            projects = self._project_service.list_projects() if self._can_manage_memberships else []
+            users = self._auth_service.list_users() if self._can_view_user_security else []
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Access Control", str(exc))
             return
@@ -179,6 +202,9 @@ class AccessTab(QWidget):
         self._reload_security_table()
 
     def _reload_memberships(self) -> None:
+        if not self._can_manage_memberships:
+            self.membership_table.setRowCount(0)
+            return
         project_id = str(self.project_combo.currentData() or "").strip()
         if not project_id:
             self.membership_table.setRowCount(0)
@@ -203,6 +229,9 @@ class AccessTab(QWidget):
                 self.membership_table.setItem(row_idx, col, item)
 
     def _reload_security_table(self) -> None:
+        if not self._can_view_user_security:
+            self.security_table.setRowCount(0)
+            return
         users = list(self._user_by_id.values())
         self.security_table.setRowCount(len(users))
         for row_idx, user in enumerate(users):
@@ -256,7 +285,11 @@ class AccessTab(QWidget):
 
     def _unlock_selected_user(self) -> None:
         if not self._can_unlock_users:
-            QMessageBox.information(self, "Access Control", "Unlocking accounts requires auth.manage.")
+            QMessageBox.information(
+                self,
+                "Access Control",
+                "Unlocking accounts requires auth.manage or security.manage.",
+            )
             return
         row = self.security_table.currentRow()
         if row < 0:

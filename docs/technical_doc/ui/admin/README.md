@@ -22,6 +22,7 @@ Main capabilities:
 
 Security model:
 
+- read-only user/role directory visibility can be exposed via `auth.read`
 - all mutating actions require `auth.manage`
 - unavailable actions are disabled with permission hint tooltips
 - typed service exceptions are surfaced in contextual dialogs

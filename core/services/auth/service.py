@@ -19,7 +19,7 @@ from core.interfaces import (
     UserRoleRepository,
 )
 from core.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
-from core.services.auth.authorization import require_permission
+from core.services.auth.authorization import require_any_permission, require_permission
 from core.services.auth.datetime_utils import ensure_utc_datetime
 from core.services.auth.passwords import hash_password, verify_password
 from core.services.auth.policy import (
@@ -256,15 +256,19 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._refresh_current_session_if_user(user.id)
 
     def list_users(self) -> list[UserAccount]:
-        if self._user_session is None or (
-            not self._user_session.has_permission("auth.manage")
-            and not self._user_session.has_permission("access.manage")
-        ):
-            require_permission(self._user_session, "auth.manage", operation_label="list users")
+        require_any_permission(
+            self._user_session,
+            ("auth.manage", "auth.read", "access.manage", "security.manage"),
+            operation_label="list users",
+        )
         return self._user_repo.list_all()
 
     def list_roles(self) -> list[Role]:
-        require_permission(self._user_session, "auth.manage", operation_label="list roles")
+        require_any_permission(
+            self._user_session,
+            ("auth.manage", "auth.read"),
+            operation_label="list roles",
+        )
         return self._role_repo.list_all()
 
     def set_user_active(self, user_id: str, is_active: bool) -> UserAccount:
@@ -326,7 +330,11 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         return user
 
     def unlock_user_account(self, user_id: str) -> UserAccount:
-        require_permission(self._user_session, "auth.manage", operation_label="unlock user account")
+        require_any_permission(
+            self._user_session,
+            ("auth.manage", "security.manage"),
+            operation_label="unlock user account",
+        )
         user = self._require_user(user_id)
         user.failed_login_attempts = 0
         user.locked_until = None

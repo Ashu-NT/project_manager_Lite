@@ -157,12 +157,16 @@ _AUDITOR = {
     "audit.read",
 }
 
-_SECURITY_ADMIN = {
+_ACCESS_ADMIN = {
+    "project.read",
     "auth.read",
-    "auth.manage",
     "access.manage",
     "audit.read",
-    "support.manage",
+}
+
+_SECURITY_ADMIN = {
+    "auth.read",
+    "audit.read",
     "settings.manage",
     "security.manage",
 }
@@ -189,6 +193,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "portfolio_manager": set(_PORTFOLIO_MANAGER),
     "approver": set(_APPROVER),
     "auditor": set(_AUDITOR),
+    "access_admin": set(_ACCESS_ADMIN),
     "security_admin": set(_SECURITY_ADMIN),
     "support_admin": set(_SUPPORT_ADMIN),
     "admin": set(DEFAULT_PERMISSIONS.keys()),

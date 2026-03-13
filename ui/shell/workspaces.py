@@ -205,7 +205,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "auth.manage"):
+    if _has_any_permission(user_session, "auth.read", "auth.manage"):
         definitions.append(
             WorkspaceDefinition(
                 section="Admin",
@@ -217,7 +217,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "access.manage"):
+    if _has_any_permission(user_session, "access.manage", "security.manage"):
         definitions.append(
             WorkspaceDefinition(
                 section="Admin",
@@ -265,3 +265,10 @@ def build_workspace_definitions(
 
 def _has_permission(user_session: UserSessionContext | None, permission_code: str) -> bool:
     return bool(user_session is not None and user_session.has_permission(permission_code))
+
+
+def _has_any_permission(
+    user_session: UserSessionContext | None,
+    *permission_codes: str,
+) -> bool:
+    return any(_has_permission(user_session, permission_code) for permission_code in permission_codes)
