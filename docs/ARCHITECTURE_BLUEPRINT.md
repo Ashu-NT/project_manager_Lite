@@ -20,87 +20,87 @@ This is already a good layered baseline and should be preserved.
 Top large modules observed in this codebase:
 
 1. `main.py` (~498 lines)
-2. `core/services/scheduling/engine.py` (~408 lines)
-3. `infra/db/mappers.py` (~306 lines)
-4. `core/models.py` (~305 lines)
-5. `ui/task/tab.py` (~289 lines)
-6. `core/services/dashboard/service.py` (~278 lines)
-7. `ui/task/task_dialogs.py` (~263 lines)
+2. `core/modules/project_management/services/scheduling/engine.py` (~408 lines)
+3. `infra/platform/db/mappers.py` (~306 lines)
+4. `core/platform/common/models.py` (~305 lines)
+5. `ui/modules/project_management/task/tab.py` (~289 lines)
+6. `core/modules/project_management/services/dashboard/service.py` (~278 lines)
+7. `ui/modules/project_management/task/task_dialogs.py` (~263 lines)
 
 ## Refactor Applied In This Pass
 
 1. Report UI split into coordinator + dialogs:
-   - Coordinator: `ui/report/tab.py` (~196 lines)
-   - Dialogs: `ui/report/dialogs.py` (~260 lines)
+   - Coordinator: `ui/modules/project_management/report/tab.py` (~196 lines)
+   - Dialogs: `ui/modules/project_management/report/dialogs.py` (~260 lines)
 2. Export architecture was previously consolidated:
-   - Canonical export pipeline: `core/reporting/api.py` + `core/reporting/renderers/*`
-   - Compatibility adapter: `core/reporting/exporters.py` (deprecated wrapper)
+   - Canonical export pipeline: `core/modules/project_management/reporting/api.py` + `core/modules/project_management/reporting/renderers/*`
+   - Compatibility adapter: `core/modules/project_management/reporting/exporters.py` (deprecated wrapper)
 3. Reporting domain service split (Phase 2):
-   - Orchestrator: `core/services/reporting/service.py` (~55 lines)
-   - KPI mixin: `core/services/reporting/kpi.py` (~221 lines)
-   - Labor mixin: `core/services/reporting/labor.py` (~201 lines)
-   - EVM facade mixin: `core/services/reporting/evm.py` (~8 lines)
-   - EVM core calculations: `core/services/reporting/evm_core.py` (~213 lines)
-   - EVM series generation: `core/services/reporting/evm_series.py` (~56 lines)
-   - Variance mixin: `core/services/reporting/variance.py` (~66 lines)
-   - Cost breakdown mixin: `core/services/reporting/cost_breakdown.py` (~158 lines)
+   - Orchestrator: `core/modules/project_management/services/reporting/service.py` (~55 lines)
+   - KPI mixin: `core/modules/project_management/services/reporting/kpi.py` (~221 lines)
+   - Labor mixin: `core/modules/project_management/services/reporting/labor.py` (~201 lines)
+   - EVM facade mixin: `core/modules/project_management/services/reporting/evm.py` (~8 lines)
+   - EVM core calculations: `core/modules/project_management/services/reporting/evm_core.py` (~213 lines)
+   - EVM series generation: `core/modules/project_management/services/reporting/evm_series.py` (~56 lines)
+   - Variance mixin: `core/modules/project_management/services/reporting/variance.py` (~66 lines)
+   - Cost breakdown mixin: `core/modules/project_management/services/reporting/cost_breakdown.py` (~158 lines)
 4. Project UI split into coordinator + submodules:
-    - Coordinator: `ui/project/tab.py` (~197 lines)
-    - Dialog facade: `ui/project/dialogs.py` (~10 lines)
-    - Project metadata dialog: `ui/project/project_edit_dialog.py` (~170 lines)
-    - Inline project-resource panel: `ui/project/resource_panel.py` (~237 lines)
-    - Project resource edit dialog: `ui/project/project_resource_edit_dialog.py` (~182 lines)
-    - Table model: `ui/project/models.py` (~63 lines)
+    - Coordinator: `ui/modules/project_management/project/tab.py` (~197 lines)
+    - Dialog facade: `ui/modules/project_management/project/dialogs.py` (~10 lines)
+    - Project metadata dialog: `ui/modules/project_management/project/project_edit_dialog.py` (~170 lines)
+    - Inline project-resource panel: `ui/modules/project_management/project/resource_panel.py` (~237 lines)
+    - Project resource edit dialog: `ui/modules/project_management/project/project_resource_edit_dialog.py` (~182 lines)
+    - Table model: `ui/modules/project_management/project/models.py` (~63 lines)
 5. Task UI split into coordinator + submodules:
-   - Coordinator: `ui/task/tab.py` (~289 lines)
-   - Dialog facade: `ui/task/dialogs.py` (~15 lines)
-   - Task dialogs: `ui/task/task_dialogs.py` (~263 lines)
-   - Dependency dialogs: `ui/task/dependency_dialogs.py` (~169 lines)
-   - Assignment dialogs: `ui/task/assignment_dialogs.py` (~217 lines)
-   - Table model: `ui/task/models.py` (~62 lines)
-   - Compatibility exports: `ui/task/components.py` (~21 lines)
+   - Coordinator: `ui/modules/project_management/task/tab.py` (~289 lines)
+   - Dialog facade: `ui/modules/project_management/task/dialogs.py` (~15 lines)
+   - Task dialogs: `ui/modules/project_management/task/task_dialogs.py` (~263 lines)
+   - Dependency dialogs: `ui/modules/project_management/task/dependency_dialogs.py` (~169 lines)
+   - Assignment dialogs: `ui/modules/project_management/task/assignment_dialogs.py` (~217 lines)
+   - Table model: `ui/modules/project_management/task/models.py` (~62 lines)
+   - Compatibility exports: `ui/modules/project_management/task/components.py` (~21 lines)
 6. Infrastructure DB repositories split by aggregate:
-   - Compatibility facade: `infra/db/repositories.py` (~82 lines)
-   - Shared mappers: `infra/db/mappers.py` (~306 lines)
-   - Project repos: `infra/db/repositories_project.py` (~60 lines)
-   - Task/dependency/assignment repos: `infra/db/repositories_task.py` (~102 lines)
-   - Resource repo: `infra/db/repositories_resource.py` (~25 lines)
-   - Cost/calendar repos: `infra/db/repositories_cost_calendar.py` (~103 lines)
-   - Baseline repo: `infra/db/repositories_baseline.py` (~52 lines)
+   - Compatibility facade: `infra/platform/db/repositories.py` (~82 lines)
+   - Shared mappers: `infra/platform/db/mappers.py` (~306 lines)
+   - Project repos: `infra/modules/project_management/db/repositories_project.py` (~60 lines)
+   - Task/dependency/assignment repos: `infra/modules/project_management/db/repositories_task.py` (~102 lines)
+   - Resource repo: `infra/modules/project_management/db/repositories_resource.py` (~25 lines)
+   - Cost/calendar repos: `infra/modules/project_management/db/repositories_cost_calendar.py` (~103 lines)
+   - Baseline repo: `infra/modules/project_management/db/repositories_baseline.py` (~52 lines)
 7. Cost UI split into coordinator + submodules:
-   - Coordinator: `ui/cost/tab.py` (~144 lines)
-   - Project/data flow mixin: `ui/cost/project_flow.py` (~115 lines)
-   - Labor summary mixin: `ui/cost/labor_summary.py` (~130 lines)
-   - Cost actions mixin: `ui/cost/actions.py` (~103 lines)
-   - Compatibility exports: `ui/cost/components.py` (~10 lines)
-   - Models: `ui/cost/models.py` (~104 lines)
-   - Cost item dialog: `ui/cost/cost_dialogs.py` (~145 lines)
-   - Labor dialogs: `ui/cost/labor_dialogs.py` (~231 lines)
+   - Coordinator: `ui/modules/project_management/cost/tab.py` (~144 lines)
+   - Project/data flow mixin: `ui/modules/project_management/cost/project_flow.py` (~115 lines)
+   - Labor summary mixin: `ui/modules/project_management/cost/labor_summary.py` (~130 lines)
+   - Cost actions mixin: `ui/modules/project_management/cost/actions.py` (~103 lines)
+   - Compatibility exports: `ui/modules/project_management/cost/components.py` (~10 lines)
+   - Models: `ui/modules/project_management/cost/models.py` (~104 lines)
+   - Cost item dialog: `ui/modules/project_management/cost/cost_dialogs.py` (~145 lines)
+   - Labor dialogs: `ui/modules/project_management/cost/labor_dialogs.py` (~231 lines)
 8. Task domain service split into capability mixins:
-   - Orchestrator: `core/services/task/service.py` (~48 lines)
-   - Lifecycle: `core/services/task/lifecycle.py` (~161 lines)
-   - Dependency flow: `core/services/task/dependency.py` (~63 lines)
-   - Assignment flow: `core/services/task/assignment.py` (~130 lines)
-   - Query layer: `core/services/task/query.py` (~46 lines)
-   - Validation/rules: `core/services/task/validation.py` (~144 lines)
+   - Orchestrator: `core/modules/project_management/services/task/service.py` (~48 lines)
+   - Lifecycle: `core/modules/project_management/services/task/lifecycle.py` (~161 lines)
+   - Dependency flow: `core/modules/project_management/services/task/dependency.py` (~63 lines)
+   - Assignment flow: `core/modules/project_management/services/task/assignment.py` (~130 lines)
+   - Query layer: `core/modules/project_management/services/task/query.py` (~46 lines)
+   - Validation/rules: `core/modules/project_management/services/task/validation.py` (~144 lines)
 9. Dashboard UI split into coordinator + focused modules:
-   - Coordinator: `ui/dashboard/tab.py` (~176 lines)
-   - Data/loading mixin: `ui/dashboard/data_ops.py` (~124 lines)
-   - Rendering facade: `ui/dashboard/rendering.py` (~10 lines)
-   - Summary/KPI rendering: `ui/dashboard/rendering_summary.py` (~77 lines)
-   - Charts/lists rendering: `ui/dashboard/rendering_charts.py` (~79 lines)
-   - EVM rendering: `ui/dashboard/rendering_evm.py` (~169 lines)
-   - Reusable widgets: `ui/dashboard/widgets.py` (~67 lines)
+   - Coordinator: `ui/modules/project_management/dashboard/tab.py` (~176 lines)
+   - Data/loading mixin: `ui/modules/project_management/dashboard/data_ops.py` (~124 lines)
+   - Rendering facade: `ui/modules/project_management/dashboard/rendering.py` (~10 lines)
+   - Summary/KPI rendering: `ui/modules/project_management/dashboard/rendering_summary.py` (~77 lines)
+   - Charts/lists rendering: `ui/modules/project_management/dashboard/rendering_charts.py` (~79 lines)
+   - EVM rendering: `ui/modules/project_management/dashboard/rendering_evm.py` (~169 lines)
+   - Reusable widgets: `ui/modules/project_management/dashboard/widgets.py` (~67 lines)
 10. Resource UI split into coordinator + submodules:
-   - Coordinator: `ui/resource/tab.py` (~148 lines)
-   - Table model: `ui/resource/models.py` (~44 lines)
-   - Edit dialog: `ui/resource/dialogs.py` (~116 lines)
+   - Coordinator: `ui/modules/project_management/resource/tab.py` (~148 lines)
+   - Table model: `ui/modules/project_management/resource/models.py` (~44 lines)
+   - Edit dialog: `ui/modules/project_management/resource/dialogs.py` (~116 lines)
 11. Calendar UI split into coordinator + operation mixins:
-   - Coordinator: `ui/calendar/tab.py` (~233 lines)
-   - Working-time operations: `ui/calendar/working_time.py` (~39 lines)
-   - Holidays operations: `ui/calendar/holidays.py` (~57 lines)
-   - Calculator operations: `ui/calendar/calculator.py` (~35 lines)
-   - Project-schedule operations: `ui/calendar/project_ops.py` (~48 lines)
+   - Coordinator: `ui/modules/project_management/calendar/tab.py` (~233 lines)
+   - Working-time operations: `ui/modules/project_management/calendar/working_time.py` (~39 lines)
+   - Holidays operations: `ui/modules/project_management/calendar/holidays.py` (~57 lines)
+   - Calculator operations: `ui/modules/project_management/calendar/calculator.py` (~35 lines)
+   - Project-schedule operations: `ui/modules/project_management/calendar/project_ops.py` (~48 lines)
 
 ## Architecture Principles (Enforced)
 
@@ -111,7 +111,7 @@ Top large modules observed in this codebase:
 2. Layered Dependency Rule:
    - `core` must not import `ui`.
 3. Stable Interfaces:
-   - Keep service/repository contracts in `core/interfaces.py`.
+   - Keep service/repository contracts in `core/platform/common/interfaces.py`.
 4. Replace Duplication With Adapters:
    - Legacy entry points become wrappers to canonical implementations.
 5. Monolith Growth Budgets:
@@ -124,7 +124,7 @@ Top large modules observed in this codebase:
 2. `Strategy`
    - Reporting renderers (`gantt`, `evm`, `excel`, `pdf`).
 3. `Adapter`
-   - Legacy compatibility wrappers (`core/reporting/exporters.py`).
+   - Legacy compatibility wrappers (`core/modules/project_management/reporting/exporters.py`).
 4. `Repository`
    - Infra DB adapters for persistence operations.
 5. `Composition over Inheritance` in UI
@@ -134,9 +134,9 @@ Top large modules observed in this codebase:
 
 1. Refactor startup/wiring monolith in `main.py` into:
    - app bootstrap, dependency wiring, and launcher modules.
-2. Split `core/services/scheduling/engine.py` into:
+2. Split `core/modules/project_management/services/scheduling/engine.py` into:
    - forward-pass scheduling, critical-path analysis, and calendar utilities.
-3. Split `infra/db/mappers.py` by aggregate to reduce mapper coupling.
+3. Split `infra/platform/db/mappers.py` by aggregate to reduce mapper coupling.
 
 ## Guardrails
 

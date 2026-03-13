@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from core.exceptions import ConcurrencyError
+from core.platform.common.exceptions import ConcurrencyError
 
 
 def test_project_update_rejects_stale_expected_version(services):

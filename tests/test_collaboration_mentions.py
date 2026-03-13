@@ -1,4 +1,4 @@
-from infra.collaboration_store import TaskCollaborationStore
+from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 
 
 def test_unread_mentions_count_for_aliases_counts_single_comment_once(tmp_path):

@@ -12,15 +12,15 @@ This roadmap covers the three enterprise workspaces added in this phase:
 
 The implementation is split by feature and layer to keep boundaries clear:
 
-- `core/services/access`
-- `core/services/collaboration`
-- `core/services/portfolio`
-- `infra/db/access`
-- `infra/db/collaboration`
-- `infra/db/portfolio`
-- `ui/access`
-- `ui/collaboration`
-- `ui/portfolio`
+- `core/platform/access`
+- `core/modules/project_management/services/collaboration`
+- `core/modules/project_management/services/portfolio`
+- `infra/platform/db/access`
+- `infra/modules/project_management/db/collaboration`
+- `infra/modules/project_management/db/portfolio`
+- `ui/platform/admin/access`
+- `ui/modules/project_management/collaboration`
+- `ui/modules/project_management/portfolio`
 
 ## Phase 1: Delivered
 

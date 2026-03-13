@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from core.exceptions import BusinessRuleError
-from core.services.access.policy import (
+from core.platform.common.exceptions import BusinessRuleError
+from core.platform.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
-from ui.access.tab import AccessTab
-from ui.main_window import MainWindow
+from ui.platform.admin.access.tab import AccessTab
+from ui.platform.shell.main_window import MainWindow
 
 
 def test_security_and_payroll_roles_expose_expected_permissions(services):
@@ -88,7 +88,7 @@ def test_project_scope_roles_are_canonical_and_editor_is_compatibility_alias():
 def test_main_window_exposes_users_for_auth_read_roles(qapp, services, repo_workspace, monkeypatch):
     register_and_login(services, username_prefix="support-auth-read", role_names=("support_admin",))
     store = make_settings_store(repo_workspace, prefix="main-window-support-admin")
-    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

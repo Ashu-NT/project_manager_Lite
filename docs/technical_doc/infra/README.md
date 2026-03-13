@@ -13,16 +13,16 @@ service wiring, diagnostics, update flow, and platform path/resource handling.
 
 ## Key Files
 
-- `infra/db/base.py`: DB URL resolution, engine, session factory
-- `infra/migrate.py`: robust Alembic path discovery + upgrade-to-head
-- `infra/services.py`: service graph composition and governance apply handlers
-- `infra/logging_config.py`: rotating app log setup
-- `infra/path.py`: OS-aware user data directory and DB path helpers
-- `infra/resource.py`: resource path resolution for dev/PyInstaller
-- `infra/update.py`: update manifest parsing + version comparison
-- `infra/updater.py`: installer download/checksum/handoff/relaunch logic
-- `infra/diagnostics.py`: diagnostics bundle generation
-- `infra/version.py`: runtime version resolution
+- `infra/platform/db/base.py`: DB URL resolution, engine, session factory
+- `infra/platform/migrate.py`: robust Alembic path discovery + upgrade-to-head
+- `infra/platform/services.py`: service graph composition and governance apply handlers
+- `infra/platform/logging_config.py`: rotating app log setup
+- `infra/platform/path.py`: OS-aware user data directory and DB path helpers
+- `infra/platform/resource.py`: resource path resolution for dev/PyInstaller
+- `infra/platform/update.py`: update manifest parsing + version comparison
+- `infra/platform/updater.py`: installer download/checksum/handoff/relaunch logic
+- `infra/platform/diagnostics.py`: diagnostics bundle generation
+- `infra/platform/version.py`: runtime version resolution
 
 ## Service Graph Construction
 

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from core.exceptions import BusinessRuleError
+from core.platform.common.exceptions import BusinessRuleError
 
 
 def _login(services, username: str, password: str):

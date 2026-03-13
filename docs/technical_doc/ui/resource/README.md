@@ -1,6 +1,6 @@
 # UI Resource Module
 
-`ui/resource/` manages the enterprise resource catalog and operational resource
+`ui/modules/project_management/resource/` manages the enterprise resource catalog and operational resource
 state.
 
 ## Files

@@ -1,0 +1,29 @@
+from __future__ import annotations
+
+from sqlalchemy.orm import Session
+
+from core.platform.common.interfaces import ProjectRepository, RegisterEntryRepository
+from core.platform.audit.service import AuditService
+from core.platform.auth.session import UserSessionContext
+from core.modules.project_management.services.register.lifecycle import RegisterLifecycleMixin
+from core.modules.project_management.services.register.query import RegisterQueryMixin
+
+
+class RegisterService(RegisterLifecycleMixin, RegisterQueryMixin):
+    def __init__(
+        self,
+        *,
+        session: Session,
+        project_repo: ProjectRepository,
+        register_repo: RegisterEntryRepository,
+        user_session: UserSessionContext | None = None,
+        audit_service: AuditService | None = None,
+    ) -> None:
+        self._session: Session = session
+        self._project_repo: ProjectRepository = project_repo
+        self._register_repo: RegisterEntryRepository = register_repo
+        self._user_session: UserSessionContext | None = user_session
+        self._audit_service: AuditService | None = audit_service
+
+
+__all__ = ["RegisterService"]

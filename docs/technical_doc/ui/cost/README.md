@@ -1,6 +1,6 @@
 # UI Cost Module
 
-`ui/cost/` is the operational cost-control workspace. It combines cost item
+`ui/modules/project_management/cost/` is the operational cost-control workspace. It combines cost item
 editing, labor summaries, budget KPIs, and project-level filtering.
 
 ## Files

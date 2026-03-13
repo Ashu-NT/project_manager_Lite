@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from core.exceptions import ValidationError
+from core.platform.common.exceptions import ValidationError
 from tests.ui_runtime_helpers import login_as
-from ui.collaboration.tab import CollaborationTab
-from ui.task.collaboration_dialog import TaskCollaborationDialog
+from ui.modules.project_management.collaboration.tab import CollaborationTab
+from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
 
 
 def test_collaboration_service_lists_project_candidates_and_resolves_user_mentions(services):

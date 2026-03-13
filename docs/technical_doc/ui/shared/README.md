@@ -1,6 +1,6 @@
 # UI Shared Module
 
-`ui/shared/` contains reusable presentation infrastructure used by multiple tabs.
+`ui/platform/shared/` contains reusable presentation infrastructure used by multiple tabs.
 
 ## Files
 
@@ -52,7 +52,7 @@ This avoids using UI-thread session objects inside worker threads.
 
 ## Why This Module Matters
 
-Without `ui/shared`, each feature tab would need bespoke implementations for:
+Without `ui/platform/shared`, each feature tab would need bespoke implementations for:
 
 - threading patterns
 - permission hints

@@ -6,8 +6,8 @@ from pathlib import Path
 from PySide6.QtCore import QByteArray, QSettings
 
 import main_qt
-from ui.main_window import MainWindow
-from ui.settings.main_window_store import MainWindowSettingsStore
+from ui.platform.shell.main_window import MainWindow
+from ui.platform.settings.main_window_store import MainWindowSettingsStore
 
 
 def _store_with_ini(root: Path):
@@ -123,7 +123,7 @@ def test_main_qt_loads_theme_from_settings_before_app_style(repo_workspace, serv
     monkeypatch.setattr(main_qt, "MainWindow", _FakeMainWindow)
     monkeypatch.setattr(main_qt.sys, "exit", lambda code: calls.append(("exit", code, None)))
     monkeypatch.setattr(
-        "ui.styles.theme.apply_app_style",
+        "ui.platform.shared.styles.theme.apply_app_style",
         lambda _app, mode: calls.append(
             (
                 "style",
@@ -205,7 +205,7 @@ def test_main_window_persists_and_restores_ui_state_with_store_runtime(
     store, _settings = _store_with_ini(repo_workspace)
     store.save_theme_mode("dark")
     store.save_tab_index(3)
-    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     first_window = MainWindow(services)

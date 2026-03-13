@@ -4,11 +4,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from core.exceptions import BusinessRuleError, ValidationError
+from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from tests.ui_runtime_helpers import login_as, register_and_login
-from ui.access.tab import AccessTab
-from ui.collaboration.tab import CollaborationTab
-from ui.portfolio.tab import PortfolioTab
+from ui.platform.admin.access.tab import AccessTab
+from ui.modules.project_management.collaboration.tab import CollaborationTab
+from ui.modules.project_management.portfolio.tab import PortfolioTab
 
 
 def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch):

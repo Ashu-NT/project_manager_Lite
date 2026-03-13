@@ -1,6 +1,6 @@
 # UI Task Module
 
-`ui/task/` is the execution control center for tasks, dependencies, and
+`ui/modules/project_management/task/` is the execution control center for tasks, dependencies, and
 assignments.
 
 ## Files

@@ -7,10 +7,10 @@ from matplotlib.axes import Axes
 from matplotlib.dates import date2num
 from openpyxl import load_workbook
 
-from core.models import CostType, DependencyType
-from core.exceptions import BusinessRuleError
-from core.reporting import api as reporting_api
-from core.services.reporting.models import (
+from core.platform.common.models import CostType, DependencyType
+from core.platform.common.exceptions import BusinessRuleError
+from core.modules.project_management.reporting import api as reporting_api
+from core.modules.project_management.services.reporting.models import (
     CostSourceBreakdown,
     CostSourceRow,
     CostBreakdownRow,
@@ -234,7 +234,7 @@ def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, mon
     def _raise_gantt(*_args, **_kwargs):
         raise ValueError("No tasks with dates available for Gantt chart.")
 
-    monkeypatch.setattr("core.reporting.api.generate_gantt_png", _raise_gantt)
+    monkeypatch.setattr("core.modules.project_management.reporting.api.generate_gantt_png", _raise_gantt)
 
     output = tmp_path / "report.pdf"
     reporting_api.generate_pdf_report(

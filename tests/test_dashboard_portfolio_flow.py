@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from core.models import ProjectStatus, TaskStatus
-from core.services.dashboard import PORTFOLIO_SCOPE_ID
+from core.platform.common.models import ProjectStatus, TaskStatus
+from core.modules.project_management.services.dashboard import PORTFOLIO_SCOPE_ID
 from tests.ui_runtime_helpers import make_settings_store
-from ui.dashboard.tab import DashboardTab
+from ui.modules.project_management.dashboard.tab import DashboardTab
 
 
 def _seed_portfolio_dashboard(services):
@@ -170,7 +170,7 @@ def test_dashboard_tab_switches_into_portfolio_mode_at_runtime(
         tab._update_portfolio_panel(data)
         tab._sync_leveling_buttons()
 
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", _sync_refresh)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", _sync_refresh)
 
     tab = DashboardTab(
         project_service=services["project_service"],
@@ -209,7 +209,7 @@ def test_dashboard_tab_preserves_authenticated_session(
         start_date=date.today(),
         end_date=date.today() + timedelta(days=7),
     )
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
 
     tab = DashboardTab(
         project_service=services["project_service"],

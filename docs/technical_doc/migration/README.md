@@ -18,7 +18,7 @@ This module documents schema evolution and startup migration behavior.
 
 Migrations are executed automatically during app startup through:
 
-- `infra.migrate.run_migrations(db_url)`
+- `infra.platform.migrate.run_migrations(db_url)`
 
 Path discovery supports:
 

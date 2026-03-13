@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from PySide6.QtCore import QSettings
 
-from ui.settings.main_window_store import MainWindowSettingsStore
+from ui.platform.settings.main_window_store import MainWindowSettingsStore
 
 
 def make_settings_store(root: Path, *, prefix: str) -> MainWindowSettingsStore:

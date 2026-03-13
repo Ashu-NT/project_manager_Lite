@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from core.models import CostType, DependencyType, TaskStatus
+from core.platform.common.models import CostType, DependencyType, TaskStatus
 
 
 def _bar_map(bars):

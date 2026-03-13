@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from core.exceptions import BusinessRuleError, ValidationError
+from core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 
 def _login_admin(services):

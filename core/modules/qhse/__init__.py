@@ -1,0 +1,1 @@
+"""QHSE business module."""

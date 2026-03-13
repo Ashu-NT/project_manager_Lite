@@ -2,8 +2,8 @@ from datetime import date
 
 import pytest
 
-from core.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.models import DependencyType
+from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from core.platform.common.models import DependencyType
 
 
 def test_task_name_validation_rules(services):

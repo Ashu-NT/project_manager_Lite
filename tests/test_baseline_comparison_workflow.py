@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from core.exceptions import NotFoundError, ValidationError
+from core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):

@@ -16,7 +16,7 @@ This avoids mega-tabs and improves local maintainability.
 
 ## Runtime Structure
 
-- `ui/main_window.py`: top-level shell and tab composition
+- `ui/platform/shell/main_window.py`: top-level shell and tab composition
 - module folders per feature:
   - `project`, `task`, `resource`, `cost`, `calendar`, `report`, `dashboard`
   - `admin`, `auth`, `governance`, `support`
@@ -35,11 +35,11 @@ Two-layer access control:
    - tooltips explain required permission
    - governed actions can remain executable if `approval.request` is allowed and governance is enabled
 
-Helpers in `ui.shared.guards` centralize this behavior.
+Helpers in `ui.platform.shared.guards` centralize this behavior.
 
 ## Async UX Under Load
 
-Long operations run through `ui.shared.async_job`:
+Long operations run through `ui.platform.shared.async_job`:
 
 - job cancellation token
 - progress reporting
@@ -52,14 +52,14 @@ and update installation all use async flows to prevent UI blocking.
 
 ## Domain Event Wiring
 
-Tabs subscribe to `core.events.domain_events` signals:
+Tabs subscribe to `core.platform.notifications.domain_events` signals:
 
 - project/task/resource/cost/baseline/approval changes trigger targeted reloads
 - avoids stale on-screen state after mutations in other tabs
 
 ## Theming and Visual Consistency
 
-`ui/styles` provides:
+`ui/platform/shared/styles` provides:
 
 - tokenized theme variables
 - centralized stylesheet generation

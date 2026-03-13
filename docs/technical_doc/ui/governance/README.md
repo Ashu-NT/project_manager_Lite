@@ -1,6 +1,6 @@
 # UI Governance Module
 
-`ui/governance/` provides an approval queue for governed operations.
+`ui/modules/project_management/governance/` provides an approval queue for governed operations.
 
 ## File
 

@@ -1,5 +1,5 @@
 from datetime import date
-from core.models import TaskStatus
+from core.platform.common.models import TaskStatus
 
 
 def test_task_progress_and_status_transitions(services):

@@ -8,8 +8,8 @@ from PySide6.QtWidgets import QApplication
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from infra.db.base import Base
-from infra.services import build_service_dict
+from infra.platform.db.base import Base
+from infra.platform.services import build_service_dict
 
 
 @pytest.fixture

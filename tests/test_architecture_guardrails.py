@@ -53,8 +53,8 @@ def test_report_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "report" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.report.project_flow import ReportProjectFlowMixin" in text
-    assert "from ui.report.actions import ReportActionsMixin" in text
+    assert "from ui.modules.project_management.report.project_flow import ReportProjectFlowMixin" in text
+    assert "from ui.modules.project_management.report.actions import ReportActionsMixin" in text
     assert "class KPIReportDialog" not in text
     assert "class GanttPreviewDialog" not in text
     assert "class CriticalPathDialog" not in text
@@ -68,12 +68,12 @@ def test_report_dialogs_module_is_facade_only():
     dialogs_path = ROOT / "ui" / "report" / "dialogs.py"
     text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.report.dialog_kpi import" in text
-    assert "from ui.report.dialog_gantt import" in text
-    assert "from ui.report.dialog_critical_path import" in text
-    assert "from ui.report.dialog_resource_load import" in text
-    assert "from ui.report.dialog_evm import" in text
-    assert "from ui.report.dialog_performance import" in text
+    assert "from ui.modules.project_management.report.dialog_kpi import" in text
+    assert "from ui.modules.project_management.report.dialog_gantt import" in text
+    assert "from ui.modules.project_management.report.dialog_critical_path import" in text
+    assert "from ui.modules.project_management.report.dialog_resource_load import" in text
+    assert "from ui.modules.project_management.report.dialog_evm import" in text
+    assert "from ui.modules.project_management.report.dialog_performance import" in text
     assert "class KPIReportDialog" not in text
     assert "class GanttPreviewDialog" not in text
     assert "class CriticalPathDialog" not in text
@@ -86,7 +86,7 @@ def test_report_actions_module_contains_report_workflows():
     actions_path = ROOT / "ui" / "report" / "actions.py"
     text = actions_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.report.dialogs import" in text
+    assert "from ui.modules.project_management.report.dialogs import" in text
     assert "def load_kpis" in text
     assert "def show_gantt" in text
     assert "def show_critical_path" in text
@@ -111,9 +111,9 @@ def test_project_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "project" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.project.dialogs import" in text
-    assert "from ui.project.models import" in text
-    assert "from ui.project.resource_panel import ProjectResourcePanelMixin" in text
+    assert "from ui.modules.project_management.project.dialogs import" in text
+    assert "from ui.modules.project_management.project.models import" in text
+    assert "from ui.modules.project_management.project.resource_panel import ProjectResourcePanelMixin" in text
     assert "class ProjectEditDialog" not in text
     assert "class ProjectResourcesDialog" not in text
     assert "class ProjectResourceEditDialog" not in text
@@ -151,9 +151,9 @@ def test_task_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "task" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.task.project_flow import TaskProjectFlowMixin" in text
-    assert "from ui.task.actions import TaskActionsMixin" in text
-    assert "from ui.task.models import" in text
+    assert "from ui.modules.project_management.task.project_flow import TaskProjectFlowMixin" in text
+    assert "from ui.modules.project_management.task.actions import TaskActionsMixin" in text
+    assert "from ui.modules.project_management.task.models import" in text
     assert "class TaskEditDialog" not in text
     assert "class TaskProgressDialog" not in text
     assert "class DependencyAddDialog" not in text
@@ -182,7 +182,7 @@ def test_task_actions_module_contains_task_workflows():
     actions_path = ROOT / "ui" / "task" / "actions.py"
     text = actions_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.task.dialogs import" in text
+    assert "from ui.modules.project_management.task.dialogs import" in text
     assert "def create_task" in text
     assert "def edit_task" in text
     assert "def delete_task" in text
@@ -247,7 +247,7 @@ def test_task_timesheet_dialog_module_is_facade_only():
     dialogs_path = ROOT / "ui" / "task" / "timesheet_dialog.py"
     text = dialogs_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.timesheet.dialog import" in text
+    assert "from ui.modules.project_management.timesheet.dialog import" in text
     assert "class TimesheetDialog" not in text
     assert "class TimeEntryEditDialog" not in text
 
@@ -256,10 +256,10 @@ def test_timesheet_lifecycle_module_is_facade_only():
     lifecycle_path = ROOT / "core" / "services" / "timesheet" / "lifecycle.py"
     text = lifecycle_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.timesheet.entries import" in text
-    assert "from core.services.timesheet.periods import" in text
-    assert "from core.services.timesheet.query import" in text
-    assert "from core.services.timesheet.support import" in text
+    assert "from core.modules.project_management.services.timesheet.entries import" in text
+    assert "from core.modules.project_management.services.timesheet.periods import" in text
+    assert "from core.modules.project_management.services.timesheet.query import" in text
+    assert "from core.modules.project_management.services.timesheet.support import" in text
     assert "class Timesheet" not in text
 
 
@@ -267,10 +267,10 @@ def test_cost_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "cost" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.cost.models import" in text
-    assert "from ui.cost.project_flow import" in text
-    assert "from ui.cost.labor_summary import" in text
-    assert "from ui.cost.actions import" in text
+    assert "from ui.modules.project_management.cost.models import" in text
+    assert "from ui.modules.project_management.cost.project_flow import" in text
+    assert "from ui.modules.project_management.cost.labor_summary import" in text
+    assert "from ui.modules.project_management.cost.actions import" in text
     assert "class CostTableModel" not in text
     assert "class CostEditDialog" not in text
     assert "class ResourceLaborDialog" not in text
@@ -294,13 +294,13 @@ def test_dashboard_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "dashboard" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.dashboard.data_ops import" in text
-    assert "from ui.dashboard.portfolio_panel import DashboardPortfolioPanelMixin" in text
-    assert "from ui.dashboard.rendering import" in text
-    assert "from ui.dashboard.control_rail import DashboardControlRailMixin" in text
-    assert "from ui.dashboard.top_bar import DashboardTopBarMixin" in text
-    assert "from ui.dashboard.workqueue_button import DashboardQueueButton" in text
-    assert "from ui.dashboard.widgets import" in text
+    assert "from ui.modules.project_management.dashboard.data_ops import" in text
+    assert "from ui.modules.project_management.dashboard.portfolio_panel import DashboardPortfolioPanelMixin" in text
+    assert "from ui.modules.project_management.dashboard.rendering import" in text
+    assert "from ui.modules.project_management.dashboard.control_rail import DashboardControlRailMixin" in text
+    assert "from ui.modules.project_management.dashboard.top_bar import DashboardTopBarMixin" in text
+    assert "from ui.modules.project_management.dashboard.workqueue_button import DashboardQueueButton" in text
+    assert "from ui.modules.project_management.dashboard.widgets import" in text
     assert "class KpiCard" not in text
     assert "class ChartWidget" not in text
 
@@ -332,11 +332,11 @@ def test_dashboard_rendering_module_is_facade_only():
     rendering_path = ROOT / "ui" / "dashboard" / "rendering.py"
     text = rendering_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.dashboard.rendering_summary import" in text
-    assert "from ui.dashboard.rendering_charts import" in text
-    assert "from ui.dashboard.rendering_evm import" in text
-    assert "from ui.dashboard.rendering_portfolio import" in text
-    assert "from ui.dashboard.rendering_professional import" in text
+    assert "from ui.modules.project_management.dashboard.rendering_summary import" in text
+    assert "from ui.modules.project_management.dashboard.rendering_charts import" in text
+    assert "from ui.modules.project_management.dashboard.rendering_evm import" in text
+    assert "from ui.modules.project_management.dashboard.rendering_portfolio import" in text
+    assert "from ui.modules.project_management.dashboard.rendering_professional import" in text
     assert "def _update_kpis" not in text
     assert "def _update_burndown_chart" not in text
     assert "def _update_evm" not in text
@@ -355,12 +355,12 @@ def test_dashboard_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "dashboard" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.dashboard.alerts import" in text
-    assert "from core.services.dashboard.upcoming import" in text
-    assert "from core.services.dashboard.burndown import" in text
-    assert "from core.services.dashboard.evm import" in text
-    assert "from core.services.dashboard.portfolio import" in text
-    assert "from core.services.dashboard.professional import" in text
+    assert "from core.modules.project_management.services.dashboard.alerts import" in text
+    assert "from core.modules.project_management.services.dashboard.upcoming import" in text
+    assert "from core.modules.project_management.services.dashboard.burndown import" in text
+    assert "from core.modules.project_management.services.dashboard.evm import" in text
+    assert "from core.modules.project_management.services.dashboard.portfolio import" in text
+    assert "from core.modules.project_management.services.dashboard.professional import" in text
     assert "def _build_alerts" not in text
     assert "def _build_upcoming_tasks" not in text
     assert "def _build_burndown" not in text
@@ -372,10 +372,10 @@ def test_finance_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "finance" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.finance.analytics import" in text
-    assert "from core.services.finance.cashflow import" in text
-    assert "from core.services.finance.ledger import" in text
-    assert "from core.services.finance.policy import" in text
+    assert "from core.modules.project_management.services.finance.analytics import" in text
+    assert "from core.modules.project_management.services.finance.cashflow import" in text
+    assert "from core.modules.project_management.services.finance.ledger import" in text
+    assert "from core.modules.project_management.services.finance.policy import" in text
     assert "def _manual_labor_raw_totals" not in text
     assert "def _build_cost_item_ledger_rows" not in text
     assert "def _build_computed_labor_plan_rows" not in text
@@ -389,9 +389,9 @@ def test_resource_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "resource" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.resource.flow import ResourceFlowMixin" in text
-    assert "from ui.resource.actions import ResourceActionsMixin" in text
-    assert "from ui.resource.models import" in text
+    assert "from ui.modules.project_management.resource.flow import ResourceFlowMixin" in text
+    assert "from ui.modules.project_management.resource.actions import ResourceActionsMixin" in text
+    assert "from ui.modules.project_management.resource.models import" in text
     assert "class ResourceTableModel" not in text
     assert "class ResourceEditDialog" not in text
     assert "def create_resource" not in text
@@ -404,7 +404,7 @@ def test_resource_actions_module_contains_resource_workflows():
     actions_path = ROOT / "ui" / "resource" / "actions.py"
     text = actions_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.resource.dialogs import ResourceEditDialog" in text
+    assert "from ui.modules.project_management.resource.dialogs import ResourceEditDialog" in text
     assert "def create_resource" in text
     assert "def edit_resource" in text
     assert "def delete_resource" in text
@@ -423,10 +423,10 @@ def test_calendar_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "calendar" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.calendar.working_time import" in text
-    assert "from ui.calendar.holidays import" in text
-    assert "from ui.calendar.calculator import" in text
-    assert "from ui.calendar.project_ops import" in text
+    assert "from ui.modules.project_management.calendar.working_time import" in text
+    assert "from ui.modules.project_management.calendar.holidays import" in text
+    assert "from ui.modules.project_management.calendar.calculator import" in text
+    assert "from ui.modules.project_management.calendar.project_ops import" in text
     assert "def save_calendar" not in text
     assert "def load_holidays" not in text
     assert "def run_calendar_calc" not in text
@@ -437,10 +437,10 @@ def test_support_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "support" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.support.ui_layout import SupportUiLayoutMixin" in text
-    assert "from ui.support.telemetry import SupportTelemetryMixin" in text
-    assert "from ui.support.update_flow import SupportUpdateFlowMixin" in text
-    assert "from ui.support.diagnostics_flow import SupportDiagnosticsFlowMixin" in text
+    assert "from ui.platform.admin.support.ui_layout import SupportUiLayoutMixin" in text
+    assert "from ui.platform.admin.support.telemetry import SupportTelemetryMixin" in text
+    assert "from ui.platform.admin.support.update_flow import SupportUpdateFlowMixin" in text
+    assert "from ui.platform.admin.support.diagnostics_flow import SupportDiagnosticsFlowMixin" in text
     assert "def _check_updates" not in text
     assert "def _download_and_install_update" not in text
     assert "def _export_diagnostics" not in text
@@ -451,9 +451,9 @@ def test_infra_repositories_module_is_facade_only():
     repo_path = ROOT / "infra" / "db" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from infra.db.mappers import" in text
-    assert "from infra.db.repositories_project import" in text
-    assert "from infra.db.repositories_task import" in text
+    assert "from infra.platform.db.mappers import" in text
+    assert "from infra.modules.project_management.db.repositories_project import" in text
+    assert "from infra.modules.project_management.db.repositories_task import" in text
     assert "class SqlAlchemy" not in text
 
 
@@ -461,11 +461,11 @@ def test_infra_mappers_module_is_facade_only():
     mapper_path = ROOT / "infra" / "db" / "mappers.py"
     text = mapper_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from infra.db.project.mapper import" in text
-    assert "from infra.db.task.mapper import" in text
-    assert "from infra.db.resource.mapper import" in text
-    assert "from infra.db.cost_calendar.mapper import" in text
-    assert "from infra.db.baseline.mapper import" in text
+    assert "from infra.modules.project_management.db.project.mapper import" in text
+    assert "from infra.modules.project_management.db.task.mapper import" in text
+    assert "from infra.modules.project_management.db.resource.mapper import" in text
+    assert "from infra.modules.project_management.db.cost_calendar.mapper import" in text
+    assert "from infra.modules.project_management.db.baseline.mapper import" in text
     assert "def project_to_orm" not in text
     assert "def task_to_orm" not in text
     assert "def cost_to_orm" not in text
@@ -480,11 +480,11 @@ def test_infra_repository_wrappers_delegate_to_aggregate_folder():
         "repositories_baseline.py",
     ]
     expected_imports = {
-        "repositories_project.py": "from infra.db.project.repository import",
-        "repositories_task.py": "from infra.db.task.repository import",
-        "repositories_resource.py": "from infra.db.resource.repository import",
-        "repositories_cost_calendar.py": "from infra.db.cost_calendar.repository import",
-        "repositories_baseline.py": "from infra.db.baseline.repository import",
+        "repositories_project.py": "from infra.modules.project_management.db.project.repository import",
+        "repositories_task.py": "from infra.modules.project_management.db.task.repository import",
+        "repositories_resource.py": "from infra.modules.project_management.db.resource.repository import",
+        "repositories_cost_calendar.py": "from infra.modules.project_management.db.cost_calendar.repository import",
+        "repositories_baseline.py": "from infra.modules.project_management.db.baseline.repository import",
     }
     for name in wrappers:
         text = (ROOT / "infra" / "db" / name).read_text(encoding="utf-8", errors="ignore")
@@ -496,12 +496,12 @@ def test_core_models_module_is_facade_only():
     models_path = ROOT / "core" / "models.py"
     text = models_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.domain.project import" in text
-    assert "from core.domain.task import" in text
-    assert "from core.domain.resource import" in text
-    assert "from core.domain.cost import" in text
-    assert "from core.domain.calendar import" in text
-    assert "from core.domain.baseline import" in text
+    assert "from core.modules.project_management.domain.project import" in text
+    assert "from core.modules.project_management.domain.task import" in text
+    assert "from core.modules.project_management.domain.resource import" in text
+    assert "from core.modules.project_management.domain.cost import" in text
+    assert "from core.modules.project_management.domain.calendar import" in text
+    assert "from core.modules.project_management.domain.baseline import" in text
     assert "class Project(" not in text
     assert "class Task(" not in text
     assert "class Resource(" not in text
@@ -511,8 +511,8 @@ def test_theme_module_is_facade_only():
     theme_path = ROOT / "ui" / "styles" / "theme.py"
     text = theme_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.styles.theme_stylesheet import" in text
-    assert "from ui.styles.theme_tokens import" in text
+    assert "from ui.platform.shared.styles.theme_stylesheet import" in text
+    assert "from ui.platform.shared.styles.theme_tokens import" in text
     assert "def set_theme_mode" in text
     assert "def apply_app_style" in text
     assert "QTableView, QTableWidget" not in text
@@ -524,8 +524,8 @@ def test_reporting_evm_module_is_facade_only():
     evm_path = ROOT / "core" / "services" / "reporting" / "evm.py"
     text = evm_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.reporting.evm_core import" in text
-    assert "from core.services.reporting.evm_series import" in text
+    assert "from core.modules.project_management.services.reporting.evm_core import" in text
+    assert "from core.modules.project_management.services.reporting.evm_series import" in text
     assert "def get_earned_value" not in text
     assert "def get_evm_series" not in text
 
@@ -534,11 +534,11 @@ def test_task_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "task" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.task.lifecycle import" in text
-    assert "from core.services.task.dependency import" in text
-    assert "from core.services.task.assignment import" in text
-    assert "from core.services.task.query import" in text
-    assert "from core.services.task.validation import" in text
+    assert "from core.modules.project_management.services.task.lifecycle import" in text
+    assert "from core.modules.project_management.services.task.dependency import" in text
+    assert "from core.modules.project_management.services.task.assignment import" in text
+    assert "from core.modules.project_management.services.task.query import" in text
+    assert "from core.modules.project_management.services.task.validation import" in text
     assert "def create_task" not in text
     assert "def add_dependency" not in text
     assert "def assign_resource" not in text
@@ -549,8 +549,8 @@ def test_auth_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "auth" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.auth.query import AuthQueryMixin" in text
-    assert "from core.services.auth.validation import AuthValidationMixin" in text
+    assert "from core.platform.auth.query import AuthQueryMixin" in text
+    assert "from core.platform.auth.validation import AuthValidationMixin" in text
     assert "class AuthService(AuthQueryMixin, AuthValidationMixin)" in text
     assert "def get_user_permissions" not in text
     assert "def get_user_role_names" not in text
@@ -565,8 +565,8 @@ def test_project_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "project" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.project.lifecycle import ProjectLifecycleMixin" in text
-    assert "from core.services.project.query import ProjectQueryMixin" in text
+    assert "from core.modules.project_management.services.project.lifecycle import ProjectLifecycleMixin" in text
+    assert "from core.modules.project_management.services.project.query import ProjectQueryMixin" in text
     assert "def create_project" not in text
     assert "def update_project" not in text
     assert "def delete_project" not in text
@@ -576,9 +576,9 @@ def test_scheduling_engine_is_orchestrator_only():
     engine_path = ROOT / "core" / "services" / "scheduling" / "engine.py"
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.scheduling.graph import build_project_dependency_graph" in text
-    assert "from core.services.scheduling.passes import run_backward_pass, run_forward_pass" in text
-    assert "from core.services.scheduling.results import build_schedule_result" in text
+    assert "from core.modules.project_management.services.scheduling.graph import build_project_dependency_graph" in text
+    assert "from core.modules.project_management.services.scheduling.passes import run_backward_pass, run_forward_pass" in text
+    assert "from core.modules.project_management.services.scheduling.results import build_schedule_result" in text
     assert "import heapq" not in text
 
 
@@ -586,7 +586,7 @@ def test_scheduling_leveling_is_split_from_engine():
     engine_path = ROOT / "core" / "services" / "scheduling" / "engine.py"
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.services.scheduling.leveling_service import ResourceLevelingMixin" in text
+    assert "from core.modules.project_management.services.scheduling.leveling_service import ResourceLevelingMixin" in text
     assert "class SchedulingEngine(ResourceLevelingMixin)" in text
 
 
@@ -594,161 +594,161 @@ def test_main_build_services_delegates_to_service_graph():
     main_path = ROOT / "main.py"
     text = main_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from infra.services import build_service_dict" in text
+    assert "from infra.platform.services import build_service_dict" in text
     assert "return build_service_dict(session)" in text
 
 
 def test_known_large_modules_have_growth_budgets():
     # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
     budgets = {
-        "core/services/reporting/service.py": 180,
-        "core/services/reporting/evm.py": 80,
-        "core/services/reporting/evm_core.py": 280,
-        "core/services/reporting/evm_series.py": 120,
-        "core/services/reporting/kpi.py": 280,
-        "core/services/reporting/labor.py": 260,
-        "ui/project/tab.py": 290,
-        "ui/project/dialogs.py": 80,
-        "ui/project/project_edit_dialog.py": 240,
-        "ui/project/project_resource_edit_dialog.py": 240,
-        "ui/project/models.py": 120,
-        "ui/task/tab.py": 220,
-        "ui/task/actions.py": 220,
-        "ui/task/project_flow.py": 180,
-        "ui/task/dialogs.py": 80,
-        "ui/task/task_dialogs.py": 320,
-        "ui/task/dependency_dialogs.py": 220,
-        "ui/task/dependency_add_dialog.py": 220,
-        "ui/task/dependency_list_dialog.py": 180,
-        "ui/task/dependency_shared.py": 60,
-        "ui/task/assignment_dialogs.py": 270,
-        "ui/task/models.py": 120,
-        "ui/task/components.py": 80,
-        "ui/cost/tab.py": 220,
-        "ui/cost/components.py": 80,
-        "ui/cost/models.py": 180,
-        "ui/cost/cost_dialogs.py": 240,
-        "ui/cost/labor_dialogs.py": 320,
-        "ui/cost/project_flow.py": 180,
-        "ui/cost/labor_summary.py": 200,
-        "ui/cost/actions.py": 150,
-        "ui/dashboard/tab.py": 285,
-        "ui/dashboard/widgets.py": 120,
-        "ui/dashboard/data_ops.py": 180,
-        "ui/dashboard/leveling_ops.py": 230,
-        "ui/dashboard/alerts_panel.py": 140,
-        "ui/dashboard/portfolio_panel.py": 100,
-        "ui/dashboard/rendering.py": 80,
-        "ui/dashboard/rendering_summary.py": 160,
-        "ui/dashboard/rendering_charts.py": 170,
-        "ui/dashboard/rendering_evm.py": 240,
-        "ui/dashboard/rendering_portfolio.py": 120,
-        "ui/report/tab.py": 220,
-        "ui/report/actions.py": 220,
-        "ui/report/project_flow.py": 80,
-        "ui/report/dialogs.py": 50,
-        "ui/report/dialog_helpers.py": 140,
-        "ui/report/dialog_kpi.py": 220,
-        "ui/report/dialog_gantt.py": 240,
-        "ui/report/dialog_critical_path.py": 220,
-        "ui/report/dialog_resource_load.py": 240,
-        "ui/styles/theme.py": 80,
-        "ui/styles/theme_tokens.py": 140,
-        "ui/styles/theme_stylesheet.py": 340,
+        "core/modules/project_management/services/reporting/service.py": 180,
+        "core/modules/project_management/services/reporting/evm.py": 80,
+        "core/modules/project_management/services/reporting/evm_core.py": 280,
+        "core/modules/project_management/services/reporting/evm_series.py": 120,
+        "core/modules/project_management/services/reporting/kpi.py": 280,
+        "core/modules/project_management/services/reporting/labor.py": 260,
+        "ui/modules/project_management/project/tab.py": 290,
+        "ui/modules/project_management/project/dialogs.py": 80,
+        "ui/modules/project_management/project/project_edit_dialog.py": 240,
+        "ui/modules/project_management/project/project_resource_edit_dialog.py": 240,
+        "ui/modules/project_management/project/models.py": 120,
+        "ui/modules/project_management/task/tab.py": 220,
+        "ui/modules/project_management/task/actions.py": 220,
+        "ui/modules/project_management/task/project_flow.py": 180,
+        "ui/modules/project_management/task/dialogs.py": 80,
+        "ui/modules/project_management/task/task_dialogs.py": 320,
+        "ui/modules/project_management/task/dependency_dialogs.py": 220,
+        "ui/modules/project_management/task/dependency_add_dialog.py": 220,
+        "ui/modules/project_management/task/dependency_list_dialog.py": 180,
+        "ui/modules/project_management/task/dependency_shared.py": 60,
+        "ui/modules/project_management/task/assignment_dialogs.py": 270,
+        "ui/modules/project_management/task/models.py": 120,
+        "ui/modules/project_management/task/components.py": 80,
+        "ui/modules/project_management/cost/tab.py": 220,
+        "ui/modules/project_management/cost/components.py": 80,
+        "ui/modules/project_management/cost/models.py": 180,
+        "ui/modules/project_management/cost/cost_dialogs.py": 240,
+        "ui/modules/project_management/cost/labor_dialogs.py": 320,
+        "ui/modules/project_management/cost/project_flow.py": 180,
+        "ui/modules/project_management/cost/labor_summary.py": 200,
+        "ui/modules/project_management/cost/actions.py": 150,
+        "ui/modules/project_management/dashboard/tab.py": 285,
+        "ui/modules/project_management/dashboard/widgets.py": 120,
+        "ui/modules/project_management/dashboard/data_ops.py": 180,
+        "ui/modules/project_management/dashboard/leveling_ops.py": 230,
+        "ui/modules/project_management/dashboard/alerts_panel.py": 140,
+        "ui/modules/project_management/dashboard/portfolio_panel.py": 100,
+        "ui/modules/project_management/dashboard/rendering.py": 80,
+        "ui/modules/project_management/dashboard/rendering_summary.py": 160,
+        "ui/modules/project_management/dashboard/rendering_charts.py": 170,
+        "ui/modules/project_management/dashboard/rendering_evm.py": 240,
+        "ui/modules/project_management/dashboard/rendering_portfolio.py": 120,
+        "ui/modules/project_management/report/tab.py": 220,
+        "ui/modules/project_management/report/actions.py": 220,
+        "ui/modules/project_management/report/project_flow.py": 80,
+        "ui/modules/project_management/report/dialogs.py": 50,
+        "ui/modules/project_management/report/dialog_helpers.py": 140,
+        "ui/modules/project_management/report/dialog_kpi.py": 220,
+        "ui/modules/project_management/report/dialog_gantt.py": 240,
+        "ui/modules/project_management/report/dialog_critical_path.py": 220,
+        "ui/modules/project_management/report/dialog_resource_load.py": 240,
+        "ui/platform/shared/styles/theme.py": 80,
+        "ui/platform/shared/styles/theme_tokens.py": 140,
+        "ui/platform/shared/styles/theme_stylesheet.py": 340,
         "main.py": 580,
-        "ui/calendar/tab.py": 300,
-        "ui/calendar/working_time.py": 120,
-        "ui/calendar/holidays.py": 120,
-        "ui/calendar/calculator.py": 100,
-        "ui/calendar/project_ops.py": 130,
-        "ui/support/tab.py": 80,
-        "ui/support/ui_layout.py": 160,
-        "ui/support/telemetry.py": 140,
-        "ui/support/update_flow.py": 340,
-        "ui/support/diagnostics_flow.py": 140,
-        "ui/support/diagnostics_export.py": 140,
-        "ui/support/incident_report.py": 180,
-        "ui/shared/incident_support.py": 120,
-        "core/services/scheduling/engine.py": 360,
-        "core/services/scheduling/models.py": 80,
-        "core/services/scheduling/graph.py": 180,
-        "core/services/scheduling/passes.py": 260,
-        "core/services/scheduling/results.py": 180,
-        "core/services/scheduling/leveling.py": 180,
-        "core/services/scheduling/leveling_service.py": 280,
-        "core/services/scheduling/leveling_models.py": 120,
-        "ui/resource/tab.py": 245,
-        "ui/resource/actions.py": 180,
-        "ui/resource/flow.py": 80,
-        "ui/resource/models.py": 100,
-        "ui/resource/dialogs.py": 180,
-        "core/models.py": 80,
+        "ui/modules/project_management/calendar/tab.py": 300,
+        "ui/modules/project_management/calendar/working_time.py": 120,
+        "ui/modules/project_management/calendar/holidays.py": 120,
+        "ui/modules/project_management/calendar/calculator.py": 100,
+        "ui/modules/project_management/calendar/project_ops.py": 130,
+        "ui/platform/admin/support/tab.py": 80,
+        "ui/platform/admin/support/ui_layout.py": 160,
+        "ui/platform/admin/support/telemetry.py": 140,
+        "ui/platform/admin/support/update_flow.py": 340,
+        "ui/platform/admin/support/diagnostics_flow.py": 140,
+        "ui/platform/admin/support/diagnostics_export.py": 140,
+        "ui/platform/admin/support/incident_report.py": 180,
+        "ui/platform/shared/incident_support.py": 120,
+        "core/modules/project_management/services/scheduling/engine.py": 360,
+        "core/modules/project_management/services/scheduling/models.py": 80,
+        "core/modules/project_management/services/scheduling/graph.py": 180,
+        "core/modules/project_management/services/scheduling/passes.py": 260,
+        "core/modules/project_management/services/scheduling/results.py": 180,
+        "core/modules/project_management/services/scheduling/leveling.py": 180,
+        "core/modules/project_management/services/scheduling/leveling_service.py": 280,
+        "core/modules/project_management/services/scheduling/leveling_models.py": 120,
+        "ui/modules/project_management/resource/tab.py": 245,
+        "ui/modules/project_management/resource/actions.py": 180,
+        "ui/modules/project_management/resource/flow.py": 80,
+        "ui/modules/project_management/resource/models.py": 100,
+        "ui/modules/project_management/resource/dialogs.py": 180,
+        "core/platform/common/models.py": 80,
         "core/domain/__init__.py": 70,
-        "core/domain/identifiers.py": 40,
-        "core/domain/enums.py": 90,
-        "core/domain/project.py": 120,
-        "core/domain/task.py": 180,
-        "core/domain/resource.py": 80,
-        "core/domain/cost.py": 90,
-        "core/domain/calendar.py": 120,
-        "core/domain/baseline.py": 90,
-        "core/services/dashboard/service.py": 170,
-        "core/services/dashboard/models.py": 120,
-        "core/services/dashboard/alerts.py": 180,
-        "core/services/dashboard/upcoming.py": 150,
-        "core/services/dashboard/burndown.py": 120,
-        "core/services/dashboard/evm.py": 160,
-        "core/services/dashboard/portfolio.py": 300,
-        "core/services/dashboard/portfolio_models.py": 100,
-        "core/services/finance/service.py": 220,
-        "core/services/finance/ledger.py": 260,
-        "core/services/finance/analytics.py": 160,
-        "core/services/finance/cashflow.py": 120,
-        "core/services/finance/policy.py": 120,
-        "core/services/finance/helpers.py": 120,
-        "ui/styles/ui_config.py": 320,
-        "core/services/task/service.py": 140,
-        "core/services/project/service.py": 90,
-        "core/services/project/lifecycle.py": 250,
-        "core/services/project/query.py": 90,
-        "core/services/project/validation.py": 80,
-        "core/services/task/lifecycle.py": 315,
-        "core/services/task/dependency.py": 175,
-        "core/services/task/assignment.py": 245,
-        "core/services/task/query.py": 120,
-        "core/services/task/validation.py": 220,
-        "core/services/timesheet/service.py": 90,
-        "core/services/timesheet/lifecycle.py": 40,
-        "core/services/timesheet/query.py": 100,
-        "core/services/timesheet/entries.py": 260,
-        "core/services/timesheet/periods.py": 220,
-        "core/services/timesheet/support.py": 240,
-        "infra/db/repositories.py": 130,
-        "infra/db/mappers.py": 120,
-        "infra/db/project/__init__.py": 80,
-        "infra/db/project/mapper.py": 120,
-        "infra/db/project/repository.py": 140,
-        "infra/db/timesheet/__init__.py": 80,
-        "infra/db/timesheet/mapper.py": 120,
-        "infra/db/timesheet/repository.py": 180,
-        "infra/db/task/__init__.py": 80,
-        "infra/db/task/mapper.py": 180,
-        "infra/db/task/repository.py": 180,
-        "infra/db/resource/__init__.py": 60,
-        "infra/db/resource/mapper.py": 80,
-        "infra/db/resource/repository.py": 80,
-        "infra/db/cost_calendar/__init__.py": 90,
-        "infra/db/cost_calendar/mapper.py": 180,
-        "infra/db/cost_calendar/repository.py": 180,
-        "infra/db/baseline/__init__.py": 60,
-        "infra/db/baseline/mapper.py": 100,
-        "infra/db/baseline/repository.py": 120,
-        "infra/db/repositories_project.py": 100,
-        "infra/db/repositories_task.py": 150,
-        "infra/db/repositories_timesheet.py": 60,
-        "infra/db/repositories_resource.py": 60,
-        "infra/db/repositories_cost_calendar.py": 150,
-        "infra/db/repositories_baseline.py": 100,
+        "core/modules/project_management/domain/identifiers.py": 40,
+        "core/modules/project_management/domain/enums.py": 90,
+        "core/modules/project_management/domain/project.py": 120,
+        "core/modules/project_management/domain/task.py": 180,
+        "core/modules/project_management/domain/resource.py": 80,
+        "core/modules/project_management/domain/cost.py": 90,
+        "core/modules/project_management/domain/calendar.py": 120,
+        "core/modules/project_management/domain/baseline.py": 90,
+        "core/modules/project_management/services/dashboard/service.py": 170,
+        "core/modules/project_management/services/dashboard/models.py": 120,
+        "core/modules/project_management/services/dashboard/alerts.py": 180,
+        "core/modules/project_management/services/dashboard/upcoming.py": 150,
+        "core/modules/project_management/services/dashboard/burndown.py": 120,
+        "core/modules/project_management/services/dashboard/evm.py": 160,
+        "core/modules/project_management/services/dashboard/portfolio.py": 300,
+        "core/modules/project_management/services/dashboard/portfolio_models.py": 100,
+        "core/modules/project_management/services/finance/service.py": 220,
+        "core/modules/project_management/services/finance/ledger.py": 260,
+        "core/modules/project_management/services/finance/analytics.py": 160,
+        "core/modules/project_management/services/finance/cashflow.py": 120,
+        "core/modules/project_management/services/finance/policy.py": 120,
+        "core/modules/project_management/services/finance/helpers.py": 120,
+        "ui/platform/shared/styles/ui_config.py": 320,
+        "core/modules/project_management/services/task/service.py": 140,
+        "core/modules/project_management/services/project/service.py": 90,
+        "core/modules/project_management/services/project/lifecycle.py": 250,
+        "core/modules/project_management/services/project/query.py": 90,
+        "core/modules/project_management/services/project/validation.py": 80,
+        "core/modules/project_management/services/task/lifecycle.py": 315,
+        "core/modules/project_management/services/task/dependency.py": 175,
+        "core/modules/project_management/services/task/assignment.py": 245,
+        "core/modules/project_management/services/task/query.py": 120,
+        "core/modules/project_management/services/task/validation.py": 220,
+        "core/modules/project_management/services/timesheet/service.py": 90,
+        "core/modules/project_management/services/timesheet/lifecycle.py": 40,
+        "core/modules/project_management/services/timesheet/query.py": 100,
+        "core/modules/project_management/services/timesheet/entries.py": 260,
+        "core/modules/project_management/services/timesheet/periods.py": 220,
+        "core/modules/project_management/services/timesheet/support.py": 240,
+        "infra/platform/db/repositories.py": 130,
+        "infra/platform/db/mappers.py": 120,
+        "infra/modules/project_management/db/project/__init__.py": 80,
+        "infra/modules/project_management/db/project/mapper.py": 120,
+        "infra/modules/project_management/db/project/repository.py": 140,
+        "infra/modules/project_management/db/timesheet/__init__.py": 80,
+        "infra/modules/project_management/db/timesheet/mapper.py": 120,
+        "infra/modules/project_management/db/timesheet/repository.py": 180,
+        "infra/modules/project_management/db/task/__init__.py": 80,
+        "infra/modules/project_management/db/task/mapper.py": 180,
+        "infra/modules/project_management/db/task/repository.py": 180,
+        "infra/modules/project_management/db/resource/__init__.py": 60,
+        "infra/modules/project_management/db/resource/mapper.py": 80,
+        "infra/modules/project_management/db/resource/repository.py": 80,
+        "infra/modules/project_management/db/cost_calendar/__init__.py": 90,
+        "infra/modules/project_management/db/cost_calendar/mapper.py": 180,
+        "infra/modules/project_management/db/cost_calendar/repository.py": 180,
+        "infra/modules/project_management/db/baseline/__init__.py": 60,
+        "infra/modules/project_management/db/baseline/mapper.py": 100,
+        "infra/modules/project_management/db/baseline/repository.py": 120,
+        "infra/modules/project_management/db/repositories_project.py": 100,
+        "infra/modules/project_management/db/repositories_task.py": 150,
+        "infra/modules/project_management/db/repositories_timesheet.py": 60,
+        "infra/modules/project_management/db/repositories_resource.py": 60,
+        "infra/modules/project_management/db/repositories_cost_calendar.py": 150,
+        "infra/modules/project_management/db/repositories_baseline.py": 100,
     }
 
     breaches = []

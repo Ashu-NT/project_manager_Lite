@@ -1,13 +1,13 @@
 from datetime import date, timedelta
 from pathlib import Path
 
-from core.exceptions import NotFoundError
-from core.models import DependencyType
-from infra.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
-from ui.styles.theme import base_stylesheet
-from ui.styles.theme import set_theme_mode
-from ui.styles.theme import table_stylesheet
-from ui.styles.ui_config import UIConfig as CFG
+from core.platform.common.exceptions import NotFoundError
+from core.platform.common.models import DependencyType
+from infra.platform.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
+from ui.platform.shared.styles.theme import base_stylesheet
+from ui.platform.shared.styles.theme import set_theme_mode
+from ui.platform.shared.styles.theme import table_stylesheet
+from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
 def test_cost_summary_has_legacy_and_normalized_keys(services):

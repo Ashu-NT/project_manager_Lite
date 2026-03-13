@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from core.models import CostType, DependencyType
+from core.platform.common.models import CostType, DependencyType
 
 
 @dataclass(frozen=True)

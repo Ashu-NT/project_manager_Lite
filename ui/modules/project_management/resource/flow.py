@@ -1,0 +1,32 @@
+from __future__ import annotations
+
+from typing import Optional
+
+from PySide6.QtWidgets import QTableView
+
+from core.platform.common.models import Resource
+from core.modules.project_management.services.resource import ResourceService
+from ui.modules.project_management.resource.models import ResourceTableModel
+
+
+class ResourceFlowMixin:
+    _resource_service: ResourceService
+    model: ResourceTableModel
+    table: QTableView
+
+    def reload_resources(self) -> None:
+        resources = self._resource_service.list_resources()
+        self.model.set_resources(resources)
+        sync_actions = getattr(self, "_sync_actions", None)
+        if callable(sync_actions):
+            sync_actions()
+
+    def _get_selected_resource(self) -> Optional[Resource]:
+        indexes = self.table.selectionModel().selectedRows()
+        if not indexes:
+            return None
+        row = indexes[0].row()
+        return self.model.get_resource(row)
+
+
+__all__ = ["ResourceFlowMixin"]

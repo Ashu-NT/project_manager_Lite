@@ -6,7 +6,7 @@ interfaces, events, and reporting calculations. It is intentionally UI-agnostic.
 ## Design Role
 
 - Source of truth for business rules.
-- Defines repository/service contracts (`core/interfaces.py`).
+- Defines repository/service contracts (`core/platform/common/interfaces.py`).
 - Owns scheduling, cost policy, baseline, governance, finance, and reporting logic.
 - Emits domain events for reactive UI refresh.
 
@@ -14,10 +14,10 @@ interfaces, events, and reporting calculations. It is intentionally UI-agnostic.
 
 - `core/domain/`: dataclass domain entities and enums
 - `core/services/`: service layer split by business capability
-- `core/events/`: domain event hub + lightweight signal primitive
-- `core/reporting/`: export API and renderers (Excel/PDF/PNG)
-- `core/interfaces.py`: repository abstractions
-- `core/exceptions.py`: typed domain/business error hierarchy
+- `core/platform/notifications/`: domain event hub + lightweight signal primitive
+- `core/modules/project_management/reporting/`: export API and renderers (Excel/PDF/PNG)
+- `core/platform/common/interfaces.py`: repository abstractions
+- `core/platform/common/exceptions.py`: typed domain/business error hierarchy
 
 ## Dependency Rule
 
@@ -34,7 +34,7 @@ Architecture guardrails in tests enforce this rule continuously.
 - Dataclass-first modeling for explicit, serializable business entities.
 - Static `create(...)` factories centralize ID generation and safe defaults.
 - Enums model constrained states (project status, task status, dependency/cost types).
-- Compatibility facade (`core/models.py`) preserves legacy import paths.
+- Compatibility facade (`core/platform/common/models.py`) preserves legacy import paths.
 
 ## Service Strategy
 

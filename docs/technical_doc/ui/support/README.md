@@ -1,6 +1,6 @@
 # UI Support Module
 
-`ui/support/` is the productization and support operations panel for admins.
+`ui/platform/admin/support/` is the productization and support operations panel for admins.
 
 ## File
 
@@ -31,10 +31,10 @@ Diagnostics:
 ## Dependencies
 
 - `MainWindowSettingsStore`
-- `infra.update` (manifest parsing and version comparison)
-- `infra.updater` (installer download/handoff)
-- `infra.diagnostics` (bundle export)
-- `infra.version` (runtime app version)
+- `infra.platform.update` (manifest parsing and version comparison)
+- `infra.platform.updater` (installer download/handoff)
+- `infra.platform.diagnostics` (bundle export)
+- `infra.platform.version` (runtime app version)
 
 ## Async Behavior
 

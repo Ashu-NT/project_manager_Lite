@@ -3,6 +3,8 @@
 ProjectManagerLite is a desktop project management application for planning, scheduling, execution control, and reporting.
 It is built with Python + PySide6 and follows a layered architecture designed for maintainability and scale.
 
+The current production-ready capability is the `Project Management` module. The staged migration plan toward a modular enterprise platform is tracked in `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`.
+
 ## Core Capabilities
 
 ### Planning and Scheduling
@@ -96,7 +98,7 @@ python main.py
 
 ## Database, Migrations, and Logs
 
-- Migrations run automatically at startup (`alembic upgrade head` via `infra/migrate.py`)
+- Migrations run automatically at startup (`alembic upgrade head` via `infra/platform/migrate.py`)
 - Local SQLite database location:
   - Windows: `%APPDATA%\TECHASH\ProjectManagerLite\project_manager.db`
   - macOS: `~/Library/Application Support/TECHASH/ProjectManagerLite/project_manager.db`

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.exceptions import NotFoundError, ValidationError
+from core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 def test_bootstrap_creates_admin_and_permissions(services):

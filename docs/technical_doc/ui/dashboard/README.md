@@ -1,6 +1,6 @@
 # UI Dashboard Module
 
-`ui/dashboard/` is the executive and operational overview module for project
+`ui/modules/project_management/dashboard/` is the executive and operational overview module for project
 health, schedule status, resource loading, baseline tracking, and leveling.
 
 ## Files

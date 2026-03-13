@@ -1,6 +1,6 @@
 # UI Calendar Module
 
-`ui/calendar/` provides scheduling-calendar operations and date computation UX.
+`ui/modules/project_management/calendar/` provides scheduling-calendar operations and date computation UX.
 
 ## Files
 

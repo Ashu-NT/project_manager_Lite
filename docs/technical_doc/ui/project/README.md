@@ -1,6 +1,6 @@
 # UI Project Module
 
-`ui/project/` is the project lifecycle workspace with inline project-resource
+`ui/modules/project_management/project/` is the project lifecycle workspace with inline project-resource
 planning and assignment controls.
 
 ## Files

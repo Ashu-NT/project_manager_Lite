@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from ui.task.assignment_summary import build_task_assignment_summary
+from ui.modules.project_management.task.assignment_summary import build_task_assignment_summary
 
 
 def test_build_task_assignment_summary_aggregates_count_alloc_and_hours(services):

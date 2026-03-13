@@ -4,19 +4,19 @@ from datetime import date
 
 from PySide6.QtWidgets import QDialog, QLineEdit
 
-from core.models import Task, TaskStatus
+from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
-from ui.admin.audit_tab import AuditLogTab
-from ui.admin.user_dialog import PasswordResetDialog, UserEditDialog
-from ui.admin.users_tab import UserAdminTab
-from ui.auth.login_dialog import LoginDialog
-from ui.main_window import MainWindow
-from ui.task.task_progress_dialog import TaskProgressDialog
+from ui.platform.admin.audit_tab import AuditLogTab
+from ui.platform.admin.user_dialog import PasswordResetDialog, UserEditDialog
+from ui.platform.admin.users_tab import UserAdminTab
+from ui.platform.shared.auth.login_dialog import LoginDialog
+from ui.platform.shell.main_window import MainWindow
+from ui.modules.project_management.task.task_progress_dialog import TaskProgressDialog
 
 
 def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-admin")
-    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -97,7 +97,7 @@ def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_serv
 def test_password_reset_dialog_runtime_validates_match_and_accepts(qapp, monkeypatch):
     warnings: list[str] = []
     monkeypatch.setattr(
-        "ui.admin.user_dialog.QMessageBox.warning",
+        "ui.platform.admin.user_dialog.QMessageBox.warning",
         lambda _parent, _title, message: warnings.append(message),
     )
     dialog = PasswordResetDialog(username="alice")
@@ -120,7 +120,7 @@ def test_password_reset_dialog_runtime_validates_match_and_accepts(qapp, monkeyp
 def test_user_edit_dialog_runtime_validates_email(qapp, monkeypatch):
     warnings: list[str] = []
     monkeypatch.setattr(
-        "ui.admin.user_dialog.QMessageBox.warning",
+        "ui.platform.admin.user_dialog.QMessageBox.warning",
         lambda _parent, _title, message: warnings.append(message),
     )
     dialog = UserEditDialog(username="alice", display_name="Alice", email="alice@example.com")

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from tests.ui_runtime_helpers import login_as, register_and_login
-from ui.timesheet.dialog import TimesheetDialog
+from ui.modules.project_management.timesheet.dialog import TimesheetDialog
 
 
 def _build_timesheet_context(services):
@@ -116,7 +116,7 @@ def test_timesheet_dialog_period_actions_run_through_runtime_ui(
         ]
     )
     monkeypatch.setattr(
-        "ui.timesheet.dialog.QInputDialog.getMultiLineText",
+        "ui.modules.project_management.timesheet.dialog.QInputDialog.getMultiLineText",
         lambda *_args, **_kwargs: next(notes),
     )
 
@@ -214,7 +214,7 @@ def test_timesheet_dialog_surfaces_period_review_lane_and_navigation(
         ]
     )
     monkeypatch.setattr(
-        "ui.timesheet.dialog.QInputDialog.getMultiLineText",
+        "ui.modules.project_management.timesheet.dialog.QInputDialog.getMultiLineText",
         lambda *_args, **_kwargs: next(notes),
     )
     services["timesheet_service"].add_time_entry(

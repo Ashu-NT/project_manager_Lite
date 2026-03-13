@@ -2,8 +2,8 @@ from datetime import date
 
 import pytest
 
-from core.exceptions import BusinessRuleError
-from core.models import DependencyType
+from core.platform.common.exceptions import BusinessRuleError
+from core.platform.common.models import DependencyType
 
 
 def test_preview_resource_conflicts_detects_overallocation(services):

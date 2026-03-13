@@ -7,8 +7,8 @@ from uuid import uuid4
 
 import pytest
 
-from core.models import TimesheetPeriodStatus
-from core.exceptions import ValidationError
+from core.platform.common.models import TimesheetPeriodStatus
+from core.platform.common.exceptions import ValidationError
 
 
 def test_db_backed_collaboration_store_persists_and_marks_mentions(services):

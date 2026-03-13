@@ -1,6 +1,6 @@
 # UI Styles Module
 
-`ui/styles/` provides the visual system used by all tabs and dialogs.
+`ui/platform/shared/styles/` provides the visual system used by all tabs and dialogs.
 
 ## Files
 

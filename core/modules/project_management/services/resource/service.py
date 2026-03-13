@@ -1,0 +1,208 @@
+# core/modules/project_management/services/resource/service.py
+from __future__ import annotations
+from typing import List
+from sqlalchemy.orm import Session
+
+from core.platform.common.models import Resource, CostType
+from core.platform.common.interfaces import (
+    ResourceRepository,
+    AssignmentRepository,
+    ProjectResourceRepository,
+    TimeEntryRepository,
+)
+from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from core.platform.notifications.domain_events import domain_events
+from core.platform.audit.helpers import record_audit
+from core.platform.auth.authorization import require_permission
+import logging
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_CURRENCY_CODE = "EUR"
+
+
+def _normalize_capacity_percent(value: float | None) -> float:
+    resolved = float(value if value is not None else 100.0)
+    if resolved <= 0.0:
+        raise ValidationError("Capacity percent must be greater than zero.")
+    return resolved
+
+class ResourceService:
+    def __init__(self, session: Session, 
+                 resource_repo: ResourceRepository, 
+                 assignment_repo: AssignmentRepository,
+                 project_resource_repo: ProjectResourceRepository | None = None,
+                 time_entry_repo: TimeEntryRepository | None = None,
+                 user_session=None,
+                 audit_service=None,
+        ):
+        self._session: Session = session
+        self._resource_repo: ResourceRepository = resource_repo
+        self._assignment_repo: AssignmentRepository = assignment_repo
+        self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
+        self._time_entry_repo: TimeEntryRepository | None = time_entry_repo
+        self._user_session = user_session
+        self._audit_service = audit_service
+
+    def create_resource(
+        self,
+        name: str,
+        role: str = "",
+        hourly_rate: float = 0.0,
+        is_active: bool = True,
+        cost_type: CostType = CostType.LABOR,
+        currency_code: str | None = None,
+        capacity_percent: float = 100.0,
+        address: str = "",
+        contact: str = "",
+    ) -> Resource:
+        require_permission(self._user_session, "resource.manage", operation_label="create resource")
+        if not name or not name.strip():
+            raise ValidationError("Resource name cannot be empty.")
+        if hourly_rate < 0:
+            raise ValidationError("Hourly rate cannot be negative.")
+        resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
+        resolved_capacity = _normalize_capacity_percent(capacity_percent)
+        resource = Resource.create(
+            name=name.strip(),
+            role=role.strip(),
+            hourly_rate=hourly_rate,
+            is_active=is_active,
+            cost_type=cost_type,
+            currency_code=resolved_currency,
+            capacity_percent=resolved_capacity,
+            address=(address or "").strip(),
+            contact=(contact or "").strip(),
+        )
+        try:
+            self._resource_repo.add(resource)
+            self._session.commit()
+            record_audit(
+                self,
+                action="resource.create",
+                entity_type="resource",
+                entity_id=resource.id,
+                details={
+                    "name": resource.name,
+                    "role": resource.role,
+                    "capacity_percent": resource.capacity_percent,
+                },
+            )
+            logger.info(f"Created resource {resource.id} - {resource.name}")
+        except Exception as e:
+            self._session.rollback()
+            logger.error(f"Error creating resource: {e}")
+            raise 
+        domain_events.resources_changed.emit(resource.id)
+        return resource
+
+    def update_resource(
+        self,
+        resource_id: str,
+        name: str | None = None,
+        role: str | None = None,
+        hourly_rate: float | None = None,
+        is_active: bool | None = None,
+        cost_type: CostType | None = None,
+        currency_code: str | None = None,
+        capacity_percent: float | None = None,
+        address: str | None = None,
+        contact: str | None = None,
+        expected_version: int | None = None,
+    ) -> Resource:
+        require_permission(self._user_session, "resource.manage", operation_label="update resource")
+        resource = self._resource_repo.get(resource_id)
+        if not resource:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        if expected_version is not None and resource.version != expected_version:
+            raise ConcurrencyError(
+                "Resource changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+
+        if name is not None:
+            if not name.strip():
+                raise ValidationError("Resource name cannot be empty.")
+            resource.name = name.strip()
+        if role is not None:
+            resource.role = role.strip()
+        if hourly_rate is not None:
+            if hourly_rate < 0:
+                raise ValidationError("Hourly rate cannot be negative.")
+            resource.hourly_rate = hourly_rate
+        if is_active is not None:
+            resource.is_active = is_active
+        if cost_type is not None:
+            resource.cost_type = cost_type
+        if currency_code is not None:
+            resource.currency_code = currency_code.strip().upper() or None
+        if capacity_percent is not None:
+            resource.capacity_percent = _normalize_capacity_percent(capacity_percent)
+        if address is not None:
+            resource.address = address.strip()
+        if contact is not None:
+            resource.contact = contact.strip()
+
+        try:
+            self._resource_repo.update(resource)
+            self._session.commit()
+            record_audit(
+                self,
+                action="resource.update",
+                entity_type="resource",
+                entity_id=resource.id,
+                details={
+                    "name": resource.name,
+                    "role": resource.role,
+                    "capacity_percent": resource.capacity_percent,
+                },
+            )
+            
+        except Exception as e:
+            self._session.rollback()
+            raise e
+        domain_events.resources_changed.emit(resource.id)
+        return resource
+
+    def list_resources(self) -> List[Resource]:
+        require_permission(self._user_session, "resource.read", operation_label="list resources")
+        return self._resource_repo.list_all()
+
+    def get_resource(self, resource_id: str) -> Resource:
+        require_permission(self._user_session, "resource.read", operation_label="view resource")
+        resource = self._resource_repo.get(resource_id)
+        if not resource:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        return resource
+
+    def delete_resource(self, resource_id: str) -> None:
+        require_permission(self._user_session, "resource.manage", operation_label="delete resource")
+        resource = self._resource_repo.get(resource_id)
+        if not resource:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+
+        try:
+            # delete assignments and Project- Resource first
+            assignments = self._assignment_repo.list_by_resource(resource_id)
+            for a in assignments:
+                if self._time_entry_repo is not None:
+                    self._time_entry_repo.delete_by_assignment(a.id)
+                self._assignment_repo.delete(a.id)
+            if self._project_resource_repo is not None:
+                self._project_resource_repo.delete_by_resource(resource_id)
+                 
+            self._resource_repo.delete(resource_id)
+            self._session.commit()
+            record_audit(
+                self,
+                action="resource.delete",
+                entity_type="resource",
+                entity_id=resource.id,
+                details={"name": resource.name},
+            )
+        except Exception as e:
+            self._session.rollback()
+            raise e
+        domain_events.resources_changed.emit(resource_id)
+
+

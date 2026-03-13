@@ -1,40 +1,40 @@
-from core.services._base_service import ServiceBase as LegacyServiceBase
-from core.services.access import AccessControlService
-from core.services.approval import ApprovalService
-from core.services.approval_service import ApprovalService as LegacyApprovalService
-from core.services.auth import AuthService
-from core.services.auth_service import AuthService as LegacyAuthService
-from core.services.audit import AuditService
-from core.services.audit_service import AuditService as LegacyAuditService
-from core.services.baseline import BaselineService
-from core.services.baseline_service import BaselineService as LegacyBaselineService
-from core.services.calendar import CalendarService
-from core.services.collaboration import CollaborationService
-from core.services.cost import CostService
-from core.services.dashboard import DashboardService
-from core.services.finance import FinanceService
-from core.services.finance_service import FinanceService as LegacyFinanceService
-from core.services.portfolio import PortfolioService
-from core.services.project import ProjectResourceService, ProjectService
-from core.services.register import RegisterService
-from core.services.register_service import RegisterService as LegacyRegisterService
-from core.services.project_calendar_service import CalendarService as LegacyCalendarService
-from core.services.project_resource_service import ProjectResourceService as LegacyProjectResourceService
-from core.services.project_service import ProjectService as LegacyProjectService
-from core.services.reporting import ReportingService
-from core.services.reporting_service import ReportingService as LegacyReportingService
-from core.services.resource import ResourceService
-from core.services.resource_service import ResourceService as LegacyResourceService
-from core.services.scheduling import CPMTaskInfo, SchedulingEngine
-from core.services.scheduling_service import CPMTaskInfo as LegacyCPMTaskInfo
-from core.services.scheduling_service import SchedulingEngine as LegacySchedulingEngine
-from core.services.task import TaskService
-from core.services.task_service import TaskService as LegacyTaskService
-from core.services.timesheet import TimesheetService
-from core.services.work_calendar import WorkCalendarEngine, WorkCalendarService
-from core.services.work_calendar_engine import WorkCalendarEngine as LegacyWorkCalendarEngine
-from core.services.work_calendar_service import WorkCalendarService as LegacyWorkCalendarService
-from infra.services import ServiceGraph, build_service_graph
+from core.platform.common.service_base import ServiceBase as LegacyServiceBase
+from core.platform.access import AccessControlService
+from core.platform.approval import ApprovalService
+from core.platform.approval.service import ApprovalService as LegacyApprovalService
+from core.platform.auth import AuthService
+from core.platform.auth.service import AuthService as LegacyAuthService
+from core.platform.audit import AuditService
+from core.platform.audit.service import AuditService as LegacyAuditService
+from core.modules.project_management.services.baseline import BaselineService
+from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
+from core.modules.project_management.services.calendar import CalendarService
+from core.modules.project_management.services.collaboration import CollaborationService
+from core.modules.project_management.services.cost import CostService
+from core.modules.project_management.services.dashboard import DashboardService
+from core.modules.project_management.services.finance import FinanceService
+from core.modules.project_management.services.finance.service import FinanceService as LegacyFinanceService
+from core.modules.project_management.services.portfolio import PortfolioService
+from core.modules.project_management.services.project import ProjectResourceService, ProjectService
+from core.modules.project_management.services.register import RegisterService
+from core.modules.project_management.services.register.service import RegisterService as LegacyRegisterService
+from core.modules.project_management.services.calendar.service import CalendarService as LegacyCalendarService
+from core.modules.project_management.services.project.resource_service import ProjectResourceService as LegacyProjectResourceService
+from core.modules.project_management.services.project.service import ProjectService as LegacyProjectService
+from core.modules.project_management.services.reporting import ReportingService
+from core.modules.project_management.services.reporting.service import ReportingService as LegacyReportingService
+from core.modules.project_management.services.resource import ResourceService
+from core.modules.project_management.services.resource.service import ResourceService as LegacyResourceService
+from core.modules.project_management.services.scheduling import CPMTaskInfo, SchedulingEngine
+from core.modules.project_management.services.scheduling.engine import CPMTaskInfo as LegacyCPMTaskInfo
+from core.modules.project_management.services.scheduling.engine import SchedulingEngine as LegacySchedulingEngine
+from core.modules.project_management.services.task import TaskService
+from core.modules.project_management.services.task.service import TaskService as LegacyTaskService
+from core.modules.project_management.services.timesheet import TimesheetService
+from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
+from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine as LegacyWorkCalendarEngine
+from core.modules.project_management.services.work_calendar.service import WorkCalendarService as LegacyWorkCalendarService
+from infra.platform.services import ServiceGraph, build_service_graph
 
 
 def test_service_graph_builder_wires_all_services(session):

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
-from ui.main_window import MainWindow
+from ui.platform.shell.main_window import MainWindow
 
 
 def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-shell")
-    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -56,7 +56,7 @@ def test_main_window_runtime_supports_sidebar_toggle_and_auto_hide(
     monkeypatch,
 ):
     store = make_settings_store(repo_workspace, prefix="main-window-shell-toggle")
-    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -100,7 +100,7 @@ def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
 ):
     register_and_login(services, username_prefix="viewer-shell", role_names=("viewer",))
     store = make_settings_store(repo_workspace, prefix="main-window-viewer-shell")
-    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

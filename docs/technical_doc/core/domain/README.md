@@ -77,10 +77,10 @@ services, repositories, and reporting.
 
 ## ID Strategy
 
-- `core.domain.identifiers.generate_id()` provides globally unique string IDs.
+- `core.modules.project_management.domain.identifiers.generate_id()` provides globally unique string IDs.
 - IDs are generated in domain factories instead of repositories.
 
 ## Compatibility Layer
 
-`core/models.py` re-exports all domain symbols to preserve legacy imports while
+`core/platform/common/models.py` re-exports all domain symbols to preserve legacy imports while
 new code can import directly from focused `core.domain.*` modules.

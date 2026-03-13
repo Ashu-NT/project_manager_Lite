@@ -1,14 +1,14 @@
 # Core Reporting Export Layer
 
-`core/reporting/` is the export and rendering layer that transforms reporting
+`core/modules/project_management/reporting/` is the export and rendering layer that transforms reporting
 service outputs into distributable artifacts (PNG, Excel, PDF).
 
 ## Layer Boundaries
 
-- Upstream data source: `core.services.reporting.ReportingService` and optional
-  `core.services.finance.FinanceService`.
+- Upstream data source: `core.modules.project_management.services.reporting.ReportingService` and optional
+  `core.modules.project_management.services.finance.FinanceService`.
 - Downstream output: files on disk for user export workflows.
-- UI tabs call this layer through `core.reporting.api`.
+- UI tabs call this layer through `core.modules.project_management.reporting.api`.
 
 ## Files and Responsibilities
 

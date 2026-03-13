@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from core.exceptions import BusinessRuleError
-from core.models import DependencyType
-from core.events.domain_events import domain_events
+from core.platform.common.exceptions import BusinessRuleError
+from core.platform.common.models import DependencyType
+from core.platform.notifications.domain_events import domain_events
 
 
 def _login_as(services, username: str, password: str) -> None:

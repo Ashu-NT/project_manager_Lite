@@ -7,7 +7,7 @@ events after state changes.
 ## Architectural Style
 
 - Service orchestrators plus mixin decomposition.
-- Explicit repository interfaces from `core/interfaces.py`.
+- Explicit repository interfaces from `core/platform/common/interfaces.py`.
 - Transactional behavior through injected SQLAlchemy session.
 - Typed exceptions for deterministic UI handling.
 

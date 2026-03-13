@@ -3,20 +3,20 @@ import sys
 import os
 from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtGui import QFont, QIcon
-from infra.resource import resource_path
+from infra.platform.resource import resource_path
 
-from infra.db.base import SessionLocal, get_db_url
-from infra.logging_config import setup_logging
-from infra.services import build_service_dict
+from infra.platform.db.base import SessionLocal, get_db_url
+from infra.platform.logging_config import setup_logging
+from infra.platform.services import build_service_dict
 
-from ui.auth import LoginDialog
-from ui.main_window import MainWindow
-from ui.settings import MainWindowSettingsStore
+from ui.platform.shared.auth import LoginDialog
+from ui.platform.shell.main_window import MainWindow
+from ui.platform.settings import MainWindowSettingsStore
 
 
 def build_services():
     # same DB as CLI
-    from infra.migrate import run_migrations
+    from infra.platform.migrate import run_migrations
     run_migrations(db_url=get_db_url())
     #Base.metadata.create_all(bind=engine)
     session = SessionLocal()
@@ -42,7 +42,7 @@ def main():
     app.setFont(QFont("Segoe UI", 9))
 
     # 2) Global stylesheet (QSS)
-    from ui.styles.theme import apply_app_style
+    from ui.platform.shared.styles.theme import apply_app_style
     apply_app_style(app, mode=startup_theme)
    
     services = build_services()

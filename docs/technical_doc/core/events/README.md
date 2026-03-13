@@ -1,6 +1,6 @@
 # Core Events Module
 
-`core/events/` provides a framework-agnostic event bus used to synchronize UI
+`core/platform/notifications/` provides a framework-agnostic event bus used to synchronize UI
 state with domain mutations.
 
 ## Files

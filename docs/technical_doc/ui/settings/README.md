@@ -1,6 +1,6 @@
 # UI Settings Module
 
-`ui/settings/` contains persisted main-window preference storage.
+`ui/platform/settings/` contains persisted main-window preference storage.
 
 ## File
 
@@ -37,7 +37,7 @@ The store normalizes invalid values to safe defaults:
 
 If no manifest URL is persisted, store falls back to:
 
-- `infra.update.default_update_manifest_source()`
+- `infra.platform.update.default_update_manifest_source()`
 
 This allows first-run installs to auto-target the release manifest without
 manual setup.

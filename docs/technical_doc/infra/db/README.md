@@ -1,6 +1,6 @@
 # Infrastructure Database Layer
 
-`infra/db/` implements persistence for all `core/interfaces.py` repository
+`infra/db/` implements persistence for all `core/platform/common/interfaces.py` repository
 contracts using SQLAlchemy ORM and aggregate-specific mappers/repositories.
 
 ## Components

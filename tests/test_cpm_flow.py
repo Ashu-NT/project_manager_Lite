@@ -1,7 +1,7 @@
 from datetime import date
 
-from core.models import DependencyType
-from core.exceptions import BusinessRuleError
+from core.platform.common.models import DependencyType
+from core.platform.common.exceptions import BusinessRuleError
 
 def test_cpm_forward_backward_basic(services):
     ps = services["project_service"]

@@ -1,6 +1,6 @@
 # UI Report Module
 
-`ui/report/` is the reporting center for operational dialogs and executive
+`ui/modules/project_management/report/` is the reporting center for operational dialogs and executive
 exports.
 
 ## Files
@@ -68,7 +68,7 @@ Behavior:
 
 ## Reporting Stack Integration
 
-Actions call into `core.reporting.api`, which composes data from:
+Actions call into `core.modules.project_management.reporting.api`, which composes data from:
 
 - `ReportingService`
 - optional `FinanceService`

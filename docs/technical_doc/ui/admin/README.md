@@ -1,6 +1,6 @@
 # UI Admin Module
 
-`ui/admin/` provides administrative control surfaces for user management and
+`ui/platform/admin/` provides administrative control surfaces for user management and
 audit observability.
 
 ## Files

@@ -1,6 +1,6 @@
 # UI Auth Module
 
-`ui/auth/` contains login-time authentication UX.
+`ui/platform/shared/auth/` contains login-time authentication UX.
 
 ## File
 

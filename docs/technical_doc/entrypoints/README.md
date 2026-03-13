@@ -12,7 +12,7 @@ and CLI execution modes.
 
 Startup sequence:
 
-1. Configure logging via `infra.logging_config.setup_logging()`.
+1. Configure logging via `infra.platform.logging_config.setup_logging()`.
 2. Create `QApplication`.
 3. Load persisted settings (`MainWindowSettingsStore`):
    - theme mode
@@ -23,9 +23,9 @@ Startup sequence:
 7. Build services (`build_services()`):
    - execute Alembic migrations
    - open SQLAlchemy session
-   - build service graph via `infra.services.build_service_dict`
+   - build service graph via `infra.platform.services.build_service_dict`
 8. Show login dialog unless `PM_SKIP_LOGIN` is enabled.
-9. Create `ui.main_window.MainWindow`, show it, and enter Qt event loop.
+9. Create `ui.platform.shell.main_window.MainWindow`, show it, and enter Qt event loop.
 
 ### Important Characteristics
 
@@ -73,4 +73,4 @@ This guarantees that GUI and CLI use the same business logic stack.
   - dev layout
   - PyInstaller onefile extraction (`_MEIPASS`)
   - PyInstaller onedir fallback paths
-- Icon and static assets resolve through `infra.resource.resource_path`.
+- Icon and static assets resolve through `infra.platform.resource.resource_path`.

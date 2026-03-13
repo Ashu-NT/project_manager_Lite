@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import os
 
-from core.models import ApprovalStatus
+from core.platform.common.models import ApprovalStatus
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
-from ui.governance.tab import GovernanceTab
-from ui.main_window import MainWindow
+from ui.modules.project_management.governance.tab import GovernanceTab
+from ui.platform.shell.main_window import MainWindow
 
 
 def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
@@ -25,9 +25,9 @@ def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
 
     store = make_settings_store(repo_workspace, prefix="governance")
     info_messages: list[str] = []
-    monkeypatch.setattr("ui.governance.tab.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.modules.project_management.governance.tab.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(
-        "ui.governance.tab.QMessageBox.information",
+        "ui.modules.project_management.governance.tab.QMessageBox.information",
         lambda _parent, _title, message: info_messages.append(message),
     )
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
@@ -74,7 +74,7 @@ def test_main_window_runtime_exposes_governance_tab_for_request_permissions(
 ):
     register_and_login(services, username_prefix="planner-governance", role_names=("planner",))
     store = make_settings_store(repo_workspace, prefix="governance-main-window")
-    monkeypatch.setattr("ui.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

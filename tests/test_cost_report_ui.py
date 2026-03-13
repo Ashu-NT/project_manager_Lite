@@ -4,10 +4,10 @@ from datetime import date
 
 from PySide6.QtWidgets import QSizePolicy
 
-from ui.cost.tab import CostTab
-from ui.report.dialog_finance import FinanceReportDialog
-from ui.report.dialog_performance import PerformanceVarianceDialog
-from ui.report.tab import ReportTab
+from ui.modules.project_management.cost.tab import CostTab
+from ui.modules.project_management.report.dialog_finance import FinanceReportDialog
+from ui.modules.project_management.report.dialog_performance import PerformanceVarianceDialog
+from ui.modules.project_management.report.tab import ReportTab
 
 
 def test_cost_tab_runtime_uses_compact_header_and_badges(qapp, services):

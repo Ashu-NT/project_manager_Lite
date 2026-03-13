@@ -1,4 +1,4 @@
-from core.models import CostType
+from core.platform.common.models import CostType
 
 
 def test_project_defaults_currency_to_eur(services):

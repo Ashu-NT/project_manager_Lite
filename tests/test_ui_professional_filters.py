@@ -4,11 +4,11 @@ from datetime import date
 
 from PySide6.QtWidgets import QSizePolicy
 
-from core.models import CostType
+from core.platform.common.models import CostType
 from tests.ui_runtime_helpers import make_settings_store
-from ui.project.tab import ProjectTab
-from ui.resource.tab import ResourceTab
-from ui.task.tab import TaskTab
+from ui.modules.project_management.project.tab import ProjectTab
+from ui.modules.project_management.resource.tab import ResourceTab
+from ui.modules.project_management.task.tab import TaskTab
 
 
 def test_project_tab_filters_work_at_runtime(qapp, services):

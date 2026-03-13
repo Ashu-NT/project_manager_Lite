@@ -1,6 +1,6 @@
 from datetime import date
 
-from ui.task.assignment_models import _assignment_hours_logged
+from ui.modules.project_management.task.assignment_models import _assignment_hours_logged
 
 
 def test_single_task_and_multi_task_assignment_queries_are_consistent(services):

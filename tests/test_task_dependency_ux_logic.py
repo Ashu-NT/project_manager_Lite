@@ -1,5 +1,5 @@
-from core.models import DependencyType, TaskDependency
-from ui.task.dependency_dialogs import _dependency_direction
+from core.platform.common.models import DependencyType, TaskDependency
+from ui.modules.project_management.task.dependency_dialogs import _dependency_direction
 
 
 def test_dependency_direction_identifies_predecessor_for_current_successor():

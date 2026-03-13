@@ -7,18 +7,18 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QGridLayout
 from PySide6.QtWidgets import QDialog
 
-from core.domain.enums import TaskStatus
-from core.models import DependencyType
-from core.services.dashboard import PORTFOLIO_SCOPE_ID
-from infra.collaboration_store import TaskCollaborationStore
+from core.modules.project_management.domain.enums import TaskStatus
+from core.platform.common.models import DependencyType
+from core.modules.project_management.services.dashboard import PORTFOLIO_SCOPE_ID
+from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from tests.ui_runtime_helpers import make_settings_store
-from ui.dashboard.layout_builder import DashboardLayoutDialog
-from ui.dashboard.tab import DashboardTab
-from ui.report.dialog_gantt import GanttPreviewDialog
-from ui.styles.theme import set_theme_mode
-from ui.styles.ui_config import UIConfig as CFG
-from ui.task.collaboration_dialog import TaskCollaborationDialog
-from ui.task.tab import TaskTab
+from ui.modules.project_management.dashboard.layout_builder import DashboardLayoutDialog
+from ui.modules.project_management.dashboard.tab import DashboardTab
+from ui.modules.project_management.report.dialog_gantt import GanttPreviewDialog
+from ui.platform.shared.styles.theme import set_theme_mode
+from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
+from ui.modules.project_management.task.tab import TaskTab
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,7 +82,7 @@ def test_task_tab_pro_controls_saved_views_and_undo_work_at_runtime(
     assert tab.task_view_combo.count() >= 1
 
     monkeypatch.setattr(
-        "ui.task.filtering.QInputDialog.getText",
+        "ui.modules.project_management.task.filtering.QInputDialog.getText",
         lambda *_args, **_kwargs: ("High Focus", True),
     )
     tab.task_search_filter.setText("priority>=70")
@@ -178,7 +178,7 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
             },
         }
     )
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
 
     tab = DashboardTab(
         project_service=services["project_service"],
@@ -223,7 +223,7 @@ def test_dashboard_layout_builder_and_persisted_state_work_at_runtime(
         def exec(self):
             return QDialog.Accepted
 
-    monkeypatch.setattr("ui.dashboard.layout_state.DashboardLayoutDialog", _AcceptedLayoutDialog)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.layout_state.DashboardLayoutDialog", _AcceptedLayoutDialog)
     tab._open_dashboard_layout_builder()
 
     assert store.load_dashboard_layout() == applied_payload
@@ -278,7 +278,7 @@ def test_dashboard_layout_dialog_enforces_mode_specific_selection_runtime(qapp):
 
 def test_dashboard_control_rail_collapses_runtime(qapp, services, repo_workspace, monkeypatch):
     services["project_service"].create_project("Dashboard Rail")
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
 
     tab = DashboardTab(
         project_service=services["project_service"],
@@ -312,7 +312,7 @@ def test_dashboard_panels_reflow_responsively_runtime(qapp, services, repo_works
             },
         }
     )
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
 
     tab = DashboardTab(
         project_service=services["project_service"],
@@ -363,7 +363,7 @@ def test_dashboard_kpi_cards_reflow_responsively_runtime(qapp, services, repo_wo
             },
         }
     )
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
 
     tab = DashboardTab(
         project_service=services["project_service"],
@@ -399,7 +399,7 @@ def test_dashboard_schedules_layout_sync_on_first_show_runtime(
     monkeypatch,
 ):
     services["project_service"].create_project("Startup Dashboard")
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
 
     tab = DashboardTab(
         project_service=services["project_service"],
@@ -446,7 +446,7 @@ def test_dashboard_chart_panels_stay_bounded_and_top_aligned_runtime(
             },
         }
     )
-    monkeypatch.setattr("ui.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("ui.modules.project_management.dashboard.data_ops.run_refresh_dashboard_async", lambda *_args, **_kwargs: None)
 
     tab = DashboardTab(
         project_service=services["project_service"],
@@ -500,7 +500,7 @@ def test_task_dependency_add_recalculates_dates_in_table_runtime(qapp, services,
         def exec(self):
             return QDialog.Accepted
 
-    monkeypatch.setattr("ui.task.dependency_panel.DependencyAddDialog", _AcceptedDependencyDialog)
+    monkeypatch.setattr("ui.modules.project_management.task.dependency_panel.DependencyAddDialog", _AcceptedDependencyDialog)
     tab.add_dependency_inline()
 
     refreshed = {task.id: task for task in ts.list_tasks_for_project(project.id)}
