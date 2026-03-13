@@ -19,25 +19,11 @@ from PySide6.QtWidgets import (
 from core.services.auth import UserSessionContext
 from infra.update import check_for_updates, default_update_manifest_source
 from infra.version import get_app_version
-from ui.admin.audit_tab import AuditLogTab
-from ui.access.tab import AccessTab
-from ui.admin.users_tab import UserAdminTab
-from ui.calendar.tab import CalendarTab
-from ui.collaboration.tab import CollaborationTab
-from ui.cost.tab import CostTab
-from ui.dashboard.tab import DashboardTab
-from ui.governance.tab import GovernanceTab
-from ui.portfolio.tab import PortfolioTab
-from ui.project.tab import ProjectTab
-from ui.register.tab import RegisterTab
-from ui.report.tab import ReportTab
-from ui.resource.tab import ResourceTab
+from ui.shell import NavigationEntry, ShellNavigation, build_workspace_definitions
 from ui.settings import MainWindowSettingsStore
 from ui.shared.async_job import JobUiConfig, start_async_job
 from ui.styles.theme import apply_app_style
 from ui.styles.ui_config import UIConfig as CFG
-from ui.support.tab import SupportTab
-from ui.task.tab import TaskTab
 
 
 class MainWindow(QMainWindow):
@@ -81,161 +67,49 @@ class MainWindow(QMainWindow):
             header_layout.addWidget(self.user_label)
         layout.addWidget(header)
 
+        body = QWidget()
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(CFG.SPACING_MD)
+
+        self.shell_navigation = ShellNavigation(parent=self)
+        self.shell_navigation.workspace_selected.connect(self._on_navigation_selected)
+        body_layout.addWidget(self.shell_navigation)
+
         self.tabs = QTabWidget()
-        layout.addWidget(self.tabs)
+        self.tabs.setObjectName("workspaceStack")
+        self.tabs.tabBar().hide()
+        self.tabs.setStyleSheet("QTabWidget#workspaceStack::pane { border: 0; }")
+        body_layout.addWidget(self.tabs, 1)
+
+        layout.addWidget(body, 1)
         self._build_tabs()
         self.tabs.currentChanged.connect(self._on_tab_changed)
+        self.shell_navigation.set_current_index(self.tabs.currentIndex())
 
         self.setCentralWidget(central)
         self._restore_persisted_state()
         self._run_startup_update_check()
 
     def _build_tabs(self) -> None:
-        if self._has_permission("project.read") or self._has_permission("report.view"):
-            dashboard_tab = DashboardTab(
-                dashboard_service=self.services["dashboard_service"],
-                project_service=self.services["project_service"],
-                baseline_service=self.services["baseline_service"],
-                settings_store=self._settings_store,
-                user_session=self._user_session,
+        navigation_entries: list[NavigationEntry] = []
+        for workspace in build_workspace_definitions(
+            services=self.services,
+            settings_store=self._settings_store,
+            user_session=self._user_session,
+            parent=self,
+        ):
+            tab_index = self.tabs.addTab(workspace.widget, workspace.label)
+            navigation_entries.append(
+                NavigationEntry(
+                    section=workspace.section,
+                    label=workspace.label,
+                    tab_index=tab_index,
+                )
             )
-            self.tabs.addTab(dashboard_tab, "Dashboard")
 
-        if self._has_permission("task.read"):
-            calendar_tab = CalendarTab(
-                work_calendar_service=self.services["work_calendar_service"],
-                work_calendar_engine=self.services["work_calendar_engine"],
-                scheduling_engine=self.services["scheduling_engine"],
-                project_service=self.services["project_service"],
-                task_service=self.services["task_service"],
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(calendar_tab, "Calendar")
-
-        if self._has_permission("resource.read"):
-            resource_tab = ResourceTab(
-                resource_service=self.services["resource_service"],
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(resource_tab, "Resources")
-
-        if self._has_permission("project.read"):
-            project_tab = ProjectTab(
-                project_service=self.services["project_service"],
-                task_service=self.services["task_service"],
-                reporting_service=self.services["reporting_service"],
-                project_resource_service=self.services["project_resource_service"],
-                resource_service=self.services["resource_service"],
-                data_import_service=self.services["data_import_service"],
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(project_tab, "Projects")
-
-        if self._has_permission("register.read"):
-            register_tab = RegisterTab(
-                register_service=self.services["register_service"],
-                project_service=self.services["project_service"],
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(register_tab, "Register")
-
-        if self._has_permission("task.read"):
-            task_tab = TaskTab(
-                project_service=self.services["project_service"],
-                task_service=self.services["task_service"],
-                resource_service=self.services["resource_service"],
-                project_resource_service=self.services["project_resource_service"],
-                timesheet_service=self.services.get("timesheet_service"),
-                collaboration_store=self.services["task_collaboration_store"],
-                settings_store=self._settings_store,
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(task_tab, "Tasks")
-
-        if self._has_permission("collaboration.read"):
-            collaboration_tab = CollaborationTab(
-                collaboration_service=self.services["collaboration_service"],
-                parent=self,
-            )
-            self.tabs.addTab(collaboration_tab, "Collaboration")
-
-        if self._has_permission("cost.read"):
-            cost_tab = CostTab(
-                project_service=self.services["project_service"],
-                task_service=self.services["task_service"],
-                cost_service=self.services["cost_service"],
-                reporting_service=self.services["reporting_service"],
-                resource_service=self.services["resource_service"],
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(cost_tab, "Costs")
-
-        if self._has_permission("report.view"):
-            report_tab = ReportTab(
-                project_service=self.services["project_service"],
-                reporting_service=self.services["reporting_service"],
-                task_service=self.services["task_service"],
-                finance_service=self.services.get("finance_service"),
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(report_tab, "Reports")
-
-        if self._has_permission("portfolio.read"):
-            portfolio_tab = PortfolioTab(
-                portfolio_service=self.services["portfolio_service"],
-                project_service=self.services["project_service"],
-                user_session=self._user_session,
-                parent=self,
-            )
-            self.tabs.addTab(portfolio_tab, "Portfolio")
-
-        if self._has_permission("auth.manage"):
-            users_tab = UserAdminTab(
-                auth_service=self.services["auth_service"],
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(users_tab, "Users")
-
-        if self._has_permission("access.manage"):
-            access_tab = AccessTab(
-                access_service=self.services["access_service"],
-                auth_service=self.services["auth_service"],
-                project_service=self.services["project_service"],
-                user_session=self._user_session,
-                parent=self,
-            )
-            self.tabs.addTab(access_tab, "Access")
-
-        if self._has_permission("audit.read"):
-            audit_tab = AuditLogTab(
-                audit_service=self.services["audit_service"],
-                project_service=self.services["project_service"],
-                task_service=self.services["task_service"],
-                resource_service=self.services["resource_service"],
-                cost_service=self.services["cost_service"],
-                baseline_service=self.services["baseline_service"],
-            )
-            self.tabs.addTab(audit_tab, "Audit")
-
-        if self._has_permission("support.manage"):
-            support_tab = SupportTab(
-                settings_store=self._settings_store,
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(support_tab, "Support")
-
-        if self._has_permission("approval.request") or self._has_permission("approval.decide"):
-            governance_tab = GovernanceTab(
-                approval_service=self.services["approval_service"],
-                project_service=self.services["project_service"],
-                task_service=self.services["task_service"],
-                cost_service=self.services["cost_service"],
-                user_session=self._user_session,
-            )
-            self.tabs.addTab(governance_tab, "Governance")
-
-    def _has_permission(self, permission_code: str) -> bool:
-        return bool(self._user_session is not None and self._user_session.has_permission(permission_code))
+        self.shell_navigation.set_entries(navigation_entries)
+        self.shell_navigation.set_current_index(self.tabs.currentIndex())
 
     def _rebuild_tabs(self, current_index: int) -> None:
         while self.tabs.count() > 0:
@@ -247,6 +121,7 @@ class MainWindow(QMainWindow):
         if self.tabs.count():
             safe_index = max(0, min(current_index, self.tabs.count() - 1))
             self.tabs.setCurrentIndex(safe_index)
+            self.shell_navigation.set_current_index(self.tabs.currentIndex())
 
     def _on_theme_changed(self, _index: int) -> None:
         mode = self.theme_combo.currentData()
@@ -317,7 +192,12 @@ class MainWindow(QMainWindow):
 
     def _on_tab_changed(self, index: int) -> None:
         if index >= 0:
+            self.shell_navigation.set_current_index(index)
             self._settings_store.save_tab_index(index)
+
+    def _on_navigation_selected(self, index: int) -> None:
+        if 0 <= index < self.tabs.count() and index != self.tabs.currentIndex():
+            self.tabs.setCurrentIndex(index)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self._settings_store.save_theme_mode(self._theme_mode)
