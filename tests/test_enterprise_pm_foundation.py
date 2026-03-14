@@ -199,6 +199,28 @@ def test_access_tab_auto_refreshes_for_user_and_membership_events(qapp, services
     assert tab.membership_table.rowCount() == 1
 
 
+def test_access_tab_switches_to_platform_only_state_when_pm_module_disabled(qapp, services):
+    project = services["project_service"].create_project("Access Disabled Project")
+    tab = AccessTab(
+        access_service=services["access_service"],
+        auth_service=services["auth_service"],
+        project_service=services["project_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.project_combo.count() == 1
+    assert tab.btn_assign.isEnabled() is True
+
+    services["module_catalog_service"].set_module_state("project_management", enabled=False)
+    qapp.processEvents()
+
+    assert tab.project_combo.count() == 0
+    assert tab.membership_table.rowCount() == 0
+    assert tab.btn_assign.isEnabled() is False
+    assert tab.btn_remove.isEnabled() is False
+    assert "disabled" in tab.membership_hint.text().lower()
+
+
 def test_collaboration_tab_auto_refreshes_when_task_comments_change(qapp, services):
     project = services["project_service"].create_project("Collaboration Events Project")
     task = services["task_service"].create_task(project.id, "Comment Sync Task")

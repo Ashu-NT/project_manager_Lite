@@ -78,6 +78,28 @@ def test_audit_log_tab_runtime_uses_compact_header_and_updates_badges(qapp, serv
     assert tab.btn_refresh.isEnabled() is True
 
 
+def test_audit_log_tab_refreshes_when_module_entitlements_change(qapp, services):
+    services["project_service"].create_project("Audit Module Toggle Project")
+    tab = AuditLogTab(
+        audit_service=services["audit_service"],
+        project_service=services["project_service"],
+        task_service=services["task_service"],
+        resource_service=services["resource_service"],
+        cost_service=services["cost_service"],
+        baseline_service=services["baseline_service"],
+    )
+    starting_rows = tab.table.rowCount()
+
+    services["module_catalog_service"].set_module_state("project_management", enabled=False)
+    qapp.processEvents()
+
+    assert tab.table.rowCount() >= starting_rows
+    assert any(
+        tab.table.item(row, 2).text() == "module.entitlement.update"
+        for row in range(tab.table.rowCount())
+    )
+
+
 def test_module_licensing_tab_runtime_toggles_project_management_enablement(qapp, services):
     tab = ModuleLicensingTab(
         module_catalog_service=services["module_catalog_service"],

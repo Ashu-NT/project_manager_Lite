@@ -42,6 +42,7 @@ class AccessTab(QWidget):
         self._auth_service = auth_service
         self._project_service = project_service
         self._user_session = user_session
+        self._project_management_available = True
         self._can_manage_memberships = has_permission(self._user_session, "access.manage")
         self._can_unlock_users = has_permission(self._user_session, "auth.manage") or has_permission(
             self._user_session,
@@ -57,6 +58,7 @@ class AccessTab(QWidget):
         domain_events.project_changed.connect(self._on_domain_change)
         domain_events.auth_changed.connect(self._on_domain_change)
         domain_events.access_changed.connect(self._on_domain_change)
+        domain_events.modules_changed.connect(self._on_domain_change)
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -104,6 +106,11 @@ class AccessTab(QWidget):
         button_row.addStretch()
         controls_layout.addLayout(button_row)
 
+        self.membership_hint = QLabel("")
+        self.membership_hint.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+        self.membership_hint.setWordWrap(True)
+        controls_layout.addWidget(self.membership_hint)
+
         self.membership_table = QTableWidget(0, 3)
         self.membership_table.setHorizontalHeaderLabels(["User", "Scope Role", "Permissions"])
         self.membership_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -148,6 +155,7 @@ class AccessTab(QWidget):
         self.btn_unlock.clicked.connect(self._unlock_selected_user)
         for widget in (self.project_combo, self.user_combo, self.role_combo):
             widget.setEnabled(self._can_manage_memberships)
+        self.membership_table.itemSelectionChanged.connect(self._sync_membership_controls)
         apply_permission_hint(
             self.btn_assign,
             allowed=self._can_manage_memberships,
@@ -163,10 +171,12 @@ class AccessTab(QWidget):
             allowed=self._can_unlock_users,
             missing_permission="auth.manage or security.manage",
         )
+        self._sync_membership_controls()
 
     def reload_data(self) -> None:
         projects = []
         users = []
+        project_management_available = True
         try:
             if self._can_manage_memberships:
                 try:
@@ -174,6 +184,7 @@ class AccessTab(QWidget):
                 except BusinessRuleError as exc:
                     if exc.code != "MODULE_DISABLED":
                         raise
+                    project_management_available = False
             if self._can_view_user_security:
                 users = self._auth_service.list_users()
         except BusinessRuleError as exc:
@@ -183,6 +194,7 @@ class AccessTab(QWidget):
             QMessageBox.critical(self, "Access Control", f"Failed to load access data:\n{exc}")
             return
 
+        self._project_management_available = project_management_available
         self._user_by_id = {user.id: user for user in users}
         selected_project = self.project_combo.currentData()
         selected_user = self.user_combo.currentData()
@@ -208,14 +220,17 @@ class AccessTab(QWidget):
 
         self._reload_memberships()
         self._reload_security_table()
+        self._sync_membership_controls()
 
     def _reload_memberships(self) -> None:
-        if not self._can_manage_memberships:
+        if not self._can_manage_memberships or not self._project_management_available:
             self.membership_table.setRowCount(0)
+            self._sync_membership_controls()
             return
         project_id = str(self.project_combo.currentData() or "").strip()
         if not project_id:
             self.membership_table.setRowCount(0)
+            self._sync_membership_controls()
             return
         try:
             rows = self._access_service.list_project_memberships(project_id)
@@ -235,6 +250,7 @@ class AccessTab(QWidget):
                 if col == 0:
                     item.setData(Qt.UserRole, membership.user_id)
                 self.membership_table.setItem(row_idx, col, item)
+        self._sync_membership_controls()
 
     def _reload_security_table(self) -> None:
         if not self._can_view_user_security:
@@ -316,6 +332,33 @@ class AccessTab(QWidget):
 
     def _on_domain_change(self, _payload: str) -> None:
         self.reload_data()
+
+    def _sync_membership_controls(self) -> None:
+        has_projects = self.project_combo.count() > 0
+        has_selection = self.membership_table.currentRow() >= 0
+        can_edit_memberships = (
+            self._can_manage_memberships
+            and self._project_management_available
+            and has_projects
+        )
+        self.project_combo.setEnabled(can_edit_memberships)
+        self.user_combo.setEnabled(can_edit_memberships)
+        self.role_combo.setEnabled(can_edit_memberships)
+        self.membership_table.setEnabled(self._can_manage_memberships and self._project_management_available)
+        self.btn_assign.setEnabled(can_edit_memberships)
+        self.btn_remove.setEnabled(can_edit_memberships and has_selection)
+        if not self._can_manage_memberships:
+            self.membership_hint.setText("Managing project memberships requires access.manage.")
+        elif not self._project_management_available:
+            self.membership_hint.setText(
+                "Project Management is disabled. Enable it in Modules before managing project memberships."
+            )
+        elif not has_projects:
+            self.membership_hint.setText("No projects are available yet. Create a project to assign memberships.")
+        else:
+            self.membership_hint.setText(
+                "Assign project-scoped access and remove memberships from the selected project."
+            )
 
 
 __all__ = ["AccessTab"]

@@ -225,6 +225,7 @@ class AuditLogTab(QWidget):
         domain_events.baseline_changed.connect(self._on_domain_event)
         domain_events.approvals_changed.connect(self._on_domain_event)
         domain_events.register_changed.connect(self._on_domain_event)
+        domain_events.modules_changed.connect(self._on_domain_event)
 
     def _on_domain_event(self, _payload: str) -> None:
         self.reload_logs()
