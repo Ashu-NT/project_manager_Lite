@@ -4,6 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QMessageBox,
     QPushButton,
@@ -58,13 +59,15 @@ class ModuleLicensingTab(QWidget):
         self.platform_base_badge = QLabel("Platform Base")
         self.context_badge = QLabel("Install Profile")
         self.licensed_badge = QLabel("0 licensed")
-        self.enabled_badge = QLabel("0 enabled")
+        self.runtime_badge = QLabel("0 runtime")
+        self.lifecycle_badge = QLabel("0 alerts")
         self.planned_badge = QLabel("0 planned")
         for label in (
             self.platform_base_badge,
             self.context_badge,
             self.licensed_badge,
-            self.enabled_badge,
+            self.runtime_badge,
+            self.lifecycle_badge,
             self.planned_badge,
         ):
             label.setStyleSheet(CFG.NOTE_STYLE_SHEET)
@@ -76,15 +79,23 @@ class ModuleLicensingTab(QWidget):
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_toggle_license = QPushButton("Toggle License")
         self.btn_toggle_enabled = QPushButton("Toggle Enabled")
-        for button in (self.btn_refresh, self.btn_toggle_license, self.btn_toggle_enabled):
+        self.btn_change_status = QPushButton("Change Status")
+        for button in (
+            self.btn_refresh,
+            self.btn_toggle_license,
+            self.btn_toggle_enabled,
+            self.btn_change_status,
+        ):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             button_row.addWidget(button)
         button_row.addStretch(1)
         root.addLayout(button_row)
 
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Module", "Stage", "Licensed", "Enabled", "Capabilities"])
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(
+            ["Module", "Stage", "Lifecycle", "Licensed", "Enabled", "Runtime", "Capabilities"]
+        )
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -94,7 +105,9 @@ class ModuleLicensingTab(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(6, QHeaderView.Stretch)
         root.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Modules", callback=self.reload_modules))
@@ -104,6 +117,9 @@ class ModuleLicensingTab(QWidget):
         self.btn_toggle_enabled.clicked.connect(
             make_guarded_slot(self, title="Modules", callback=self.toggle_enabled)
         )
+        self.btn_change_status.clicked.connect(
+            make_guarded_slot(self, title="Modules", callback=self.change_status)
+        )
         self.table.itemSelectionChanged.connect(self._sync_actions)
         apply_permission_hint(
             self.btn_toggle_license,
@@ -112,6 +128,11 @@ class ModuleLicensingTab(QWidget):
         )
         apply_permission_hint(
             self.btn_toggle_enabled,
+            allowed=self._can_manage_modules,
+            missing_permission="settings.manage",
+        )
+        apply_permission_hint(
+            self.btn_change_status,
             allowed=self._can_manage_modules,
             missing_permission="settings.manage",
         )
@@ -125,8 +146,10 @@ class ModuleLicensingTab(QWidget):
             values = (
                 entitlement.label,
                 entitlement.stage.title(),
+                entitlement.lifecycle_label,
                 "Yes" if entitlement.licensed else "No",
                 "Yes" if entitlement.enabled else "No",
+                "Yes" if entitlement.runtime_enabled else "No",
                 capabilities,
             )
             for col, value in enumerate(values):
@@ -136,7 +159,8 @@ class ModuleLicensingTab(QWidget):
                 self.table.setItem(row_idx, col, item)
         self.table.clearSelection()
         licensed_count = sum(1 for entitlement in entitlements if entitlement.licensed)
-        enabled_count = sum(1 for entitlement in entitlements if entitlement.enabled)
+        runtime_count = sum(1 for entitlement in entitlements if entitlement.runtime_enabled)
+        lifecycle_alert_count = sum(1 for entitlement in entitlements if entitlement.lifecycle_alert)
         planned_count = sum(1 for entitlement in entitlements if entitlement.planned)
         self.platform_base_badge.setText(
             f"Platform Base: {len(self._platform_runtime_application_service.list_platform_capabilities())} capabilities"
@@ -148,7 +172,8 @@ class ModuleLicensingTab(QWidget):
         )
         self.context_badge.setText(f"Context: {context_label}")
         self.licensed_badge.setText(f"{licensed_count} licensed")
-        self.enabled_badge.setText(f"{enabled_count} enabled")
+        self.runtime_badge.setText(f"{runtime_count} runtime")
+        self.lifecycle_badge.setText(f"{lifecycle_alert_count} alerts")
         self.planned_badge.setText(f"{planned_count} planned")
         self._sync_actions()
 
@@ -194,6 +219,13 @@ class ModuleLicensingTab(QWidget):
                 f"{entitlement.label} must be licensed before it can be enabled.",
             )
             return
+        if not entitlement.runtime_enabled and entitlement.lifecycle_status in {"suspended", "expired"}:
+            QMessageBox.information(
+                self,
+                "Modules",
+                f"{entitlement.label} is {entitlement.lifecycle_label.lower()}. Change its lifecycle status before enabling it.",
+            )
+            return
         try:
             self._platform_runtime_application_service.set_module_state(
                 entitlement.code,
@@ -214,11 +246,63 @@ class ModuleLicensingTab(QWidget):
             return None
         return self._platform_runtime_application_service.get_entitlement(module_code)
 
+    def change_status(self) -> None:
+        entitlement = self._selected_entitlement()
+        if entitlement is None:
+            QMessageBox.information(self, "Modules", "Select a module first.")
+            return
+        if entitlement.planned:
+            QMessageBox.information(
+                self,
+                "Modules",
+                f"{entitlement.label} is still planned and does not have an active lifecycle yet.",
+            )
+            return
+        if not entitlement.licensed:
+            QMessageBox.information(
+                self,
+                "Modules",
+                f"{entitlement.label} must be licensed before its lifecycle can change.",
+            )
+            return
+
+        options = ["Active", "Trial", "Suspended", "Expired"]
+        current_label = entitlement.lifecycle_label
+        try:
+            current_index = options.index(current_label)
+        except ValueError:
+            current_index = 0
+        selected, accepted = QInputDialog.getItem(
+            self,
+            "Module Lifecycle",
+            f"Select lifecycle status for {entitlement.label}:",
+            options,
+            current_index,
+            False,
+        )
+        if not accepted or not selected:
+            return
+        try:
+            self._platform_runtime_application_service.set_module_state(
+                entitlement.code,
+                lifecycle_status=selected.strip().lower(),
+            )
+        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Modules", str(exc))
+            return
+        self.reload_modules()
+
     def _sync_actions(self) -> None:
         entitlement = self._selected_entitlement()
         actionable = bool(entitlement is not None and not entitlement.planned)
         self.btn_toggle_license.setEnabled(self._can_manage_modules and actionable)
         self.btn_toggle_enabled.setEnabled(
+            self._can_manage_modules
+            and actionable
+            and entitlement is not None
+            and entitlement.licensed
+        )
+        self.btn_change_status.setEnabled(
             self._can_manage_modules
             and actionable
             and entitlement is not None

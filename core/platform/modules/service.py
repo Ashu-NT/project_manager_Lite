@@ -13,6 +13,22 @@ from core.platform.org.domain import Organization
 from core.platform.notifications.domain_events import domain_events
 from core.platform.modules.repository import ModuleEntitlementRecord, ModuleEntitlementRepository
 
+MODULE_LIFECYCLE_INACTIVE = "inactive"
+MODULE_LIFECYCLE_ACTIVE = "active"
+MODULE_LIFECYCLE_TRIAL = "trial"
+MODULE_LIFECYCLE_SUSPENDED = "suspended"
+MODULE_LIFECYCLE_EXPIRED = "expired"
+MODULE_LIFECYCLE_STATUSES: tuple[str, ...] = (
+    MODULE_LIFECYCLE_INACTIVE,
+    MODULE_LIFECYCLE_ACTIVE,
+    MODULE_LIFECYCLE_TRIAL,
+    MODULE_LIFECYCLE_SUSPENDED,
+    MODULE_LIFECYCLE_EXPIRED,
+)
+MODULE_RUNTIME_ACCESS_STATUSES: frozenset[str] = frozenset(
+    {MODULE_LIFECYCLE_ACTIVE, MODULE_LIFECYCLE_TRIAL}
+)
+
 
 @dataclass(frozen=True)
 class PlatformCapability:
@@ -37,6 +53,7 @@ class ModuleEntitlement:
     module: EnterpriseModule
     licensed: bool
     enabled: bool
+    lifecycle_status: str = MODULE_LIFECYCLE_INACTIVE
 
     @property
     def code(self) -> str:
@@ -57,6 +74,22 @@ class ModuleEntitlement:
     @property
     def planned(self) -> bool:
         return self.module.stage == "planned" and not self.enabled
+
+    @property
+    def runtime_enabled(self) -> bool:
+        return bool(
+            self.licensed
+            and self.enabled
+            and self.lifecycle_status in MODULE_RUNTIME_ACCESS_STATUSES
+        )
+
+    @property
+    def lifecycle_label(self) -> str:
+        return self.lifecycle_status.replace("_", " ").title()
+
+    @property
+    def lifecycle_alert(self) -> bool:
+        return self.lifecycle_status in {MODULE_LIFECYCLE_TRIAL, MODULE_LIFECYCLE_SUSPENDED, MODULE_LIFECYCLE_EXPIRED}
 
 
 DEFAULT_PLATFORM_CAPABILITIES: tuple[PlatformCapability, ...] = (
@@ -284,6 +317,7 @@ class ModuleCatalogService:
         *,
         licensed: bool | None = None,
         enabled: bool | None = None,
+        lifecycle_status: str | None = None,
     ) -> ModuleEntitlement:
         require_permission(
             self._user_session,
@@ -297,25 +331,52 @@ class ModuleCatalogService:
 
         next_licensed = current.licensed if licensed is None else bool(licensed)
         next_enabled = current.enabled if enabled is None else bool(enabled)
+        next_status = (
+            current.lifecycle_status
+            if lifecycle_status is None
+            else _normalize_lifecycle_status(lifecycle_status)
+        )
 
-        if module.stage == "planned" and (next_licensed or next_enabled):
+        if lifecycle_status is not None and next_status != MODULE_LIFECYCLE_INACTIVE and not next_licensed:
             raise ValidationError(
-                f"{module.label} is planned and cannot be licensed or enabled yet.",
-                code="MODULE_NOT_AVAILABLE",
+                "A module must be licensed before its lifecycle can be changed.",
+                code="MODULE_NOT_LICENSED",
             )
-        if not next_licensed:
-            next_enabled = False
-        if next_enabled and not next_licensed:
+        if enabled is True and not next_licensed:
             raise ValidationError(
                 "A module must be licensed before it can be enabled.",
                 code="MODULE_NOT_LICENSED",
             )
+
+        if module.stage == "planned" and (
+            next_licensed
+            or next_enabled
+            or next_status != MODULE_LIFECYCLE_INACTIVE
+        ):
+            raise ValidationError(
+                f"{module.label} is planned and cannot be licensed, enabled, or activated yet.",
+                code="MODULE_NOT_AVAILABLE",
+            )
+        if not next_licensed:
+            next_status = MODULE_LIFECYCLE_INACTIVE
+            next_enabled = False
+        else:
+            if next_status == MODULE_LIFECYCLE_INACTIVE:
+                next_status = MODULE_LIFECYCLE_ACTIVE
+            if next_status not in MODULE_RUNTIME_ACCESS_STATUSES:
+                if enabled is True:
+                    raise ValidationError(
+                        "Only active or trial modules can be enabled.",
+                        code="MODULE_STATUS_BLOCKS_ENABLEMENT",
+                    )
+                next_enabled = False
 
         self._persist_state(
             ModuleEntitlementRecord(
                 module_code=module.code,
                 licensed=next_licensed,
                 enabled=next_enabled,
+                lifecycle_status=next_status,
             )
         )
         record_audit(
@@ -327,6 +388,7 @@ class ModuleCatalogService:
                 "module_code": module.code,
                 "licensed": str(next_licensed),
                 "enabled": str(next_enabled),
+                "lifecycle_status": next_status,
                 "stage": module.stage,
             },
         )
@@ -356,30 +418,51 @@ class ModuleCatalogService:
         licensed_labels = ", ".join(module.label for module in self.list_licensed_modules()) or "None"
         available_labels = ", ".join(module.label for module in self.list_available_modules()) or "None"
         planned_labels = ", ".join(module.label for module in self.list_planned_modules()) or "None"
+        lifecycle_alerts = ", ".join(
+            f"{entitlement.label} ({entitlement.lifecycle_label})"
+            for entitlement in self.list_entitlements()
+            if entitlement.lifecycle_alert
+        ) or "None"
         return (
             f"Context: {self.current_context_label()}. Platform Base active. Enabled: {enabled_labels}. "
-            f"Licensed: {licensed_labels}. Available: {available_labels}. Planned: {planned_labels}."
+            f"Licensed: {licensed_labels}. Lifecycle alerts: {lifecycle_alerts}. "
+            f"Available: {available_labels}. Planned: {planned_labels}."
         )
 
     def _build_entitlement(self, module: EnterpriseModule) -> ModuleEntitlement:
-        licensed_codes, enabled_codes = self._effective_codes()
+        records_by_code = {
+            record.module_code: record
+            for record in self._effective_records()
+        }
+        record = records_by_code.get(module.code)
+        if record is None:
+            licensed = module.code in self._licensed_codes
+            enabled = module.code in self._enabled_codes
+            lifecycle_status = _default_lifecycle_status(licensed)
+        else:
+            licensed = record.licensed
+            enabled = record.enabled
+            lifecycle_status = record.lifecycle_status
         return ModuleEntitlement(
             module=module,
-            licensed=module.code in licensed_codes,
-            enabled=module.code in enabled_codes,
+            licensed=licensed,
+            enabled=enabled,
+            lifecycle_status=lifecycle_status,
         )
 
     def _effective_codes(self) -> tuple[set[str], set[str]]:
-        if self._entitlement_repo is None:
-            return set(self._licensed_codes), set(self._enabled_codes)
-        records = self._ensure_context_defaults()
+        records = self._effective_records()
         if not records:
             return set(self._licensed_codes), set(self._enabled_codes)
         licensed_codes = {record.module_code for record in records if record.licensed}
         enabled_codes = {
             record.module_code
             for record in records
-            if record.licensed and record.enabled
+            if (
+                record.licensed
+                and record.enabled
+                and record.lifecycle_status in MODULE_RUNTIME_ACCESS_STATUSES
+            )
         }
         return licensed_codes, enabled_codes
 
@@ -398,6 +481,22 @@ class ModuleCatalogService:
         if self._session is not None:
             self._session.commit()
 
+    def _effective_records(self) -> list[ModuleEntitlementRecord]:
+        if self._entitlement_repo is None:
+            return [
+                ModuleEntitlementRecord(
+                    module_code=module.code,
+                    licensed=module.code in self._licensed_codes,
+                    enabled=module.code in self._enabled_codes and module.code in self._licensed_codes,
+                    lifecycle_status=_default_lifecycle_status(module.code in self._licensed_codes),
+                )
+                for module in self._modules
+            ]
+        records = self._ensure_context_defaults()
+        if not records:
+            return []
+        return records
+
     def _ensure_context_defaults(self) -> list[ModuleEntitlementRecord]:
         if self._entitlement_repo is None:
             return []
@@ -411,6 +510,7 @@ class ModuleCatalogService:
                     module_code=module.code,
                     licensed=module.code in self._licensed_codes,
                     enabled=module.code in self._enabled_codes and module.code in self._licensed_codes,
+                    lifecycle_status=_default_lifecycle_status(module.code in self._licensed_codes),
                 )
             )
             changed = True
@@ -463,6 +563,21 @@ def build_default_module_catalog(
 ModuleCatalogEntry = EnterpriseModule
 
 
+def _default_lifecycle_status(licensed: bool) -> str:
+    return MODULE_LIFECYCLE_ACTIVE if licensed else MODULE_LIFECYCLE_INACTIVE
+
+
+def _normalize_lifecycle_status(value: str) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized not in MODULE_LIFECYCLE_STATUSES:
+        allowed = ", ".join(MODULE_LIFECYCLE_STATUSES)
+        raise ValidationError(
+            f"Lifecycle status must be one of: {allowed}.",
+            code="MODULE_STATUS_INVALID",
+        )
+    return normalized
+
+
 __all__ = [
     "DEFAULT_PLATFORM_CAPABILITIES",
     "DEFAULT_ENTERPRISE_MODULES",
@@ -471,6 +586,13 @@ __all__ = [
     "ModuleCatalogService",
     "ModuleCatalogSnapshot",
     "ModuleEntitlement",
+    "MODULE_LIFECYCLE_ACTIVE",
+    "MODULE_LIFECYCLE_EXPIRED",
+    "MODULE_LIFECYCLE_INACTIVE",
+    "MODULE_LIFECYCLE_STATUSES",
+    "MODULE_LIFECYCLE_SUSPENDED",
+    "MODULE_LIFECYCLE_TRIAL",
+    "MODULE_RUNTIME_ACCESS_STATUSES",
     "PlatformCapability",
     "build_default_module_catalog",
     "parse_enabled_module_codes",

@@ -150,6 +150,12 @@ class ModuleEntitlementORM(Base):
     module_code: Mapped[str] = mapped_column(String(128), primary_key=True)
     licensed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    lifecycle_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="inactive",
+        server_default="inactive",
+    )
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 

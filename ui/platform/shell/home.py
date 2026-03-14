@@ -73,7 +73,19 @@ class PlatformHomeTab(QWidget):
             context_snapshot = self._platform_runtime_application_service.snapshot()
             snapshot = context_snapshot.module_snapshot
             platform_base = ", ".join(capability.label for capability in snapshot.platform_capabilities) or "None"
-            licensed = ", ".join(module.label for module in snapshot.licensed_modules) or "None"
+            entitlement_by_code = {
+                entitlement.code: entitlement
+                for entitlement in snapshot.entitlements
+            }
+            licensed = ", ".join(
+                (
+                    f"{module.label} ({entitlement_by_code[module.code].lifecycle_label})"
+                    if entitlement_by_code.get(module.code) is not None
+                    and entitlement_by_code[module.code].lifecycle_alert
+                    else module.label
+                )
+                for module in snapshot.licensed_modules
+            ) or "None"
             available = ", ".join(module.label for module in snapshot.available_modules) or "None"
             planned = ", ".join(module.label for module in snapshot.planned_modules) or "None"
         else:

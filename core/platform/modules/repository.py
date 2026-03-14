@@ -9,6 +9,7 @@ class ModuleEntitlementRecord:
     module_code: str
     licensed: bool
     enabled: bool
+    lifecycle_status: str = "inactive"
 
 
 class ModuleEntitlementRepository(ABC):

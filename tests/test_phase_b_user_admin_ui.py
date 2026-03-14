@@ -111,23 +111,47 @@ def test_module_licensing_tab_runtime_toggles_project_management_enablement(qapp
     assert tab.table.rowCount() == 4
     assert tab.context_badge.text() == "Context: Default Organization"
     assert tab.licensed_badge.text() == "1 licensed"
-    assert tab.enabled_badge.text() == "1 enabled"
+    assert tab.runtime_badge.text() == "1 runtime"
+    assert tab.lifecycle_badge.text() == "0 alerts"
 
     tab.table.selectRow(0)
     tab._sync_actions()
     assert tab.btn_toggle_license.isEnabled() is True
     assert tab.btn_toggle_enabled.isEnabled() is True
+    assert tab.btn_change_status.isEnabled() is True
 
     tab.toggle_enabled()
     qapp.processEvents()
 
     assert services["module_catalog_service"].is_enabled("project_management") is False
-    assert tab.table.item(0, 3).text() == "No"
+    assert tab.table.item(0, 4).text() == "No"
+    assert tab.table.item(0, 5).text() == "No"
 
     tab.table.selectRow(0)
     tab.toggle_enabled()
     qapp.processEvents()
     assert services["module_catalog_service"].is_enabled("project_management") is True
+
+
+def test_module_licensing_tab_runtime_changes_lifecycle_status(qapp, services, monkeypatch):
+    tab = ModuleLicensingTab(
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    tab.table.selectRow(0)
+    tab._sync_actions()
+    monkeypatch.setattr(
+        "ui.platform.admin.modules.tab.QInputDialog.getItem",
+        lambda *_args, **_kwargs: ("Suspended", True),
+    )
+
+    tab.change_status()
+    qapp.processEvents()
+
+    assert tab.table.item(0, 2).text() == "Suspended"
+    assert tab.table.item(0, 4).text() == "No"
+    assert tab.table.item(0, 5).text() == "No"
+    assert tab.lifecycle_badge.text() == "1 alerts"
 
 
 def test_organization_admin_tab_runtime_bootstraps_default_profile(qapp, services):

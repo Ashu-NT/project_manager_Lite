@@ -15,12 +15,21 @@ def require_module_enabled(
     entitlement = module_catalog_service.get_entitlement(module_code)
     if entitlement is None:
         return
-    if entitlement.enabled:
+    if entitlement.runtime_enabled:
         return
     label = entitlement.label or module_code.replace("_", " ").title()
     operation = (operation_label or "access this feature").strip()
+    lifecycle_status = getattr(entitlement, "lifecycle_status", "inactive")
+    if lifecycle_status == "suspended":
+        message = f"{label} is suspended for this organization, so you cannot {operation}."
+    elif lifecycle_status == "expired":
+        message = f"{label} has expired for this organization, so you cannot {operation}."
+    elif lifecycle_status == "trial":
+        message = f"{label} is in trial but not enabled for runtime use, so you cannot {operation}."
+    else:
+        message = f"{label} is not enabled for this installation, so you cannot {operation}."
     raise BusinessRuleError(
-        f"{label} is not enabled for this installation, so you cannot {operation}.",
+        message,
         code="MODULE_DISABLED",
     )
 

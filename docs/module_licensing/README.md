@@ -187,7 +187,7 @@ Concrete work:
 3. Move shell, backend, and future API checks to the current organization context.
    Status: completed for the desktop/runtime application seam, pending HTTP/API adoption
 4. Support `trial`, `suspended`, and `expired` states.
-   Status: pending
+   Status: completed for the local runtime and admin flow
 
 Exit criteria:
 
@@ -228,6 +228,6 @@ Next recommended step:
 1. carry the active organization context into a dedicated application-layer seam for future HTTP/API use
    Status: completed
 2. add explicit entitlement lifecycle states such as `trial`, `suspended`, and `expired`
-   Status: next
+   Status: completed
 3. add a platform admin workflow for provisioning organizations with an initial licensed module mix
-   Status: after lifecycle states
+   Status: next

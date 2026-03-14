@@ -80,11 +80,13 @@ class PlatformRuntimeApplicationService:
         *,
         licensed: bool | None = None,
         enabled: bool | None = None,
+        lifecycle_status: str | None = None,
     ):
         return self._module_runtime_service.set_module_state(
             module_code,
             licensed=licensed,
             enabled=enabled,
+            lifecycle_status=lifecycle_status,
         )
 
     def shell_summary(self) -> str:

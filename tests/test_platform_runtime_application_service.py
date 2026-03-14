@@ -44,3 +44,17 @@ def test_platform_runtime_application_service_switches_module_mix_by_organizatio
     app_service.set_active_organization(default_organization.id)
     assert app_service.current_context_label() == "Default Organization"
     assert app_service.is_enabled("project_management") is True
+
+
+def test_platform_runtime_application_service_exposes_lifecycle_status_changes(services):
+    app_service = services["platform_runtime_application_service"]
+
+    trial = app_service.set_module_state("project_management", lifecycle_status="trial")
+    assert trial.lifecycle_status == "trial"
+    assert trial.runtime_enabled is True
+
+    expired = app_service.set_module_state("project_management", lifecycle_status="expired")
+    assert expired.lifecycle_status == "expired"
+    assert expired.enabled is False
+    assert expired.runtime_enabled is False
+    assert app_service.is_enabled("project_management") is False

@@ -44,6 +44,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
             module_code=obj.module_code,
             licensed=bool(obj.licensed),
             enabled=bool(obj.enabled and obj.licensed),
+            lifecycle_status=str(obj.lifecycle_status or "inactive").strip().lower() or "inactive",
         )
 
     def list_all(self) -> list[ModuleEntitlementRecord]:
@@ -60,6 +61,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
                 module_code=row.module_code,
                 licensed=bool(row.licensed),
                 enabled=bool(row.enabled and row.licensed),
+                lifecycle_status=str(row.lifecycle_status or "inactive").strip().lower() or "inactive",
             )
             for row in rows
         ]
@@ -82,12 +84,14 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
                     module_code=record.module_code,
                     licensed=bool(record.licensed),
                     enabled=bool(record.enabled and record.licensed),
+                    lifecycle_status=str(record.lifecycle_status or "inactive").strip().lower() or "inactive",
                     updated_at=_utc_now_naive(),
                 )
             )
             return
         obj.licensed = bool(record.licensed)
         obj.enabled = bool(record.enabled and record.licensed)
+        obj.lifecycle_status = str(record.lifecycle_status or "inactive").strip().lower() or "inactive"
         obj.updated_at = _utc_now_naive()
 
 

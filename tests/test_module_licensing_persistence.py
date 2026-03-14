@@ -14,8 +14,12 @@ def test_module_catalog_service_bootstraps_persistent_defaults(services):
 
     assert entitlements["project_management"].licensed is True
     assert entitlements["project_management"].enabled is True
+    assert entitlements["project_management"].lifecycle_status == "active"
+    assert entitlements["project_management"].runtime_enabled is True
     assert entitlements["maintenance_management"].licensed is False
     assert entitlements["maintenance_management"].enabled is False
+    assert entitlements["maintenance_management"].lifecycle_status == "inactive"
+    assert entitlements["maintenance_management"].runtime_enabled is False
 
 
 def test_module_catalog_service_rejects_licensing_planned_module(services):
@@ -63,3 +67,22 @@ def test_project_management_services_block_direct_calls_when_module_disabled(ser
     with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as import_exc:
         services["data_import_service"].get_import_schema("projects")
     assert import_exc.value.code == "MODULE_DISABLED"
+
+
+def test_module_catalog_service_supports_trial_and_suspended_lifecycle_states(services):
+    catalog = services["module_catalog_service"]
+
+    trial = catalog.set_module_state("project_management", lifecycle_status="trial")
+    assert trial.lifecycle_status == "trial"
+    assert trial.runtime_enabled is True
+    assert catalog.is_enabled("project_management") is True
+
+    suspended = catalog.set_module_state("project_management", lifecycle_status="suspended")
+    assert suspended.lifecycle_status == "suspended"
+    assert suspended.enabled is False
+    assert suspended.runtime_enabled is False
+    assert catalog.is_enabled("project_management") is False
+
+    with pytest.raises(BusinessRuleError, match="suspended") as suspended_exc:
+        services["project_service"].list_projects()
+    assert suspended_exc.value.code == "MODULE_DISABLED"
