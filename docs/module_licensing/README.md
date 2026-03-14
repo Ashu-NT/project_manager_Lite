@@ -185,7 +185,7 @@ Concrete work:
 2. Attach module entitlements to that boundary.
    Status: completed for the active-organization runtime path
 3. Move shell, backend, and future API checks to the current organization context.
-   Status: in progress
+   Status: completed for the desktop/runtime application seam, pending HTTP/API adoption
 4. Support `trial`, `suspended`, and `expired` states.
    Status: pending
 
@@ -226,5 +226,8 @@ This is the slice to implement immediately after this plan is written:
 Next recommended step:
 
 1. carry the active organization context into a dedicated application-layer seam for future HTTP/API use
+   Status: completed
 2. add explicit entitlement lifecycle states such as `trial`, `suspended`, and `expired`
+   Status: next
 3. add a platform admin workflow for provisioning organizations with an initial licensed module mix
+   Status: after lifecycle states

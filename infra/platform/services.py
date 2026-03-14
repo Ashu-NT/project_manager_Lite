@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from application.platform import PlatformRuntimeApplicationService
 from core.platform.common.models import CostType, DependencyType
 from core.platform import (
     DEFAULT_ENTERPRISE_MODULES,
@@ -97,6 +98,7 @@ def _as_dependency_type(value: Any) -> DependencyType:
 class ServiceGraph:
     session: Session
     user_session: UserSessionContext
+    platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
@@ -129,6 +131,7 @@ class ServiceGraph:
         return {
             "session": self.session,
             "user_session": self.user_session,
+            "platform_runtime_application_service": self.platform_runtime_application_service,
             "module_runtime_service": self.module_runtime_service,
             "module_catalog_service": self.module_catalog_service,
             "auth_service": self.auth_service,
@@ -247,6 +250,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
     )
     module_catalog_service.bootstrap_defaults()
     module_runtime_service = ModuleRuntimeService(module_catalog_service)
+    platform_runtime_application_service = PlatformRuntimeApplicationService(
+        module_runtime_service=module_runtime_service,
+        organization_service=organization_service,
+    )
     access_service = AccessControlService(
         session=session,
         membership_repo=project_membership_repo,
@@ -515,6 +522,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     return ServiceGraph(
         session=session,
         user_session=user_session,
+        platform_runtime_application_service=platform_runtime_application_service,
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,

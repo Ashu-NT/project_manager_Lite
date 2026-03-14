@@ -104,7 +104,7 @@ def test_audit_log_tab_refreshes_when_module_entitlements_change(qapp, services)
 
 def test_module_licensing_tab_runtime_toggles_project_management_enablement(qapp, services):
     tab = ModuleLicensingTab(
-        module_runtime_service=services["module_runtime_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
         user_session=services["user_session"],
     )
 

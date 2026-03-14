@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from application.platform import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
-from core.platform.modules.runtime import resolve_module_runtime_service
 from core.platform.notifications.domain_events import domain_events
 from infra.platform.update import check_for_updates, default_update_manifest_source
 from infra.platform.version import get_app_version
@@ -37,9 +37,11 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.services: dict[str, object] = services
         self._user_session: UserSessionContext | None = services.get("user_session")  # type: ignore[assignment]
-        self._module_runtime_service = resolve_module_runtime_service(
+        self._platform_runtime_application_service = resolve_platform_runtime_application_service(
+            platform_runtime_application_service=services.get("platform_runtime_application_service"),
             module_runtime_service=services.get("module_runtime_service"),
             module_catalog_service=services.get("module_catalog_service"),
+            organization_service=services.get("organization_service"),
         )
         self._settings_store = MainWindowSettingsStore()
         self._navigation_auto_hidden = False
@@ -257,7 +259,7 @@ class MainWindow(QMainWindow):
         self._set_navigation_visible(self._navigation_preferred_visible)
 
     def _sync_shell_context(self) -> None:
-        service = self._module_runtime_service
+        service = self._platform_runtime_application_service
         if service is None or not hasattr(service, "shell_summary"):
             self.shell_navigation.set_module_summary(None)
             return
@@ -265,7 +267,7 @@ class MainWindow(QMainWindow):
 
     def _build_navigation_modules(self) -> list[NavigationModule]:
         modules = [NavigationModule(code="platform", label="Platform", enabled=True)]
-        service = self._module_runtime_service
+        service = self._platform_runtime_application_service
         if service is None or not hasattr(service, "list_modules") or not hasattr(service, "is_enabled"):
             modules.append(
                 NavigationModule(code="project_management", label="Project Management", enabled=True)

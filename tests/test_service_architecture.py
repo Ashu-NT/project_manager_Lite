@@ -1,3 +1,4 @@
+from application.platform import PlatformRuntimeApplicationService
 from core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from core.platform.access import AccessControlService
 from core.platform.approval import ApprovalService
@@ -43,6 +44,7 @@ def test_service_graph_builder_wires_all_services(session):
     graph = build_service_graph(session)
 
     assert isinstance(graph, ServiceGraph)
+    assert isinstance(graph.platform_runtime_application_service, PlatformRuntimeApplicationService)
     assert isinstance(graph.module_runtime_service, ModuleRuntimeService)
     assert isinstance(graph.approval_service, ApprovalService)
     assert isinstance(graph.auth_service, AuthService)
@@ -71,6 +73,7 @@ def test_service_graph_builder_wires_all_services(session):
     as_dict = graph.as_dict()
     assert as_dict["approval_service"] is graph.approval_service
     assert as_dict["auth_service"] is graph.auth_service
+    assert as_dict["platform_runtime_application_service"] is graph.platform_runtime_application_service
     assert as_dict["organization_service"] is graph.organization_service
     assert as_dict["employee_service"] is graph.employee_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
