@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from core.platform.common.models import DependencyType
 from tests.ui_runtime_helpers import login_as, register_and_login
 from ui.platform.admin.access.tab import AccessTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
@@ -367,6 +368,34 @@ def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(service
     assert any(item.project_name == "Executive Pressure Project" for item in recent_actions)
 
 
+def test_portfolio_project_dependencies_track_cross_project_links(services):
+    project_service = services["project_service"]
+    portfolio = services["portfolio_service"]
+
+    predecessor = project_service.create_project("Dependency Program Alpha")
+    successor = project_service.create_project("Dependency Program Beta")
+
+    dependency = portfolio.create_project_dependency(
+        predecessor_project_id=predecessor.id,
+        successor_project_id=successor.id,
+        dependency_type=DependencyType.FINISH_TO_START,
+        summary="Beta depends on Alpha handover.",
+    )
+
+    rows = portfolio.list_project_dependencies()
+
+    assert len(rows) == 1
+    assert rows[0].dependency_id == dependency.id
+    assert rows[0].predecessor_project_name == "Dependency Program Alpha"
+    assert rows[0].successor_project_name == "Dependency Program Beta"
+    assert rows[0].dependency_type == DependencyType.FINISH_TO_START
+    assert rows[0].summary == "Beta depends on Alpha handover."
+    assert rows[0].pressure_label in {"Stable", "Watch", "Hot", "Needs Schedule"}
+
+    portfolio.remove_project_dependency(dependency.id)
+    assert portfolio.list_project_dependencies() == []
+
+
 def test_access_tab_shows_memberships_and_security_runtime(qapp, services):
     auth = services["auth_service"]
     access = services["access_service"]
@@ -555,11 +584,12 @@ def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, ser
         user_session=services["user_session"],
     )
 
-    assert tab.scenario_tabs.count() == 4
+    assert tab.scenario_tabs.count() == 5
     assert tab.scenario_tabs.tabText(0) == "Saved Scenarios"
     assert tab.scenario_tabs.tabText(1) == "Compare"
     assert tab.scenario_tabs.tabText(2) == "Heatmap"
-    assert tab.scenario_tabs.tabText(3) == "Recent Actions"
+    assert tab.scenario_tabs.tabText(3) == "Dependencies"
+    assert tab.scenario_tabs.tabText(4) == "Recent Actions"
     assert "Balanced PMO" in tab.active_template_label.text()
     assert tab.intake_template.count() >= 1
     assert tab.scenario_options_label.text() == "Scenario options: 0 project(s), 0 intake item(s)."
@@ -613,6 +643,31 @@ def test_portfolio_tab_shows_heatmap_and_recent_pm_actions(qapp, services):
     assert tab.heatmap_table.item(0, 6).text() in {"Watch", "Hot"}
     assert tab.audit_table.rowCount() >= 1
     assert tab.audit_table.item(0, 1).text() == "Portfolio Heatmap Project"
+
+
+def test_portfolio_tab_shows_cross_project_dependencies(qapp, services):
+    predecessor = services["project_service"].create_project("Portfolio Dependency Alpha")
+    successor = services["project_service"].create_project("Portfolio Dependency Beta")
+    services["portfolio_service"].create_project_dependency(
+        predecessor_project_id=predecessor.id,
+        successor_project_id=successor.id,
+        dependency_type=DependencyType.FINISH_TO_START,
+        summary="Beta launch follows Alpha delivery.",
+    )
+
+    tab = PortfolioTab(
+        portfolio_service=services["portfolio_service"],
+        project_service=services["project_service"],
+        user_session=services["user_session"],
+    )
+    qapp.processEvents()
+
+    assert tab.dependency_table.rowCount() == 1
+    assert tab.dependency_label.text() == "Cross-project dependencies: 1"
+    assert tab.dependency_table.item(0, 0).text() == "Portfolio Dependency Alpha"
+    assert tab.dependency_table.item(0, 3).text() == "Portfolio Dependency Beta"
+    assert tab.dependency_table.item(0, 2).text() == "Finish -> Start"
+    assert tab.dependency_table.item(0, 6).text() == "Beta launch follows Alpha delivery."
 
 
 def test_portfolio_tab_uses_selected_scoring_template_for_new_intake(qapp, services):
@@ -720,7 +775,11 @@ def test_portfolio_tab_disables_manage_actions_for_read_only_user(qapp, services
     assert tab.btn_save_scenario.isEnabled() is False
     assert tab.btn_new_template.isEnabled() is False
     assert tab.btn_activate_template.isEnabled() is False
+    assert tab.btn_add_dependency.isEnabled() is False
+    assert tab.btn_remove_dependency.isEnabled() is False
     assert "portfolio.manage" in tab.btn_add_intake.toolTip()
     assert "portfolio.manage" in tab.btn_save_scenario.toolTip()
     assert "portfolio.manage" in tab.btn_new_template.toolTip()
     assert "portfolio.manage" in tab.btn_activate_template.toolTip()
+    assert "portfolio.manage" in tab.btn_add_dependency.toolTip()
+    assert "portfolio.manage" in tab.btn_remove_dependency.toolTip()

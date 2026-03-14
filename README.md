@@ -14,17 +14,16 @@ Delivered in the current codebase:
 - organization and employee management
 - persistent module licensing with organization-scoped entitlements
 - enterprise RBAC foundation, collaboration, portfolio, approvals, audit, and support tooling
-- PM in-app notifications, task-level workflow notification badges, service-backed task collaboration runtime, saved portfolio scenario comparison, PMO scoring templates, portfolio executive heatmaps, recent PM action summaries, task presence indicators, and desktop optimistic-lock guards in normal edit flows
+- PM in-app notifications, task-level workflow notification badges, service-backed task collaboration runtime, saved portfolio scenario comparison, PMO scoring templates, portfolio executive heatmaps, recent PM action summaries, task presence indicators, portfolio-level cross-project dependency visualization, and desktop optimistic-lock guards in normal edit flows
 - application-layer and transport-layer seams for future web/server adoption
 
 Pending major work:
 
-- `Project Management` enterprise follow-ups: cross-project dependency visualization once PM introduces a portfolio-safe model for it
 - `Maintenance Management`, `QHSE`, and `Payroll` business modules
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
-The detailed PM-specific backlog is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`.
+The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`; it currently has no remaining carryover backlog.
 
 ## Next Priority
 
@@ -44,7 +43,7 @@ Concretely, the next implementation slice should:
 
 After that, the next priority should be deeper shared master data for formal site/department directories and then the `QHSE` module skeleton.
 
-This does not mean Project Management is fully finished. It means the next cross-module platform investment is Maintenance, while the remaining PM enterprise hardening continues in parallel through the PM roadmap.
+This does not mean Project Management will never grow again. It means the current PM enterprise roadmap has been delivered, and the next cross-module platform investment is Maintenance.
 
 ## Core Capabilities
 

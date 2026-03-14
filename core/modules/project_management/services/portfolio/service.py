@@ -5,12 +5,14 @@ from sqlalchemy.orm import Session
 from core.platform.common.interfaces import (
     AuditLogRepository,
     PortfolioIntakeRepository,
+    PortfolioProjectDependencyRepository,
     PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
     ProjectRepository,
     ResourceRepository,
 )
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from core.modules.project_management.services.portfolio.dependencies import PortfolioDependencyMixin
 from core.modules.project_management.services.portfolio.executive import PortfolioExecutiveMixin
 from core.modules.project_management.services.portfolio.intake import PortfolioIntakeMixin
 from core.modules.project_management.services.portfolio.scenarios import PortfolioScenarioMixin
@@ -21,6 +23,7 @@ from core.modules.project_management.services.reporting import ReportingService
 
 class PortfolioService(
     ProjectManagementModuleGuardMixin,
+    PortfolioDependencyMixin,
     PortfolioExecutiveMixin,
     PortfolioIntakeMixin,
     PortfolioScenarioMixin,
@@ -35,6 +38,7 @@ class PortfolioService(
         *,
         session: Session,
         intake_repo: PortfolioIntakeRepository,
+        dependency_repo: PortfolioProjectDependencyRepository,
         scoring_template_repo: PortfolioScoringTemplateRepository,
         scenario_repo: PortfolioScenarioRepository,
         audit_repo: AuditLogRepository,
@@ -42,10 +46,12 @@ class PortfolioService(
         resource_repo: ResourceRepository,
         reporting_service: ReportingService,
         user_session=None,
+        audit_service=None,
         module_catalog_service=None,
     ) -> None:
         self._session = session
         self._intake_repo = intake_repo
+        self._dependency_repo = dependency_repo
         self._scoring_template_repo = scoring_template_repo
         self._scenario_repo = scenario_repo
         self._audit_repo = audit_repo
@@ -53,6 +59,7 @@ class PortfolioService(
         self._resource_repo = resource_repo
         self._reporting = reporting_service
         self._user_session = user_session
+        self._audit_service = audit_service
         self._module_catalog_service = module_catalog_service
 
 

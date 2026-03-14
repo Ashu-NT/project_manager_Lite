@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Iterable
 
+from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.identifiers import generate_id
 
 
@@ -243,6 +244,56 @@ class PortfolioScenarioComparison:
     summary: str = ""
 
 
+@dataclass
+class PortfolioProjectDependency:
+    id: str
+    predecessor_project_id: str
+    successor_project_id: str
+    dependency_type: DependencyType = DependencyType.FINISH_TO_START
+    summary: str = ""
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @staticmethod
+    def create(
+        *,
+        predecessor_project_id: str,
+        successor_project_id: str,
+        dependency_type: DependencyType = DependencyType.FINISH_TO_START,
+        summary: str = "",
+    ) -> "PortfolioProjectDependency":
+        now = datetime.now(timezone.utc)
+        normalized_dependency_type = (
+            dependency_type
+            if isinstance(dependency_type, DependencyType)
+            else DependencyType(str(dependency_type))
+        )
+        return PortfolioProjectDependency(
+            id=generate_id(),
+            predecessor_project_id=str(predecessor_project_id or "").strip(),
+            successor_project_id=str(successor_project_id or "").strip(),
+            dependency_type=normalized_dependency_type,
+            summary=(summary or "").strip(),
+            created_at=now,
+            updated_at=now,
+        )
+
+
+@dataclass
+class PortfolioProjectDependencyView:
+    dependency_id: str
+    predecessor_project_id: str
+    predecessor_project_name: str
+    predecessor_project_status: str
+    successor_project_id: str
+    successor_project_name: str
+    successor_project_status: str
+    dependency_type: DependencyType
+    summary: str
+    pressure_label: str
+    created_at: datetime
+
+
 __all__ = [
     "PortfolioIntakeStatus",
     "PortfolioIntakeItem",
@@ -252,4 +303,6 @@ __all__ = [
     "PortfolioScenario",
     "PortfolioScenarioEvaluation",
     "PortfolioScenarioComparison",
+    "PortfolioProjectDependency",
+    "PortfolioProjectDependencyView",
 ]

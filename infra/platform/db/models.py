@@ -619,6 +619,33 @@ class PortfolioScenarioORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class PortfolioProjectDependencyORM(Base):
+    __tablename__ = "portfolio_project_dependencies"
+    __table_args__ = (
+        UniqueConstraint(
+            "predecessor_project_id",
+            "successor_project_id",
+            name="ux_portfolio_project_dependencies_pair",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    predecessor_project_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    successor_project_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    dependency_type: Mapped[str] = mapped_column(String(8), nullable=False, default="FS", server_default="FS")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 Index("idx_register_entries_project", RegisterEntryORM.project_id)
 Index("idx_register_entries_type", RegisterEntryORM.entry_type)
 Index("idx_register_entries_status", RegisterEntryORM.status)
@@ -654,3 +681,5 @@ Index("idx_portfolio_intake_status", PortfolioIntakeItemORM.status)
 Index("idx_portfolio_intake_updated", PortfolioIntakeItemORM.updated_at)
 Index("idx_portfolio_intake_template", PortfolioIntakeItemORM.scoring_template_id)
 Index("idx_portfolio_scenarios_updated", PortfolioScenarioORM.updated_at)
+Index("idx_portfolio_project_dependencies_predecessor", PortfolioProjectDependencyORM.predecessor_project_id)
+Index("idx_portfolio_project_dependencies_successor", PortfolioProjectDependencyORM.successor_project_id)

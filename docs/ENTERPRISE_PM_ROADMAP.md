@@ -75,18 +75,15 @@ Delivered in this phase already:
 
 ## Phase 3: PM Hardening
 
-Status: in progress
+Status: complete
 
 Priority: medium
-
-Pending:
-
-- Cross-project dependency visualization once PM either supports cross-project task links or introduces a dedicated portfolio-level dependency concept
 
 Delivered in this phase already:
 
 - Added a portfolio executive heatmap for late-task, critical-task, utilization, and cost-variance pressure across accessible projects
 - Added a recent PM action summary so portfolio users can review time-period and delivery changes without leaving the portfolio workspace
+- Added a dedicated portfolio-level project dependency model and Portfolio workspace tab so cross-project delivery sequencing can be visualized without enabling cross-project task links
 
 ## Cross-Cutting Dependencies
 
@@ -109,13 +106,12 @@ These affect PM, but they are not PM-owned roadmap items anymore:
   - tracked as broader platform work in
     `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`
 
-## Recommended Build Order
-
-1. Decide whether cross-project dependency visualization should come from true cross-project task links or from a new portfolio-level dependency model.
-
 ## Current PM-Specific Remainder
 
 If we ignore platform/security and future-module work, the remaining enterprise
 PM backlog is:
 
-- cross-project dependency visualization once PM has a model that supports it
+- none at the moment
+
+Any future PM-specific enterprise work should now be treated as new scope rather
+than unfinished carryover from this roadmap.

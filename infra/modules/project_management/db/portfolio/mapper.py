@@ -5,14 +5,17 @@ import json
 from core.platform.common.models import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
+    PortfolioProjectDependency,
     PortfolioScoringTemplate,
     PortfolioScenario,
 )
 from infra.platform.db.models import (
     PortfolioIntakeItemORM,
+    PortfolioProjectDependencyORM,
     PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
 )
+from core.modules.project_management.domain.enums import DependencyType
 
 
 def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM:
@@ -134,9 +137,35 @@ def portfolio_scenario_from_orm(obj: PortfolioScenarioORM) -> PortfolioScenario:
     )
 
 
+def portfolio_project_dependency_to_orm(item: PortfolioProjectDependency) -> PortfolioProjectDependencyORM:
+    return PortfolioProjectDependencyORM(
+        id=item.id,
+        predecessor_project_id=item.predecessor_project_id,
+        successor_project_id=item.successor_project_id,
+        dependency_type=item.dependency_type.value,
+        summary=item.summary,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+def portfolio_project_dependency_from_orm(obj: PortfolioProjectDependencyORM) -> PortfolioProjectDependency:
+    return PortfolioProjectDependency(
+        id=obj.id,
+        predecessor_project_id=obj.predecessor_project_id,
+        successor_project_id=obj.successor_project_id,
+        dependency_type=DependencyType(obj.dependency_type),
+        summary=obj.summary,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+    )
+
+
 __all__ = [
     "portfolio_intake_from_orm",
     "portfolio_intake_to_orm",
+    "portfolio_project_dependency_from_orm",
+    "portfolio_project_dependency_to_orm",
     "portfolio_scoring_template_from_orm",
     "portfolio_scoring_template_to_orm",
     "portfolio_scenario_from_orm",

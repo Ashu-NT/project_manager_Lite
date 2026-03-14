@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.common.models import PortfolioIntakeStatus
+from core.platform.common.models import DependencyType, PortfolioIntakeStatus
 from core.platform.auth import UserSessionContext
 from core.modules.project_management.services.portfolio import PortfolioService
 from core.modules.project_management.services.project import ProjectService
@@ -51,6 +51,7 @@ class PortfolioTab(QWidget):
         self._available_projects = []
         self._available_intake_items = []
         self._available_templates = []
+        self._available_dependency_rows = []
         self._setup_ui()
         self.reload_data()
         domain_events.project_changed.connect(self._on_domain_change)
@@ -262,6 +263,58 @@ class PortfolioTab(QWidget):
         heatmap_layout.addWidget(self.heatmap_table, 1)
         self.scenario_tabs.addTab(heatmap_page, "Heatmap")
 
+        self.dependency_table = QTableWidget(0, 7)
+        self.dependency_table.setHorizontalHeaderLabels(
+            ["Predecessor", "Pred Status", "Type", "Successor", "Succ Status", "Pressure", "Summary"]
+        )
+        self.dependency_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.dependency_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.dependency_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.dependency_table.horizontalHeader().setStretchLastSection(True)
+        style_table(self.dependency_table)
+        dependency_page = QWidget()
+        dependency_layout = QVBoxLayout(dependency_page)
+        dependency_layout.setContentsMargins(0, 0, 0, 0)
+        dependency_layout.setSpacing(CFG.SPACING_SM)
+        dependency_hint = QLabel(
+            "Portfolio-level links between projects for shared delivery sequencing, without turning on cross-project task links."
+        )
+        dependency_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        dependency_hint.setWordWrap(True)
+        dependency_layout.addWidget(dependency_hint)
+        dependency_form = QGridLayout()
+        dependency_form.setHorizontalSpacing(CFG.SPACING_MD)
+        dependency_form.setVerticalSpacing(CFG.SPACING_SM)
+        self.dependency_predecessor = QComboBox()
+        self.dependency_successor = QComboBox()
+        self.dependency_type = QComboBox()
+        for dependency_type in DependencyType:
+            self.dependency_type.addItem(self._dependency_type_label(dependency_type), userData=dependency_type)
+        self.dependency_summary = QLineEdit()
+        dependency_form.addWidget(QLabel("Predecessor project"), 0, 0)
+        dependency_form.addWidget(self.dependency_predecessor, 0, 1)
+        dependency_form.addWidget(QLabel("Successor project"), 0, 2)
+        dependency_form.addWidget(self.dependency_successor, 0, 3)
+        dependency_form.addWidget(QLabel("Type"), 1, 0)
+        dependency_form.addWidget(self.dependency_type, 1, 1)
+        dependency_form.addWidget(QLabel("Summary"), 1, 2)
+        dependency_form.addWidget(self.dependency_summary, 1, 3)
+        dependency_layout.addLayout(dependency_form)
+        dependency_actions = QHBoxLayout()
+        self.dependency_label = QLabel("Cross-project dependencies: 0")
+        self.dependency_label.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.dependency_label.setWordWrap(True)
+        dependency_actions.addWidget(self.dependency_label, 1)
+        self.btn_add_dependency = QPushButton("Add Dependency")
+        self.btn_remove_dependency = QPushButton("Remove Selected")
+        for button in (self.btn_add_dependency, self.btn_remove_dependency):
+            button.setFixedHeight(CFG.BUTTON_HEIGHT)
+            button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+            dependency_actions.addWidget(button)
+        dependency_layout.addLayout(dependency_actions)
+        dependency_layout.addWidget(self.dependency_table, 1)
+        self.scenario_tabs.addTab(dependency_page, "Dependencies")
+
         self.audit_table = QTableWidget(0, 5)
         self.audit_table.setHorizontalHeaderLabels(["When", "Project", "Actor", "Action", "Summary"])
         self.audit_table.setSelectionMode(QTableWidget.NoSelection)
@@ -290,7 +343,10 @@ class PortfolioTab(QWidget):
         self.btn_save_scenario.clicked.connect(self._save_scenario)
         self.btn_evaluate.clicked.connect(self._evaluate_selected_scenario)
         self.btn_compare.clicked.connect(self._compare_selected_scenario)
+        self.btn_add_dependency.clicked.connect(self._create_project_dependency)
+        self.btn_remove_dependency.clicked.connect(self._remove_selected_dependency)
         self.scenario_table.itemSelectionChanged.connect(self._load_selected_scenario)
+        self.dependency_table.itemSelectionChanged.connect(self._update_dependency_buttons)
         self.base_compare_scenario.currentIndexChanged.connect(self._on_compare_base_changed)
         apply_permission_hint(
             self.btn_add_intake,
@@ -312,9 +368,20 @@ class PortfolioTab(QWidget):
             allowed=self._can_manage,
             missing_permission="portfolio.manage",
         )
+        apply_permission_hint(
+            self.btn_add_dependency,
+            allowed=self._can_manage,
+            missing_permission="portfolio.manage",
+        )
+        apply_permission_hint(
+            self.btn_remove_dependency,
+            allowed=self._can_manage,
+            missing_permission="portfolio.manage",
+        )
 
     def reload_data(self) -> None:
         selected_scenario_id = self._selected_scenario_id()
+        selected_dependency_id = self._selected_dependency_id()
         preferred_base_compare_id = str(self.base_compare_scenario.currentData() or "")
         preferred_compare_id = str(self.compare_scenario.currentData() or "")
         preferred_template_id = str(self.intake_template.currentData() or "")
@@ -323,6 +390,7 @@ class PortfolioTab(QWidget):
             scoring_templates = self._portfolio_service.list_scoring_templates()
             scenarios = self._portfolio_service.list_scenarios()
             heatmap_rows = self._portfolio_service.list_portfolio_heatmap()
+            dependency_rows = self._portfolio_service.list_project_dependencies()
             recent_actions = self._portfolio_service.list_recent_pm_actions(limit=24)
             projects = self._project_service.list_projects()
         except BusinessRuleError as exc:
@@ -335,7 +403,9 @@ class PortfolioTab(QWidget):
         self._available_projects = list(projects)
         self._available_intake_items = list(intake_items)
         self._available_templates = list(scoring_templates)
+        self._available_dependency_rows = list(dependency_rows)
         self._reload_template_selector(scoring_templates, preferred_template_id=preferred_template_id)
+        self._reload_dependency_project_selectors(projects)
         self._update_active_template_label(scoring_templates)
         self.scenario_options_label.setText(
             f"Scenario options: {len(projects)} project(s), {len(intake_items)} intake item(s)."
@@ -379,6 +449,9 @@ class PortfolioTab(QWidget):
             preferred_compare_id=preferred_compare_id,
         )
         self._populate_heatmap_table(heatmap_rows)
+        self._populate_dependency_table(dependency_rows)
+        self._restore_dependency_selection(dependency_rows, selected_dependency_id)
+        self._update_dependency_buttons()
         self._populate_audit_table(recent_actions)
         if self.base_compare_scenario.count() <= 1 or self.compare_scenario.count() <= 1:
             self._clear_comparison()
@@ -535,6 +608,43 @@ class PortfolioTab(QWidget):
     def _on_domain_change(self, _payload: str) -> None:
         self.reload_data()
 
+    def _create_project_dependency(self) -> None:
+        if not self._can_manage:
+            QMessageBox.information(self, "Portfolio", "Managing dependencies requires portfolio.manage.")
+            return
+        predecessor_project_id = str(self.dependency_predecessor.currentData() or "")
+        successor_project_id = str(self.dependency_successor.currentData() or "")
+        if not predecessor_project_id or not successor_project_id:
+            QMessageBox.information(self, "Portfolio", "Select two projects first.")
+            return
+        try:
+            self._portfolio_service.create_project_dependency(
+                predecessor_project_id=predecessor_project_id,
+                successor_project_id=successor_project_id,
+                dependency_type=self.dependency_type.currentData(),
+                summary=self.dependency_summary.text(),
+            )
+        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Portfolio", str(exc))
+            return
+        self.dependency_summary.clear()
+        self.reload_data()
+
+    def _remove_selected_dependency(self) -> None:
+        if not self._can_manage:
+            QMessageBox.information(self, "Portfolio", "Managing dependencies requires portfolio.manage.")
+            return
+        dependency_id = self._selected_dependency_id()
+        if not dependency_id:
+            QMessageBox.information(self, "Portfolio", "Select a dependency to remove.")
+            return
+        try:
+            self._portfolio_service.remove_project_dependency(dependency_id)
+        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Portfolio", str(exc))
+            return
+        self.reload_data()
+
     def _reload_compare_selectors(
         self,
         scenarios,
@@ -607,6 +717,26 @@ class PortfolioTab(QWidget):
                 self.intake_template.setCurrentIndex(selected_index)
         finally:
             self.intake_template.blockSignals(False)
+
+    def _reload_dependency_project_selectors(self, projects) -> None:
+        current_predecessor = str(self.dependency_predecessor.currentData() or "")
+        current_successor = str(self.dependency_successor.currentData() or "")
+        for combo, preferred_id in (
+            (self.dependency_predecessor, current_predecessor),
+            (self.dependency_successor, current_successor),
+        ):
+            combo.blockSignals(True)
+            try:
+                combo.clear()
+                combo.addItem("Select project", userData="")
+                selected_index = 0
+                for project in projects:
+                    combo.addItem(project.name, userData=project.id)
+                    if project.id == preferred_id:
+                        selected_index = combo.count() - 1
+                combo.setCurrentIndex(selected_index)
+            finally:
+                combo.blockSignals(False)
 
     def _update_active_template_label(self, templates) -> None:
         active_template = next((template for template in templates if template.is_active), None)
@@ -695,6 +825,29 @@ class PortfolioTab(QWidget):
                     cell.setFont(font)
                 self.heatmap_table.setItem(row_idx, col, cell)
 
+    def _populate_dependency_table(self, rows) -> None:
+        self.dependency_label.setText(f"Cross-project dependencies: {len(rows)}")
+        self.dependency_table.setRowCount(len(rows))
+        for row_idx, item in enumerate(rows):
+            values = [
+                item.predecessor_project_name,
+                item.predecessor_project_status,
+                self._dependency_type_label(item.dependency_type),
+                item.successor_project_name,
+                item.successor_project_status,
+                item.pressure_label,
+                item.summary or "-",
+            ]
+            for col, value in enumerate(values):
+                cell = QTableWidgetItem(value)
+                if col == 0:
+                    cell.setData(Qt.UserRole, item.dependency_id)
+                if item.pressure_label == "Hot":
+                    font = cell.font()
+                    font.setBold(True)
+                    cell.setFont(font)
+                self.dependency_table.setItem(row_idx, col, cell)
+
     def _populate_audit_table(self, rows) -> None:
         self.audit_table.setRowCount(len(rows))
         for row_idx, item in enumerate(rows):
@@ -717,12 +870,41 @@ class PortfolioTab(QWidget):
         )
         self._clear_comparison()
 
+    def _selected_dependency_id(self) -> str:
+        row = self.dependency_table.currentRow()
+        if row < 0:
+            return ""
+        item = self.dependency_table.item(row, 0)
+        return str(item.data(Qt.UserRole) or "") if item is not None else ""
+
+    def _restore_dependency_selection(self, rows, dependency_id: str) -> None:
+        if not dependency_id:
+            return
+        for row_idx, item in enumerate(rows):
+            if item.dependency_id != dependency_id:
+                continue
+            self.dependency_table.selectRow(row_idx)
+            return
+
+    def _update_dependency_buttons(self) -> None:
+        self.btn_remove_dependency.setEnabled(self._can_manage and bool(self._selected_dependency_id()))
+
     @staticmethod
     def _score_spin() -> QSpinBox:
         spin = QSpinBox()
         spin.setRange(1, 5)
         spin.setValue(3)
         return spin
+
+    @staticmethod
+    def _dependency_type_label(dependency_type: DependencyType) -> str:
+        mapping = {
+            DependencyType.FINISH_TO_START: "Finish -> Start",
+            DependencyType.FINISH_TO_FINISH: "Finish -> Finish",
+            DependencyType.START_TO_START: "Start -> Start",
+            DependencyType.START_TO_FINISH: "Start -> Finish",
+        }
+        return mapping.get(dependency_type, dependency_type.value)
 
     @staticmethod
     def _evaluation_state_label(result) -> str:

@@ -627,6 +627,7 @@ def test_portfolio_service_is_orchestrator_only():
     service_path = ROOT / "core" / "modules" / "project_management" / "services" / "portfolio" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
+    assert "from core.modules.project_management.services.portfolio.dependencies import PortfolioDependencyMixin" in text
     assert "from core.modules.project_management.services.portfolio.executive import PortfolioExecutiveMixin" in text
     assert "from core.modules.project_management.services.portfolio.intake import PortfolioIntakeMixin" in text
     assert "from core.modules.project_management.services.portfolio.scenarios import PortfolioScenarioMixin" in text
@@ -748,7 +749,7 @@ def test_known_large_modules_have_growth_budgets():
         "ui/modules/project_management/resource/flow.py": 80,
         "ui/modules/project_management/resource/models.py": 100,
         "ui/modules/project_management/resource/dialogs.py": 260,
-        "core/platform/common/models.py": 100,
+        "core/platform/common/models.py": 110,
         "core/domain/__init__.py": 70,
         "core/modules/project_management/domain/identifiers.py": 40,
         "core/modules/project_management/domain/enums.py": 90,
@@ -772,6 +773,7 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/finance/cashflow.py": 120,
         "core/modules/project_management/services/finance/policy.py": 120,
         "core/modules/project_management/services/finance/helpers.py": 120,
+        "core/modules/project_management/services/portfolio/dependencies.py": 220,
         "core/modules/project_management/services/portfolio/service.py": 90,
         "core/modules/project_management/services/portfolio/executive.py": 120,
         "core/modules/project_management/services/portfolio/intake.py": 120,

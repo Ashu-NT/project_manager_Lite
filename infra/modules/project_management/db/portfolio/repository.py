@@ -7,12 +7,19 @@ from sqlalchemy.orm import Session
 
 from core.platform.common.interfaces import (
     PortfolioIntakeRepository,
+    PortfolioProjectDependencyRepository,
     PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
 )
-from core.platform.common.models import PortfolioIntakeItem, PortfolioScoringTemplate, PortfolioScenario
+from core.platform.common.models import (
+    PortfolioIntakeItem,
+    PortfolioProjectDependency,
+    PortfolioScoringTemplate,
+    PortfolioScenario,
+)
 from infra.platform.db.models import (
     PortfolioIntakeItemORM,
+    PortfolioProjectDependencyORM,
     PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
 )
@@ -20,6 +27,8 @@ from infra.platform.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.portfolio.mapper import (
     portfolio_intake_from_orm,
     portfolio_intake_to_orm,
+    portfolio_project_dependency_from_orm,
+    portfolio_project_dependency_to_orm,
     portfolio_scoring_template_from_orm,
     portfolio_scoring_template_to_orm,
     portfolio_scenario_from_orm,
@@ -104,6 +113,31 @@ class SqlAlchemyPortfolioScenarioRepository(PortfolioScenarioRepository):
             self.session.delete(obj)
 
 
+class SqlAlchemyPortfolioProjectDependencyRepository(PortfolioProjectDependencyRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, dependency: PortfolioProjectDependency) -> None:
+        self.session.add(portfolio_project_dependency_to_orm(dependency))
+
+    def get(self, dependency_id: str) -> Optional[PortfolioProjectDependency]:
+        obj = self.session.get(PortfolioProjectDependencyORM, dependency_id)
+        return portfolio_project_dependency_from_orm(obj) if obj else None
+
+    def list_all(self) -> List[PortfolioProjectDependency]:
+        stmt = select(PortfolioProjectDependencyORM).order_by(
+            PortfolioProjectDependencyORM.updated_at.desc(),
+            PortfolioProjectDependencyORM.created_at.desc(),
+        )
+        rows = self.session.execute(stmt).scalars().all()
+        return [portfolio_project_dependency_from_orm(row) for row in rows]
+
+    def delete(self, dependency_id: str) -> None:
+        obj = self.session.get(PortfolioProjectDependencyORM, dependency_id)
+        if obj is not None:
+            self.session.delete(obj)
+
+
 class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepository):
     def __init__(self, session: Session):
         self.session = session
@@ -130,6 +164,7 @@ class SqlAlchemyPortfolioScoringTemplateRepository(PortfolioScoringTemplateRepos
 
 __all__ = [
     "SqlAlchemyPortfolioIntakeRepository",
+    "SqlAlchemyPortfolioProjectDependencyRepository",
     "SqlAlchemyPortfolioScoringTemplateRepository",
     "SqlAlchemyPortfolioScenarioRepository",
 ]
