@@ -11,6 +11,7 @@ from core.platform.common.models import CostType, DependencyType
 from core.platform import (
     DEFAULT_ENTERPRISE_MODULES,
     ModuleCatalogService,
+    ModuleRuntimeService,
     parse_enabled_module_codes,
     parse_licensed_module_codes,
 )
@@ -95,6 +96,7 @@ def _as_dependency_type(value: Any) -> DependencyType:
 class ServiceGraph:
     session: Session
     user_session: UserSessionContext
+    module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
     employee_service: EmployeeService
@@ -125,6 +127,7 @@ class ServiceGraph:
         return {
             "session": self.session,
             "user_session": self.user_session,
+            "module_runtime_service": self.module_runtime_service,
             "module_catalog_service": self.module_catalog_service,
             "auth_service": self.auth_service,
             "employee_service": self.employee_service,
@@ -220,6 +223,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         audit_service=audit_service,
     )
     module_catalog_service.bootstrap_defaults()
+    module_runtime_service = ModuleRuntimeService(module_catalog_service)
     access_service = AccessControlService(
         session=session,
         membership_repo=project_membership_repo,
@@ -248,7 +252,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         cost_repo,
         user_session=user_session,
         audit_service=audit_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     timesheet_service = TimesheetService(
         session=session,
@@ -259,7 +263,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         timesheet_period_repo=timesheet_period_repo,
         user_session=user_session,
         audit_service=audit_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     project_resource_service = ProjectResourceService(
         project_resource_repo=project_resource_repo,
@@ -267,7 +271,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         session=session,
         user_session=user_session,
         audit_service=audit_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     register_service = RegisterService(
         session=session,
@@ -275,7 +279,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         register_repo=register_repo,
         user_session=user_session,
         audit_service=audit_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     scheduling_engine = SchedulingEngine(
         session,
@@ -303,14 +307,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_session=user_session,
         audit_service=audit_service,
         approval_service=approval_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     calendar_service = CalendarService(
         session,
         calendar_repo,
         task_repo,
         user_session=user_session,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     resource_service = ResourceService(
         session,
@@ -321,7 +325,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         employee_repo,
         user_session=user_session,
         audit_service=audit_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     cost_service = CostService(
         session,
@@ -331,14 +335,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_session=user_session,
         audit_service=audit_service,
         approval_service=approval_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     work_calendar_service = WorkCalendarService(
         session,
         work_calendar_repo,
         work_calendar_engine,
         user_session=user_session,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     reporting_service = ReportingService(
         session=session,
@@ -352,7 +356,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         baseline_repo=baseline_repo,
         project_resource_repo=project_resource_repo,
         user_session=user_session,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     finance_service = FinanceService(
         project_repo=project_repo,
@@ -362,7 +366,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         project_resource_repo=project_resource_repo,
         reporting_service=reporting_service,
         user_session=user_session,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     collaboration_service = CollaborationService(
         session=session,
@@ -372,7 +376,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_repo=user_repo,
         project_membership_repo=project_membership_repo,
         user_session=user_session,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     portfolio_service = PortfolioService(
         session=session,
@@ -382,7 +386,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_repo=resource_repo,
         reporting_service=reporting_service,
         user_session=user_session,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     baseline_service = BaselineService(
         session=session,
@@ -397,7 +401,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_session=user_session,
         audit_service=audit_service,
         approval_service=approval_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     dashboard_service = DashboardService(
         reporting_service=reporting_service,
@@ -408,14 +412,14 @@ def build_service_graph(session: Session) -> ServiceGraph:
         scheduling_engine=scheduling_engine,
         work_calendar_engine=work_calendar_engine,
         user_session=user_session,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     data_import_service = DataImportService(
         project_service=project_service,
         task_service=task_service,
         resource_service=resource_service,
         cost_service=cost_service,
-        module_catalog_service=module_catalog_service,
+        module_catalog_service=module_runtime_service,
     )
     task_collaboration_store = TaskCollaborationStore(session_factory=lambda: session)
     approval_service.register_apply_handler(
@@ -488,6 +492,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     return ServiceGraph(
         session=session,
         user_session=user_session,
+        module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
         employee_service=employee_service,

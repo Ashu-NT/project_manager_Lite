@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core.platform import build_default_module_catalog
+from core.platform.modules.runtime import ModuleRuntimeService
 from core.platform.modules.service import DEFAULT_ENTERPRISE_MODULES, ModuleCatalogService
 from tests.ui_runtime_helpers import make_settings_store
 from ui.platform.shell.main_window import MainWindow
@@ -11,6 +12,7 @@ from ui.platform.shell import ShellNavigation as LegacyShellNavigation
 
 def test_service_graph_exposes_project_management_as_enabled_module(services):
     catalog = services["module_catalog_service"]
+    runtime = services["module_runtime_service"]
 
     assert catalog.is_enabled("project_management") is True
     assert catalog.is_licensed("project_management") is True
@@ -28,6 +30,10 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
     assert "access" in catalog.enabled_capability_codes()
     assert "employees" in catalog.enabled_capability_codes()
     assert "projects" in catalog.enabled_capability_codes()
+    assert isinstance(runtime, ModuleRuntimeService)
+    assert runtime.is_enabled("project_management") is True
+    assert runtime.get_entitlement("project_management") is not None
+    assert "Project Management" in runtime.snapshot().shell_summary
 
 
 def test_module_catalog_exposes_platform_base_capabilities():

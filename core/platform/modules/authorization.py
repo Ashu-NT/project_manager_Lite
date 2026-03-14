@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.modules.service import ModuleCatalogService
+from core.platform.modules.contracts import SupportsModuleEntitlements
 
 
 def require_module_enabled(
-    module_catalog_service: ModuleCatalogService | None,
+    module_catalog_service: SupportsModuleEntitlements | None,
     module_code: str,
     *,
     operation_label: str | None = None,

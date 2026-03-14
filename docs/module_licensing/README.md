@@ -161,8 +161,9 @@ Concrete work:
 1. Add module guard helpers at the application or service boundary.
 2. Enforce module access in PM entry services.
 3. Keep platform-base services available independently.
-4. Make platform tabs degrade gracefully when a dependent business module is disabled.
-5. Emit audit events when module configuration changes.
+4. Add a thin runtime-facing entitlement service so shell, UI, and future API callers do not depend directly on the catalog implementation.
+5. Make platform tabs degrade gracefully when a dependent business module is disabled.
+6. Emit audit events when module configuration changes.
 
 Exit criteria:
 
@@ -219,5 +220,5 @@ This is the slice to implement immediately after this plan is written:
 Next recommended step:
 
 1. finish backend enforcement for any remaining module-bound entry points
-2. extend the same guard pattern to new modules as they are added
+2. extend the same runtime-service and guard pattern to new modules as they are added
 3. then prepare the same model for future API and hosted deployments

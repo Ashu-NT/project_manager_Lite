@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import QWidget
 
 from core.platform.auth import UserSessionContext
+from core.platform.modules.runtime import resolve_module_runtime_service
 from ui.platform.admin.access.tab import AccessTab
 from ui.platform.admin.employees.tab import EmployeeAdminTab
 from ui.platform.admin.modules.tab import ModuleLicensingTab
@@ -48,11 +49,14 @@ def build_workspace_definitions(
     parent: QWidget | None = None,
 ) -> list[WorkspaceDefinition]:
     definitions: list[WorkspaceDefinition] = []
-    module_catalog_service = services.get("module_catalog_service")
+    module_runtime_service = resolve_module_runtime_service(
+        module_runtime_service=services.get("module_runtime_service"),
+        module_catalog_service=services.get("module_catalog_service"),
+    )
     project_management_enabled = not bool(
-        module_catalog_service is not None
-        and hasattr(module_catalog_service, "is_enabled")
-        and not module_catalog_service.is_enabled(PROJECT_MANAGEMENT_MODULE_CODE)
+        module_runtime_service is not None
+        and hasattr(module_runtime_service, "is_enabled")
+        and not module_runtime_service.is_enabled(PROJECT_MANAGEMENT_MODULE_CODE)
     )
 
     if bool(user_session is not None and user_session.is_authenticated()):
@@ -63,7 +67,7 @@ def build_workspace_definitions(
                 group_label="Shared Services",
                 label="Home",
                 widget=PlatformHomeTab(
-                    module_catalog_service=module_catalog_service,  # type: ignore[arg-type]
+                    module_runtime_service=module_runtime_service,  # type: ignore[arg-type]
                     user_session=user_session,
                     parent=parent,
                 ),
@@ -341,7 +345,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "settings.manage") and module_catalog_service is not None:
+    if _has_permission(user_session, "settings.manage") and module_runtime_service is not None:
         definitions.append(
             WorkspaceDefinition(
                 module_code=PLATFORM_MODULE_CODE,
@@ -349,7 +353,7 @@ def build_workspace_definitions(
                 group_label="Administration",
                 label="Modules",
                 widget=ModuleLicensingTab(
-                    module_catalog_service=module_catalog_service,
+                    module_runtime_service=module_runtime_service,
                     user_session=user_session,
                     parent=parent,
                 ),

@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.modules import ModuleCatalogService
+from core.platform.modules.runtime import ModuleRuntimeService
 from core.platform.notifications.domain_events import domain_events
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
@@ -26,12 +26,12 @@ class ModuleLicensingTab(QWidget):
     def __init__(
         self,
         *,
-        module_catalog_service: ModuleCatalogService,
+        module_runtime_service: ModuleRuntimeService,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._module_catalog_service = module_catalog_service
+        self._module_runtime_service = module_runtime_service
         self._user_session = user_session
         self._can_manage_modules = has_permission(self._user_session, "settings.manage")
         self._setup_ui()
@@ -115,7 +115,7 @@ class ModuleLicensingTab(QWidget):
         self._sync_actions()
 
     def reload_modules(self) -> None:
-        entitlements = self._module_catalog_service.list_entitlements()
+        entitlements = self._module_runtime_service.list_entitlements()
         self.table.setRowCount(len(entitlements))
         for row_idx, entitlement in enumerate(entitlements):
             capabilities = ", ".join(entitlement.module.primary_capabilities) or "-"
@@ -136,7 +136,7 @@ class ModuleLicensingTab(QWidget):
         enabled_count = sum(1 for entitlement in entitlements if entitlement.enabled)
         planned_count = sum(1 for entitlement in entitlements if entitlement.planned)
         self.platform_base_badge.setText(
-            f"Platform Base: {len(self._module_catalog_service.list_platform_capabilities())} capabilities"
+            f"Platform Base: {len(self._module_runtime_service.list_platform_capabilities())} capabilities"
         )
         self.licensed_badge.setText(f"{licensed_count} licensed")
         self.enabled_badge.setText(f"{enabled_count} enabled")
@@ -156,7 +156,7 @@ class ModuleLicensingTab(QWidget):
             )
             return
         try:
-            self._module_catalog_service.set_module_state(
+            self._module_runtime_service.set_module_state(
                 entitlement.code,
                 licensed=not entitlement.licensed,
                 enabled=entitlement.enabled if entitlement.licensed else False,
@@ -186,7 +186,7 @@ class ModuleLicensingTab(QWidget):
             )
             return
         try:
-            self._module_catalog_service.set_module_state(
+            self._module_runtime_service.set_module_state(
                 entitlement.code,
                 enabled=not entitlement.enabled,
             )
@@ -203,7 +203,7 @@ class ModuleLicensingTab(QWidget):
         module_code = str(item.data(Qt.UserRole) or "") if item is not None else ""
         if not module_code:
             return None
-        return self._module_catalog_service.get_entitlement(module_code)
+        return self._module_runtime_service.get_entitlement(module_code)
 
     def _sync_actions(self) -> None:
         entitlement = self._selected_entitlement()

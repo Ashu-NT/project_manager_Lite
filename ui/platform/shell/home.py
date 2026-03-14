@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
-from core.platform.modules.service import ModuleCatalogService
+from core.platform.modules.runtime import ModuleRuntimeService
 from core.platform.auth import UserSessionContext
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
@@ -11,12 +11,12 @@ class PlatformHomeTab(QWidget):
     def __init__(
         self,
         *,
-        module_catalog_service: ModuleCatalogService | None = None,
+        module_runtime_service: ModuleRuntimeService | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._module_catalog_service = module_catalog_service
+        self._module_runtime_service = module_runtime_service
         self._user_session = user_session
         self._setup_ui()
 
@@ -62,23 +62,32 @@ class PlatformHomeTab(QWidget):
         root.addStretch(1)
 
     def _summary_values(self) -> dict[str, str]:
-        if self._module_catalog_service is None:
+        if self._module_runtime_service is None:
             return {
                 "platform_base": "Users, access, audit, approvals, employees, documents, inbox, notifications, settings.",
                 "licensed": "Project Management",
                 "available": "None",
                 "planned": "Maintenance Management, QHSE, Payroll",
             }
-        platform_base = ", ".join(
-            capability.label for capability in self._module_catalog_service.list_platform_capabilities()
-        ) or "None"
-        licensed = ", ".join(
-            module.label for module in self._module_catalog_service.list_licensed_modules()
-        ) or "None"
-        available = ", ".join(
-            module.label for module in self._module_catalog_service.list_available_modules()
-        ) or "None"
-        planned = ", ".join(module.label for module in self._module_catalog_service.list_planned_modules()) or "None"
+        if hasattr(self._module_runtime_service, "snapshot"):
+            snapshot = self._module_runtime_service.snapshot()
+            platform_base = ", ".join(capability.label for capability in snapshot.platform_capabilities) or "None"
+            licensed = ", ".join(module.label for module in snapshot.licensed_modules) or "None"
+            available = ", ".join(module.label for module in snapshot.available_modules) or "None"
+            planned = ", ".join(module.label for module in snapshot.planned_modules) or "None"
+        else:
+            platform_base = ", ".join(
+                capability.label for capability in self._module_runtime_service.list_platform_capabilities()
+            ) or "None"
+            licensed = ", ".join(
+                module.label for module in self._module_runtime_service.list_licensed_modules()
+            ) or "None"
+            available = ", ".join(
+                module.label for module in self._module_runtime_service.list_available_modules()
+            ) or "None"
+            planned = ", ".join(
+                module.label for module in self._module_runtime_service.list_planned_modules()
+            ) or "None"
         return {
             "platform_base": platform_base,
             "licensed": licensed,
