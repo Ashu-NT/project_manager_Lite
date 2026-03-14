@@ -62,7 +62,7 @@ Status: in progress
 Priority: high
 
 - Extend notification delivery beyond the in-app feed for mentions, approvals, and locked periods
-- Add presence indicators and broader concurrent-edit UX on top of the desktop optimistic-lock checks now wired into PM edit flows
+- Add presence indicators on top of the desktop concurrent-edit recovery now wired into PM edit flows
 - Add project demand scoring templates configurable by PMO admins
 
 Delivered in this phase already:
@@ -72,6 +72,7 @@ Delivered in this phase already:
 - Finished PM task runtime adoption of the collaboration service, with the task workspace and collaboration dialog now using the service-backed path by default
 - Added side-by-side saved portfolio scenario comparison in the portfolio service and UI
 - Wired desktop project/task/resource/cost edit actions to pass `expected_version` so stale writes are rejected in normal PM edit flows
+- Added desktop stale-write recovery for project, task, resource, and cost edits so the latest rows are reloaded instead of trapping users in stale dialogs
 
 ## Phase 3: PM Hardening
 
@@ -105,7 +106,7 @@ These affect PM, but they are not PM-owned roadmap items anymore:
 
 ## Recommended Build Order
 
-1. Add presence indicators and richer concurrent-edit UX around stale-write recovery.
+1. Add presence indicators on top of the delivered stale-write recovery.
 2. Add PMO scoring templates.
 3. Add PM-facing heatmaps, cross-project views, and audit reporting.
 4. Extend notification delivery beyond the in-app feed.
@@ -116,6 +117,6 @@ If we ignore platform/security and future-module work, the remaining enterprise
 PM backlog is:
 
 - richer notification delivery beyond the in-app feed
-- presence indicators and richer concurrent-edit recovery
+- presence indicators on top of the delivered concurrent-edit recovery
 - PMO scoring template configuration
 - PM-facing audit and executive visualization polish

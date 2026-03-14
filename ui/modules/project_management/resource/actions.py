@@ -10,6 +10,7 @@ from core.platform.common.exceptions import (
 )
 from core.modules.project_management.services.resource import ResourceService
 from core.platform.org import EmployeeService
+from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.resource.dialogs import ResourceEditDialog
 
 
@@ -73,8 +74,16 @@ class ResourceActionsMixin:
                 cost_type=dlg.cost_type,
                 currency_code=dlg.currency_code,
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as e:
+        except (ValidationError, NotFoundError, BusinessRuleError) as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except ConcurrencyError:
+            handle_stale_write(
+                self,
+                title="Resources",
+                entity_label="resource",
+                reload_callback=self.reload_resources,
+            )
             return
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
@@ -117,8 +126,16 @@ class ResourceActionsMixin:
                 expected_version=getattr(resource, "version", None),
                 is_active=not getattr(resource, "is_active", True),
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as e:
+        except (ValidationError, NotFoundError, BusinessRuleError) as e:
             QMessageBox.warning(self, "Error", str(e))
+            return
+        except ConcurrencyError:
+            handle_stale_write(
+                self,
+                title="Resources",
+                entity_label="resource",
+                reload_callback=self.reload_resources,
+            )
             return
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))

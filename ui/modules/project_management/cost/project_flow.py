@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional
 
-from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QTableWidget
+from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QTableView, QTableWidget
 
 from core.platform.common.models import Project, Task
 from core.modules.project_management.services.cost import CostService
@@ -20,6 +20,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
     filter_type_combo: QComboBox
     filter_task_combo: QComboBox
     model: CostTableModel
+    table: QTableView
     tbl_labor_summary: QTableWidget
     lbl_labor_note: QLabel
     lbl_costs_summary: QLabel
@@ -113,10 +114,11 @@ class CostProjectFlowMixin(CostFiltersMixin):
         self.model.set_context(tasks_by_id, project_currency)
         self.reload_costs()
 
-    def reload_costs(self):
+    def reload_costs(self, preferred_cost_id: Optional[str] = None):
         pid = self._current_project_id()
         if not pid:
             self.model.set_costs([], {})
+            self.table.clearSelection()
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_costs_summary.setText("")
             self.lbl_labor_note.setText("")
@@ -160,6 +162,12 @@ class CostProjectFlowMixin(CostFiltersMixin):
 
         filtered_costs = self._apply_cost_filters(costs=costs, task_names=task_names)
         self.model.set_costs(filtered_costs, task_names)
+        if preferred_cost_id:
+            self._select_cost_by_id(preferred_cost_id)
+        elif filtered_costs:
+            self.table.selectRow(0)
+        else:
+            self.table.clearSelection()
         if callable(updater := getattr(self, "_update_cost_header_badges", None)): updater(len(filtered_costs), len(costs))
         summary = f"Showing {len(filtered_costs)} of {len(costs)} cost item(s)."
         if budget > 0 and total_planned > budget + 1e-9:
@@ -177,3 +185,10 @@ class CostProjectFlowMixin(CostFiltersMixin):
             self.tbl_labor_summary.setRowCount(0)
             self.lbl_labor_note.setText(f"Labor summary unavailable: {exc}")
         if callable(sync := getattr(self, "_sync_cost_actions", None)): sync()
+
+    def _select_cost_by_id(self, cost_id: str) -> None:
+        for row in range(self.model.rowCount()):
+            item = self.model.get_cost(row)
+            if item and item.id == cost_id:
+                self.table.selectRow(row)
+                return

@@ -19,7 +19,7 @@ Delivered in the current codebase:
 
 Pending major work:
 
-- `Project Management` enterprise follow-ups: richer notification delivery beyond the in-app feed, presence indicators and broader concurrent-edit UX, configurable PMO scoring templates, and PM-facing audit/visualization polish
+- `Project Management` enterprise follow-ups: richer notification delivery beyond the in-app feed, presence indicators on top of the current concurrent-edit recovery, configurable PMO scoring templates, and PM-facing audit/visualization polish
 - `Maintenance Management`, `QHSE`, and `Payroll` business modules
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment

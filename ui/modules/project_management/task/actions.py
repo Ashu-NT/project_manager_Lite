@@ -12,6 +12,7 @@ from core.modules.project_management.services.project import ProjectResourceServ
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 from ui.platform.shared.incident_support import emit_error_event, message_with_incident
+from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.task.dialogs import (
     DependencyListDialog,
     TaskEditDialog,
@@ -99,7 +100,7 @@ class TaskActionsMixin:
                         expected_version=getattr(updated_task, "version", None),
                         **transition_kwargs,
                     )
-            except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
+            except (ValidationError, BusinessRuleError, NotFoundError) as exc:
                 incident_id = emit_error_event(
                     event_type="business.task.update.error",
                     message="Task update failed.",
@@ -109,6 +110,14 @@ class TaskActionsMixin:
                 )
                 QMessageBox.warning(self, "Error", message_with_incident(str(exc), incident_id))
                 continue
+            except ConcurrencyError:
+                handle_stale_write(
+                    self,
+                    title="Task",
+                    entity_label="task",
+                    reload_callback=self.reload_tasks,
+                )
+                return
             except Exception as exc:
                 incident_id = emit_error_event(
                     event_type="business.task.update.error",
@@ -172,9 +181,17 @@ class TaskActionsMixin:
                     expected_version=getattr(task, "version", None),
                     **kwargs,
                 )
-            except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
+            except (ValidationError, BusinessRuleError, NotFoundError) as exc:
                 QMessageBox.warning(self, "Error", str(exc))
                 continue
+            except ConcurrencyError:
+                handle_stale_write(
+                    self,
+                    title="Update progress",
+                    entity_label="task",
+                    reload_callback=self.reload_tasks,
+                )
+                return
             except Exception as exc:
                 QMessageBox.critical(self, "Error", str(exc))
                 return

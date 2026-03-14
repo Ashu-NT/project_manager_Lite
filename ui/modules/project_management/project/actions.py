@@ -9,6 +9,7 @@ from core.platform.common.exceptions import (
     ValidationError,
 )
 from core.platform.common.models import ProjectStatus
+from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.project.dialogs import ProjectEditDialog
 
 
@@ -32,8 +33,16 @@ class ProjectActionsMixin:
             except ValidationError as e:
                 QMessageBox.warning(self, "Validation error", str(e))
                 continue
-            except (BusinessRuleError, NotFoundError, ConcurrencyError) as e:
+            except (BusinessRuleError, NotFoundError) as e:
                 QMessageBox.warning(self, "Error", str(e))
+                return
+            except ConcurrencyError:
+                handle_stale_write(
+                    self,
+                    title="Projects",
+                    entity_label="project",
+                    reload_callback=self.reload_projects,
+                )
                 return
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
@@ -68,8 +77,16 @@ class ProjectActionsMixin:
             except ValidationError as e:
                 QMessageBox.warning(self, "Error", str(e))
                 continue
-            except (BusinessRuleError, NotFoundError, ConcurrencyError) as e:
+            except (BusinessRuleError, NotFoundError) as e:
                 QMessageBox.warning(self, "Error", str(e))
+                return
+            except ConcurrencyError:
+                handle_stale_write(
+                    self,
+                    title="Projects",
+                    entity_label="project",
+                    reload_callback=self.reload_projects,
+                )
                 return
             except Exception as e:
                 QMessageBox.critical(self, "Error", str(e))
@@ -135,8 +152,16 @@ class ProjectActionsMixin:
         selected_status = statuses[labels.index(selected_label)]
         try:
             self._project_service.set_status(proj.id, selected_status)
-        except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as e:
+        except (ValidationError, BusinessRuleError, NotFoundError) as e:
             QMessageBox.warning(self, "Project status", str(e))
+            return
+        except ConcurrencyError:
+            handle_stale_write(
+                self,
+                title="Project status",
+                entity_label="project",
+                reload_callback=self.reload_projects,
+            )
             return
         except Exception as e:
             QMessageBox.critical(self, "Project status", str(e))

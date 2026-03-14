@@ -15,6 +15,7 @@ from core.modules.project_management.services.cost import CostService
 from ui.modules.project_management.cost.cost_dialogs import CostEditDialog
 from ui.modules.project_management.cost.error_handling import show_cost_business_rule
 from ui.modules.project_management.cost.models import CostTableModel
+from ui.modules.project_management.shared.concurrency import handle_stale_write
 
 class CostActionsMixin:
     _cost_service: CostService
@@ -103,9 +104,17 @@ class CostActionsMixin:
                     incurred_date=dlg.incurred_date_value,
                     currency_code=dlg.currency_code,
                 )
-            except (ValidationError, NotFoundError, ConcurrencyError) as e:
+            except (ValidationError, NotFoundError) as e:
                 QMessageBox.warning(self, "Error", str(e))
                 continue
+            except ConcurrencyError:
+                handle_stale_write(
+                    self,
+                    title="Cost item",
+                    entity_label="cost item",
+                    reload_callback=lambda: self.reload_costs(preferred_cost_id=item.id),
+                )
+                return
             except BusinessRuleError as e:
                 show_cost_business_rule(self, e)
                 self.reload_costs()
