@@ -52,6 +52,8 @@ class PortfolioTab(QWidget):
         self._available_intake_items = []
         self._available_templates = []
         self._available_dependency_rows = []
+        self._current_heatmap_rows = []
+        self._pending_local_portfolio_refresh = ""
         self._setup_ui()
         self.reload_data()
         domain_events.project_changed.connect(self._on_domain_change)
@@ -390,7 +392,7 @@ class PortfolioTab(QWidget):
             scoring_templates = self._portfolio_service.list_scoring_templates()
             scenarios = self._portfolio_service.list_scenarios()
             heatmap_rows = self._portfolio_service.list_portfolio_heatmap()
-            dependency_rows = self._portfolio_service.list_project_dependencies()
+            dependency_rows = self._portfolio_service.list_project_dependencies(heatmap_rows=heatmap_rows)
             recent_actions = self._portfolio_service.list_recent_pm_actions(limit=24)
             projects = self._project_service.list_projects()
         except BusinessRuleError as exc:
@@ -403,6 +405,7 @@ class PortfolioTab(QWidget):
         self._available_projects = list(projects)
         self._available_intake_items = list(intake_items)
         self._available_templates = list(scoring_templates)
+        self._current_heatmap_rows = list(heatmap_rows)
         self._available_dependency_rows = list(dependency_rows)
         self._reload_template_selector(scoring_templates, preferred_template_id=preferred_template_id)
         self._reload_dependency_project_selectors(projects)
@@ -605,7 +608,11 @@ class PortfolioTab(QWidget):
         item = self.scenario_table.item(row, 0)
         return str(item.data(Qt.UserRole) or "") if item is not None else ""
 
-    def _on_domain_change(self, _payload: str) -> None:
+    def _on_domain_change(self, payload: str) -> None:
+        if self._pending_local_portfolio_refresh == "dependencies":
+            self._pending_local_portfolio_refresh = ""
+            self._refresh_dependency_views(preferred_dependency_id=payload)
+            return
         self.reload_data()
 
     def _create_project_dependency(self) -> None:
@@ -618,6 +625,7 @@ class PortfolioTab(QWidget):
             QMessageBox.information(self, "Portfolio", "Select two projects first.")
             return
         try:
+            self._pending_local_portfolio_refresh = "dependencies"
             self._portfolio_service.create_project_dependency(
                 predecessor_project_id=predecessor_project_id,
                 successor_project_id=successor_project_id,
@@ -625,10 +633,13 @@ class PortfolioTab(QWidget):
                 summary=self.dependency_summary.text(),
             )
         except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            self._pending_local_portfolio_refresh = ""
             QMessageBox.warning(self, "Portfolio", str(exc))
             return
         self.dependency_summary.clear()
-        self.reload_data()
+        if self._pending_local_portfolio_refresh == "dependencies":
+            self._pending_local_portfolio_refresh = ""
+            self._refresh_dependency_views()
 
     def _remove_selected_dependency(self) -> None:
         if not self._can_manage:
@@ -639,11 +650,15 @@ class PortfolioTab(QWidget):
             QMessageBox.information(self, "Portfolio", "Select a dependency to remove.")
             return
         try:
+            self._pending_local_portfolio_refresh = "dependencies"
             self._portfolio_service.remove_project_dependency(dependency_id)
         except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            self._pending_local_portfolio_refresh = ""
             QMessageBox.warning(self, "Portfolio", str(exc))
             return
-        self.reload_data()
+        if self._pending_local_portfolio_refresh == "dependencies":
+            self._pending_local_portfolio_refresh = ""
+            self._refresh_dependency_views()
 
     def _reload_compare_selectors(
         self,
@@ -860,6 +875,25 @@ class PortfolioTab(QWidget):
             ]
             for col, value in enumerate(values):
                 self.audit_table.setItem(row_idx, col, QTableWidgetItem(value))
+
+    def _refresh_dependency_views(self, *, preferred_dependency_id: str = "") -> None:
+        selected_dependency_id = preferred_dependency_id or self._selected_dependency_id()
+        try:
+            dependency_rows = self._portfolio_service.list_project_dependencies(
+                heatmap_rows=self._current_heatmap_rows or None
+            )
+            recent_actions = self._portfolio_service.list_recent_pm_actions(limit=24)
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Portfolio", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Portfolio", f"Failed to refresh dependencies:\n{exc}")
+            return
+        self._available_dependency_rows = list(dependency_rows)
+        self._populate_dependency_table(dependency_rows)
+        self._restore_dependency_selection(dependency_rows, selected_dependency_id)
+        self._update_dependency_buttons()
+        self._populate_audit_table(recent_actions)
 
     def _on_compare_base_changed(self) -> None:
         scenarios = self._portfolio_service.list_scenarios()

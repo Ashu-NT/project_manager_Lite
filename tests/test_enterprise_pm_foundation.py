@@ -670,6 +670,62 @@ def test_portfolio_tab_shows_cross_project_dependencies(qapp, services):
     assert tab.dependency_table.item(0, 6).text() == "Beta launch follows Alpha delivery."
 
 
+def test_portfolio_tab_dependency_changes_skip_full_reload_and_heatmap_recompute(qapp, services, monkeypatch):
+    predecessor = services["project_service"].create_project("Portfolio Dependency Create Alpha")
+    successor = services["project_service"].create_project("Portfolio Dependency Create Beta")
+
+    tab = PortfolioTab(
+        portfolio_service=services["portfolio_service"],
+        project_service=services["project_service"],
+        user_session=services["user_session"],
+    )
+    qapp.processEvents()
+
+    reload_calls = 0
+    heatmap_calls = 0
+    original_reload = tab.reload_data
+    original_heatmap = services["portfolio_service"].list_portfolio_heatmap
+
+    def counting_reload():
+        nonlocal reload_calls
+        reload_calls += 1
+        return original_reload()
+
+    def counting_heatmap():
+        nonlocal heatmap_calls
+        heatmap_calls += 1
+        return original_heatmap()
+
+    monkeypatch.setattr(tab, "reload_data", counting_reload)
+    monkeypatch.setattr(services["portfolio_service"], "list_portfolio_heatmap", counting_heatmap)
+
+    for idx in range(tab.dependency_predecessor.count()):
+        if tab.dependency_predecessor.itemData(idx) == predecessor.id:
+            tab.dependency_predecessor.setCurrentIndex(idx)
+            break
+    for idx in range(tab.dependency_successor.count()):
+        if tab.dependency_successor.itemData(idx) == successor.id:
+            tab.dependency_successor.setCurrentIndex(idx)
+            break
+    tab.dependency_summary.setText("Portfolio dependency refresh should stay focused.")
+
+    tab._create_project_dependency()
+    qapp.processEvents()
+
+    assert tab.dependency_table.rowCount() == 1
+    assert tab.audit_table.rowCount() >= 1
+    assert reload_calls == 0
+    assert heatmap_calls == 0
+
+    tab.dependency_table.selectRow(0)
+    tab._remove_selected_dependency()
+    qapp.processEvents()
+
+    assert tab.dependency_table.rowCount() == 0
+    assert reload_calls == 0
+    assert heatmap_calls == 0
+
+
 def test_portfolio_tab_uses_selected_scoring_template_for_new_intake(qapp, services):
     custom_template = services["portfolio_service"].create_scoring_template(
         name="Urgency First",

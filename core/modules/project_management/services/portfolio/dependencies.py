@@ -4,6 +4,7 @@ from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.models import (
     DependencyType,
+    PortfolioExecutiveRow,
     PortfolioProjectDependency,
     PortfolioProjectDependencyView,
 )
@@ -12,14 +13,18 @@ from core.platform.auth.authorization import require_permission
 
 
 class PortfolioDependencyMixin:
-    def list_project_dependencies(self) -> list[PortfolioProjectDependencyView]:
+    def list_project_dependencies(
+        self,
+        *,
+        heatmap_rows: list[PortfolioExecutiveRow] | None = None,
+    ) -> list[PortfolioProjectDependencyView]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio project dependencies")
         accessible_projects = {project.id: project for project in self._accessible_projects()}
         if not accessible_projects:
             return []
         heatmap_by_project = {
             row.project_id: row
-            for row in self.list_portfolio_heatmap()
+            for row in (heatmap_rows if heatmap_rows is not None else self.list_portfolio_heatmap())
         }
         rows: list[PortfolioProjectDependencyView] = []
         for dependency in self._dependency_repo.list_all():
