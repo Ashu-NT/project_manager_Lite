@@ -128,7 +128,6 @@ def build_workspace_definitions(
                     resource_service=services["resource_service"],
                     project_resource_service=services["project_resource_service"],
                     timesheet_service=services.get("timesheet_service"),
-                    collaboration_store=services["task_collaboration_store"],
                     collaboration_service=services.get("collaboration_service"),
                     settings_store=settings_store,
                     user_session=user_session,

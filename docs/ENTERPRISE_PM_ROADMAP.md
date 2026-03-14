@@ -61,7 +61,6 @@ Status: in progress
 
 Priority: high
 
-- Complete the remaining task collaboration surfaces behind the collaboration service contract
 - Extend notification delivery beyond the in-app feed for mentions, approvals, and locked periods
 - Add presence indicators and broader concurrent-edit UX on top of the desktop optimistic-lock checks now wired into PM edit flows
 - Add project demand scoring templates configurable by PMO admins
@@ -70,6 +69,7 @@ Delivered in this phase already:
 
 - Added PM in-app notifications in the Collaboration workspace for mentions, approval activity, and timesheet workflow updates
 - Added project-scoped notification filtering so mixed-project timesheet activity does not leak inaccessible project names
+- Finished PM task runtime adoption of the collaboration service, with the task workspace and collaboration dialog now using the service-backed path by default
 - Added side-by-side saved portfolio scenario comparison in the portfolio service and UI
 - Wired desktop project/task/resource/cost edit actions to pass `expected_version` so stale writes are rejected in normal PM edit flows
 
@@ -105,17 +105,16 @@ These affect PM, but they are not PM-owned roadmap items anymore:
 
 ## Recommended Build Order
 
-1. Finish collaboration service adoption in the remaining PM task flows.
-2. Add presence indicators and richer concurrent-edit UX around stale-write recovery.
-3. Add PMO scoring templates.
-4. Add PM-facing heatmaps, cross-project views, and audit reporting.
+1. Add presence indicators and richer concurrent-edit UX around stale-write recovery.
+2. Add PMO scoring templates.
+3. Add PM-facing heatmaps, cross-project views, and audit reporting.
+4. Extend notification delivery beyond the in-app feed.
 
 ## Current PM-Specific Remainder
 
 If we ignore platform/security and future-module work, the remaining enterprise
 PM backlog is:
 
-- collaboration completion inside PM task flows
 - richer notification delivery beyond the in-app feed
 - presence indicators and richer concurrent-edit recovery
 - PMO scoring template configuration

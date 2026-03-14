@@ -50,7 +50,6 @@ def test_task_collaboration_dialog_uses_service_backed_mentions_runtime(qapp, se
 
     dialog = TaskCollaborationDialog(
         None,
-        store=services["task_collaboration_store"],
         collaboration_service=services["collaboration_service"],
         task_id=task.id,
         task_name=task.name,

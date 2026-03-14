@@ -87,8 +87,10 @@ class TaskUxEnhancementsMixin:
         identities = self._mention_identities()
         if getattr(self, "_collaboration_service", None) is not None:
             unread = int(self._collaboration_service.unread_mentions_count())
-        else:
+        elif getattr(self, "_collaboration_store", None) is not None:
             unread = self._collaboration_store.unread_mentions_count_for_users(identities)
+        else:
+            unread = 0
         self.lbl_mentions.setText(f"Mentions: {unread}")
         self.lbl_mentions.setToolTip(
             "Watching aliases: " + ", ".join(f"@{name}" for name in identities[:4])
@@ -108,7 +110,7 @@ class TaskUxEnhancementsMixin:
             return
         dialog = TaskCollaborationDialog(
             self,
-            store=self._collaboration_store,
+            store=getattr(self, "_collaboration_store", None),
             task_id=task.id,
             task_name=task.name,
             username=self._current_username(),

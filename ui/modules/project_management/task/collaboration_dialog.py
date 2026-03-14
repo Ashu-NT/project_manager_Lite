@@ -27,7 +27,7 @@ class TaskCollaborationDialog(QDialog):
         self,
         parent,
         *,
-        store: TaskCollaborationStore,
+        store: TaskCollaborationStore | None = None,
         task_id: str,
         task_name: str,
         username: str,
@@ -176,6 +176,8 @@ class TaskCollaborationDialog(QDialog):
                 self._collaboration_service.mark_task_mentions_read(self._task_id)
             comments = self._comment_rows_from_service(self._collaboration_service.list_comments(self._task_id))
         else:
+            if self._store is None:
+                raise RuntimeError("Task collaboration storage is not configured.")
             if mark_read:
                 for alias in self._mention_aliases:
                     self._store.mark_task_mentions_read(task_id=self._task_id, username=alias)
@@ -228,6 +230,8 @@ class TaskCollaborationDialog(QDialog):
                     attachments=list(self._pending_attachments),
                 )
             else:
+                if self._store is None:
+                    raise RuntimeError("Task collaboration storage is not configured.")
                 self._store.add_comment(
                     task_id=self._task_id,
                     author=self._username or "unknown",

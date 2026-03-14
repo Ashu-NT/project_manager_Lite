@@ -82,7 +82,7 @@ class TaskTab(
         self._settings_store = settings_store
         self._user_session = user_session
         self._undo_stack = UndoStack(max_depth=100)
-        self._collaboration_store = collaboration_store or TaskCollaborationStore()
+        self._collaboration_store = collaboration_store
         self._collaboration_service = collaboration_service
         self._can_manage_tasks = has_permission(self._user_session, "task.manage")
         self._can_manage_assignments = self._can_manage_tasks
