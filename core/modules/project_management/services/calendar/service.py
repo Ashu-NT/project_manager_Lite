@@ -6,9 +6,10 @@ from core.platform.common.interfaces import CalendarEventRepository, TaskReposit
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.auth.authorization import require_permission
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from sqlalchemy.orm import Session
 
-class CalendarService:
+class CalendarService(ProjectManagementModuleGuardMixin):
     """
     Calendar module:
     - Create manual events
@@ -22,11 +23,13 @@ class CalendarService:
         calendar_repo: CalendarEventRepository,
         task_repo: TaskRepository,
         user_session=None,
+        module_catalog_service=None,
     ):
         self._session: Session = session
         self._calendar_repo: CalendarEventRepository = calendar_repo
         self._task_repo: TaskRepository = task_repo
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
         
     def create_event(
         self,

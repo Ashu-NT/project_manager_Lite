@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.platform.common.exceptions import ValidationError
+from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from tests.ui_runtime_helpers import make_settings_store
 from ui.platform.shell.main_window import MainWindow
 
@@ -46,3 +46,20 @@ def test_main_window_rebuilds_when_modules_change(qapp, services, repo_workspace
     qapp.processEvents()
     labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
     assert "Projects" in labels
+
+
+def test_project_management_services_block_direct_calls_when_module_disabled(services):
+    catalog = services["module_catalog_service"]
+    catalog.set_module_state("project_management", enabled=False)
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as project_exc:
+        services["project_service"].list_projects()
+    assert project_exc.value.code == "MODULE_DISABLED"
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as resource_exc:
+        services["resource_service"].list_resources()
+    assert resource_exc.value.code == "MODULE_DISABLED"
+
+    with pytest.raises(BusinessRuleError, match="Project Management is not enabled") as import_exc:
+        services["data_import_service"].get_import_schema("projects")
+    assert import_exc.value.code == "MODULE_DISABLED"

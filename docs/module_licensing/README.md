@@ -104,7 +104,7 @@ Examples:
 
 ### Phase 1: Install-Wide Entitlements
 
-Status: execute now
+Status: completed
 
 Goal:
 
@@ -130,6 +130,8 @@ Exit criteria:
 
 ### Phase 2: Persistent Local Entitlements
 
+Status: completed
+
 Goal:
 
 - move entitlement state from config-only behavior into the application database
@@ -148,6 +150,8 @@ Exit criteria:
 
 ### Phase 3: Backend Enforcement
 
+Status: in progress
+
 Goal:
 
 - ensure disabled modules are blocked below the UI
@@ -157,7 +161,8 @@ Concrete work:
 1. Add module guard helpers at the application or service boundary.
 2. Enforce module access in PM entry services.
 3. Keep platform-base services available independently.
-4. Emit audit events when module configuration changes.
+4. Make platform tabs degrade gracefully when a dependent business module is disabled.
+5. Emit audit events when module configuration changes.
 
 Exit criteria:
 
@@ -213,7 +218,6 @@ This is the slice to implement immediately after this plan is written:
 
 Next recommended step:
 
-1. persist entitlements in the database
-2. add an admin-facing local module configuration surface
-3. add backend module guards in service entry points
-4. then prepare the same model for future API and hosted deployments
+1. finish backend enforcement for any remaining module-bound entry points
+2. extend the same guard pattern to new modules as they are added
+3. then prepare the same model for future API and hosted deployments

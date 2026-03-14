@@ -22,10 +22,11 @@ from core.modules.project_management.services.finance.ledger import (
 )
 from core.modules.project_management.services.finance.models import FinanceAnalyticsRow, FinanceLedgerRow, FinancePeriodRow, FinanceSnapshot
 from core.modules.project_management.services.finance.policy import manual_labor_raw_totals, resolve_manual_labor_inclusion
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.reporting import ReportingService
 
 
-class FinanceService:
+class FinanceService(ProjectManagementModuleGuardMixin):
     """Finance/commercial read models aligned with reporting cost policy."""
 
     def __init__(
@@ -38,6 +39,7 @@ class FinanceService:
         project_resource_repo: ProjectResourceRepository,
         reporting_service: ReportingService,
         user_session=None,
+        module_catalog_service=None,
     ) -> None:
         self._project_repo: ProjectRepository = project_repo
         self._task_repo: TaskRepository = task_repo
@@ -46,6 +48,7 @@ class FinanceService:
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._reporting: ReportingService = reporting_service
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def get_finance_snapshot(
         self,

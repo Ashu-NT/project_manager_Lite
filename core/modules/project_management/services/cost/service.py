@@ -11,11 +11,12 @@ from core.platform.approval.policy import is_governance_required
 from core.platform.access.authorization import require_project_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import is_admin_session, require_permission
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 
 DEFAULT_CURRENCY_CODE = "EUR"
 
 
-class CostService:
+class CostService(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         session: Session,
@@ -25,6 +26,7 @@ class CostService:
         user_session=None,
         audit_service=None,
         approval_service=None,
+        module_catalog_service=None,
     ):
         self._session: Session = session
         self._cost_repo: CostRepository = cost_repo
@@ -33,6 +35,7 @@ class CostService:
         self._user_session = user_session
         self._audit_service = audit_service
         self._approval_service = approval_service
+        self._module_catalog_service = module_catalog_service
 
     def add_cost_item(
         self,

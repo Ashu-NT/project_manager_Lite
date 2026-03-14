@@ -8,10 +8,11 @@ from core.platform.common.models import WorkingCalendar, Holiday
 from core.platform.common.interfaces import WorkingCalendarRepository
 from core.platform.common.exceptions import ValidationError
 from core.platform.auth.authorization import require_permission
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 
-class WorkCalendarService:
+class WorkCalendarService(ProjectManagementModuleGuardMixin):
     """
     High-level API for configuring the working calendar.
     The engine is read-only; all writes go through this service.
@@ -23,11 +24,13 @@ class WorkCalendarService:
         calendar_repo: WorkingCalendarRepository,
         engine: WorkCalendarEngine,
         user_session=None,
+        module_catalog_service=None,
     ):
         self._session: Session = session
         self._repo: WorkingCalendarRepository = calendar_repo
         self._engine: WorkCalendarEngine = engine
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def _ensure_calendar(self) -> WorkingCalendar:
         cal = self._repo.get_default()

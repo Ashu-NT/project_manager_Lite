@@ -14,6 +14,7 @@ from core.platform.common.interfaces import (
 from core.platform.access.authorization import require_project_permission
 from core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.base import ServiceBase
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.scheduling.engine import SchedulingEngine
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
@@ -26,6 +27,7 @@ from .variance import ReportingVarianceMixin
 
 
 class ReportingService(
+    ProjectManagementModuleGuardMixin,
     ReportingCostBreakdownMixin,
     ReportingBaselineCompareMixin,
     ReportingVarianceMixin,
@@ -47,6 +49,7 @@ class ReportingService(
         baseline_repo : BaselineRepository,
         project_resource_repo: ProjectResourceRepository,
         user_session=None,
+        module_catalog_service=None,
     ):
         super().__init__(session)
         self._project_repo: ProjectRepository = project_repo
@@ -59,6 +62,7 @@ class ReportingService(
         self._baseline_repo: BaselineRepository = baseline_repo
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def _require_view(self, operation_label: str, *, project_id: str | None = None) -> None:
         require_permission(self._user_session, "report.view", operation_label=operation_label)

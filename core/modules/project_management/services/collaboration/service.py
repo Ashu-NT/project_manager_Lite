@@ -16,11 +16,12 @@ from core.platform.common.interfaces import (
 from core.platform.common.models import CollaborationInboxItem, CollaborationMentionCandidate, TaskComment
 from core.platform.access.authorization import require_project_permission
 from core.platform.auth.authorization import require_permission
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.collaboration.mentions import resolve_mentions
 from infra.modules.project_management.collaboration_attachments import store_task_comment_attachments
 
 
-class CollaborationService:
+class CollaborationService(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
@@ -31,6 +32,7 @@ class CollaborationService:
         user_repo: UserRepository,
         project_membership_repo: ProjectMembershipRepository,
         user_session=None,
+        module_catalog_service=None,
     ) -> None:
         self._session = session
         self._comment_repo = comment_repo
@@ -39,6 +41,7 @@ class CollaborationService:
         self._user_repo = user_repo
         self._project_membership_repo = project_membership_repo
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def list_comments(self, task_id: str) -> list[TaskComment]:
         task = self._require_task(task_id)

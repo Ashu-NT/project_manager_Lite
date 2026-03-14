@@ -18,6 +18,7 @@ from core.platform.common.exceptions import ConcurrencyError, NotFoundError, Val
 from core.platform.auth.authorization import require_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.notifications.domain_events import domain_events
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def _normalize_capacity_percent(value: float | None) -> float:
     return resolved
 
 
-class ResourceService:
+class ResourceService(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         session: Session,
@@ -56,6 +57,7 @@ class ResourceService:
         employee_repo: EmployeeRepository | None = None,
         user_session=None,
         audit_service=None,
+        module_catalog_service=None,
     ):
         self._session: Session = session
         self._resource_repo: ResourceRepository = resource_repo
@@ -65,6 +67,7 @@ class ResourceService:
         self._employee_repo: EmployeeRepository | None = employee_repo
         self._user_session = user_session
         self._audit_service = audit_service
+        self._module_catalog_service = module_catalog_service
 
     def create_resource(
         self,

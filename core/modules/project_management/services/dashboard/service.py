@@ -3,6 +3,7 @@ from __future__ import annotations
 from core.platform.notifications.domain_events import domain_events
 from core.platform.access.authorization import require_project_permission
 from core.platform.auth.authorization import require_permission
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.dashboard.alerts import DashboardAlertsMixin
 from core.modules.project_management.services.dashboard.burndown import DashboardBurndownMixin
 from core.modules.project_management.services.dashboard.evm import DashboardEvmMixin
@@ -26,6 +27,7 @@ from core.modules.project_management.services.work_calendar.engine import WorkCa
 
 
 class DashboardService(
+    ProjectManagementModuleGuardMixin,
     DashboardAlertsMixin,
     DashboardUpcomingMixin,
     DashboardBurndownMixin,
@@ -44,6 +46,7 @@ class DashboardService(
         scheduling_engine: SchedulingEngine,
         work_calendar_engine: WorkCalendarEngine,
         user_session=None,
+        module_catalog_service=None,
     ):
         self._reporting: ReportingService = reporting_service
         self._tasks: TaskService = task_service
@@ -53,6 +56,7 @@ class DashboardService(
         self._sched: SchedulingEngine = scheduling_engine
         self._calendar: WorkCalendarEngine = work_calendar_engine
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
         require_permission(self._user_session, "report.view", operation_label="view dashboard")
         require_project_permission(

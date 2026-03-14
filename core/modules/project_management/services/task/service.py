@@ -19,6 +19,7 @@ from core.platform.common.interfaces import (
 from core.platform.approval.service import ApprovalService
 from core.platform.audit.service import AuditService
 from core.platform.auth.session import UserSessionContext
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.scheduling import SchedulingEngine
 from core.modules.project_management.services.task.assignment import TaskAssignmentMixin
 from core.modules.project_management.services.task.assignment_bridge import TaskAssignmentBridgeMixin
@@ -34,6 +35,7 @@ from core.modules.project_management.services.work_calendar.engine import WorkCa
 
 
 class TaskService(
+    ProjectManagementModuleGuardMixin,
     TaskScheduleSyncMixin,
     TaskLifecycleMixin,
     TaskDependencyDiagnosticsMixin,
@@ -63,6 +65,7 @@ class TaskService(
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
         approval_service: ApprovalService | None = None,
+        module_catalog_service=None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -81,6 +84,7 @@ class TaskService(
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
         self._approval_service: ApprovalService | None = approval_service
+        self._module_catalog_service = module_catalog_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None

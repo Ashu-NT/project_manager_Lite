@@ -1,3 +1,5 @@
+from core.platform.modules.authorization import require_module_enabled
+from core.platform.modules.guard import ModuleGuardedServiceMixin
 from core.platform.modules.repository import ModuleEntitlementRecord, ModuleEntitlementRepository
 from core.platform.modules.service import (
     DEFAULT_PLATFORM_CAPABILITIES,
@@ -19,8 +21,10 @@ __all__ = [
     "ModuleEntitlement",
     "ModuleEntitlementRecord",
     "ModuleEntitlementRepository",
+    "ModuleGuardedServiceMixin",
     "PlatformCapability",
     "build_default_module_catalog",
     "parse_enabled_module_codes",
     "parse_licensed_module_codes",
+    "require_module_enabled",
 ]

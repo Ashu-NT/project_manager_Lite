@@ -20,10 +20,11 @@ from core.platform.common.models import (
 )
 from core.platform.access.authorization import filter_project_rows
 from core.platform.auth.authorization import require_permission
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.reporting import ReportingService
 
 
-class PortfolioService:
+class PortfolioService(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
@@ -34,6 +35,7 @@ class PortfolioService:
         resource_repo: ResourceRepository,
         reporting_service: ReportingService,
         user_session=None,
+        module_catalog_service=None,
     ) -> None:
         self._session = session
         self._intake_repo = intake_repo
@@ -42,6 +44,7 @@ class PortfolioService:
         self._resource_repo = resource_repo
         self._reporting = reporting_service
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
     def list_intake_items(
         self,

@@ -13,11 +13,12 @@ from core.platform.common.interfaces import (
 )
 from core.platform.audit.service import AuditService
 from core.platform.auth.session import UserSessionContext
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.project.lifecycle import ProjectLifecycleMixin
 from core.modules.project_management.services.project.query import ProjectQueryMixin
 
 
-class ProjectService(ProjectLifecycleMixin, ProjectQueryMixin):
+class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):
     """Project service orchestrator: wiring repositories + composing mixins."""
 
     def __init__(
@@ -32,6 +33,7 @@ class ProjectService(ProjectLifecycleMixin, ProjectQueryMixin):
         cost_repo: CostRepository,
         user_session: UserSessionContext | None = None,
         audit_service: AuditService | None = None,
+        module_catalog_service=None,
     ):
         self._session: Session = session
         self._project_repo: ProjectRepository = project_repo
@@ -43,6 +45,7 @@ class ProjectService(ProjectLifecycleMixin, ProjectQueryMixin):
         self._cost_repo: CostRepository = cost_repo
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
+        self._module_catalog_service = module_catalog_service
 
 
 __all__ = ["ProjectService"]

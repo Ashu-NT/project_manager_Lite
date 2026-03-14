@@ -165,9 +165,17 @@ class AccessTab(QWidget):
         )
 
     def reload_data(self) -> None:
+        projects = []
+        users = []
         try:
-            projects = self._project_service.list_projects() if self._can_manage_memberships else []
-            users = self._auth_service.list_users() if self._can_view_user_security else []
+            if self._can_manage_memberships:
+                try:
+                    projects = self._project_service.list_projects()
+                except BusinessRuleError as exc:
+                    if exc.code != "MODULE_DISABLED":
+                        raise
+            if self._can_view_user_security:
+                users = self._auth_service.list_users()
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Access Control", str(exc))
             return

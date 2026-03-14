@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.resource import ResourceService
@@ -14,7 +15,12 @@ from .schemas import IMPORT_SCHEMAS
 from .support import DataImportSupportMixin
 
 
-class DataImportService(DataImportExecutionMixin, DataImportPreviewMixin, DataImportSupportMixin):
+class DataImportService(
+    ProjectManagementModuleGuardMixin,
+    DataImportExecutionMixin,
+    DataImportPreviewMixin,
+    DataImportSupportMixin,
+):
     _SCHEMAS: dict[str, tuple[ImportFieldSpec, ...]] = IMPORT_SCHEMAS
 
     def __init__(
@@ -24,11 +30,13 @@ class DataImportService(DataImportExecutionMixin, DataImportPreviewMixin, DataIm
         task_service: TaskService,
         resource_service: ResourceService,
         cost_service: CostService,
+        module_catalog_service=None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._resource_service = resource_service
         self._cost_service = cost_service
+        self._module_catalog_service = module_catalog_service
 
     def get_import_schema(self, entity_type: str) -> tuple[ImportFieldSpec, ...]:
         normalized = self._normalize_entity_type(entity_type)

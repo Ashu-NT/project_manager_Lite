@@ -15,11 +15,12 @@ from core.platform.notifications.domain_events import domain_events
 from core.platform.access.authorization import require_project_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
+from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 
 DEFAULT_CURRENCY_CODE = "EUR"
 
 
-class ProjectResourceService:
+class ProjectResourceService(ProjectManagementModuleGuardMixin):
     """
     Manages project-specific resource membership and overrides.
     This is the planning layer between Resource (master data)
@@ -33,12 +34,14 @@ class ProjectResourceService:
         session: Session,
         user_session=None,
         audit_service=None,
+        module_catalog_service=None,
     ):
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._resource_repo: ResourceRepository = resource_repo
         self._session: Session = session
         self._user_session = user_session
         self._audit_service = audit_service
+        self._module_catalog_service = module_catalog_service
 
     # -------------------------
     # Query methods
