@@ -127,6 +127,15 @@ class EmployeeORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class ModuleEntitlementORM(Base):
+    __tablename__ = "module_entitlements"
+
+    module_code: Mapped[str] = mapped_column(String(128), primary_key=True)
+    licensed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class TaskAssignmentORM(Base):
     __tablename__ = "task_assignments"
 

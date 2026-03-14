@@ -20,6 +20,7 @@ class DomainEvents:
     access_changed: Signal[str] = field(default_factory=Signal)  # project_id
     collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
     portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id
+    modules_changed: Signal[str] = field(default_factory=Signal)  # module_code
 
     def reset(self) -> None:
         for signal_field in fields(self):

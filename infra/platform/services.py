@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
@@ -7,7 +8,12 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from core.platform.common.models import CostType, DependencyType
-from core.platform import ModuleCatalogService, build_default_module_catalog
+from core.platform import (
+    DEFAULT_ENTERPRISE_MODULES,
+    ModuleCatalogService,
+    parse_enabled_module_codes,
+    parse_licensed_module_codes,
+)
 from core.platform.access import AccessControlService
 from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
@@ -43,6 +49,7 @@ from infra.platform.db.repositories import (
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyEmployeeRepository,
+    SqlAlchemyModuleEntitlementRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyTaskRepository,
     SqlAlchemyTimeEntryRepository,
@@ -148,11 +155,11 @@ class ServiceGraph:
 
 def build_service_graph(session: Session) -> ServiceGraph:
     user_session = UserSessionContext()
-    module_catalog_service = build_default_module_catalog()
     project_repo = SqlAlchemyProjectRepository(session)
     task_repo = SqlAlchemyTaskRepository(session)
     resource_repo = SqlAlchemyResourceRepository(session)
     employee_repo = SqlAlchemyEmployeeRepository(session)
+    module_entitlement_repo = SqlAlchemyModuleEntitlementRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
     time_entry_repo = SqlAlchemyTimeEntryRepository(session)
     timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(session)
@@ -199,6 +206,20 @@ def build_service_graph(session: Session) -> ServiceGraph:
         audit_service=audit_service,
     )
     auth_service.bootstrap_defaults()
+    module_catalog_service = ModuleCatalogService(
+        modules=DEFAULT_ENTERPRISE_MODULES,
+        enabled_codes=parse_enabled_module_codes(os.getenv("PM_ENABLED_MODULES")),
+        licensed_codes=parse_licensed_module_codes(
+            os.getenv("PM_LICENSED_MODULES")
+            if os.getenv("PM_LICENSED_MODULES") is not None
+            else os.getenv("PM_ENABLED_MODULES")
+        ),
+        entitlement_repo=module_entitlement_repo,
+        session=session,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    module_catalog_service.bootstrap_defaults()
     access_service = AccessControlService(
         session=session,
         membership_repo=project_membership_repo,

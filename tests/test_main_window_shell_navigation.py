@@ -31,7 +31,7 @@ def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, rep
     administration_group = platform_section.child(1)
     control_group = platform_section.child(2)
     assert _child_labels(shared_services_group) == ["Home"]
-    assert _child_labels(administration_group) == ["Users", "Employees", "Access", "Support"]
+    assert _child_labels(administration_group) == ["Users", "Employees", "Access", "Support", "Modules"]
     assert _child_labels(control_group) == ["Audit"]
 
     project_management_section = window.shell_navigation.tree.topLevelItem(1)

@@ -4,6 +4,14 @@ import os
 from dataclasses import dataclass
 from typing import Iterable
 
+from sqlalchemy.orm import Session
+
+from core.platform.audit.helpers import record_audit
+from core.platform.auth.authorization import require_permission
+from core.platform.common.exceptions import NotFoundError, ValidationError
+from core.platform.notifications.domain_events import domain_events
+from core.platform.modules.repository import ModuleEntitlementRecord, ModuleEntitlementRepository
+
 
 @dataclass(frozen=True)
 class PlatformCapability:
@@ -183,6 +191,10 @@ class ModuleCatalogService:
         enabled_codes: Iterable[str] | None,
         licensed_codes: Iterable[str] | None = None,
         platform_capabilities: Iterable[PlatformCapability] | None = None,
+        entitlement_repo: ModuleEntitlementRepository | None = None,
+        session: Session | None = None,
+        user_session=None,
+        audit_service=None,
     ) -> None:
         known_modules = tuple(modules)
         known_codes = {module.code for module in known_modules}
@@ -203,8 +215,34 @@ class ModuleCatalogService:
         )
         self._modules = known_modules
         self._platform_capabilities = tuple(platform_capabilities or DEFAULT_PLATFORM_CAPABILITIES)
-        self._licensed_codes = frozenset(code for code in licensed if code in known_codes)
-        self._enabled_codes = frozenset(code for code in enabled if code in self._licensed_codes)
+        self._licensed_codes = set(code for code in licensed if code in known_codes)
+        self._enabled_codes = set(code for code in enabled if code in self._licensed_codes)
+        self._entitlement_repo = entitlement_repo
+        self._session = session
+        self._user_session = user_session
+        self._audit_service = audit_service
+
+    def bootstrap_defaults(self) -> None:
+        if self._entitlement_repo is None:
+            return
+        existing_by_code = {
+            record.module_code: record
+            for record in self._entitlement_repo.list_all()
+        }
+        changed = False
+        for module in self._modules:
+            if module.code in existing_by_code:
+                continue
+            self._entitlement_repo.upsert(
+                ModuleEntitlementRecord(
+                    module_code=module.code,
+                    licensed=module.code in self._licensed_codes,
+                    enabled=module.code in self._enabled_codes and module.code in self._licensed_codes,
+                )
+            )
+            changed = True
+        if changed and self._session is not None:
+            self._session.commit()
 
     def list_modules(self) -> list[EnterpriseModule]:
         return list(self._modules)
@@ -216,16 +254,19 @@ class ModuleCatalogService:
         return [self._build_entitlement(module) for module in self._modules]
 
     def list_licensed_modules(self) -> list[EnterpriseModule]:
-        return [module for module in self._modules if module.code in self._licensed_codes]
+        licensed_codes, _enabled_codes = self._effective_codes()
+        return [module for module in self._modules if module.code in licensed_codes]
 
     def list_enabled_modules(self) -> list[EnterpriseModule]:
-        return [module for module in self._modules if module.code in self._enabled_codes]
+        _licensed_codes, enabled_codes = self._effective_codes()
+        return [module for module in self._modules if module.code in enabled_codes]
 
     def list_available_modules(self) -> list[EnterpriseModule]:
+        licensed_codes, _enabled_codes = self._effective_codes()
         return [
             module
             for module in self._modules
-            if module.stage != "planned" and module.code not in self._licensed_codes
+            if module.stage != "planned" and module.code not in licensed_codes
         ]
 
     def list_planned_modules(self) -> list[EnterpriseModule]:
@@ -238,10 +279,12 @@ class ModuleCatalogService:
         return tuple(sorted(capability_codes))
 
     def is_licensed(self, module_code: str) -> bool:
-        return str(module_code).strip().lower() in self._licensed_codes
+        licensed_codes, _enabled_codes = self._effective_codes()
+        return str(module_code).strip().lower() in licensed_codes
 
     def is_enabled(self, module_code: str) -> bool:
-        return str(module_code).strip().lower() in self._enabled_codes
+        _licensed_codes, enabled_codes = self._effective_codes()
+        return str(module_code).strip().lower() in enabled_codes
 
     def get_entitlement(self, module_code: str) -> ModuleEntitlement | None:
         target_code = str(module_code).strip().lower()
@@ -249,6 +292,64 @@ class ModuleCatalogService:
             if module.code == target_code:
                 return self._build_entitlement(module)
         return None
+
+    def set_module_state(
+        self,
+        module_code: str,
+        *,
+        licensed: bool | None = None,
+        enabled: bool | None = None,
+    ) -> ModuleEntitlement:
+        require_permission(
+            self._user_session,
+            "settings.manage",
+            operation_label="manage module entitlements",
+        )
+        module = self._require_module(module_code)
+        current = self.get_entitlement(module.code)
+        if current is None:
+            raise NotFoundError("Module not found.", code="MODULE_NOT_FOUND")
+
+        next_licensed = current.licensed if licensed is None else bool(licensed)
+        next_enabled = current.enabled if enabled is None else bool(enabled)
+
+        if module.stage == "planned" and (next_licensed or next_enabled):
+            raise ValidationError(
+                f"{module.label} is planned and cannot be licensed or enabled yet.",
+                code="MODULE_NOT_AVAILABLE",
+            )
+        if not next_licensed:
+            next_enabled = False
+        if next_enabled and not next_licensed:
+            raise ValidationError(
+                "A module must be licensed before it can be enabled.",
+                code="MODULE_NOT_LICENSED",
+            )
+
+        self._persist_state(
+            ModuleEntitlementRecord(
+                module_code=module.code,
+                licensed=next_licensed,
+                enabled=next_enabled,
+            )
+        )
+        record_audit(
+            self,
+            action="module.entitlement.update",
+            entity_type="module_entitlement",
+            entity_id=module.code,
+            details={
+                "module_code": module.code,
+                "licensed": str(next_licensed),
+                "enabled": str(next_enabled),
+                "stage": module.stage,
+            },
+        )
+        domain_events.modules_changed.emit(module.code)
+        entitlement = self.get_entitlement(module.code)
+        if entitlement is None:
+            raise NotFoundError("Module entitlement not found after update.", code="MODULE_NOT_FOUND")
+        return entitlement
 
     def snapshot(self) -> ModuleCatalogSnapshot:
         return ModuleCatalogSnapshot(
@@ -269,11 +370,48 @@ class ModuleCatalogService:
         )
 
     def _build_entitlement(self, module: EnterpriseModule) -> ModuleEntitlement:
+        licensed_codes, enabled_codes = self._effective_codes()
         return ModuleEntitlement(
             module=module,
-            licensed=module.code in self._licensed_codes,
-            enabled=module.code in self._enabled_codes,
+            licensed=module.code in licensed_codes,
+            enabled=module.code in enabled_codes,
         )
+
+    def _effective_codes(self) -> tuple[set[str], set[str]]:
+        if self._entitlement_repo is None:
+            return set(self._licensed_codes), set(self._enabled_codes)
+        records = self._entitlement_repo.list_all()
+        if not records:
+            return set(self._licensed_codes), set(self._enabled_codes)
+        licensed_codes = {record.module_code for record in records if record.licensed}
+        enabled_codes = {
+            record.module_code
+            for record in records
+            if record.licensed and record.enabled
+        }
+        return licensed_codes, enabled_codes
+
+    def _persist_state(self, record: ModuleEntitlementRecord) -> None:
+        if self._entitlement_repo is None:
+            if record.licensed:
+                self._licensed_codes.add(record.module_code)
+            else:
+                self._licensed_codes.discard(record.module_code)
+            if record.enabled and record.licensed:
+                self._enabled_codes.add(record.module_code)
+            else:
+                self._enabled_codes.discard(record.module_code)
+            return
+        self._entitlement_repo.upsert(record)
+        if self._session is not None:
+            self._session.commit()
+
+    def _require_module(self, module_code: str) -> EnterpriseModule:
+        target_code = str(module_code).strip().lower()
+        for module in self._modules:
+            if module.code == target_code:
+                return module
+        raise NotFoundError("Module not found.", code="MODULE_NOT_FOUND")
 
 
 def build_default_module_catalog(

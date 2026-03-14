@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QWidget
 from core.platform.auth import UserSessionContext
 from ui.platform.admin.access.tab import AccessTab
 from ui.platform.admin.employees.tab import EmployeeAdminTab
+from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.audit.tab import AuditLogTab
 from ui.modules.project_management.calendar.tab import CalendarTab
@@ -336,6 +337,21 @@ def build_workspace_definitions(
                 widget=SupportTab(
                     settings_store=settings_store,
                     user_session=user_session,
+                ),
+            )
+        )
+
+    if _has_permission(user_session, "settings.manage") and module_catalog_service is not None:
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
+                label="Modules",
+                widget=ModuleLicensingTab(
+                    module_catalog_service=module_catalog_service,
+                    user_session=user_session,
+                    parent=parent,
                 ),
             )
         )

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QDialog, QLineEdit
 
 from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
+from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
 from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.audit.tab import AuditLogTab
@@ -32,6 +33,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Access" in labels
     assert "Audit" in labels
     assert "Support" in labels
+    assert "Modules" in labels
 
 
 def test_user_admin_tab_runtime_enables_edit_and_reset_actions_after_selection(qapp, services):
@@ -74,6 +76,33 @@ def test_audit_log_tab_runtime_uses_compact_header_and_updates_badges(qapp, serv
     assert tab.audit_count_badge.text().endswith("rows")
     assert tab.audit_date_badge.text() == "All Dates"
     assert tab.btn_refresh.isEnabled() is True
+
+
+def test_module_licensing_tab_runtime_toggles_project_management_enablement(qapp, services):
+    tab = ModuleLicensingTab(
+        module_catalog_service=services["module_catalog_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 4
+    assert tab.licensed_badge.text() == "1 licensed"
+    assert tab.enabled_badge.text() == "1 enabled"
+
+    tab.table.selectRow(0)
+    tab._sync_actions()
+    assert tab.btn_toggle_license.isEnabled() is True
+    assert tab.btn_toggle_enabled.isEnabled() is True
+
+    tab.toggle_enabled()
+    qapp.processEvents()
+
+    assert services["module_catalog_service"].is_enabled("project_management") is False
+    assert tab.table.item(0, 3).text() == "No"
+
+    tab.table.selectRow(0)
+    tab.toggle_enabled()
+    qapp.processEvents()
+    assert services["module_catalog_service"].is_enabled("project_management") is True
 
 
 def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_services):

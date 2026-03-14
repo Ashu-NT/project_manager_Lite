@@ -98,6 +98,7 @@ def test_main_window_exposes_users_for_auth_read_roles(qapp, services, repo_work
 
     assert "Users" in labels
     assert "Support" in labels
+    assert "Modules" not in labels
     assert "Access" not in labels
 
 

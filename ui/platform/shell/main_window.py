@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QCloseEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.auth import UserSessionContext
+from core.platform.notifications.domain_events import domain_events
 from infra.platform.update import check_for_updates, default_update_manifest_source
 from infra.platform.version import get_app_version
 from ui.platform.shell import NavigationEntry, NavigationModule, ShellNavigation, build_workspace_definitions
@@ -38,6 +40,7 @@ class MainWindow(QMainWindow):
         self._settings_store = MainWindowSettingsStore()
         self._navigation_auto_hidden = False
         self._navigation_preferred_visible = True
+        self._module_refresh_pending = False
         default_theme = os.getenv("PM_THEME", "light").strip().lower()
         self._theme_mode: str = self._settings_store.load_theme_mode(default_mode=default_theme)
         os.environ["PM_THEME"] = self._theme_mode
@@ -116,6 +119,7 @@ class MainWindow(QMainWindow):
         self._build_tabs()
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.shell_navigation.set_current_index(self.tabs.currentIndex())
+        domain_events.modules_changed.connect(self._on_modules_changed)
 
         self.setCentralWidget(central)
         self._restore_persisted_state()
@@ -293,6 +297,16 @@ class MainWindow(QMainWindow):
         elif not should_auto_hide and self._navigation_auto_hidden:
             self._navigation_auto_hidden = False
             self._set_navigation_visible(self._navigation_preferred_visible)
+
+    def _on_modules_changed(self, _module_code: str) -> None:
+        if self._module_refresh_pending:
+            return
+        self._module_refresh_pending = True
+        QTimer.singleShot(0, self._apply_module_refresh)
+
+    def _apply_module_refresh(self) -> None:
+        self._module_refresh_pending = False
+        self._rebuild_tabs(current_index=self.tabs.currentIndex())
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
