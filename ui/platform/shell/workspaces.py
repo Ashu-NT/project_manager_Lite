@@ -9,6 +9,7 @@ from core.platform.modules.runtime import resolve_module_runtime_service
 from ui.platform.admin.access.tab import AccessTab
 from ui.platform.admin.employees.tab import EmployeeAdminTab
 from ui.platform.admin.modules.tab import ModuleLicensingTab
+from ui.platform.admin.organizations.tab import OrganizationAdminTab
 from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.audit.tab import AuditLogTab
 from ui.modules.project_management.calendar.tab import CalendarTab
@@ -290,6 +291,21 @@ def build_workspace_definitions(
                 label="Employees",
                 widget=EmployeeAdminTab(
                     employee_service=services["employee_service"],
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if _has_permission(user_session, "settings.manage"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
+                label="Organizations",
+                widget=OrganizationAdminTab(
+                    organization_service=services["organization_service"],
                     user_session=user_session,
                     parent=parent,
                 ),

@@ -20,7 +20,7 @@ from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
-from core.platform.org import EmployeeService
+from core.platform.org import EmployeeService, OrganizationService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
@@ -50,6 +50,7 @@ from infra.platform.db.repositories import (
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyEmployeeRepository,
+    SqlAlchemyOrganizationRepository,
     SqlAlchemyModuleEntitlementRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyTaskRepository,
@@ -99,6 +100,7 @@ class ServiceGraph:
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
+    organization_service: OrganizationService
     employee_service: EmployeeService
     access_service: AccessControlService
     audit_service: AuditService
@@ -130,6 +132,7 @@ class ServiceGraph:
             "module_runtime_service": self.module_runtime_service,
             "module_catalog_service": self.module_catalog_service,
             "auth_service": self.auth_service,
+            "organization_service": self.organization_service,
             "employee_service": self.employee_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
@@ -162,7 +165,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     task_repo = SqlAlchemyTaskRepository(session)
     resource_repo = SqlAlchemyResourceRepository(session)
     employee_repo = SqlAlchemyEmployeeRepository(session)
-    module_entitlement_repo = SqlAlchemyModuleEntitlementRepository(session)
+    organization_repo = SqlAlchemyOrganizationRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
     time_entry_repo = SqlAlchemyTimeEntryRepository(session)
     timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(session)
@@ -209,6 +212,25 @@ def build_service_graph(session: Session) -> ServiceGraph:
         audit_service=audit_service,
     )
     auth_service.bootstrap_defaults()
+    organization_service = OrganizationService(
+        session=session,
+        organization_repo=organization_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    organization_service.bootstrap_defaults()
+
+    def _active_organization():
+        return organization_repo.get_active()
+
+    def _active_organization_id() -> str | None:
+        organization = _active_organization()
+        return organization.id if organization is not None else None
+
+    module_entitlement_repo = SqlAlchemyModuleEntitlementRepository(
+        session,
+        organization_id_provider=_active_organization_id,
+    )
     module_catalog_service = ModuleCatalogService(
         modules=DEFAULT_ENTERPRISE_MODULES,
         enabled_codes=parse_enabled_module_codes(os.getenv("PM_ENABLED_MODULES")),
@@ -221,6 +243,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         session=session,
         user_session=user_session,
         audit_service=audit_service,
+        organization_context_provider=_active_organization,
     )
     module_catalog_service.bootstrap_defaults()
     module_runtime_service = ModuleRuntimeService(module_catalog_service)
@@ -495,6 +518,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
+        organization_service=organization_service,
         employee_service=employee_service,
         access_service=access_service,
         audit_service=audit_service,

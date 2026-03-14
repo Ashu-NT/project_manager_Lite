@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Callable, Iterable
 
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
+from core.platform.org.domain import Organization
 from core.platform.notifications.domain_events import domain_events
 from core.platform.modules.repository import ModuleEntitlementRecord, ModuleEntitlementRepository
 
@@ -181,6 +182,7 @@ class ModuleCatalogSnapshot:
     licensed_modules: tuple[EnterpriseModule, ...]
     available_modules: tuple[EnterpriseModule, ...]
     planned_modules: tuple[EnterpriseModule, ...]
+    context_label: str
 
 
 class ModuleCatalogService:
@@ -195,6 +197,7 @@ class ModuleCatalogService:
         session: Session | None = None,
         user_session=None,
         audit_service=None,
+        organization_context_provider: Callable[[], Organization | None] | None = None,
     ) -> None:
         known_modules = tuple(modules)
         known_codes = {module.code for module in known_modules}
@@ -221,28 +224,10 @@ class ModuleCatalogService:
         self._session = session
         self._user_session = user_session
         self._audit_service = audit_service
+        self._organization_context_provider = organization_context_provider
 
     def bootstrap_defaults(self) -> None:
-        if self._entitlement_repo is None:
-            return
-        existing_by_code = {
-            record.module_code: record
-            for record in self._entitlement_repo.list_all()
-        }
-        changed = False
-        for module in self._modules:
-            if module.code in existing_by_code:
-                continue
-            self._entitlement_repo.upsert(
-                ModuleEntitlementRecord(
-                    module_code=module.code,
-                    licensed=module.code in self._licensed_codes,
-                    enabled=module.code in self._enabled_codes and module.code in self._licensed_codes,
-                )
-            )
-            changed = True
-        if changed and self._session is not None:
-            self._session.commit()
+        self._ensure_context_defaults()
 
     def list_modules(self) -> list[EnterpriseModule]:
         return list(self._modules)
@@ -357,7 +342,14 @@ class ModuleCatalogService:
             licensed_modules=tuple(self.list_licensed_modules()),
             available_modules=tuple(self.list_available_modules()),
             planned_modules=tuple(self.list_planned_modules()),
+            context_label=self.current_context_label(),
         )
+
+    def current_context_label(self) -> str:
+        organization = self._current_organization()
+        if organization is None:
+            return "Install Profile"
+        return organization.display_name
 
     def shell_summary(self) -> str:
         enabled_labels = ", ".join(module.label for module in self.list_enabled_modules()) or "None"
@@ -365,7 +357,7 @@ class ModuleCatalogService:
         available_labels = ", ".join(module.label for module in self.list_available_modules()) or "None"
         planned_labels = ", ".join(module.label for module in self.list_planned_modules()) or "None"
         return (
-            f"Platform Base active. Enabled: {enabled_labels}. "
+            f"Context: {self.current_context_label()}. Platform Base active. Enabled: {enabled_labels}. "
             f"Licensed: {licensed_labels}. Available: {available_labels}. Planned: {planned_labels}."
         )
 
@@ -380,7 +372,7 @@ class ModuleCatalogService:
     def _effective_codes(self) -> tuple[set[str], set[str]]:
         if self._entitlement_repo is None:
             return set(self._licensed_codes), set(self._enabled_codes)
-        records = self._entitlement_repo.list_all()
+        records = self._ensure_context_defaults()
         if not records:
             return set(self._licensed_codes), set(self._enabled_codes)
         licensed_codes = {record.module_code for record in records if record.licensed}
@@ -405,6 +397,31 @@ class ModuleCatalogService:
         self._entitlement_repo.upsert(record)
         if self._session is not None:
             self._session.commit()
+
+    def _ensure_context_defaults(self) -> list[ModuleEntitlementRecord]:
+        if self._entitlement_repo is None:
+            return []
+        records = self._entitlement_repo.list_all()
+        if records:
+            return records
+        changed = False
+        for module in self._modules:
+            self._entitlement_repo.upsert(
+                ModuleEntitlementRecord(
+                    module_code=module.code,
+                    licensed=module.code in self._licensed_codes,
+                    enabled=module.code in self._enabled_codes and module.code in self._licensed_codes,
+                )
+            )
+            changed = True
+        if changed and self._session is not None:
+            self._session.commit()
+        return self._entitlement_repo.list_all()
+
+    def _current_organization(self) -> Organization | None:
+        if self._organization_context_provider is None:
+            return None
+        return self._organization_context_provider()
 
     def _require_module(self, module_code: str) -> EnterpriseModule:
         target_code = str(module_code).strip().lower()

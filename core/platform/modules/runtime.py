@@ -19,6 +19,7 @@ class ModuleRuntimeSnapshot:
     available_modules: tuple[EnterpriseModule, ...]
     planned_modules: tuple[EnterpriseModule, ...]
     shell_summary: str
+    context_label: str
 
 
 class ModuleRuntimeService:
@@ -85,6 +86,9 @@ class ModuleRuntimeService:
     def shell_summary(self) -> str:
         return self._catalog_service.shell_summary()
 
+    def current_context_label(self) -> str:
+        return self._catalog_service.current_context_label()
+
     def snapshot(self) -> ModuleRuntimeSnapshot:
         return ModuleRuntimeSnapshot(
             platform_capabilities=tuple(self.list_platform_capabilities()),
@@ -94,6 +98,7 @@ class ModuleRuntimeService:
             available_modules=tuple(self.list_available_modules()),
             planned_modules=tuple(self.list_planned_modules()),
             shell_summary=self.shell_summary(),
+            context_label=self.current_context_label(),
         )
 
 

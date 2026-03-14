@@ -127,9 +127,26 @@ class EmployeeORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
-class ModuleEntitlementORM(Base):
-    __tablename__ = "module_entitlements"
+class OrganizationORM(Base):
+    __tablename__ = "organizations"
 
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    timezone_name: Mapped[str] = mapped_column(String(128), nullable=False, default="UTC", server_default="UTC")
+    base_currency: Mapped[str] = mapped_column(String(8), nullable=False, default="EUR", server_default="EUR")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class ModuleEntitlementORM(Base):
+    __tablename__ = "organization_module_entitlements"
+
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
     module_code: Mapped[str] = mapped_column(String(128), primary_key=True)
     licensed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
@@ -545,6 +562,9 @@ Index("idx_register_entries_due", RegisterEntryORM.due_date)
 Index("idx_users_username", UserORM.username, unique=True)
 Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
 Index("idx_employees_active", EmployeeORM.is_active)
+Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
+Index("idx_organizations_active", OrganizationORM.is_active)
+Index("idx_org_module_entitlements_org", ModuleEntitlementORM.organization_id)
 Index("idx_resources_employee", ResourceORM.employee_id)
 Index("idx_roles_name", RoleORM.name, unique=True)
 Index("idx_permissions_code", PermissionORM.code, unique=True)

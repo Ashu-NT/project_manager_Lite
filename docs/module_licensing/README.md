@@ -172,6 +172,8 @@ Exit criteria:
 
 ### Phase 4: Organization or Tenant-Specific Entitlements
 
+Status: in progress
+
 Goal:
 
 - prepare for hosted multi-client deployments
@@ -179,9 +181,13 @@ Goal:
 Concrete work:
 
 1. Introduce organization or tenant records.
+   Status: completed
 2. Attach module entitlements to that boundary.
+   Status: completed for the active-organization runtime path
 3. Move shell, backend, and future API checks to the current organization context.
+   Status: in progress
 4. Support `trial`, `suspended`, and `expired` states.
+   Status: pending
 
 Exit criteria:
 
@@ -219,6 +225,6 @@ This is the slice to implement immediately after this plan is written:
 
 Next recommended step:
 
-1. finish backend enforcement for any remaining module-bound entry points
-2. extend the same runtime-service and guard pattern to new modules as they are added
-3. then prepare the same model for future API and hosted deployments
+1. carry the active organization context into a dedicated application-layer seam for future HTTP/API use
+2. add explicit entitlement lifecycle states such as `trial`, `suspended`, and `expired`
+3. add a platform admin workflow for provisioning organizations with an initial licensed module mix

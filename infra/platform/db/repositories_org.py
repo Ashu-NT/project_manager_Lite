@@ -1,3 +1,3 @@
-from infra.platform.db.org.repository import SqlAlchemyEmployeeRepository
+from infra.platform.db.org.repository import SqlAlchemyEmployeeRepository, SqlAlchemyOrganizationRepository
 
-__all__ = ["SqlAlchemyEmployeeRepository"]
+__all__ = ["SqlAlchemyEmployeeRepository", "SqlAlchemyOrganizationRepository"]

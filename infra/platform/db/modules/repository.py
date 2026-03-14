@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,11 +15,29 @@ def _utc_now_naive() -> datetime:
 
 
 class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
-    def __init__(self, session: Session):
+    def __init__(
+        self,
+        session: Session,
+        *,
+        organization_id_provider: Callable[[], str | None],
+    ):
         self.session = session
+        self._organization_id_provider = organization_id_provider
+
+    def _current_organization_id(self) -> str | None:
+        return self._organization_id_provider()
 
     def get(self, module_code: str) -> ModuleEntitlementRecord | None:
-        obj = self.session.get(ModuleEntitlementORM, module_code)
+        organization_id = self._current_organization_id()
+        if not organization_id:
+            return None
+        obj = self.session.get(
+            ModuleEntitlementORM,
+            {
+                "organization_id": organization_id,
+                "module_code": module_code,
+            },
+        )
         if obj is None:
             return None
         return ModuleEntitlementRecord(
@@ -28,8 +47,13 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         )
 
     def list_all(self) -> list[ModuleEntitlementRecord]:
+        organization_id = self._current_organization_id()
+        if not organization_id:
+            return []
         rows = self.session.execute(
-            select(ModuleEntitlementORM).order_by(ModuleEntitlementORM.module_code.asc())
+            select(ModuleEntitlementORM)
+            .where(ModuleEntitlementORM.organization_id == organization_id)
+            .order_by(ModuleEntitlementORM.module_code.asc())
         ).scalars().all()
         return [
             ModuleEntitlementRecord(
@@ -41,10 +65,20 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         ]
 
     def upsert(self, record: ModuleEntitlementRecord) -> None:
-        obj = self.session.get(ModuleEntitlementORM, record.module_code)
+        organization_id = self._current_organization_id()
+        if not organization_id:
+            raise RuntimeError("Active organization context is required for module entitlements.")
+        obj = self.session.get(
+            ModuleEntitlementORM,
+            {
+                "organization_id": organization_id,
+                "module_code": record.module_code,
+            },
+        )
         if obj is None:
             self.session.add(
                 ModuleEntitlementORM(
+                    organization_id=organization_id,
                     module_code=record.module_code,
                     licensed=bool(record.licensed),
                     enabled=bool(record.enabled and record.licensed),

@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QDialog, QLineEdit
 from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
 from ui.platform.admin.modules.tab import ModuleLicensingTab
+from ui.platform.admin.organizations.tab import OrganizationAdminTab
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
 from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.audit.tab import AuditLogTab
@@ -30,6 +31,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Portfolio" in labels
     assert "Users" in labels
     assert "Employees" in labels
+    assert "Organizations" in labels
     assert "Access" in labels
     assert "Audit" in labels
     assert "Support" in labels
@@ -107,6 +109,7 @@ def test_module_licensing_tab_runtime_toggles_project_management_enablement(qapp
     )
 
     assert tab.table.rowCount() == 4
+    assert tab.context_badge.text() == "Context: Default Organization"
     assert tab.licensed_badge.text() == "1 licensed"
     assert tab.enabled_badge.text() == "1 enabled"
 
@@ -125,6 +128,22 @@ def test_module_licensing_tab_runtime_toggles_project_management_enablement(qapp
     tab.toggle_enabled()
     qapp.processEvents()
     assert services["module_catalog_service"].is_enabled("project_management") is True
+
+
+def test_organization_admin_tab_runtime_bootstraps_default_profile(qapp, services):
+    tab = OrganizationAdminTab(
+        organization_service=services["organization_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() >= 1
+    assert tab.organization_scope_badge.text() == "Install Profile"
+    assert tab.organization_count_badge.text().endswith("organizations")
+    assert tab.organization_active_badge.text() == "Default Organization"
+    assert tab.organization_access_badge.text() == "Manage Enabled"
+    assert tab.btn_new_organization.isEnabled() is True
+    assert tab.btn_edit_organization.isEnabled() is False
+    assert tab.btn_set_active.isEnabled() is False
 
 
 def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_services):

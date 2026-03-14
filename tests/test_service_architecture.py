@@ -6,7 +6,7 @@ from core.platform.auth import AuthService
 from core.platform.auth.service import AuthService as LegacyAuthService
 from core.platform.audit import AuditService
 from core.platform.audit.service import AuditService as LegacyAuditService
-from core.platform.org import EmployeeService
+from core.platform.org import EmployeeService, OrganizationService
 from core.platform.modules.runtime import ModuleRuntimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
@@ -46,6 +46,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.module_runtime_service, ModuleRuntimeService)
     assert isinstance(graph.approval_service, ApprovalService)
     assert isinstance(graph.auth_service, AuthService)
+    assert isinstance(graph.organization_service, OrganizationService)
     assert isinstance(graph.employee_service, EmployeeService)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.audit_service, AuditService)
@@ -70,6 +71,7 @@ def test_service_graph_builder_wires_all_services(session):
     as_dict = graph.as_dict()
     assert as_dict["approval_service"] is graph.approval_service
     assert as_dict["auth_service"] is graph.auth_service
+    assert as_dict["organization_service"] is graph.organization_service
     assert as_dict["employee_service"] is graph.employee_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
     assert as_dict["access_service"] is graph.access_service

@@ -37,6 +37,7 @@ class ModuleLicensingTab(QWidget):
         self._setup_ui()
         self.reload_modules()
         domain_events.modules_changed.connect(self._on_modules_changed)
+        domain_events.organizations_changed.connect(self._on_organizations_changed)
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -55,11 +56,13 @@ class ModuleLicensingTab(QWidget):
 
         summary_row = QHBoxLayout()
         self.platform_base_badge = QLabel("Platform Base")
+        self.context_badge = QLabel("Install Profile")
         self.licensed_badge = QLabel("0 licensed")
         self.enabled_badge = QLabel("0 enabled")
         self.planned_badge = QLabel("0 planned")
         for label in (
             self.platform_base_badge,
+            self.context_badge,
             self.licensed_badge,
             self.enabled_badge,
             self.planned_badge,
@@ -138,6 +141,12 @@ class ModuleLicensingTab(QWidget):
         self.platform_base_badge.setText(
             f"Platform Base: {len(self._module_runtime_service.list_platform_capabilities())} capabilities"
         )
+        context_label = (
+            self._module_runtime_service.current_context_label()
+            if hasattr(self._module_runtime_service, "current_context_label")
+            else "Install Profile"
+        )
+        self.context_badge.setText(f"Context: {context_label}")
         self.licensed_badge.setText(f"{licensed_count} licensed")
         self.enabled_badge.setText(f"{enabled_count} enabled")
         self.planned_badge.setText(f"{planned_count} planned")
@@ -217,6 +226,9 @@ class ModuleLicensingTab(QWidget):
         )
 
     def _on_modules_changed(self, _module_code: str) -> None:
+        self.reload_modules()
+
+    def _on_organizations_changed(self, _organization_id: str) -> None:
         self.reload_modules()
 
 

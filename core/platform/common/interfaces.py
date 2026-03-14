@@ -35,6 +35,7 @@ from .models import (
     TimeEntry,
     TimesheetPeriod,
     Employee,
+    Organization,
 )
 
 
@@ -298,6 +299,21 @@ class EmployeeRepository(ABC):
     def get_by_code(self, employee_code: str) -> Optional[Employee]: ...
     @abstractmethod
     def list_all(self, *, active_only: bool | None = None) -> List[Employee]: ...
+
+
+class OrganizationRepository(ABC):
+    @abstractmethod
+    def add(self, organization: Organization) -> None: ...
+    @abstractmethod
+    def update(self, organization: Organization) -> None: ...
+    @abstractmethod
+    def get(self, organization_id: str) -> Optional[Organization]: ...
+    @abstractmethod
+    def get_by_code(self, organization_code: str) -> Optional[Organization]: ...
+    @abstractmethod
+    def get_active(self) -> Optional[Organization]: ...
+    @abstractmethod
+    def list_all(self, *, active_only: bool | None = None) -> List[Organization]: ...
 
 
 class RoleRepository(ABC):

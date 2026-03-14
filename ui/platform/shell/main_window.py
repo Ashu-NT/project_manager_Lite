@@ -124,6 +124,7 @@ class MainWindow(QMainWindow):
         self.tabs.currentChanged.connect(self._on_tab_changed)
         self.shell_navigation.set_current_index(self.tabs.currentIndex())
         domain_events.modules_changed.connect(self._on_modules_changed)
+        domain_events.organizations_changed.connect(self._on_organizations_changed)
 
         self.setCentralWidget(central)
         self._restore_persisted_state()
@@ -307,6 +308,9 @@ class MainWindow(QMainWindow):
             return
         self._module_refresh_pending = True
         QTimer.singleShot(0, self._apply_module_refresh)
+
+    def _on_organizations_changed(self, _organization_id: str) -> None:
+        self._on_modules_changed("__organization_context__")
 
     def _apply_module_refresh(self) -> None:
         self._module_refresh_pending = False
