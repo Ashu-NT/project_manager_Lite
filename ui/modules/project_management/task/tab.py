@@ -105,18 +105,28 @@ class TaskTab(
         self._sync_toolbar_actions()
         self._sync_undo_redo_state()
         self._refresh_mentions_badge()
+        self._refresh_presence_badge()
         self._mentions_refresh_timer = QTimer(self)
         self._mentions_refresh_timer.setInterval(4000)
         self._mentions_refresh_timer.timeout.connect(self._refresh_mentions_badge)
+        self._mentions_refresh_timer.timeout.connect(self._refresh_presence_badge)
         self._mentions_refresh_timer.start()
         domain_events.tasks_changed.connect(self._on_task_changed)
         domain_events.project_changed.connect(self._on_project_changed_event)
         domain_events.resources_changed.connect(self._on_resources_changed)
+        domain_events.collaboration_changed.connect(self._on_collaboration_changed)
 
     def _on_task_selection_changed(self, *_args) -> None:
         TaskAssignmentPanelMixin._on_task_selection_changed(self, *_args)
         self._sync_toolbar_actions()
         self._refresh_mentions_badge()
+        self._refresh_presence_badge()
+
+    def _on_collaboration_changed(self, task_id: str) -> None:
+        selected = self._get_selected_task()
+        if selected is not None and selected.id == task_id:
+            self._refresh_mentions_badge()
+            self._refresh_presence_badge()
 
     def _sync_toolbar_actions(self) -> None:
         selected_tasks = self._get_selected_tasks()

@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from core.platform.common.models import CollaborationMentionCandidate, TaskComment
 from core.modules.project_management.services.collaboration import CollaborationService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from ui.modules.project_management.task.presence import format_presence_lines
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.mention_text_edit import TaskMentionTextEdit
 
@@ -109,6 +110,11 @@ class TaskCollaborationDialog(QDialog):
             read_only.setWordWrap(True)
             root.addWidget(read_only)
 
+        self.presence_label = QLabel("Active now: -")
+        self.presence_label.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+        self.presence_label.setWordWrap(True)
+        root.addWidget(self.presence_label)
+
         self.activity_list = QListWidget()
         self.activity_list.setAlternatingRowColors(True)
         root.addWidget(self.activity_list, 1)
@@ -198,6 +204,21 @@ class TaskCollaborationDialog(QDialog):
                 lines.extend(f"- {item}" for item in attachments)
             item = QListWidgetItem("\n".join(lines))
             self.activity_list.addItem(item)
+        self._refresh_presence_label()
+
+    def _refresh_presence_label(self) -> None:
+        if self._collaboration_service is None:
+            self.presence_label.setText("Active now: unavailable in local-only collaboration mode.")
+            return
+        try:
+            rows = self._collaboration_service.list_task_presence(self._task_id)
+        except Exception as exc:
+            self.presence_label.setText(f"Active now: unavailable ({exc})")
+            return
+        lines = format_presence_lines(rows, include_self=True)
+        self.presence_label.setText(
+            "Active now: " + ("; ".join(lines) if lines else "no active collaborators")
+        )
 
     @staticmethod
     def _comment_rows_from_service(comments: list[TaskComment]) -> list[dict[str, object]]:

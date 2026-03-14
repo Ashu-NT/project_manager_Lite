@@ -1,3 +1,6 @@
-from infra.modules.project_management.db.collaboration.repository import SqlAlchemyTaskCommentRepository
+from infra.modules.project_management.db.collaboration.repository import (
+    SqlAlchemyTaskCommentRepository,
+    SqlAlchemyTaskPresenceRepository,
+)
 
-__all__ = ["SqlAlchemyTaskCommentRepository"]
+__all__ = ["SqlAlchemyTaskCommentRepository", "SqlAlchemyTaskPresenceRepository"]

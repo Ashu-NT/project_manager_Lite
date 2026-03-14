@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from core.platform.common.models import TaskComment
-from infra.platform.db.models import TaskCommentORM
+from core.platform.common.models import TaskComment, TaskPresence
+from infra.platform.db.models import TaskCommentORM, TaskPresenceORM
 
 
 def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
@@ -47,4 +47,35 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
     )
 
 
-__all__ = ["task_comment_from_orm", "task_comment_to_orm"]
+def task_presence_to_orm(presence: TaskPresence) -> TaskPresenceORM:
+    return TaskPresenceORM(
+        id=presence.id,
+        task_id=presence.task_id,
+        user_id=presence.user_id,
+        username=presence.username,
+        display_name=presence.display_name,
+        activity=presence.activity,
+        started_at=presence.started_at,
+        last_seen_at=presence.last_seen_at,
+    )
+
+
+def task_presence_from_orm(obj: TaskPresenceORM) -> TaskPresence:
+    return TaskPresence(
+        id=obj.id,
+        task_id=obj.task_id,
+        user_id=obj.user_id,
+        username=obj.username,
+        display_name=obj.display_name,
+        activity=obj.activity,
+        started_at=obj.started_at,
+        last_seen_at=obj.last_seen_at,
+    )
+
+
+__all__ = [
+    "task_comment_from_orm",
+    "task_comment_to_orm",
+    "task_presence_from_orm",
+    "task_presence_to_orm",
+]

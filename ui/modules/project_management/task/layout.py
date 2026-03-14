@@ -46,8 +46,11 @@ class TaskLayoutMixin:
         top.addStretch()
         self.btn_refresh_tasks = QPushButton(CFG.REFRESH_TASKS_LABEL)
         self.lbl_mentions = QLabel("Mentions: 0")
+        self.lbl_presence = QLabel("Active now: -")
         self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
+        self.lbl_presence.setStyleSheet(dashboard_meta_chip_style())
         top.addWidget(self.lbl_mentions)
+        top.addWidget(self.lbl_presence)
         top.addWidget(self.btn_refresh_tasks)
 
         toolbar = QHBoxLayout()

@@ -6,6 +6,7 @@ import os
 from PySide6.QtGui import QKeySequence, QShortcut
 
 from ui.modules.project_management.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style
+from ui.modules.project_management.task.presence import format_presence_lines, task_presence_session
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
 
@@ -102,24 +103,63 @@ class TaskUxEnhancementsMixin:
         else:
             self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
 
+    def _refresh_presence_badge(self) -> None:
+        service = getattr(self, "_collaboration_service", None)
+        if service is None or not self._can_view_collaboration:
+            self.lbl_presence.setText("Active now: -")
+            self.lbl_presence.setToolTip("Requires service-backed collaboration presence.")
+            self.lbl_presence.setStyleSheet(dashboard_meta_chip_style())
+            return
+        task = self._get_selected_task()
+        if task is None:
+            self.lbl_presence.setText("Active now: -")
+            self.lbl_presence.setToolTip("Select a task to view active collaborators.")
+            self.lbl_presence.setStyleSheet(dashboard_meta_chip_style())
+            return
+        try:
+            presence_rows = service.list_task_presence(task.id)
+        except Exception as exc:
+            self.lbl_presence.setText("Active now: -")
+            self.lbl_presence.setToolTip(str(exc))
+            self.lbl_presence.setStyleSheet(dashboard_meta_chip_style())
+            return
+        lines = format_presence_lines(presence_rows)
+        count = len(lines)
+        self.lbl_presence.setText(f"Active now: {count}")
+        self.lbl_presence.setToolTip(
+            "\n".join(lines) if lines else "No one else is active on this task."
+        )
+        if count > 0:
+            self.lbl_presence.setStyleSheet(
+                dashboard_badge_style(CFG.COLOR_ACCENT_SOFT, CFG.COLOR_TEXT_PRIMARY)
+            )
+        else:
+            self.lbl_presence.setStyleSheet(dashboard_meta_chip_style())
+
     def _open_task_collaboration(self) -> None:
         if not self._can_view_collaboration:
             return
         task = self._get_selected_task()
         if task is None:
             return
-        dialog = TaskCollaborationDialog(
-            self,
-            store=getattr(self, "_collaboration_store", None),
+        with task_presence_session(
+            getattr(self, "_collaboration_service", None),
             task_id=task.id,
-            task_name=task.name,
-            username=self._current_username(),
-            mention_aliases=self._mention_identities(),
-            collaboration_service=getattr(self, "_collaboration_service", None),
-            can_post=self._can_manage_collaboration,
-        )
-        dialog.exec()
+            activity="reviewing",
+        ):
+            dialog = TaskCollaborationDialog(
+                self,
+                store=getattr(self, "_collaboration_store", None),
+                task_id=task.id,
+                task_name=task.name,
+                username=self._current_username(),
+                mention_aliases=self._mention_identities(),
+                collaboration_service=getattr(self, "_collaboration_service", None),
+                can_post=self._can_manage_collaboration,
+            )
+            dialog.exec()
         self._refresh_mentions_badge()
+        self._refresh_presence_badge()
 
 
 __all__ = ["TaskUxEnhancementsMixin"]

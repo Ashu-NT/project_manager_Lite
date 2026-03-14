@@ -53,12 +53,14 @@ class CollaborationTab(QWidget):
         self.unread_label = QLabel("Unread mentions: 0")
         self.activity_label = QLabel("Recent updates: 0")
         self.notification_label = QLabel("Notifications: 0")
+        self.active_label = QLabel("Active now: 0")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_refresh.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_refresh.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         badge_row.addWidget(self.unread_label)
         badge_row.addWidget(self.activity_label)
         badge_row.addWidget(self.notification_label)
+        badge_row.addWidget(self.active_label)
         badge_row.addStretch()
         badge_row.addWidget(self.btn_refresh)
         root.addLayout(badge_row)
@@ -127,6 +129,24 @@ class CollaborationTab(QWidget):
         activity_layout.addWidget(self.activity_table, 1)
         self.sections_tabs.addTab(activity_page, "Recent Activity")
 
+        self.active_table = QTableWidget(0, 5)
+        self.active_table.setHorizontalHeaderLabels(["When", "Project", "Task", "Who", "Activity"])
+        self.active_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.active_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.active_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.active_table.horizontalHeader().setStretchLastSection(True)
+        style_table(self.active_table)
+        active_page = QWidget()
+        active_layout = QVBoxLayout(active_page)
+        active_layout.setContentsMargins(0, 0, 0, 0)
+        active_layout.setSpacing(CFG.SPACING_SM)
+        active_hint = QLabel("People currently active in PM task collaboration and edit flows.")
+        active_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        active_hint.setWordWrap(True)
+        active_layout.addWidget(active_hint)
+        active_layout.addWidget(self.active_table, 1)
+        self.sections_tabs.addTab(active_page, "Active Now")
+
         self.btn_refresh.clicked.connect(self.reload_data)
         self.btn_mark_read.clicked.connect(self._mark_selected_task_read)
 
@@ -135,6 +155,7 @@ class CollaborationTab(QWidget):
             notifications = self._collaboration_service.list_notifications(limit=200)
             inbox = self._collaboration_service.list_inbox(limit=200)
             activity = self._collaboration_service.list_recent_activity(limit=200)
+            active_presence = self._collaboration_service.list_active_presence(limit=200)
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Collaboration", str(exc))
             return
@@ -144,12 +165,15 @@ class CollaborationTab(QWidget):
         self.notification_label.setText(f"Notifications: {len(notifications)}")
         self.unread_label.setText(f"Unread mentions: {sum(1 for item in inbox if item.unread)}")
         self.activity_label.setText(f"Recent updates: {len(activity)}")
+        self.active_label.setText(f"Active now: {len(active_presence)}")
         self.sections_tabs.setTabText(0, f"Notifications ({len(notifications)})")
         self.sections_tabs.setTabText(1, f"Mentions ({len(inbox)})")
         self.sections_tabs.setTabText(2, f"Recent Activity ({len(activity)})")
+        self.sections_tabs.setTabText(3, f"Active Now ({len(active_presence)})")
         self._populate_notifications_table(notifications)
         self._populate_table(self.inbox_table, inbox)
         self._populate_table(self.activity_table, activity)
+        self._populate_active_table(active_presence)
 
     def _populate_notifications_table(self, rows) -> None:
         self.notifications_table.setRowCount(len(rows))
@@ -189,6 +213,27 @@ class CollaborationTab(QWidget):
                     font.setBold(True)
                     cell.setFont(font)
                 table.setItem(row_idx, col, cell)
+
+    def _populate_active_table(self, rows) -> None:
+        self.active_table.setRowCount(len(rows))
+        for row_idx, item in enumerate(rows):
+            who = item.display_name or f"@{item.username}"
+            if item.display_name and item.username:
+                who = f"{item.display_name} (@{item.username})"
+            values = [
+                item.last_seen_at.strftime("%Y-%m-%d %H:%M"),
+                item.project_name,
+                item.task_name,
+                who,
+                item.activity.replace("_", " ").title(),
+            ]
+            for col, value in enumerate(values):
+                cell = QTableWidgetItem(value)
+                if item.is_self:
+                    font = cell.font()
+                    font.setBold(True)
+                    cell.setFont(font)
+                self.active_table.setItem(row_idx, col, cell)
 
     def _mark_selected_task_read(self) -> None:
         row = self.inbox_table.currentRow()

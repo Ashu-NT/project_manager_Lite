@@ -14,12 +14,12 @@ Delivered in the current codebase:
 - organization and employee management
 - persistent module licensing with organization-scoped entitlements
 - enterprise RBAC foundation, collaboration, portfolio, approvals, audit, and support tooling
-- PM in-app notifications, service-backed task collaboration runtime, saved portfolio scenario comparison, and desktop optimistic-lock guards in normal edit flows
+- PM in-app notifications, service-backed task collaboration runtime, saved portfolio scenario comparison, task presence indicators, and desktop optimistic-lock guards in normal edit flows
 - application-layer and transport-layer seams for future web/server adoption
 
 Pending major work:
 
-- `Project Management` enterprise follow-ups: richer notification delivery beyond the in-app feed, presence indicators on top of the current concurrent-edit recovery, configurable PMO scoring templates, and PM-facing audit/visualization polish
+- `Project Management` enterprise follow-ups: richer notification delivery beyond the in-app feed, configurable PMO scoring templates, and PM-facing audit/visualization polish
 - `Maintenance Management`, `QHSE`, and `Payroll` business modules
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment

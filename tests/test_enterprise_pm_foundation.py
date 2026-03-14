@@ -174,6 +174,29 @@ def test_collaboration_notifications_filter_project_scope_for_mentions_and_times
     assert "Timesheet submitted" in timesheet_notice.headline
 
 
+def test_collaboration_service_tracks_active_task_presence(services):
+    project = services["project_service"].create_project("Presence Project")
+    task = services["task_service"].create_task(project.id, "Presence Task")
+    collaboration = services["collaboration_service"]
+
+    assert collaboration.list_task_presence(task.id) == []
+
+    collaboration.touch_task_presence(task.id, activity="editing")
+
+    active = collaboration.list_task_presence(task.id)
+    assert len(active) == 1
+    assert active[0].task_id == task.id
+    assert active[0].task_name == task.name
+    assert active[0].project_id == project.id
+    assert active[0].project_name == project.name
+    assert active[0].username == "admin"
+    assert active[0].activity == "editing"
+    assert active[0].is_self is True
+
+    collaboration.clear_task_presence(task.id)
+    assert collaboration.list_task_presence(task.id) == []
+
+
 def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
     project_service = services["project_service"]
     portfolio = services["portfolio_service"]
@@ -340,10 +363,11 @@ def test_collaboration_tab_auto_refreshes_when_task_comments_change(qapp, servic
     task = services["task_service"].create_task(project.id, "Comment Sync Task")
     tab = CollaborationTab(collaboration_service=services["collaboration_service"])
 
-    assert tab.sections_tabs.count() == 3
+    assert tab.sections_tabs.count() == 4
     assert tab.sections_tabs.tabText(0) == "Notifications (0)"
     assert tab.sections_tabs.tabText(1) == "Mentions (0)"
     assert tab.sections_tabs.tabText(2) == "Recent Activity (0)"
+    assert tab.sections_tabs.tabText(3) == "Active Now (0)"
     assert tab.inbox_table.rowCount() == 0
 
     services["task_collaboration_store"].add_comment(
@@ -360,6 +384,24 @@ def test_collaboration_tab_auto_refreshes_when_task_comments_change(qapp, servic
     assert tab.sections_tabs.tabText(2) == "Recent Activity (1)"
     assert tab.inbox_table.item(0, 1).text() == project.name
     assert tab.inbox_table.item(0, 2).text() == task.name
+
+
+def test_collaboration_tab_shows_active_presence_rows(qapp, services):
+    project = services["project_service"].create_project("Presence Events Project")
+    task = services["task_service"].create_task(project.id, "Presence Sync Task")
+    tab = CollaborationTab(collaboration_service=services["collaboration_service"])
+
+    assert tab.active_table.rowCount() == 0
+
+    services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
+    qapp.processEvents()
+
+    assert tab.active_table.rowCount() == 1
+    assert tab.active_label.text() == "Active now: 1"
+    assert tab.sections_tabs.tabText(3) == "Active Now (1)"
+    assert tab.active_table.item(0, 1).text() == project.name
+    assert tab.active_table.item(0, 2).text() == task.name
+    assert tab.active_table.item(0, 4).text() == "Reviewing"
 
 
 def test_collaboration_tab_refreshes_when_timesheet_period_notifications_change(qapp, services):

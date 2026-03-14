@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from datetime import datetime, timedelta
 from typing import Iterable
 
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from core.platform.common.interfaces import (
     ProjectMembershipRepository,
     ProjectRepository,
     TaskCommentRepository,
+    TaskPresenceRepository,
     TaskRepository,
     UserRepository,
 )
@@ -19,6 +22,7 @@ from core.platform.common.models import (
     CollaborationMentionCandidate,
     CollaborationNotificationItem,
     TaskComment,
+    TaskPresenceStatusItem,
 )
 from core.platform.access.authorization import require_project_permission
 from core.platform.auth.authorization import require_permission
@@ -33,6 +37,7 @@ class CollaborationService(ProjectManagementModuleGuardMixin):
         *,
         session: Session,
         comment_repo: TaskCommentRepository,
+        presence_repo: TaskPresenceRepository,
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
         user_repo: UserRepository,
@@ -43,6 +48,7 @@ class CollaborationService(ProjectManagementModuleGuardMixin):
     ) -> None:
         self._session = session
         self._comment_repo = comment_repo
+        self._presence_repo = presence_repo
         self._task_repo = task_repo
         self._project_repo = project_repo
         self._user_repo = user_repo
@@ -50,6 +56,7 @@ class CollaborationService(ProjectManagementModuleGuardMixin):
         self._project_membership_repo = project_membership_repo
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+        self._presence_ttl_seconds = max(int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60)
 
     def list_comments(self, task_id: str) -> list[TaskComment]:
         task = self._require_task(task_id)
@@ -169,6 +176,73 @@ class CollaborationService(ProjectManagementModuleGuardMixin):
     def unread_mentions_count(self) -> int:
         return sum(1 for item in self.list_inbox(limit=500) if item.unread)
 
+    def touch_task_presence(self, task_id: str, *, activity: str = "reviewing") -> None:
+        task = self._require_task(task_id)
+        require_permission(self._user_session, "collaboration.read", operation_label="update task presence")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "collaboration.read",
+            operation_label="update task presence",
+        )
+        username = self._principal_primary_alias()
+        if not username:
+            return
+        principal = self._user_session.principal if self._user_session is not None else None
+        self._presence_repo.touch(
+            task_id=task_id,
+            user_id=str(getattr(principal, "user_id", "") or "").strip() or None,
+            username=username,
+            display_name=getattr(principal, "display_name", None),
+            activity=activity,
+        )
+        self._session.commit()
+        domain_events.collaboration_changed.emit(task_id)
+
+    def clear_task_presence(self, task_id: str) -> None:
+        task = self._require_task(task_id)
+        require_permission(self._user_session, "collaboration.read", operation_label="clear task presence")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "collaboration.read",
+            operation_label="clear task presence",
+        )
+        username = self._principal_primary_alias()
+        if not username:
+            return
+        self._presence_repo.clear(task_id=task_id, username=username)
+        self._session.commit()
+        domain_events.collaboration_changed.emit(task_id)
+
+    def list_task_presence(self, task_id: str) -> list[TaskPresenceStatusItem]:
+        task = self._require_task(task_id)
+        require_permission(self._user_session, "collaboration.read", operation_label="view task presence")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "collaboration.read",
+            operation_label="view task presence",
+        )
+        project = self._project_repo.get(task.project_id)
+        return self._presence_items_for_tasks(
+            tasks=[task],
+            project_name_by_id={task.project_id: project.name if project is not None else ""},
+            limit=50,
+        )
+
+    def list_active_presence(self, *, limit: int = 200) -> list[TaskPresenceStatusItem]:
+        require_permission(self._user_session, "collaboration.read", operation_label="view active task presence")
+        tasks = self._accessible_tasks_for_collaboration()
+        if not tasks:
+            return []
+        project_name_by_id = {task.project_id: self._project_name(task.project_id) for task in tasks}
+        return self._presence_items_for_tasks(
+            tasks=tasks,
+            project_name_by_id=project_name_by_id,
+            limit=limit,
+        )
+
     def list_inbox(self, *, limit: int = 200) -> list[CollaborationInboxItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view collaboration inbox")
         items: list[CollaborationInboxItem] = []
@@ -254,15 +328,53 @@ class CollaborationService(ProjectManagementModuleGuardMixin):
         return rows[:limit]
 
     def _list_accessible_comments(self, *, limit: int) -> list[TaskComment]:
-        accessible_task_ids: list[str] = []
+        tasks = self._accessible_tasks_for_collaboration()
+        return self._comment_repo.list_recent_for_tasks([task.id for task in tasks], limit=limit)
+
+    def _accessible_tasks_for_collaboration(self):
+        tasks = []
         for project in self._project_repo.list_all():
             if self._user_session is None:
                 continue
             if not self._user_session.has_project_permission(project.id, "collaboration.read"):
                 continue
-            for task in self._task_repo.list_by_project(project.id):
-                accessible_task_ids.append(task.id)
-        return self._comment_repo.list_recent_for_tasks(accessible_task_ids, limit=limit)
+            tasks.extend(self._task_repo.list_by_project(project.id))
+        return tasks
+
+    def _presence_items_for_tasks(
+        self,
+        *,
+        tasks,
+        project_name_by_id: dict[str, str],
+        limit: int,
+    ) -> list[TaskPresenceStatusItem]:
+        task_by_id = {task.id: task for task in tasks}
+        rows = self._presence_repo.list_recent_for_tasks(
+            list(task_by_id.keys()),
+            since=datetime.now() - timedelta(seconds=self._presence_ttl_seconds),
+            limit=limit,
+        )
+        principal = self._user_session.principal if self._user_session is not None else None
+        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
+        items: list[TaskPresenceStatusItem] = []
+        for row in rows:
+            task = task_by_id.get(row.task_id)
+            if task is None:
+                continue
+            items.append(
+                TaskPresenceStatusItem(
+                    task_id=task.id,
+                    task_name=task.name,
+                    project_id=task.project_id,
+                    project_name=project_name_by_id.get(task.project_id, ""),
+                    username=row.username,
+                    display_name=row.display_name,
+                    activity=row.activity,
+                    last_seen_at=row.last_seen_at,
+                    is_self=bool(principal_user_id and row.user_id == principal_user_id),
+                )
+            )
+        return items
 
     def _notification_from_audit(self, row) -> CollaborationNotificationItem | None:
         if row.entity_type == "approval_request":

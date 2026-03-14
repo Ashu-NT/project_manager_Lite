@@ -15,6 +15,8 @@ from core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     CollaborationMentionCandidate,
     CollaborationNotificationItem,
+    TaskPresence,
+    TaskPresenceStatusItem,
     TaskComment,
 )
 from core.modules.project_management.domain.cost import CostItem
@@ -54,6 +56,8 @@ __all__ = [
     "TaskComment",
     "CollaborationInboxItem",
     "CollaborationNotificationItem",
+    "TaskPresence",
+    "TaskPresenceStatusItem",
     "RegisterEntry",
     "RegisterEntryType",
     "RegisterEntrySeverity",

@@ -65,7 +65,10 @@ from infra.platform.db.repositories import (
 from infra.platform.db.access import SqlAlchemyProjectMembershipRepository
 from infra.platform.db.repositories_approval import SqlAlchemyApprovalRepository
 from infra.platform.db.repositories_audit import SqlAlchemyAuditLogRepository
-from infra.modules.project_management.db.collaboration import SqlAlchemyTaskCommentRepository
+from infra.modules.project_management.db.collaboration import (
+    SqlAlchemyTaskCommentRepository,
+    SqlAlchemyTaskPresenceRepository,
+)
 from infra.modules.project_management.db.portfolio import (
     SqlAlchemyPortfolioIntakeRepository,
     SqlAlchemyPortfolioScenarioRepository,
@@ -191,6 +194,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     approval_repo = SqlAlchemyApprovalRepository(session)
     register_repo = SqlAlchemyRegisterEntryRepository(session)
     task_comment_repo = SqlAlchemyTaskCommentRepository(session)
+    task_presence_repo = SqlAlchemyTaskPresenceRepository(session)
     portfolio_intake_repo = SqlAlchemyPortfolioIntakeRepository(session)
     portfolio_scenario_repo = SqlAlchemyPortfolioScenarioRepository(session)
 
@@ -406,6 +410,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     collaboration_service = CollaborationService(
         session=session,
         comment_repo=task_comment_repo,
+        presence_repo=task_presence_repo,
         task_repo=task_repo,
         project_repo=project_repo,
         user_repo=user_repo,

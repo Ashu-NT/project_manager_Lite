@@ -13,6 +13,7 @@ from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 from ui.platform.shared.incident_support import emit_error_event, message_with_incident
 from ui.modules.project_management.shared.concurrency import handle_stale_write
+from ui.modules.project_management.task.presence import task_presence_session
 from ui.modules.project_management.task.dialogs import (
     DependencyListDialog,
     TaskEditDialog,
@@ -76,60 +77,65 @@ class TaskActionsMixin:
             return
 
         dlg = TaskEditDialog(self, task=task)
-        while True:
-            if dlg.exec() != QDialog.Accepted:
-                return
-            try:
-                transition_kwargs = getattr(dlg, "status_transition_kwargs", {})
-                status_value = dlg.status if not transition_kwargs else task.status
-                updated_task = self._task_service.update_task(
-                    task_id=task.id,
-                    expected_version=getattr(task, "version", None),
-                    name=dlg.name,
-                    description=dlg.description,
-                    start_date=dlg.start_date,
-                    duration_days=dlg.duration_days,
-                    status=status_value,
-                    priority=dlg.priority,
-                    deadline=dlg.deadline,
-                )
-                if transition_kwargs:
-                    self._task_service.update_progress(
+        with task_presence_session(
+            getattr(self, "_collaboration_service", None),
+            task_id=task.id,
+            activity="editing",
+        ):
+            while True:
+                if dlg.exec() != QDialog.Accepted:
+                    return
+                try:
+                    transition_kwargs = getattr(dlg, "status_transition_kwargs", {})
+                    status_value = dlg.status if not transition_kwargs else task.status
+                    updated_task = self._task_service.update_task(
                         task_id=task.id,
-                        status=dlg.status,
-                        expected_version=getattr(updated_task, "version", None),
-                        **transition_kwargs,
+                        expected_version=getattr(task, "version", None),
+                        name=dlg.name,
+                        description=dlg.description,
+                        start_date=dlg.start_date,
+                        duration_days=dlg.duration_days,
+                        status=status_value,
+                        priority=dlg.priority,
+                        deadline=dlg.deadline,
                     )
-            except (ValidationError, BusinessRuleError, NotFoundError) as exc:
-                incident_id = emit_error_event(
-                    event_type="business.task.update.error",
-                    message="Task update failed.",
-                    parent=self,
-                    error=exc,
-                    data={"task_id": task.id},
-                )
-                QMessageBox.warning(self, "Error", message_with_incident(str(exc), incident_id))
-                continue
-            except ConcurrencyError:
-                handle_stale_write(
-                    self,
-                    title="Task",
-                    entity_label="task",
-                    reload_callback=self.reload_tasks,
-                )
+                    if transition_kwargs:
+                        self._task_service.update_progress(
+                            task_id=task.id,
+                            status=dlg.status,
+                            expected_version=getattr(updated_task, "version", None),
+                            **transition_kwargs,
+                        )
+                except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+                    incident_id = emit_error_event(
+                        event_type="business.task.update.error",
+                        message="Task update failed.",
+                        parent=self,
+                        error=exc,
+                        data={"task_id": task.id},
+                    )
+                    QMessageBox.warning(self, "Error", message_with_incident(str(exc), incident_id))
+                    continue
+                except ConcurrencyError:
+                    handle_stale_write(
+                        self,
+                        title="Task",
+                        entity_label="task",
+                        reload_callback=self.reload_tasks,
+                    )
+                    return
+                except Exception as exc:
+                    incident_id = emit_error_event(
+                        event_type="business.task.update.error",
+                        message="Task update failed with unexpected error.",
+                        parent=self,
+                        error=exc,
+                        data={"task_id": task.id},
+                    )
+                    QMessageBox.critical(self, "Error", message_with_incident(str(exc), incident_id))
+                    return
+                self.reload_tasks()
                 return
-            except Exception as exc:
-                incident_id = emit_error_event(
-                    event_type="business.task.update.error",
-                    message="Task update failed with unexpected error.",
-                    parent=self,
-                    error=exc,
-                    data={"task_id": task.id},
-                )
-                QMessageBox.critical(self, "Error", message_with_incident(str(exc), incident_id))
-                return
-            self.reload_tasks()
-            return
 
     def delete_task(self):
         task = self._get_selected_task()
@@ -160,43 +166,48 @@ class TaskActionsMixin:
             return
 
         dlg = TaskProgressDialog(self, task=task)
-        while True:
-            if dlg.exec() != QDialog.Accepted:
-                return
-            try:
-                kwargs = dlg.build_payload()
-                if kwargs is None:
-                    continue
+        with task_presence_session(
+            getattr(self, "_collaboration_service", None),
+            task_id=task.id,
+            activity="updating progress",
+        ):
+            while True:
+                if dlg.exec() != QDialog.Accepted:
+                    return
+                try:
+                    kwargs = dlg.build_payload()
+                    if kwargs is None:
+                        continue
 
-                if not kwargs:
-                    QMessageBox.information(
-                        self,
-                        "Update progress",
-                        "Please select at least one field to update.",
+                    if not kwargs:
+                        QMessageBox.information(
+                            self,
+                            "Update progress",
+                            "Please select at least one field to update.",
+                        )
+                        continue
+
+                    self._task_service.update_progress(
+                        task_id=task.id,
+                        expected_version=getattr(task, "version", None),
+                        **kwargs,
                     )
+                except (ValidationError, BusinessRuleError, NotFoundError) as exc:
+                    QMessageBox.warning(self, "Error", str(exc))
                     continue
-
-                self._task_service.update_progress(
-                    task_id=task.id,
-                    expected_version=getattr(task, "version", None),
-                    **kwargs,
-                )
-            except (ValidationError, BusinessRuleError, NotFoundError) as exc:
-                QMessageBox.warning(self, "Error", str(exc))
-                continue
-            except ConcurrencyError:
-                handle_stale_write(
-                    self,
-                    title="Update progress",
-                    entity_label="task",
-                    reload_callback=self.reload_tasks,
-                )
+                except ConcurrencyError:
+                    handle_stale_write(
+                        self,
+                        title="Update progress",
+                        entity_label="task",
+                        reload_callback=self.reload_tasks,
+                    )
+                    return
+                except Exception as exc:
+                    QMessageBox.critical(self, "Error", str(exc))
+                    return
+                self.reload_tasks()
                 return
-            except Exception as exc:
-                QMessageBox.critical(self, "Error", str(exc))
-                return
-            self.reload_tasks()
-            return
 
     def manage_dependencies(self):
         project_id = self._current_project_id()

@@ -9,6 +9,7 @@ from .models import (
     ProjectMembership,
     Task,
     TaskComment,
+    TaskPresence,
     Resource,
     TaskAssignment,
     TaskDependency,
@@ -142,6 +143,31 @@ class TaskCommentRepository(ABC):
     def list_by_task(self, task_id: str) -> List[TaskComment]: ...
     @abstractmethod
     def list_recent_for_tasks(self, task_ids: List[str], limit: int = 200) -> List[TaskComment]: ...
+
+
+class TaskPresenceRepository(ABC):
+    @abstractmethod
+    def touch(
+        self,
+        *,
+        task_id: str,
+        user_id: str | None,
+        username: str,
+        display_name: str | None,
+        activity: str,
+    ) -> TaskPresence: ...
+
+    @abstractmethod
+    def clear(self, *, task_id: str, username: str) -> None: ...
+
+    @abstractmethod
+    def list_recent_for_tasks(
+        self,
+        task_ids: List[str],
+        *,
+        since,
+        limit: int = 200,
+    ) -> List[TaskPresence]: ...
 
 
 class DependencyRepository(ABC):

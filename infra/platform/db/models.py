@@ -534,6 +534,26 @@ class TaskCommentORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class TaskPresenceORM(Base):
+    __tablename__ = "task_presence"
+    __table_args__ = (
+        UniqueConstraint("task_id", "username", name="ux_task_presence_task_username"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    task_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    username: Mapped[str] = mapped_column(String(128), nullable=False)
+    display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    activity: Mapped[str] = mapped_column(String(32), nullable=False, default="reviewing", server_default="reviewing")
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class PortfolioIntakeItemORM(Base):
     __tablename__ = "portfolio_intake_items"
 
@@ -600,6 +620,8 @@ Index("idx_approval_project", ApprovalRequestORM.project_id)
 Index("idx_approval_type", ApprovalRequestORM.request_type)
 Index("idx_task_comments_task", TaskCommentORM.task_id)
 Index("idx_task_comments_created", TaskCommentORM.created_at)
+Index("idx_task_presence_task", TaskPresenceORM.task_id)
+Index("idx_task_presence_seen", TaskPresenceORM.last_seen_at)
 Index("idx_portfolio_intake_status", PortfolioIntakeItemORM.status)
 Index("idx_portfolio_intake_updated", PortfolioIntakeItemORM.updated_at)
 Index("idx_portfolio_scenarios_updated", PortfolioScenarioORM.updated_at)
