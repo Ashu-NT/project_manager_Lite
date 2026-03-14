@@ -59,7 +59,7 @@ from infra.modules.project_management.db.repositories_task import (
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
-from infra.modules.project_management.db.repositories_timesheet import (
+from infra.platform.db.time.repository import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )

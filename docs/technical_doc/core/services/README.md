@@ -33,6 +33,8 @@ The executable service layer is now split between shared platform services and m
 
 - `core/platform/org/service.py`
   - employee and organization lifecycle
+- `core/platform/time/service.py`
+  - canonical time-entry and timesheet-period workflows reused by the PM wrapper today
 - `core/platform/modules/service.py`
   - catalog, entitlement, lifecycle status, and provisioning rules
 - `core/platform/modules/runtime.py`
@@ -42,7 +44,7 @@ The executable service layer is now split between shared platform services and m
 
 - `project/`: project lifecycle, query, and project-resource planning
 - `task/`: task lifecycle, assignments, dependencies, time-entry integration
-- `timesheet/`: time-entry and period workflows
+- `timesheet/`: PM compatibility wrapper over the shared platform time service
 - `resource/`: resource catalog and employee-linked worker handling
 - `cost/`: project/task cost workflows
 - `calendar/` and `work_calendar/`: persisted calendar state and working-day arithmetic

@@ -2,6 +2,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
+from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from .models import (
     CollaborationInboxItem,
     Project,
@@ -32,8 +33,6 @@ from .models import (
     ApprovalStatus,
     UserAccount,
     UserRoleBinding,
-    TimeEntry,
-    TimesheetPeriod,
     Employee,
     Organization,
 )
@@ -130,34 +129,6 @@ class AssignmentRepository(ABC):
     def list_by_assignment(self, task_id: str) -> List[TaskAssignment]: ...
     @abstractmethod
     def list_by_tasks(self, task_ids: List[str]) -> List[TaskAssignment]: ...
-
-
-class TimeEntryRepository(ABC):
-    @abstractmethod
-    def add(self, entry: TimeEntry) -> None: ...
-    @abstractmethod
-    def get(self, entry_id: str) -> Optional[TimeEntry]: ...
-    @abstractmethod
-    def update(self, entry: TimeEntry) -> None: ...
-    @abstractmethod
-    def delete(self, entry_id: str) -> None: ...
-    @abstractmethod
-    def list_by_assignment(self, assignment_id: str) -> List[TimeEntry]: ...
-    @abstractmethod
-    def delete_by_assignment(self, assignment_id: str) -> None: ...
-
-
-class TimesheetPeriodRepository(ABC):
-    @abstractmethod
-    def add(self, period: TimesheetPeriod) -> None: ...
-    @abstractmethod
-    def get(self, period_id: str) -> Optional[TimesheetPeriod]: ...
-    @abstractmethod
-    def update(self, period: TimesheetPeriod) -> None: ...
-    @abstractmethod
-    def get_by_resource_period(self, resource_id: str, period_start) -> Optional[TimesheetPeriod]: ...
-    @abstractmethod
-    def list_by_resource(self, resource_id: str) -> List[TimesheetPeriod]: ...
 
 
 class TaskCommentRepository(ABC):

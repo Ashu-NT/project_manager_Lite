@@ -29,7 +29,7 @@ service wiring, diagnostics, update flow, and platform path/resource handling.
 `build_service_graph(session)` composes:
 
 - repositories (project/task/resource/cost/calendar/auth/audit/approval/etc.)
-- service instances (auth, access, org, modules, project, task, cost, scheduling, reporting, finance, dashboard, etc.)
+- service instances (auth, access, org, modules, time, project, task, cost, scheduling, reporting, finance, dashboard, etc.)
 - application seams such as `PlatformRuntimeApplicationService`
 - user session context
 - governance apply handlers for approval workflows
@@ -69,6 +69,7 @@ Output is a zip archive suitable for admin support triage.
 - optimistic locking support is implemented in repository update helpers.
 - migrations are mandatory at startup in both CLI and GUI flows.
 - module entitlements are persisted per active organization, not only per install.
+- canonical shared time persistence now lives under `infra/platform/db/time`, with PM repository wrappers retained for compatibility.
 
 ## Environment Controls
 

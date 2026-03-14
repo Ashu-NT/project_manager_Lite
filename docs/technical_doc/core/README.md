@@ -5,7 +5,7 @@
 ## Current Structure
 
 - `core/platform/`
-  - shared business concerns such as auth, access, org, approval, audit, modules, and notifications
+  - shared business concerns such as auth, access, org, approval, audit, modules, notifications, and time
 - `core/modules/project_management/`
   - the current production-ready business module
 - `core/modules/maintenance_management/`
@@ -26,6 +26,7 @@
 - `core/platform/modules/`: module entitlement rules and runtime guards
 - `core/platform/notifications/`: domain event hub and signal primitive
 - `core/platform/org/`: organization and employee domain/services
+- `core/platform/time/`: canonical time-entry and timesheet-period domain and service boundary
 - `core/modules/project_management/domain/`: PM aggregates and enums
 - `core/modules/project_management/services/`: PM business services
 - `core/modules/project_management/reporting/`: export and rendering pipeline

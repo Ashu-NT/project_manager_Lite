@@ -9,6 +9,7 @@ from core.platform.audit import AuditService
 from core.platform.audit.service import AuditService as LegacyAuditService
 from core.platform.org import EmployeeService, OrganizationService
 from core.platform.modules.runtime import ModuleRuntimeService
+from core.platform.time import TimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -46,6 +47,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph, ServiceGraph)
     assert isinstance(graph.platform_runtime_application_service, PlatformRuntimeApplicationService)
     assert isinstance(graph.module_runtime_service, ModuleRuntimeService)
+    assert isinstance(graph.time_service, TimeService)
     assert isinstance(graph.approval_service, ApprovalService)
     assert isinstance(graph.auth_service, AuthService)
     assert isinstance(graph.organization_service, OrganizationService)
@@ -77,6 +79,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["organization_service"] is graph.organization_service
     assert as_dict["employee_service"] is graph.employee_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
+    assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service
     assert as_dict["audit_service"] is graph.audit_service
     assert as_dict["collaboration_service"] is graph.collaboration_service
@@ -87,6 +90,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["project_resource_service"] is graph.project_resource_service
     assert as_dict["timesheet_service"] is graph.timesheet_service
     assert as_dict["session"] is session
+    assert graph.time_service is graph.timesheet_service
 
 
 def test_legacy_service_imports_point_to_new_packages():

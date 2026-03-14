@@ -14,6 +14,7 @@ Persistence is split between `infra/platform/db/` for shared platform concerns a
   - `audit/`
   - `modules/`
   - `org/`
+  - `time/`
 - PM aggregate folders:
   - `project/`
   - `task/`
@@ -44,6 +45,9 @@ Core tables:
   - `employees`
   - `organization_module_entitlements`
   - `project_memberships`
+- shared time:
+  - `time_entries`
+  - `timesheet_periods`
 - security/governance:
   - `users`, `roles`, `permissions`
   - `user_roles`, `role_permissions`

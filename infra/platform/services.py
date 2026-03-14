@@ -22,6 +22,7 @@ from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
 from core.platform.org import EmployeeService, OrganizationService
+from core.platform.time import TimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
@@ -101,6 +102,7 @@ class ServiceGraph:
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
+    time_service: TimeService
     auth_service: AuthService
     organization_service: OrganizationService
     employee_service: EmployeeService
@@ -134,6 +136,7 @@ class ServiceGraph:
             "platform_runtime_application_service": self.platform_runtime_application_service,
             "module_runtime_service": self.module_runtime_service,
             "module_catalog_service": self.module_catalog_service,
+            "time_service": self.time_service,
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
             "employee_service": self.employee_service,
@@ -295,6 +298,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         audit_service=audit_service,
         module_catalog_service=module_runtime_service,
     )
+    time_service = timesheet_service
     project_resource_service = ProjectResourceService(
         project_resource_repo=project_resource_repo,
         resource_repo=resource_repo,
@@ -525,6 +529,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         platform_runtime_application_service=platform_runtime_application_service,
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
+        time_service=time_service,
         auth_service=auth_service,
         organization_service=organization_service,
         employee_service=employee_service,

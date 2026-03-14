@@ -9,6 +9,7 @@ from core.platform.access.domain import ProjectMembership
 from core.platform.auth.domain import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
 from core.platform.audit.domain import AuditLogEntry
 from core.platform.org.domain import Employee, EmploymentType, Organization
+from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
 from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
 from core.modules.project_management.domain.collaboration import CollaborationInboxItem, CollaborationMentionCandidate, TaskComment
@@ -29,7 +30,7 @@ from core.modules.project_management.domain.register import (
     RegisterEntryType,
 )
 from core.modules.project_management.domain.resource import Resource
-from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency, TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency
 
 __all__ = [
     "generate_id",

@@ -155,6 +155,12 @@ Status: in progress
    - `work_entry`
 3. Keep PM resource planning intact while preparing shared time intake.
 
+Progress already shipped:
+
+- canonical shared time domain types now live under `core/platform/time`
+- shared time service orchestration now exists at the platform layer with PM compatibility wrappers preserved
+- canonical time persistence now lives under `infra/platform/db/time` with PM repository wrappers preserved
+
 Exit criteria:
 
 - PM time approval still works
@@ -230,6 +236,6 @@ Exit criteria:
 
 ## Current Recommended Next Step
 
-1. Finish Phase 3 by extracting shared time concepts (`timesheet_period`, `work_entry`, and related ownership) into a platform-facing boundary.
-2. Preserve the current PM workflows while making that time model consumable by future Payroll and Maintenance modules.
+1. Finish Phase 3 by generalizing the new platform time boundary with module-neutral `work_entry` ownership plus site/department context.
+2. Preserve the current PM workflows while making that shared time model consumable by future Payroll and Maintenance modules.
 3. After that, start the Maintenance module skeleton rather than opening both Maintenance and Payroll at the same time.

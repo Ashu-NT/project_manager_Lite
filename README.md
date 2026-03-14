@@ -18,7 +18,7 @@ Delivered in the current codebase:
 
 Pending major work:
 
-- finish the shared platform time boundary (`timesheet_period`, `work_entry`, site/department ownership) so PM, Payroll, and Maintenance can use the same model
+- complete the shared platform time model by adding module-neutral `work_entry` ownership and site/department context on top of the new platform time boundary
 - `Maintenance Management`, `QHSE`, and `Payroll` business modules
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
 - richer notification delivery, conflict handling, and integration/webhook support
@@ -30,14 +30,15 @@ The next priority is to finish the shared platform time model.
 
 Why this comes first:
 
+- the canonical platform time service and persistence boundary now exist, but the ownership model is still too PM-shaped for future modules
 - it is the remaining Phase 3 platform extraction work
 - it lets `Project Management` keep its current timesheet and resource workflows while moving shared ownership into the platform layer
 - it is the clean dependency we need before building `Payroll` or `Maintenance Management`
 
 Concretely, the next implementation slice should:
 
-1. move `timesheet_period` and `work_entry` concepts behind a platform-facing boundary
-2. keep PM time approval and resource planning behavior stable during the extraction
+1. add module-neutral `work_entry` ownership and supporting site/department context on top of the new `core/platform/time` boundary
+2. keep PM time approval and resource planning behavior stable during the generalization
 3. make the shared time model reusable by future Payroll and Maintenance modules
 
 After that, the next module priority should be the `Maintenance Management` skeleton, not Payroll first.
