@@ -71,6 +71,7 @@ class TimesheetEntriesMixin:
             note=(note or "").strip(),
             author_user_id=getattr(getattr(self._user_session, "principal", None), "user_id", None),
             author_username=getattr(getattr(self._user_session, "principal", None), "username", None),
+            **self._resolve_work_entry_context(assignment=assignment, resource=resource),
         )
         seeded_entry = None
         try:

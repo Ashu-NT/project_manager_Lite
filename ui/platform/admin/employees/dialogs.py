@@ -23,6 +23,7 @@ class EmployeeEditDialog(QDialog):
         self.employee_code_edit = QLineEdit()
         self.full_name_edit = QLineEdit()
         self.department_edit = QLineEdit()
+        self.site_name_edit = QLineEdit()
         self.title_edit = QLineEdit()
         self.email_edit = QLineEdit()
         self.phone_edit = QLineEdit()
@@ -30,6 +31,7 @@ class EmployeeEditDialog(QDialog):
             self.employee_code_edit,
             self.full_name_edit,
             self.department_edit,
+            self.site_name_edit,
             self.title_edit,
             self.email_edit,
             self.phone_edit,
@@ -51,6 +53,7 @@ class EmployeeEditDialog(QDialog):
             self.employee_code_edit.setText(employee.employee_code)
             self.full_name_edit.setText(employee.full_name)
             self.department_edit.setText(employee.department or "")
+            self.site_name_edit.setText(getattr(employee, "site_name", "") or "")
             self.title_edit.setText(employee.title or "")
             self.email_edit.setText(employee.email or "")
             self.phone_edit.setText(employee.phone or "")
@@ -71,6 +74,7 @@ class EmployeeEditDialog(QDialog):
         form.addRow("Employee code:", self.employee_code_edit)
         form.addRow("Full name:", self.full_name_edit)
         form.addRow("Department:", self.department_edit)
+        form.addRow("Site:", self.site_name_edit)
         form.addRow("Title:", self.title_edit)
         form.addRow("Employment type:", self.employment_type_combo)
         form.addRow("Email:", self.email_edit)
@@ -108,6 +112,10 @@ class EmployeeEditDialog(QDialog):
     @property
     def department(self) -> str:
         return self.department_edit.text().strip()
+
+    @property
+    def site_name(self) -> str:
+        return self.site_name_edit.text().strip()
 
     @property
     def title(self) -> str:

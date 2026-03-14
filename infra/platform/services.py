@@ -292,6 +292,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         assignment_repo=assignment_repo,
         task_repo=task_repo,
         resource_repo=resource_repo,
+        employee_repo=employee_repo,
         time_entry_repo=time_entry_repo,
         timesheet_period_repo=timesheet_period_repo,
         user_session=user_session,

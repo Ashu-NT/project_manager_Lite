@@ -48,6 +48,7 @@ class Employee:
     employee_code: str
     full_name: str
     department: str = ""
+    site_name: str = ""
     title: str = ""
     employment_type: EmploymentType = EmploymentType.FULL_TIME
     email: Optional[str] = None
@@ -60,6 +61,7 @@ class Employee:
         employee_code: str,
         full_name: str,
         department: str = "",
+        site_name: str = "",
         title: str = "",
         employment_type: EmploymentType = EmploymentType.FULL_TIME,
         email: str | None = None,
@@ -71,6 +73,7 @@ class Employee:
             employee_code=employee_code,
             full_name=full_name,
             department=department,
+            site_name=site_name,
             title=title,
             employment_type=employment_type,
             email=email,

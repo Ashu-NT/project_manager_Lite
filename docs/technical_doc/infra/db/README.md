@@ -59,6 +59,8 @@ Schema features:
 - uniqueness constraints for mapping tables
 - targeted indexes for common query filters
 - optimistic lock `version` columns on mutable aggregates
+- employee rows include site context for shared staffing/time metadata
+- time-entry rows include neutral owner metadata plus optional employee/site/department snapshots for future cross-module reuse
 
 ## Mapper Strategy
 

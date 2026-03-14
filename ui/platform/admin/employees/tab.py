@@ -137,9 +137,9 @@ class EmployeeAdminTab(QWidget):
         controls_layout.addLayout(toolbar)
         layout.addWidget(controls)
 
-        self.table = QTableWidget(0, 7)
+        self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
-            ["Code", "Full Name", "Department", "Title", "Type", "Contact", "Active"]
+            ["Code", "Full Name", "Department", "Site", "Title", "Type", "Contact", "Active"]
         )
         style_table(self.table)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -151,8 +151,9 @@ class EmployeeAdminTab(QWidget):
         header_widget.setSectionResizeMode(2, QHeaderView.ResizeToContents)
         header_widget.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         header_widget.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(5, QHeaderView.Stretch)
-        header_widget.setSectionResizeMode(6, QHeaderView.ResizeToContents)
+        header_widget.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header_widget.setSectionResizeMode(6, QHeaderView.Stretch)
+        header_widget.setSectionResizeMode(7, QHeaderView.ResizeToContents)
         layout.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Employees", callback=self.reload_employees))
@@ -199,6 +200,7 @@ class EmployeeAdminTab(QWidget):
                 employee.employee_code,
                 employee.full_name,
                 employee.department or "",
+                getattr(employee, "site_name", "") or "",
                 employee.title or "",
                 employee.employment_type.value.replace("_", " ").title(),
                 contact,
@@ -206,7 +208,7 @@ class EmployeeAdminTab(QWidget):
             )
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
-                if col == 6:
+                if col == 7:
                     item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row, col, item)
             self.table.item(row, 0).setData(Qt.UserRole, employee.id)
@@ -224,6 +226,7 @@ class EmployeeAdminTab(QWidget):
                     employee_code=dlg.employee_code,
                     full_name=dlg.full_name,
                     department=dlg.department,
+                    site_name=dlg.site_name,
                     title=dlg.title,
                     employment_type=dlg.employment_type,
                     email=dlg.email,
@@ -254,6 +257,7 @@ class EmployeeAdminTab(QWidget):
                     employee_code=dlg.employee_code,
                     full_name=dlg.full_name,
                     department=dlg.department,
+                    site_name=dlg.site_name,
                     title=dlg.title,
                     employment_type=dlg.employment_type,
                     email=dlg.email,

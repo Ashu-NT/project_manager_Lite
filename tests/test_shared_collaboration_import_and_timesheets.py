@@ -8,6 +8,7 @@ import pytest
 
 from core.platform.common.models import TimesheetPeriodStatus
 from core.platform.common.exceptions import ValidationError
+from core.platform.common.models import WorkerType
 from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 
@@ -106,6 +107,45 @@ def test_legacy_assignment_hours_seed_opening_balance_before_timesheet_lock(serv
 
     with pytest.raises(ValidationError, match="timesheet"):
         ts.set_assignment_hours(assignment.id, 8.0)
+
+
+def test_time_entries_capture_platform_work_entry_context_for_employee_resources(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    es = services["employee_service"]
+
+    employee = es.create_employee(
+        employee_code="EMP-101",
+        full_name="Context Owner",
+        department="Operations",
+        site_name="Hamburg Yard",
+        title="Technician",
+        email="context.owner@example.com",
+    )
+    project = ps.create_project("Shared Time Context")
+    task = ts.create_task(project.id, "Log Shared Work", start_date=date(2026, 8, 4), duration_days=2)
+    resource = rs.create_resource(
+        "",
+        hourly_rate=88.0,
+        worker_type=WorkerType.EMPLOYEE,
+        employee_id=employee.id,
+    )
+    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
+
+    entry = ts.add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 8, 4),
+        hours=5.0,
+        note="Shared platform work entry snapshot",
+    )
+
+    assert entry.assignment_id == assignment.id
+    assert entry.owner_type == "task_assignment"
+    assert entry.owner_id == assignment.id
+    assert entry.employee_id == employee.id
+    assert entry.department_name == "Operations"
+    assert entry.site_name == "Hamburg Yard"
 
 
 def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):

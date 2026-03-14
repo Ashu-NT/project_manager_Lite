@@ -144,7 +144,7 @@ Exit criteria:
 
 ### Phase 3: Shared Time and Employee Model
 
-Status: in progress
+Status: completed
 
 1. Extract timesheet and employee concepts so they can be consumed by PM, Maintenance, and Payroll.
 2. Define canonical entities:
@@ -160,6 +160,8 @@ Progress already shipped:
 - canonical shared time domain types now live under `core/platform/time`
 - shared time service orchestration now exists at the platform layer with PM compatibility wrappers preserved
 - canonical time persistence now lives under `infra/platform/db/time` with PM repository wrappers preserved
+- work entries now carry module-neutral ownership plus employee/site/department snapshot context
+- employees now include site context so PM resources and future modules can resolve shared work-entry metadata from platform records
 
 Exit criteria:
 
@@ -236,6 +238,6 @@ Exit criteria:
 
 ## Current Recommended Next Step
 
-1. Finish Phase 3 by generalizing the new platform time boundary with module-neutral `work_entry` ownership plus site/department context.
-2. Preserve the current PM workflows while making that shared time model consumable by future Payroll and Maintenance modules.
-3. After that, start the Maintenance module skeleton rather than opening both Maintenance and Payroll at the same time.
+1. Start Phase 4 with the `maintenance_management` module scaffold across `core`, `infra`, and `ui`.
+2. Introduce the first maintenance aggregates and service seams while reusing shared employees, approvals, documents, audit, and time.
+3. Keep `Payroll` behind the maintenance skeleton so the next module build-out does not skip ahead of the shared operations foundation.

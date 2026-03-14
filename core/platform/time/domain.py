@@ -26,6 +26,11 @@ class TimeEntry:
     author_username: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    owner_type: str = "task_assignment"
+    owner_id: str | None = None
+    employee_id: str | None = None
+    department_name: str = ""
+    site_name: str = ""
 
     @staticmethod
     def create(
@@ -36,6 +41,11 @@ class TimeEntry:
         note: str = "",
         author_user_id: str | None = None,
         author_username: str | None = None,
+        owner_type: str = "task_assignment",
+        owner_id: str | None = None,
+        employee_id: str | None = None,
+        department_name: str = "",
+        site_name: str = "",
     ) -> "TimeEntry":
         now = datetime.now(timezone.utc)
         return TimeEntry(
@@ -48,6 +58,11 @@ class TimeEntry:
             author_username=author_username,
             created_at=now,
             updated_at=now,
+            owner_type=(owner_type or "task_assignment").strip() or "task_assignment",
+            owner_id=owner_id or assignment_id,
+            employee_id=employee_id,
+            department_name=(department_name or "").strip(),
+            site_name=(site_name or "").strip(),
         )
 
 
@@ -82,8 +97,12 @@ class TimesheetPeriod:
         )
 
 
+WorkEntry = TimeEntry
+
+
 __all__ = [
     "TimeEntry",
+    "WorkEntry",
     "TimesheetPeriod",
     "TimesheetPeriodStatus",
 ]

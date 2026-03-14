@@ -114,6 +114,7 @@ class EmployeeORM(Base):
     employee_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     full_name: Mapped[str] = mapped_column(String(256), nullable=False)
     department: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    site_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     title: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     employment_type: Mapped[EmploymentType] = mapped_column(
         SAEnum(EmploymentType),
@@ -188,6 +189,15 @@ class TimeEntryORM(Base):
     entry_date: Mapped[date] = mapped_column(Date, nullable=False)
     hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    owner_type: Mapped[str] = mapped_column(String(64), nullable=False, default="task_assignment", server_default="task_assignment")
+    owner_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    employee_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    department_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    site_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     author_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -196,6 +206,8 @@ class TimeEntryORM(Base):
 
 Index("idx_time_entries_assignment", TimeEntryORM.assignment_id)
 Index("idx_time_entries_date", TimeEntryORM.entry_date)
+Index("idx_time_entries_owner", TimeEntryORM.owner_type, TimeEntryORM.owner_id)
+Index("idx_time_entries_employee", TimeEntryORM.employee_id)
 
 
 class TimesheetPeriodORM(Base):

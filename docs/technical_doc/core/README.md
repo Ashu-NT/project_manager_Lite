@@ -25,8 +25,8 @@
 - `core/platform/common/`: shared interfaces, exceptions, and compatibility facades
 - `core/platform/modules/`: module entitlement rules and runtime guards
 - `core/platform/notifications/`: domain event hub and signal primitive
-- `core/platform/org/`: organization and employee domain/services
-- `core/platform/time/`: canonical time-entry and timesheet-period domain and service boundary
+- `core/platform/org/`: organization and employee domain/services, including site context on employees
+- `core/platform/time/`: canonical work-entry/time-entry and timesheet-period domain and service boundary
 - `core/modules/project_management/domain/`: PM aggregates and enums
 - `core/modules/project_management/services/`: PM business services
 - `core/modules/project_management/reporting/`: export and rendering pipeline

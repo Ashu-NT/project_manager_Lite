@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from core.platform.audit.service import AuditService
 from core.platform.auth.session import UserSessionContext
-from core.platform.common.interfaces import AssignmentRepository, ResourceRepository, TaskRepository
+from core.platform.common.interfaces import AssignmentRepository, EmployeeRepository, ResourceRepository, TaskRepository
 from core.platform.time.entries import TimesheetEntriesMixin
 from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from core.platform.time.periods import TimesheetPeriodsMixin
@@ -26,6 +26,7 @@ class TimeService(
         assignment_repo: AssignmentRepository,
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
+        employee_repo: EmployeeRepository | None,
         time_entry_repo: TimeEntryRepository | None,
         timesheet_period_repo: TimesheetPeriodRepository | None,
         user_session: UserSessionContext | None = None,
@@ -36,6 +37,7 @@ class TimeService(
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._task_repo: TaskRepository = task_repo
         self._resource_repo: ResourceRepository = resource_repo
+        self._employee_repo: EmployeeRepository | None = employee_repo
         self._time_entry_repo = time_entry_repo
         self._timesheet_period_repo = timesheet_period_repo
         self._user_session: UserSessionContext | None = user_session

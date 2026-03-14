@@ -13,6 +13,7 @@ def test_employee_updates_keep_linked_resources_in_sync(services):
         employee_code="EMP-001",
         full_name="Alice Admin",
         department="PMO",
+        site_name="Lagos HQ",
         title="Planner",
         email="alice@example.com",
     )
@@ -33,6 +34,7 @@ def test_employee_updates_keep_linked_resources_in_sync(services):
     employee = employee_service.update_employee(
         employee.id,
         full_name="Alice Smith",
+        site_name="Berlin Hub",
         title="Senior Planner",
         email="",
         phone="+49-555-0101",
@@ -41,6 +43,7 @@ def test_employee_updates_keep_linked_resources_in_sync(services):
 
     refreshed = resource_service.get_resource(resource.id)
 
+    assert employee.site_name == "Berlin Hub"
     assert refreshed.name == "Alice Smith"
     assert refreshed.role == "Senior Planner"
     assert refreshed.contact == "+49-555-0101"

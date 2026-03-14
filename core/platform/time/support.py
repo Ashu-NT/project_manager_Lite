@@ -5,7 +5,7 @@ from datetime import date
 from typing import Protocol
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.common.interfaces import AssignmentRepository, ResourceRepository, TaskRepository
+from core.platform.common.interfaces import AssignmentRepository, EmployeeRepository, ResourceRepository, TaskRepository
 from core.platform.common.models import TaskAssignment
 from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
@@ -22,6 +22,7 @@ class TimesheetSupportMixin:
     _assignment_repo: AssignmentRepository
     _resource_repo: ResourceRepository
     _task_repo: TaskRepository
+    _employee_repo: EmployeeRepository | None
     _time_entry_repo: TimeEntryRepository | None
     _timesheet_period_repo: TimesheetPeriodRepository | None
 
@@ -42,6 +43,28 @@ class TimesheetSupportMixin:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         resource = self._resource_repo.get(assignment.resource_id)
         return assignment, task, resource
+
+    def _resolve_work_entry_context(
+        self,
+        *,
+        assignment: TaskAssignment,
+        resource,
+    ) -> dict[str, str | None]:
+        employee_id = getattr(resource, "employee_id", None) if resource is not None else None
+        department_name = ""
+        site_name = ""
+        if employee_id and self._employee_repo is not None:
+            employee = self._employee_repo.get(employee_id)
+            if employee is not None:
+                department_name = (employee.department or "").strip()
+                site_name = (getattr(employee, "site_name", "") or "").strip()
+        return {
+            "owner_type": "task_assignment",
+            "owner_id": assignment.id,
+            "employee_id": employee_id,
+            "department_name": department_name,
+            "site_name": site_name,
+        }
 
     def _sync_assignment_hours_from_entries(self, assignment_id: str) -> None:
         if self._time_entry_repo is None:
@@ -73,6 +96,7 @@ class TimesheetSupportMixin:
             hours=hours,
             note="Opening balance migrated from existing logged hours.",
             author_username="system",
+            **self._resolve_work_entry_context(assignment=assignment, resource=self._resource_repo.get(assignment.resource_id)),
         )
         self._time_entry_repo.add(seeded_entry)
         self._session.flush()
@@ -97,7 +121,16 @@ class TimesheetSupportMixin:
             "resource_name": resource_name or assignment.resource_id,
             "hours": entry.hours,
             "entry_date": str(entry.entry_date),
+            "owner_type": entry.owner_type,
         }
+        if entry.owner_id:
+            details["owner_id"] = entry.owner_id
+        if entry.employee_id:
+            details["employee_id"] = entry.employee_id
+        if entry.department_name:
+            details["department_name"] = entry.department_name
+        if entry.site_name:
+            details["site_name"] = entry.site_name
         for key, value in (extra or {}).items():
             if value is not None:
                 details[key] = value

@@ -57,6 +57,7 @@ class EmployeeService:
         employee_code: str,
         full_name: str,
         department: str = "",
+        site_name: str = "",
         title: str = "",
         employment_type: EmploymentType | str = EmploymentType.FULL_TIME,
         email: str | None = None,
@@ -77,6 +78,7 @@ class EmployeeService:
             employee_code=normalized_code,
             full_name=normalized_name,
             department=(department or "").strip(),
+            site_name=(site_name or "").strip(),
             title=(title or "").strip(),
             employment_type=_coerce_employment_type(employment_type),
             email=_normalize_email(email),
@@ -101,6 +103,7 @@ class EmployeeService:
                 "employee_code": employee.employee_code,
                 "full_name": employee.full_name,
                 "department": employee.department,
+                "site_name": employee.site_name,
                 "title": employee.title,
             },
         )
@@ -114,6 +117,7 @@ class EmployeeService:
         employee_code: str | None = None,
         full_name: str | None = None,
         department: str | None = None,
+        site_name: str | None = None,
         title: str | None = None,
         employment_type: EmploymentType | str | None = None,
         email: str | None = None,
@@ -146,6 +150,8 @@ class EmployeeService:
             employee.full_name = normalized_name
         if department is not None:
             employee.department = (department or "").strip()
+        if site_name is not None:
+            employee.site_name = (site_name or "").strip()
         if title is not None:
             employee.title = (title or "").strip()
         if employment_type is not None:
@@ -176,6 +182,7 @@ class EmployeeService:
                 "employee_code": employee.employee_code,
                 "full_name": employee.full_name,
                 "department": employee.department,
+                "site_name": employee.site_name,
                 "title": employee.title,
                 "is_active": str(employee.is_active),
             },
