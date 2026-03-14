@@ -16,7 +16,6 @@ from ui.modules.project_management.cost.cost_dialogs import CostEditDialog
 from ui.modules.project_management.cost.error_handling import show_cost_business_rule
 from ui.modules.project_management.cost.models import CostTableModel
 
-
 class CostActionsMixin:
     _cost_service: CostService
     model: CostTableModel
@@ -95,6 +94,7 @@ class CostActionsMixin:
             try:
                 self._cost_service.update_cost_item(
                     cost_id=item.id,
+                    expected_version=getattr(item, "version", None),
                     actual_amount=dlg.actual_amount,
                     description=dlg.description,
                     planned_amount=dlg.planned_amount,

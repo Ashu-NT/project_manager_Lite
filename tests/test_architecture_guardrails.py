@@ -682,7 +682,7 @@ def test_known_large_modules_have_growth_budgets():
         "ui/modules/project_management/resource/flow.py": 80,
         "ui/modules/project_management/resource/models.py": 100,
         "ui/modules/project_management/resource/dialogs.py": 260,
-        "core/platform/common/models.py": 80,
+        "core/platform/common/models.py": 90,
         "core/domain/__init__.py": 70,
         "core/modules/project_management/domain/identifiers.py": 40,
         "core/modules/project_management/domain/enums.py": 90,

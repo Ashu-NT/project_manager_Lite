@@ -204,9 +204,10 @@ class TimesheetSupportMixin:
         period: TimesheetPeriod,
         entry_count: int,
         total_hours: float,
+        project_ids: list[str] | None = None,
     ) -> dict[str, object]:
         resource = self._resource_repo.get(period.resource_id)
-        return {
+        details: dict[str, object] = {
             "resource_name": resource.name if resource is not None else period.resource_id,
             "period_start": str(period.period_start),
             "period_end": str(period.period_end),
@@ -214,6 +215,24 @@ class TimesheetSupportMixin:
             "entry_count": entry_count,
             "total_hours": total_hours,
         }
+        normalized_project_ids = [item for item in (project_ids or []) if str(item).strip()]
+        if len(normalized_project_ids) == 1:
+            details["project_id"] = normalized_project_ids[0]
+        elif normalized_project_ids:
+            details["project_ids"] = normalized_project_ids
+        return details
+
+    def _project_ids_for_entries(self, entries: list[TimeEntry]) -> list[str]:
+        project_ids: set[str] = set()
+        for entry in entries:
+            assignment = self._assignment_repo.get(entry.assignment_id)
+            if assignment is None:
+                continue
+            task = self._task_repo.get(assignment.task_id)
+            if task is None or not getattr(task, "project_id", None):
+                continue
+            project_ids.add(str(task.project_id))
+        return sorted(project_ids)
 
 
 __all__ = ["TimesheetSupportMixin"]

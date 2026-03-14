@@ -9,19 +9,22 @@ The staged migration plan toward a broader modular enterprise platform is tracke
 
 Delivered in the current codebase:
 
-- `Project Management` as the active production module
+- `Project Management` as the active production module for planning, execution, control, dashboarding, reporting, collaboration, and timesheets
 - grouped enterprise shell and platform admin workspaces
 - organization and employee management
 - persistent module licensing with organization-scoped entitlements
 - enterprise RBAC foundation, collaboration, portfolio, approvals, audit, and support tooling
+- PM in-app notifications, saved portfolio scenario comparison, and desktop optimistic-lock guards in normal edit flows
 - application-layer and transport-layer seams for future web/server adoption
 
 Pending major work:
 
+- `Project Management` enterprise follow-ups: remaining collaboration-service adoption in PM task flows, richer notification delivery beyond the in-app feed, presence indicators and broader concurrent-edit UX, configurable PMO scoring templates, and PM-facing audit/visualization polish
 - `Maintenance Management`, `QHSE`, and `Payroll` business modules
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
-- richer notification delivery, conflict handling, and integration/webhook support
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
+
+The detailed PM-specific backlog is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`.
 
 ## Next Priority
 
@@ -40,6 +43,8 @@ Concretely, the next implementation slice should:
 3. wire the new module into shell entitlements without changing existing PM behavior
 
 After that, the next priority should be deeper shared master data for formal site/department directories and then the `QHSE` module skeleton.
+
+This does not mean Project Management is fully finished. It means the next cross-module platform investment is Maintenance, while the remaining PM enterprise hardening continues in parallel through the PM roadmap.
 
 ## Core Capabilities
 

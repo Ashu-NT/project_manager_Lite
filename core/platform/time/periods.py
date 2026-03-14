@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ValidationError
+from core.platform.notifications.domain_events import domain_events
 from core.platform.time.domain import TimesheetPeriod, TimesheetPeriodStatus
 
 
@@ -37,17 +38,21 @@ class TimesheetPeriodsMixin:
         period.locked_at = None
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
+        project_ids = self._project_ids_for_entries(entries)
         record_audit(
             self,
             action="timesheet_period.submit",
             entity_type="timesheet_period",
             entity_id=period.id,
+            project_id=project_ids[0] if len(project_ids) == 1 else None,
             details=self._build_timesheet_period_audit_details(
                 period=period,
                 entry_count=len(entries),
                 total_hours=self._sum_entry_hours(entries),
+                project_ids=project_ids,
             ),
         )
+        self._emit_timesheet_period_project_events(project_ids)
         return period
 
     def approve_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
@@ -65,17 +70,21 @@ class TimesheetPeriodsMixin:
         period.locked_at = period.decided_at
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
+        project_ids = self._project_ids_for_entries(entries)
         record_audit(
             self,
             action="timesheet_period.approve",
             entity_type="timesheet_period",
             entity_id=period.id,
+            project_id=project_ids[0] if len(project_ids) == 1 else None,
             details=self._build_timesheet_period_audit_details(
                 period=period,
                 entry_count=len(entries),
                 total_hours=self._sum_entry_hours(entries),
+                project_ids=project_ids,
             ),
         )
+        self._emit_timesheet_period_project_events(project_ids)
         return period
 
     def reject_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
@@ -93,17 +102,21 @@ class TimesheetPeriodsMixin:
         period.locked_at = None
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
+        project_ids = self._project_ids_for_entries(entries)
         record_audit(
             self,
             action="timesheet_period.reject",
             entity_type="timesheet_period",
             entity_id=period.id,
+            project_id=project_ids[0] if len(project_ids) == 1 else None,
             details=self._build_timesheet_period_audit_details(
                 period=period,
                 entry_count=len(entries),
                 total_hours=self._sum_entry_hours(entries),
+                project_ids=project_ids,
             ),
         )
+        self._emit_timesheet_period_project_events(project_ids)
         return period
 
     def lock_timesheet_period(
@@ -123,17 +136,21 @@ class TimesheetPeriodsMixin:
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
         entries = self.list_time_entries_for_resource_period(resource_id, period_start=period.period_start)
+        project_ids = self._project_ids_for_entries(entries)
         record_audit(
             self,
             action="timesheet_period.lock",
             entity_type="timesheet_period",
             entity_id=period.id,
+            project_id=project_ids[0] if len(project_ids) == 1 else None,
             details=self._build_timesheet_period_audit_details(
                 period=period,
                 entry_count=len(entries),
                 total_hours=self._sum_entry_hours(entries),
+                project_ids=project_ids,
             ),
         )
+        self._emit_timesheet_period_project_events(project_ids)
         return period
 
     def unlock_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
@@ -147,18 +164,27 @@ class TimesheetPeriodsMixin:
         period.decision_note = (note or "").strip() or None
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
+        project_ids = self._project_ids_for_entries(entries)
         record_audit(
             self,
             action="timesheet_period.unlock",
             entity_type="timesheet_period",
             entity_id=period.id,
+            project_id=project_ids[0] if len(project_ids) == 1 else None,
             details=self._build_timesheet_period_audit_details(
                 period=period,
                 entry_count=len(entries),
                 total_hours=self._sum_entry_hours(entries),
+                project_ids=project_ids,
             ),
         )
+        self._emit_timesheet_period_project_events(project_ids)
         return period
+
+    @staticmethod
+    def _emit_timesheet_period_project_events(project_ids: list[str]) -> None:
+        for project_id in project_ids:
+            domain_events.tasks_changed.emit(project_id)
 
 
 __all__ = ["TimesheetPeriodsMixin"]

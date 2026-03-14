@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -117,6 +117,63 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
     assert collaboration.unread_mentions_count() == 0
 
 
+def test_collaboration_notifications_filter_project_scope_for_mentions_and_timesheet_workflow(services):
+    auth = services["auth_service"]
+    access = services["access_service"]
+    project_service = services["project_service"]
+    task_service = services["task_service"]
+    resource_service = services["resource_service"]
+    timesheet_service = services["timesheet_service"]
+    collaboration = services["collaboration_service"]
+
+    project_alpha = project_service.create_project("Notifications Alpha")
+    project_beta = project_service.create_project("Notifications Beta")
+    task_alpha = task_service.create_task(project_alpha.id, "Alpha Delivery Task")
+    task_beta = task_service.create_task(project_beta.id, "Beta Delivery Task")
+    viewer = auth.register_user("notify-viewer", "StrongPass123", role_names=["viewer"])
+
+    access.assign_project_membership(
+        project_id=project_alpha.id,
+        user_id=viewer.id,
+        scope_role="viewer",
+    )
+    collaboration.post_comment(task_id=task_alpha.id, body="Please review @notify-viewer")
+
+    resource = resource_service.create_resource("Shared Contributor", hourly_rate=95.0)
+    assignment_alpha = task_service.assign_resource(task_alpha.id, resource.id, 50.0)
+    assignment_beta = task_service.assign_resource(task_beta.id, resource.id, 50.0)
+    timesheet_service.add_time_entry(
+        assignment_alpha.id,
+        entry_date=date(2026, 6, 2),
+        hours=3.0,
+        note="Alpha execution",
+    )
+    timesheet_service.add_time_entry(
+        assignment_beta.id,
+        entry_date=date(2026, 6, 3),
+        hours=2.5,
+        note="Beta execution",
+    )
+    timesheet_service.submit_timesheet_period(
+        resource.id,
+        period_start=date(2026, 6, 1),
+        note="Ready for review",
+    )
+
+    login_as(services, "notify-viewer", "StrongPass123")
+
+    notifications = collaboration.list_notifications(limit=20)
+
+    mention = next(item for item in notifications if item.notification_type == "mention")
+    timesheet_notice = next(item for item in notifications if item.notification_type == "timesheet")
+
+    assert mention.project_id == project_alpha.id
+    assert mention.project_name == project_alpha.name
+    assert timesheet_notice.project_name == project_alpha.name
+    assert project_beta.name not in timesheet_notice.project_name
+    assert "Timesheet submitted" in timesheet_notice.headline
+
+
 def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
     project_service = services["project_service"]
     portfolio = services["portfolio_service"]
@@ -153,6 +210,63 @@ def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
     assert result.over_capacity is True
     assert "over budget" in result.summary
     assert "over capacity" in result.summary
+
+
+def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(services):
+    project_service = services["project_service"]
+    portfolio = services["portfolio_service"]
+    resource_service = services["resource_service"]
+
+    resource_service.create_resource("Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0)
+    project_alpha = project_service.create_project("Portfolio Alpha", planned_budget=400.0)
+    project_beta = project_service.create_project("Portfolio Beta", planned_budget=700.0)
+    intake_keep = portfolio.create_intake_item(
+        title="Legacy Intake",
+        sponsor_name="PMO",
+        requested_budget=200.0,
+        requested_capacity_percent=30.0,
+        strategic_score=4,
+        value_score=3,
+        urgency_score=3,
+        risk_score=2,
+    )
+    intake_expand = portfolio.create_intake_item(
+        title="Expansion Intake",
+        sponsor_name="PMO",
+        requested_budget=150.0,
+        requested_capacity_percent=10.0,
+        strategic_score=5,
+        value_score=4,
+        urgency_score=4,
+        risk_score=1,
+    )
+    baseline = portfolio.create_scenario(
+        name="Baseline Scenario",
+        budget_limit=900.0,
+        capacity_limit_percent=60.0,
+        project_ids=[project_alpha.id],
+        intake_item_ids=[intake_keep.id],
+    )
+    candidate = portfolio.create_scenario(
+        name="Expansion Scenario",
+        budget_limit=1_400.0,
+        capacity_limit_percent=90.0,
+        project_ids=[project_alpha.id, project_beta.id],
+        intake_item_ids=[intake_expand.id],
+    )
+
+    comparison = portfolio.compare_scenarios(baseline.id, candidate.id)
+
+    assert comparison.base_scenario_name == "Baseline Scenario"
+    assert comparison.candidate_scenario_name == "Expansion Scenario"
+    assert comparison.budget_delta == pytest.approx(650.0)
+    assert comparison.capacity_delta_percent == pytest.approx(-20.0)
+    assert comparison.selected_projects_delta == 1
+    assert comparison.selected_intake_items_delta == 0
+    assert comparison.added_project_names == ["Portfolio Beta"]
+    assert comparison.added_intake_titles == ["Expansion Intake"]
+    assert comparison.removed_intake_titles == ["Legacy Intake"]
+    assert "Expansion Scenario vs Baseline Scenario" in comparison.summary
 
 
 def test_access_tab_shows_memberships_and_security_runtime(qapp, services):
@@ -226,6 +340,10 @@ def test_collaboration_tab_auto_refreshes_when_task_comments_change(qapp, servic
     task = services["task_service"].create_task(project.id, "Comment Sync Task")
     tab = CollaborationTab(collaboration_service=services["collaboration_service"])
 
+    assert tab.sections_tabs.count() == 3
+    assert tab.sections_tabs.tabText(0) == "Notifications (0)"
+    assert tab.sections_tabs.tabText(1) == "Mentions (0)"
+    assert tab.sections_tabs.tabText(2) == "Recent Activity (0)"
     assert tab.inbox_table.rowCount() == 0
 
     services["task_collaboration_store"].add_comment(
@@ -238,8 +356,42 @@ def test_collaboration_tab_auto_refreshes_when_task_comments_change(qapp, servic
 
     assert tab.inbox_table.rowCount() == 1
     assert tab.activity_table.rowCount() == 1
+    assert tab.sections_tabs.tabText(1) == "Mentions (1)"
+    assert tab.sections_tabs.tabText(2) == "Recent Activity (1)"
     assert tab.inbox_table.item(0, 1).text() == project.name
     assert tab.inbox_table.item(0, 2).text() == task.name
+
+
+def test_collaboration_tab_refreshes_when_timesheet_period_notifications_change(qapp, services):
+    project = services["project_service"].create_project("Collaboration Timesheet Events Project")
+    task = services["task_service"].create_task(project.id, "Timesheet Sync Task")
+    resource = services["resource_service"].create_resource("Collaboration Worker", hourly_rate=110.0)
+    assignment = services["task_service"].assign_resource(task.id, resource.id, 100.0)
+    tab = CollaborationTab(collaboration_service=services["collaboration_service"])
+
+    assert tab.notifications_table.rowCount() == 0
+
+    services["timesheet_service"].add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 6, 4),
+        hours=4.0,
+        note="Execution work",
+    )
+    qapp.processEvents()
+    assert tab.notifications_table.rowCount() == 0
+
+    services["timesheet_service"].submit_timesheet_period(
+        resource.id,
+        period_start=date(2026, 6, 1),
+        note="Ready for approval",
+    )
+    qapp.processEvents()
+
+    assert tab.notifications_table.rowCount() == 1
+    assert tab.notification_label.text() == "Notifications: 1"
+    assert tab.notifications_table.item(0, 1).text() == "Timesheet"
+    assert tab.notifications_table.item(0, 2).text() == project.name
+    assert "Timesheet submitted" in tab.notifications_table.item(0, 4).text()
 
 
 def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, services):
@@ -249,19 +401,80 @@ def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, ser
         user_session=services["user_session"],
     )
 
-    assert tab.project_list.count() == 0
+    assert tab.scenario_tabs.count() == 2
+    assert tab.scenario_tabs.tabText(0) == "Saved Scenarios"
+    assert tab.scenario_tabs.tabText(1) == "Compare"
+    assert tab.scenario_options_label.text() == "Scenario options: 0 project(s), 0 intake item(s)."
     assert tab.intake_table.rowCount() == 0
 
     services["project_service"].create_project("Portfolio Event Project")
     qapp.processEvents()
-    assert tab.project_list.count() == 1
+    assert tab.scenario_options_label.text() == "Scenario options: 1 project(s), 0 intake item(s)."
 
     services["portfolio_service"].create_intake_item(
         title="Portfolio Event Intake",
         sponsor_name="PMO",
     )
     qapp.processEvents()
+    assert tab.scenario_options_label.text() == "Scenario options: 1 project(s), 1 intake item(s)."
     assert tab.intake_table.rowCount() == 1
+
+
+def test_portfolio_tab_compares_saved_scenarios_side_by_side(qapp, services):
+    project_alpha = services["project_service"].create_project("UI Portfolio Alpha", planned_budget=350.0)
+    project_beta = services["project_service"].create_project("UI Portfolio Beta", planned_budget=450.0)
+    intake_alpha = services["portfolio_service"].create_intake_item(
+        title="UI Intake Alpha",
+        sponsor_name="PMO",
+        requested_budget=100.0,
+        requested_capacity_percent=20.0,
+    )
+    intake_beta = services["portfolio_service"].create_intake_item(
+        title="UI Intake Beta",
+        sponsor_name="PMO",
+        requested_budget=180.0,
+        requested_capacity_percent=35.0,
+    )
+    baseline = services["portfolio_service"].create_scenario(
+        name="UI Baseline",
+        budget_limit=600.0,
+        capacity_limit_percent=50.0,
+        project_ids=[project_alpha.id],
+        intake_item_ids=[intake_alpha.id],
+    )
+    candidate = services["portfolio_service"].create_scenario(
+        name="UI Candidate",
+        budget_limit=1_200.0,
+        capacity_limit_percent=90.0,
+        project_ids=[project_alpha.id, project_beta.id],
+        intake_item_ids=[intake_beta.id],
+    )
+
+    tab = PortfolioTab(
+        portfolio_service=services["portfolio_service"],
+        project_service=services["project_service"],
+        user_session=services["user_session"],
+    )
+    qapp.processEvents()
+
+    for idx in range(tab.base_compare_scenario.count()):
+        if tab.base_compare_scenario.itemData(idx) == baseline.id:
+            tab.base_compare_scenario.setCurrentIndex(idx)
+            break
+    qapp.processEvents()
+
+    for idx in range(tab.compare_scenario.count()):
+        if tab.compare_scenario.itemData(idx) == candidate.id:
+            tab.compare_scenario.setCurrentIndex(idx)
+            break
+    tab._compare_selected_scenario()
+
+    assert tab.comparison_table.rowCount() == 6
+    assert tab.comparison_table.item(0, 1).text() == "1"
+    assert tab.comparison_table.item(0, 2).text() == "2"
+    assert tab.comparison_table.item(2, 3).text() == "+530.00"
+    assert "UI Candidate vs UI Baseline" in tab.comparison_summary.text()
+    assert "UI Portfolio Beta" in tab.comparison_summary.text()
 
 
 def test_portfolio_tab_disables_manage_actions_for_read_only_user(qapp, services):

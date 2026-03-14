@@ -409,6 +409,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         task_repo=task_repo,
         project_repo=project_repo,
         user_repo=user_repo,
+        audit_repo=audit_repo,
         project_membership_repo=project_membership_repo,
         user_session=user_session,
         module_catalog_service=module_runtime_service,

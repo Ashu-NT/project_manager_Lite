@@ -81,8 +81,9 @@ class TaskActionsMixin:
             try:
                 transition_kwargs = getattr(dlg, "status_transition_kwargs", {})
                 status_value = dlg.status if not transition_kwargs else task.status
-                self._task_service.update_task(
+                updated_task = self._task_service.update_task(
                     task_id=task.id,
+                    expected_version=getattr(task, "version", None),
                     name=dlg.name,
                     description=dlg.description,
                     start_date=dlg.start_date,
@@ -92,7 +93,12 @@ class TaskActionsMixin:
                     deadline=dlg.deadline,
                 )
                 if transition_kwargs:
-                    self._task_service.update_progress(task_id=task.id, status=dlg.status, **transition_kwargs)
+                    self._task_service.update_progress(
+                        task_id=task.id,
+                        status=dlg.status,
+                        expected_version=getattr(updated_task, "version", None),
+                        **transition_kwargs,
+                    )
             except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
                 incident_id = emit_error_event(
                     event_type="business.task.update.error",
@@ -161,7 +167,11 @@ class TaskActionsMixin:
                     )
                     continue
 
-                self._task_service.update_progress(task_id=task.id, **kwargs)
+                self._task_service.update_progress(
+                    task_id=task.id,
+                    expected_version=getattr(task, "version", None),
+                    **kwargs,
+                )
             except (ValidationError, BusinessRuleError, NotFoundError, ConcurrencyError) as exc:
                 QMessageBox.warning(self, "Error", str(exc))
                 continue

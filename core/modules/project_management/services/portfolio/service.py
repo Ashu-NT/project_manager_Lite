@@ -16,6 +16,7 @@ from core.platform.common.models import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioScenario,
+    PortfolioScenarioComparison,
     PortfolioScenarioEvaluation,
 )
 from core.platform.access.authorization import filter_project_rows
@@ -199,9 +200,12 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
         if scenario is None:
             raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
         projects = {project.id: project for project in self._accessible_projects()}
-        selected_projects = [projects[project_id] for project_id in scenario.project_ids if project_id in projects]
         intake_by_id = {item.id: item for item in self._intake_repo.list_all()}
-        selected_intake = [intake_by_id[item_id] for item_id in scenario.intake_item_ids if item_id in intake_by_id]
+        selected_projects, selected_intake = self._scenario_selection(
+            scenario,
+            accessible_projects=projects,
+            intake_by_id=intake_by_id,
+        )
         total_budget = sum(float(getattr(project, "planned_budget", 0.0) or 0.0) for project in selected_projects)
         total_budget += sum(float(item.requested_budget or 0.0) for item in selected_intake)
 
@@ -252,6 +256,72 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
             summary=summary,
         )
 
+    def compare_scenarios(
+        self,
+        base_scenario_id: str,
+        candidate_scenario_id: str,
+    ) -> PortfolioScenarioComparison:
+        require_permission(self._user_session, "portfolio.read", operation_label="compare portfolio scenarios")
+        normalized_base = str(base_scenario_id or "").strip()
+        normalized_candidate = str(candidate_scenario_id or "").strip()
+        if not normalized_base or not normalized_candidate:
+            raise ValidationError("Select two scenarios to compare.", code="PORTFOLIO_COMPARISON_REQUIRED")
+        if normalized_base == normalized_candidate:
+            raise ValidationError(
+                "Choose two different scenarios to compare.",
+                code="PORTFOLIO_COMPARISON_DUPLICATE",
+            )
+
+        base_scenario = self._scenario_repo.get(normalized_base)
+        candidate_scenario = self._scenario_repo.get(normalized_candidate)
+        if base_scenario is None or candidate_scenario is None:
+            raise NotFoundError("Portfolio scenario not found.", code="PORTFOLIO_SCENARIO_NOT_FOUND")
+
+        base_evaluation = self.evaluate_scenario(base_scenario.id)
+        candidate_evaluation = self.evaluate_scenario(candidate_scenario.id)
+
+        accessible_projects = {project.id: project for project in self._accessible_projects()}
+        intake_by_id = {item.id: item for item in self._intake_repo.list_all()}
+        base_projects, base_intake = self._scenario_selection(
+            base_scenario,
+            accessible_projects=accessible_projects,
+            intake_by_id=intake_by_id,
+        )
+        candidate_projects, candidate_intake = self._scenario_selection(
+            candidate_scenario,
+            accessible_projects=accessible_projects,
+            intake_by_id=intake_by_id,
+        )
+
+        base_project_names = {project.name for project in base_projects}
+        candidate_project_names = {project.name for project in candidate_projects}
+        base_intake_titles = {item.title for item in base_intake}
+        candidate_intake_titles = {item.title for item in candidate_intake}
+
+        comparison = PortfolioScenarioComparison(
+            base_scenario_id=base_scenario.id,
+            base_scenario_name=base_scenario.name,
+            candidate_scenario_id=candidate_scenario.id,
+            candidate_scenario_name=candidate_scenario.name,
+            base_evaluation=base_evaluation,
+            candidate_evaluation=candidate_evaluation,
+            budget_delta=candidate_evaluation.total_budget - base_evaluation.total_budget,
+            capacity_delta_percent=(
+                candidate_evaluation.total_capacity_percent - base_evaluation.total_capacity_percent
+            ),
+            intake_score_delta=candidate_evaluation.intake_composite_score - base_evaluation.intake_composite_score,
+            selected_projects_delta=candidate_evaluation.selected_projects - base_evaluation.selected_projects,
+            selected_intake_items_delta=(
+                candidate_evaluation.selected_intake_items - base_evaluation.selected_intake_items
+            ),
+            added_project_names=sorted(candidate_project_names - base_project_names),
+            removed_project_names=sorted(base_project_names - candidate_project_names),
+            added_intake_titles=sorted(candidate_intake_titles - base_intake_titles),
+            removed_intake_titles=sorted(base_intake_titles - candidate_intake_titles),
+        )
+        comparison.summary = self._build_comparison_summary(comparison)
+        return comparison
+
     def _accessible_projects(self):
         projects = self._project_repo.list_all()
         return filter_project_rows(
@@ -282,6 +352,25 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
         return sorted({item_id for item_id in intake_item_ids if item_id})
 
     @staticmethod
+    def _scenario_selection(
+        scenario: PortfolioScenario,
+        *,
+        accessible_projects: dict[str, object],
+        intake_by_id: dict[str, PortfolioIntakeItem],
+    ) -> tuple[list[object], list[PortfolioIntakeItem]]:
+        selected_projects = [
+            accessible_projects[project_id]
+            for project_id in scenario.project_ids
+            if project_id in accessible_projects
+        ]
+        selected_intake = [
+            intake_by_id[item_id]
+            for item_id in scenario.intake_item_ids
+            if item_id in intake_by_id
+        ]
+        return selected_projects, selected_intake
+
+    @staticmethod
     def _build_evaluation_summary(
         *,
         over_budget: bool,
@@ -310,6 +399,24 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
             f"{selected_projects} project(s) and {selected_intake} intake item(s); "
             f"{budget_text}; {capacity_text}; {', '.join(state)}."
         )
+
+    @staticmethod
+    def _build_comparison_summary(comparison: PortfolioScenarioComparison) -> str:
+        parts = [
+            f"{comparison.candidate_scenario_name} vs {comparison.base_scenario_name}",
+            f"budget delta {comparison.budget_delta:+.2f}",
+            f"capacity delta {comparison.capacity_delta_percent:+.1f}%",
+            f"intake score delta {comparison.intake_score_delta:+d}",
+        ]
+        if comparison.added_project_names:
+            parts.append(f"added projects: {', '.join(comparison.added_project_names)}")
+        if comparison.removed_project_names:
+            parts.append(f"removed projects: {', '.join(comparison.removed_project_names)}")
+        if comparison.added_intake_titles:
+            parts.append(f"added intake: {', '.join(comparison.added_intake_titles)}")
+        if comparison.removed_intake_titles:
+            parts.append(f"removed intake: {', '.join(comparison.removed_intake_titles)}")
+        return "; ".join(parts) + "."
 
     @staticmethod
     def _require_non_empty(value: str, label: str) -> str:

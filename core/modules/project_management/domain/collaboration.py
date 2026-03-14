@@ -85,4 +85,23 @@ class CollaborationInboxItem:
     unread: bool = True
 
 
-__all__ = ["CollaborationMentionCandidate", "TaskComment", "CollaborationInboxItem"]
+@dataclass
+class CollaborationNotificationItem:
+    notification_type: str
+    entity_type: str
+    entity_id: str
+    headline: str
+    body_preview: str
+    actor_username: str
+    created_at: datetime
+    project_id: str | None = None
+    project_name: str = ""
+    attention: bool = False
+
+
+__all__ = [
+    "CollaborationInboxItem",
+    "CollaborationMentionCandidate",
+    "CollaborationNotificationItem",
+    "TaskComment",
+]

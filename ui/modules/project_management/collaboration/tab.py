@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -33,6 +34,7 @@ class CollaborationTab(QWidget):
         domain_events.collaboration_changed.connect(self._on_domain_change)
         domain_events.project_changed.connect(self._on_domain_change)
         domain_events.tasks_changed.connect(self._on_domain_change)
+        domain_events.approvals_changed.connect(self._on_domain_change)
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -50,17 +52,38 @@ class CollaborationTab(QWidget):
         badge_row = QHBoxLayout()
         self.unread_label = QLabel("Unread mentions: 0")
         self.activity_label = QLabel("Recent updates: 0")
+        self.notification_label = QLabel("Notifications: 0")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_mark_read = QPushButton("Mark Selected Task Read")
-        for button in (self.btn_refresh, self.btn_mark_read):
-            button.setFixedHeight(CFG.BUTTON_HEIGHT)
-            button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        self.btn_refresh.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_refresh.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         badge_row.addWidget(self.unread_label)
         badge_row.addWidget(self.activity_label)
+        badge_row.addWidget(self.notification_label)
         badge_row.addStretch()
-        badge_row.addWidget(self.btn_mark_read)
         badge_row.addWidget(self.btn_refresh)
         root.addLayout(badge_row)
+
+        self.sections_tabs = QTabWidget()
+        self.sections_tabs.setDocumentMode(True)
+        root.addWidget(self.sections_tabs, 1)
+
+        self.notifications_table = QTableWidget(0, 5)
+        self.notifications_table.setHorizontalHeaderLabels(["When", "Type", "Project", "From", "Summary"])
+        self.notifications_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.notifications_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.notifications_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.notifications_table.horizontalHeader().setStretchLastSection(True)
+        style_table(self.notifications_table)
+        notifications_page = QWidget()
+        notifications_layout = QVBoxLayout(notifications_page)
+        notifications_layout.setContentsMargins(0, 0, 0, 0)
+        notifications_layout.setSpacing(CFG.SPACING_SM)
+        notifications_hint = QLabel("Workflow notifications for PM activity across projects you can access.")
+        notifications_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        notifications_hint.setWordWrap(True)
+        notifications_layout.addWidget(notifications_hint)
+        notifications_layout.addWidget(self.notifications_table, 1)
+        self.sections_tabs.addTab(notifications_page, "Notifications")
 
         self.inbox_table = QTableWidget(0, 6)
         self.inbox_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Mentions", "Preview"])
@@ -69,8 +92,22 @@ class CollaborationTab(QWidget):
         self.inbox_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.inbox_table.horizontalHeader().setStretchLastSection(True)
         style_table(self.inbox_table)
-        root.addWidget(QLabel("Mentions"))
-        root.addWidget(self.inbox_table, 1)
+        mentions_page = QWidget()
+        mentions_layout = QVBoxLayout(mentions_page)
+        mentions_layout.setContentsMargins(0, 0, 0, 0)
+        mentions_layout.setSpacing(CFG.SPACING_SM)
+        mentions_header = QHBoxLayout()
+        mentions_hint = QLabel("Mentions needing review. Select a row and mark the task as read when done.")
+        mentions_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        mentions_hint.setWordWrap(True)
+        self.btn_mark_read = QPushButton("Mark Selected Task Read")
+        self.btn_mark_read.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_mark_read.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        mentions_header.addWidget(mentions_hint, 1)
+        mentions_header.addWidget(self.btn_mark_read)
+        mentions_layout.addLayout(mentions_header)
+        mentions_layout.addWidget(self.inbox_table, 1)
+        self.sections_tabs.addTab(mentions_page, "Mentions")
 
         self.activity_table = QTableWidget(0, 6)
         self.activity_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Mentions", "Preview"])
@@ -79,14 +116,23 @@ class CollaborationTab(QWidget):
         self.activity_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.activity_table.horizontalHeader().setStretchLastSection(True)
         style_table(self.activity_table)
-        root.addWidget(QLabel("Recent Activity"))
-        root.addWidget(self.activity_table, 1)
+        activity_page = QWidget()
+        activity_layout = QVBoxLayout(activity_page)
+        activity_layout.setContentsMargins(0, 0, 0, 0)
+        activity_layout.setSpacing(CFG.SPACING_SM)
+        activity_hint = QLabel("Recent PM collaboration updates across the accessible project set.")
+        activity_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        activity_hint.setWordWrap(True)
+        activity_layout.addWidget(activity_hint)
+        activity_layout.addWidget(self.activity_table, 1)
+        self.sections_tabs.addTab(activity_page, "Recent Activity")
 
         self.btn_refresh.clicked.connect(self.reload_data)
         self.btn_mark_read.clicked.connect(self._mark_selected_task_read)
 
     def reload_data(self) -> None:
         try:
+            notifications = self._collaboration_service.list_notifications(limit=200)
             inbox = self._collaboration_service.list_inbox(limit=200)
             activity = self._collaboration_service.list_recent_activity(limit=200)
         except BusinessRuleError as exc:
@@ -95,10 +141,33 @@ class CollaborationTab(QWidget):
         except Exception as exc:
             QMessageBox.critical(self, "Collaboration", f"Failed to load collaboration data:\n{exc}")
             return
+        self.notification_label.setText(f"Notifications: {len(notifications)}")
         self.unread_label.setText(f"Unread mentions: {sum(1 for item in inbox if item.unread)}")
         self.activity_label.setText(f"Recent updates: {len(activity)}")
+        self.sections_tabs.setTabText(0, f"Notifications ({len(notifications)})")
+        self.sections_tabs.setTabText(1, f"Mentions ({len(inbox)})")
+        self.sections_tabs.setTabText(2, f"Recent Activity ({len(activity)})")
+        self._populate_notifications_table(notifications)
         self._populate_table(self.inbox_table, inbox)
         self._populate_table(self.activity_table, activity)
+
+    def _populate_notifications_table(self, rows) -> None:
+        self.notifications_table.setRowCount(len(rows))
+        for row_idx, item in enumerate(rows):
+            values = [
+                item.created_at.strftime("%Y-%m-%d %H:%M"),
+                item.notification_type.title(),
+                item.project_name or "-",
+                item.actor_username,
+                f"{item.headline} - {item.body_preview}".strip(" -"),
+            ]
+            for col, value in enumerate(values):
+                cell = QTableWidgetItem(value)
+                if item.attention:
+                    font = cell.font()
+                    font.setBold(True)
+                    cell.setFont(font)
+                self.notifications_table.setItem(row_idx, col, cell)
 
     def _populate_table(self, table: QTableWidget, rows) -> None:
         table.setRowCount(len(rows))

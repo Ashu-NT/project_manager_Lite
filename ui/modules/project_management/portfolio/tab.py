@@ -9,11 +9,10 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QSpinBox,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -26,6 +25,7 @@ from core.platform.common.models import PortfolioIntakeStatus
 from core.platform.auth import UserSessionContext
 from core.modules.project_management.services.portfolio import PortfolioService
 from core.modules.project_management.services.project import ProjectService
+from ui.modules.project_management.portfolio.scenario_dialog import PortfolioScenarioDialog
 from ui.platform.shared.guards import apply_permission_hint, has_permission
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -45,6 +45,8 @@ class PortfolioTab(QWidget):
         self._project_service = project_service
         self._user_session = user_session
         self._can_manage = has_permission(self._user_session, "portfolio.manage")
+        self._available_projects = []
+        self._available_intake_items = []
         self._setup_ui()
         self.reload_data()
         domain_events.project_changed.connect(self._on_domain_change)
@@ -58,7 +60,7 @@ class PortfolioTab(QWidget):
         title = QLabel("Portfolio Planning")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
         subtitle = QLabel(
-            "Capture proposed work, score it, and evaluate simple portfolio scenarios against budget and capacity."
+            "Capture proposed work, score it, and compare saved portfolio scenarios side by side."
         )
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
@@ -127,40 +129,23 @@ class PortfolioTab(QWidget):
 
         scenario_box = QGroupBox("Scenarios")
         scenario_layout = QVBoxLayout(scenario_box)
-        scenario_form = QGridLayout()
-        scenario_form.setHorizontalSpacing(CFG.SPACING_MD)
-        scenario_form.setVerticalSpacing(CFG.SPACING_SM)
-        self.scenario_name = QLineEdit()
-        self.scenario_budget = QDoubleSpinBox()
-        self.scenario_budget.setMaximum(1_000_000_000)
-        self.scenario_capacity = QDoubleSpinBox()
-        self.scenario_capacity.setMaximum(100000)
-        scenario_form.addWidget(QLabel("Name"), 0, 0)
-        scenario_form.addWidget(self.scenario_name, 0, 1)
-        scenario_form.addWidget(QLabel("Budget Limit"), 1, 0)
-        scenario_form.addWidget(self.scenario_budget, 1, 1)
-        scenario_form.addWidget(QLabel("Capacity Limit %"), 1, 2)
-        scenario_form.addWidget(self.scenario_capacity, 1, 3)
-        scenario_layout.addLayout(scenario_form)
-
-        selection_row = QHBoxLayout()
-        self.project_list = QListWidget()
-        self.project_list.setSelectionMode(QListWidget.MultiSelection)
-        self.intake_list = QListWidget()
-        self.intake_list.setSelectionMode(QListWidget.MultiSelection)
-        selection_row.addWidget(self.project_list, 1)
-        selection_row.addWidget(self.intake_list, 1)
-        scenario_layout.addLayout(selection_row, 1)
-
         scenario_button_row = QHBoxLayout()
-        self.btn_save_scenario = QPushButton("Save Scenario")
-        self.btn_evaluate = QPushButton("Evaluate Selected")
-        for button in (self.btn_save_scenario, self.btn_evaluate):
+        self.btn_save_scenario = QPushButton("New Scenario")
+        for button in (self.btn_save_scenario,):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             scenario_button_row.addWidget(button)
         scenario_button_row.addStretch()
         scenario_layout.addLayout(scenario_button_row)
+
+        self.scenario_options_label = QLabel("Scenario options: 0 project(s), 0 intake item(s).")
+        self.scenario_options_label.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.scenario_options_label.setWordWrap(True)
+        scenario_layout.addWidget(self.scenario_options_label)
+
+        self.scenario_tabs = QTabWidget()
+        self.scenario_tabs.setDocumentMode(True)
+        scenario_layout.addWidget(self.scenario_tabs, 1)
 
         self.scenario_table = QTableWidget(0, 5)
         self.scenario_table.setHorizontalHeaderLabels(
@@ -171,19 +156,76 @@ class PortfolioTab(QWidget):
         self.scenario_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.scenario_table.horizontalHeader().setStretchLastSection(True)
         style_table(self.scenario_table)
-        scenario_layout.addWidget(self.scenario_table, 1)
+        saved_page = QWidget()
+        saved_layout = QVBoxLayout(saved_page)
+        saved_layout.setContentsMargins(0, 0, 0, 0)
+        saved_layout.setSpacing(CFG.SPACING_SM)
+        saved_hint = QLabel("Saved scenarios stay here for review, selection, and quick evaluation.")
+        saved_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        saved_hint.setWordWrap(True)
+        saved_layout.addWidget(saved_hint)
+        saved_actions = QHBoxLayout()
+        self.btn_evaluate = QPushButton("Evaluate Selected")
+        self.btn_evaluate.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_evaluate.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        saved_actions.addStretch()
+        saved_actions.addWidget(self.btn_evaluate)
+        saved_layout.addLayout(saved_actions)
+        saved_layout.addWidget(self.scenario_table, 1)
 
         self.scenario_summary = QLabel("Select or create a scenario to evaluate.")
         self.scenario_summary.setWordWrap(True)
         self.scenario_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        scenario_layout.addWidget(self.scenario_summary)
+        saved_layout.addWidget(self.scenario_summary)
+        self.scenario_tabs.addTab(saved_page, "Saved Scenarios")
+
+        self.comparison_table = QTableWidget(0, 4)
+        self.comparison_table.setHorizontalHeaderLabels(["Metric", "Selected", "Comparison", "Delta"])
+        self.comparison_table.setSelectionMode(QTableWidget.NoSelection)
+        self.comparison_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.comparison_table.horizontalHeader().setStretchLastSection(True)
+        style_table(self.comparison_table)
+        compare_page = QWidget()
+        compare_layout = QVBoxLayout(compare_page)
+        compare_layout.setContentsMargins(0, 0, 0, 0)
+        compare_layout.setSpacing(CFG.SPACING_SM)
+        compare_hint = QLabel("Choose any two saved scenarios to compare budget, capacity, and selection changes.")
+        compare_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        compare_hint.setWordWrap(True)
+        compare_layout.addWidget(compare_hint)
+        compare_form = QGridLayout()
+        compare_form.setHorizontalSpacing(CFG.SPACING_MD)
+        compare_form.setVerticalSpacing(CFG.SPACING_SM)
+        self.base_compare_scenario = QComboBox()
+        self.compare_scenario = QComboBox()
+        compare_form.addWidget(QLabel("Base scenario"), 0, 0)
+        compare_form.addWidget(self.base_compare_scenario, 0, 1)
+        compare_form.addWidget(QLabel("Compare against"), 1, 0)
+        compare_form.addWidget(self.compare_scenario, 1, 1)
+        compare_layout.addLayout(compare_form)
+        compare_actions = QHBoxLayout()
+        self.btn_compare = QPushButton("Compare Scenarios")
+        self.btn_compare.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_compare.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        compare_actions.addStretch()
+        compare_actions.addWidget(self.btn_compare)
+        compare_layout.addLayout(compare_actions)
+        compare_layout.addWidget(self.comparison_table, 1)
+
+        self.comparison_summary = QLabel("Select two saved scenarios to compare.")
+        self.comparison_summary.setWordWrap(True)
+        self.comparison_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        compare_layout.addWidget(self.comparison_summary)
+        self.scenario_tabs.addTab(compare_page, "Compare")
         split.addWidget(scenario_box, 1)
 
         self.btn_reload.clicked.connect(self.reload_data)
         self.btn_add_intake.clicked.connect(self._create_intake_item)
         self.btn_save_scenario.clicked.connect(self._save_scenario)
         self.btn_evaluate.clicked.connect(self._evaluate_selected_scenario)
+        self.btn_compare.clicked.connect(self._compare_selected_scenario)
         self.scenario_table.itemSelectionChanged.connect(self._load_selected_scenario)
+        self.base_compare_scenario.currentIndexChanged.connect(self._on_compare_base_changed)
         apply_permission_hint(
             self.btn_add_intake,
             allowed=self._can_manage,
@@ -196,6 +238,9 @@ class PortfolioTab(QWidget):
         )
 
     def reload_data(self) -> None:
+        selected_scenario_id = self._selected_scenario_id()
+        preferred_base_compare_id = str(self.base_compare_scenario.currentData() or "")
+        preferred_compare_id = str(self.compare_scenario.currentData() or "")
         try:
             intake_items = self._portfolio_service.list_intake_items()
             scenarios = self._portfolio_service.list_scenarios()
@@ -207,19 +252,11 @@ class PortfolioTab(QWidget):
             QMessageBox.critical(self, "Portfolio", f"Failed to load portfolio data:\n{exc}")
             return
 
-        self.project_list.clear()
-        for project in projects:
-            item = QListWidgetItem(project.name)
-            item.setData(Qt.UserRole, project.id)
-            self.project_list.addItem(item)
-
-        self.intake_list.clear()
-        for intake_item in intake_items:
-            item = QListWidgetItem(
-                f"{intake_item.title} ({intake_item.composite_score})"
-            )
-            item.setData(Qt.UserRole, intake_item.id)
-            self.intake_list.addItem(item)
+        self._available_projects = list(projects)
+        self._available_intake_items = list(intake_items)
+        self.scenario_options_label.setText(
+            f"Scenario options: {len(projects)} project(s), {len(intake_items)} intake item(s)."
+        )
 
         self.intake_table.setRowCount(len(intake_items))
         for row_idx, intake_item in enumerate(intake_items):
@@ -251,6 +288,14 @@ class PortfolioTab(QWidget):
                 if col == 0:
                     cell.setData(Qt.UserRole, scenario.id)
                 self.scenario_table.setItem(row_idx, col, cell)
+        self._restore_scenario_selection(scenarios, selected_scenario_id)
+        self._reload_compare_selectors(
+            scenarios,
+            preferred_base_id=self._selected_scenario_id() or preferred_base_compare_id,
+            preferred_compare_id=preferred_compare_id,
+        )
+        if self.base_compare_scenario.count() <= 1 or self.compare_scenario.count() <= 1:
+            self._clear_comparison()
 
     def _create_intake_item(self) -> None:
         if not self._can_manage:
@@ -281,17 +326,20 @@ class PortfolioTab(QWidget):
         if not self._can_manage:
             QMessageBox.information(self, "Portfolio", "Saving scenarios requires portfolio.manage.")
             return
-        project_ids = [str(item.data(Qt.UserRole) or "") for item in self.project_list.selectedItems()]
-        intake_item_ids = [str(item.data(Qt.UserRole) or "") for item in self.intake_list.selectedItems()]
+        dialog = PortfolioScenarioDialog(
+            projects=self._available_projects,
+            intake_items=self._available_intake_items,
+            parent=self,
+        )
+        if dialog.exec() != PortfolioScenarioDialog.Accepted:
+            return
         try:
             self._portfolio_service.create_scenario(
-                name=self.scenario_name.text(),
-                budget_limit=(None if self.scenario_budget.value() <= 0 else float(self.scenario_budget.value())),
-                capacity_limit_percent=(
-                    None if self.scenario_capacity.value() <= 0 else float(self.scenario_capacity.value())
-                ),
-                project_ids=project_ids,
-                intake_item_ids=intake_item_ids,
+                name=dialog.scenario_name,
+                budget_limit=dialog.budget_limit,
+                capacity_limit_percent=dialog.capacity_limit_percent,
+                project_ids=dialog.project_ids,
+                intake_item_ids=dialog.intake_item_ids,
             )
         except (BusinessRuleError, ValidationError, NotFoundError) as exc:
             QMessageBox.warning(self, "Portfolio", str(exc))
@@ -310,19 +358,48 @@ class PortfolioTab(QWidget):
             return
         self.scenario_summary.setText(result.summary)
 
+    def _compare_selected_scenario(self) -> None:
+        scenario_id = str(self.base_compare_scenario.currentData() or "")
+        compare_id = str(self.compare_scenario.currentData() or "")
+        if not scenario_id:
+            QMessageBox.information(self, "Portfolio", "Select a base scenario first.")
+            return
+        if not compare_id:
+            QMessageBox.information(self, "Portfolio", "Select a comparison scenario.")
+            return
+        try:
+            comparison = self._portfolio_service.compare_scenarios(scenario_id, compare_id)
+        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Portfolio", str(exc))
+            return
+        self._render_comparison(comparison)
+
     def _load_selected_scenario(self) -> None:
         scenario_id = self._selected_scenario_id()
         if not scenario_id:
+            self.scenario_summary.setText("Select a saved scenario to evaluate.")
             return
-        scenarios = {scenario.id: scenario for scenario in self._portfolio_service.list_scenarios()}
-        scenario = scenarios.get(scenario_id)
+        scenarios = self._portfolio_service.list_scenarios()
+        self._reload_compare_selectors(
+            scenarios,
+            preferred_base_id=scenario_id,
+            preferred_compare_id=str(self.compare_scenario.currentData() or ""),
+        )
+        scenarios_by_id = {scenario.id: scenario for scenario in scenarios}
+        scenario = scenarios_by_id.get(scenario_id)
         if scenario is None:
+            self.scenario_summary.setText("Select a saved scenario to evaluate.")
             return
-        self.scenario_name.setText(scenario.name)
-        self.scenario_budget.setValue(float(scenario.budget_limit or 0.0))
-        self.scenario_capacity.setValue(float(scenario.capacity_limit_percent or 0.0))
-        self._apply_selection(self.project_list, set(scenario.project_ids))
-        self._apply_selection(self.intake_list, set(scenario.intake_item_ids))
+        budget_limit = "-" if scenario.budget_limit is None else f"{float(scenario.budget_limit):.2f}"
+        capacity_limit = (
+            "-"
+            if scenario.capacity_limit_percent is None
+            else f"{float(scenario.capacity_limit_percent):.1f}%"
+        )
+        self.scenario_summary.setText(
+            f"Selected {scenario.name}: budget limit {budget_limit}; capacity limit {capacity_limit}; "
+            f"{len(scenario.project_ids)} project(s); {len(scenario.intake_item_ids)} intake item(s)."
+        )
 
     def _selected_scenario_id(self) -> str:
         row = self.scenario_table.currentRow()
@@ -334,11 +411,119 @@ class PortfolioTab(QWidget):
     def _on_domain_change(self, _payload: str) -> None:
         self.reload_data()
 
-    @staticmethod
-    def _apply_selection(widget: QListWidget, selected_ids: set[str]) -> None:
-        for idx in range(widget.count()):
-            item = widget.item(idx)
-            item.setSelected(str(item.data(Qt.UserRole) or "") in selected_ids)
+    def _reload_compare_selectors(
+        self,
+        scenarios,
+        *,
+        preferred_base_id: str = "",
+        preferred_compare_id: str = "",
+    ) -> None:
+        self.base_compare_scenario.blockSignals(True)
+        try:
+            self.base_compare_scenario.clear()
+            self.base_compare_scenario.addItem("Select scenario", userData="")
+            selected_index = 0
+            for scenario in scenarios:
+                self.base_compare_scenario.addItem(scenario.name, userData=scenario.id)
+                if scenario.id == preferred_base_id:
+                    selected_index = self.base_compare_scenario.count() - 1
+            self.base_compare_scenario.setCurrentIndex(selected_index)
+        finally:
+            self.base_compare_scenario.blockSignals(False)
+        self._reload_compare_candidates(
+            scenarios,
+            selected_base_id=str(self.base_compare_scenario.currentData() or ""),
+            preferred_compare_id=preferred_compare_id,
+        )
+
+    def _reload_compare_candidates(
+        self,
+        scenarios,
+        *,
+        selected_base_id: str,
+        preferred_compare_id: str = "",
+    ) -> None:
+        self.compare_scenario.blockSignals(True)
+        try:
+            self.compare_scenario.clear()
+            self.compare_scenario.addItem("Select scenario", userData="")
+            selected_index = 0
+            for scenario in scenarios:
+                if scenario.id == selected_base_id:
+                    continue
+                self.compare_scenario.addItem(scenario.name, userData=scenario.id)
+                if scenario.id == preferred_compare_id:
+                    selected_index = self.compare_scenario.count() - 1
+            self.compare_scenario.setCurrentIndex(selected_index)
+        finally:
+            self.compare_scenario.blockSignals(False)
+
+    def _restore_scenario_selection(self, scenarios, scenario_id: str) -> None:
+        if not scenario_id:
+            return
+        for row_idx, scenario in enumerate(scenarios):
+            if scenario.id != scenario_id:
+                continue
+            self.scenario_table.selectRow(row_idx)
+            return
+
+    def _render_comparison(self, comparison) -> None:
+        rows = [
+            (
+                "Projects",
+                str(comparison.base_evaluation.selected_projects),
+                str(comparison.candidate_evaluation.selected_projects),
+                f"{comparison.selected_projects_delta:+d}",
+            ),
+            (
+                "Intake Items",
+                str(comparison.base_evaluation.selected_intake_items),
+                str(comparison.candidate_evaluation.selected_intake_items),
+                f"{comparison.selected_intake_items_delta:+d}",
+            ),
+            (
+                "Total Budget",
+                f"{comparison.base_evaluation.total_budget:.2f}",
+                f"{comparison.candidate_evaluation.total_budget:.2f}",
+                f"{comparison.budget_delta:+.2f}",
+            ),
+            (
+                "Capacity %",
+                f"{comparison.base_evaluation.total_capacity_percent:.1f}",
+                f"{comparison.candidate_evaluation.total_capacity_percent:.1f}",
+                f"{comparison.capacity_delta_percent:+.1f}",
+            ),
+            (
+                "Intake Score",
+                str(comparison.base_evaluation.intake_composite_score),
+                str(comparison.candidate_evaluation.intake_composite_score),
+                f"{comparison.intake_score_delta:+d}",
+            ),
+            (
+                "Status",
+                self._evaluation_state_label(comparison.base_evaluation),
+                self._evaluation_state_label(comparison.candidate_evaluation),
+                "-",
+            ),
+        ]
+        self.comparison_table.setRowCount(len(rows))
+        for row_idx, values in enumerate(rows):
+            for col, value in enumerate(values):
+                self.comparison_table.setItem(row_idx, col, QTableWidgetItem(value))
+        self.comparison_summary.setText(comparison.summary)
+
+    def _clear_comparison(self) -> None:
+        self.comparison_table.setRowCount(0)
+        self.comparison_summary.setText("Select two saved scenarios to compare.")
+
+    def _on_compare_base_changed(self) -> None:
+        scenarios = self._portfolio_service.list_scenarios()
+        self._reload_compare_candidates(
+            scenarios,
+            selected_base_id=str(self.base_compare_scenario.currentData() or ""),
+            preferred_compare_id=str(self.compare_scenario.currentData() or ""),
+        )
+        self._clear_comparison()
 
     @staticmethod
     def _score_spin() -> QSpinBox:
@@ -346,6 +531,16 @@ class PortfolioTab(QWidget):
         spin.setRange(1, 5)
         spin.setValue(3)
         return spin
+
+    @staticmethod
+    def _evaluation_state_label(result) -> str:
+        if result.over_budget and result.over_capacity:
+            return "Over budget and capacity"
+        if result.over_budget:
+            return "Over budget"
+        if result.over_capacity:
+            return "Over capacity"
+        return "Within limits"
 
 
 __all__ = ["PortfolioTab"]

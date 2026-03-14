@@ -54,6 +54,7 @@ class ProjectActionsMixin:
             try:
                 self._project_service.update_project(
                     project_id=proj.id,
+                    expected_version=getattr(proj, "version", None),
                     name=dlg.name,
                     description=dlg.description,
                     client_name=dlg.client_name,

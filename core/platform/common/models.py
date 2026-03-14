@@ -11,13 +11,19 @@ from core.platform.org.domain import Employee, EmploymentType, Organization
 from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus, WorkEntry
 from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
 from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
-from core.modules.project_management.domain.collaboration import CollaborationInboxItem, CollaborationMentionCandidate, TaskComment
+from core.modules.project_management.domain.collaboration import (
+    CollaborationInboxItem,
+    CollaborationMentionCandidate,
+    CollaborationNotificationItem,
+    TaskComment,
+)
 from core.modules.project_management.domain.cost import CostItem
 from core.modules.project_management.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatus, WorkerType
 from core.modules.project_management.domain.identifiers import generate_id
 from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
+    PortfolioScenarioComparison,
     PortfolioScenario,
     PortfolioScenarioEvaluation,
 )
@@ -47,6 +53,7 @@ __all__ = [
     "CollaborationMentionCandidate",
     "TaskComment",
     "CollaborationInboxItem",
+    "CollaborationNotificationItem",
     "RegisterEntry",
     "RegisterEntryType",
     "RegisterEntrySeverity",
@@ -55,6 +62,7 @@ __all__ = [
     "PortfolioIntakeItem",
     "PortfolioScenario",
     "PortfolioScenarioEvaluation",
+    "PortfolioScenarioComparison",
     "Task",
     "Resource",
     "TaskAssignment",

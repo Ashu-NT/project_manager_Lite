@@ -135,9 +135,30 @@ class PortfolioScenarioEvaluation:
     summary: str
 
 
+@dataclass
+class PortfolioScenarioComparison:
+    base_scenario_id: str
+    base_scenario_name: str
+    candidate_scenario_id: str
+    candidate_scenario_name: str
+    base_evaluation: PortfolioScenarioEvaluation
+    candidate_evaluation: PortfolioScenarioEvaluation
+    budget_delta: float
+    capacity_delta_percent: float
+    intake_score_delta: int
+    selected_projects_delta: int
+    selected_intake_items_delta: int
+    added_project_names: list[str] = field(default_factory=list)
+    removed_project_names: list[str] = field(default_factory=list)
+    added_intake_titles: list[str] = field(default_factory=list)
+    removed_intake_titles: list[str] = field(default_factory=list)
+    summary: str = ""
+
+
 __all__ = [
     "PortfolioIntakeStatus",
     "PortfolioIntakeItem",
     "PortfolioScenario",
     "PortfolioScenarioEvaluation",
+    "PortfolioScenarioComparison",
 ]

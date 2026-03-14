@@ -58,8 +58,8 @@ Recommended order:
 1. Split `main.py` into bootstrap, CLI wiring, and command flow modules.
 2. Continue breaking down the scheduling engine into smaller capability slices.
 3. Split infrastructure DB mappers further by aggregate family.
-4. Finish the shared time boundary so Payroll and Maintenance can consume the
-   same platform concepts without PM-owned coupling.
+4. Start the Maintenance module skeleton now that the shared time boundary can
+   carry neutral work-entry ownership and employee/site/department context.
 
 ## Architecture Principles
 

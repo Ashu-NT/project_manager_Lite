@@ -60,6 +60,7 @@ class ResourceActionsMixin:
         try:
             self._resource_service.update_resource(
                 resource_id=resource.id,
+                expected_version=getattr(resource, "version", None),
                 name=dlg.name,
                 role=dlg.role,
                 hourly_rate=dlg.hourly_rate,
@@ -113,6 +114,7 @@ class ResourceActionsMixin:
         try:
             self._resource_service.update_resource(
                 resource_id=resource.id,
+                expected_version=getattr(resource, "version", None),
                 is_active=not getattr(resource, "is_active", True),
             )
         except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as e:

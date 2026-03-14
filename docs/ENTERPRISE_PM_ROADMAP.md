@@ -2,11 +2,29 @@
 
 ## Scope
 
-This roadmap covers the three enterprise workspaces added in this phase:
+This roadmap tracks the remaining enterprise work that still belongs to the
+`Project Management` module itself.
 
-- `Access`: enterprise permissions, project-scoped memberships, account lockout visibility
-- `Collaboration`: inbox, mentions, recent task activity
-- `Portfolio`: intake, scenario planning, budget/capacity evaluation
+Primary PM-focused enterprise areas:
+
+- `Access` as it affects PM delivery work and project-scoped memberships
+- `Collaboration` for inbox, mentions, recent task activity, and PM team
+  coordination
+- `Portfolio` for intake, scenario planning, and budget/capacity evaluation
+
+This document does not own:
+
+- platform security and identity controls such as SSO, MFA, and session
+  revocation
+- module-level payroll implementation
+- future module work for Maintenance Management or QHSE
+- hosted API/router delivery planning
+
+Those are now tracked in:
+
+- `docs/ENTERPRISE_RBAC_MATRIX.md`
+- `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`
+- `docs/module_licensing/README.md`
 
 ## Architecture
 
@@ -37,34 +55,68 @@ Status: implemented in this repo
 - Opened read-only identity visibility via `auth.read` and isolated unlock/session operations behind `security.manage`
 - Added payroll-ready permission boundaries so the future payroll module can ship without reusing broad finance/admin permissions
 
-## Phase 2: Next Follow-Ups
+## Phase 2: PM Follow-Ups
 
-Status: pending
+Status: in progress
 
 Priority: high
 
 - Complete the remaining task collaboration surfaces behind the collaboration service contract
-- Add email/in-app notification delivery for mentions, approvals, and locked periods
-- Add edit conflict handling and presence indicators for concurrent task updates
-- Add richer portfolio scenario comparison with side-by-side saved scenarios
+- Extend notification delivery beyond the in-app feed for mentions, approvals, and locked periods
+- Add presence indicators and broader concurrent-edit UX on top of the desktop optimistic-lock checks now wired into PM edit flows
 - Add project demand scoring templates configurable by PMO admins
-- Add a dedicated payroll workspace and service layer using the shipped `payroll.*` permission set
 
-## Phase 3: Hardening
+Delivered in this phase already:
+
+- Added PM in-app notifications in the Collaboration workspace for mentions, approval activity, and timesheet workflow updates
+- Added project-scoped notification filtering so mixed-project timesheet activity does not leak inaccessible project names
+- Added side-by-side saved portfolio scenario comparison in the portfolio service and UI
+- Wired desktop project/task/resource/cost edit actions to pass `expected_version` so stale writes are rejected in normal PM edit flows
+
+## Phase 3: PM Hardening
 
 Status: pending
 
 Priority: medium
 
-- SSO and MFA hooks for enterprise identity providers
-- Session revocation, forced password reset, and suspicious login reporting
 - Portfolio capacity heatmaps and cross-project dependency visualizations
 - Audit reports for membership changes and privileged account actions
-- Public API and webhook layer for Jira, Excel, Teams, and directory sync
+
+## Cross-Cutting Dependencies
+
+These affect PM, but they are not PM-owned roadmap items anymore:
+
+- `Platform security`
+  - SSO and MFA hooks
+  - session revocation
+  - forced password reset
+  - suspicious login reporting
+  - tracked under `docs/ENTERPRISE_RBAC_MATRIX.md`
+- `Payroll module`
+  - dedicated payroll workspace and service layer
+  - payroll periods, run states, exceptions, exports, and approvals
+  - tracked under `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md` and
+    `docs/ENTERPRISE_RBAC_MATRIX.md`
+- `External integrations`
+  - public API and webhook layer
+  - Jira, Excel, Teams, and directory sync
+  - tracked as broader platform work in
+    `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`
 
 ## Recommended Build Order
 
-1. Finish notification delivery and collaboration service adoption in task dialogs.
-2. Add payroll domain objects, workflows, and admin tooling on top of the new RBAC matrix.
-3. Expand portfolio scoring and scenario comparison.
-4. Add integrations and external identity hooks.
+1. Finish collaboration service adoption in the remaining PM task flows.
+2. Add presence indicators and richer concurrent-edit UX around stale-write recovery.
+3. Add PMO scoring templates.
+4. Add PM-facing heatmaps, cross-project views, and audit reporting.
+
+## Current PM-Specific Remainder
+
+If we ignore platform/security and future-module work, the remaining enterprise
+PM backlog is:
+
+- collaboration completion inside PM task flows
+- richer notification delivery beyond the in-app feed
+- presence indicators and richer concurrent-edit recovery
+- PMO scoring template configuration
+- PM-facing audit and executive visualization polish
