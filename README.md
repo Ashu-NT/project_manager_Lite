@@ -35,9 +35,11 @@ The current production-ready capability is the `Project Management` module. The 
 
 The codebase is split into three main layers:
 
+- `application/`: cross-surface orchestration seams that desktop and future web/API adapters can share
 - `core/`: domain models, business rules, scheduling/reporting engines, service orchestration
 - `infra/`: SQLAlchemy repositories, mappers, migration/bootstrap wiring
 - `ui/`: Qt tabs/dialogs and presentation workflows
+- `api/`: transport-facing adapters for future HTTP/web delivery
 
 Architectural guardrails are enforced by tests in `tests/test_architecture_guardrails.py`.
 For design details and refactor history, see `docs/ARCHITECTURE_BLUEPRINT.md`.
@@ -46,6 +48,8 @@ For design details and refactor history, see `docs/ARCHITECTURE_BLUEPRINT.md`.
 
 ```text
 project_mangement_app/
+  application/
+  api/
   core/
   infra/
   ui/

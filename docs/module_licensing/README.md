@@ -190,6 +190,8 @@ Concrete work:
    Status: completed for the local runtime and admin flow
 5. Add a platform admin workflow for provisioning organizations with an initial licensed module mix.
    Status: completed for the desktop/runtime admin flow, pending HTTP/API adoption
+6. Expose the same organization provisioning and entitlement rules through an API-facing transport boundary.
+   Status: completed for the transport adapter layer, pending concrete web server/router adoption
 
 Exit criteria:
 
@@ -234,4 +236,6 @@ Next recommended step:
 3. add a platform admin workflow for provisioning organizations with an initial licensed module mix
    Status: completed
 4. expose the same organization provisioning and entitlement rules through the future HTTP/API boundary
+   Status: completed
+5. wrap the transport adapter with a concrete web server/router layer
    Status: next
