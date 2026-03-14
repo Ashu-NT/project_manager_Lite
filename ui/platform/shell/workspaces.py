@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QWidget
 from core.platform.auth import UserSessionContext
 from ui.platform.admin.access.tab import AccessTab
 from ui.platform.admin.audit_tab import AuditLogTab
+from ui.platform.admin.employees_tab import EmployeeAdminTab
 from ui.platform.admin.users_tab import UserAdminTab
 from ui.modules.project_management.calendar.tab import CalendarTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
@@ -129,6 +130,7 @@ def build_workspace_definitions(
                 label="Resources",
                 widget=ResourceTab(
                     resource_service=services["resource_service"],
+                    employee_service=services.get("employee_service"),
                     user_session=user_session,
                 ),
             )
@@ -261,6 +263,21 @@ def build_workspace_definitions(
                 widget=UserAdminTab(
                     auth_service=services["auth_service"],
                     user_session=user_session,
+                ),
+            )
+        )
+
+    if _has_any_permission(user_session, "employee.read", "employee.manage"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
+                label="Employees",
+                widget=EmployeeAdminTab(
+                    employee_service=services["employee_service"],
+                    user_session=user_session,
+                    parent=parent,
                 ),
             )
         )

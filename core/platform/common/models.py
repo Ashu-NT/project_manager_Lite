@@ -8,11 +8,12 @@ from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from core.platform.access.domain import ProjectMembership
 from core.platform.auth.domain import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
 from core.platform.audit.domain import AuditLogEntry
+from core.platform.org.domain import Employee, EmploymentType
 from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
 from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
 from core.modules.project_management.domain.collaboration import CollaborationInboxItem, CollaborationMentionCandidate, TaskComment
 from core.modules.project_management.domain.cost import CostItem
-from core.modules.project_management.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatus
+from core.modules.project_management.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatus, WorkerType
 from core.modules.project_management.domain.identifiers import generate_id
 from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
@@ -36,7 +37,10 @@ __all__ = [
     "TaskStatus",
     "DependencyType",
     "CostType",
+    "WorkerType",
+    "EmploymentType",
     "ProjectMembership",
+    "Employee",
     "Project",
     "ProjectResource",
     "CollaborationMentionCandidate",

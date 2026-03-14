@@ -9,14 +9,16 @@ from core.platform.common.exceptions import (
     ValidationError,
 )
 from core.modules.project_management.services.resource import ResourceService
+from core.platform.org import EmployeeService
 from ui.modules.project_management.resource.dialogs import ResourceEditDialog
 
 
 class ResourceActionsMixin:
     _resource_service: ResourceService
+    _employee_service: EmployeeService | None
 
     def create_resource(self) -> None:
-        dlg = ResourceEditDialog(self, resource=None)
+        dlg = ResourceEditDialog(self, resource=None, employee_service=self._employee_service)
         if dlg.exec() != QDialog.Accepted:
             return
 
@@ -28,6 +30,8 @@ class ResourceActionsMixin:
                 capacity_percent=dlg.capacity_percent,
                 address=dlg.address,
                 contact=dlg.contact,
+                worker_type=dlg.worker_type,
+                employee_id=dlg.employee_id,
                 is_active=dlg.is_active,
                 cost_type=dlg.cost_type,
                 currency_code=dlg.currency_code,
@@ -49,7 +53,7 @@ class ResourceActionsMixin:
             QMessageBox.information(self, "Edit resource", "Please select a resource.")
             return
 
-        dlg = ResourceEditDialog(self, resource=resource)
+        dlg = ResourceEditDialog(self, resource=resource, employee_service=self._employee_service)
         if dlg.exec() != QDialog.Accepted:
             return
 
@@ -62,6 +66,8 @@ class ResourceActionsMixin:
                 capacity_percent=dlg.capacity_percent,
                 address=dlg.address,
                 contact=dlg.contact,
+                worker_type=dlg.worker_type,
+                employee_id=dlg.employee_id,
                 is_active=dlg.is_active,
                 cost_type=dlg.cost_type,
                 currency_code=dlg.currency_code,

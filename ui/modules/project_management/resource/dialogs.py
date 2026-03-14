@@ -8,18 +8,27 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox,
     QFormLayout,
     QLineEdit,
+    QMessageBox,
     QVBoxLayout,
 )
 
-from core.platform.common.models import CostType, Resource
+from core.platform.common.models import CostType, Resource, WorkerType
+from core.platform.org import EmployeeService
 from ui.platform.shared.styles.ui_config import UIConfig as CFG, CurrencyType
 
 
 class ResourceEditDialog(QDialog):
-    def __init__(self, parent=None, resource: Resource | None = None):
+    def __init__(
+        self,
+        parent=None,
+        resource: Resource | None = None,
+        employee_service: EmployeeService | None = None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Resource" + (" - Edit" if resource else " - New"))
         self._resource: Resource | None = resource
+        self._employee_service = employee_service
+        self._employees: list[object] = []
 
         self.name_edit = QLineEdit()
         self.role_edit = QLineEdit()
@@ -70,10 +79,24 @@ class ResourceEditDialog(QDialog):
         self.currency_combo.setSizePolicy(CFG.INPUT_POLICY)
         self.currency_combo.setFixedHeight(CFG.INPUT_HEIGHT)
 
+        self.worker_type_combo = QComboBox()
+        self.worker_type_combo.addItem("Employee", userData=WorkerType.EMPLOYEE)
+        self.worker_type_combo.addItem("External Worker", userData=WorkerType.EXTERNAL)
+        self.worker_type_combo.setSizePolicy(CFG.INPUT_POLICY)
+        self.worker_type_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+
+        self.employee_combo = QComboBox()
+        self.employee_combo.setSizePolicy(CFG.INPUT_POLICY)
+        self.employee_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.employee_combo.addItem("Select employee", userData=None)
+        self._load_employees()
+
         self.active_check = QCheckBox("Active")
         self.active_check.setSizePolicy(CFG.CHKBOX_FIXED_HEIGHT)
 
-        if resource:
+        if resource is not None:
+            worker_type = getattr(resource, "worker_type", WorkerType.EXTERNAL)
+            self.worker_type_combo.setCurrentIndex(0 if worker_type == WorkerType.EMPLOYEE else 1)
             self.name_edit.setText(resource.name)
             self.role_edit.setText(resource.role or "")
             if resource.hourly_rate is not None:
@@ -88,7 +111,12 @@ class ResourceEditDialog(QDialog):
             if getattr(resource, "currency_code", None):
                 self.currency_combo.setCurrentText(resource.currency_code)
             self.active_check.setChecked(getattr(resource, "is_active", True))
+            if getattr(resource, "employee_id", None):
+                idx = self.employee_combo.findData(resource.employee_id)
+                if idx >= 0:
+                    self.employee_combo.setCurrentIndex(idx)
         else:
+            self.worker_type_combo.setCurrentIndex(1)
             self.capacity_spin.setValue(100.0)
             self.currency_combo.setCurrentText(CFG.DEFAULT_CURRENCY_CODE)
             self.active_check.setChecked(True)
@@ -100,6 +128,8 @@ class ResourceEditDialog(QDialog):
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         form.setRowWrapPolicy(QFormLayout.DontWrapRows)
+        form.addRow("Worker type:", self.worker_type_combo)
+        form.addRow("Employee:", self.employee_combo)
         form.addRow("Name:", self.name_edit)
         form.addRow("Role:", self.role_edit)
         form.addRow("Category:", self.category_combo)
@@ -111,18 +141,65 @@ class ResourceEditDialog(QDialog):
         form.addRow("", self.active_check)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.accepted.connect(self.accept)
+        buttons.accepted.connect(self._validate_and_accept)
         buttons.rejected.connect(self.reject)
         buttons.setCenterButtons(False)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_LG)
-        layout.setContentsMargins(
-            CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD
-        )
+        layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
         layout.addLayout(form)
         layout.addWidget(buttons)
         self.setMinimumSize(self.sizeHint())
+
+        self.worker_type_combo.currentIndexChanged.connect(self._sync_worker_mode)
+        self.employee_combo.currentIndexChanged.connect(self._sync_worker_mode)
+        self._sync_worker_mode()
+
+    def _load_employees(self) -> None:
+        if self._employee_service is None:
+            self.employee_combo.setEnabled(False)
+            return
+        try:
+            self._employees = self._employee_service.list_employees()
+        except Exception:
+            self._employees = []
+            self.employee_combo.setEnabled(False)
+            return
+        for employee in self._employees:
+            label = f"{employee.employee_code} - {employee.full_name}"
+            if not getattr(employee, "is_active", True):
+                label += " (Inactive)"
+            self.employee_combo.addItem(label, userData=employee.id)
+
+    def _selected_employee(self):
+        employee_id = self.employee_combo.currentData()
+        for employee in self._employees:
+            if employee.id == employee_id:
+                return employee
+        return None
+
+    def _sync_worker_mode(self) -> None:
+        is_employee = self.worker_type == WorkerType.EMPLOYEE
+        self.employee_combo.setEnabled(is_employee and bool(self._employees))
+        self.name_edit.setReadOnly(is_employee)
+        self.role_edit.setReadOnly(is_employee)
+        self.contact_edit.setReadOnly(is_employee)
+        if is_employee:
+            employee = self._selected_employee()
+            if employee is not None:
+                self.name_edit.setText(employee.full_name)
+                self.role_edit.setText(employee.title or "")
+                self.contact_edit.setText(employee.email or employee.phone or "")
+
+    def _validate_and_accept(self) -> None:
+        if self.worker_type == WorkerType.EMPLOYEE and not self.employee_id:
+            QMessageBox.warning(self, "Resource", "Please select an employee.")
+            return
+        if self.worker_type == WorkerType.EXTERNAL and not self.name:
+            QMessageBox.warning(self, "Resource", "Resource name is required.")
+            return
+        self.accept()
 
     @property
     def name(self) -> str:
@@ -163,6 +240,15 @@ class ResourceEditDialog(QDialog):
     def currency_code(self) -> str | None:
         txt = self.currency_combo.currentText().strip()
         return txt if txt else None
+
+    @property
+    def worker_type(self) -> WorkerType:
+        return self.worker_type_combo.currentData() or WorkerType.EXTERNAL
+
+    @property
+    def employee_id(self) -> str | None:
+        value = self.employee_combo.currentData()
+        return str(value) if value else None
 
 
 __all__ = ["ResourceEditDialog"]

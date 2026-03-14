@@ -11,9 +11,10 @@ from core.platform import ModuleCatalogService, build_default_module_catalog
 from core.platform.access import AccessControlService
 from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
-from core.modules.project_management.services.baseline import BaselineService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
+from core.platform.org import EmployeeService
+from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
 from core.modules.project_management.services.cost import CostService
@@ -41,6 +42,7 @@ from infra.platform.db.repositories import (
     SqlAlchemyProjectResourceRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
+    SqlAlchemyEmployeeRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyTaskRepository,
     SqlAlchemyTimeEntryRepository,
@@ -88,6 +90,7 @@ class ServiceGraph:
     user_session: UserSessionContext
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
+    employee_service: EmployeeService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -117,6 +120,7 @@ class ServiceGraph:
             "user_session": self.user_session,
             "module_catalog_service": self.module_catalog_service,
             "auth_service": self.auth_service,
+            "employee_service": self.employee_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
@@ -148,6 +152,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     project_repo = SqlAlchemyProjectRepository(session)
     task_repo = SqlAlchemyTaskRepository(session)
     resource_repo = SqlAlchemyResourceRepository(session)
+    employee_repo = SqlAlchemyEmployeeRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
     time_entry_repo = SqlAlchemyTimeEntryRepository(session)
     timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(session)
@@ -200,6 +205,13 @@ def build_service_graph(session: Session) -> ServiceGraph:
         project_repo=project_repo,
         user_repo=user_repo,
         auth_service=auth_service,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    employee_service = EmployeeService(
+        session=session,
+        employee_repo=employee_repo,
+        resource_repo=resource_repo,
         user_session=user_session,
         audit_service=audit_service,
     )
@@ -279,6 +291,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         assignment_repo,
         project_resource_repo,
         time_entry_repo,
+        employee_repo,
         user_session=user_session,
         audit_service=audit_service,
     )
@@ -440,6 +453,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         user_session=user_session,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
+        employee_service=employee_service,
         access_service=access_service,
         audit_service=audit_service,
         approval_service=approval_service,

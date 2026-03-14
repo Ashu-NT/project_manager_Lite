@@ -34,4 +34,9 @@ class CostType(str, Enum):
     OTHER = "OTHER"
 
 
-__all__ = ["ProjectStatus", "TaskStatus", "DependencyType", "CostType"]
+class WorkerType(str, Enum):
+    EMPLOYEE = "EMPLOYEE"
+    EXTERNAL = "EXTERNAL"
+
+
+__all__ = ["ProjectStatus", "TaskStatus", "DependencyType", "CostType", "WorkerType"]

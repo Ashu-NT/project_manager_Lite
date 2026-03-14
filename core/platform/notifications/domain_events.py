@@ -16,6 +16,7 @@ class DomainEvents:
     approvals_changed: Signal[str] = field(default_factory=Signal)  # approval_request_id
     register_changed: Signal[str] = field(default_factory=Signal)  # project_id
     auth_changed: Signal[str] = field(default_factory=Signal)  # user_id
+    employees_changed: Signal[str] = field(default_factory=Signal)  # employee_id
     access_changed: Signal[str] = field(default_factory=Signal)  # project_id
     collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
     portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id

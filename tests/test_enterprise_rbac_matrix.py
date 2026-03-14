@@ -41,6 +41,8 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
     assert "payroll.export" in payroll_permissions
     assert "timesheet.approve" in payroll_permissions
     assert "timesheet.lock" in payroll_permissions
+    assert "employee.read" in payroll_permissions
+    assert "employee.manage" in payroll_permissions
     assert "auth.manage" not in payroll_permissions
 
 

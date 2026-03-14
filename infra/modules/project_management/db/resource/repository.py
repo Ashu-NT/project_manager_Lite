@@ -35,6 +35,8 @@ class SqlAlchemyResourceRepository(ResourceRepository):
                 "contact": (getattr(resource, "contact", "") or None),
                 "cost_type": resource.cost_type,
                 "currency_code": resource.currency_code,
+                "worker_type": getattr(resource, "worker_type", None),
+                "employee_id": getattr(resource, "employee_id", None),
             },
             not_found_message="Resource not found.",
             stale_message="Resource was updated by another user.",
@@ -49,6 +51,11 @@ class SqlAlchemyResourceRepository(ResourceRepository):
 
     def list_all(self) -> List[Resource]:
         stmt = select(ResourceORM)
+        rows = self.session.execute(stmt).scalars().all()
+        return [resource_from_orm(row) for row in rows]
+
+    def list_by_employee(self, employee_id: str) -> List[Resource]:
+        stmt = select(ResourceORM).where(ResourceORM.employee_id == employee_id)
         rows = self.session.execute(stmt).scalars().all()
         return [resource_from_orm(row) for row in rows]
 

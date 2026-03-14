@@ -7,6 +7,7 @@ from typing import Generic, TypeVar
 
 from PySide6.QtCore import QObject, QRunnable, Qt, QThreadPool, Signal
 from PySide6.QtWidgets import QMessageBox, QProgressDialog, QWidget
+from shiboken6 import isValid
 
 
 _T = TypeVar("_T")
@@ -116,6 +117,12 @@ class AsyncJobHandle(Generic[_T], QObject):
         self._signals: _JobSignals | None = None
         self._dialog: QProgressDialog | None = None
 
+    def _valid_parent(self) -> QWidget | None:
+        try:
+            return self._parent if isValid(self._parent) else None
+        except RuntimeError:
+            return None
+
     def start(self) -> None:
         self._token = CancelToken()
         self._signals = _JobSignals()
@@ -159,6 +166,13 @@ class AsyncJobHandle(Generic[_T], QObject):
     def _handle_progress(self, percent: int, message: str) -> None:
         if self._dialog is None:
             return
+        try:
+            if not isValid(self._dialog):
+                self._dialog = None
+                return
+        except RuntimeError:
+            self._dialog = None
+            return
         if percent < 0:
             self._dialog.setRange(0, 0)
         else:
@@ -171,25 +185,34 @@ class AsyncJobHandle(Generic[_T], QObject):
     def _handle_success(self, result: object) -> None:
         try:
             self._on_success(result)  # type: ignore[arg-type]
+        except RuntimeError:
+            return
         finally:
             self._finish()
 
     def _handle_failure(self, message: str) -> None:
         retry_selected = False
-        if self._ui.allow_retry:
-            button = QMessageBox.warning(
-                self._parent,
-                self._ui.title,
-                message or "Operation failed.",
-                QMessageBox.Retry | QMessageBox.Close,
-                QMessageBox.Retry,
-            )
-            retry_selected = button == QMessageBox.Retry
+        parent = self._valid_parent()
+        can_show_modal = bool(parent is not None and parent.isVisible() and parent.window().isVisible())
+        if self._ui.allow_retry and can_show_modal:
+            if parent is not None:
+                button = QMessageBox.warning(
+                    parent,
+                    self._ui.title,
+                    message or "Operation failed.",
+                    QMessageBox.Retry | QMessageBox.Close,
+                    QMessageBox.Retry,
+                )
+                retry_selected = button == QMessageBox.Retry
         else:
             if self._on_error is None:
-                QMessageBox.warning(self._parent, self._ui.title, message or "Operation failed.")
+                if can_show_modal and parent is not None:
+                    QMessageBox.warning(parent, self._ui.title, message or "Operation failed.")
             else:
-                self._on_error(message or "Operation failed.")
+                try:
+                    self._on_error(message or "Operation failed.")
+                except RuntimeError:
+                    pass
 
         self._finish()
         if retry_selected:
@@ -199,6 +222,8 @@ class AsyncJobHandle(Generic[_T], QObject):
         try:
             if self._on_cancel is not None:
                 self._on_cancel()
+        except RuntimeError:
+            return
         finally:
             self._finish()
 
@@ -206,8 +231,12 @@ class AsyncJobHandle(Generic[_T], QObject):
         if self._set_busy is not None:
             self._set_busy(False)
         if self._dialog is not None:
-            self._dialog.close()
-            self._dialog.deleteLater()
+            try:
+                if isValid(self._dialog):
+                    self._dialog.close()
+                    self._dialog.deleteLater()
+            except RuntimeError:
+                pass
             self._dialog = None
         if self._on_finished is not None:
             self._on_finished()

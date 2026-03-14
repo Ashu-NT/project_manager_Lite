@@ -34,6 +34,7 @@ from .models import (
     UserRoleBinding,
     TimeEntry,
     TimesheetPeriod,
+    Employee,
 )
 
 
@@ -105,6 +106,8 @@ class ResourceRepository(ABC):
     def get(self, resource_id: str) -> Optional[Resource]: ...
     @abstractmethod
     def list_all(self) -> List[Resource]: ...
+    @abstractmethod
+    def list_by_employee(self, employee_id: str) -> List[Resource]: ...
 
 
 class AssignmentRepository(ABC):
@@ -282,6 +285,19 @@ class UserRepository(ABC):
     def get_by_username(self, username: str) -> Optional[UserAccount]: ...
     @abstractmethod
     def list_all(self) -> List[UserAccount]: ...
+
+
+class EmployeeRepository(ABC):
+    @abstractmethod
+    def add(self, employee: Employee) -> None: ...
+    @abstractmethod
+    def update(self, employee: Employee) -> None: ...
+    @abstractmethod
+    def get(self, employee_id: str) -> Optional[Employee]: ...
+    @abstractmethod
+    def get_by_code(self, employee_code: str) -> Optional[Employee]: ...
+    @abstractmethod
+    def list_all(self, *, active_only: bool | None = None) -> List[Employee]: ...
 
 
 class RoleRepository(ABC):

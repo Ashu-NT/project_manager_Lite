@@ -21,14 +21,16 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from infra.platform.db.base import Base
 from core.platform.common.models import (
-    ProjectStatus,
-    TaskStatus,
-    DependencyType,
     CostType,
+    DependencyType,
+    EmploymentType,
+    ProjectStatus,
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
+    TaskStatus,
     TimesheetPeriodStatus,
+    WorkerType,
 ) 
 
 
@@ -91,6 +93,37 @@ class ResourceORM(Base):
 
     cost_type: Mapped[CostType] = mapped_column(SAEnum(CostType), default=CostType.LABOR, nullable=False)
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    worker_type: Mapped[WorkerType] = mapped_column(
+        SAEnum(WorkerType),
+        nullable=False,
+        default=WorkerType.EXTERNAL,
+        server_default=WorkerType.EXTERNAL.value,
+    )
+    employee_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class EmployeeORM(Base):
+    __tablename__ = "employees"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    employee_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    full_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    department: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    employment_type: Mapped[EmploymentType] = mapped_column(
+        SAEnum(EmploymentType),
+        nullable=False,
+        default=EmploymentType.FULL_TIME,
+        server_default=EmploymentType.FULL_TIME.value,
+    )
+    email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -501,6 +534,9 @@ Index("idx_register_entries_type", RegisterEntryORM.entry_type)
 Index("idx_register_entries_status", RegisterEntryORM.status)
 Index("idx_register_entries_due", RegisterEntryORM.due_date)
 Index("idx_users_username", UserORM.username, unique=True)
+Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
+Index("idx_employees_active", EmployeeORM.is_active)
+Index("idx_resources_employee", ResourceORM.employee_id)
 Index("idx_roles_name", RoleORM.name, unique=True)
 Index("idx_permissions_code", PermissionORM.code, unique=True)
 Index("idx_user_roles_user", UserRoleORM.user_id)

@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.models import Resource
 from core.platform.auth import UserSessionContext
+from core.platform.org import EmployeeService
 from core.modules.project_management.services.resource import ResourceService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.resource.actions import ResourceActionsMixin
@@ -31,11 +32,13 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
     def __init__(
         self,
         resource_service: ResourceService,
+        employee_service: EmployeeService | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._resource_service: ResourceService = resource_service
+        self._employee_service: EmployeeService | None = employee_service
         self._user_session = user_session
         self._can_manage_resources = has_permission(self._user_session, "resource.manage")
         self._all_resources: list[Resource] = []
@@ -165,12 +168,13 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
         hh.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         hh.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         hh.setSectionResizeMode(5, QHeaderView.ResizeToContents)
-        hh.setSectionResizeMode(6, QHeaderView.Interactive)
+        hh.setSectionResizeMode(6, QHeaderView.ResizeToContents)
         hh.setSectionResizeMode(7, QHeaderView.Interactive)
-        hh.setSectionResizeMode(8, QHeaderView.ResizeToContents)
+        hh.setSectionResizeMode(8, QHeaderView.Interactive)
+        hh.setSectionResizeMode(9, QHeaderView.ResizeToContents)
         hh.resizeSection(1, 180)
-        hh.resizeSection(6, 220)
-        hh.resizeSection(7, 180)
+        hh.resizeSection(7, 220)
+        hh.resizeSection(8, 180)
         layout.addWidget(self.table, 1)
 
         self.btn_reload_resources.clicked.connect(self.reload_resources)

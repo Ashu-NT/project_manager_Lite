@@ -86,6 +86,7 @@ class ResourceFiltersMixin:
                     [
                         resource.name or "",
                         resource.role or "",
+                        getattr(getattr(resource, "worker_type", None), "value", ""),
                         resource_category,
                         resource.currency_code or "",
                         getattr(resource, "address", "") or "",

@@ -70,6 +70,7 @@ from infra.platform.db.repositories_auth import (
     SqlAlchemyUserRepository,
     SqlAlchemyUserRoleRepository,
 )
+from infra.platform.db.repositories_org import SqlAlchemyEmployeeRepository
 
 __all__ = [
     "project_to_orm",
@@ -122,6 +123,7 @@ __all__ = [
     "SqlAlchemyWorkingCalendarRepository",
     "SqlAlchemyBaselineRepository",
     "SqlAlchemyUserRepository",
+    "SqlAlchemyEmployeeRepository",
     "SqlAlchemyRoleRepository",
     "SqlAlchemyPermissionRepository",
     "SqlAlchemyUserRoleRepository",

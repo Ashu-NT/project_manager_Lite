@@ -22,6 +22,7 @@ from infra.platform.db.auth.mapper import (
     user_role_to_orm,
     user_to_orm,
 )
+from infra.platform.db.org.mapper import employee_from_orm, employee_to_orm
 from infra.modules.project_management.db.cost_calendar.mapper import (
     calendar_from_orm,
     calendar_to_orm,
@@ -92,6 +93,8 @@ __all__ = [
     "role_from_orm",
     "permission_to_orm",
     "permission_from_orm",
+    "employee_to_orm",
+    "employee_from_orm",
     "user_role_to_orm",
     "user_role_from_orm",
     "role_permission_to_orm",

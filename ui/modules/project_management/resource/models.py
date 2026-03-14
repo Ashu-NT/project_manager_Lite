@@ -12,6 +12,7 @@ class ResourceTableModel(QAbstractTableModel):
     HEADERS = [
         "Name",
         "Role",
+        "Worker",
         "Category",
         "Hourly rate",
         "Capacity",
@@ -46,18 +47,20 @@ class ResourceTableModel(QAbstractTableModel):
         if col == 1:
             return r.role or ""
         if col == 2:
-            return getattr(r, "cost_type", None).value if getattr(r, "cost_type", None) else ""
+            return getattr(getattr(r, "worker_type", None), "value", "").title() or "External"
         if col == 3:
-            return f"{(r.hourly_rate or 0.0):.2f}"
+            return getattr(r, "cost_type", None).value if getattr(r, "cost_type", None) else ""
         if col == 4:
-            return f"{float(getattr(r, 'capacity_percent', 100.0) or 100.0):.1f}%"
+            return f"{(r.hourly_rate or 0.0):.2f}"
         if col == 5:
-            return r.currency_code or ""
+            return f"{float(getattr(r, 'capacity_percent', 100.0) or 100.0):.1f}%"
         if col == 6:
-            return getattr(r, "address", "") or ""
+            return r.currency_code or ""
         if col == 7:
-            return getattr(r, "contact", "") or ""
+            return getattr(r, "address", "") or ""
         if col == 8:
+            return getattr(r, "contact", "") or ""
+        if col == 9:
             return "Yes" if getattr(r, "is_active", True) else "No"
         return None
 
