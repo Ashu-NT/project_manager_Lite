@@ -26,6 +26,9 @@ from core.platform.auth import UserSessionContext
 from core.modules.project_management.services.portfolio import PortfolioService
 from core.modules.project_management.services.project import ProjectService
 from ui.modules.project_management.portfolio.scenario_dialog import PortfolioScenarioDialog
+from ui.modules.project_management.portfolio.scoring_template_dialog import (
+    PortfolioScoringTemplateDialog,
+)
 from ui.platform.shared.guards import apply_permission_hint, has_permission
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -47,6 +50,7 @@ class PortfolioTab(QWidget):
         self._can_manage = has_permission(self._user_session, "portfolio.manage")
         self._available_projects = []
         self._available_intake_items = []
+        self._available_templates = []
         self._setup_ui()
         self.reload_data()
         domain_events.project_changed.connect(self._on_domain_change)
@@ -73,6 +77,23 @@ class PortfolioTab(QWidget):
 
         intake_box = QGroupBox("Intake")
         intake_layout = QVBoxLayout(intake_box)
+        self.active_template_label = QLabel("Active template: Balanced PMO")
+        self.active_template_label.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.active_template_label.setWordWrap(True)
+        intake_layout.addWidget(self.active_template_label)
+
+        template_row = QHBoxLayout()
+        template_row.addWidget(QLabel("Scoring template"))
+        self.intake_template = QComboBox()
+        template_row.addWidget(self.intake_template, 1)
+        self.btn_new_template = QPushButton("New Template")
+        self.btn_activate_template = QPushButton("Set Active")
+        for button in (self.btn_new_template, self.btn_activate_template):
+            button.setFixedHeight(CFG.BUTTON_HEIGHT)
+            button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+            template_row.addWidget(button)
+        intake_layout.addLayout(template_row)
+
         intake_form = QGridLayout()
         intake_form.setHorizontalSpacing(CFG.SPACING_MD)
         intake_form.setVerticalSpacing(CFG.SPACING_SM)
@@ -117,8 +138,10 @@ class PortfolioTab(QWidget):
             intake_button_row.addWidget(button)
         intake_button_row.addStretch()
         intake_layout.addLayout(intake_button_row)
-        self.intake_table = QTableWidget(0, 6)
-        self.intake_table.setHorizontalHeaderLabels(["Title", "Sponsor", "Status", "Budget", "Capacity %", "Score"])
+        self.intake_table = QTableWidget(0, 7)
+        self.intake_table.setHorizontalHeaderLabels(
+            ["Title", "Sponsor", "Template", "Status", "Budget", "Capacity %", "Score"]
+        )
         self.intake_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.intake_table.setSelectionMode(QTableWidget.SingleSelection)
         self.intake_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -217,10 +240,53 @@ class PortfolioTab(QWidget):
         self.comparison_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
         compare_layout.addWidget(self.comparison_summary)
         self.scenario_tabs.addTab(compare_page, "Compare")
+
+        self.heatmap_table = QTableWidget(0, 7)
+        self.heatmap_table.setHorizontalHeaderLabels(
+            ["Project", "Status", "Late Tasks", "Critical", "Peak Util %", "Cost Variance", "Pressure"]
+        )
+        self.heatmap_table.setSelectionMode(QTableWidget.NoSelection)
+        self.heatmap_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.heatmap_table.horizontalHeader().setStretchLastSection(True)
+        style_table(self.heatmap_table)
+        heatmap_page = QWidget()
+        heatmap_layout = QVBoxLayout(heatmap_page)
+        heatmap_layout.setContentsMargins(0, 0, 0, 0)
+        heatmap_layout.setSpacing(CFG.SPACING_SM)
+        heatmap_hint = QLabel(
+            "Cross-project delivery pressure across the accessible PM portfolio."
+        )
+        heatmap_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        heatmap_hint.setWordWrap(True)
+        heatmap_layout.addWidget(heatmap_hint)
+        heatmap_layout.addWidget(self.heatmap_table, 1)
+        self.scenario_tabs.addTab(heatmap_page, "Heatmap")
+
+        self.audit_table = QTableWidget(0, 5)
+        self.audit_table.setHorizontalHeaderLabels(["When", "Project", "Actor", "Action", "Summary"])
+        self.audit_table.setSelectionMode(QTableWidget.NoSelection)
+        self.audit_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.audit_table.horizontalHeader().setStretchLastSection(True)
+        style_table(self.audit_table)
+        audit_page = QWidget()
+        audit_layout = QVBoxLayout(audit_page)
+        audit_layout.setContentsMargins(0, 0, 0, 0)
+        audit_layout.setSpacing(CFG.SPACING_SM)
+        audit_hint = QLabel(
+            "Recent PM delivery actions across accessible projects, focused on changes worth executive review."
+        )
+        audit_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        audit_hint.setWordWrap(True)
+        audit_layout.addWidget(audit_hint)
+        audit_layout.addWidget(self.audit_table, 1)
+        self.scenario_tabs.addTab(audit_page, "Recent Actions")
+
         split.addWidget(scenario_box, 1)
 
         self.btn_reload.clicked.connect(self.reload_data)
         self.btn_add_intake.clicked.connect(self._create_intake_item)
+        self.btn_new_template.clicked.connect(self._create_scoring_template)
+        self.btn_activate_template.clicked.connect(self._activate_selected_template)
         self.btn_save_scenario.clicked.connect(self._save_scenario)
         self.btn_evaluate.clicked.connect(self._evaluate_selected_scenario)
         self.btn_compare.clicked.connect(self._compare_selected_scenario)
@@ -236,14 +302,28 @@ class PortfolioTab(QWidget):
             allowed=self._can_manage,
             missing_permission="portfolio.manage",
         )
+        apply_permission_hint(
+            self.btn_new_template,
+            allowed=self._can_manage,
+            missing_permission="portfolio.manage",
+        )
+        apply_permission_hint(
+            self.btn_activate_template,
+            allowed=self._can_manage,
+            missing_permission="portfolio.manage",
+        )
 
     def reload_data(self) -> None:
         selected_scenario_id = self._selected_scenario_id()
         preferred_base_compare_id = str(self.base_compare_scenario.currentData() or "")
         preferred_compare_id = str(self.compare_scenario.currentData() or "")
+        preferred_template_id = str(self.intake_template.currentData() or "")
         try:
             intake_items = self._portfolio_service.list_intake_items()
+            scoring_templates = self._portfolio_service.list_scoring_templates()
             scenarios = self._portfolio_service.list_scenarios()
+            heatmap_rows = self._portfolio_service.list_portfolio_heatmap()
+            recent_actions = self._portfolio_service.list_recent_pm_actions(limit=24)
             projects = self._project_service.list_projects()
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Portfolio", str(exc))
@@ -254,6 +334,9 @@ class PortfolioTab(QWidget):
 
         self._available_projects = list(projects)
         self._available_intake_items = list(intake_items)
+        self._available_templates = list(scoring_templates)
+        self._reload_template_selector(scoring_templates, preferred_template_id=preferred_template_id)
+        self._update_active_template_label(scoring_templates)
         self.scenario_options_label.setText(
             f"Scenario options: {len(projects)} project(s), {len(intake_items)} intake item(s)."
         )
@@ -263,6 +346,7 @@ class PortfolioTab(QWidget):
             values = [
                 intake_item.title,
                 intake_item.sponsor_name,
+                intake_item.scoring_template_name or "-",
                 intake_item.status.value,
                 f"{float(intake_item.requested_budget or 0.0):.2f}",
                 f"{float(intake_item.requested_capacity_percent or 0.0):.1f}",
@@ -294,6 +378,8 @@ class PortfolioTab(QWidget):
             preferred_base_id=self._selected_scenario_id() or preferred_base_compare_id,
             preferred_compare_id=preferred_compare_id,
         )
+        self._populate_heatmap_table(heatmap_rows)
+        self._populate_audit_table(recent_actions)
         if self.base_compare_scenario.count() <= 1 or self.compare_scenario.count() <= 1:
             self._clear_comparison()
 
@@ -311,6 +397,7 @@ class PortfolioTab(QWidget):
                 value_score=int(self.score_value.value()),
                 urgency_score=int(self.score_urgency.value()),
                 risk_score=int(self.score_risk.value()),
+                scoring_template_id=str(self.intake_template.currentData() or ""),
                 status=self.intake_status.currentData(),
             )
         except (BusinessRuleError, ValidationError, NotFoundError) as exc:
@@ -320,6 +407,43 @@ class PortfolioTab(QWidget):
         self.intake_sponsor.clear()
         self.intake_budget.setValue(0.0)
         self.intake_capacity.setValue(0.0)
+        self.reload_data()
+
+    def _create_scoring_template(self) -> None:
+        if not self._can_manage:
+            QMessageBox.information(self, "Portfolio", "Managing scoring templates requires portfolio.manage.")
+            return
+        dialog = PortfolioScoringTemplateDialog(self)
+        if dialog.exec() != PortfolioScoringTemplateDialog.Accepted:
+            return
+        try:
+            self._portfolio_service.create_scoring_template(
+                name=dialog.template_name,
+                summary=dialog.template_summary,
+                strategic_weight=int(dialog.strategic_weight.value()),
+                value_weight=int(dialog.value_weight.value()),
+                urgency_weight=int(dialog.urgency_weight.value()),
+                risk_weight=int(dialog.risk_weight.value()),
+                activate=dialog.activate_check.isChecked(),
+            )
+        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Portfolio", str(exc))
+            return
+        self.reload_data()
+
+    def _activate_selected_template(self) -> None:
+        if not self._can_manage:
+            QMessageBox.information(self, "Portfolio", "Managing scoring templates requires portfolio.manage.")
+            return
+        template_id = str(self.intake_template.currentData() or "")
+        if not template_id:
+            QMessageBox.information(self, "Portfolio", "Select a scoring template first.")
+            return
+        try:
+            self._portfolio_service.activate_scoring_template(template_id)
+        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Portfolio", str(exc))
+            return
         self.reload_data()
 
     def _save_scenario(self) -> None:
@@ -458,6 +582,41 @@ class PortfolioTab(QWidget):
         finally:
             self.compare_scenario.blockSignals(False)
 
+    def _reload_template_selector(self, templates, *, preferred_template_id: str = "") -> None:
+        self.intake_template.blockSignals(True)
+        try:
+            self.intake_template.clear()
+            selected_index = 0
+            active_template_id = ""
+            for template in templates:
+                label = (
+                    f"{template.name} "
+                    f"(Sx{template.strategic_weight}, Vx{template.value_weight}, "
+                    f"Ux{template.urgency_weight}, Rx{template.risk_weight})"
+                )
+                if template.is_active:
+                    label += " [Active]"
+                    active_template_id = template.id
+                self.intake_template.addItem(label, userData=template.id)
+            for idx in range(self.intake_template.count()):
+                current_id = str(self.intake_template.itemData(idx) or "")
+                if current_id == preferred_template_id or (not preferred_template_id and current_id == active_template_id):
+                    selected_index = idx
+                    break
+            if self.intake_template.count() > 0:
+                self.intake_template.setCurrentIndex(selected_index)
+        finally:
+            self.intake_template.blockSignals(False)
+
+    def _update_active_template_label(self, templates) -> None:
+        active_template = next((template for template in templates if template.is_active), None)
+        if active_template is None:
+            self.active_template_label.setText("Active template: -")
+            return
+        self.active_template_label.setText(
+            f"Active template: {active_template.name}. {active_template.weight_summary}"
+        )
+
     def _restore_scenario_selection(self, scenarios, scenario_id: str) -> None:
         if not scenario_id:
             return
@@ -515,6 +674,39 @@ class PortfolioTab(QWidget):
     def _clear_comparison(self) -> None:
         self.comparison_table.setRowCount(0)
         self.comparison_summary.setText("Select two saved scenarios to compare.")
+
+    def _populate_heatmap_table(self, rows) -> None:
+        self.heatmap_table.setRowCount(len(rows))
+        for row_idx, item in enumerate(rows):
+            values = [
+                item.project_name,
+                item.project_status,
+                str(item.late_tasks),
+                str(item.critical_tasks),
+                f"{float(item.peak_utilization_percent):.1f}",
+                f"{float(item.cost_variance):+.2f}",
+                item.pressure_label,
+            ]
+            for col, value in enumerate(values):
+                cell = QTableWidgetItem(value)
+                if item.pressure_label == "Hot":
+                    font = cell.font()
+                    font.setBold(True)
+                    cell.setFont(font)
+                self.heatmap_table.setItem(row_idx, col, cell)
+
+    def _populate_audit_table(self, rows) -> None:
+        self.audit_table.setRowCount(len(rows))
+        for row_idx, item in enumerate(rows):
+            values = [
+                item.occurred_at.strftime("%Y-%m-%d %H:%M"),
+                item.project_name,
+                item.actor_username,
+                item.action_label,
+                item.summary,
+            ]
+            for col, value in enumerate(values):
+                self.audit_table.setItem(row_idx, col, QTableWidgetItem(value))
 
     def _on_compare_base_changed(self) -> None:
         scenarios = self._portfolio_service.list_scenarios()

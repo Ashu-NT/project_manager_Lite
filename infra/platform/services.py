@@ -71,6 +71,7 @@ from infra.modules.project_management.db.collaboration import (
 )
 from infra.modules.project_management.db.portfolio import (
     SqlAlchemyPortfolioIntakeRepository,
+    SqlAlchemyPortfolioScoringTemplateRepository,
     SqlAlchemyPortfolioScenarioRepository,
 )
 from infra.modules.project_management.db.repositories_register import SqlAlchemyRegisterEntryRepository
@@ -196,6 +197,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     task_comment_repo = SqlAlchemyTaskCommentRepository(session)
     task_presence_repo = SqlAlchemyTaskPresenceRepository(session)
     portfolio_intake_repo = SqlAlchemyPortfolioIntakeRepository(session)
+    portfolio_scoring_template_repo = SqlAlchemyPortfolioScoringTemplateRepository(session)
     portfolio_scenario_repo = SqlAlchemyPortfolioScenarioRepository(session)
 
     work_calendar_engine = WorkCalendarEngine(work_calendar_repo, calendar_id="default")
@@ -422,7 +424,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
     portfolio_service = PortfolioService(
         session=session,
         intake_repo=portfolio_intake_repo,
+        scoring_template_repo=portfolio_scoring_template_repo,
         scenario_repo=portfolio_scenario_repo,
+        audit_repo=audit_repo,
         project_repo=project_repo,
         resource_repo=resource_repo,
         reporting_service=reporting_service,

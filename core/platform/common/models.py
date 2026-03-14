@@ -23,8 +23,11 @@ from core.modules.project_management.domain.cost import CostItem
 from core.modules.project_management.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatus, WorkerType
 from core.modules.project_management.domain.identifiers import generate_id
 from core.modules.project_management.domain.portfolio import (
+    PortfolioExecutiveRow,
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
+    PortfolioRecentAction,
+    PortfolioScoringTemplate,
     PortfolioScenarioComparison,
     PortfolioScenario,
     PortfolioScenarioEvaluation,
@@ -64,6 +67,9 @@ __all__ = [
     "RegisterEntryStatus",
     "PortfolioIntakeStatus",
     "PortfolioIntakeItem",
+    "PortfolioScoringTemplate",
+    "PortfolioExecutiveRow",
+    "PortfolioRecentAction",
     "PortfolioScenario",
     "PortfolioScenarioEvaluation",
     "PortfolioScenarioComparison",

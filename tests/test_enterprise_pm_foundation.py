@@ -9,6 +9,7 @@ from tests.ui_runtime_helpers import login_as, register_and_login
 from ui.platform.admin.access.tab import AccessTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.portfolio.tab import PortfolioTab
+from ui.modules.project_management.task.tab import TaskTab
 
 
 def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch):
@@ -235,6 +236,40 @@ def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
     assert "over capacity" in result.summary
 
 
+def test_portfolio_scoring_templates_drive_new_intake_scores(services):
+    portfolio = services["portfolio_service"]
+
+    default_template = portfolio.get_active_scoring_template()
+    assert default_template.name == "Balanced PMO"
+
+    template = portfolio.create_scoring_template(
+        name="Value First",
+        summary="Pushes business value above urgency.",
+        strategic_weight=1,
+        value_weight=5,
+        urgency_weight=1,
+        risk_weight=0,
+        activate=True,
+    )
+
+    active_template = portfolio.get_active_scoring_template()
+    assert active_template.id == template.id
+    assert active_template.is_active is True
+
+    intake = portfolio.create_intake_item(
+        title="Template Driven Intake",
+        sponsor_name="PMO",
+        strategic_score=2,
+        value_score=5,
+        urgency_score=1,
+        risk_score=4,
+    )
+
+    assert intake.scoring_template_id == template.id
+    assert intake.scoring_template_name == "Value First"
+    assert intake.composite_score == 28
+
+
 def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(services):
     project_service = services["project_service"]
     portfolio = services["portfolio_service"]
@@ -290,6 +325,46 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
     assert comparison.added_intake_titles == ["Expansion Intake"]
     assert comparison.removed_intake_titles == ["Legacy Intake"]
     assert "Expansion Scenario vs Baseline Scenario" in comparison.summary
+
+
+def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(services):
+    project_service = services["project_service"]
+    portfolio = services["portfolio_service"]
+    resource_service = services["resource_service"]
+    task_service = services["task_service"]
+    timesheet_service = services["timesheet_service"]
+
+    project = project_service.create_project("Executive Pressure Project", planned_budget=200.0)
+    resource = resource_service.create_resource("Executive Analyst", hourly_rate=100.0, capacity_percent=80.0)
+    task = task_service.create_task(
+        project.id,
+        "Late Executive Task",
+        start_date=date(2026, 6, 1),
+        duration_days=2,
+    )
+    assignment = task_service.assign_resource(task.id, resource.id, 100.0)
+    timesheet_service.add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 6, 2),
+        hours=6.0,
+        note="Delivery work",
+    )
+    timesheet_service.submit_timesheet_period(
+        resource.id,
+        period_start=date(2026, 6, 1),
+        note="Executive review",
+    )
+
+    heatmap = portfolio.list_portfolio_heatmap()
+    recent_actions = portfolio.list_recent_pm_actions(limit=10)
+
+    assert len(heatmap) == 1
+    assert heatmap[0].project_name == "Executive Pressure Project"
+    assert heatmap[0].pressure_label in {"Watch", "Hot"}
+    assert heatmap[0].peak_utilization_percent >= 100.0
+
+    assert any("Timesheet Period Submit" == item.action_label for item in recent_actions)
+    assert any(item.project_name == "Executive Pressure Project" for item in recent_actions)
 
 
 def test_access_tab_shows_memberships_and_security_runtime(qapp, services):
@@ -436,6 +511,43 @@ def test_collaboration_tab_refreshes_when_timesheet_period_notifications_change(
     assert "Timesheet submitted" in tab.notifications_table.item(0, 4).text()
 
 
+def test_task_tab_surfaces_notifications_outside_collaboration_feed(qapp, services):
+    project = services["project_service"].create_project("Task Notification Project")
+    task = services["task_service"].create_task(project.id, "Task Notification Sync")
+    resource = services["resource_service"].create_resource("Task Feed Worker", hourly_rate=90.0)
+    assignment = services["task_service"].assign_resource(task.id, resource.id, 100.0)
+
+    tab = TaskTab(
+        project_service=services["project_service"],
+        task_service=services["task_service"],
+        resource_service=services["resource_service"],
+        project_resource_service=services["project_resource_service"],
+        timesheet_service=services["timesheet_service"],
+        collaboration_service=services["collaboration_service"],
+        settings_store=None,
+        user_session=services["user_session"],
+    )
+
+    assert tab.lbl_notifications.text() == "Notifications: 0"
+
+    services["timesheet_service"].add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 6, 5),
+        hours=4.0,
+        note="Execution",
+    )
+    services["timesheet_service"].submit_timesheet_period(
+        resource.id,
+        period_start=date(2026, 6, 1),
+        note="Ready for approval",
+    )
+    qapp.processEvents()
+    tab._refresh_notification_badge()
+
+    assert tab.lbl_notifications.text() == "Notifications: 1"
+    assert "Timesheet submitted" in tab.lbl_notifications.toolTip()
+
+
 def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, services):
     tab = PortfolioTab(
         portfolio_service=services["portfolio_service"],
@@ -443,9 +555,13 @@ def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, ser
         user_session=services["user_session"],
     )
 
-    assert tab.scenario_tabs.count() == 2
+    assert tab.scenario_tabs.count() == 4
     assert tab.scenario_tabs.tabText(0) == "Saved Scenarios"
     assert tab.scenario_tabs.tabText(1) == "Compare"
+    assert tab.scenario_tabs.tabText(2) == "Heatmap"
+    assert tab.scenario_tabs.tabText(3) == "Recent Actions"
+    assert "Balanced PMO" in tab.active_template_label.text()
+    assert tab.intake_template.count() >= 1
     assert tab.scenario_options_label.text() == "Scenario options: 0 project(s), 0 intake item(s)."
     assert tab.intake_table.rowCount() == 0
 
@@ -460,6 +576,78 @@ def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, ser
     qapp.processEvents()
     assert tab.scenario_options_label.text() == "Scenario options: 1 project(s), 1 intake item(s)."
     assert tab.intake_table.rowCount() == 1
+    assert tab.intake_table.item(0, 2).text() == "Balanced PMO"
+
+
+def test_portfolio_tab_shows_heatmap_and_recent_pm_actions(qapp, services):
+    project = services["project_service"].create_project("Portfolio Heatmap Project", planned_budget=300.0)
+    resource = services["resource_service"].create_resource("Portfolio Heatmap Worker", hourly_rate=80.0)
+    task = services["task_service"].create_task(
+        project.id,
+        "Heatmap Task",
+        start_date=date(2026, 6, 8),
+        duration_days=2,
+    )
+    assignment = services["task_service"].assign_resource(task.id, resource.id, 100.0)
+    services["timesheet_service"].add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 6, 8),
+        hours=5.0,
+        note="Heatmap work",
+    )
+    services["timesheet_service"].submit_timesheet_period(
+        resource.id,
+        period_start=date(2026, 6, 1),
+        note="Heatmap approval",
+    )
+
+    tab = PortfolioTab(
+        portfolio_service=services["portfolio_service"],
+        project_service=services["project_service"],
+        user_session=services["user_session"],
+    )
+    qapp.processEvents()
+
+    assert tab.heatmap_table.rowCount() == 1
+    assert tab.heatmap_table.item(0, 0).text() == "Portfolio Heatmap Project"
+    assert tab.heatmap_table.item(0, 6).text() in {"Watch", "Hot"}
+    assert tab.audit_table.rowCount() >= 1
+    assert tab.audit_table.item(0, 1).text() == "Portfolio Heatmap Project"
+
+
+def test_portfolio_tab_uses_selected_scoring_template_for_new_intake(qapp, services):
+    custom_template = services["portfolio_service"].create_scoring_template(
+        name="Urgency First",
+        strategic_weight=1,
+        value_weight=1,
+        urgency_weight=4,
+        risk_weight=1,
+        activate=True,
+    )
+
+    tab = PortfolioTab(
+        portfolio_service=services["portfolio_service"],
+        project_service=services["project_service"],
+        user_session=services["user_session"],
+    )
+    qapp.processEvents()
+
+    for idx in range(tab.intake_template.count()):
+        if tab.intake_template.itemData(idx) == custom_template.id:
+            tab.intake_template.setCurrentIndex(idx)
+            break
+    tab.intake_title.setText("UI Weighted Intake")
+    tab.intake_sponsor.setText("PMO")
+    tab.score_strategic.setValue(2)
+    tab.score_value.setValue(3)
+    tab.score_urgency.setValue(5)
+    tab.score_risk.setValue(1)
+
+    tab._create_intake_item()
+
+    assert tab.intake_table.rowCount() == 1
+    assert tab.intake_table.item(0, 2).text() == "Urgency First"
+    assert tab.intake_table.item(0, 6).text() == "24"
 
 
 def test_portfolio_tab_compares_saved_scenarios_side_by_side(qapp, services):
@@ -530,5 +718,9 @@ def test_portfolio_tab_disables_manage_actions_for_read_only_user(qapp, services
 
     assert tab.btn_add_intake.isEnabled() is False
     assert tab.btn_save_scenario.isEnabled() is False
+    assert tab.btn_new_template.isEnabled() is False
+    assert tab.btn_activate_template.isEnabled() is False
     assert "portfolio.manage" in tab.btn_add_intake.toolTip()
     assert "portfolio.manage" in tab.btn_save_scenario.toolTip()
+    assert "portfolio.manage" in tab.btn_new_template.toolTip()
+    assert "portfolio.manage" in tab.btn_activate_template.toolTip()

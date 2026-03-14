@@ -28,6 +28,7 @@ from .models import (
     ApprovalRequest,
     Permission,
     PortfolioIntakeItem,
+    PortfolioScoringTemplate,
     PortfolioScenario,
     Role,
     RolePermissionBinding,
@@ -411,3 +412,14 @@ class PortfolioScenarioRepository(ABC):
     def list_all(self) -> List[PortfolioScenario]: ...
     @abstractmethod
     def delete(self, scenario_id: str) -> None: ...
+
+
+class PortfolioScoringTemplateRepository(ABC):
+    @abstractmethod
+    def add(self, template: PortfolioScoringTemplate) -> None: ...
+    @abstractmethod
+    def update(self, template: PortfolioScoringTemplate) -> None: ...
+    @abstractmethod
+    def get(self, template_id: str) -> Optional[PortfolioScoringTemplate]: ...
+    @abstractmethod
+    def list_all(self) -> List[PortfolioScoringTemplate]: ...

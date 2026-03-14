@@ -69,6 +69,7 @@ def test_task_tab_pro_controls_saved_views_and_undo_work_at_runtime(
     assert tab.btn_bulk_delete.text() == "Bulk Delete"
     assert tab.btn_comments.text() == "Comments"
     assert tab.lbl_mentions.text() == "Mentions: 0"
+    assert tab.lbl_notifications.text() == "Notifications: -"
     assert tab.lbl_presence.text() == "Active now: -"
     assert tab.btn_assignment_add.text() == "Assign Resource"
     assert tab.btn_assignment_remove.text() == "Remove Assignment"

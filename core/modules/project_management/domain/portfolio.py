@@ -29,6 +29,12 @@ class PortfolioIntakeItem:
     value_score: int = 3
     urgency_score: int = 3
     risk_score: int = 3
+    scoring_template_id: str = ""
+    scoring_template_name: str = "Balanced PMO"
+    strategic_weight: int = 3
+    value_weight: int = 2
+    urgency_weight: int = 2
+    risk_weight: int = 1
     status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -47,6 +53,12 @@ class PortfolioIntakeItem:
         value_score: int = 3,
         urgency_score: int = 3,
         risk_score: int = 3,
+        scoring_template_id: str = "",
+        scoring_template_name: str = "Balanced PMO",
+        strategic_weight: int = 3,
+        value_weight: int = 2,
+        urgency_weight: int = 2,
+        risk_weight: int = 1,
         status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
     ) -> "PortfolioIntakeItem":
         now = datetime.now(timezone.utc)
@@ -62,6 +74,12 @@ class PortfolioIntakeItem:
             value_score=int(value_score or 0),
             urgency_score=int(urgency_score or 0),
             risk_score=int(risk_score or 0),
+            scoring_template_id=str(scoring_template_id or "").strip(),
+            scoring_template_name=(scoring_template_name or "Balanced PMO").strip() or "Balanced PMO",
+            strategic_weight=int(strategic_weight or 0),
+            value_weight=int(value_weight or 0),
+            urgency_weight=int(urgency_weight or 0),
+            risk_weight=int(risk_weight or 0),
             status=status,
             created_at=now,
             updated_at=now,
@@ -71,10 +89,10 @@ class PortfolioIntakeItem:
     @property
     def composite_score(self) -> int:
         return (
-            int(self.strategic_score or 0) * 3
-            + int(self.value_score or 0) * 2
-            + int(self.urgency_score or 0) * 2
-            - int(self.risk_score or 0)
+            int(self.strategic_score or 0) * int(self.strategic_weight or 0)
+            + int(self.value_score or 0) * int(self.value_weight or 0)
+            + int(self.urgency_score or 0) * int(self.urgency_weight or 0)
+            - (int(self.risk_score or 0) * int(self.risk_weight or 0))
         )
 
 
@@ -119,6 +137,76 @@ class PortfolioScenario:
 
 
 @dataclass
+class PortfolioScoringTemplate:
+    id: str
+    name: str
+    summary: str = ""
+    strategic_weight: int = 3
+    value_weight: int = 2
+    urgency_weight: int = 2
+    risk_weight: int = 1
+    is_active: bool = False
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @staticmethod
+    def create(
+        *,
+        name: str,
+        summary: str = "",
+        strategic_weight: int = 3,
+        value_weight: int = 2,
+        urgency_weight: int = 2,
+        risk_weight: int = 1,
+        is_active: bool = False,
+    ) -> "PortfolioScoringTemplate":
+        now = datetime.now(timezone.utc)
+        return PortfolioScoringTemplate(
+            id=generate_id(),
+            name=(name or "").strip(),
+            summary=(summary or "").strip(),
+            strategic_weight=int(strategic_weight or 0),
+            value_weight=int(value_weight or 0),
+            urgency_weight=int(urgency_weight or 0),
+            risk_weight=int(risk_weight or 0),
+            is_active=bool(is_active),
+            created_at=now,
+            updated_at=now,
+        )
+
+    @property
+    def weight_summary(self) -> str:
+        return (
+            f"Strategic x{int(self.strategic_weight or 0)}, "
+            f"Value x{int(self.value_weight or 0)}, "
+            f"Urgency x{int(self.urgency_weight or 0)}, "
+            f"Risk x{int(self.risk_weight or 0)}"
+        )
+
+
+@dataclass
+class PortfolioExecutiveRow:
+    project_id: str
+    project_name: str
+    project_status: str
+    late_tasks: int
+    critical_tasks: int
+    peak_utilization_percent: float
+    cost_variance: float
+    pressure_score: int
+    pressure_label: str
+
+
+@dataclass
+class PortfolioRecentAction:
+    occurred_at: datetime
+    project_name: str
+    actor_username: str
+    action_label: str
+    summary: str
+
+
+@dataclass
 class PortfolioScenarioEvaluation:
     scenario_id: str
     scenario_name: str
@@ -158,6 +246,9 @@ class PortfolioScenarioComparison:
 __all__ = [
     "PortfolioIntakeStatus",
     "PortfolioIntakeItem",
+    "PortfolioScoringTemplate",
+    "PortfolioExecutiveRow",
+    "PortfolioRecentAction",
     "PortfolioScenario",
     "PortfolioScenarioEvaluation",
     "PortfolioScenarioComparison",

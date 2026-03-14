@@ -103,6 +103,37 @@ class TaskUxEnhancementsMixin:
         else:
             self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
 
+    def _refresh_notification_badge(self) -> None:
+        service = getattr(self, "_collaboration_service", None)
+        if service is None or not self._can_view_collaboration:
+            self.lbl_notifications.setText("Notifications: -")
+            self.lbl_notifications.setToolTip("Requires service-backed collaboration notifications.")
+            self.lbl_notifications.setStyleSheet(dashboard_meta_chip_style())
+            return
+        try:
+            notifications = service.list_notifications(limit=12)
+        except Exception as exc:
+            self.lbl_notifications.setText("Notifications: -")
+            self.lbl_notifications.setToolTip(str(exc))
+            self.lbl_notifications.setStyleSheet(dashboard_meta_chip_style())
+            return
+        count = len(notifications)
+        self.lbl_notifications.setText(f"Notifications: {count}")
+        if notifications:
+            preview_lines = [
+                f"{row.notification_type.title()}: {row.headline}"
+                for row in notifications[:4]
+            ]
+            self.lbl_notifications.setToolTip("\n".join(preview_lines))
+        else:
+            self.lbl_notifications.setToolTip("No recent workflow notifications.")
+        if any(getattr(row, "attention", False) for row in notifications):
+            self.lbl_notifications.setStyleSheet(
+                dashboard_badge_style(CFG.COLOR_ACCENT_SOFT, CFG.COLOR_TEXT_PRIMARY)
+            )
+        else:
+            self.lbl_notifications.setStyleSheet(dashboard_meta_chip_style())
+
     def _refresh_presence_badge(self) -> None:
         service = getattr(self, "_collaboration_service", None)
         if service is None or not self._can_view_collaboration:

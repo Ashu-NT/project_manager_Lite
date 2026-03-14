@@ -554,6 +554,21 @@ class TaskPresenceORM(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class PortfolioScoringTemplateORM(Base):
+    __tablename__ = "portfolio_scoring_templates"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    strategic_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
+    value_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    urgency_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    risk_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class PortfolioIntakeItemORM(Base):
     __tablename__ = "portfolio_intake_items"
 
@@ -573,6 +588,17 @@ class PortfolioIntakeItemORM(Base):
     value_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
     urgency_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
     risk_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
+    scoring_template_id: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    scoring_template_name: Mapped[str] = mapped_column(
+        String(256),
+        nullable=False,
+        default="Balanced PMO",
+        server_default="Balanced PMO",
+    )
+    strategic_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
+    value_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    urgency_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    risk_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="PROPOSED", server_default="PROPOSED")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -622,6 +648,9 @@ Index("idx_task_comments_task", TaskCommentORM.task_id)
 Index("idx_task_comments_created", TaskCommentORM.created_at)
 Index("idx_task_presence_task", TaskPresenceORM.task_id)
 Index("idx_task_presence_seen", TaskPresenceORM.last_seen_at)
+Index("idx_portfolio_scoring_active", PortfolioScoringTemplateORM.is_active)
+Index("idx_portfolio_scoring_updated", PortfolioScoringTemplateORM.updated_at)
 Index("idx_portfolio_intake_status", PortfolioIntakeItemORM.status)
 Index("idx_portfolio_intake_updated", PortfolioIntakeItemORM.updated_at)
+Index("idx_portfolio_intake_template", PortfolioIntakeItemORM.scoring_template_id)
 Index("idx_portfolio_scenarios_updated", PortfolioScenarioORM.updated_at)

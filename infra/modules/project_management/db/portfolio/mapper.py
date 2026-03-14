@@ -5,9 +5,14 @@ import json
 from core.platform.common.models import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
+    PortfolioScoringTemplate,
     PortfolioScenario,
 )
-from infra.platform.db.models import PortfolioIntakeItemORM, PortfolioScenarioORM
+from infra.platform.db.models import (
+    PortfolioIntakeItemORM,
+    PortfolioScoringTemplateORM,
+    PortfolioScenarioORM,
+)
 
 
 def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM:
@@ -23,6 +28,12 @@ def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM
         value_score=item.value_score,
         urgency_score=item.urgency_score,
         risk_score=item.risk_score,
+        scoring_template_id=item.scoring_template_id,
+        scoring_template_name=item.scoring_template_name,
+        strategic_weight=item.strategic_weight,
+        value_weight=item.value_weight,
+        urgency_weight=item.urgency_weight,
+        risk_weight=item.risk_weight,
         status=item.status.value,
         created_at=item.created_at,
         updated_at=item.updated_at,
@@ -43,10 +54,46 @@ def portfolio_intake_from_orm(obj: PortfolioIntakeItemORM) -> PortfolioIntakeIte
         value_score=obj.value_score,
         urgency_score=obj.urgency_score,
         risk_score=obj.risk_score,
+        scoring_template_id=getattr(obj, "scoring_template_id", ""),
+        scoring_template_name=getattr(obj, "scoring_template_name", "Balanced PMO"),
+        strategic_weight=getattr(obj, "strategic_weight", 3),
+        value_weight=getattr(obj, "value_weight", 2),
+        urgency_weight=getattr(obj, "urgency_weight", 2),
+        risk_weight=getattr(obj, "risk_weight", 1),
         status=PortfolioIntakeStatus(obj.status),
         created_at=obj.created_at,
         updated_at=obj.updated_at,
         version=getattr(obj, "version", 1),
+    )
+
+
+def portfolio_scoring_template_to_orm(item: PortfolioScoringTemplate) -> PortfolioScoringTemplateORM:
+    return PortfolioScoringTemplateORM(
+        id=item.id,
+        name=item.name,
+        summary=item.summary,
+        strategic_weight=item.strategic_weight,
+        value_weight=item.value_weight,
+        urgency_weight=item.urgency_weight,
+        risk_weight=item.risk_weight,
+        is_active=item.is_active,
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+def portfolio_scoring_template_from_orm(obj: PortfolioScoringTemplateORM) -> PortfolioScoringTemplate:
+    return PortfolioScoringTemplate(
+        id=obj.id,
+        name=obj.name,
+        summary=obj.summary,
+        strategic_weight=obj.strategic_weight,
+        value_weight=obj.value_weight,
+        urgency_weight=obj.urgency_weight,
+        risk_weight=obj.risk_weight,
+        is_active=bool(obj.is_active),
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
     )
 
 
@@ -90,6 +137,8 @@ def portfolio_scenario_from_orm(obj: PortfolioScenarioORM) -> PortfolioScenario:
 __all__ = [
     "portfolio_intake_from_orm",
     "portfolio_intake_to_orm",
+    "portfolio_scoring_template_from_orm",
+    "portfolio_scoring_template_to_orm",
     "portfolio_scenario_from_orm",
     "portfolio_scenario_to_orm",
 ]

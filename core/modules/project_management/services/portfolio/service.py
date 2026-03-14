@@ -5,16 +5,21 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.common.interfaces import (
+    AuditLogRepository,
     PortfolioIntakeRepository,
+    PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
     ProjectRepository,
     ResourceRepository,
 )
 from core.platform.common.models import (
+    PortfolioExecutiveRow,
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
+    PortfolioRecentAction,
+    PortfolioScoringTemplate,
     PortfolioScenario,
     PortfolioScenarioComparison,
     PortfolioScenarioEvaluation,
@@ -26,12 +31,17 @@ from core.modules.project_management.services.reporting import ReportingService
 
 
 class PortfolioService(ProjectManagementModuleGuardMixin):
+    DEFAULT_TEMPLATE_NAME = "Balanced PMO"
+    DEFAULT_TEMPLATE_SUMMARY = "Balanced template for strategic fit, value, urgency, and delivery risk."
+
     def __init__(
         self,
         *,
         session: Session,
         intake_repo: PortfolioIntakeRepository,
+        scoring_template_repo: PortfolioScoringTemplateRepository,
         scenario_repo: PortfolioScenarioRepository,
+        audit_repo: AuditLogRepository,
         project_repo: ProjectRepository,
         resource_repo: ResourceRepository,
         reporting_service: ReportingService,
@@ -40,7 +50,9 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
     ) -> None:
         self._session = session
         self._intake_repo = intake_repo
+        self._scoring_template_repo = scoring_template_repo
         self._scenario_repo = scenario_repo
+        self._audit_repo = audit_repo
         self._project_repo = project_repo
         self._resource_repo = resource_repo
         self._reporting = reporting_service
@@ -71,9 +83,11 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
         value_score: int = 3,
         urgency_score: int = 3,
         risk_score: int = 3,
+        scoring_template_id: str | None = None,
         status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
     ) -> PortfolioIntakeItem:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio intake")
+        scoring_template = self._resolve_scoring_template(scoring_template_id)
         item = PortfolioIntakeItem.create(
             title=self._require_non_empty(title, "Title"),
             sponsor_name=self._require_non_empty(sponsor_name, "Sponsor"),
@@ -88,7 +102,13 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
             value_score=self._bounded_score(value_score),
             urgency_score=self._bounded_score(urgency_score),
             risk_score=self._bounded_score(risk_score),
-            status=status,
+            scoring_template_id=scoring_template.id,
+            scoring_template_name=scoring_template.name,
+            strategic_weight=scoring_template.strategic_weight,
+            value_weight=scoring_template.value_weight,
+            urgency_weight=scoring_template.urgency_weight,
+            risk_weight=scoring_template.risk_weight,
+            status=self._as_intake_status(status),
         )
         self._intake_repo.add(item)
         self._session.commit()
@@ -123,13 +143,164 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
             item.urgency_score = self._bounded_score(changes["urgency_score"])
         if "risk_score" in changes and changes["risk_score"] is not None:
             item.risk_score = self._bounded_score(changes["risk_score"])
+        if "scoring_template_id" in changes and changes["scoring_template_id"] is not None:
+            scoring_template = self._resolve_scoring_template(changes["scoring_template_id"])
+            self._apply_scoring_template(item, scoring_template)
         if "status" in changes and changes["status"] is not None:
-            item.status = PortfolioIntakeStatus(changes["status"])
+            item.status = self._as_intake_status(changes["status"])
         item.updated_at = datetime.now(timezone.utc)
         self._intake_repo.update(item)
         self._session.commit()
         domain_events.portfolio_changed.emit(item.id)
         return item
+
+    def list_scoring_templates(self) -> list[PortfolioScoringTemplate]:
+        require_permission(self._user_session, "portfolio.read", operation_label="view scoring templates")
+        return self._ensure_scoring_templates()
+
+    def get_active_scoring_template(self) -> PortfolioScoringTemplate:
+        require_permission(self._user_session, "portfolio.read", operation_label="view active scoring template")
+        return self._active_scoring_template()
+
+    def create_scoring_template(
+        self,
+        *,
+        name: str,
+        summary: str = "",
+        strategic_weight: int = 3,
+        value_weight: int = 2,
+        urgency_weight: int = 2,
+        risk_weight: int = 1,
+        activate: bool = False,
+    ) -> PortfolioScoringTemplate:
+        require_permission(self._user_session, "portfolio.manage", operation_label="create scoring template")
+        templates = self._ensure_scoring_templates()
+        normalized_name = self._require_non_empty(name, "Template name")
+        if any(template.name.casefold() == normalized_name.casefold() for template in templates):
+            raise ValidationError(
+                "A scoring template with that name already exists.",
+                code="PORTFOLIO_TEMPLATE_DUPLICATE",
+            )
+        template = PortfolioScoringTemplate.create(
+            name=normalized_name,
+            summary=(summary or "").strip(),
+            strategic_weight=self._template_weight(strategic_weight, "Strategic weight"),
+            value_weight=self._template_weight(value_weight, "Value weight"),
+            urgency_weight=self._template_weight(urgency_weight, "Urgency weight"),
+            risk_weight=self._template_weight(risk_weight, "Risk weight"),
+            is_active=bool(activate),
+        )
+        self._validate_template_mix(template)
+        if activate:
+            self._deactivate_other_templates()
+        self._scoring_template_repo.add(template)
+        self._session.commit()
+        domain_events.portfolio_changed.emit(template.id)
+        return template
+
+    def activate_scoring_template(self, template_id: str) -> PortfolioScoringTemplate:
+        require_permission(self._user_session, "portfolio.manage", operation_label="activate scoring template")
+        template = self._resolve_scoring_template(template_id)
+        if template.is_active:
+            return template
+        self._deactivate_other_templates()
+        template.is_active = True
+        template.updated_at = datetime.now(timezone.utc)
+        self._scoring_template_repo.update(template)
+        self._session.commit()
+        domain_events.portfolio_changed.emit(template.id)
+        return template
+
+    def list_portfolio_heatmap(self) -> list[PortfolioExecutiveRow]:
+        require_permission(self._user_session, "portfolio.read", operation_label="view portfolio executive heatmap")
+        rows: list[PortfolioExecutiveRow] = []
+        for project in self._accessible_projects():
+            try:
+                kpi = self._reporting.get_project_kpis(project.id)
+                resource_rows = self._reporting.get_resource_load_summary(project.id)
+                peak_utilization = max(
+                    (
+                        float(getattr(row, "utilization_percent", 0.0) or 0.0)
+                        for row in resource_rows
+                    ),
+                    default=0.0,
+                )
+                pressure_score = 0
+                if int(kpi.late_tasks or 0) > 0:
+                    pressure_score += 2
+                if int(kpi.critical_tasks or 0) > 0:
+                    pressure_score += 1
+                if peak_utilization > 100.0:
+                    pressure_score += 2
+                elif peak_utilization >= 85.0:
+                    pressure_score += 1
+                if float(kpi.cost_variance or 0.0) > 0.0:
+                    pressure_score += 1
+                pressure_label = self._pressure_label(pressure_score)
+                late_tasks = int(kpi.late_tasks or 0)
+                critical_tasks = int(kpi.critical_tasks or 0)
+                cost_variance = float(kpi.cost_variance or 0.0)
+            except (BusinessRuleError, ValidationError):
+                peak_utilization = 0.0
+                pressure_score = 0
+                pressure_label = "Needs Schedule"
+                late_tasks = 0
+                critical_tasks = 0
+                cost_variance = 0.0
+            rows.append(
+                PortfolioExecutiveRow(
+                    project_id=project.id,
+                    project_name=project.name,
+                    project_status=getattr(project.status, "value", str(project.status)),
+                    late_tasks=late_tasks,
+                    critical_tasks=critical_tasks,
+                    peak_utilization_percent=peak_utilization,
+                    cost_variance=cost_variance,
+                    pressure_score=pressure_score,
+                    pressure_label=pressure_label,
+                )
+            )
+        return sorted(
+            rows,
+            key=lambda row: (
+                -row.pressure_score,
+                -row.late_tasks,
+                -row.peak_utilization_percent,
+                row.project_name.lower(),
+            ),
+        )
+
+    def list_recent_pm_actions(self, *, limit: int = 12) -> list[PortfolioRecentAction]:
+        require_permission(self._user_session, "portfolio.read", operation_label="view recent PM actions")
+        accessible_projects = {project.id: project.name for project in self._accessible_projects()}
+        pm_prefixes = (
+            "project.",
+            "task.",
+            "baseline.",
+            "approval.",
+            "timesheet_period.",
+            "project_membership.",
+            "portfolio.",
+        )
+        recent_rows = self._audit_repo.list_recent(limit=max(limit * 8, 120))
+        actions: list[PortfolioRecentAction] = []
+        for row in recent_rows:
+            if row.project_id and row.project_id not in accessible_projects:
+                continue
+            if not str(row.action or "").startswith(pm_prefixes):
+                continue
+            actions.append(
+                PortfolioRecentAction(
+                    occurred_at=row.occurred_at,
+                    project_name=accessible_projects.get(row.project_id or "", "Platform / Shared"),
+                    actor_username=row.actor_username or "system",
+                    action_label=self._audit_action_label(row.action),
+                    summary=self._audit_summary(row),
+                )
+            )
+            if len(actions) >= limit:
+                break
+        return actions
 
     def list_scenarios(self) -> list[PortfolioScenario]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio scenarios")
@@ -425,6 +596,87 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
             raise ValidationError(f"{label} is required.")
         return text
 
+    def _ensure_scoring_templates(self) -> list[PortfolioScoringTemplate]:
+        templates = self._scoring_template_repo.list_all()
+        if templates:
+            if not any(template.is_active for template in templates):
+                templates[0].is_active = True
+                templates[0].updated_at = datetime.now(timezone.utc)
+                self._scoring_template_repo.update(templates[0])
+                self._session.commit()
+                templates = self._scoring_template_repo.list_all()
+            return templates
+        default_template = PortfolioScoringTemplate.create(
+            name=self.DEFAULT_TEMPLATE_NAME,
+            summary=self.DEFAULT_TEMPLATE_SUMMARY,
+            strategic_weight=3,
+            value_weight=2,
+            urgency_weight=2,
+            risk_weight=1,
+            is_active=True,
+        )
+        self._scoring_template_repo.add(default_template)
+        self._session.commit()
+        return [default_template]
+
+    def _active_scoring_template(self) -> PortfolioScoringTemplate:
+        templates = self._ensure_scoring_templates()
+        for template in templates:
+            if template.is_active:
+                return template
+        return templates[0]
+
+    def _resolve_scoring_template(self, template_id: str | None) -> PortfolioScoringTemplate:
+        normalized_id = str(template_id or "").strip()
+        if normalized_id:
+            template = self._scoring_template_repo.get(normalized_id)
+            if template is None:
+                raise NotFoundError(
+                    "Portfolio scoring template not found.",
+                    code="PORTFOLIO_TEMPLATE_NOT_FOUND",
+                )
+            return template
+        return self._active_scoring_template()
+
+    @staticmethod
+    def _apply_scoring_template(
+        item: PortfolioIntakeItem,
+        template: PortfolioScoringTemplate,
+    ) -> None:
+        item.scoring_template_id = template.id
+        item.scoring_template_name = template.name
+        item.strategic_weight = template.strategic_weight
+        item.value_weight = template.value_weight
+        item.urgency_weight = template.urgency_weight
+        item.risk_weight = template.risk_weight
+
+    def _deactivate_other_templates(self) -> None:
+        for template in self._ensure_scoring_templates():
+            if not template.is_active:
+                continue
+            template.is_active = False
+            template.updated_at = datetime.now(timezone.utc)
+            self._scoring_template_repo.update(template)
+
+    @staticmethod
+    def _template_weight(value: int, label: str) -> int:
+        weight = int(value or 0)
+        if weight < 0 or weight > 9:
+            raise ValidationError(f"{label} must be between 0 and 9.")
+        return weight
+
+    @staticmethod
+    def _validate_template_mix(template: PortfolioScoringTemplate) -> None:
+        if (
+            int(template.strategic_weight or 0)
+            + int(template.value_weight or 0)
+            + int(template.urgency_weight or 0)
+        ) <= 0:
+            raise ValidationError(
+                "At least one positive delivery weight is required.",
+                code="PORTFOLIO_TEMPLATE_EMPTY",
+            )
+
     @staticmethod
     def _non_negative(value: float, label: str) -> float:
         amount = float(value or 0.0)
@@ -438,6 +690,37 @@ class PortfolioService(ProjectManagementModuleGuardMixin):
         if score < 1 or score > 5:
             raise ValidationError("Scores must be between 1 and 5.")
         return score
+
+    @staticmethod
+    def _as_intake_status(value: PortfolioIntakeStatus | str) -> PortfolioIntakeStatus:
+        if isinstance(value, PortfolioIntakeStatus):
+            return value
+        return PortfolioIntakeStatus(str(value or PortfolioIntakeStatus.PROPOSED.value))
+
+    @staticmethod
+    def _pressure_label(score: int) -> str:
+        if score >= 4:
+            return "Hot"
+        if score >= 2:
+            return "Watch"
+        return "Stable"
+
+    @staticmethod
+    def _audit_action_label(action: str) -> str:
+        action_name = str(action or "").strip()
+        if not action_name:
+            return "Update"
+        return action_name.replace(".", " ").replace("_", " ").title()
+
+    @staticmethod
+    def _audit_summary(row) -> str:
+        details = dict(getattr(row, "details", {}) or {})
+        for key in ("note", "status", "title", "summary", "message"):
+            value = str(details.get(key) or "").strip()
+            if value:
+                return value
+        entity_type = str(getattr(row, "entity_type", "") or "record").replace("_", " ")
+        return f"{entity_type.title()} updated."
 
 
 __all__ = ["PortfolioService"]

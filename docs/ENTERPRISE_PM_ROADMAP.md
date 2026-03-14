@@ -61,27 +61,32 @@ Status: in progress
 
 Priority: high
 
-- Extend notification delivery beyond the in-app feed for mentions, approvals, and locked periods
-- Add project demand scoring templates configurable by PMO admins
-
 Delivered in this phase already:
 
 - Added PM in-app notifications in the Collaboration workspace for mentions, approval activity, and timesheet workflow updates
+- Extended PM notification delivery into the task workspace header so workflow alerts are visible outside the Collaboration inbox
 - Added project-scoped notification filtering so mixed-project timesheet activity does not leak inaccessible project names
 - Finished PM task runtime adoption of the collaboration service, with the task workspace and collaboration dialog now using the service-backed path by default
 - Added side-by-side saved portfolio scenario comparison in the portfolio service and UI
+- Added configurable PMO scoring templates with active-template selection and template-driven intake scoring
 - Wired desktop project/task/resource/cost edit actions to pass `expected_version` so stale writes are rejected in normal PM edit flows
 - Added desktop stale-write recovery for project, task, resource, and cost edits so the latest rows are reloaded instead of trapping users in stale dialogs
 - Added task presence indicators in PM collaboration and task workspace flows so active editing/reviewing sessions are visible
 
 ## Phase 3: PM Hardening
 
-Status: pending
+Status: in progress
 
 Priority: medium
 
-- Portfolio capacity heatmaps and cross-project dependency visualizations
-- Audit reports for membership changes and privileged account actions
+Pending:
+
+- Cross-project dependency visualization once PM either supports cross-project task links or introduces a dedicated portfolio-level dependency concept
+
+Delivered in this phase already:
+
+- Added a portfolio executive heatmap for late-task, critical-task, utilization, and cost-variance pressure across accessible projects
+- Added a recent PM action summary so portfolio users can review time-period and delivery changes without leaving the portfolio workspace
 
 ## Cross-Cutting Dependencies
 
@@ -106,15 +111,11 @@ These affect PM, but they are not PM-owned roadmap items anymore:
 
 ## Recommended Build Order
 
-1. Add PMO scoring templates.
-2. Add PM-facing heatmaps, cross-project views, and audit reporting.
-3. Extend notification delivery beyond the in-app feed.
+1. Decide whether cross-project dependency visualization should come from true cross-project task links or from a new portfolio-level dependency model.
 
 ## Current PM-Specific Remainder
 
 If we ignore platform/security and future-module work, the remaining enterprise
 PM backlog is:
 
-- richer notification delivery beyond the in-app feed
-- PMO scoring template configuration
-- PM-facing audit and executive visualization polish
+- cross-project dependency visualization once PM has a model that supports it
