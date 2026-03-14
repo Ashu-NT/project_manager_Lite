@@ -307,6 +307,7 @@ def build_workspace_definitions(
                 group_label="Administration",
                 label="Organizations",
                 widget=OrganizationAdminTab(
+                    platform_runtime_application_service=services["platform_runtime_application_service"],
                     organization_service=services["organization_service"],
                     user_session=user_session,
                     parent=parent,

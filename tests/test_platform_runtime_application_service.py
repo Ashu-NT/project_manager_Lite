@@ -58,3 +58,29 @@ def test_platform_runtime_application_service_exposes_lifecycle_status_changes(s
     assert expired.enabled is False
     assert expired.runtime_enabled is False
     assert app_service.is_enabled("project_management") is False
+
+
+def test_platform_runtime_application_service_provisions_organization_with_initial_module_mix(services):
+    app_service = services["platform_runtime_application_service"]
+
+    default_organization = app_service.get_active_organization()
+    assert default_organization is not None
+    assert app_service.is_enabled("project_management") is True
+
+    provisioned = app_service.provision_organization(
+        organization_code="OPS",
+        display_name="Operations Hub",
+        timezone_name="Africa/Lagos",
+        base_currency="USD",
+        is_active=False,
+        initial_module_codes=[],
+    )
+
+    assert provisioned.organization_code == "OPS"
+    assert app_service.get_active_organization() is not None
+    assert app_service.get_active_organization().organization_code == "DEFAULT"
+    assert app_service.is_enabled("project_management") is True
+
+    app_service.set_active_organization(provisioned.id)
+    assert app_service.current_context_label() == "Operations Hub"
+    assert app_service.is_enabled("project_management") is False

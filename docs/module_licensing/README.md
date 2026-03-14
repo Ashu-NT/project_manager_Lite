@@ -188,6 +188,8 @@ Concrete work:
    Status: completed for the desktop/runtime application seam, pending HTTP/API adoption
 4. Support `trial`, `suspended`, and `expired` states.
    Status: completed for the local runtime and admin flow
+5. Add a platform admin workflow for provisioning organizations with an initial licensed module mix.
+   Status: completed for the desktop/runtime admin flow, pending HTTP/API adoption
 
 Exit criteria:
 
@@ -230,4 +232,6 @@ Next recommended step:
 2. add explicit entitlement lifecycle states such as `trial`, `suspended`, and `expired`
    Status: completed
 3. add a platform admin workflow for provisioning organizations with an initial licensed module mix
+   Status: completed
+4. expose the same organization provisioning and entitlement rules through the future HTTP/API boundary
    Status: next

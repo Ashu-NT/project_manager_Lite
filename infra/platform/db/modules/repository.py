@@ -27,10 +27,11 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
     def _current_organization_id(self) -> str | None:
         return self._organization_id_provider()
 
-    def get(self, module_code: str) -> ModuleEntitlementRecord | None:
-        organization_id = self._current_organization_id()
-        if not organization_id:
-            return None
+    def get_for_organization(
+        self,
+        organization_id: str,
+        module_code: str,
+    ) -> ModuleEntitlementRecord | None:
         obj = self.session.get(
             ModuleEntitlementORM,
             {
@@ -47,10 +48,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
             lifecycle_status=str(obj.lifecycle_status or "inactive").strip().lower() or "inactive",
         )
 
-    def list_all(self) -> list[ModuleEntitlementRecord]:
-        organization_id = self._current_organization_id()
-        if not organization_id:
-            return []
+    def list_all_for_organization(self, organization_id: str) -> list[ModuleEntitlementRecord]:
         rows = self.session.execute(
             select(ModuleEntitlementORM)
             .where(ModuleEntitlementORM.organization_id == organization_id)
@@ -66,10 +64,7 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
             for row in rows
         ]
 
-    def upsert(self, record: ModuleEntitlementRecord) -> None:
-        organization_id = self._current_organization_id()
-        if not organization_id:
-            raise RuntimeError("Active organization context is required for module entitlements.")
+    def upsert_for_organization(self, organization_id: str, record: ModuleEntitlementRecord) -> None:
         obj = self.session.get(
             ModuleEntitlementORM,
             {
@@ -93,6 +88,24 @@ class SqlAlchemyModuleEntitlementRepository(ModuleEntitlementRepository):
         obj.enabled = bool(record.enabled and record.licensed)
         obj.lifecycle_status = str(record.lifecycle_status or "inactive").strip().lower() or "inactive"
         obj.updated_at = _utc_now_naive()
+
+    def get(self, module_code: str) -> ModuleEntitlementRecord | None:
+        organization_id = self._current_organization_id()
+        if not organization_id:
+            return None
+        return self.get_for_organization(organization_id, module_code)
+
+    def list_all(self) -> list[ModuleEntitlementRecord]:
+        organization_id = self._current_organization_id()
+        if not organization_id:
+            return []
+        return self.list_all_for_organization(organization_id)
+
+    def upsert(self, record: ModuleEntitlementRecord) -> None:
+        organization_id = self._current_organization_id()
+        if not organization_id:
+            raise RuntimeError("Active organization context is required for module entitlements.")
+        self.upsert_for_organization(organization_id, record)
 
 
 __all__ = ["SqlAlchemyModuleEntitlementRepository"]

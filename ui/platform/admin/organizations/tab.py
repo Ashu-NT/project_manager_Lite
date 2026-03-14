@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from application.platform import PlatformRuntimeApplicationService
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.models import Organization
@@ -33,12 +34,19 @@ from ui.platform.shared.styles.ui_config import UIConfig as CFG
 class OrganizationAdminTab(QWidget):
     def __init__(
         self,
-        organization_service: OrganizationService,
+        organization_service: OrganizationService | None = None,
+        *,
+        platform_runtime_application_service: PlatformRuntimeApplicationService | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
+        self._platform_runtime_application_service = platform_runtime_application_service
         self._organization_service = organization_service
+        if self._organization_service is None and self._platform_runtime_application_service is not None:
+            self._organization_service = self._platform_runtime_application_service.organization_service
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is required.")
         self._user_session = user_session
         self._can_manage_organizations = has_permission(self._user_session, "settings.manage")
         self._rows: list[Organization] = []
@@ -181,7 +189,7 @@ class OrganizationAdminTab(QWidget):
 
     def reload_organizations(self) -> None:
         try:
-            self._rows = self._organization_service.list_organizations()
+            self._rows = self._list_organizations()
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Organizations", str(exc))
             self._rows = []
@@ -208,18 +216,15 @@ class OrganizationAdminTab(QWidget):
         self._sync_actions()
 
     def create_organization(self) -> None:
-        dlg = OrganizationEditDialog(parent=self)
+        dlg = OrganizationEditDialog(
+            parent=self,
+            available_modules=self._available_modules_for_create(),
+        )
         while True:
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._organization_service.create_organization(
-                    organization_code=dlg.organization_code,
-                    display_name=dlg.display_name,
-                    timezone_name=dlg.timezone_name,
-                    base_currency=dlg.base_currency,
-                    is_active=dlg.is_active,
-                )
+                self._create_organization_from_dialog(dlg)
             except ValidationError as exc:
                 QMessageBox.warning(self, "Organizations", str(exc))
                 continue
@@ -239,7 +244,7 @@ class OrganizationAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._organization_service.update_organization(
+                self._update_organization(
                     organization.id,
                     organization_code=dlg.organization_code,
                     display_name=dlg.display_name,
@@ -268,7 +273,7 @@ class OrganizationAdminTab(QWidget):
         if organization.is_active:
             return
         try:
-            self._organization_service.set_active_organization(organization.id)
+            self._set_active_organization(organization.id)
         except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
             QMessageBox.warning(self, "Organizations", str(exc))
             return
@@ -309,6 +314,71 @@ class OrganizationAdminTab(QWidget):
         active = next((row.display_name for row in rows if row.is_active), "No active")
         self.organization_count_badge.setText(f"{len(rows)} organizations")
         self.organization_active_badge.setText(active)
+
+    def _list_organizations(self) -> list[Organization]:
+        if self._platform_runtime_application_service is not None:
+            return self._platform_runtime_application_service.list_organizations()
+        return self._organization_service.list_organizations()
+
+    def _create_organization_from_dialog(self, dlg: OrganizationEditDialog) -> None:
+        if self._platform_runtime_application_service is not None:
+            self._platform_runtime_application_service.provision_organization(
+                organization_code=dlg.organization_code,
+                display_name=dlg.display_name,
+                timezone_name=dlg.timezone_name,
+                base_currency=dlg.base_currency,
+                is_active=dlg.is_active,
+                initial_module_codes=dlg.initial_module_codes,
+            )
+            return
+        self._organization_service.create_organization(
+            organization_code=dlg.organization_code,
+            display_name=dlg.display_name,
+            timezone_name=dlg.timezone_name,
+            base_currency=dlg.base_currency,
+            is_active=dlg.is_active,
+        )
+
+    def _update_organization(
+        self,
+        organization_id: str,
+        *,
+        organization_code: str | None = None,
+        display_name: str | None = None,
+        timezone_name: str | None = None,
+        base_currency: str | None = None,
+        is_active: bool | None = None,
+        expected_version: int | None = None,
+    ) -> Organization:
+        if self._platform_runtime_application_service is not None:
+            return self._platform_runtime_application_service.update_organization(
+                organization_id,
+                organization_code=organization_code,
+                display_name=display_name,
+                timezone_name=timezone_name,
+                base_currency=base_currency,
+                is_active=is_active,
+                expected_version=expected_version,
+            )
+        return self._organization_service.update_organization(
+            organization_id,
+            organization_code=organization_code,
+            display_name=display_name,
+            timezone_name=timezone_name,
+            base_currency=base_currency,
+            is_active=is_active,
+            expected_version=expected_version,
+        )
+
+    def _set_active_organization(self, organization_id: str) -> Organization:
+        if self._platform_runtime_application_service is not None:
+            return self._platform_runtime_application_service.set_active_organization(organization_id)
+        return self._organization_service.set_active_organization(organization_id)
+
+    def _available_modules_for_create(self):
+        if self._platform_runtime_application_service is None:
+            return ()
+        return tuple(self._platform_runtime_application_service.list_modules())
 
 
 __all__ = ["OrganizationAdminTab"]

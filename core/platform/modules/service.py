@@ -398,6 +398,82 @@ class ModuleCatalogService:
             raise NotFoundError("Module entitlement not found after update.", code="MODULE_NOT_FOUND")
         return entitlement
 
+    def provision_organization_entitlements(
+        self,
+        organization_id: str,
+        *,
+        licensed_module_codes: Iterable[str] | None,
+        enabled_module_codes: Iterable[str] | None = None,
+    ) -> list[ModuleEntitlementRecord]:
+        require_permission(
+            self._user_session,
+            "settings.manage",
+            operation_label="provision organization modules",
+        )
+        if self._entitlement_repo is None:
+            raise RuntimeError("Module entitlement repository is not configured.")
+
+        normalized_organization_id = str(organization_id or "").strip()
+        if not normalized_organization_id:
+            raise ValidationError(
+                "Organization context is required for module provisioning.",
+                code="ORGANIZATION_REQUIRED",
+            )
+
+        licensed_codes = self._normalize_selected_module_codes(licensed_module_codes)
+        enabled_codes = (
+            self._normalize_selected_module_codes(enabled_module_codes)
+            if enabled_module_codes is not None
+            else set(licensed_codes)
+        )
+        if not enabled_codes.issubset(licensed_codes):
+            raise ValidationError(
+                "Enabled modules must also be licensed.",
+                code="MODULE_ENABLEMENT_REQUIRES_LICENSE",
+            )
+
+        requested_codes = licensed_codes | enabled_codes
+        for module_code in requested_codes:
+            module = self._require_module(module_code)
+            if module.stage == "planned":
+                raise ValidationError(
+                    f"{module.label} is planned and cannot be provisioned yet.",
+                    code="MODULE_NOT_AVAILABLE",
+                )
+
+        for module in self._modules:
+            licensed = module.code in licensed_codes
+            enabled = module.code in enabled_codes and licensed
+            lifecycle_status = _default_lifecycle_status(licensed)
+            self._entitlement_repo.upsert_for_organization(
+                normalized_organization_id,
+                ModuleEntitlementRecord(
+                    module_code=module.code,
+                    licensed=licensed,
+                    enabled=enabled,
+                    lifecycle_status=lifecycle_status,
+                ),
+            )
+
+        if self._session is not None:
+            self._session.commit()
+
+        record_audit(
+            self,
+            action="organization.modules.provision",
+            entity_type="organization",
+            entity_id=normalized_organization_id,
+            details={
+                "organization_id": normalized_organization_id,
+                "licensed_modules": ",".join(sorted(licensed_codes)),
+                "enabled_modules": ",".join(sorted(enabled_codes)),
+            },
+        )
+        active_organization = self._current_organization()
+        if active_organization is not None and active_organization.id == normalized_organization_id:
+            domain_events.modules_changed.emit(f"organization:{normalized_organization_id}")
+        return self._entitlement_repo.list_all_for_organization(normalized_organization_id)
+
     def snapshot(self) -> ModuleCatalogSnapshot:
         return ModuleCatalogSnapshot(
             enabled_modules=tuple(self.list_enabled_modules()),
@@ -529,6 +605,16 @@ class ModuleCatalogService:
             if module.code == target_code:
                 return module
         raise NotFoundError("Module not found.", code="MODULE_NOT_FOUND")
+
+    def _normalize_selected_module_codes(self, module_codes: Iterable[str] | None) -> set[str]:
+        normalized_codes = {
+            str(code or "").strip().lower()
+            for code in (module_codes or ())
+            if str(code or "").strip()
+        }
+        for module_code in normalized_codes:
+            self._require_module(module_code)
+        return normalized_codes
 
 
 def build_default_module_catalog(

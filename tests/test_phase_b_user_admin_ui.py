@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QDialog, QLineEdit
 from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
 from ui.platform.admin.modules.tab import ModuleLicensingTab
+from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
 from ui.platform.admin.organizations.tab import OrganizationAdminTab
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
 from ui.platform.admin.users.tab import UserAdminTab
@@ -156,6 +157,7 @@ def test_module_licensing_tab_runtime_changes_lifecycle_status(qapp, services, m
 
 def test_organization_admin_tab_runtime_bootstraps_default_profile(qapp, services):
     tab = OrganizationAdminTab(
+        platform_runtime_application_service=services["platform_runtime_application_service"],
         organization_service=services["organization_service"],
         user_session=services["user_session"],
     )
@@ -168,6 +170,47 @@ def test_organization_admin_tab_runtime_bootstraps_default_profile(qapp, service
     assert tab.btn_new_organization.isEnabled() is True
     assert tab.btn_edit_organization.isEnabled() is False
     assert tab.btn_set_active.isEnabled() is False
+
+
+def test_organization_edit_dialog_defaults_initial_module_selection(qapp, services):
+    dialog = OrganizationEditDialog(
+        available_modules=services["platform_runtime_application_service"].list_modules(),
+    )
+
+    assert dialog.initial_module_codes == ["project_management"]
+
+
+def test_organization_admin_tab_creates_organization_with_initial_module_mix(qapp, services, monkeypatch):
+    class _FakeDialog:
+        organization_code = "OPS"
+        display_name = "Operations Hub"
+        timezone_name = "Africa/Lagos"
+        base_currency = "USD"
+        is_active = False
+        initial_module_codes: list[str] = []
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def exec(self):
+            return QDialog.Accepted
+
+    monkeypatch.setattr("ui.platform.admin.organizations.tab.OrganizationEditDialog", _FakeDialog)
+    tab = OrganizationAdminTab(
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        organization_service=services["organization_service"],
+        user_session=services["user_session"],
+    )
+
+    tab.create_organization()
+
+    created = next(
+        row for row in services["organization_service"].list_organizations() if row.organization_code == "OPS"
+    )
+    services["organization_service"].set_active_organization(created.id)
+
+    assert services["module_catalog_service"].current_context_label() == "Operations Hub"
+    assert services["module_catalog_service"].is_enabled("project_management") is False
 
 
 def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_services):

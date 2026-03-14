@@ -14,6 +14,19 @@ class ModuleEntitlementRecord:
 
 class ModuleEntitlementRepository(ABC):
     @abstractmethod
+    def get_for_organization(
+        self,
+        organization_id: str,
+        module_code: str,
+    ) -> ModuleEntitlementRecord | None: ...
+
+    @abstractmethod
+    def list_all_for_organization(self, organization_id: str) -> list[ModuleEntitlementRecord]: ...
+
+    @abstractmethod
+    def upsert_for_organization(self, organization_id: str, record: ModuleEntitlementRecord) -> None: ...
+
+    @abstractmethod
     def get(self, module_code: str) -> ModuleEntitlementRecord | None: ...
 
     @abstractmethod

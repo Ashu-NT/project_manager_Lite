@@ -112,6 +112,86 @@ class PlatformRuntimeApplicationService:
             return None
         return self._organization_service.get_active_organization()
 
+    def create_organization(
+        self,
+        *,
+        organization_code: str,
+        display_name: str,
+        timezone_name: str,
+        base_currency: str,
+        is_active: bool,
+    ) -> Organization:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.create_organization(
+            organization_code=organization_code,
+            display_name=display_name,
+            timezone_name=timezone_name,
+            base_currency=base_currency,
+            is_active=is_active,
+        )
+
+    def update_organization(
+        self,
+        organization_id: str,
+        *,
+        organization_code: str | None = None,
+        display_name: str | None = None,
+        timezone_name: str | None = None,
+        base_currency: str | None = None,
+        is_active: bool | None = None,
+        expected_version: int | None = None,
+    ) -> Organization:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        return self._organization_service.update_organization(
+            organization_id,
+            organization_code=organization_code,
+            display_name=display_name,
+            timezone_name=timezone_name,
+            base_currency=base_currency,
+            is_active=is_active,
+            expected_version=expected_version,
+        )
+
+    def provision_organization(
+        self,
+        *,
+        organization_code: str,
+        display_name: str,
+        timezone_name: str,
+        base_currency: str,
+        is_active: bool,
+        initial_module_codes: list[str] | tuple[str, ...] | set[str] | None = None,
+    ) -> Organization:
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+
+        selected_module_codes = (
+            set(initial_module_codes)
+            if initial_module_codes is not None
+            else {
+                module.code
+                for module in self._module_runtime_service.list_modules()
+                if module.default_enabled and module.stage != "planned"
+            }
+        )
+        organization = self._organization_service.create_organization(
+            organization_code=organization_code,
+            display_name=display_name,
+            timezone_name=timezone_name,
+            base_currency=base_currency,
+            is_active=False,
+        )
+        self._module_runtime_service.catalog_service.provision_organization_entitlements(
+            organization.id,
+            licensed_module_codes=selected_module_codes,
+            enabled_module_codes=selected_module_codes,
+        )
+        if is_active:
+            return self._organization_service.set_active_organization(organization.id)
+        return organization
+
     def set_active_organization(self, organization_id: str) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")

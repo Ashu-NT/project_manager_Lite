@@ -1,23 +1,34 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
+    QGroupBox,
     QCheckBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QVBoxLayout,
 )
 
 from core.platform.common.models import Organization
+from core.platform.modules.service import EnterpriseModule
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
 class OrganizationEditDialog(QDialog):
-    def __init__(self, parent=None, organization: Organization | None = None):
+    def __init__(
+        self,
+        parent=None,
+        organization: Organization | None = None,
+        available_modules: list[EnterpriseModule] | tuple[EnterpriseModule, ...] | None = None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Organization" + (" - Edit" if organization else " - New"))
+        self._available_modules = tuple(available_modules or ())
+        self._module_checks: dict[str, QCheckBox] = {}
+        self._create_mode = organization is None
 
         self.organization_code_edit = QLineEdit()
         self.display_name_edit = QLineEdit()
@@ -67,8 +78,30 @@ class OrganizationEditDialog(QDialog):
         layout.setSpacing(CFG.SPACING_LG)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
         layout.addLayout(form)
+        if self._create_mode and self._available_modules:
+            layout.addWidget(self._build_initial_modules_section())
         layout.addWidget(buttons)
         self.setMinimumSize(self.sizeHint())
+
+    def _build_initial_modules_section(self) -> QGroupBox:
+        section = QGroupBox("Initial Modules")
+        section_layout = QVBoxLayout(section)
+        section_layout.setSpacing(CFG.SPACING_XS)
+        hint = QLabel("Choose which business modules should be licensed and enabled when this organization is created.")
+        hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        hint.setWordWrap(True)
+        section_layout.addWidget(hint)
+        for module in self._available_modules:
+            checkbox = QCheckBox(module.label)
+            checkbox.setChecked(module.default_enabled and module.stage != "planned")
+            checkbox.setEnabled(module.stage != "planned")
+            if module.stage == "planned":
+                checkbox.setText(f"{module.label} (Planned)")
+            if module.description:
+                checkbox.setToolTip(module.description)
+            section_layout.addWidget(checkbox)
+            self._module_checks[module.code] = checkbox
+        return section
 
     def _validate_and_accept(self) -> None:
         if not self.organization_code:
@@ -104,6 +137,14 @@ class OrganizationEditDialog(QDialog):
     @property
     def is_active(self) -> bool:
         return self.active_check.isChecked()
+
+    @property
+    def initial_module_codes(self) -> list[str]:
+        return [
+            module_code
+            for module_code, checkbox in self._module_checks.items()
+            if checkbox.isChecked() and checkbox.isEnabled()
+        ]
 
 
 __all__ = ["OrganizationEditDialog"]
