@@ -39,9 +39,11 @@ Status: implemented in this repo
 
 ## Phase 2: Next Follow-Ups
 
+Status: pending
+
 Priority: high
 
-- Move task collaboration UI fully behind the new collaboration service contract
+- Complete the remaining task collaboration surfaces behind the collaboration service contract
 - Add email/in-app notification delivery for mentions, approvals, and locked periods
 - Add edit conflict handling and presence indicators for concurrent task updates
 - Add richer portfolio scenario comparison with side-by-side saved scenarios
@@ -49,6 +51,8 @@ Priority: high
 - Add a dedicated payroll workspace and service layer using the shipped `payroll.*` permission set
 
 ## Phase 3: Hardening
+
+Status: pending
 
 Priority: medium
 

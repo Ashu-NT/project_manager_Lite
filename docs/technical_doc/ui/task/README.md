@@ -26,6 +26,9 @@ assignments.
 - task dialogs:
   - `task_dialogs.py`
   - `task_progress_dialog.py`
+- collaboration:
+  - `collaboration_dialog.py`
+  - `mention_text_edit.py`
 - compatibility facade: `components.py`
 
 ## Coordinator (`TaskTab`)
@@ -74,3 +77,12 @@ Assignment panel supports:
 
 Overallocation warnings are surfaced via helper functions tied to task service
 policy outputs.
+
+## Collaboration and Mention Workflows
+
+Task collaboration currently supports:
+
+- DB-backed task comments
+- user-backed `@mention` resolution against project collaborators
+- attachments managed through the collaboration service/store
+- unread/read mention state used by task and collaboration workspaces

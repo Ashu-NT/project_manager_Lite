@@ -48,6 +48,12 @@ Long operations are asynchronous:
 
 The module supports silent refresh mode to avoid startup progress-dialog noise.
 
+Layout behavior also includes:
+
+- responsive panel reflow based on available width
+- bounded chart heights to avoid vertical stretching
+- deferred first-show layout sync to avoid cut-off KPI content
+
 ## Access and Permission Behavior
 
 `access.py` configures:

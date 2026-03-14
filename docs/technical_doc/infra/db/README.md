@@ -1,26 +1,31 @@
 # Infrastructure Database Layer
 
-`infra/db/` implements persistence for all `core/platform/common/interfaces.py` repository
-contracts using SQLAlchemy ORM and aggregate-specific mappers/repositories.
+Persistence is split between `infra/platform/db/` for shared platform concerns and `infra/modules/project_management/db/` for the current production business module.
 
 ## Components
 
-- `base.py`: engine + session factory and DB URL resolution
-- `models.py`: ORM schema definitions, indexes, and constraints
-- `optimistic.py`: generic version-checked update helper
-- aggregate folders:
+- `infra/platform/db/base.py`: engine + session factory + DB URL resolution
+- `infra/platform/db/models.py`: shared ORM schema definitions
+- `infra/platform/db/optimistic.py`: version-checked update helper
+- shared aggregate folders:
+  - `auth/`
+  - `access/`
+  - `approval/`
+  - `audit/`
+  - `modules/`
+  - `org/`
+- PM aggregate folders:
   - `project/`
   - `task/`
   - `resource/`
   - `cost_calendar/`
   - `baseline/`
-  - `auth/`
-  - `audit/`
-  - `approval/`
-- facade wrappers:
-  - `repositories.py`
-  - `repositories_*`
-  - `mappers.py`
+  - `collaboration/`
+  - `portfolio/`
+  - `register/`
+- compatibility facade wrappers:
+  - `infra/platform/db/repositories.py`
+  - `infra/platform/db/mappers.py`
 
 ## Schema Highlights
 
@@ -30,6 +35,15 @@ Core tables:
 - economics: `resources`, `project_resources`, `cost_items`
 - schedule calendar: `working_calendars`, `holidays`, `calendar_events`
 - baseline: `project_baselines`, `baseline_tasks`
+- collaboration and portfolio:
+  - `task_comments`
+  - `portfolio_intake_items`
+  - `portfolio_scenarios`
+- platform administration:
+  - `organizations`
+  - `employees`
+  - `organization_module_entitlements`
+  - `project_memberships`
 - security/governance:
   - `users`, `roles`, `permissions`
   - `user_roles`, `role_permissions`

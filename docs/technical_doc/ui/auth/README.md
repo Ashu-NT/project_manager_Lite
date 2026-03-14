@@ -23,6 +23,10 @@
 4. Dialog returns `Accepted`; main window launches with permission-aware tabs.
 5. On failure, dialog shows warning or error and remains open.
 
+Desktop startup only skips this dialog when `PM_SKIP_LOGIN` is enabled and the
+shared session context is already authenticated. The flag alone does not create
+an anonymous logged-in desktop session.
+
 ## Error Handling
 
 - `ValidationError`: user-facing warning (invalid credentials)

@@ -24,14 +24,17 @@ Startup sequence:
    - execute Alembic migrations
    - open SQLAlchemy session
    - build service graph via `infra.platform.services.build_service_dict`
-8. Show login dialog unless `PM_SKIP_LOGIN` is enabled.
+8. Show login dialog unless both of these are true:
+   - `PM_SKIP_LOGIN` is enabled
+   - the shared user session is already authenticated
 9. Create `ui.platform.shell.main_window.MainWindow`, show it, and enter Qt event loop.
 
 ### Important Characteristics
 
 - DB schema migrations are enforced at app startup.
 - Settings are loaded before style application, so app launches in persisted mode.
-- Login is integrated into startup but can be bypassed for local/dev flows.
+- Login is integrated into startup and the main window then resolves the active platform runtime context.
+- `PM_SKIP_LOGIN` is a support/bootstrap convenience only; it does not create an anonymous authenticated desktop session by itself.
 
 ## CLI Startup (`main.py`)
 
@@ -61,7 +64,8 @@ Both entrypoints rely on a shared contract:
 
 - `build_service_dict(session)` returns a fully wired dict containing:
   - repositories
-  - services
+  - platform and module services
+  - application seams
   - user session context
   - scheduling/reporting/finance/dashboard services
 

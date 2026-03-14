@@ -16,14 +16,32 @@ This avoids mega-tabs and improves local maintainability.
 
 ## Runtime Structure
 
-- `ui/platform/shell/main_window.py`: top-level shell and tab composition
-- module folders per feature:
-  - `project`, `task`, `resource`, `cost`, `calendar`, `report`, `dashboard`
-  - `admin`, `auth`, `governance`, `support`
-- cross-cutting folders:
-  - `shared`, `styles`, `settings`
+- `ui/platform/shell/`: main window, grouped navigation tree, workspace registration
+- `ui/platform/admin/`: shared admin workspaces
+  - access
+  - users
+  - employees
+  - organizations
+  - modules
+  - support
+- `ui/platform/control/`: cross-platform oversight workspaces such as audit
+- `ui/platform/settings/`: persisted desktop preference storage
+- `ui/platform/shared/`: guard helpers, async jobs, shared widgets, styles
+- `ui/modules/project_management/`: current production business workspaces
+  - project
+  - task
+  - resource
+  - cost
+  - calendar
+  - report
+  - dashboard
+  - governance
+  - register
+  - collaboration
+  - portfolio
+  - timesheet
 
-Compatibility wrappers (`ui/*_tab.py`) preserve older import paths.
+Placeholder package roots also exist for `maintenance_management`, `qhse`, and `payroll`.
 
 ## Permission and Governance UX
 
@@ -68,12 +86,22 @@ Tabs subscribe to `core.platform.notifications.domain_events` signals:
 
 Main window loads persisted theme and reapplies style globally at startup.
 
+## Shell Model
+
+The current desktop shell is platform-aware:
+
+- slim header for global controls
+- grouped navigation for platform and business modules
+- shell rebuild on organization and module-entitlement changes
+- hidden top tabs with navigation driving the active workspace stack
+
 ## Documentation Map
 
 - [Admin](admin/README.md)
 - [Auth](auth/README.md)
 - [Calendar](calendar/README.md)
 - [Cost](cost/README.md)
+- [Control](control/README.md)
 - [Dashboard](dashboard/README.md)
 - [Governance](governance/README.md)
 - [Project](project/README.md)

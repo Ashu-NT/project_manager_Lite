@@ -1,46 +1,54 @@
 # Technical Documentation
 
-This folder is the engineering reference for the ProjectManagerLite codebase.
-It is organized by runtime module so you can understand boundaries, data flow,
-extension points, and operational behavior without reverse-engineering the code.
+This folder is the engineering reference for the current ProjectManagerLite codebase.
+It focuses on actual package boundaries, runtime flow, and the current enterprise-platform transition state.
 
 ## Architecture Snapshot
 
 - Layered architecture:
-  - `core/`: domain model + business rules + service orchestration
-  - `infra/`: persistence, migrations, runtime infrastructure, DI/wiring
-  - `ui/`: Qt presentation, user workflows, async job orchestration
+  - `application/`: shared orchestration seams used by desktop today and future remote delivery later
+  - `core/`: domain model, business rules, and platform/module services
+  - `infra/`: persistence, migrations, diagnostics, and service wiring
+  - `api/`: transport-facing adapters for future HTTP/web delivery
+  - `ui/`: Qt shell, admin workspaces, and module presentation logic
+- Platform/module split:
+  - shared concerns live under `platform/`
+  - business capabilities live under `modules/`
+- Current business-module state:
+  - `project_management` is production-ready
+  - `maintenance_management`, `qhse`, and `payroll` remain planned or partial scaffolds
 - Runtime entrypoints:
   - GUI: `main_qt.py`
   - CLI: `main.py`
-- Packaging:
-  - PyInstaller bundle + NSIS installer + GitHub Actions release workflow
 
-## Module Documentation Index
+## Documentation Index
 
+- [Application Layer](application/README.md)
+- [API Transport Layer](api/README.md)
 - [Entrypoints](entrypoints/README.md)
 - [Core](core/README.md)
   - [Core Domain](core/domain/README.md)
-  - [Core Events](core/platform/notifications/README.md)
+  - [Core Events](core/events/README.md)
   - [Core Services](core/services/README.md)
-  - [Core Reporting Export Layer](core/modules/project_management/reporting/README.md)
+  - [Core Reporting Export Layer](core/reporting/README.md)
 - [Infrastructure](infra/README.md)
   - [Infrastructure Database Layer](infra/db/README.md)
 - [UI Layer](ui/README.md)
-  - [UI Admin](ui/platform/admin/README.md)
-  - [UI Auth](ui/platform/shared/auth/README.md)
-  - [UI Calendar](ui/modules/project_management/calendar/README.md)
-  - [UI Cost](ui/modules/project_management/cost/README.md)
-  - [UI Dashboard](ui/modules/project_management/dashboard/README.md)
-  - [UI Governance](ui/modules/project_management/governance/README.md)
-  - [UI Project](ui/modules/project_management/project/README.md)
-  - [UI Report](ui/modules/project_management/report/README.md)
-  - [UI Resource](ui/modules/project_management/resource/README.md)
-  - [UI Settings](ui/platform/settings/README.md)
-  - [UI Shared](ui/platform/shared/README.md)
-  - [UI Styles](ui/platform/shared/styles/README.md)
-  - [UI Support](ui/platform/admin/support/README.md)
-  - [UI Task](ui/modules/project_management/task/README.md)
+  - [UI Admin](ui/admin/README.md)
+  - [UI Auth](ui/auth/README.md)
+  - [UI Calendar](ui/calendar/README.md)
+  - [UI Control](ui/control/README.md)
+  - [UI Cost](ui/cost/README.md)
+  - [UI Dashboard](ui/dashboard/README.md)
+  - [UI Governance](ui/governance/README.md)
+  - [UI Project](ui/project/README.md)
+  - [UI Report](ui/report/README.md)
+  - [UI Resource](ui/resource/README.md)
+  - [UI Settings](ui/settings/README.md)
+  - [UI Shared](ui/shared/README.md)
+  - [UI Styles](ui/styles/README.md)
+  - [UI Support](ui/support/README.md)
+  - [UI Task](ui/task/README.md)
 - [Migration](migration/README.md)
 - [Installer](installer/README.md)
 - [CI/CD Release Pipeline](ci-cd/README.md)
@@ -48,10 +56,12 @@ extension points, and operational behavior without reverse-engineering the code.
 
 ## Cross-Cutting Runtime Controls
 
-Environment variables used across modules:
+Environment variables used across the current platform:
 
 - Data and persistence:
   - `PM_DB_URL`
+  - `PM_LICENSED_MODULES`
+  - `PM_ENABLED_MODULES`
 - Auth bootstrap:
   - `PM_ADMIN_USERNAME`
   - `PM_ADMIN_PASSWORD`
@@ -64,12 +74,13 @@ Environment variables used across modules:
   - `PM_APP_VERSION`
   - `PM_UPDATE_MANIFEST_URL`
 - Packaging and startup:
-  - `PM_SKIP_LOGIN`
+  - `PM_SKIP_LOGIN` (only suppresses the desktop login dialog when a session is already authenticated)
 
 ## Operational Principles
 
 - Business logic is permission-gated at service and UI levels.
 - Important mutations emit domain events for UI refresh synchronization.
-- Long-running UI operations use async workers (`QThreadPool`) to avoid UI blocking.
-- Persistence uses optimistic locking (`version` columns) for stale-write protection.
-- Release automation generates installer + checksum + update manifest in one workflow.
+- Long-running desktop operations use async workers to avoid UI blocking.
+- Persistence uses optimistic locking on mutable aggregates.
+- Module entitlements and organization context affect shell visibility and backend access.
+- Release automation generates installer, checksum, and update manifest in one workflow.

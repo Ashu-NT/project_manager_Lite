@@ -22,6 +22,7 @@ Main functions:
 - delete resource
 - toggle active status
 - filter resources by search and attributes
+- choose between employee-backed workers and external workers
 
 Layout:
 
@@ -45,7 +46,13 @@ Layout:
 
 ## Data Considerations
 
-Resource records include labor economics and currency details. This data feeds:
+Resource records now support:
+
+- internal employees linked through optional `employee_id`
+- external workers without an employee directory record
+- worker type, labor economics, capacity, address, and contact details
+
+This data feeds:
 
 - assignment operations
 - project-resource planning overrides

@@ -17,6 +17,8 @@
 - governance request, approve, reject flows
 - session permission checks
 - audit-log behavior
+- module licensing and organization-scoped entitlement behavior
+- platform runtime application/API seam behavior
 
 ## UI and Settings
 

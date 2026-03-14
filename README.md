@@ -1,9 +1,46 @@
 # ProjectManagerLite
 
-ProjectManagerLite is a desktop project management application for planning, scheduling, execution control, and reporting.
-It is built with Python + PySide6 and follows a layered architecture designed for maintainability and scale.
+ProjectManagerLite is a desktop-first enterprise operations platform built with Python + PySide6.
+The current production-ready business capability is the `Project Management` module, supported by shared platform features such as admin, access, audit, organizations, employees, and module licensing.
 
-The current production-ready capability is the `Project Management` module. The staged migration plan toward a modular enterprise platform is tracked in `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`.
+The staged migration plan toward a broader modular enterprise platform is tracked in `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`.
+
+## Current Status
+
+Delivered in the current codebase:
+
+- `Project Management` as the active production module
+- grouped enterprise shell and platform admin workspaces
+- organization and employee management
+- persistent module licensing with organization-scoped entitlements
+- enterprise RBAC foundation, collaboration, portfolio, approvals, audit, and support tooling
+- application-layer and transport-layer seams for future web/server adoption
+
+Pending major work:
+
+- finish the shared platform time boundary (`timesheet_period`, `work_entry`, site/department ownership) so PM, Payroll, and Maintenance can use the same model
+- `Maintenance Management`, `QHSE`, and `Payroll` business modules
+- deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
+- richer notification delivery, conflict handling, and integration/webhook support
+- a concrete hosted web/router layer when the product moves beyond desktop-first deployment
+
+## Next Priority
+
+The next priority is to finish the shared platform time model.
+
+Why this comes first:
+
+- it is the remaining Phase 3 platform extraction work
+- it lets `Project Management` keep its current timesheet and resource workflows while moving shared ownership into the platform layer
+- it is the clean dependency we need before building `Payroll` or `Maintenance Management`
+
+Concretely, the next implementation slice should:
+
+1. move `timesheet_period` and `work_entry` concepts behind a platform-facing boundary
+2. keep PM time approval and resource planning behavior stable during the extraction
+3. make the shared time model reusable by future Payroll and Maintenance modules
+
+After that, the next module priority should be the `Maintenance Management` skeleton, not Payroll first.
 
 ## Core Capabilities
 
@@ -33,13 +70,15 @@ The current production-ready capability is the `Project Management` module. The 
 
 ## Architecture
 
-The codebase is split into three main layers:
+The codebase is split into five complementary layers:
 
 - `application/`: cross-surface orchestration seams that desktop and future web/API adapters can share
 - `core/`: domain models, business rules, scheduling/reporting engines, service orchestration
 - `infra/`: SQLAlchemy repositories, mappers, migration/bootstrap wiring
 - `ui/`: Qt tabs/dialogs and presentation workflows
 - `api/`: transport-facing adapters for future HTTP/web delivery
+
+Within `core/`, `infra/`, and `ui/`, the repo is also split between shared `platform/` concerns and business `modules/`.
 
 Architectural guardrails are enforced by tests in `tests/test_architecture_guardrails.py`.
 For design details and refactor history, see `docs/ARCHITECTURE_BLUEPRINT.md`.
@@ -51,8 +90,14 @@ project_mangement_app/
   application/
   api/
   core/
+    platform/
+    modules/
   infra/
+    platform/
+    modules/
   ui/
+    platform/
+    modules/
   tests/
   docs/
   main_qt.py
@@ -93,6 +138,8 @@ python main_qt.py
 ```powershell
 python main_qt.py
 ```
+
+Business module visibility is driven by module entitlements at runtime. `Project Management` is enabled by default; planned modules stay out of the shell until they are licensed and enabled.
 
 ### CLI mode (optional)
 

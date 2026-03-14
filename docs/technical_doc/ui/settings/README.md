@@ -16,6 +16,8 @@
   - update channel
   - startup auto-check flag
   - update manifest source URL
+  - task saved views
+  - dashboard layout state
 
 Storage backend:
 
@@ -47,3 +49,5 @@ manual setup.
 - main window startup and shutdown persistence
 - governance tab mode persistence
 - support tab update and diagnostics settings snapshot
+- task saved-view persistence
+- dashboard layout and panel builder persistence

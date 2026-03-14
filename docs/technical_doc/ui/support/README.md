@@ -5,6 +5,14 @@
 ## File
 
 - `tab.py`
+- `surface.py`
+- `ui_layout.py`
+- `update_flow.py`
+- `diagnostics_flow.py`
+- `diagnostics_export.py`
+- `incident_report.py`
+- `incident_mail.py`
+- `telemetry.py`
 
 ## `SupportTab` Responsibilities
 

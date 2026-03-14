@@ -35,14 +35,22 @@ Global singleton `domain_events` exposes these channels:
 - `resources_changed(resource_id)`
 - `baseline_changed(project_id)`
 - `approvals_changed(request_id)`
+- `register_changed(project_id)`
+- `auth_changed(user_id)`
+- `employees_changed(employee_id)`
+- `organizations_changed(organization_id)`
+- `access_changed(project_id)`
+- `collaboration_changed(task_id)`
+- `portfolio_changed(entity_id)`
+- `modules_changed(module_code)`
 
 ## Emission and Consumption Pattern
 
 Typical pattern:
 
-1. Service performs mutation and commits transaction.
-2. Service emits corresponding domain event.
-3. UI tabs subscribed to that signal reload affected views.
+1. service performs mutation and commits transaction
+2. service emits the corresponding domain event
+3. subscribed desktop views reload the affected state
 
 This yields eventual consistency in the UI without hard module coupling.
 

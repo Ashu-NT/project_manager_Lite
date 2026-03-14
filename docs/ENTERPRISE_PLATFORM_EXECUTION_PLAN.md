@@ -94,7 +94,7 @@ Why this structure is preferred:
 
 ### Phase 0: Protect What Exists
 
-Status: start here
+Status: completed
 
 1. Write the migration plan into the repo.
 2. Introduce a module catalog service with PM as the only enabled production module.
@@ -102,6 +102,8 @@ Status: start here
 4. Add tests that prove the app still boots as a PM app while becoming module-aware.
 
 ### Phase 1: Platform Spine
+
+Status: completed
 
 1. Create platform-level packages under existing layers:
    - `core/platform/`
@@ -128,6 +130,8 @@ Exit criteria:
 
 ### Phase 2: PM Becomes Module 1
 
+Status: completed
+
 1. Define PM as a named business module in code and docs.
 2. Introduce module-owned workspace metadata for PM.
 3. Gradually group PM-specific code under a PM module namespace while keeping compatibility imports.
@@ -139,6 +143,8 @@ Exit criteria:
 - no PM workspace depends on future module code
 
 ### Phase 3: Shared Time and Employee Model
+
+Status: in progress
 
 1. Extract timesheet and employee concepts so they can be consumed by PM, Maintenance, and Payroll.
 2. Define canonical entities:
@@ -155,6 +161,8 @@ Exit criteria:
 - payroll and maintenance can later consume approved time from the same platform
 
 ### Phase 4: Maintenance Module Skeleton
+
+Status: pending
 
 1. Add module scaffold only:
    - service package
@@ -173,6 +181,8 @@ Exit criteria:
 
 ### Phase 5: QHSE Module Skeleton
 
+Status: pending
+
 1. Add incidents, inspections, audits, and CAPA domain types.
 2. Allow QHSE records to link to project, site, asset, or work order.
 3. Reuse platform approvals, documents, notifications, and audit logging.
@@ -183,6 +193,8 @@ Exit criteria:
 - cross-module linkage is explicit, not hardcoded inside PM
 
 ### Phase 6: Payroll Preparation Module
+
+Status: pending
 
 1. Start with payroll preparation and export, not full statutory payroll for every country.
 2. Consume approved time from PM and Maintenance.
@@ -195,6 +207,8 @@ Exit criteria:
 - no duplication of timesheet logic
 
 ### Phase 7: Commercial Module Enablement
+
+Status: in progress
 
 1. Add module entitlement persistence.
 2. Hide disabled module workspaces from the shell.
@@ -214,22 +228,8 @@ Exit criteria:
 - Keep shell navigation grouped by module and platform area.
 - Avoid top-level package names that conflict with the Python standard library.
 
-## First Execution Slice
+## Current Recommended Next Step
 
-This phase is intentionally low risk and starts immediately:
-
-1. Add a platform module catalog service.
-2. Register `project_management` as enabled.
-3. Register `maintenance_management`, `qhse`, and `payroll` as planned.
-4. Expose module state through the service graph.
-5. Make the main shell display module context while keeping current PM behavior.
-6. Add tests for module catalog and shell awareness.
-
-## Follow-Up After This Slice
-
-Next recommended implementation step:
-
-1. Add persistent module entitlement storage.
-2. Separate platform workspaces from PM workspaces in shell metadata.
-3. Extract timesheet ownership from PM into a shared platform service boundary.
-4. Start moving low-risk shared UI infrastructure such as the shell into `ui/platform/` with compatibility wrappers.
+1. Finish Phase 3 by extracting shared time concepts (`timesheet_period`, `work_entry`, and related ownership) into a platform-facing boundary.
+2. Preserve the current PM workflows while making that time model consumable by future Payroll and Maintenance modules.
+3. After that, start the Maintenance module skeleton rather than opening both Maintenance and Payroll at the same time.

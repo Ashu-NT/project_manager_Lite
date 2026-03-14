@@ -30,13 +30,15 @@ This ensures packaged releases still migrate DB schema without manual steps.
 
 ## Current Revision Themes
 
-Existing migration set includes:
+Existing migration set now includes:
 
 - baseline tables and fields
 - auth/role/permission tables
+- audit, approval, and project membership tables
+- collaboration and portfolio tables
+- employee and organization tables
+- organization-scoped module entitlements and lifecycle state
 - optimistic-locking version columns
-- audit and approval tables
-- baseline task snapshot enhancements
 
 ## Operational Notes
 

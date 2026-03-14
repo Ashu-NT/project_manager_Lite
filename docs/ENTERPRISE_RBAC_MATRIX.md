@@ -9,6 +9,22 @@ This matrix moves the app from a small-role RBAC model to an enterprise-ready fo
 - read-only identity access separate from identity mutation
 - payroll-ready permissions for the future payroll module
 
+## Status Snapshot
+
+Delivered:
+
+- enterprise role templates and canonical project-scoped roles
+- payroll-ready permission codes
+- read-only identity visibility split from mutation/security operations
+- access/security separation in the admin surfaces
+
+Pending:
+
+- payroll feature slice implementation
+- separation-of-duties checks for conflicting role combinations
+- stronger `security.manage` capabilities such as SSO/MFA/session-revocation support
+- a separate `Security` admin surface if module/admin scope keeps growing
+
 ## Global Roles
 
 | Role | Purpose | Key permissions |

@@ -1,79 +1,71 @@
-# Core Module
+# Core Layer
 
-`core/` is the business layer. It contains domain entities, service logic,
-interfaces, events, and reporting calculations. It is intentionally UI-agnostic.
+`core/` is the business layer. It contains the canonical rules, aggregates, policies, and services for both shared platform behavior and business modules.
+
+## Current Structure
+
+- `core/platform/`
+  - shared business concerns such as auth, access, org, approval, audit, modules, and notifications
+- `core/modules/project_management/`
+  - the current production-ready business module
+- `core/modules/maintenance_management/`
+- `core/modules/qhse/`
+- `core/modules/payroll/`
+  - planned or placeholder module roots
 
 ## Design Role
 
-- Source of truth for business rules.
-- Defines repository/service contracts (`core/platform/common/interfaces.py`).
-- Owns scheduling, cost policy, baseline, governance, finance, and reporting logic.
-- Emits domain events for reactive UI refresh.
+- source of truth for domain rules
+- repository and service contract ownership through `core/platform/common/interfaces.py`
+- module guard enforcement for business capabilities
+- domain-event emission for reactive desktop refresh behavior
 
 ## Key Packages
 
-- `core/domain/`: dataclass domain entities and enums
-- `core/services/`: service layer split by business capability
-- `core/platform/notifications/`: domain event hub + lightweight signal primitive
-- `core/modules/project_management/reporting/`: export API and renderers (Excel/PDF/PNG)
-- `core/platform/common/interfaces.py`: repository abstractions
-- `core/platform/common/exceptions.py`: typed domain/business error hierarchy
+- `core/platform/common/`: shared interfaces, exceptions, and compatibility facades
+- `core/platform/modules/`: module entitlement rules and runtime guards
+- `core/platform/notifications/`: domain event hub and signal primitive
+- `core/platform/org/`: organization and employee domain/services
+- `core/modules/project_management/domain/`: PM aggregates and enums
+- `core/modules/project_management/services/`: PM business services
+- `core/modules/project_management/reporting/`: export and rendering pipeline
 
 ## Dependency Rule
 
-Strict layering objective:
+- `core` must not import `ui`
+- `infra` implements core contracts
+- `application`, `api`, and `ui` consume `core` behavior through stable seams
 
-- `core` must not import `ui`.
-- `infra` implements `core` interfaces.
-- `ui` calls into `core` services.
+Architecture guardrails in `tests/test_architecture_guardrails.py` enforce the main layering rules continuously.
 
-Architecture guardrails in tests enforce this rule continuously.
+## Modeling Strategy
 
-## Domain Model Strategy
-
-- Dataclass-first modeling for explicit, serializable business entities.
-- Static `create(...)` factories centralize ID generation and safe defaults.
-- Enums model constrained states (project status, task status, dependency/cost types).
-- Compatibility facade (`core/platform/common/models.py`) preserves legacy import paths.
-
-## Service Strategy
-
-Service modules are decomposed to reduce monolith growth:
-
-- orchestration class + focused mixins
-- policy helpers
-- dedicated models for reporting and scheduling payloads
-
-This supports:
-
-- easier targeted testing
-- smaller change blast radius
-- lower merge conflict density
+- dataclass-first aggregates and typed enums
+- `create(...)` factories centralize ID generation and safe defaults
+- compatibility exports in `core/platform/common/models.py` keep older import paths working while the focused package structure evolves
 
 ## Error Semantics
 
-Core services use typed errors for deterministic UX handling:
+Core services use typed errors for deterministic UX and transport handling:
 
-- `ValidationError`: invalid input/state
-- `NotFoundError`: missing aggregate/entity
-- `BusinessRuleError`: governance/policy/rule violations
-- `ConcurrencyError`: optimistic locking stale write
-
-UI guard helpers map these to user-facing message dialogs.
+- `ValidationError`
+- `NotFoundError`
+- `BusinessRuleError`
+- `ConcurrencyError`
 
 ## Transaction and Event Behavior
 
 Typical mutation flow:
 
-1. Validate input and permissions.
-2. Read and mutate domain object(s).
-3. Persist through repositories.
-4. Commit SQLAlchemy session.
-5. Emit domain event (`domain_events.*_changed`) for UI synchronization.
+1. validate input and permissions
+2. read and mutate aggregate state
+3. persist through repositories
+4. commit the session
+5. emit the relevant `domain_events.*_changed` signal
 
 ## Documentation Map
 
-- Domain contracts: [Core Domain](domain/README.md)
-- Event bus: [Core Events](events/README.md)
-- Service architecture: [Core Services](services/README.md)
-- Export/rendering stack: [Core Reporting Export Layer](reporting/README.md)
+- [Core Domain](domain/README.md)
+- [Core Events](events/README.md)
+- [Core Services](services/README.md)
+- [Core Reporting Export Layer](reporting/README.md)

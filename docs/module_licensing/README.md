@@ -150,7 +150,7 @@ Exit criteria:
 
 ### Phase 3: Backend Enforcement
 
-Status: in progress
+Status: completed
 
 Goal:
 
@@ -172,7 +172,7 @@ Exit criteria:
 
 ### Phase 4: Organization or Tenant-Specific Entitlements
 
-Status: in progress
+Status: completed for the desktop/runtime implementation; hosted web/server adoption is deferred
 
 Goal:
 
@@ -185,13 +185,13 @@ Concrete work:
 2. Attach module entitlements to that boundary.
    Status: completed for the active-organization runtime path
 3. Move shell, backend, and future API checks to the current organization context.
-   Status: completed for the desktop/runtime application seam, pending HTTP/API adoption
+   Status: completed for the desktop/runtime application seam; hosted web adoption is deferred
 4. Support `trial`, `suspended`, and `expired` states.
    Status: completed for the local runtime and admin flow
 5. Add a platform admin workflow for provisioning organizations with an initial licensed module mix.
-   Status: completed for the desktop/runtime admin flow, pending HTTP/API adoption
+   Status: completed for the desktop/runtime admin flow; hosted web adoption is deferred
 6. Expose the same organization provisioning and entitlement rules through an API-facing transport boundary.
-   Status: completed for the transport adapter layer, pending concrete web server/router adoption
+   Status: completed for the transport adapter layer; concrete web server/router adoption is deferred
 
 Exit criteria:
 
@@ -214,28 +214,11 @@ Exit criteria:
 - service or application-level guards must eventually enforce the same module state
 - shared platform capabilities remain available even if no business module is enabled
 
-## First Execution Slice
+## Deferred Follow-Up
 
-This is the slice to implement immediately after this plan is written:
+Web/server delivery is intentionally deferred for now.
 
-1. enrich `ModuleCatalogService` into an entitlement-aware service
-2. model Platform Base capabilities
-3. add `licensed` vs `enabled` semantics while preserving current defaults
-4. update Platform Home to show licensing-oriented summaries
-5. gate PM workspaces using the module service
-6. add focused tests
+When that work resumes, the remaining licensing follow-up is:
 
-## Follow-Up After This Slice
-
-Next recommended step:
-
-1. carry the active organization context into a dedicated application-layer seam for future HTTP/API use
-   Status: completed
-2. add explicit entitlement lifecycle states such as `trial`, `suspended`, and `expired`
-   Status: completed
-3. add a platform admin workflow for provisioning organizations with an initial licensed module mix
-   Status: completed
-4. expose the same organization provisioning and entitlement rules through the future HTTP/API boundary
-   Status: completed
-5. wrap the transport adapter with a concrete web server/router layer
-   Status: next
+1. wrap the existing transport adapter with a concrete web server/router layer
+2. reuse the same application-layer and transport contracts instead of introducing separate web-only licensing rules

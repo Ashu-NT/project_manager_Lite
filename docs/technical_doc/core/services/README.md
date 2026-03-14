@@ -1,88 +1,73 @@
-# Core Services Module
+# Core Services
 
-`core/services/` is the executable business layer. It coordinates repositories,
-enforces permissions and policy, manages transactions, and publishes domain
-events after state changes.
+The executable service layer is now split between shared platform services and module-specific services.
 
-## Architectural Style
+## Service Style
 
-- Service orchestrators plus mixin decomposition.
-- Explicit repository interfaces from `core/platform/common/interfaces.py`.
-- Transactional behavior through injected SQLAlchemy session.
-- Typed exceptions for deterministic UI handling.
+- orchestrator classes plus focused mixins/helpers where needed
+- explicit repository interfaces from `core/platform/common/interfaces.py`
+- transaction control through injected SQLAlchemy sessions
+- typed exceptions for deterministic UI and transport handling
 
-## Service Families
+## Platform Service Families
 
-### Auth and Security
+### Identity and Security
 
-- `auth/service.py`:
-  - bootstraps default permissions, roles, and admin account
-  - password policy and hashing verification
-  - user and role lifecycle operations
-  - principal construction for runtime session context
-- `auth/authorization.py`: permission requirement helpers
-- `auth/session.py`: runtime principal/session container
+- `core/platform/auth/service.py`
+  - user lifecycle, role/permission seeding, login, session construction, lockout handling
+- `core/platform/auth/authorization.py`
+  - permission requirement helpers
+- `core/platform/auth/session.py`
+  - active principal/session context
 
-### Governance and Audit
+### Access, Audit, and Governance
 
-- `approval/service.py`:
-  - request, approve, reject governed changes
-  - self-approval prevention
-  - request-type apply handler registry
-- `approval/policy.py`:
-  - governance mode from env vars
-  - default governed action set
-- `audit/service.py`:
-  - immutable action logging with actor attribution
+- `core/platform/access/service.py`
+  - project memberships and scoped access
+- `core/platform/approval/service.py`
+  - governed change requests and decision/apply workflow
+- `core/platform/audit/service.py`
+  - immutable audit log writes and reads
 
-### Planning and Execution
+### Organization and Module Runtime
 
-- `project/service.py` with lifecycle and query mixins
-- `task/service.py` with lifecycle, dependency, assignment, query, validation mixins
-- `timesheet/service.py` with reusable time-entry and period lifecycle workflows
-- `resource/service.py` for resource CRUD and optimistic lock checks
-- `cost/service.py` for cost CRUD and cost summaries
+- `core/platform/org/service.py`
+  - employee and organization lifecycle
+- `core/platform/modules/service.py`
+  - catalog, entitlement, lifecycle status, and provisioning rules
+- `core/platform/modules/runtime.py`
+  - thin runtime-facing seam over the catalog for callers
 
-### Schedule and Calendar
+## Project Management Service Families
 
-- `scheduling/engine.py`:
-  - CPM forward and backward passes
-  - FS, FF, SS, SF dependencies with lag
-  - actual start/end constraint application
-  - computed dates persisted back to tasks
-- `scheduling/leveling*.py`: over-allocation detection and leveling actions
-- `work_calendar/engine.py`: working-day arithmetic and holiday exclusion
-- `work_calendar/service.py`: persisted calendar and holiday configuration
-- `calendar/service.py`: manual and task-derived calendar events
-
-### Baseline, Reporting, Finance, Dashboard
-
-- `baseline/service.py`:
-  - baseline snapshots of schedule and cost state
-  - duration-weighted allocation of unassigned budget and labor
-  - governance-aware baseline creation path
-- `reporting/service.py` plus mixins:
-  - KPI, EVM, variance, baseline compare, cost breakdown, labor analytics
-- `finance/service.py`:
-  - ledger, cashflow, and analytics read models aligned with reporting policy
-- `dashboard/service.py`:
-  - aggregate payload for dashboard UI
-  - resource conflict preview and leveling operations
+- `project/`: project lifecycle, query, and project-resource planning
+- `task/`: task lifecycle, assignments, dependencies, time-entry integration
+- `timesheet/`: time-entry and period workflows
+- `resource/`: resource catalog and employee-linked worker handling
+- `cost/`: project/task cost workflows
+- `calendar/` and `work_calendar/`: persisted calendar state and working-day arithmetic
+- `baseline/`: schedule/cost baseline capture
+- `reporting/`: KPI, variance, EVM, labor, and cost analytics
+- `finance/`: finance-oriented read models and exports
+- `dashboard/`: aggregate dashboard payloads
+- `register/`, `collaboration/`, `portfolio/`, `import_service/`: enterprise PM extensions
 
 ## Permission and Governance Model
 
-- Direct mutation requires `*.manage` permission.
-- If governance is enabled and action is governed:
-  - non-admin users with `approval.request` create a request instead of immediate apply.
-- Decision actions require `approval.decide`.
+- direct mutation requires the relevant `*.manage` or scoped permission
+- governed actions can route through approvals instead of direct apply
+- business-module entry services can be blocked by module entitlement guards when a module is disabled
 
 ## Event Emission Model
 
-Services emit domain events after successful commit so UI tabs can refresh
-targeted state by concern (project/task/resource/cost/baseline/approval).
+Services emit domain events after successful commit so desktop views can refresh targeted state:
+
+- project/task/resource/cost/baseline/register
+- approvals and audit-adjacent admin updates
+- employees, organizations, access, collaboration, portfolio, and module-entitlement changes
 
 ## Concurrency and Data Integrity
 
-- mutable aggregates include `version` tokens
-- stale writes raise `ConcurrencyError(code=\"STALE_WRITE\")`
+- mutable aggregates use `version` tokens where appropriate
+- stale writes raise `ConcurrencyError(code="STALE_WRITE")`
 - repository update helpers enforce version-checked writes
