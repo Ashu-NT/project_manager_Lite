@@ -45,16 +45,16 @@ class PlatformHomeTab(QWidget):
 
         shared_services = self._summary_values()
         cards = (
-            ("Shared Services", shared_services["shared"]),
-            ("Enabled Modules", shared_services["enabled"]),
+            ("Platform Base", shared_services["platform_base"]),
+            ("Licensed Modules", shared_services["licensed"]),
+            ("Available Modules", shared_services["available"]),
             ("Planned Modules", shared_services["planned"]),
-            ("Navigation Model", "Platform on the left, module workspaces below each enabled domain."),
         )
         for idx, (heading, text) in enumerate(cards):
             card_grid.addWidget(self._build_card(heading, text), idx // 2, idx % 2)
 
         footer = QLabel(
-            "Shared tools belong in Platform. Module-specific work belongs under each module root."
+            "Shared tools belong in Platform. Business modules appear by entitlement, and future hosted deployments will reuse the same module rules."
         )
         footer.setWordWrap(True)
         footer.setStyleSheet(CFG.NOTE_STYLE_SHEET)
@@ -64,15 +64,25 @@ class PlatformHomeTab(QWidget):
     def _summary_values(self) -> dict[str, str]:
         if self._module_catalog_service is None:
             return {
-                "shared": "Home, audit, access, users, and support.",
-                "enabled": "Project Management",
+                "platform_base": "Users, access, audit, approvals, employees, documents, inbox, notifications, settings.",
+                "licensed": "Project Management",
+                "available": "None",
                 "planned": "Maintenance Management, QHSE, Payroll",
             }
-        enabled = ", ".join(module.label for module in self._module_catalog_service.list_enabled_modules()) or "None"
+        platform_base = ", ".join(
+            capability.label for capability in self._module_catalog_service.list_platform_capabilities()
+        ) or "None"
+        licensed = ", ".join(
+            module.label for module in self._module_catalog_service.list_licensed_modules()
+        ) or "None"
+        available = ", ".join(
+            module.label for module in self._module_catalog_service.list_available_modules()
+        ) or "None"
         planned = ", ".join(module.label for module in self._module_catalog_service.list_planned_modules()) or "None"
         return {
-            "shared": "Home, audit, access, users, and support.",
-            "enabled": enabled,
+            "platform_base": platform_base,
+            "licensed": licensed,
+            "available": available,
             "planned": planned,
         }
 

@@ -48,6 +48,11 @@ def build_workspace_definitions(
 ) -> list[WorkspaceDefinition]:
     definitions: list[WorkspaceDefinition] = []
     module_catalog_service = services.get("module_catalog_service")
+    project_management_enabled = not bool(
+        module_catalog_service is not None
+        and hasattr(module_catalog_service, "is_enabled")
+        and not module_catalog_service.is_enabled(PROJECT_MANAGEMENT_MODULE_CODE)
+    )
 
     if bool(user_session is not None and user_session.is_authenticated()):
         definitions.append(
@@ -64,7 +69,9 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "project.read") or _has_permission(user_session, "report.view"):
+    if project_management_enabled and (
+        _has_permission(user_session, "project.read") or _has_permission(user_session, "report.view")
+    ):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -81,7 +88,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "task.read"):
+    if project_management_enabled and _has_permission(user_session, "task.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -100,7 +107,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "task.read"):
+    if project_management_enabled and _has_permission(user_session, "task.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -121,7 +128,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "resource.read"):
+    if project_management_enabled and _has_permission(user_session, "resource.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -136,7 +143,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "cost.read"):
+    if project_management_enabled and _has_permission(user_session, "cost.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -154,7 +161,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "task.read"):
+    if project_management_enabled and _has_permission(user_session, "task.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -172,7 +179,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "collaboration.read"):
+    if project_management_enabled and _has_permission(user_session, "collaboration.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -186,7 +193,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "register.read"):
+    if project_management_enabled and _has_permission(user_session, "register.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -201,7 +208,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "report.view"):
+    if project_management_enabled and _has_permission(user_session, "report.view"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -218,7 +225,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "portfolio.read"):
+    if project_management_enabled and _has_permission(user_session, "portfolio.read"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PROJECT_MANAGEMENT_MODULE_CODE,
@@ -234,8 +241,10 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_permission(user_session, "approval.request") or _has_permission(
-        user_session, "approval.decide"
+    if project_management_enabled and (
+        _has_permission(user_session, "approval.request") or _has_permission(
+            user_session, "approval.decide"
+        )
     ):
         definitions.append(
             WorkspaceDefinition(
