@@ -6,9 +6,9 @@ from PySide6.QtWidgets import QDialog, QLineEdit
 
 from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
-from ui.platform.admin.audit_tab import AuditLogTab
-from ui.platform.admin.user_dialog import PasswordResetDialog, UserEditDialog
-from ui.platform.admin.users_tab import UserAdminTab
+from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
+from ui.platform.admin.users.tab import UserAdminTab
+from ui.platform.control.audit.tab import AuditLogTab
 from ui.platform.shared.auth.login_dialog import LoginDialog
 from ui.platform.shell.main_window import MainWindow
 from ui.modules.project_management.task.task_progress_dialog import TaskProgressDialog
@@ -98,7 +98,7 @@ def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_serv
 def test_password_reset_dialog_runtime_validates_match_and_accepts(qapp, monkeypatch):
     warnings: list[str] = []
     monkeypatch.setattr(
-        "ui.platform.admin.user_dialog.QMessageBox.warning",
+        "ui.platform.admin.users.dialogs.QMessageBox.warning",
         lambda _parent, _title, message: warnings.append(message),
     )
     dialog = PasswordResetDialog(username="alice")
@@ -121,7 +121,7 @@ def test_password_reset_dialog_runtime_validates_match_and_accepts(qapp, monkeyp
 def test_user_edit_dialog_runtime_validates_email(qapp, monkeypatch):
     warnings: list[str] = []
     monkeypatch.setattr(
-        "ui.platform.admin.user_dialog.QMessageBox.warning",
+        "ui.platform.admin.users.dialogs.QMessageBox.warning",
         lambda _parent, _title, message: warnings.append(message),
     )
     dialog = UserEditDialog(username="alice", display_name="Alice", email="alice@example.com")

@@ -3,11 +3,11 @@
 `ui/platform/admin/` provides administrative control surfaces for user management and
 audit observability.
 
-## Files
+## Folders
 
-- `users_tab.py`: user and role lifecycle management UI
-- `user_dialog.py`: create, edit, and reset dialogs
-- `audit_tab.py`: filtered audit-log explorer
+- `users/tab.py`: user and role lifecycle management UI
+- `users/dialogs.py`: create, edit, and reset dialogs
+- `../control/audit/tab.py`: filtered audit-log explorer
 
 ## User Administration (`UserAdminTab`)
 
@@ -27,7 +27,7 @@ Security model:
 - unavailable actions are disabled with permission hint tooltips
 - typed service exceptions are surfaced in contextual dialogs
 
-## Dialog Layer (`user_dialog.py`)
+## Dialog Layer (`users/dialogs.py`)
 
 Dialogs:
 

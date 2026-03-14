@@ -24,7 +24,7 @@ from ui.modules.project_management.dashboard.styles import (
     dashboard_badge_style,
     dashboard_meta_chip_style,
 )
-from ui.platform.admin.employee_dialog import EmployeeEditDialog
+from ui.platform.admin.employees.dialogs import EmployeeEditDialog
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG

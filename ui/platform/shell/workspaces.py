@@ -6,9 +6,9 @@ from PySide6.QtWidgets import QWidget
 
 from core.platform.auth import UserSessionContext
 from ui.platform.admin.access.tab import AccessTab
-from ui.platform.admin.audit_tab import AuditLogTab
-from ui.platform.admin.employees_tab import EmployeeAdminTab
-from ui.platform.admin.users_tab import UserAdminTab
+from ui.platform.admin.employees.tab import EmployeeAdminTab
+from ui.platform.admin.users.tab import UserAdminTab
+from ui.platform.control.audit.tab import AuditLogTab
 from ui.modules.project_management.calendar.tab import CalendarTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.cost.tab import CostTab

@@ -238,7 +238,7 @@ def test_governance_tab_subscribes_to_approvals_changed_for_auto_refresh():
 
 
 def test_audit_tab_subscribes_to_domain_events_for_auto_refresh():
-    text = (Path(__file__).resolve().parents[1] / "ui" / "admin" / "audit_tab.py").read_text(
+    text = (Path(__file__).resolve().parents[1] / "ui" / "platform" / "control" / "audit" / "tab.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )

@@ -14,6 +14,7 @@ PATH_REWRITE_EXACT = {
     "infra/db/repositories.py": "infra/platform/db/repositories.py",
     "infra/db/mappers.py": "infra/platform/db/mappers.py",
     "ui/main_window.py": "ui/platform/shell/main_window.py",
+    "ui/admin/audit_tab.py": "ui/platform/control/audit/tab.py",
 }
 
 PATH_REWRITE_PREFIXES = (
