@@ -561,6 +561,29 @@ def test_auth_service_is_orchestrator_only():
     assert "def _normalize_email" not in text
 
 
+def test_module_catalog_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "platform" / "modules" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.platform.modules.catalog_context import ModuleCatalogContextMixin" in text
+    assert "from core.platform.modules.catalog_mutation import ModuleCatalogMutationMixin" in text
+    assert "from core.platform.modules.catalog_query import ModuleCatalogQueryMixin" in text
+    assert "class ModuleCatalogService(" in text
+    assert "def list_modules" not in text
+    assert "def set_module_state" not in text
+    assert "def snapshot" not in text
+
+
+def test_org_service_is_facade_only():
+    service_path = ROOT / "core" / "platform" / "org" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.platform.org.employee_service import EmployeeService" in text
+    assert "from core.platform.org.organization_service import OrganizationService" in text
+    assert "class EmployeeService" not in text
+    assert "class OrganizationService" not in text
+
+
 def test_project_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "project" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
@@ -570,6 +593,49 @@ def test_project_service_is_orchestrator_only():
     assert "def create_project" not in text
     assert "def update_project" not in text
     assert "def delete_project" not in text
+
+
+def test_cost_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "modules" / "project_management" / "services" / "cost" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.modules.project_management.services.cost.lifecycle import CostLifecycleMixin" in text
+    assert "from core.modules.project_management.services.cost.query import CostQueryMixin" in text
+    assert "from core.modules.project_management.services.cost.support import CostSupportMixin" in text
+    assert "class CostService(" in text
+    assert "def add_cost_item" not in text
+    assert "def update_cost_item" not in text
+    assert "def delete_cost_item" not in text
+    assert "def get_project_cost_summary" not in text
+
+
+def test_collaboration_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "modules" / "project_management" / "services" / "collaboration" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.modules.project_management.services.collaboration.comments import CollaborationCommentMixin" in text
+    assert "from core.modules.project_management.services.collaboration.inbox import CollaborationInboxMixin" in text
+    assert "from core.modules.project_management.services.collaboration.presence import CollaborationPresenceMixin" in text
+    assert "from core.modules.project_management.services.collaboration.support import CollaborationSupportMixin" in text
+    assert "class CollaborationService(" in text
+    assert "def post_comment" not in text
+    assert "def list_notifications" not in text
+    assert "def list_active_presence" not in text
+
+
+def test_portfolio_service_is_orchestrator_only():
+    service_path = ROOT / "core" / "modules" / "project_management" / "services" / "portfolio" / "service.py"
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.modules.project_management.services.portfolio.executive import PortfolioExecutiveMixin" in text
+    assert "from core.modules.project_management.services.portfolio.intake import PortfolioIntakeMixin" in text
+    assert "from core.modules.project_management.services.portfolio.scenarios import PortfolioScenarioMixin" in text
+    assert "from core.modules.project_management.services.portfolio.support import PortfolioSupportMixin" in text
+    assert "from core.modules.project_management.services.portfolio.templates import PortfolioTemplateMixin" in text
+    assert "class PortfolioService(" in text
+    assert "def create_intake_item" not in text
+    assert "def compare_scenarios" not in text
+    assert "def list_portfolio_heatmap" not in text
 
 
 def test_scheduling_engine_is_orchestrator_only():
@@ -706,6 +772,12 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/finance/cashflow.py": 120,
         "core/modules/project_management/services/finance/policy.py": 120,
         "core/modules/project_management/services/finance/helpers.py": 120,
+        "core/modules/project_management/services/portfolio/service.py": 90,
+        "core/modules/project_management/services/portfolio/executive.py": 120,
+        "core/modules/project_management/services/portfolio/intake.py": 120,
+        "core/modules/project_management/services/portfolio/scenarios.py": 240,
+        "core/modules/project_management/services/portfolio/support.py": 150,
+        "core/modules/project_management/services/portfolio/templates.py": 160,
         "ui/platform/shared/styles/ui_config.py": 320,
         "core/modules/project_management/services/task/service.py": 140,
         "core/modules/project_management/services/project/service.py": 90,
@@ -723,6 +795,25 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/timesheet/entries.py": 260,
         "core/modules/project_management/services/timesheet/periods.py": 220,
         "core/modules/project_management/services/timesheet/support.py": 240,
+        "core/modules/project_management/services/cost/service.py": 80,
+        "core/modules/project_management/services/cost/lifecycle.py": 240,
+        "core/modules/project_management/services/cost/query.py": 60,
+        "core/modules/project_management/services/cost/support.py": 110,
+        "core/modules/project_management/services/collaboration/service.py": 80,
+        "core/modules/project_management/services/collaboration/comments.py": 150,
+        "core/modules/project_management/services/collaboration/inbox.py": 180,
+        "core/modules/project_management/services/collaboration/presence.py": 130,
+        "core/modules/project_management/services/collaboration/support.py": 160,
+        "core/platform/modules/service.py": 140,
+        "core/platform/modules/catalog_context.py": 100,
+        "core/platform/modules/catalog_models.py": 100,
+        "core/platform/modules/catalog_mutation.py": 190,
+        "core/platform/modules/catalog_query.py": 135,
+        "core/platform/modules/defaults.py": 180,
+        "core/platform/org/service.py": 20,
+        "core/platform/org/employee_service.py": 220,
+        "core/platform/org/organization_service.py": 240,
+        "core/platform/org/support.py": 80,
         "infra/platform/db/repositories.py": 140,
         "infra/platform/db/mappers.py": 120,
         "infra/modules/project_management/db/project/__init__.py": 80,
