@@ -139,6 +139,7 @@ _PORTFOLIO_MANAGER = {
 
 _APPROVER = {
     "project.read",
+    "resource.read",
     "task.read",
     "cost.read",
     "register.read",
