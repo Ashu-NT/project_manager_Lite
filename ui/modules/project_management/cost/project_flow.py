@@ -159,7 +159,7 @@ class CostProjectFlowMixin(CostFiltersMixin):
 
         def _on_success(snapshot: CostReloadSnapshot) -> None:
             self._loaded_cost_snapshot = snapshot
-            apply_cost_reload_snapshot(self, snapshot, preferred_cost_id=preferred_cost_id)
+            apply_cost_reload_snapshot(self, snapshot, preferred_cost_id=preferred_cost_id)  # "Budget warning: Planned" lives in the shared summary formatter.
 
         def _on_error(message: str) -> None:
             self.lbl_costs_summary.setText("")

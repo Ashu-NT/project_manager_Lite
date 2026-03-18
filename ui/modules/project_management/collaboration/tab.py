@@ -80,7 +80,10 @@ class CollaborationTab(QWidget):
         notifications_layout = QVBoxLayout(notifications_page)
         notifications_layout.setContentsMargins(0, 0, 0, 0)
         notifications_layout.setSpacing(CFG.SPACING_SM)
-        notifications_hint = QLabel("Workflow notifications for PM activity across projects you can access.")
+        notifications_hint = QLabel(
+            "Workflow notifications for PM activity across projects you can access. "
+            "Approvers review submitted timesheets and governed changes from Governance."
+        )
         notifications_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
         notifications_hint.setWordWrap(True)
         notifications_layout.addWidget(notifications_hint)

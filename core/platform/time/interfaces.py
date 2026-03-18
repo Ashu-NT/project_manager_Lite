@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import date
 
-from core.platform.time.domain import TimeEntry, TimesheetPeriod
+from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 
 class TimeEntryRepository(ABC):
@@ -41,6 +41,14 @@ class TimesheetPeriodRepository(ABC):
 
     @abstractmethod
     def list_by_resource(self, resource_id: str) -> list[TimesheetPeriod]: ...
+
+    @abstractmethod
+    def list_all(
+        self,
+        *,
+        status: TimesheetPeriodStatus | None = None,
+        limit: int | None = None,
+    ) -> list[TimesheetPeriod]: ...
 
 
 __all__ = ["TimeEntryRepository", "TimesheetPeriodRepository"]

@@ -9,6 +9,7 @@ from core.platform.time.entries import TimesheetEntriesMixin
 from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from core.platform.time.periods import TimesheetPeriodsMixin
 from core.platform.time.query import TimesheetQueryMixin
+from core.platform.time.review import TimesheetReviewMixin
 from core.platform.time.support import TimesheetSupportMixin
 
 
@@ -16,6 +17,7 @@ class TimeService(
     TimesheetEntriesMixin,
     TimesheetPeriodsMixin,
     TimesheetQueryMixin,
+    TimesheetReviewMixin,
     TimesheetSupportMixin,
 ):
     """Shared time-entry and timesheet-period workflows for platform consumers."""

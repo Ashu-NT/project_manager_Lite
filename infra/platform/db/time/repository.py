@@ -5,7 +5,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.time.domain import TimeEntry, TimesheetPeriod
+from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from infra.platform.db.models import TimeEntryORM, TimesheetPeriodORM
 from infra.platform.db.time.mapper import (
@@ -74,6 +74,21 @@ class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):
             .where(TimesheetPeriodORM.resource_id == resource_id)
             .order_by(TimesheetPeriodORM.period_start.desc())
         )
+        rows = self.session.execute(stmt).scalars().all()
+        return [timesheet_period_from_orm(row) for row in rows]
+
+    def list_all(
+        self,
+        *,
+        status: TimesheetPeriodStatus | None = None,
+        limit: int | None = None,
+    ) -> list[TimesheetPeriod]:
+        stmt = select(TimesheetPeriodORM)
+        if status is not None:
+            stmt = stmt.where(TimesheetPeriodORM.status == status)
+        stmt = stmt.order_by(TimesheetPeriodORM.submitted_at.desc(), TimesheetPeriodORM.period_start.desc())
+        if limit is not None:
+            stmt = stmt.limit(limit)
         rows = self.session.execute(stmt).scalars().all()
         return [timesheet_period_from_orm(row) for row in rows]
 

@@ -248,10 +248,11 @@ def build_workspace_definitions(
             )
         )
 
-    if project_management_enabled and (
-        _has_permission(user_session, "approval.request") or _has_permission(
-            user_session, "approval.decide"
-        )
+    if project_management_enabled and _has_any_permission(
+        user_session,
+        "approval.request",
+        "approval.decide",
+        "timesheet.approve",
     ):
         definitions.append(
             WorkspaceDefinition(
@@ -264,6 +265,7 @@ def build_workspace_definitions(
                     project_service=services["project_service"],
                     task_service=services["task_service"],
                     cost_service=services["cost_service"],
+                    timesheet_service=services.get("timesheet_service"),
                     user_session=user_session,
                 ),
             )

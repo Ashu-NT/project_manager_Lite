@@ -52,7 +52,7 @@ class TimesheetPeriodsMixin:
                 project_ids=project_ids,
             ),
         )
-        self._emit_timesheet_period_project_events(project_ids)
+        self._emit_timesheet_period_events(period.id, project_ids)
         return period
 
     def approve_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
@@ -84,7 +84,7 @@ class TimesheetPeriodsMixin:
                 project_ids=project_ids,
             ),
         )
-        self._emit_timesheet_period_project_events(project_ids)
+        self._emit_timesheet_period_events(period.id, project_ids)
         return period
 
     def reject_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
@@ -116,7 +116,7 @@ class TimesheetPeriodsMixin:
                 project_ids=project_ids,
             ),
         )
-        self._emit_timesheet_period_project_events(project_ids)
+        self._emit_timesheet_period_events(period.id, project_ids)
         return period
 
     def lock_timesheet_period(
@@ -150,7 +150,7 @@ class TimesheetPeriodsMixin:
                 project_ids=project_ids,
             ),
         )
-        self._emit_timesheet_period_project_events(project_ids)
+        self._emit_timesheet_period_events(period.id, project_ids)
         return period
 
     def unlock_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
@@ -178,11 +178,12 @@ class TimesheetPeriodsMixin:
                 project_ids=project_ids,
             ),
         )
-        self._emit_timesheet_period_project_events(project_ids)
+        self._emit_timesheet_period_events(period.id, project_ids)
         return period
 
     @staticmethod
-    def _emit_timesheet_period_project_events(project_ids: list[str]) -> None:
+    def _emit_timesheet_period_events(period_id: str, project_ids: list[str]) -> None:
+        domain_events.timesheet_periods_changed.emit(period_id)
         for project_id in project_ids:
             domain_events.tasks_changed.emit(project_id)
 

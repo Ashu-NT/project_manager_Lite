@@ -11,21 +11,25 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.models import ApprovalRequest, ApprovalStatus
 from core.platform.approval import ApprovalService
 from core.platform.auth import UserSessionContext
+from core.platform.time.review import TimesheetReviewQueueItem
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.task import TaskService
+from core.modules.project_management.services.timesheet import TimesheetService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
+from ui.modules.project_management.governance.timesheet_review_dialog import TimesheetReviewDialog
 from ui.platform.settings import MainWindowSettingsStore
 from ui.platform.shared.guards import make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
@@ -39,6 +43,7 @@ class GovernanceTab(QWidget):
         project_service: ProjectService,
         task_service: TaskService | None = None,
         cost_service: CostService | None = None,
+        timesheet_service: TimesheetService | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
@@ -47,16 +52,33 @@ class GovernanceTab(QWidget):
         self._project_service = project_service
         self._task_service = task_service
         self._cost_service = cost_service
+        self._timesheet_service = timesheet_service
         self._user_session = user_session
         self._settings_store = MainWindowSettingsStore()
         self._rows: list[ApprovalRequest] = []
+        self._timesheet_rows: list[TimesheetReviewQueueItem] = []
+        self._project_name_by_id: dict[str, str] = {}
+        self._can_view_approvals = bool(
+            user_session is not None
+            and (
+                user_session.has_permission("approval.request")
+                or user_session.has_permission("approval.decide")
+            )
+        )
         self._can_decide = bool(user_session is not None and user_session.has_permission("approval.decide"))
+        self._can_review_timesheets = bool(
+            timesheet_service is not None
+            and user_session is not None
+            and user_session.has_permission("timesheet.approve")
+        )
         self._can_change_mode = bool(
             user_session is not None and user_session.has_permission("settings.manage")
         )
         self._setup_ui()
-        self.reload_requests()
+        self.reload_data()
         domain_events.approvals_changed.connect(self._on_approvals_changed)
+        if self._can_review_timesheets:
+            domain_events.timesheet_periods_changed.connect(self._on_timesheet_periods_changed)
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -82,10 +104,12 @@ class GovernanceTab(QWidget):
         eyebrow = QLabel("GOVERNANCE")
         eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
         intro.addWidget(eyebrow)
-        title = QLabel("Governance Queue")
+        title = QLabel("Governance")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
         intro.addWidget(title)
-        subtitle = QLabel("Review, approve, or reject controlled baseline, dependency, and cost changes.")
+        subtitle = QLabel(
+            "Review, approve, or reject controlled baseline, dependency, cost, and submitted timesheet changes."
+        )
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
         intro.addWidget(subtitle)
@@ -98,7 +122,7 @@ class GovernanceTab(QWidget):
         self.governance_status_badge.setStyleSheet(dashboard_meta_chip_style())
         self.governance_count_badge = QLabel("0 requests")
         self.governance_count_badge.setStyleSheet(dashboard_meta_chip_style())
-        access_label = "Decision Enabled" if self._can_decide else "Read Only"
+        access_label = self._access_badge_label()
         self.governance_access_badge = QLabel(access_label)
         self.governance_access_badge.setStyleSheet(dashboard_meta_chip_style())
         status_layout.addWidget(self.governance_mode_badge, 0, Qt.AlignRight)
@@ -114,6 +138,14 @@ class GovernanceTab(QWidget):
             default_mode=mode_default
         )
         os.environ["PM_GOVERNANCE_MODE"] = self._governance_mode
+
+        self.queue_tabs = QTabWidget()
+        self.queue_tabs.setDocumentMode(True)
+        layout.addWidget(self.queue_tabs, 1)
+        approvals_page = QWidget()
+        approvals_layout = QVBoxLayout(approvals_page)
+        approvals_layout.setContentsMargins(0, 0, 0, 0)
+        approvals_layout.setSpacing(CFG.SPACING_MD)
 
         controls = QWidget()
         controls.setObjectName("governanceControlSurface")
@@ -149,6 +181,9 @@ class GovernanceTab(QWidget):
         self.status_combo.addItem("Rejected", userData=ApprovalStatus.REJECTED)
         self.status_combo.addItem("All", userData=None)
         self.status_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.status_combo.setEnabled(self._can_view_approvals)
+        if not self._can_view_approvals:
+            self.status_combo.setToolTip("Requires approval.request or approval.decide permission.")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_approve = QPushButton("Approve & Apply")
         self.btn_reject = QPushButton("Reject")
@@ -164,7 +199,7 @@ class GovernanceTab(QWidget):
         toolbar.addWidget(self.btn_approve)
         toolbar.addWidget(self.btn_reject)
         controls_layout.addLayout(toolbar)
-        layout.addWidget(controls)
+        approvals_layout.addWidget(controls)
 
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels(
@@ -179,15 +214,13 @@ class GovernanceTab(QWidget):
         header.setSectionResizeMode(4, QHeaderView.Stretch)
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(6, QHeaderView.Stretch)
-        layout.addWidget(self.table, 1)
+        approvals_layout.addWidget(self.table, 1)
 
         self.status_combo.currentIndexChanged.connect(
             make_guarded_slot(self, title="Governance", callback=self.reload_requests)
         )
         self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
-        self.btn_refresh.clicked.connect(
-            make_guarded_slot(self, title="Governance", callback=self.reload_requests)
-        )
+        self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Governance", callback=self.reload_data))
         self.btn_approve.clicked.connect(
             make_guarded_slot(self, title="Governance", callback=self.approve_selected)
         )
@@ -196,12 +229,78 @@ class GovernanceTab(QWidget):
         )
         self.table.itemSelectionChanged.connect(self._sync_buttons)
         self._sync_buttons()
+        self.queue_tabs.addTab(approvals_page, "Governance Queue")
+
+        if self._can_review_timesheets:
+            timesheet_page = QWidget()
+            timesheet_layout = QVBoxLayout(timesheet_page)
+            timesheet_layout.setContentsMargins(0, 0, 0, 0)
+            timesheet_layout.setSpacing(CFG.SPACING_MD)
+            queue_label_row = QHBoxLayout()
+            self.timesheet_queue_label = QLabel("Timesheet Review Queue")
+            self.timesheet_queue_label.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
+            self.timesheet_queue_badge = QLabel("0 pending periods")
+            self.timesheet_queue_badge.setStyleSheet(dashboard_meta_chip_style())
+            queue_label_row.addWidget(self.timesheet_queue_label)
+            queue_label_row.addWidget(self.timesheet_queue_badge)
+            queue_label_row.addStretch()
+            self.btn_review_timesheet = QPushButton("Review Selected Period")
+            self.btn_review_timesheet.setFixedHeight(CFG.BUTTON_HEIGHT)
+            self.btn_review_timesheet.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+            self.btn_review_timesheet.setStyleSheet(dashboard_action_button_style("primary"))
+            queue_label_row.addWidget(self.btn_review_timesheet)
+            timesheet_layout.addLayout(queue_label_row)
+
+            queue_hint = QLabel(
+                "Approvers work from this queue. Collaboration notifications are awareness-only; submitted periods are reviewed here."
+            )
+            queue_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+            queue_hint.setWordWrap(True)
+            timesheet_layout.addWidget(queue_hint)
+
+            self.timesheet_table = QTableWidget(0, 7)
+            self.timesheet_table.setHorizontalHeaderLabels(
+                ["Submitted", "Resource", "Period", "Hours", "Projects", "Submitted By", "Note"]
+            )
+            style_table(self.timesheet_table)
+            timesheet_header = self.timesheet_table.horizontalHeader()
+            timesheet_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+            timesheet_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+            timesheet_header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+            timesheet_header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+            timesheet_header.setSectionResizeMode(4, QHeaderView.Stretch)
+            timesheet_header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+            timesheet_header.setSectionResizeMode(6, QHeaderView.Stretch)
+            timesheet_layout.addWidget(self.timesheet_table, 1)
+
+            self.btn_review_timesheet.clicked.connect(
+                make_guarded_slot(self, title="Timesheet Review", callback=self._review_selected_timesheet)
+            )
+            self.timesheet_table.itemSelectionChanged.connect(self._sync_timesheet_buttons)
+            self.timesheet_table.itemDoubleClicked.connect(
+                lambda _item: self._review_selected_timesheet()
+            )
+            self._sync_timesheet_buttons()
+            self.queue_tabs.addTab(timesheet_page, "Timesheet Review")
+            if not self._can_view_approvals:
+                self.queue_tabs.setCurrentWidget(timesheet_page)
+
+    def reload_data(self) -> None:
+        self.reload_requests()
+        self._reload_timesheet_queue()
 
     def reload_requests(self) -> None:
+        if not self._can_view_approvals:
+            self._rows = []
+            self._project_name_by_id = self._load_project_name_index()
+            self.table.setRowCount(0)
+            self._update_header_badges(0)
+            self._sync_buttons()
+            return
         selected = self.status_combo.currentData()
         try:
             self._rows = self._approval_service.list_requests(status=selected, limit=500)
-            projects = self._project_service.list_projects()
+            self._project_name_by_id = self._load_project_name_index()
         except (BusinessRuleError, NotFoundError, ValueError) as exc:
             QMessageBox.warning(self, "Governance", str(exc))
             self._rows = []
@@ -217,7 +316,7 @@ class GovernanceTab(QWidget):
             self._sync_buttons()
             return
 
-        project_name_by_id = {p.id: p.name for p in projects}
+        project_name_by_id = dict(self._project_name_by_id)
         project_ids = {req.project_id for req in self._rows if req.project_id}
         task_name_by_id = self._build_task_name_index(project_ids)
         cost_desc_by_id = self._build_cost_description_index(project_ids)
@@ -250,6 +349,44 @@ class GovernanceTab(QWidget):
         self._update_header_badges(len(self._rows))
         self._sync_buttons()
 
+    def _reload_timesheet_queue(self) -> None:
+        if not self._can_review_timesheets or self._timesheet_service is None:
+            return
+        try:
+            self._timesheet_rows = self._timesheet_service.list_timesheet_review_queue(limit=200)
+            self._project_name_by_id = self._load_project_name_index()
+        except (BusinessRuleError, NotFoundError, ValueError) as exc:
+            QMessageBox.warning(self, "Timesheet Review", str(exc))
+            self._timesheet_rows = []
+        except Exception as exc:
+            QMessageBox.critical(self, "Timesheet Review", f"Failed to load timesheet review queue:\n{exc}")
+            self._timesheet_rows = []
+
+        self.timesheet_table.setRowCount(len(self._timesheet_rows))
+        for row_idx, item in enumerate(self._timesheet_rows):
+            project_labels = ", ".join(
+                self._project_name_by_id.get(project_id, project_id) for project_id in item.project_ids
+            ) or "-"
+            values = (
+                item.submitted_at.strftime("%Y-%m-%d %H:%M") if item.submitted_at is not None else "-",
+                item.resource_name,
+                f"{item.period_start.isoformat()} to {item.period_end.isoformat()}",
+                f"{item.total_hours:.2f}",
+                project_labels,
+                item.submitted_by_username or "system",
+                item.decision_note or "",
+            )
+            for col, value in enumerate(values):
+                table_item = QTableWidgetItem(value)
+                if col == 0:
+                    table_item.setData(Qt.UserRole, item.period_id)
+                if col == 3:
+                    table_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                self.timesheet_table.setItem(row_idx, col, table_item)
+        self.timesheet_table.clearSelection()
+        self.timesheet_queue_badge.setText(f"{len(self._timesheet_rows)} pending periods")
+        self._sync_timesheet_buttons()
+
     def _selected_request_id(self) -> str | None:
         row = self.table.currentRow()
         if row < 0:
@@ -258,6 +395,43 @@ class GovernanceTab(QWidget):
         if item is None:
             return None
         return item.data(Qt.UserRole)
+
+    def _selected_timesheet_period_id(self) -> str | None:
+        if not self._can_review_timesheets:
+            return None
+        row = self.timesheet_table.currentRow()
+        if row < 0:
+            return None
+        item = self.timesheet_table.item(row, 0)
+        return item.data(Qt.UserRole) if item is not None else None
+
+    def _review_selected_timesheet(self) -> None:
+        if not self._can_review_timesheets or self._timesheet_service is None:
+            return
+        period_id = self._selected_timesheet_period_id()
+        if not period_id:
+            QMessageBox.information(self, "Timesheet Review", "Select a submitted period first.")
+            return
+        summary = next((row for row in self._timesheet_rows if row.period_id == period_id), None)
+        if summary is None:
+            self._reload_timesheet_queue()
+            return
+        try:
+            detail = self._timesheet_service.get_timesheet_review_detail(period_id)
+        except (BusinessRuleError, NotFoundError, ValidationError) as exc:
+            QMessageBox.warning(self, "Timesheet Review", str(exc))
+            self._reload_timesheet_queue()
+            return
+        dialog = TimesheetReviewDialog(
+            self,
+            timesheet_service=self._timesheet_service,
+            summary=summary,
+            detail=detail,
+            project_name_by_id=self._project_name_by_id,
+            user_session=self._user_session,
+        )
+        dialog.exec()
+        self._reload_timesheet_queue()
 
     def approve_selected(self) -> None:
         request_id = self._selected_request_id()
@@ -304,6 +478,11 @@ class GovernanceTab(QWidget):
             self.btn_approve.setToolTip("Requires approval.decide permission.")
             self.btn_reject.setToolTip("Requires approval.decide permission.")
 
+    def _sync_timesheet_buttons(self) -> None:
+        if not self._can_review_timesheets:
+            return
+        self.btn_review_timesheet.setEnabled(self._selected_timesheet_period_id() is not None)
+
     def _on_mode_changed(self, _index: int) -> None:
         if not self._can_change_mode:
             return
@@ -327,6 +506,23 @@ class GovernanceTab(QWidget):
 
     def _on_approvals_changed(self, _request_id: str) -> None:
         self.reload_requests()
+
+    def _on_timesheet_periods_changed(self, _period_id: str) -> None:
+        self._reload_timesheet_queue()
+
+    def _load_project_name_index(self) -> dict[str, str]:
+        return {project.id: project.name for project in self._project_service.list_projects()}
+
+    def _access_badge_label(self) -> str:
+        if self._can_decide and self._can_review_timesheets:
+            return "Approvals + Timesheets"
+        if self._can_decide:
+            return "Decision Enabled"
+        if self._can_review_timesheets:
+            return "Timesheet Review"
+        if self._can_view_approvals:
+            return "Request Tracking"
+        return "Read Only"
 
     def _build_task_name_index(self, project_ids: set[str]) -> dict[str, str]:
         if self._task_service is None:
