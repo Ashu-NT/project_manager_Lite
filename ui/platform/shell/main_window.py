@@ -316,13 +316,20 @@ class MainWindow(QMainWindow):
             self._set_navigation_visible(self._navigation_preferred_visible)
 
     def _on_modules_changed(self, _module_code: str) -> None:
+        self._schedule_module_refresh(immediate=False)
+
+    def _on_organizations_changed(self, _organization_id: str) -> None:
+        self._schedule_module_refresh(immediate=True)
+
+    def _schedule_module_refresh(self, *, immediate: bool) -> None:
+        if immediate:
+            self._module_refresh_pending = False
+            self._apply_module_refresh()
+            return
         if self._module_refresh_pending:
             return
         self._module_refresh_pending = True
         QTimer.singleShot(0, self._apply_module_refresh)
-
-    def _on_organizations_changed(self, _organization_id: str) -> None:
-        self._on_modules_changed("__organization_context__")
 
     def _apply_module_refresh(self) -> None:
         self._module_refresh_pending = False

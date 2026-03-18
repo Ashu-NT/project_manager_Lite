@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-import tempfile
-import time
-from pathlib import Path
-
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QResizeEvent
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout
 
-from core.modules.project_management.reporting.api import generate_gantt_png
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.task import TaskService
 from ui.modules.project_management.report.dialog_helpers import setup_dialog_size
 from ui.modules.project_management.report.gantt_interactive import GanttInteractiveMixin
+from ui.modules.project_management.report.gantt_preview_loader import load_gantt_image
 from ui.platform.shared.guards import apply_permission_hint
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
@@ -37,8 +33,11 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         self._project_id: str = project_id
         self._project_name: str = project_name
         self._raw_pixmap: QPixmap = QPixmap()
+        self._gantt_bars = []
         self._fit_mode: bool = True
         self._zoom_factor: float = 1.0
+        self._load_inflight = False
+        self._load_pending = False
         self.setWindowTitle(f"Gantt - {project_name}")
         self._setup_ui()
 
@@ -168,35 +167,7 @@ class GanttPreviewDialog(GanttInteractiveMixin, QDialog):
         self.image_label.resize(pix.size())
 
     def _load_image(self):
-        try:
-            tmpdir = Path(tempfile.gettempdir()) / "pm_gantt_preview"
-            tmpdir.mkdir(parents=True, exist_ok=True)
-            out_path = tmpdir / f"gantt_{self._project_id}_{int(time.time() * 1000)}.png"
-            generate_gantt_png(self._reporting_service, self._project_id, out_path)
-            pix = QPixmap()
-            pix.load(str(out_path))
-            if pix.isNull():
-                self._raw_pixmap = QPixmap()
-                self.image_label.setText("Unable to load Gantt image.")
-            else:
-                self._raw_pixmap = pix
-                bars = self._reporting_service.get_gantt_data(self._project_id)
-                dated = [b for b in bars if b.start and b.end]
-                critical_count = sum(1 for b in dated if b.is_critical)
-                if dated:
-                    timeline_start = min(b.start for b in dated if b.start)
-                    timeline_end = max(b.end for b in dated if b.end)
-                    self.meta_label.setText(
-                        f"Tasks: {len(dated)} scheduled | Critical: {critical_count} | "
-                        f"Timeline: {timeline_start.isoformat()} to {timeline_end.isoformat()}"
-                    )
-                else:
-                    self.meta_label.setText("No scheduled tasks with valid dates.")
-                self._render_preview()
-                self._build_interactive_timeline()
-        except Exception as exc:
-            self.image_label.setText(f"Error generating Gantt: {exc}")
-            self._build_interactive_timeline(error_text=str(exc))
+        load_gantt_image(self)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)

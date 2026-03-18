@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -38,3 +39,14 @@ def register_and_login(
         role_names=role_names,
     )
     return login_as(services, username, password)
+
+
+def wait_until(qapp, predicate, *, timeout_ms: int = 3000, step_ms: int = 25) -> None:
+    deadline = time.monotonic() + (timeout_ms / 1000.0)
+    while time.monotonic() < deadline:
+        qapp.processEvents()
+        if predicate():
+            return
+        time.sleep(step_ms / 1000.0)
+    qapp.processEvents()
+    assert predicate()

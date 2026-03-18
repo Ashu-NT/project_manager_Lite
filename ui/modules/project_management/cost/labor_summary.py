@@ -25,8 +25,15 @@ class CostLaborSummaryMixin:
     lbl_labor_note: QLabel
     table: QTableView
 
-    def reload_labor_summary(self, project_id: str):
-        details = self._reporting_service.get_project_labor_details(project_id)
+    def reload_labor_summary(
+        self,
+        project_id: str,
+        *,
+        details=None,
+        manual_labor_exists: bool | None = None,
+    ):
+        if details is None:
+            details = self._reporting_service.get_project_labor_details(project_id)
         self.tbl_labor_summary.setRowCount(0)
         if not details:
             self.tbl_labor_summary.setRowCount(1)
@@ -66,15 +73,16 @@ class CostLaborSummaryMixin:
                 ).upper()
                 totals_by_currency[cur] = totals_by_currency.get(cur, 0.0) + float(a.cost or 0.0)
 
-        try:
-            costs = self._cost_service.list_cost_items_for_project(project_id)
-            manual_labor_exists = any(getattr(c, "cost_type", None) == CostType.LABOR for c in costs)
-        except Exception:
-            manual_labor_exists = False
+        if manual_labor_exists is None:
+            try:
+                costs = self._cost_service.list_cost_items_for_project(project_id)
+                manual_labor_exists = any(getattr(c, "cost_type", None) == CostType.LABOR for c in costs)
+            except Exception:
+                manual_labor_exists = False
 
         note = (
             CFG.LABOR_IGNORED_NOTE
-            if (manual_labor_exists and any(amt > 0 for amt in totals_by_currency.values()))
+            if (bool(manual_labor_exists) and any(amt > 0 for amt in totals_by_currency.values()))
             else ""
         )
 
@@ -149,7 +157,7 @@ class CostLaborSummaryMixin:
             resource_service=self._resource_service,
         )
         dlg.exec()
-        self.reload_costs()
+        self.reload_costs(refresh_remote=True)
 
     def _on_labor_table_selected(self):
         if self.table.selectionModel():

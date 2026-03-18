@@ -29,9 +29,11 @@ from ui.modules.project_management.portfolio.scenario_dialog import PortfolioSce
 from ui.modules.project_management.portfolio.scoring_template_dialog import (
     PortfolioScoringTemplateDialog,
 )
+from ui.platform.shared.async_job import JobUiConfig, start_async_job
 from ui.platform.shared.guards import apply_permission_hint, has_permission
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from ui.platform.shared.worker_services import service_uses_in_memory_sqlite, worker_service_scope
 
 
 class PortfolioTab(QWidget):
@@ -54,6 +56,8 @@ class PortfolioTab(QWidget):
         self._available_dependency_rows = []
         self._current_heatmap_rows = []
         self._pending_local_portfolio_refresh = ""
+        self._reload_inflight = False
+        self._reload_pending = False
         self._setup_ui()
         self.reload_data()
         domain_events.project_changed.connect(self._on_domain_change)
@@ -387,77 +391,156 @@ class PortfolioTab(QWidget):
         preferred_base_compare_id = str(self.base_compare_scenario.currentData() or "")
         preferred_compare_id = str(self.compare_scenario.currentData() or "")
         preferred_template_id = str(self.intake_template.currentData() or "")
-        try:
-            intake_items = self._portfolio_service.list_intake_items()
-            scoring_templates = self._portfolio_service.list_scoring_templates()
-            scenarios = self._portfolio_service.list_scenarios()
-            heatmap_rows = self._portfolio_service.list_portfolio_heatmap()
-            dependency_rows = self._portfolio_service.list_project_dependencies(heatmap_rows=heatmap_rows)
-            recent_actions = self._portfolio_service.list_recent_pm_actions(limit=24)
-            projects = self._project_service.list_projects()
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Portfolio", str(exc))
-            return
-        except Exception as exc:
-            QMessageBox.critical(self, "Portfolio", f"Failed to load portfolio data:\n{exc}")
+        if self._reload_inflight:
+            self._reload_pending = True
             return
 
-        self._available_projects = list(projects)
-        self._available_intake_items = list(intake_items)
-        self._available_templates = list(scoring_templates)
-        self._current_heatmap_rows = list(heatmap_rows)
-        self._available_dependency_rows = list(dependency_rows)
-        self._reload_template_selector(scoring_templates, preferred_template_id=preferred_template_id)
-        self._reload_dependency_project_selectors(projects)
-        self._update_active_template_label(scoring_templates)
-        self.scenario_options_label.setText(
-            f"Scenario options: {len(projects)} project(s), {len(intake_items)} intake item(s)."
-        )
+        show_progress = self.sender() is self.btn_reload if hasattr(self, "btn_reload") else False
 
-        self.intake_table.setRowCount(len(intake_items))
-        for row_idx, intake_item in enumerate(intake_items):
-            values = [
-                intake_item.title,
-                intake_item.sponsor_name,
-                intake_item.scoring_template_name or "-",
-                intake_item.status.value,
-                f"{float(intake_item.requested_budget or 0.0):.2f}",
-                f"{float(intake_item.requested_capacity_percent or 0.0):.1f}",
-                str(intake_item.composite_score),
-            ]
-            for col, value in enumerate(values):
-                cell = QTableWidgetItem(value)
-                if col == 0:
-                    cell.setData(Qt.UserRole, intake_item.id)
-                self.intake_table.setItem(row_idx, col, cell)
+        def _set_busy(busy: bool) -> None:
+            self._reload_inflight = busy
+            self.btn_reload.setEnabled(not busy)
+            if busy:
+                for button in (
+                    self.btn_add_intake,
+                    self.btn_new_template,
+                    self.btn_activate_template,
+                    self.btn_save_scenario,
+                    self.btn_evaluate,
+                    self.btn_compare,
+                    self.btn_add_dependency,
+                    self.btn_remove_dependency,
+                ):
+                    button.setEnabled(False)
+            else:
+                self.btn_add_intake.setEnabled(self._can_manage)
+                self.btn_new_template.setEnabled(self._can_manage)
+                self.btn_activate_template.setEnabled(self._can_manage)
+                self.btn_save_scenario.setEnabled(self._can_manage)
+                self.btn_evaluate.setEnabled(True)
+                self.btn_compare.setEnabled(True)
+                self.btn_add_dependency.setEnabled(self._can_manage)
+                self._update_dependency_buttons()
+            if not busy and self._reload_pending:
+                self._reload_pending = False
+                self.reload_data()
 
-        self.scenario_table.setRowCount(len(scenarios))
-        for row_idx, scenario in enumerate(scenarios):
-            values = [
-                scenario.name,
-                "-" if scenario.budget_limit is None else f"{float(scenario.budget_limit):.2f}",
-                "-" if scenario.capacity_limit_percent is None else f"{float(scenario.capacity_limit_percent):.1f}",
-                str(len(scenario.project_ids)),
-                str(len(scenario.intake_item_ids)),
-            ]
-            for col, value in enumerate(values):
-                cell = QTableWidgetItem(value)
-                if col == 0:
-                    cell.setData(Qt.UserRole, scenario.id)
-                self.scenario_table.setItem(row_idx, col, cell)
-        self._restore_scenario_selection(scenarios, selected_scenario_id)
-        self._reload_compare_selectors(
-            scenarios,
-            preferred_base_id=self._selected_scenario_id() or preferred_base_compare_id,
-            preferred_compare_id=preferred_compare_id,
+        def _load_snapshot(portfolio_service, project_service):
+            heatmap_rows = portfolio_service.list_portfolio_heatmap()
+            return {
+                "intake_items": portfolio_service.list_intake_items(),
+                "scoring_templates": portfolio_service.list_scoring_templates(),
+                "scenarios": portfolio_service.list_scenarios(),
+                "heatmap_rows": heatmap_rows,
+                "dependency_rows": portfolio_service.list_project_dependencies(
+                    heatmap_rows=heatmap_rows
+                ),
+                "recent_actions": portfolio_service.list_recent_pm_actions(limit=24),
+                "projects": project_service.list_projects(),
+            }
+
+        def _work(token, progress):
+            token.raise_if_cancelled()
+            progress(None, "Loading portfolio data...")
+            with worker_service_scope(self._user_session) as services:
+                token.raise_if_cancelled()
+                return _load_snapshot(services["portfolio_service"], services["project_service"])
+
+        def _on_success(snapshot) -> None:
+            intake_items = snapshot["intake_items"]
+            scoring_templates = snapshot["scoring_templates"]
+            scenarios = snapshot["scenarios"]
+            heatmap_rows = snapshot["heatmap_rows"]
+            dependency_rows = snapshot["dependency_rows"]
+            recent_actions = snapshot["recent_actions"]
+            projects = snapshot["projects"]
+
+            self._available_projects = list(projects)
+            self._available_intake_items = list(intake_items)
+            self._available_templates = list(scoring_templates)
+            self._current_heatmap_rows = list(heatmap_rows)
+            self._available_dependency_rows = list(dependency_rows)
+            self._reload_template_selector(scoring_templates, preferred_template_id=preferred_template_id)
+            self._reload_dependency_project_selectors(projects)
+            self._update_active_template_label(scoring_templates)
+            self.scenario_options_label.setText(
+                f"Scenario options: {len(projects)} project(s), {len(intake_items)} intake item(s)."
+            )
+
+            self.intake_table.setRowCount(len(intake_items))
+            for row_idx, intake_item in enumerate(intake_items):
+                values = [
+                    intake_item.title,
+                    intake_item.sponsor_name,
+                    intake_item.scoring_template_name or "-",
+                    intake_item.status.value,
+                    f"{float(intake_item.requested_budget or 0.0):.2f}",
+                    f"{float(intake_item.requested_capacity_percent or 0.0):.1f}",
+                    str(intake_item.composite_score),
+                ]
+                for col, value in enumerate(values):
+                    cell = QTableWidgetItem(value)
+                    if col == 0:
+                        cell.setData(Qt.UserRole, intake_item.id)
+                    self.intake_table.setItem(row_idx, col, cell)
+
+            self.scenario_table.setRowCount(len(scenarios))
+            for row_idx, scenario in enumerate(scenarios):
+                values = [
+                    scenario.name,
+                    "-" if scenario.budget_limit is None else f"{float(scenario.budget_limit):.2f}",
+                    "-" if scenario.capacity_limit_percent is None else f"{float(scenario.capacity_limit_percent):.1f}",
+                    str(len(scenario.project_ids)),
+                    str(len(scenario.intake_item_ids)),
+                ]
+                for col, value in enumerate(values):
+                    cell = QTableWidgetItem(value)
+                    if col == 0:
+                        cell.setData(Qt.UserRole, scenario.id)
+                    self.scenario_table.setItem(row_idx, col, cell)
+            self._restore_scenario_selection(scenarios, selected_scenario_id)
+            self._reload_compare_selectors(
+                scenarios,
+                preferred_base_id=self._selected_scenario_id() or preferred_base_compare_id,
+                preferred_compare_id=preferred_compare_id,
+            )
+            self._populate_heatmap_table(heatmap_rows)
+            self._populate_dependency_table(dependency_rows)
+            self._restore_dependency_selection(dependency_rows, selected_dependency_id)
+            self._update_dependency_buttons()
+            self._populate_audit_table(recent_actions)
+            if self.base_compare_scenario.count() <= 1 or self.compare_scenario.count() <= 1:
+                self._clear_comparison()
+
+        def _on_error(message: str) -> None:
+            if message:
+                QMessageBox.warning(self, "Portfolio", message)
+
+        if service_uses_in_memory_sqlite(self._portfolio_service):
+            _set_busy(True)
+            try:
+                snapshot = _load_snapshot(self._portfolio_service, self._project_service)
+                _on_success(snapshot)
+            except Exception as exc:
+                _on_error(str(exc))
+            finally:
+                _set_busy(False)
+            return
+
+        start_async_job(
+            parent=self,
+            ui=JobUiConfig(
+                title="Portfolio",
+                label="Refreshing portfolio planning workspace...",
+                allow_retry=True,
+                show_progress=show_progress,
+            ),
+            work=_work,
+            on_success=_on_success,
+            on_error=_on_error,
+            on_cancel=lambda: None,
+            set_busy=_set_busy,
         )
-        self._populate_heatmap_table(heatmap_rows)
-        self._populate_dependency_table(dependency_rows)
-        self._restore_dependency_selection(dependency_rows, selected_dependency_id)
-        self._update_dependency_buttons()
-        self._populate_audit_table(recent_actions)
-        if self.base_compare_scenario.count() <= 1 or self.compare_scenario.count() <= 1:
-            self._clear_comparison()
 
     def _create_intake_item(self) -> None:
         if not self._can_manage:

@@ -145,10 +145,19 @@ class TaskPresenceStatusItem:
     is_self: bool = False
 
 
+@dataclass(frozen=True)
+class CollaborationWorkspaceSnapshot:
+    notifications: list[CollaborationNotificationItem]
+    inbox: list[CollaborationInboxItem]
+    recent_activity: list[CollaborationInboxItem]
+    active_presence: list[TaskPresenceStatusItem]
+
+
 __all__ = [
     "CollaborationInboxItem",
     "CollaborationMentionCandidate",
     "CollaborationNotificationItem",
+    "CollaborationWorkspaceSnapshot",
     "TaskPresence",
     "TaskPresenceStatusItem",
     "TaskComment",

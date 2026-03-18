@@ -9,6 +9,7 @@ from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.finance import FinanceService
 from core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.reporting.renderers.gantt import GanttPngRenderer
+from core.modules.project_management.services.reporting.models import GanttTaskBar
 from core.modules.project_management.reporting.renderers.evm import EvmCurveRenderer
 from core.modules.project_management.reporting.renderers.excel import ExcelReportRenderer
 from core.modules.project_management.reporting.renderers.pdf import PdfReportRenderer
@@ -45,8 +46,14 @@ def _cleanup_temp_artifact(path: Path | None, temp_dir: Path | None = None) -> N
                 parent.rmdir()
 
 
-def generate_gantt_png(reporting_service: ReportingService, project_id: str, output_path: str | Path) -> Path:
-    bars = reporting_service.get_gantt_data(project_id)
+def generate_gantt_png(
+    reporting_service: ReportingService,
+    project_id: str,
+    output_path: str | Path,
+    *,
+    bars: list[GanttTaskBar] | None = None,
+) -> Path:
+    bars = bars if bars is not None else reporting_service.get_gantt_data(project_id)
     renderer = GanttPngRenderer()
     return renderer.render(bars, _ensure_parent(Path(output_path)))
 

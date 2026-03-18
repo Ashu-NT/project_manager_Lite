@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import weakref
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableView
 from shiboken6 import isValid
 
+from ui.platform.shared.deferred_call import DeferredCall
 from ui.platform.shared.styles.theme import table_stylesheet
 
 
@@ -54,20 +55,11 @@ def _schedule_table_fit(table: QTableView) -> None:
     if not _is_qobject_alive(table):
         return
 
-    if getattr(table, "_pm_fit_pending", False):
-        return
-
-    table._pm_fit_pending = True
-    table_ref = weakref.ref(table)
-
-    def _run():
-        tbl = table_ref()
-        if not _is_qobject_alive(tbl):
-            return
-        tbl._pm_fit_pending = False
-        _fit_table_columns(tbl)
-
-    QTimer.singleShot(0, _run)
+    deferred = getattr(table, "_pm_fit_deferred", None)
+    if deferred is None:
+        deferred = DeferredCall(table, lambda: _fit_table_columns(table), delay_ms=24)
+        table._pm_fit_deferred = deferred
+    deferred.trigger()
 
 
 def _bind_auto_fit_signals(table: QTableView) -> None:

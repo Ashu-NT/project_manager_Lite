@@ -17,11 +17,7 @@ from core.modules.project_management.services.reporting.service import Reporting
 from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.scheduling.engine import SchedulingEngine
-from core.modules.project_management.services.scheduling.leveling_models import (
-    ResourceConflict,
-    ResourceLevelingAction,
-    ResourceLevelingResult,
-)
+from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict, ResourceLevelingAction, ResourceLevelingResult
 from core.modules.project_management.services.task.service import TaskService
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
@@ -57,18 +53,14 @@ class DashboardService(
         self._calendar: WorkCalendarEngine = work_calendar_engine
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+
     def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
         require_permission(self._user_session, "report.view", operation_label="view dashboard")
-        require_project_permission(
-            self._user_session,
-            project_id,
-            "report.view",
-            operation_label="view dashboard",
-        )
+        require_project_permission(self._user_session, project_id, "report.view", operation_label="view dashboard")
         # Dashboard refresh should be read-only and never contend with task edits.
         schedule = self._sched.recalculate_project_schedule(project_id, persist=False)
 
-        kpi = self._reporting.get_project_kpis(project_id)
+        kpi = self._reporting.get_project_kpis(project_id, schedule=schedule)
         resource_load = self._reporting.get_resource_load_summary(project_id)
         alerts = self._build_alerts(project_id, kpi, resource_load)
         upcoming = self._build_upcoming_tasks(project_id)
@@ -96,15 +88,13 @@ class DashboardService(
         self,
         project_id: str,
         threshold_percent: float = 100.0,
+        *,
+        recalculate: bool = True,
     ) -> list[ResourceConflict]:
         require_permission(self._user_session, "report.view", operation_label="view resource conflicts")
-        require_project_permission(
-            self._user_session,
-            project_id,
-            "report.view",
-            operation_label="view resource conflicts",
-        )
-        self._sched.recalculate_project_schedule(project_id)
+        require_project_permission(self._user_session, project_id, "report.view", operation_label="view resource conflicts")
+        if recalculate:
+            self._sched.recalculate_project_schedule(project_id)
         return self._sched.preview_resource_conflicts(
             project_id=project_id,
             threshold_percent=threshold_percent,
@@ -115,6 +105,8 @@ class DashboardService(
         project_id: str,
         max_iterations: int = 60,
         threshold_percent: float = 100.0,
+        *,
+        emit_events: bool = True,
     ) -> ResourceLevelingResult:
         require_permission(
             self._user_session,
@@ -133,7 +125,7 @@ class DashboardService(
             threshold_percent=threshold_percent,
         )
         self._sched.recalculate_project_schedule(project_id)
-        if result.actions:
+        if emit_events and result.actions:
             domain_events.tasks_changed.emit(project_id)
         return result
 
@@ -143,6 +135,8 @@ class DashboardService(
         task_id: str,
         shift_working_days: int = 1,
         reason: str = "Manual dashboard leveling",
+        *,
+        emit_events: bool = True,
     ) -> ResourceLevelingAction:
         require_permission(
             self._user_session,
@@ -162,7 +156,8 @@ class DashboardService(
             reason=reason,
         )
         self._sched.recalculate_project_schedule(project_id)
-        domain_events.tasks_changed.emit(project_id)
+        if emit_events:
+            domain_events.tasks_changed.emit(project_id)
         return action
 
 __all__ = ["DashboardService", "DashboardData", "DashboardEVM", "UpcomingTask", "BurndownPoint"]

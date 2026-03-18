@@ -6,7 +6,7 @@ import pytest
 
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.platform.common.models import DependencyType
-from tests.ui_runtime_helpers import login_as, register_and_login
+from tests.ui_runtime_helpers import login_as, register_and_login, wait_until
 from ui.platform.admin.access.tab import AccessTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.portfolio.tab import PortfolioTab
@@ -480,7 +480,7 @@ def test_collaboration_tab_auto_refreshes_when_task_comments_change(qapp, servic
         body="Please check this @admin",
         attachments=[],
     )
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.inbox_table.rowCount() == 1 and tab.activity_table.rowCount() == 1)
 
     assert tab.inbox_table.rowCount() == 1
     assert tab.activity_table.rowCount() == 1
@@ -498,7 +498,7 @@ def test_collaboration_tab_shows_active_presence_rows(qapp, services):
     assert tab.active_table.rowCount() == 0
 
     services["collaboration_service"].touch_task_presence(task.id, activity="reviewing")
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.active_table.rowCount() == 1)
 
     assert tab.active_table.rowCount() == 1
     assert tab.active_label.text() == "Active now: 1"
@@ -531,7 +531,7 @@ def test_collaboration_tab_refreshes_when_timesheet_period_notifications_change(
         period_start=date(2026, 6, 1),
         note="Ready for approval",
     )
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.notifications_table.rowCount() == 1)
 
     assert tab.notifications_table.rowCount() == 1
     assert tab.notification_label.text() == "Notifications: 1"
@@ -583,6 +583,7 @@ def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, ser
         project_service=services["project_service"],
         user_session=services["user_session"],
     )
+    wait_until(qapp, lambda: tab.intake_template.count() >= 1)
 
     assert tab.scenario_tabs.count() == 5
     assert tab.scenario_tabs.tabText(0) == "Saved Scenarios"
@@ -596,14 +597,18 @@ def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, ser
     assert tab.intake_table.rowCount() == 0
 
     services["project_service"].create_project("Portfolio Event Project")
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.scenario_options_label.text() == "Scenario options: 1 project(s), 0 intake item(s).")
     assert tab.scenario_options_label.text() == "Scenario options: 1 project(s), 0 intake item(s)."
 
     services["portfolio_service"].create_intake_item(
         title="Portfolio Event Intake",
         sponsor_name="PMO",
     )
-    qapp.processEvents()
+    wait_until(
+        qapp,
+        lambda: tab.scenario_options_label.text() == "Scenario options: 1 project(s), 1 intake item(s)."
+        and tab.intake_table.rowCount() == 1,
+    )
     assert tab.scenario_options_label.text() == "Scenario options: 1 project(s), 1 intake item(s)."
     assert tab.intake_table.rowCount() == 1
     assert tab.intake_table.item(0, 2).text() == "Balanced PMO"
@@ -636,7 +641,7 @@ def test_portfolio_tab_shows_heatmap_and_recent_pm_actions(qapp, services):
         project_service=services["project_service"],
         user_session=services["user_session"],
     )
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.heatmap_table.rowCount() == 1 and tab.audit_table.rowCount() >= 1)
 
     assert tab.heatmap_table.rowCount() == 1
     assert tab.heatmap_table.item(0, 0).text() == "Portfolio Heatmap Project"
@@ -660,7 +665,7 @@ def test_portfolio_tab_shows_cross_project_dependencies(qapp, services):
         project_service=services["project_service"],
         user_session=services["user_session"],
     )
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.dependency_table.rowCount() == 1)
 
     assert tab.dependency_table.rowCount() == 1
     assert tab.dependency_label.text() == "Cross-project dependencies: 1"
@@ -679,7 +684,10 @@ def test_portfolio_tab_dependency_changes_skip_full_reload_and_heatmap_recompute
         project_service=services["project_service"],
         user_session=services["user_session"],
     )
-    qapp.processEvents()
+    wait_until(
+        qapp,
+        lambda: tab.dependency_predecessor.count() > 1 and tab.dependency_successor.count() > 1,
+    )
 
     reload_calls = 0
     heatmap_calls = 0
@@ -710,7 +718,7 @@ def test_portfolio_tab_dependency_changes_skip_full_reload_and_heatmap_recompute
     tab.dependency_summary.setText("Portfolio dependency refresh should stay focused.")
 
     tab._create_project_dependency()
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.dependency_table.rowCount() == 1 and tab.audit_table.rowCount() >= 1)
 
     assert tab.dependency_table.rowCount() == 1
     assert tab.audit_table.rowCount() >= 1
@@ -719,7 +727,7 @@ def test_portfolio_tab_dependency_changes_skip_full_reload_and_heatmap_recompute
 
     tab.dependency_table.selectRow(0)
     tab._remove_selected_dependency()
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.dependency_table.rowCount() == 0)
 
     assert tab.dependency_table.rowCount() == 0
     assert reload_calls == 0
@@ -741,7 +749,7 @@ def test_portfolio_tab_uses_selected_scoring_template_for_new_intake(qapp, servi
         project_service=services["project_service"],
         user_session=services["user_session"],
     )
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.intake_template.count() > 0)
 
     for idx in range(tab.intake_template.count()):
         if tab.intake_template.itemData(idx) == custom_template.id:
@@ -796,13 +804,13 @@ def test_portfolio_tab_compares_saved_scenarios_side_by_side(qapp, services):
         project_service=services["project_service"],
         user_session=services["user_session"],
     )
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.base_compare_scenario.count() > 1 and tab.compare_scenario.count() > 1)
 
     for idx in range(tab.base_compare_scenario.count()):
         if tab.base_compare_scenario.itemData(idx) == baseline.id:
             tab.base_compare_scenario.setCurrentIndex(idx)
             break
-    qapp.processEvents()
+    wait_until(qapp, lambda: tab.compare_scenario.count() > 1)
 
     for idx in range(tab.compare_scenario.count()):
         if tab.compare_scenario.itemData(idx) == candidate.id:

@@ -71,7 +71,12 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
                 )
         return bars
 
-    def get_project_kpis(self, project_id: str) -> ProjectKPI:
+    def get_project_kpis(
+        self,
+        project_id: str,
+        *,
+        schedule: Dict[str, CPMTaskInfo] | None = None,
+    ) -> ProjectKPI:
         self._require_view("view project kpis", project_id=project_id)
         project = self._project_repo.get(project_id)
         if not project:
@@ -85,9 +90,13 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         tasks_not_started = tasks_total - tasks_completed - tasks_in_progress- task_blocked
 
         # Reuse CPM data for critical & late tasks
-        cpm_result: Dict[str, CPMTaskInfo] = self._scheduling_engine.recalculate_project_schedule(
-            project_id,
-            persist=False,
+        cpm_result: Dict[str, CPMTaskInfo] = (
+            schedule
+            if schedule is not None
+            else self._scheduling_engine.recalculate_project_schedule(
+                project_id,
+                persist=False,
+            )
         )
         critical_tasks = sum(1 for info in cpm_result.values() if info.is_critical)
         late_tasks = sum(

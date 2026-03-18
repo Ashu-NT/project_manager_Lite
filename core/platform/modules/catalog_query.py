@@ -84,9 +84,9 @@ class ModuleCatalogQueryMixin:
             if entitlement.lifecycle_alert
         ) or "None"
         return (
-            #f"Context: {self.current_context_label()}. Platform Base active. Enabled: {enabled_labels}. "
-            f"Licensed: {licensed_labels}. Lifecycle alerts: {lifecycle_alerts}. "
-            #f"Available: {available_labels}. Planned: {planned_labels}."
+            f"Enabled: {enabled_labels}. Licensed: {licensed_labels}. "
+            f"Available: {available_labels}. Planned: {planned_labels}. "
+            f"Lifecycle alerts: {lifecycle_alerts}."
         )
 
     def _build_entitlement(self, module) -> ModuleEntitlement:

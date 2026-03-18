@@ -54,7 +54,7 @@ class GanttInteractiveSceneMixin:
                 "Interactive mode: drag bars to shift start dates and drag the right edge to change duration."
             )
 
-        bars = self._reporting_service.get_gantt_data(self._project_id)
+        bars = list(getattr(self, "_gantt_bars", []) or [])
         dated = [b for b in bars if b.start and b.end]
         if not dated:
             self.interactive_scene.addText("No schedulable tasks available for interactive editing.")

@@ -5,19 +5,25 @@ from core.platform.common.models import CollaborationMentionCandidate, TaskComme
 
 
 class CollaborationSupportMixin:
-    def _list_accessible_comments(self, *, limit: int) -> list[TaskComment]:
-        tasks = self._accessible_tasks_for_collaboration()
+    def _list_accessible_comments(self, *, limit: int, tasks=None) -> list[TaskComment]:
+        tasks = list(tasks) if tasks is not None else self._accessible_tasks_for_collaboration()
         return self._comment_repo.list_recent_for_tasks([task.id for task in tasks], limit=limit)
 
     def _accessible_tasks_for_collaboration(self):
+        tasks, _project_name_by_id = self._accessible_task_context_for_collaboration()
+        return tasks
+
+    def _accessible_task_context_for_collaboration(self):
         tasks = []
+        project_name_by_id: dict[str, str] = {}
         for project in self._project_repo.list_all():
             if self._user_session is None:
                 continue
             if not self._user_session.has_project_permission(project.id, "collaboration.read"):
                 continue
+            project_name_by_id[project.id] = project.name
             tasks.extend(self._task_repo.list_by_project(project.id))
-        return tasks
+        return tasks, project_name_by_id
 
     def _list_mention_candidates_for_project(self, project_id: str) -> list[CollaborationMentionCandidate]:
         candidates: list[CollaborationMentionCandidate] = []
@@ -58,16 +64,6 @@ class CollaborationSupportMixin:
 
         return sorted(candidates, key=lambda item: ((item.display_name or item.username).lower(), item.username.lower()))
 
-    def _comment_mentions_principal(self, comment: TaskComment) -> bool:
-        principal = self._user_session.principal if self._user_session is not None else None
-        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
-        mentioned_user_ids = {str(item).strip() for item in comment.mentioned_user_ids if str(item).strip()}
-        if principal_user_id and principal_user_id in mentioned_user_ids:
-            return True
-        mentions = {item.lower() for item in comment.mentions}
-        aliases = self._principal_aliases()
-        return bool(aliases and not mentions.isdisjoint(aliases))
-
     def _principal_can_access_project(self, project_id: str | None) -> bool:
         if not project_id or self._user_session is None:
             return False
@@ -80,7 +76,11 @@ class CollaborationSupportMixin:
         return project.name if project is not None else ""
 
     def _project_names_label(self, project_ids: list[str]) -> str:
-        names = [self._project_name(project_id) for project_id in project_ids if self._project_name(project_id)]
+        names = [
+            project_name
+            for project_id in project_ids
+            if (project_name := self._project_name(project_id))
+        ]
         if len(names) == 1:
             return names[0]
         if names:
@@ -109,44 +109,11 @@ class CollaborationSupportMixin:
         project_id = str(details.get("project_id") or "").strip()
         return [project_id] if project_id else []
 
-    def _comment_is_unread_for_principal(self, comment: TaskComment) -> bool:
-        if not self._comment_mentions_principal(comment):
-            return False
-        principal = self._user_session.principal if self._user_session is not None else None
-        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
-        if principal_user_id:
-            read_by_user_ids = {str(item).strip() for item in comment.read_by_user_ids if str(item).strip()}
-            if principal_user_id in read_by_user_ids:
-                return False
-        aliases = self._principal_aliases()
-        read_by = {item.lower() for item in comment.read_by}
-        return read_by.isdisjoint(aliases)
-
     def _require_task(self, task_id: str):
         task = self._task_repo.get(task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         return task
-
-    def _principal_aliases(self) -> set[str]:
-        principal = self._user_session.principal if self._user_session is not None else None
-        if principal is None:
-            return set()
-        aliases: set[str] = set()
-        if principal.username:
-            aliases.add(principal.username.strip().lower())
-        display_name = (principal.display_name or "").strip().lower()
-        if display_name:
-            aliases.add(display_name.strip(" @"))
-            aliases.add(display_name.replace(" ", "").strip(" @"))
-            aliases.add(display_name.replace(" ", ".").strip(" @"))
-        return {alias for alias in aliases if alias}
-
-    def _principal_primary_alias(self) -> str:
-        principal = self._user_session.principal if self._user_session is not None else None
-        if principal is None or not getattr(principal, "username", None):
-            return ""
-        return str(principal.username).strip().lower()
 
     @staticmethod
     def _body_preview(body: str) -> str:

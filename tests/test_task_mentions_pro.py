@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from core.platform.common.exceptions import ValidationError
-from tests.ui_runtime_helpers import login_as
+from tests.ui_runtime_helpers import login_as, wait_until
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
 
@@ -82,6 +82,7 @@ def test_collaboration_tab_shows_mentions_column_and_unread_state_runtime(qapp, 
     login_as(services, "inbox-viewer", "StrongPass123")
 
     tab = CollaborationTab(collaboration_service=services["collaboration_service"])
+    wait_until(qapp, lambda: tab.inbox_table.rowCount() == 1)
 
     assert tab.inbox_table.columnCount() == 6
     assert tab.inbox_table.item(0, 4).text() == "@inbox-viewer"

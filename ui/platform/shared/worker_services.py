@@ -32,4 +32,20 @@ def worker_service_scope(user_session: UserSessionContext | None = None):
         session.close()
 
 
-__all__ = ["worker_service_scope"]
+def service_uses_in_memory_sqlite(service: object) -> bool:
+    session = getattr(service, "_session", None)
+    if session is None:
+        return False
+    try:
+        bind = session.get_bind()
+    except Exception:
+        return False
+    url = getattr(bind, "url", None)
+    if url is None:
+        return False
+    drivername = str(getattr(url, "drivername", "") or "")
+    database = str(getattr(url, "database", "") or "")
+    return drivername.startswith("sqlite") and database == ":memory:"
+
+
+__all__ = ["service_uses_in_memory_sqlite", "worker_service_scope"]

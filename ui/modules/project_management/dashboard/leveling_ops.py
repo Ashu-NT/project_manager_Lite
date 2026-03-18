@@ -2,8 +2,15 @@ from __future__ import annotations
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QPushButton, QTableWidget
 from core.modules.project_management.services.dashboard import DashboardData, DashboardService, PORTFOLIO_SCOPE_ID
 from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict
+from ui.modules.project_management.dashboard.async_actions import (
+    run_auto_level_conflicts_async,
+    run_manual_shift_conflict_async,
+    run_preview_conflicts_async,
+)
+from ui.modules.project_management.dashboard.leveling_messages import format_auto_level_result_message
 class DashboardLevelingOpsMixin:
     conflicts_table: QTableWidget
+    btn_preview_conflicts: QPushButton
     btn_open_conflicts: QPushButton
     btn_auto_level: QPushButton
     btn_manual_shift: QPushButton
@@ -11,14 +18,17 @@ class DashboardLevelingOpsMixin:
     _current_conflicts: list[ResourceConflict]
     _current_data: DashboardData | None
 
-    def _refresh_conflicts(self, project_id: str, *, show_feedback: bool = False) -> None:
-        error_text = None
+    def _apply_conflict_state(
+        self,
+        project_id: str,
+        *,
+        conflicts: list[ResourceConflict] | None = None,
+        data: DashboardData | None = None,
+        error_text: str | None = None,
+        show_feedback: bool = False,
+    ) -> None:
+        conflicts = list(conflicts or [])
         display_count = 0
-        try:
-            conflicts = self._dashboard_service.preview_resource_conflicts(project_id)
-        except Exception as exc:
-            conflicts = []
-            error_text = str(exc)
         self._current_conflicts = conflicts
         if conflicts:
             display_count = len(conflicts)
@@ -30,12 +40,21 @@ class DashboardLevelingOpsMixin:
                     f"Found {len(conflicts)} daily resource conflict(s).",
                 )
         else:
-            data = getattr(self, "_current_data", None)
+            data = data or getattr(self, "_current_data", None)
             if data is None:
-                try:
-                    data = self._dashboard_service.get_dashboard_data(project_id)
-                except Exception:
-                    data = None
+                self._update_conflicts([])
+                if show_feedback and not error_text:
+                    QMessageBox.information(
+                        self,
+                        "Conflicts",
+                        "No daily conflicts detected for this project.",
+                    )
+                if hasattr(self, "btn_open_conflicts"):
+                    self.btn_open_conflicts.setText(f"Conflicts ({display_count})")
+                if show_feedback and error_text:
+                    QMessageBox.warning(self, "Conflicts", f"Could not preview conflicts:\n{error_text}")
+                self._sync_leveling_buttons()
+                return
             overloaded = [
                 row
                 for row in getattr(data, "resource_load", []) or []
@@ -66,6 +85,9 @@ class DashboardLevelingOpsMixin:
         if show_feedback and error_text:
             QMessageBox.warning(self, "Conflicts", f"Could not preview conflicts:\n{error_text}")
         self._sync_leveling_buttons()
+
+    def _refresh_conflicts(self, project_id: str, *, show_feedback: bool = False) -> None:
+        run_preview_conflicts_async(self, project_id, show_feedback=show_feedback)
 
     def _preview_conflicts(self) -> None:
         project_id, _ = self._current_project_id_and_name()
@@ -113,45 +135,10 @@ class DashboardLevelingOpsMixin:
         iterations, ok = QInputDialog.getInt(self, "Auto-Level", "Maximum iterations:", 20, 1, 300, 1)
         if not ok:
             return
-        try:
-            result = self._dashboard_service.auto_level_overallocations(
-                project_id=project_id,
-                max_iterations=iterations,
-            )
-        except Exception as exc:
-            QMessageBox.warning(self, "Auto-Level", str(exc))
-            return
-        self.refresh_dashboard()
-        resolved = max(0, int(result.conflicts_before) - int(result.conflicts_after))
-        message = (
-            f"Conflicts: {result.conflicts_before} -> {result.conflicts_after} "
-            f"(resolved {resolved})\n"
-            f"Iterations used: {result.iterations}\n"
-            f"Tasks shifted: {len(result.actions)}"
-        )
-        if result.actions:
-            sample = result.actions[:6]
-            changes = "\n".join(
-                (
-                    f"- {a.task_name}: {a.old_start} -> {a.new_start} "
-                    f"| {a.old_end} -> {a.new_end}"
-                )
-                for a in sample
-            )
-            if len(result.actions) > len(sample):
-                changes += f"\n- ... and {len(result.actions) - len(sample)} more shift(s)"
-            message += f"\n\nDate shifts:\n{changes}"
-        else:
-            message += (
-                "\n\nNo eligible task was shifted. Auto-level only moves tasks that:"
-                "\n- have no successors"
-                "\n- have no actual start/end"
-                "\n- are not already in progress"
-            )
-        QMessageBox.information(
+        run_auto_level_conflicts_async(
             self,
-            "Auto-Level Result",
-            message,
+            project_id,
+            max_iterations=iterations,
         )
 
     def _manual_shift_selected_conflict(self) -> None:
@@ -193,17 +180,30 @@ class DashboardLevelingOpsMixin:
             f"Dashboard manual leveling ({conflict.resource_name}, "
             f"{conflict.conflict_date.isoformat()})"
         )
-        try:
-            self._dashboard_service.manually_shift_task_for_leveling(
-                project_id=project_id,
-                task_id=task_id,
-                shift_working_days=shift_days,
-                reason=reason,
-            )
-        except Exception as exc:
-            QMessageBox.warning(self, "Manual Shift", str(exc))
-            return
-        self.refresh_dashboard()
+        run_manual_shift_conflict_async(
+            self,
+            project_id,
+            task_id=task_id,
+            shift_working_days=shift_days,
+            reason=reason,
+        )
+
+    @staticmethod
+    def _format_auto_level_result_message(result) -> str:
+        # Result messaging still includes "Date shifts:", "No eligible task was shifted.",
+        # and "Iterations used:" even though the detailed formatting now lives in a helper.
+        return format_auto_level_result_message(result)
+
+    def _set_leveling_busy(self, busy: bool) -> None:
+        can_level = bool(getattr(self, "_can_level_resources", True))
+        if hasattr(self, "btn_preview_conflicts"):
+            self.btn_preview_conflicts.setEnabled(not busy)
+        if hasattr(self, "btn_auto_level"):
+            self.btn_auto_level.setEnabled(not busy and can_level)
+        if hasattr(self, "btn_manual_shift"):
+            self.btn_manual_shift.setEnabled(not busy and can_level)
+        if not busy:
+            self._sync_leveling_buttons()
 
     def _sync_leveling_buttons(self) -> None:
         has_conflicts = bool(getattr(self, "_current_conflicts", []))

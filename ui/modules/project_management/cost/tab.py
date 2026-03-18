@@ -16,6 +16,7 @@ from ui.modules.project_management.cost.labor_summary import CostLaborSummaryMix
 from ui.modules.project_management.cost.models import CostTableModel  # noqa: F401
 from ui.modules.project_management.cost.project_flow import CostProjectFlowMixin
 from ui.modules.project_management.cost.surface import CostSurfaceMixin
+from ui.platform.shared.deferred_call import DeferredCall
 from ui.platform.shared.guards import can_execute_governed_action
 
 
@@ -61,6 +62,15 @@ class CostTab(
         )
         self._current_project: Project | None = None
         self._project_tasks: list[Task] = []
+        self._loaded_cost_snapshot = None
+        self._cost_reload_inflight = False
+        self._cost_reload_pending = False
+        self._cost_reload_pending_preferred_cost_id = None
+        self._cost_filter_refresher = DeferredCall(
+            self,
+            lambda: self.reload_costs(refresh_remote=False),
+            delay_ms=140,
+        )
         self._setup_ui()
         self._load_projects()
         self._sync_cost_actions()

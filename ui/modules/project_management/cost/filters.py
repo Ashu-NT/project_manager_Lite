@@ -43,7 +43,7 @@ class CostFiltersMixin:
         self.filter_text.clear()
         self.filter_type_combo.setCurrentIndex(0)
         self.filter_task_combo.setCurrentIndex(0)
-        self.reload_costs()
+        self.reload_costs(refresh_remote=False)
 
     def _apply_cost_filters(self, costs, task_names: dict[str, str]):
         text = self.filter_text.text().strip().lower()

@@ -85,7 +85,7 @@ class CollaborationTab(QWidget):
         notifications_hint.setWordWrap(True)
         notifications_layout.addWidget(notifications_hint)
         notifications_layout.addWidget(self.notifications_table, 1)
-        self.sections_tabs.addTab(notifications_page, "Notifications")
+        self.sections_tabs.addTab(notifications_page, "Notifications (0)")
 
         self.inbox_table = QTableWidget(0, 6)
         self.inbox_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Mentions", "Preview"])
@@ -109,7 +109,7 @@ class CollaborationTab(QWidget):
         mentions_header.addWidget(self.btn_mark_read)
         mentions_layout.addLayout(mentions_header)
         mentions_layout.addWidget(self.inbox_table, 1)
-        self.sections_tabs.addTab(mentions_page, "Mentions")
+        self.sections_tabs.addTab(mentions_page, "Mentions (0)")
 
         self.activity_table = QTableWidget(0, 6)
         self.activity_table.setHorizontalHeaderLabels(["When", "Project", "Task", "From", "Mentions", "Preview"])
@@ -127,7 +127,7 @@ class CollaborationTab(QWidget):
         activity_hint.setWordWrap(True)
         activity_layout.addWidget(activity_hint)
         activity_layout.addWidget(self.activity_table, 1)
-        self.sections_tabs.addTab(activity_page, "Recent Activity")
+        self.sections_tabs.addTab(activity_page, "Recent Activity (0)")
 
         self.active_table = QTableWidget(0, 5)
         self.active_table.setHorizontalHeaderLabels(["When", "Project", "Task", "Who", "Activity"])
@@ -145,23 +145,27 @@ class CollaborationTab(QWidget):
         active_hint.setWordWrap(True)
         active_layout.addWidget(active_hint)
         active_layout.addWidget(self.active_table, 1)
-        self.sections_tabs.addTab(active_page, "Active Now")
+        self.sections_tabs.addTab(active_page, "Active Now (0)")
 
         self.btn_refresh.clicked.connect(self.reload_data)
         self.btn_mark_read.clicked.connect(self._mark_selected_task_read)
 
     def reload_data(self) -> None:
         try:
-            notifications = self._collaboration_service.list_notifications(limit=200)
-            inbox = self._collaboration_service.list_inbox(limit=200)
-            activity = self._collaboration_service.list_recent_activity(limit=200)
-            active_presence = self._collaboration_service.list_active_presence(limit=200)
+            snapshot = self._collaboration_service.list_workspace_snapshot(limit=200)
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Collaboration", str(exc))
             return
         except Exception as exc:
             QMessageBox.critical(self, "Collaboration", f"Failed to load collaboration data:\n{exc}")
             return
+        self._apply_snapshot(snapshot)
+
+    def _apply_snapshot(self, snapshot) -> None:
+        notifications = snapshot.notifications
+        inbox = snapshot.inbox
+        activity = snapshot.recent_activity
+        active_presence = snapshot.active_presence
         self.notification_label.setText(f"Notifications: {len(notifications)}")
         self.unread_label.setText(f"Unread mentions: {sum(1 for item in inbox if item.unread)}")
         self.activity_label.setText(f"Recent updates: {len(activity)}")

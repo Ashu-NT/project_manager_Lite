@@ -15,7 +15,9 @@ from core.platform.common.interfaces import (
 )
 from core.modules.project_management.services.collaboration.comments import CollaborationCommentMixin
 from core.modules.project_management.services.collaboration.inbox import CollaborationInboxMixin
+from core.modules.project_management.services.collaboration.notifications import CollaborationNotificationMixin
 from core.modules.project_management.services.collaboration.presence import CollaborationPresenceMixin
+from core.modules.project_management.services.collaboration.principal import CollaborationPrincipalMixin
 from core.modules.project_management.services.collaboration.support import CollaborationSupportMixin
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 
@@ -24,7 +26,9 @@ class CollaborationService(
     ProjectManagementModuleGuardMixin,
     CollaborationCommentMixin,
     CollaborationInboxMixin,
+    CollaborationNotificationMixin,
     CollaborationPresenceMixin,
+    CollaborationPrincipalMixin,
     CollaborationSupportMixin,
 ):
     def __init__(

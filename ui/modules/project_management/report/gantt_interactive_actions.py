@@ -10,7 +10,9 @@ from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 class GanttInteractiveActionsMixin:
     def _pending_task_name_map(self) -> dict[str, str]:
-        bars = self._reporting_service.get_gantt_data(self._project_id)
+        bars = list(getattr(self, "_gantt_bars", []) or [])
+        if not bars:
+            bars = self._reporting_service.get_gantt_data(self._project_id)
         return {str(bar.task_id): str(bar.name) for bar in bars}
 
     def _sync_pending_label(self) -> None:
