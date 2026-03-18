@@ -66,6 +66,12 @@ class ChartWidget(QWidget):
         self._apply_chart_theme()
         self._canvas.draw_idle()
 
+    def refresh_theme(self) -> None:
+        self._title.setStyleSheet(CFG.CHART_TITLE_STYLE)
+        self.setStyleSheet(dashboard_card_style())
+        self._apply_chart_theme()
+        self._canvas.draw_idle()
+
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self._fig.tight_layout()

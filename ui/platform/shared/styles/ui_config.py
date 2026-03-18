@@ -37,9 +37,9 @@ class CurrencyType(str, Enum):
 class UIConfig:
     """Central UI configuration and design tokens."""
 
-    # =====================
+   
     # Typography
-    # =====================
+   
     FONT_FAMILY_PRIMARY = "Segoe UI Variable Text"
     FONT_SIZE_BODY = 10
     FONT_SIZE_SMALL = 9
@@ -51,9 +51,9 @@ class UIConfig:
     GROUPBOX_TITLE_FONT = QFont(FONT_FAMILY_PRIMARY, 10)
     GROUPBOX_TITLE_FONT.setBold(True)
 
-    # =====================
+   
     # Color system
-    # =====================
+   
     COLOR_BG_APP = "#F7F9FC"
     COLOR_BG_SURFACE = "#FFFFFF"
     COLOR_BG_SURFACE_ALT = "#EDF2F8"
@@ -77,9 +77,9 @@ class UIConfig:
     COLOR_SCROLLBAR_HANDLE_HOVER = "#6E859F"
     COLOR_SCROLLBAR_HANDLE_ACTIVE = "#51677F"
 
-    # =====================
+   
     # Window
-    # =====================
+   
     DEFAULT_WINDOW_SIZE = QSize(1200, 700)
     DEFAULT_PROJECT_WINDOW_SIZE = QSize(840, 420)
     MIN_WINDOW_SIZE = QSize(800, 500)
@@ -90,9 +90,9 @@ class UIConfig:
     MIN_ASSIGNMENTS_WIDTH = 600
     MIN_DEPENDENCIES_WIDTH = 600
 
-    # =====================
+   
     # Spacing
-    # =====================
+   
     SPACING_XS = 4
     SPACING_SM = 8
     SPACING_MD = 12
@@ -103,9 +103,9 @@ class UIConfig:
     MARGIN_LG = 24
     MARGIN_XL = 32
 
-    # =====================
+   
     # Size policy helpers
-    # =====================
+   
     FIXED = QSizePolicy.Fixed
     GROW = QSizePolicy.Expanding
     PREFERRED = QSizePolicy.Preferred
@@ -122,9 +122,9 @@ class UIConfig:
     LIST_POLICY = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     CHECKBOX_POLICY = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
-    # =====================
+   
     # Control sizing
-    # =====================
+   
     BUTTON_HEIGHT = 30
     BUTTON_MIN_WIDTH_SM = 120
     BUTTON_MIN_WIDTH_MD = 160
@@ -140,9 +140,9 @@ class UIConfig:
     LIST_MIN_HEIGHT = 180
     CHECKBOX_HEIGHT = 20
 
-    # =====================
+   
     # Numeric inputs
-    # =====================
+   
     DEFAULT_CURRENCY_CODE = CurrencyType.EUR.value
 
     MONEY_DECIMALS = 2
@@ -164,9 +164,8 @@ class UIConfig:
     MAX_WORKING_HOURS = 24
     MIN_WORKING_HOURS = 1
 
-    # =====================
     # Date and alignment
-    # =====================
+   
     DATE_FORMAT = "yyyy-MM-dd"
 
     ALIGN_RIGHT = Qt.AlignRight
@@ -174,9 +173,8 @@ class UIConfig:
     ALIGN_CENTER = Qt.AlignVCenter
     ALIGN_TOP = Qt.AlignTop
 
-    # =====================
     # Common labels
-    # =====================
+   
     RELOAD_BUTTON_LABEL = "Reload"
     RELOAD_PROJECTS_LABEL = "Reload Projects"
     REFRESH_BUTTON_LABEL = "Refresh"
@@ -186,9 +184,8 @@ class UIConfig:
     EDIT_LABEL = "Edit"
     DELETE_LABEL = "Delete"
 
-    # =====================
     # Report actions
-    # =====================
+   
     SHOW_KPIS_LABEL = "Show KPIs"
     SHOW_GANTT_LABEL = "Show Gantt"
     SHOW_CRITICAL_PATH_LABEL = "Show Critical Path"
@@ -198,9 +195,8 @@ class UIConfig:
     EXPORT_EXCEL_LABEL = "Export Excel"
     EXPORT_PDF_LABEL = "Export PDF"
 
-    # =====================
     # Resource tab labels
-    # =====================
+   
     EDIT_HOURS_LABEL = "Edit Hours"
     NEW_RESOURCE_LABEL = "New Resource"
     TOGGLE_ACTIVE_LABEL = "Toggle Active"
@@ -208,9 +204,8 @@ class UIConfig:
     REFRESH_RESOURCES_LABEL = "Refresh Resources"
     SHOW_ASSIGNMENTS_BUTTON_LABEL = "Show Assignments"
 
-    # =====================
     # Cost tab labels
-    # =====================
+   
     NEW_COST_ITEM_LABEL = "New Cost Item"
     REFRESH_COSTS_LABEL = "Refresh Costs"
     LABOR_GROUP_TITLE = "Labor"
@@ -223,42 +218,37 @@ class UIConfig:
         "Manual labor adjustment cost items are used only as fallback when no "
         "project-resource or assignment labor exists, to avoid double counting."
     )
-
-    # =====================
+  
     # Task tab labels
-    # =====================
+   
     NEW_TASK_LABEL = "New Task"
     UPDATE_PROGRESS_LABEL = "Update Progress"
     DEPENDENCIES_LABEL = "Dependencies"
     ASSIGNMENTS_LABEL = "Assignments..."
     REFRESH_TASKS_LABEL = "Refresh Tasks"
-
-    # =====================
+   
     # Project tab labels
-    # =====================
+   
     NEW_PROJECT_LABEL = "New Project"
     REFRESH_PROJECTS_LABEL = "Refresh Projects"
     PROJECT_RESOURCES_LABEL = "Project Resources"
     UPDATE_PROJECT_STATUS_LABEL = "Update Status"
-
-    # =====================
+   
     # Dashboard labels
-    # =====================
+   
     REFRESH_DASHBOARD_LABEL = "Refresh Dashboard"
     CREATE_BASELINE_LABEL = "Create Baseline"
     DELETE_BASELINE_LABEL = "Delete Baseline"
-
-    # =====================
+   
     # Calendar labels
-    # =====================
+   
     APPLY_WORKING_TIME_LABEL = "Apply Working Time"
     ADD_NON_WORKING_DAY_LABEL = "Add Non-working Day"
     CALCULATE_LABEL = "Calculate"
     RECALCULATE_SCHEDULE_LABEL = "Recalculate Schedule"
-
-    # =====================
+   
     # Shared style snippets
-    # =====================
+   
     INFO_TEXT_STYLE = f"color: {COLOR_TEXT_SECONDARY}; font-size: 10pt;"
     NOTE_STYLE_SHEET = f"color: {COLOR_TEXT_SECONDARY}; font-size: 9pt; font-style: italic;"
     SECTION_BOLD_MARGIN_STYLE = f"font-weight: 700; color: {COLOR_TEXT_SECONDARY}; margin-top: 8px;"
@@ -286,10 +276,9 @@ class UIConfig:
     DASHBOARD_HIGHLIGHT_COLOR = COLOR_ACCENT
 
     CHART_TITLE_STYLE = f"font-size: 11pt; font-weight: 700; color: {COLOR_TEXT_SECONDARY};"
-
-    # =====================
+   
     # Table headers
-    # =====================
+   
     HOLIDAY_TABLE_HEADERS = ["Date", "Name"]
     LABOR_SUMMARY_HEADERS = ["Resource", "Task", "Actual Hours", "Hourly Rate", "Currency", "Actual Cost"]
     CRITICAL_PATH_HEADERS = ["Task Name", "Start", "Finish", "Duration (days)", "Total Float", "Status"]
@@ -297,10 +286,9 @@ class UIConfig:
     RESOURCE_LOAD_HEADERS = ["Resource", "Total Allocation (%)", "Tasks Count"]
 
     SUMMARY_TABLE_MAX_HEIGHT = 300
-
-    # =====================
+   
     # EVM colors
-    # =====================
+   
     EVM_METRIC_COLORS = {
         "CPI": COLOR_SUCCESS,
         "SPI": COLOR_SUCCESS,

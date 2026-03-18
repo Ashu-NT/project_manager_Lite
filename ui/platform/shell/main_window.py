@@ -27,11 +27,12 @@ from ui.platform.shell import NavigationEntry, NavigationModule, ShellNavigation
 from ui.platform.settings import MainWindowSettingsStore
 from ui.platform.shared.async_job import JobUiConfig, start_async_job
 from ui.platform.shared.styles.theme import apply_app_style
+from ui.platform.shared.styles.theme_refresh import refresh_widget_theme
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
 class MainWindow(QMainWindow):
-    _NAVIGATION_AUTO_HIDE_WIDTH = 1100
+    _NAVIGATION_AUTO_HIDE_WIDTH = 1000
 
     def __init__(self, services: dict[str, object], parent: QWidget | None = None):
         super().__init__(parent)
@@ -182,15 +183,24 @@ class MainWindow(QMainWindow):
         if not mode or mode == self._theme_mode:
             return
 
+        previous_mode = self._theme_mode
         self._theme_mode = mode
         os.environ["PM_THEME"] = mode
         self._settings_store.save_theme_mode(mode)
 
         app = QApplication.instance()
-        if app is not None:
-            apply_app_style(app, mode=mode)
-
-        self._rebuild_tabs(current_index=self.tabs.currentIndex())
+        self.setUpdatesEnabled(False)
+        try:
+            if app is not None:
+                apply_app_style(app, mode=mode)
+            refresh_widget_theme(
+                self,
+                previous_mode=previous_mode,
+                next_mode=mode,
+            )
+        finally:
+            self.setUpdatesEnabled(True)
+            self.update()
 
     def _restore_persisted_state(self) -> None:
         geometry = self._settings_store.load_geometry()

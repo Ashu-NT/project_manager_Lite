@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ui.platform.shared.styles.theme_tokens import DARK_THEME, LIGHT_THEME
+
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from ui.platform.shell.main_window import MainWindow
 
@@ -116,6 +118,38 @@ def test_main_window_runtime_supports_sidebar_toggle_and_auto_hide(
     qapp.processEvents()
     assert window.shell_navigation.isVisible() is True
     assert window.btn_toggle_navigation.text() == "Hide Menu"
+
+
+def test_main_window_theme_switch_refreshes_shell_without_rebuilding_tabs(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    store = make_settings_store(repo_workspace, prefix="main-window-shell-theme-refresh")
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+    window.show()
+    qapp.processEvents()
+
+    current_index = window.tabs.currentIndex()
+    current_widget = window.tabs.currentWidget()
+    initial_navigation_style = window.shell_navigation.styleSheet()
+    initial_mode = str(window.theme_combo.currentData())
+    next_theme_index = 0 if initial_mode == "light" else 1
+    expected_shell_surface = (
+        DARK_THEME["COLOR_BG_SURFACE"] if initial_mode == "light" else LIGHT_THEME["COLOR_BG_SURFACE"]
+    )
+
+    window.theme_combo.setCurrentIndex(next_theme_index)
+    qapp.processEvents()
+
+    assert window.tabs.currentIndex() == current_index
+    assert window.tabs.currentWidget() is current_widget
+    assert window.shell_navigation.styleSheet() != initial_navigation_style
+    assert expected_shell_surface in window.shell_navigation.styleSheet()
 
 
 def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(

@@ -10,5 +10,5 @@ def resource_path(relative: str) -> str:
     if hasattr(sys, "_MEIPASS"):
         base = Path(sys._MEIPASS)  # PyInstaller temp dir
     else:
-        base = Path(__file__).resolve().parent.parent  # project root (adjust if needed)
+        base = Path(__file__).resolve().parents[2]  # project root
     return str(base / relative)
