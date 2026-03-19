@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.services.collaboration import CollaborationService
+from ui.modules.project_management.shared.domain_event_filters import should_refresh_collaboration_workspace
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
@@ -31,10 +32,7 @@ class CollaborationTab(QWidget):
         self._collaboration_service = collaboration_service
         self._setup_ui()
         self.reload_data()
-        domain_events.collaboration_changed.connect(self._on_domain_change)
-        domain_events.project_changed.connect(self._on_domain_change)
-        domain_events.tasks_changed.connect(self._on_domain_change)
-        domain_events.approvals_changed.connect(self._on_domain_change)
+        domain_events.domain_changed.connect(self._on_domain_change)
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -258,8 +256,9 @@ class CollaborationTab(QWidget):
             return
         self.reload_data()
 
-    def _on_domain_change(self, _payload: str) -> None:
-        self.reload_data()
+    def _on_domain_change(self, event) -> None:
+        if should_refresh_collaboration_workspace(event):
+            self.reload_data()
 
 
 __all__ = ["CollaborationTab"]

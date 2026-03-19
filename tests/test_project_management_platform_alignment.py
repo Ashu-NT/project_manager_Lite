@@ -4,6 +4,8 @@ from datetime import date
 from pathlib import Path
 
 from core.platform.common.models import WorkerType
+from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.resource.dialogs import ResourceEditDialog
 from ui.modules.project_management.resource.tab import ResourceTab
 
@@ -99,3 +101,100 @@ def test_pm_resource_ui_surfaces_shared_employee_context(qapp, services):
 
     assert updated.department == "Planning"
     assert tab.model.data(tab.model.index(0, 7)) == "Planning | Lagos Hub"
+
+
+def test_pm_resource_tab_refreshes_from_generic_domain_event(qapp, services):
+    employee = services["employee_service"].create_employee(
+        employee_code="EMP-CTX-002",
+        full_name="Ben Example",
+        department="Planning",
+        site_name="Berlin Plant",
+        title="Coordinator",
+        email="ben@example.com",
+    )
+    services["resource_service"].create_resource(
+        "",
+        hourly_rate=100.0,
+        worker_type=WorkerType.EMPLOYEE,
+        employee_id=employee.id,
+    )
+    tab = ResourceTab(
+        resource_service=services["resource_service"],
+        employee_service=services["employee_service"],
+        user_session=services["user_session"],
+    )
+
+    tab.model.set_employee_contexts({employee.id: "STALE"})
+    assert tab.model.data(tab.model.index(0, 7)) == "STALE"
+
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="platform",
+            scope_code="platform",
+            entity_type="employee",
+            entity_id=employee.id,
+            source_event="employees_changed",
+        )
+    )
+    qapp.processEvents()
+
+    assert tab.model.data(tab.model.index(0, 7)) == "Planning | Berlin Plant"
+
+
+def test_pm_resource_tab_refreshes_from_shared_master_bridge(qapp, services):
+    employee = services["employee_service"].create_employee(
+        employee_code="EMP-CTX-003",
+        full_name="Cara Example",
+        department="Operations",
+        site_name="Lagos Hub",
+        title="Planner",
+        email="cara@example.com",
+    )
+    site = services["site_service"].create_site(site_code="LAG", name="Lagos Hub")
+    services["resource_service"].create_resource(
+        "",
+        hourly_rate=105.0,
+        worker_type=WorkerType.EMPLOYEE,
+        employee_id=employee.id,
+    )
+    tab = ResourceTab(
+        resource_service=services["resource_service"],
+        employee_service=services["employee_service"],
+        user_session=services["user_session"],
+    )
+
+    tab.model.set_employee_contexts({employee.id: "STALE"})
+    assert tab.model.data(tab.model.index(0, 7)) == "STALE"
+
+    domain_events.sites_changed.emit(site.id)
+    qapp.processEvents()
+
+    assert tab.model.data(tab.model.index(0, 7)) == "Operations | Lagos Hub"
+
+
+def test_pm_collaboration_tab_refreshes_from_generic_domain_event(qapp, services):
+    project = services["project_service"].create_project("PM Generic Collaboration")
+    task = services["task_service"].create_task(
+        project.id,
+        "Generic Collaboration Task",
+        start_date=date(2026, 3, 19),
+        duration_days=1,
+    )
+    services["collaboration_service"].post_comment(task_id=task.id, body="Please review this update")
+    tab = CollaborationTab(collaboration_service=services["collaboration_service"])
+
+    assert tab.activity_label.text() == "Recent updates: 1"
+    tab.activity_label.setText("Recent updates: 99")
+
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="module",
+            scope_code="project_management",
+            entity_type="task_collaboration",
+            entity_id=task.id,
+            source_event="collaboration_changed",
+        )
+    )
+    qapp.processEvents()
+
+    assert tab.activity_label.text() == "Recent updates: 1"

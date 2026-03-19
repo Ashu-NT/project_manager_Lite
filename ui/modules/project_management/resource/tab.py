@@ -21,6 +21,7 @@ from ui.modules.project_management.resource.actions import ResourceActionsMixin
 from ui.modules.project_management.resource.employee_context import build_employee_context_map
 from ui.modules.project_management.resource.filtering import ResourceFiltersMixin
 from ui.modules.project_management.resource.flow import ResourceFlowMixin
+from ui.modules.project_management.shared.domain_event_filters import should_refresh_resource_context
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.modules.project_management.resource.models import ResourceTableModel
 from ui.platform.shared.styles.style_utils import style_table
@@ -46,7 +47,7 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
         self.reload_resources()
         self._sync_actions()
         domain_events.resources_changed.connect(self.reload_resources)
-        domain_events.employees_changed.connect(self.reload_resources)
+        domain_events.domain_changed.connect(self._on_domain_change)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -190,26 +191,8 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
         )
         self.table.selectionModel().selectionChanged.connect(self._sync_actions)
 
-        apply_permission_hint(
-            self.btn_new,
-            allowed=self._can_manage_resources,
-            missing_permission="resource.manage",
-        )
-        apply_permission_hint(
-            self.btn_edit,
-            allowed=self._can_manage_resources,
-            missing_permission="resource.manage",
-        )
-        apply_permission_hint(
-            self.btn_delete,
-            allowed=self._can_manage_resources,
-            missing_permission="resource.manage",
-        )
-        apply_permission_hint(
-            self.btn_toggle_active,
-            allowed=self._can_manage_resources,
-            missing_permission="resource.manage",
-        )
+        for button in (self.btn_new, self.btn_edit, self.btn_delete, self.btn_toggle_active):
+            apply_permission_hint(button, allowed=self._can_manage_resources, missing_permission="resource.manage")
         self._sync_actions()
 
     def reload_resources(self, *_args) -> None:
@@ -222,6 +205,10 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
         self.model.set_employee_contexts(self._employee_context_by_id)
         self._all_resources = self._resource_service.list_resources()
         self._render_resource_rows(preferred_resource_id=selected_id)
+
+    def _on_domain_change(self, event) -> None:
+        if should_refresh_resource_context(event):
+            self.reload_resources()
 
     def _sync_actions(self, *_args) -> None:
         has_row = self._get_selected_resource() is not None
