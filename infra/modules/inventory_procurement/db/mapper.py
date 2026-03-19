@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from core.modules.inventory_procurement.domain import (
+    PurchaseOrder,
+    PurchaseOrderLine,
+    PurchaseOrderLineStatus,
+    PurchaseOrderStatus,
     PurchaseRequisition,
     PurchaseRequisitionLine,
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
+    ReceiptHeader,
+    ReceiptLine,
+    ReceiptStatus,
     StockBalance,
     StockItem,
     StockTransaction,
@@ -12,8 +19,12 @@ from core.modules.inventory_procurement.domain import (
     Storeroom,
 )
 from infra.platform.db.models import (
+    PurchaseOrderLineORM,
+    PurchaseOrderORM,
     PurchaseRequisitionLineORM,
     PurchaseRequisitionORM,
+    ReceiptHeaderORM,
+    ReceiptLineORM,
     StockBalanceORM,
     StockItemORM,
     StockTransactionORM,
@@ -286,6 +297,7 @@ def purchase_requisition_line_to_orm(line: PurchaseRequisitionLine) -> PurchaseR
         uom=line.uom,
         needed_by_date=line.needed_by_date,
         estimated_unit_cost=line.estimated_unit_cost,
+        quantity_sourced=line.quantity_sourced,
         suggested_supplier_party_id=line.suggested_supplier_party_id,
         status=line.status,
         notes=line.notes or None,
@@ -303,17 +315,186 @@ def purchase_requisition_line_from_orm(obj: PurchaseRequisitionLineORM) -> Purch
         uom=obj.uom,
         needed_by_date=obj.needed_by_date,
         estimated_unit_cost=float(obj.estimated_unit_cost or 0.0),
+        quantity_sourced=float(obj.quantity_sourced or 0.0),
         suggested_supplier_party_id=obj.suggested_supplier_party_id,
         status=PurchaseRequisitionLineStatus(obj.status),
         notes=obj.notes or "",
     )
 
 
+def purchase_order_to_orm(purchase_order: PurchaseOrder) -> PurchaseOrderORM:
+    return PurchaseOrderORM(
+        id=purchase_order.id,
+        organization_id=purchase_order.organization_id,
+        po_number=purchase_order.po_number,
+        site_id=purchase_order.site_id,
+        supplier_party_id=purchase_order.supplier_party_id,
+        status=purchase_order.status,
+        order_date=purchase_order.order_date,
+        expected_delivery_date=purchase_order.expected_delivery_date,
+        currency_code=purchase_order.currency_code or None,
+        approval_request_id=purchase_order.approval_request_id,
+        source_requisition_id=purchase_order.source_requisition_id,
+        supplier_reference=purchase_order.supplier_reference or None,
+        submitted_at=purchase_order.submitted_at,
+        approved_at=purchase_order.approved_at,
+        sent_at=purchase_order.sent_at,
+        closed_at=purchase_order.closed_at,
+        cancelled_at=purchase_order.cancelled_at,
+        notes=purchase_order.notes or None,
+        created_at=purchase_order.created_at,
+        updated_at=purchase_order.updated_at,
+        version=getattr(purchase_order, "version", 1),
+    )
+
+
+def purchase_order_from_orm(obj: PurchaseOrderORM) -> PurchaseOrder:
+    return PurchaseOrder(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        po_number=obj.po_number,
+        site_id=obj.site_id,
+        supplier_party_id=obj.supplier_party_id,
+        status=PurchaseOrderStatus(obj.status),
+        order_date=obj.order_date,
+        expected_delivery_date=obj.expected_delivery_date,
+        currency_code=obj.currency_code or "",
+        approval_request_id=obj.approval_request_id,
+        source_requisition_id=obj.source_requisition_id,
+        supplier_reference=obj.supplier_reference or "",
+        submitted_at=obj.submitted_at,
+        approved_at=obj.approved_at,
+        sent_at=obj.sent_at,
+        closed_at=obj.closed_at,
+        cancelled_at=obj.cancelled_at,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def purchase_order_line_to_orm(line: PurchaseOrderLine) -> PurchaseOrderLineORM:
+    return PurchaseOrderLineORM(
+        id=line.id,
+        purchase_order_id=line.purchase_order_id,
+        line_number=line.line_number,
+        stock_item_id=line.stock_item_id,
+        destination_storeroom_id=line.destination_storeroom_id,
+        description=line.description or None,
+        quantity_ordered=line.quantity_ordered,
+        quantity_received=line.quantity_received,
+        quantity_rejected=line.quantity_rejected,
+        uom=line.uom,
+        unit_price=line.unit_price,
+        expected_delivery_date=line.expected_delivery_date,
+        source_requisition_line_id=line.source_requisition_line_id,
+        status=line.status,
+        notes=line.notes or None,
+    )
+
+
+def purchase_order_line_from_orm(obj: PurchaseOrderLineORM) -> PurchaseOrderLine:
+    return PurchaseOrderLine(
+        id=obj.id,
+        purchase_order_id=obj.purchase_order_id,
+        line_number=obj.line_number,
+        stock_item_id=obj.stock_item_id,
+        destination_storeroom_id=obj.destination_storeroom_id,
+        description=obj.description or "",
+        quantity_ordered=float(obj.quantity_ordered or 0.0),
+        quantity_received=float(obj.quantity_received or 0.0),
+        quantity_rejected=float(obj.quantity_rejected or 0.0),
+        uom=obj.uom,
+        unit_price=float(obj.unit_price or 0.0),
+        expected_delivery_date=obj.expected_delivery_date,
+        source_requisition_line_id=obj.source_requisition_line_id,
+        status=PurchaseOrderLineStatus(obj.status),
+        notes=obj.notes or "",
+    )
+
+
+def receipt_header_to_orm(receipt: ReceiptHeader) -> ReceiptHeaderORM:
+    return ReceiptHeaderORM(
+        id=receipt.id,
+        organization_id=receipt.organization_id,
+        receipt_number=receipt.receipt_number,
+        purchase_order_id=receipt.purchase_order_id,
+        received_site_id=receipt.received_site_id,
+        supplier_party_id=receipt.supplier_party_id,
+        status=receipt.status,
+        receipt_date=receipt.receipt_date,
+        supplier_delivery_reference=receipt.supplier_delivery_reference or None,
+        received_by_user_id=receipt.received_by_user_id,
+        received_by_username=receipt.received_by_username or None,
+        notes=receipt.notes or None,
+        created_at=receipt.created_at,
+    )
+
+
+def receipt_header_from_orm(obj: ReceiptHeaderORM) -> ReceiptHeader:
+    return ReceiptHeader(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        receipt_number=obj.receipt_number,
+        purchase_order_id=obj.purchase_order_id,
+        received_site_id=obj.received_site_id,
+        supplier_party_id=obj.supplier_party_id,
+        status=ReceiptStatus(obj.status),
+        receipt_date=obj.receipt_date,
+        supplier_delivery_reference=obj.supplier_delivery_reference or "",
+        received_by_user_id=obj.received_by_user_id,
+        received_by_username=obj.received_by_username or "",
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+    )
+
+
+def receipt_line_to_orm(line: ReceiptLine) -> ReceiptLineORM:
+    return ReceiptLineORM(
+        id=line.id,
+        receipt_header_id=line.receipt_header_id,
+        purchase_order_line_id=line.purchase_order_line_id,
+        line_number=line.line_number,
+        stock_item_id=line.stock_item_id,
+        storeroom_id=line.storeroom_id,
+        quantity_accepted=line.quantity_accepted,
+        quantity_rejected=line.quantity_rejected,
+        uom=line.uom,
+        unit_cost=line.unit_cost,
+        notes=line.notes or None,
+    )
+
+
+def receipt_line_from_orm(obj: ReceiptLineORM) -> ReceiptLine:
+    return ReceiptLine(
+        id=obj.id,
+        receipt_header_id=obj.receipt_header_id,
+        purchase_order_line_id=obj.purchase_order_line_id,
+        line_number=obj.line_number,
+        stock_item_id=obj.stock_item_id,
+        storeroom_id=obj.storeroom_id,
+        quantity_accepted=float(obj.quantity_accepted or 0.0),
+        quantity_rejected=float(obj.quantity_rejected or 0.0),
+        uom=obj.uom,
+        unit_cost=float(obj.unit_cost or 0.0),
+        notes=obj.notes or "",
+    )
+
+
 __all__ = [
+    "purchase_order_from_orm",
+    "purchase_order_line_from_orm",
+    "purchase_order_line_to_orm",
+    "purchase_order_to_orm",
     "purchase_requisition_from_orm",
     "purchase_requisition_line_from_orm",
     "purchase_requisition_line_to_orm",
     "purchase_requisition_to_orm",
+    "receipt_header_from_orm",
+    "receipt_header_to_orm",
+    "receipt_line_from_orm",
+    "receipt_line_to_orm",
     "stock_balance_from_orm",
     "stock_balance_to_orm",
     "stock_item_from_orm",

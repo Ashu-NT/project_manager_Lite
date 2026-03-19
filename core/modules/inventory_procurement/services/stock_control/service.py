@@ -112,6 +112,7 @@ class StockControlService:
         unit_cost: float = 0.0,
         transaction_at: datetime | None = None,
         notes: str = "",
+        commit: bool = True,
     ) -> StockTransaction:
         self._require_manage("post opening balance")
         organization = self._active_organization()
@@ -140,6 +141,7 @@ class StockControlService:
             transaction_at=transaction_at,
             reference_type="opening_balance",
             notes=notes,
+            commit=commit,
         )
 
     def post_adjustment(
@@ -155,6 +157,7 @@ class StockControlService:
         reference_type: str = "adjustment",
         reference_id: str = "",
         notes: str = "",
+        commit: bool = True,
     ) -> StockTransaction:
         self._require_manage("post stock adjustment")
         organization = self._active_organization()
@@ -181,6 +184,7 @@ class StockControlService:
             reference_type=reference_type,
             reference_id=reference_id,
             notes=notes,
+            commit=commit,
         )
 
     def _post_transaction(
@@ -197,6 +201,7 @@ class StockControlService:
         reference_type: str = "",
         reference_id: str = "",
         notes: str = "",
+        commit: bool = True,
     ) -> StockTransaction:
         normalized_quantity = normalize_positive_quantity(quantity, label="Transaction quantity")
         normalized_uom = normalize_uom(uom or item.stock_uom, label="Transaction UOM")
@@ -271,30 +276,34 @@ class StockControlService:
             else:
                 self._balance_repo.update(balance)
             self._transaction_repo.add(transaction)
-            self._session.commit()
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
             raise ValidationError("Stock transaction number already exists.", code="INVENTORY_TRANSACTION_EXISTS") from exc
         except Exception:
             self._session.rollback()
             raise
-        record_audit(
-            self,
-            action="inventory_stock_transaction.post",
-            entity_type="inventory_stock_transaction",
-            entity_id=transaction.id,
-            details={
-                "transaction_number": transaction.transaction_number,
-                "stock_item_id": item.id,
-                "storeroom_id": storeroom.id,
-                "transaction_type": transaction.transaction_type.value,
-                "quantity": str(transaction.quantity),
-                "uom": transaction.uom,
-                "resulting_on_hand_qty": str(transaction.resulting_on_hand_qty),
-                "resulting_available_qty": str(transaction.resulting_available_qty),
-            },
-        )
-        domain_events.inventory_balances_changed.emit(balance.id)
+        if commit:
+            record_audit(
+                self,
+                action="inventory_stock_transaction.post",
+                entity_type="inventory_stock_transaction",
+                entity_id=transaction.id,
+                details={
+                    "transaction_number": transaction.transaction_number,
+                    "stock_item_id": item.id,
+                    "storeroom_id": storeroom.id,
+                    "transaction_type": transaction.transaction_type.value,
+                    "quantity": str(transaction.quantity),
+                    "uom": transaction.uom,
+                    "resulting_on_hand_qty": str(transaction.resulting_on_hand_qty),
+                    "resulting_available_qty": str(transaction.resulting_available_qty),
+                },
+            )
+            domain_events.inventory_balances_changed.emit(balance.id)
         return transaction
 
     def _resolve_average_cost(

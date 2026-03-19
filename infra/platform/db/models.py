@@ -32,8 +32,18 @@ from core.platform.common.models import (
     TimesheetPeriodStatus,
     WorkerType,
 ) 
-from core.modules.inventory_procurement.domain import StockTransactionType
-from core.modules.inventory_procurement.domain import PurchaseRequisitionLineStatus, PurchaseRequisitionStatus
+from infra.platform.db.inventory_models import (
+    PurchaseOrderLineORM,
+    PurchaseOrderORM,
+    PurchaseRequisitionLineORM,
+    PurchaseRequisitionORM,
+    ReceiptHeaderORM,
+    ReceiptLineORM,
+    StockBalanceORM,
+    StockItemORM,
+    StockTransactionORM,
+    StoreroomORM,
+)
 
 
 class ProjectORM(Base):
@@ -325,267 +335,6 @@ class PartyORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-
-
-class StockItemORM(Base):
-    __tablename__ = "inventory_stock_items"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "item_code", name="ux_inventory_stock_items_org_code"),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    organization_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    item_code: Mapped[str] = mapped_column(String(64), nullable=False)
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    item_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT", server_default="DRAFT")
-    stock_uom: Mapped[str] = mapped_column(String(32), nullable=False)
-    order_uom: Mapped[str] = mapped_column(String(32), nullable=False)
-    issue_uom: Mapped[str] = mapped_column(String(32), nullable=False)
-    category_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    commodity_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    is_stocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    is_purchase_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    default_reorder_policy: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    min_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    max_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    reorder_point: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    reorder_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    lead_time_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    is_lot_tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    is_serial_tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    shelf_life_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    preferred_party_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("parties.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-
-
-class StoreroomORM(Base):
-    __tablename__ = "inventory_storerooms"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "storeroom_code", name="ux_inventory_storerooms_org_code"),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    organization_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    storeroom_code: Mapped[str] = mapped_column(String(64), nullable=False)
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    site_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("sites.id"),
-        nullable=False,
-    )
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT", server_default="DRAFT")
-    storeroom_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    is_internal_supplier: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    allows_issue: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    allows_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    allows_receiving: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
-    default_currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    manager_party_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("parties.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-
-
-class StockBalanceORM(Base):
-    __tablename__ = "inventory_stock_balances"
-    __table_args__ = (
-        UniqueConstraint(
-            "organization_id",
-            "stock_item_id",
-            "storeroom_id",
-            name="ux_inventory_stock_balances_position",
-        ),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    organization_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    stock_item_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("inventory_stock_items.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    storeroom_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("inventory_storerooms.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    uom: Mapped[str] = mapped_column(String(32), nullable=False)
-    on_hand_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    reserved_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    available_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    on_order_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    committed_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    average_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    last_receipt_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    last_issue_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    reorder_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-
-
-class StockTransactionORM(Base):
-    __tablename__ = "inventory_stock_transactions"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "transaction_number", name="ux_inventory_stock_transactions_number"),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    organization_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    transaction_number: Mapped[str] = mapped_column(String(64), nullable=False)
-    stock_item_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("inventory_stock_items.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    storeroom_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("inventory_storerooms.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    transaction_type: Mapped[StockTransactionType] = mapped_column(SAEnum(StockTransactionType), nullable=False)
-    quantity: Mapped[float] = mapped_column(Float, nullable=False)
-    uom: Mapped[str] = mapped_column(String(32), nullable=False)
-    unit_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    transaction_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    reference_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    reference_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    performed_by_user_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    performed_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    resulting_on_hand_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    resulting_available_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-
-class PurchaseRequisitionORM(Base):
-    __tablename__ = "inventory_purchase_requisitions"
-    __table_args__ = (
-        UniqueConstraint("organization_id", "requisition_number", name="ux_inventory_requisitions_number"),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    organization_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("organizations.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    requisition_number: Mapped[str] = mapped_column(String(64), nullable=False)
-    requesting_site_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("sites.id"),
-        nullable=False,
-    )
-    requesting_storeroom_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("inventory_storerooms.id"),
-        nullable=False,
-    )
-    requester_user_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("users.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    requester_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    status: Mapped[PurchaseRequisitionStatus] = mapped_column(
-        SAEnum(PurchaseRequisitionStatus),
-        nullable=False,
-        default=PurchaseRequisitionStatus.DRAFT,
-        server_default=PurchaseRequisitionStatus.DRAFT.value,
-    )
-    purpose: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    needed_by_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    priority: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    approval_request_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("approval_requests.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    source_reference_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    source_reference_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    cancelled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-
-
-class PurchaseRequisitionLineORM(Base):
-    __tablename__ = "inventory_purchase_requisition_lines"
-    __table_args__ = (
-        UniqueConstraint(
-            "purchase_requisition_id",
-            "line_number",
-            name="ux_inventory_requisition_lines_number",
-        ),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    purchase_requisition_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("inventory_purchase_requisitions.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    line_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    stock_item_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("inventory_stock_items.id"),
-        nullable=False,
-    )
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    quantity_requested: Mapped[float] = mapped_column(Float, nullable=False)
-    uom: Mapped[str] = mapped_column(String(32), nullable=False)
-    needed_by_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    estimated_unit_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    suggested_supplier_party_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("parties.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    status: Mapped[PurchaseRequisitionLineStatus] = mapped_column(
-        SAEnum(PurchaseRequisitionLineStatus),
-        nullable=False,
-        default=PurchaseRequisitionLineStatus.DRAFT,
-        server_default=PurchaseRequisitionLineStatus.DRAFT.value,
-    )
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class ModuleEntitlementORM(Base):
@@ -1130,24 +879,6 @@ Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
 Index("idx_employees_active", EmployeeORM.is_active)
 Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
 Index("idx_organizations_active", OrganizationORM.is_active)
-Index("idx_inventory_stock_items_org", StockItemORM.organization_id)
-Index("idx_inventory_stock_items_active", StockItemORM.is_active)
-Index("idx_inventory_storerooms_org", StoreroomORM.organization_id)
-Index("idx_inventory_storerooms_site", StoreroomORM.site_id)
-Index("idx_inventory_storerooms_active", StoreroomORM.is_active)
-Index("idx_inventory_stock_balances_org", StockBalanceORM.organization_id)
-Index("idx_inventory_stock_balances_item", StockBalanceORM.stock_item_id)
-Index("idx_inventory_stock_balances_storeroom", StockBalanceORM.storeroom_id)
-Index("idx_inventory_stock_transactions_org", StockTransactionORM.organization_id)
-Index("idx_inventory_stock_transactions_item", StockTransactionORM.stock_item_id)
-Index("idx_inventory_stock_transactions_storeroom", StockTransactionORM.storeroom_id)
-Index("idx_inventory_stock_transactions_at", StockTransactionORM.transaction_at)
-Index("idx_inventory_requisitions_org", PurchaseRequisitionORM.organization_id)
-Index("idx_inventory_requisitions_status", PurchaseRequisitionORM.status)
-Index("idx_inventory_requisitions_site", PurchaseRequisitionORM.requesting_site_id)
-Index("idx_inventory_requisitions_storeroom", PurchaseRequisitionORM.requesting_storeroom_id)
-Index("idx_inventory_requisition_lines_requisition", PurchaseRequisitionLineORM.purchase_requisition_id)
-Index("idx_inventory_requisition_lines_item", PurchaseRequisitionLineORM.stock_item_id)
 Index("idx_org_module_entitlements_org", ModuleEntitlementORM.organization_id)
 Index("idx_resources_employee", ResourceORM.employee_id)
 Index("idx_roles_name", RoleORM.name, unique=True)

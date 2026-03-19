@@ -1,6 +1,10 @@
 from infra.modules.inventory_procurement.db.repository import (
+    SqlAlchemyPurchaseOrderLineRepository,
+    SqlAlchemyPurchaseOrderRepository,
     SqlAlchemyPurchaseRequisitionLineRepository,
     SqlAlchemyPurchaseRequisitionRepository,
+    SqlAlchemyReceiptHeaderRepository,
+    SqlAlchemyReceiptLineRepository,
     SqlAlchemyStockBalanceRepository,
     SqlAlchemyStockItemRepository,
     SqlAlchemyStockTransactionRepository,
@@ -8,8 +12,12 @@ from infra.modules.inventory_procurement.db.repository import (
 )
 
 __all__ = [
+    "SqlAlchemyPurchaseOrderLineRepository",
+    "SqlAlchemyPurchaseOrderRepository",
     "SqlAlchemyPurchaseRequisitionLineRepository",
     "SqlAlchemyPurchaseRequisitionRepository",
+    "SqlAlchemyReceiptHeaderRepository",
+    "SqlAlchemyReceiptLineRepository",
     "SqlAlchemyStockBalanceRepository",
     "SqlAlchemyStockItemRepository",
     "SqlAlchemyStockTransactionRepository",

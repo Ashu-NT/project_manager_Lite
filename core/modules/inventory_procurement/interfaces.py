@@ -3,8 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from core.modules.inventory_procurement.domain import (
+    PurchaseOrder,
+    PurchaseOrderLine,
     PurchaseRequisition,
     PurchaseRequisitionLine,
+    ReceiptHeader,
+    ReceiptLine,
     StockBalance,
     StockItem,
     StockTransaction,
@@ -145,9 +149,86 @@ class PurchaseRequisitionLineRepository(ABC):
     def list_for_requisition(self, requisition_id: str) -> list[PurchaseRequisitionLine]: ...
 
 
+class PurchaseOrderRepository(ABC):
+    @abstractmethod
+    def add(self, purchase_order: PurchaseOrder) -> None: ...
+
+    @abstractmethod
+    def update(self, purchase_order: PurchaseOrder) -> None: ...
+
+    @abstractmethod
+    def get(self, purchase_order_id: str) -> PurchaseOrder | None: ...
+
+    @abstractmethod
+    def get_by_number(self, organization_id: str, po_number: str) -> PurchaseOrder | None: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        status: str | None = None,
+        site_id: str | None = None,
+        supplier_party_id: str | None = None,
+        limit: int = 200,
+    ) -> list[PurchaseOrder]: ...
+
+
+class PurchaseOrderLineRepository(ABC):
+    @abstractmethod
+    def add(self, line: PurchaseOrderLine) -> None: ...
+
+    @abstractmethod
+    def update(self, line: PurchaseOrderLine) -> None: ...
+
+    @abstractmethod
+    def get(self, line_id: str) -> PurchaseOrderLine | None: ...
+
+    @abstractmethod
+    def list_for_purchase_order(self, purchase_order_id: str) -> list[PurchaseOrderLine]: ...
+
+    @abstractmethod
+    def list_for_requisition_line(self, requisition_line_id: str) -> list[PurchaseOrderLine]: ...
+
+
+class ReceiptHeaderRepository(ABC):
+    @abstractmethod
+    def add(self, receipt: ReceiptHeader) -> None: ...
+
+    @abstractmethod
+    def get(self, receipt_id: str) -> ReceiptHeader | None: ...
+
+    @abstractmethod
+    def get_by_number(self, organization_id: str, receipt_number: str) -> ReceiptHeader | None: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        purchase_order_id: str | None = None,
+        limit: int = 200,
+    ) -> list[ReceiptHeader]: ...
+
+
+class ReceiptLineRepository(ABC):
+    @abstractmethod
+    def add(self, line: ReceiptLine) -> None: ...
+
+    @abstractmethod
+    def get(self, line_id: str) -> ReceiptLine | None: ...
+
+    @abstractmethod
+    def list_for_receipt(self, receipt_id: str) -> list[ReceiptLine]: ...
+
+
 __all__ = [
+    "PurchaseOrderLineRepository",
+    "PurchaseOrderRepository",
     "PurchaseRequisitionLineRepository",
     "PurchaseRequisitionRepository",
+    "ReceiptHeaderRepository",
+    "ReceiptLineRepository",
     "StockBalanceRepository",
     "StockItemRepository",
     "StockTransactionRepository",

@@ -21,6 +21,7 @@ from core.modules.inventory_procurement import (
     InventoryReferenceService,
     InventoryService,
     ItemMasterService,
+    PurchasingService,
     StockControlService,
 )
 from core.modules.project_management.services.baseline import BaselineService
@@ -68,6 +69,7 @@ class ServiceGraph:
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
     inventory_procurement_service: ProcurementService
+    inventory_purchasing_service: PurchasingService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -111,6 +113,7 @@ class ServiceGraph:
             "inventory_service": self.inventory_service,
             "inventory_stock_service": self.inventory_stock_service,
             "inventory_procurement_service": self.inventory_procurement_service,
+            "inventory_purchasing_service": self.inventory_purchasing_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
@@ -164,6 +167,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_service=inventory_procurement_services.inventory_service,
         inventory_stock_service=inventory_procurement_services.inventory_stock_service,
         inventory_procurement_service=inventory_procurement_services.inventory_procurement_service,
+        inventory_purchasing_service=inventory_procurement_services.inventory_purchasing_service,
         access_service=platform_services.access_service,
         audit_service=platform_services.audit_service,
         approval_service=platform_services.approval_service,

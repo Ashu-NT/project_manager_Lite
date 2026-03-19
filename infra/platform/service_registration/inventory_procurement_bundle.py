@@ -7,11 +7,16 @@ from core.modules.inventory_procurement import (
     InventoryService,
     ItemMasterService,
     ProcurementService,
+    PurchasingService,
     StockControlService,
 )
 from infra.modules.inventory_procurement.db import (
+    SqlAlchemyPurchaseOrderLineRepository,
+    SqlAlchemyPurchaseOrderRepository,
     SqlAlchemyPurchaseRequisitionLineRepository,
     SqlAlchemyPurchaseRequisitionRepository,
+    SqlAlchemyReceiptHeaderRepository,
+    SqlAlchemyReceiptLineRepository,
     SqlAlchemyStockBalanceRepository,
     SqlAlchemyStockItemRepository,
     SqlAlchemyStockTransactionRepository,
@@ -27,6 +32,7 @@ class InventoryProcurementServiceBundle:
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
     inventory_procurement_service: ProcurementService
+    inventory_purchasing_service: PurchasingService
 
 
 def build_inventory_procurement_service_bundle(
@@ -34,8 +40,12 @@ def build_inventory_procurement_service_bundle(
 ) -> InventoryProcurementServiceBundle:
     balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
     item_repo = SqlAlchemyStockItemRepository(platform_services.session)
+    purchase_order_line_repo = SqlAlchemyPurchaseOrderLineRepository(platform_services.session)
+    purchase_order_repo = SqlAlchemyPurchaseOrderRepository(platform_services.session)
     requisition_line_repo = SqlAlchemyPurchaseRequisitionLineRepository(platform_services.session)
     requisition_repo = SqlAlchemyPurchaseRequisitionRepository(platform_services.session)
+    receipt_header_repo = SqlAlchemyReceiptHeaderRepository(platform_services.session)
+    receipt_line_repo = SqlAlchemyReceiptLineRepository(platform_services.session)
     transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
     storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
     inventory_service = InventoryService(
@@ -68,6 +78,38 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    inventory_stock_service = StockControlService(
+        platform_services.session,
+        balance_repo,
+        transaction_repo,
+        organization_repo=platform_services.organization_repo,
+        item_service=inventory_item_service,
+        inventory_service=inventory_service,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    inventory_purchasing_service = PurchasingService(
+        platform_services.session,
+        purchase_order_repo,
+        purchase_order_line_repo,
+        receipt_header_repo,
+        receipt_line_repo,
+        requisition_repo=requisition_repo,
+        requisition_line_repo=requisition_line_repo,
+        balance_repo=balance_repo,
+        organization_repo=platform_services.organization_repo,
+        reference_service=InventoryReferenceService(
+            site_service=platform_services.site_service,
+            party_service=platform_services.party_service,
+            user_session=platform_services.user_session,
+        ),
+        inventory_service=inventory_service,
+        item_service=inventory_item_service,
+        stock_service=inventory_stock_service,
+        approval_service=platform_services.approval_service,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     platform_services.approval_service.register_apply_handler(
         "purchase_requisition.submit",
         inventory_procurement_service.apply_submitted_requisition_approval,
@@ -76,25 +118,26 @@ def build_inventory_procurement_service_bundle(
         "purchase_requisition.submit",
         inventory_procurement_service.apply_submitted_requisition_rejection,
     )
+    platform_services.approval_service.register_apply_handler(
+        "purchase_order.submit",
+        inventory_purchasing_service.apply_submitted_purchase_order_approval,
+    )
+    platform_services.approval_service.register_reject_handler(
+        "purchase_order.submit",
+        inventory_purchasing_service.apply_submitted_purchase_order_rejection,
+    )
+    inventory_reference_service = InventoryReferenceService(
+        site_service=platform_services.site_service,
+        party_service=platform_services.party_service,
+        user_session=platform_services.user_session,
+    )
     return InventoryProcurementServiceBundle(
-        inventory_reference_service=InventoryReferenceService(
-            site_service=platform_services.site_service,
-            party_service=platform_services.party_service,
-            user_session=platform_services.user_session,
-        ),
+        inventory_reference_service=inventory_reference_service,
         inventory_item_service=inventory_item_service,
         inventory_service=inventory_service,
-        inventory_stock_service=StockControlService(
-            platform_services.session,
-            balance_repo,
-            transaction_repo,
-            organization_repo=platform_services.organization_repo,
-            item_service=inventory_item_service,
-            inventory_service=inventory_service,
-            user_session=platform_services.user_session,
-            audit_service=platform_services.audit_service,
-        ),
+        inventory_stock_service=inventory_stock_service,
         inventory_procurement_service=inventory_procurement_service,
+        inventory_purchasing_service=inventory_purchasing_service,
     )
 
 
