@@ -7,6 +7,7 @@ from infra.modules.inventory_procurement.db.repository import (
     SqlAlchemyReceiptLineRepository,
     SqlAlchemyStockBalanceRepository,
     SqlAlchemyStockItemRepository,
+    SqlAlchemyStockReservationRepository,
     SqlAlchemyStockTransactionRepository,
     SqlAlchemyStoreroomRepository,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "SqlAlchemyReceiptLineRepository",
     "SqlAlchemyStockBalanceRepository",
     "SqlAlchemyStockItemRepository",
+    "SqlAlchemyStockReservationRepository",
     "SqlAlchemyStockTransactionRepository",
     "SqlAlchemyStoreroomRepository",
 ]

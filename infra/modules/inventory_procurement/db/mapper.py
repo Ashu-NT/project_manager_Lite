@@ -14,6 +14,8 @@ from core.modules.inventory_procurement.domain import (
     ReceiptStatus,
     StockBalance,
     StockItem,
+    StockReservation,
+    StockReservationStatus,
     StockTransaction,
     StockTransactionType,
     Storeroom,
@@ -27,6 +29,7 @@ from infra.platform.db.models import (
     ReceiptLineORM,
     StockBalanceORM,
     StockItemORM,
+    StockReservationORM,
     StockTransactionORM,
     StoreroomORM,
 )
@@ -231,6 +234,56 @@ def stock_transaction_from_orm(obj: StockTransactionORM) -> StockTransaction:
         resulting_on_hand_qty=float(obj.resulting_on_hand_qty or 0.0),
         resulting_available_qty=float(obj.resulting_available_qty or 0.0),
         notes=obj.notes or "",
+    )
+
+
+def stock_reservation_to_orm(reservation: StockReservation) -> StockReservationORM:
+    return StockReservationORM(
+        id=reservation.id,
+        organization_id=reservation.organization_id,
+        reservation_number=reservation.reservation_number,
+        stock_item_id=reservation.stock_item_id,
+        storeroom_id=reservation.storeroom_id,
+        reserved_qty=reservation.reserved_qty,
+        issued_qty=reservation.issued_qty,
+        remaining_qty=reservation.remaining_qty,
+        uom=reservation.uom,
+        status=reservation.status,
+        need_by_date=reservation.need_by_date,
+        source_reference_type=reservation.source_reference_type or None,
+        source_reference_id=reservation.source_reference_id or None,
+        requested_by_user_id=reservation.requested_by_user_id,
+        requested_by_username=reservation.requested_by_username or None,
+        created_at=reservation.created_at,
+        released_at=reservation.released_at,
+        cancelled_at=reservation.cancelled_at,
+        notes=reservation.notes or None,
+        version=getattr(reservation, "version", 1),
+    )
+
+
+def stock_reservation_from_orm(obj: StockReservationORM) -> StockReservation:
+    return StockReservation(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        reservation_number=obj.reservation_number,
+        stock_item_id=obj.stock_item_id,
+        storeroom_id=obj.storeroom_id,
+        reserved_qty=float(obj.reserved_qty or 0.0),
+        issued_qty=float(obj.issued_qty or 0.0),
+        remaining_qty=float(obj.remaining_qty or 0.0),
+        uom=obj.uom,
+        status=StockReservationStatus(obj.status),
+        need_by_date=obj.need_by_date,
+        source_reference_type=obj.source_reference_type or "",
+        source_reference_id=obj.source_reference_id or "",
+        requested_by_user_id=obj.requested_by_user_id,
+        requested_by_username=obj.requested_by_username or "",
+        created_at=obj.created_at,
+        released_at=obj.released_at,
+        cancelled_at=obj.cancelled_at,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
     )
 
 
@@ -499,6 +552,8 @@ __all__ = [
     "stock_balance_to_orm",
     "stock_item_from_orm",
     "stock_item_to_orm",
+    "stock_reservation_from_orm",
+    "stock_reservation_to_orm",
     "stock_transaction_from_orm",
     "stock_transaction_to_orm",
     "storeroom_from_orm",

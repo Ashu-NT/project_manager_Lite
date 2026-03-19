@@ -6,6 +6,7 @@ from core.modules.inventory_procurement.services import (
     ItemMasterService,
     ProcurementService,
     PurchasingService,
+    ReservationService,
     StockControlService,
 )
 
@@ -14,6 +15,7 @@ __all__ = [
     "ItemMasterService",
     "InventoryService",
     "StockControlService",
+    "ReservationService",
     "ProcurementService",
     "PurchasingService",
 ]

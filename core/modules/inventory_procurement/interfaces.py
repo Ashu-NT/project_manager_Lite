@@ -11,6 +11,7 @@ from core.modules.inventory_procurement.domain import (
     ReceiptLine,
     StockBalance,
     StockItem,
+    StockReservation,
     StockTransaction,
     Storeroom,
 )
@@ -108,6 +109,31 @@ class StockTransactionRepository(ABC):
         storeroom_id: str | None = None,
         limit: int = 200,
     ) -> list[StockTransaction]: ...
+
+
+class StockReservationRepository(ABC):
+    @abstractmethod
+    def add(self, reservation: StockReservation) -> None: ...
+
+    @abstractmethod
+    def update(self, reservation: StockReservation) -> None: ...
+
+    @abstractmethod
+    def get(self, reservation_id: str) -> StockReservation | None: ...
+
+    @abstractmethod
+    def get_by_number(self, organization_id: str, reservation_number: str) -> StockReservation | None: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        stock_item_id: str | None = None,
+        storeroom_id: str | None = None,
+        status: str | None = None,
+        limit: int = 200,
+    ) -> list[StockReservation]: ...
 
 
 class PurchaseRequisitionRepository(ABC):
@@ -231,6 +257,7 @@ __all__ = [
     "ReceiptLineRepository",
     "StockBalanceRepository",
     "StockItemRepository",
+    "StockReservationRepository",
     "StockTransactionRepository",
     "StoreroomRepository",
 ]

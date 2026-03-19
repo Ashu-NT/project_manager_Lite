@@ -10,6 +10,7 @@ from core.modules.inventory_procurement.domain import (
     ReceiptLine,
     StockBalance,
     StockItem,
+    StockReservation,
     StockTransaction,
     Storeroom,
 )
@@ -22,6 +23,7 @@ from core.modules.inventory_procurement.interfaces import (
     ReceiptLineRepository,
     StockBalanceRepository,
     StockItemRepository,
+    StockReservationRepository,
     StockTransactionRepository,
     StoreroomRepository,
 )
@@ -42,6 +44,8 @@ from infra.modules.inventory_procurement.db.mapper import (
     stock_balance_to_orm,
     stock_item_from_orm,
     stock_item_to_orm,
+    stock_reservation_from_orm,
+    stock_reservation_to_orm,
     stock_transaction_from_orm,
     stock_transaction_to_orm,
     storeroom_from_orm,
@@ -56,6 +60,7 @@ from infra.platform.db.models import (
     ReceiptLineORM,
     StockBalanceORM,
     StockItemORM,
+    StockReservationORM,
     StockTransactionORM,
     StoreroomORM,
 )
@@ -295,6 +300,76 @@ class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
             stmt.order_by(StockTransactionORM.transaction_at.desc()).limit(max(1, int(limit or 200)))
         ).scalars().all()
         return [stock_transaction_from_orm(row) for row in rows]
+
+
+class SqlAlchemyStockReservationRepository(StockReservationRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, reservation: StockReservation) -> None:
+        self.session.add(stock_reservation_to_orm(reservation))
+
+    def update(self, reservation: StockReservation) -> None:
+        reservation.version = update_with_version_check(
+            self.session,
+            StockReservationORM,
+            reservation.id,
+            getattr(reservation, "version", 1),
+            {
+                "reservation_number": reservation.reservation_number,
+                "stock_item_id": reservation.stock_item_id,
+                "storeroom_id": reservation.storeroom_id,
+                "reserved_qty": reservation.reserved_qty,
+                "issued_qty": reservation.issued_qty,
+                "remaining_qty": reservation.remaining_qty,
+                "uom": reservation.uom,
+                "status": reservation.status,
+                "need_by_date": reservation.need_by_date,
+                "source_reference_type": reservation.source_reference_type or None,
+                "source_reference_id": reservation.source_reference_id or None,
+                "requested_by_user_id": reservation.requested_by_user_id,
+                "requested_by_username": reservation.requested_by_username or None,
+                "created_at": reservation.created_at,
+                "released_at": reservation.released_at,
+                "cancelled_at": reservation.cancelled_at,
+                "notes": reservation.notes or None,
+            },
+            not_found_message="Stock reservation not found.",
+            stale_message="Stock reservation was updated by another user.",
+        )
+
+    def get(self, reservation_id: str) -> StockReservation | None:
+        obj = self.session.get(StockReservationORM, reservation_id)
+        return stock_reservation_from_orm(obj) if obj else None
+
+    def get_by_number(self, organization_id: str, reservation_number: str) -> StockReservation | None:
+        stmt = select(StockReservationORM).where(
+            StockReservationORM.organization_id == organization_id,
+            StockReservationORM.reservation_number == reservation_number,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return stock_reservation_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        stock_item_id: str | None = None,
+        storeroom_id: str | None = None,
+        status: str | None = None,
+        limit: int = 200,
+    ) -> list[StockReservation]:
+        stmt = select(StockReservationORM).where(StockReservationORM.organization_id == organization_id)
+        if stock_item_id is not None:
+            stmt = stmt.where(StockReservationORM.stock_item_id == stock_item_id)
+        if storeroom_id is not None:
+            stmt = stmt.where(StockReservationORM.storeroom_id == storeroom_id)
+        if status is not None:
+            stmt = stmt.where(StockReservationORM.status == status)
+        rows = self.session.execute(
+            stmt.order_by(StockReservationORM.created_at.desc()).limit(max(1, int(limit or 200)))
+        ).scalars().all()
+        return [stock_reservation_from_orm(row) for row in rows]
 
 
 class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
@@ -575,6 +650,7 @@ __all__ = [
     "SqlAlchemyReceiptLineRepository",
     "SqlAlchemyStockBalanceRepository",
     "SqlAlchemyStockItemRepository",
+    "SqlAlchemyStockReservationRepository",
     "SqlAlchemyStockTransactionRepository",
     "SqlAlchemyStoreroomRepository",
 ]

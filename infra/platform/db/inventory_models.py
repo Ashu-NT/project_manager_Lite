@@ -24,6 +24,7 @@ from core.modules.inventory_procurement.domain import (
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
     ReceiptStatus,
+    StockReservationStatus,
     StockTransactionType,
 )
 from infra.platform.db.base import Base
@@ -193,6 +194,55 @@ class StockTransactionORM(Base):
     resulting_on_hand_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
     resulting_available_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class StockReservationORM(Base):
+    __tablename__ = "inventory_stock_reservations"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "reservation_number", name="ux_inventory_stock_reservations_number"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reservation_number: Mapped[str] = mapped_column(String(64), nullable=False)
+    stock_item_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_stock_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    storeroom_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_storerooms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reserved_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    issued_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    remaining_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[StockReservationStatus] = mapped_column(
+        SAEnum(StockReservationStatus),
+        nullable=False,
+        default=StockReservationStatus.ACTIVE,
+        server_default=StockReservationStatus.ACTIVE.value,
+    )
+    need_by_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    source_reference_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    source_reference_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    requested_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    requested_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    released_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cancelled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 class PurchaseRequisitionORM(Base):
@@ -482,6 +532,10 @@ Index("idx_inventory_stock_transactions_org", StockTransactionORM.organization_i
 Index("idx_inventory_stock_transactions_item", StockTransactionORM.stock_item_id)
 Index("idx_inventory_stock_transactions_storeroom", StockTransactionORM.storeroom_id)
 Index("idx_inventory_stock_transactions_at", StockTransactionORM.transaction_at)
+Index("idx_inventory_stock_reservations_org", StockReservationORM.organization_id)
+Index("idx_inventory_stock_reservations_item", StockReservationORM.stock_item_id)
+Index("idx_inventory_stock_reservations_storeroom", StockReservationORM.storeroom_id)
+Index("idx_inventory_stock_reservations_status", StockReservationORM.status)
 Index("idx_inventory_requisitions_org", PurchaseRequisitionORM.organization_id)
 Index("idx_inventory_requisitions_status", PurchaseRequisitionORM.status)
 Index("idx_inventory_requisitions_site", PurchaseRequisitionORM.requesting_site_id)
@@ -512,6 +566,7 @@ __all__ = [
     "ReceiptLineORM",
     "StockBalanceORM",
     "StockItemORM",
+    "StockReservationORM",
     "StockTransactionORM",
     "StoreroomORM",
 ]

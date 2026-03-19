@@ -11,6 +11,16 @@ class StockTransactionType(str, Enum):
     OPENING_BALANCE = "OPENING_BALANCE"
     ADJUSTMENT_INCREASE = "ADJUSTMENT_INCREASE"
     ADJUSTMENT_DECREASE = "ADJUSTMENT_DECREASE"
+    RESERVATION_HOLD = "RESERVATION_HOLD"
+    RESERVATION_RELEASE = "RESERVATION_RELEASE"
+
+
+class StockReservationStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    PARTIALLY_ISSUED = "PARTIALLY_ISSUED"
+    FULLY_ISSUED = "FULLY_ISSUED"
+    RELEASED = "RELEASED"
+    CANCELLED = "CANCELLED"
 
 
 class PurchaseRequisitionStatus(str, Enum):
@@ -316,6 +326,80 @@ class StockTransaction:
             resulting_on_hand_qty=resulting_on_hand_qty,
             resulting_available_qty=resulting_available_qty,
             notes=notes,
+        )
+
+
+@dataclass
+class StockReservation:
+    id: str
+    organization_id: str
+    reservation_number: str
+    stock_item_id: str
+    storeroom_id: str
+    reserved_qty: float
+    issued_qty: float = 0.0
+    remaining_qty: float = 0.0
+    uom: str = ""
+    status: StockReservationStatus = StockReservationStatus.ACTIVE
+    need_by_date: date | None = None
+    source_reference_type: str = ""
+    source_reference_id: str = ""
+    requested_by_user_id: str | None = None
+    requested_by_username: str = ""
+    created_at: datetime | None = None
+    released_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    notes: str = ""
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        reservation_number: str,
+        stock_item_id: str,
+        storeroom_id: str,
+        reserved_qty: float,
+        uom: str,
+        issued_qty: float = 0.0,
+        remaining_qty: float | None = None,
+        status: StockReservationStatus = StockReservationStatus.ACTIVE,
+        need_by_date: date | None = None,
+        source_reference_type: str = "",
+        source_reference_id: str = "",
+        requested_by_user_id: str | None = None,
+        requested_by_username: str = "",
+        released_at: datetime | None = None,
+        cancelled_at: datetime | None = None,
+        notes: str = "",
+    ) -> "StockReservation":
+        now = datetime.now(timezone.utc)
+        effective_remaining = (
+            float(remaining_qty)
+            if remaining_qty is not None
+            else max(0.0, float(reserved_qty or 0.0) - float(issued_qty or 0.0))
+        )
+        return StockReservation(
+            id=generate_id(),
+            organization_id=organization_id,
+            reservation_number=reservation_number,
+            stock_item_id=stock_item_id,
+            storeroom_id=storeroom_id,
+            reserved_qty=reserved_qty,
+            issued_qty=issued_qty,
+            remaining_qty=effective_remaining,
+            uom=uom,
+            status=status,
+            need_by_date=need_by_date,
+            source_reference_type=source_reference_type,
+            source_reference_id=source_reference_id,
+            requested_by_user_id=requested_by_user_id,
+            requested_by_username=requested_by_username,
+            created_at=now,
+            released_at=released_at,
+            cancelled_at=cancelled_at,
+            notes=notes,
+            version=1,
         )
 
 
@@ -672,6 +756,8 @@ __all__ = [
     "ReceiptHeader",
     "ReceiptLine",
     "ReceiptStatus",
+    "StockReservation",
+    "StockReservationStatus",
     "StockTransaction",
     "StockTransactionType",
     "Storeroom",

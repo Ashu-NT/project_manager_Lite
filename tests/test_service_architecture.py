@@ -18,6 +18,7 @@ from core.modules.inventory_procurement import (
     ItemMasterService,
     ProcurementService,
     PurchasingService,
+    ReservationService,
     StockControlService,
 )
 from core.modules.project_management.services.baseline import BaselineService
@@ -71,6 +72,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.inventory_item_service, ItemMasterService)
     assert isinstance(graph.inventory_service, InventoryService)
     assert isinstance(graph.inventory_stock_service, StockControlService)
+    assert isinstance(graph.inventory_reservation_service, ReservationService)
     assert isinstance(graph.inventory_procurement_service, ProcurementService)
     assert isinstance(graph.inventory_purchasing_service, PurchasingService)
     assert isinstance(graph.access_service, AccessControlService)
@@ -107,6 +109,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["inventory_item_service"] is graph.inventory_item_service
     assert as_dict["inventory_service"] is graph.inventory_service
     assert as_dict["inventory_stock_service"] is graph.inventory_stock_service
+    assert as_dict["inventory_reservation_service"] is graph.inventory_reservation_service
     assert as_dict["inventory_procurement_service"] is graph.inventory_procurement_service
     assert as_dict["inventory_purchasing_service"] is graph.inventory_purchasing_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service

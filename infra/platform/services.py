@@ -22,6 +22,7 @@ from core.modules.inventory_procurement import (
     InventoryService,
     ItemMasterService,
     PurchasingService,
+    ReservationService,
     StockControlService,
 )
 from core.modules.project_management.services.baseline import BaselineService
@@ -68,6 +69,7 @@ class ServiceGraph:
     inventory_item_service: ItemMasterService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
+    inventory_reservation_service: ReservationService
     inventory_procurement_service: ProcurementService
     inventory_purchasing_service: PurchasingService
     access_service: AccessControlService
@@ -112,6 +114,7 @@ class ServiceGraph:
             "inventory_item_service": self.inventory_item_service,
             "inventory_service": self.inventory_service,
             "inventory_stock_service": self.inventory_stock_service,
+            "inventory_reservation_service": self.inventory_reservation_service,
             "inventory_procurement_service": self.inventory_procurement_service,
             "inventory_purchasing_service": self.inventory_purchasing_service,
             "access_service": self.access_service,
@@ -166,6 +169,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_item_service=inventory_procurement_services.inventory_item_service,
         inventory_service=inventory_procurement_services.inventory_service,
         inventory_stock_service=inventory_procurement_services.inventory_stock_service,
+        inventory_reservation_service=inventory_procurement_services.inventory_reservation_service,
         inventory_procurement_service=inventory_procurement_services.inventory_procurement_service,
         inventory_purchasing_service=inventory_procurement_services.inventory_purchasing_service,
         access_service=platform_services.access_service,

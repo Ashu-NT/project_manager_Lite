@@ -187,6 +187,70 @@ class StockControlService:
             commit=commit,
         )
 
+    def hold_reservation(
+        self,
+        *,
+        stock_item_id: str,
+        storeroom_id: str,
+        quantity: float,
+        uom: str | None = None,
+        transaction_at: datetime | None = None,
+        reference_type: str = "inventory_reservation",
+        reference_id: str = "",
+        notes: str = "",
+        commit: bool = True,
+    ) -> StockTransaction:
+        self._require_manage("hold stock reservation")
+        organization = self._active_organization()
+        item = self._validate_stock_item(stock_item_id)
+        storeroom = self._validate_storeroom(storeroom_id)
+        self._ensure_same_scope(item, storeroom, organization)
+        return self._post_reservation_transaction(
+            organization=organization,
+            item=item,
+            storeroom=storeroom,
+            quantity=quantity,
+            uom=uom,
+            transaction_at=transaction_at,
+            transaction_type=StockTransactionType.RESERVATION_HOLD,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            notes=notes,
+            commit=commit,
+        )
+
+    def release_reservation(
+        self,
+        *,
+        stock_item_id: str,
+        storeroom_id: str,
+        quantity: float,
+        uom: str | None = None,
+        transaction_at: datetime | None = None,
+        reference_type: str = "inventory_reservation",
+        reference_id: str = "",
+        notes: str = "",
+        commit: bool = True,
+    ) -> StockTransaction:
+        self._require_manage("release stock reservation")
+        organization = self._active_organization()
+        item = self._validate_stock_item(stock_item_id)
+        storeroom = self._validate_storeroom(storeroom_id)
+        self._ensure_same_scope(item, storeroom, organization)
+        return self._post_reservation_transaction(
+            organization=organization,
+            item=item,
+            storeroom=storeroom,
+            quantity=quantity,
+            uom=uom,
+            transaction_at=transaction_at,
+            transaction_type=StockTransactionType.RESERVATION_RELEASE,
+            reference_type=reference_type,
+            reference_id=reference_id,
+            notes=notes,
+            commit=commit,
+        )
+
     def _post_transaction(
         self,
         *,
@@ -275,6 +339,107 @@ class StockControlService:
                 self._balance_repo.add(balance)
             else:
                 self._balance_repo.update(balance)
+            self._transaction_repo.add(transaction)
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
+        except IntegrityError as exc:
+            self._session.rollback()
+            raise ValidationError("Stock transaction number already exists.", code="INVENTORY_TRANSACTION_EXISTS") from exc
+        except Exception:
+            self._session.rollback()
+            raise
+        if commit:
+            record_audit(
+                self,
+                action="inventory_stock_transaction.post",
+                entity_type="inventory_stock_transaction",
+                entity_id=transaction.id,
+                details={
+                    "transaction_number": transaction.transaction_number,
+                    "stock_item_id": item.id,
+                    "storeroom_id": storeroom.id,
+                    "transaction_type": transaction.transaction_type.value,
+                    "quantity": str(transaction.quantity),
+                    "uom": transaction.uom,
+                    "resulting_on_hand_qty": str(transaction.resulting_on_hand_qty),
+                    "resulting_available_qty": str(transaction.resulting_available_qty),
+                },
+            )
+            domain_events.inventory_balances_changed.emit(balance.id)
+        return transaction
+
+    def _post_reservation_transaction(
+        self,
+        *,
+        organization: Organization,
+        item: StockItem,
+        storeroom: Storeroom,
+        quantity: float,
+        uom: str | None,
+        transaction_at: datetime | None,
+        transaction_type: StockTransactionType,
+        reference_type: str = "",
+        reference_id: str = "",
+        notes: str = "",
+        commit: bool = True,
+    ) -> StockTransaction:
+        normalized_quantity = normalize_positive_quantity(quantity, label="Reservation quantity")
+        normalized_uom = normalize_uom(uom or item.stock_uom, label="Reservation UOM")
+        if normalized_uom != item.stock_uom:
+            raise ValidationError(
+                "Phase-1 reservation transactions must use the item's stock UOM.",
+                code="INVENTORY_UOM_CONVERSION_REQUIRED",
+            )
+        effective_at = transaction_at or datetime.now(timezone.utc)
+        balance = self._balance_repo.get_for_stock_position(organization.id, item.id, storeroom.id)
+        if balance is None:
+            raise ValidationError(
+                "Stock reservation requires an existing stock balance with available quantity.",
+                code="INVENTORY_STOCK_BALANCE_REQUIRED",
+            )
+        previous_reserved = float(balance.reserved_qty or 0.0)
+        previous_on_hand = float(balance.on_hand_qty or 0.0)
+        delta = normalized_quantity if transaction_type == StockTransactionType.RESERVATION_HOLD else -normalized_quantity
+        new_reserved = previous_reserved + delta
+        if new_reserved < 0:
+            raise ValidationError(
+                "Reservation release would make reserved quantity negative.",
+                code="INVENTORY_NEGATIVE_RESERVED",
+            )
+        new_available = previous_on_hand - new_reserved
+        if new_available < 0:
+            raise ValidationError(
+                "Reservation would make available quantity negative.",
+                code="INVENTORY_NEGATIVE_AVAILABLE",
+            )
+        balance.reserved_qty = new_reserved
+        balance.available_qty = new_available
+        balance.uom = item.stock_uom
+        balance.reorder_required = bool(item.reorder_point and balance.available_qty <= float(item.reorder_point or 0.0))
+        balance.updated_at = effective_at
+        principal = self._user_session.principal if self._user_session is not None else None
+        transaction = StockTransaction.create(
+            organization_id=organization.id,
+            transaction_number=_build_transaction_number(),
+            stock_item_id=item.id,
+            storeroom_id=storeroom.id,
+            transaction_type=transaction_type,
+            quantity=normalized_quantity,
+            uom=normalized_uom,
+            unit_cost=0.0,
+            transaction_at=effective_at,
+            reference_type=normalize_optional_text(reference_type),
+            reference_id=normalize_optional_text(reference_id),
+            performed_by_user_id=getattr(principal, "user_id", None),
+            performed_by_username=str(getattr(principal, "username", "") or ""),
+            resulting_on_hand_qty=balance.on_hand_qty,
+            resulting_available_qty=balance.available_qty,
+            notes=normalize_optional_text(notes),
+        )
+        try:
+            self._balance_repo.update(balance)
             self._transaction_repo.add(transaction)
             if commit:
                 self._session.commit()

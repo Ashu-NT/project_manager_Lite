@@ -41,6 +41,7 @@ from infra.platform.db.inventory_models import (
     ReceiptLineORM,
     StockBalanceORM,
     StockItemORM,
+    StockReservationORM,
     StockTransactionORM,
     StoreroomORM,
 )
