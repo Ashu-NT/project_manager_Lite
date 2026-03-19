@@ -41,6 +41,7 @@ def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, rep
         "Sites",
         "Departments",
         "Documents",
+        "Parties",
         "Access",
         "Support",
         "Modules",

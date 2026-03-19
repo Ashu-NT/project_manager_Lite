@@ -1,4 +1,4 @@
-from core.platform.notifications.domain_events import domain_events
+from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.notifications.signal import Signal
 
 
@@ -56,3 +56,90 @@ def test_signal_emit_keeps_non_deleted_runtime_errors_visible():
         assert False, "Expected RuntimeError to propagate"
     except RuntimeError as exc:
         assert str(exc) == "boom"
+
+
+def test_shared_master_changed_bridges_specific_shared_master_events():
+    seen: list[DomainChangeEvent] = []
+
+    def _handler(event: DomainChangeEvent) -> None:
+        seen.append(event)
+
+    domain_events.shared_master_changed.connect(_handler)
+    try:
+        domain_events.sites_changed.emit("site-1")
+        domain_events.parties_changed.emit("party-1")
+    finally:
+        domain_events.shared_master_changed.disconnect(_handler)
+
+    assert seen == [
+        DomainChangeEvent(
+            category="shared_master",
+            scope_code="platform",
+            entity_type="site",
+            entity_id="site-1",
+            source_event="sites_changed",
+        ),
+        DomainChangeEvent(
+            category="shared_master",
+            scope_code="platform",
+            entity_type="party",
+            entity_id="party-1",
+            source_event="parties_changed",
+        ),
+    ]
+
+
+def test_domain_changed_bridges_platform_and_module_events():
+    seen: list[DomainChangeEvent] = []
+
+    def _handler(event: DomainChangeEvent) -> None:
+        seen.append(event)
+
+    domain_events.domain_changed.connect(_handler)
+    try:
+        domain_events.project_changed.emit("project-1")
+        domain_events.modules_changed.emit("inventory_procurement")
+    finally:
+        domain_events.domain_changed.disconnect(_handler)
+
+    assert seen == [
+        DomainChangeEvent(
+            category="module",
+            scope_code="project_management",
+            entity_type="project",
+            entity_id="project-1",
+            source_event="project_changed",
+        ),
+        DomainChangeEvent(
+            category="platform",
+            scope_code="platform",
+            entity_type="module_runtime",
+            entity_id="inventory_procurement",
+            source_event="modules_changed",
+        ),
+    ]
+
+
+def test_domain_events_reset_rewires_generic_event_bridges():
+    seen: list[DomainChangeEvent] = []
+
+    domain_events.reset()
+
+    def _handler(event: DomainChangeEvent) -> None:
+        seen.append(event)
+
+    domain_events.domain_changed.connect(_handler)
+    try:
+        domain_events.documents_changed.emit("doc-1")
+    finally:
+        domain_events.domain_changed.disconnect(_handler)
+
+    assert seen == [
+        DomainChangeEvent(
+            category="shared_master",
+            scope_code="platform",
+            entity_type="document",
+            entity_id="doc-1",
+            source_event="documents_changed",
+        )
+    ]

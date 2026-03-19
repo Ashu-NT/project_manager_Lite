@@ -11,6 +11,7 @@ from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.departments.tab import DepartmentAdminTab
 from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
 from ui.platform.admin.organizations.tab import OrganizationAdminTab
+from ui.platform.admin.parties.tab import PartyAdminTab
 from ui.platform.admin.sites.tab import SiteAdminTab
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
 from ui.platform.admin.users.tab import UserAdminTab
@@ -39,6 +40,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Sites" in labels
     assert "Departments" in labels
     assert "Documents" in labels
+    assert "Parties" in labels
     assert "Access" in labels
     assert "Audit" in labels
     assert "Support" in labels
@@ -233,6 +235,22 @@ def test_document_admin_tab_runtime_bootstraps_active_org_context(qapp, services
     assert tab.btn_edit_document.isEnabled() is False
     assert tab.btn_toggle_active.isEnabled() is False
     assert tab.btn_add_link.isEnabled() is False
+
+
+def test_party_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
+    tab = PartyAdminTab(
+        party_service=services["party_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 0
+    assert tab.party_context_badge.text() == "Context: Default Organization"
+    assert tab.party_count_badge.text() == "0 parties"
+    assert tab.party_active_badge.text() == "0 active"
+    assert tab.party_access_badge.text() == "Manage Enabled"
+    assert tab.btn_new_party.isEnabled() is True
+    assert tab.btn_edit_party.isEnabled() is False
+    assert tab.btn_toggle_active.isEnabled() is False
 
 
 def test_organization_admin_tab_creates_organization_with_initial_module_mix(qapp, services, monkeypatch):

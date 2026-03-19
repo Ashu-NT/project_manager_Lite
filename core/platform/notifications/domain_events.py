@@ -1,9 +1,17 @@
-
-"""Domain event hub for project, auth, collaboration, and portfolio notifications."""
+"""Domain event hub for shared masters, platform changes, and business-module notifications."""
 
 from dataclasses import dataclass, field, fields
 
 from .signal import Signal
+
+
+@dataclass(frozen=True)
+class DomainChangeEvent:
+    category: str
+    scope_code: str
+    entity_type: str
+    entity_id: str
+    source_event: str
 
 
 @dataclass
@@ -22,14 +30,95 @@ class DomainEvents:
     sites_changed: Signal[str] = field(default_factory=Signal)  # site_id
     departments_changed: Signal[str] = field(default_factory=Signal)  # department_id
     documents_changed: Signal[str] = field(default_factory=Signal)  # document_id
+    parties_changed: Signal[str] = field(default_factory=Signal)  # party_id
     access_changed: Signal[str] = field(default_factory=Signal)  # project_id
     collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
     portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id
     modules_changed: Signal[str] = field(default_factory=Signal)  # module_code
+    shared_master_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
+    domain_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
+
+    def __post_init__(self) -> None:
+        self._wire_bridges()
 
     def reset(self) -> None:
         for signal_field in fields(self):
-            getattr(self, signal_field.name).clear()
+            signal = getattr(self, signal_field.name)
+            if isinstance(signal, Signal):
+                signal.clear()
+        self._wire_bridges()
+
+    def _wire_bridges(self) -> None:
+        bridge_specs = (
+            (self.project_changed, "module", "project_management", "project", "project_changed"),
+            (self.tasks_changed, "module", "project_management", "project_tasks", "tasks_changed"),
+            (
+                self.timesheet_periods_changed,
+                "module",
+                "project_management",
+                "timesheet_period",
+                "timesheet_periods_changed",
+            ),
+            (self.costs_changed, "module", "project_management", "project_costs", "costs_changed"),
+            (self.resources_changed, "module", "project_management", "resource", "resources_changed"),
+            (self.baseline_changed, "module", "project_management", "project_baseline", "baseline_changed"),
+            (
+                self.approvals_changed,
+                "platform",
+                "platform",
+                "approval_request",
+                "approvals_changed",
+            ),
+            (self.register_changed, "module", "project_management", "register_scope", "register_changed"),
+            (self.auth_changed, "platform", "platform", "user_account", "auth_changed"),
+            (self.employees_changed, "platform", "platform", "employee", "employees_changed"),
+            (self.organizations_changed, "shared_master", "platform", "organization", "organizations_changed"),
+            (self.sites_changed, "shared_master", "platform", "site", "sites_changed"),
+            (self.departments_changed, "shared_master", "platform", "department", "departments_changed"),
+            (self.documents_changed, "shared_master", "platform", "document", "documents_changed"),
+            (self.parties_changed, "shared_master", "platform", "party", "parties_changed"),
+            (self.access_changed, "platform", "platform", "project_access", "access_changed"),
+            (
+                self.collaboration_changed,
+                "module",
+                "project_management",
+                "task_collaboration",
+                "collaboration_changed",
+            ),
+            (self.portfolio_changed, "module", "project_management", "portfolio_entity", "portfolio_changed"),
+            (self.modules_changed, "platform", "platform", "module_runtime", "modules_changed"),
+        )
+        for signal, category, scope_code, entity_type, source_event in bridge_specs:
+            signal.connect(
+                self._build_bridge(
+                    category=category,
+                    scope_code=scope_code,
+                    entity_type=entity_type,
+                    source_event=source_event,
+                )
+            )
+
+    def _build_bridge(
+        self,
+        *,
+        category: str,
+        scope_code: str,
+        entity_type: str,
+        source_event: str,
+    ):
+        def _bridge(entity_id: str) -> None:
+            event = DomainChangeEvent(
+                category=category,
+                scope_code=scope_code,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                source_event=source_event,
+            )
+            if category == "shared_master":
+                self.shared_master_changed.emit(event)
+            self.domain_changed.emit(event)
+
+        return _bridge
 
 
 # SINGLE global instance

@@ -23,6 +23,7 @@ from core.platform.auth import AuthService
 from core.platform.documents import DocumentService
 from core.platform.auth.session import UserSessionContext
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
+from core.platform.party import PartyService
 from core.platform.time import TimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -42,6 +43,7 @@ from core.modules.project_management.services.timesheet import TimesheetService
 from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from infra.platform.db.documents import SqlAlchemyDocumentLinkRepository, SqlAlchemyDocumentRepository
+from infra.platform.db.party import SqlAlchemyPartyRepository
 from infra.platform.db.repositories import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyBaselineRepository,
@@ -115,6 +117,7 @@ class ServiceGraph:
     auth_service: AuthService
     organization_service: OrganizationService
     document_service: DocumentService
+    party_service: PartyService
     department_service: DepartmentService
     site_service: SiteService
     employee_service: EmployeeService
@@ -152,6 +155,7 @@ class ServiceGraph:
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
             "document_service": self.document_service,
+            "party_service": self.party_service,
             "department_service": self.department_service,
             "site_service": self.site_service,
             "employee_service": self.employee_service,
@@ -189,6 +193,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     organization_repo = SqlAlchemyOrganizationRepository(session)
     document_repo = SqlAlchemyDocumentRepository(session)
     document_link_repo = SqlAlchemyDocumentLinkRepository(session)
+    party_repo = SqlAlchemyPartyRepository(session)
     department_repo = SqlAlchemyDepartmentRepository(session)
     site_repo = SqlAlchemySiteRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
@@ -251,6 +256,13 @@ def build_service_graph(session: Session) -> ServiceGraph:
         session=session,
         document_repo=document_repo,
         link_repo=document_link_repo,
+        organization_repo=organization_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    party_service = PartyService(
+        session=session,
+        party_repo=party_repo,
         organization_repo=organization_repo,
         user_session=user_session,
         audit_service=audit_service,
@@ -586,6 +598,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         auth_service=auth_service,
         organization_service=organization_service,
         document_service=document_service,
+        party_service=party_service,
         department_service=department_service,
         site_service=site_service,
         employee_service=employee_service,

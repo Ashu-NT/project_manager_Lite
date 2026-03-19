@@ -31,6 +31,15 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - `site` now carries operational metadata such as geography, timezone, currency, lifecycle status, calendar defaults, timestamps, and notes
   - `department` now carries hierarchy and business metadata such as site reference, parent department, type, cost center, manager reference, timestamps, and notes
   - `document` now carries richer library metadata such as document type, file/storage details, source system, upload metadata, review/effective dates, confidentiality, revision, and current-state flags
+- Completed in the current slice:
+  - shared `party` domain foundation under `core/platform/party`
+  - persistent `parties` table and repository wiring
+  - platform admin `Parties` workspace for managing shared supplier, manufacturer, vendor, contractor, and service-provider identities
+  - additive `parties_changed` domain event for future cross-module refresh
+- Completed in the current slice:
+  - module-neutral `DomainChangeEvent` envelope for generic refresh and integration subscribers
+  - additive `domain_changed` bridge that mirrors specific platform and module events without removing them
+  - additive `shared_master_changed` bridge for shared reference/master-data refresh flows
 - Still intentionally transitional:
   - employees still store `site_name` as a compatibility string
   - approved/shared time entries still keep site and department snapshot strings
@@ -110,7 +119,7 @@ Non-goals for this slice:
 
 ### 4. Shared Party Domain
 
-Status: planned
+Status: completed
 
 Scope:
 
@@ -122,9 +131,15 @@ Acceptance notes:
 - one shared party identity spine exists
 - modules reference party records instead of duplicating supplier or vendor masters
 
+Non-goals for this slice:
+
+- no module-specific vendor qualification, purchase, or maintenance relationship workflows yet
+- no party-to-document link matrix yet beyond the shared document infrastructure already in place
+- no cross-module replacement of existing free-text vendor labels yet
+
 ### 5. Module-Neutral Domain Events
 
-Status: planned
+Status: completed
 
 Scope:
 
@@ -135,6 +150,12 @@ Acceptance notes:
 
 - cross-module synchronization uses domain events instead of direct coupling
 - new modules can subscribe without inheriting PM-specific assumptions
+
+Non-goals for this slice:
+
+- no rewrite of existing PM tabs away from their current specific subscriptions yet
+- no event-bus persistence, replay, or asynchronous broker layer yet
+- no cross-process integration transport yet beyond the in-process signal hub
 
 ### 6. Modular Service Registration
 
