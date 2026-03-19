@@ -10,6 +10,7 @@ from ui.modules.inventory_procurement import (
     InventoryItemsTab,
     PurchaseOrdersTab,
     ReceivingTab,
+    ReservationsTab,
     RequisitionsTab,
     StockTab,
     StoreroomsTab,
@@ -300,6 +301,24 @@ def build_workspace_definitions(
                 widget=InventoryItemsTab(
                     item_service=services["inventory_item_service"],
                     reference_service=services["inventory_reference_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Operations",
+                label="Reservations",
+                widget=ReservationsTab(
+                    reservation_service=services["inventory_reservation_service"],
+                    item_service=services["inventory_item_service"],
+                    inventory_service=services["inventory_service"],
                     platform_runtime_application_service=platform_runtime_application_service,
                     user_session=user_session,
                     parent=parent,

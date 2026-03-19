@@ -8,6 +8,7 @@ from tests.ui_runtime_helpers import login_as, make_settings_store, register_and
 from ui.modules.inventory_procurement.items_tab import InventoryItemsTab
 from ui.modules.inventory_procurement.purchase_orders_tab import PurchaseOrdersTab
 from ui.modules.inventory_procurement.receiving_tab import ReceivingTab
+from ui.modules.inventory_procurement.reservations_tab import ReservationsTab
 from ui.modules.inventory_procurement.requisitions_tab import RequisitionsTab
 from ui.modules.inventory_procurement.stock_tab import StockTab
 from ui.platform.shell.main_window import MainWindow
@@ -330,6 +331,46 @@ def test_receiving_tab_shows_outstanding_lines_and_receipt_history(qapp, service
     assert tab.receipts_table.item(0, 0).text() == receipt.receipt_number
 
 
+def test_reservations_tab_shows_active_reservation_and_source_reference(qapp, services):
+    _enable_inventory_module(services)
+    site, storeroom, item, _supplier = _create_procurement_context(services)
+    register_and_login(services, username_prefix="inventory-ui-res", role_names=("inventory_manager",))
+    services["inventory_stock_service"].post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        quantity=10.0,
+        unit_cost=2.5,
+    )
+    reservation = services["inventory_reservation_service"].create_reservation(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        reserved_qty=4.0,
+        source_reference_type="work_order",
+        source_reference_id="WO-100",
+        notes="Reserve for planned work",
+    )
+
+    tab = ReservationsTab(
+        reservation_service=services["inventory_reservation_service"],
+        item_service=services["inventory_item_service"],
+        inventory_service=services["inventory_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 1
+    assert tab.count_badge.text() == "1 reservations"
+
+    tab.table.selectRow(0)
+    qapp.processEvents()
+
+    assert tab.detail_name.text() == reservation.reservation_number
+    assert tab.detail_item.text() == f"{item.item_code} - {item.name}"
+    assert tab.detail_storeroom.text() == f"{storeroom.storeroom_code} - {storeroom.name}"
+    assert tab.detail_source.text() == "work_order: WO-100"
+    assert "Reserved 4.000" in tab.detail_quantities.text()
+
+
 def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     qapp,
     services,
@@ -348,6 +389,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     assert "Items" in labels
     assert "Storerooms" in labels
     assert "Stock" in labels
+    assert "Reservations" in labels
     assert "Requisitions" in labels
     assert "Purchase Orders" in labels
     assert "Receiving" in labels
@@ -356,7 +398,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     assert inventory_section.text(0) == "Inventory & Procurement"
     assert _child_labels(inventory_section) == ["Master Data", "Operations", "Procurement"]
     assert _child_labels(inventory_section.child(0)) == ["Items", "Storerooms"]
-    assert _child_labels(inventory_section.child(1)) == ["Stock"]
+    assert _child_labels(inventory_section.child(1)) == ["Reservations", "Stock"]
     assert _child_labels(inventory_section.child(2)) == ["Requisitions", "Purchase Orders", "Receiving"]
 
 
@@ -367,6 +409,7 @@ def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():
         (inventory_ui / "items_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "purchase_orders_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "receiving_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "reservations_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "requisitions_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "storerooms_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "stock_tab.py").read_text(encoding="utf-8", errors="ignore"),
