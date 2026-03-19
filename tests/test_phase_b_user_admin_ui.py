@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from PySide6.QtWidgets import QDialog, QLineEdit
+from PySide6.QtWidgets import QComboBox, QDialog, QLineEdit
 
+from core.platform.common.models import Employee
 from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
+from ui.platform.admin.employees.dialogs import EmployeeEditDialog
+from ui.platform.admin.employees.tab import EmployeeAdminTab
 from ui.platform.admin.documents.tab import DocumentAdminTab
 from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.departments.tab import DepartmentAdminTab
@@ -251,6 +254,54 @@ def test_party_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
     assert tab.btn_new_party.isEnabled() is True
     assert tab.btn_edit_party.isEnabled() is False
     assert tab.btn_toggle_active.isEnabled() is False
+
+
+def test_employee_admin_tab_runtime_bootstraps_shared_reference_badge_and_links(qapp, services):
+    tab = EmployeeAdminTab(
+        employee_service=services["employee_service"],
+        site_service=services["site_service"],
+        department_service=services["department_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.employee_reference_badge.text() == "Shared refs: 0 sites / 0 departments"
+    assert tab.btn_open_sites.isEnabled() is True
+    assert tab.btn_open_departments.isEnabled() is True
+
+    site = services["site_service"].create_site(site_code="BER", name="Berlin Plant")
+    services["department_service"].create_department(
+        department_code="OPS",
+        name="Operations",
+        site_id=site.id,
+    )
+    qapp.processEvents()
+
+    assert tab.employee_reference_badge.text() == "Shared refs: 1 sites / 1 departments"
+
+
+def test_employee_edit_dialog_prefers_shared_reference_selectors_but_keeps_legacy_text(qapp):
+    employee = Employee.create(
+        employee_code="EMP-1",
+        full_name="Alex Example",
+        department="Legacy Department",
+        site_name="Legacy Site",
+    )
+    dialog = EmployeeEditDialog(
+        employee=employee,
+        department_options=["Operations"],
+        site_options=["Berlin Plant"],
+    )
+
+    assert isinstance(dialog.department_combo, QComboBox)
+    assert isinstance(dialog.site_name_combo, QComboBox)
+    assert dialog.department == "Legacy Department"
+    assert dialog.site_name == "Legacy Site"
+
+    dialog.department_combo.setEditText("Operations")
+    dialog.site_name_combo.setEditText("Berlin Plant")
+
+    assert dialog.department == "Operations"
+    assert dialog.site_name == "Berlin Plant"
 
 
 def test_organization_admin_tab_creates_organization_with_initial_module_mix(qapp, services, monkeypatch):

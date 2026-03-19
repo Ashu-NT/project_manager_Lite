@@ -298,6 +298,8 @@ def build_workspace_definitions(
                 label="Employees",
                 widget=EmployeeAdminTab(
                     employee_service=services["employee_service"],
+                    site_service=services.get("site_service"),
+                    department_service=services.get("department_service"),
                     user_session=user_session,
                     parent=parent,
                 ),

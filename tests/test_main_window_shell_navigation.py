@@ -187,3 +187,15 @@ def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
     platform_section = window.shell_navigation.tree.topLevelItem(0)
     assert _child_labels(platform_section) == ["Shared Services"]
     assert _child_labels(platform_section.child(0)) == ["Home"]
+
+
+def test_main_window_focus_workspace_selects_existing_tab(qapp, services, repo_workspace, monkeypatch):
+    store = make_settings_store(repo_workspace, prefix="main-window-focus-workspace")
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+
+    assert window.focus_workspace("Sites") is True
+    assert window.tabs.tabText(window.tabs.currentIndex()) == "Sites"
+    assert window.focus_workspace("Missing Workspace") is False

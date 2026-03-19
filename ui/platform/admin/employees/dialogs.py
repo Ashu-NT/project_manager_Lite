@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QVBoxLayout,
@@ -15,23 +17,59 @@ from core.platform.common.models import Employee, EmploymentType
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
+def _populate_reference_combo(
+    combo: QComboBox,
+    *,
+    options: list[str],
+    current_value: str = "",
+    placeholder: str,
+) -> None:
+    combo.clear()
+    combo.setEditable(True)
+    combo.setInsertPolicy(QComboBox.NoInsert)
+    combo.addItem("")
+    seen: set[str] = set()
+    for value in options:
+        normalized = (value or "").strip()
+        if not normalized or normalized in seen:
+            continue
+        combo.addItem(normalized)
+        seen.add(normalized)
+    normalized_current = (current_value or "").strip()
+    if normalized_current and normalized_current not in seen:
+        combo.addItem(normalized_current)
+    index = combo.findText(normalized_current, Qt.MatchFixedString)
+    if index >= 0:
+        combo.setCurrentIndex(index)
+    else:
+        combo.setEditText(normalized_current)
+    line_edit = combo.lineEdit()
+    if line_edit is not None:
+        line_edit.setPlaceholderText(placeholder)
+
+
 class EmployeeEditDialog(QDialog):
-    def __init__(self, parent=None, employee: Employee | None = None):
+    def __init__(
+        self,
+        parent=None,
+        employee: Employee | None = None,
+        *,
+        department_options: list[str] | None = None,
+        site_options: list[str] | None = None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Employee" + (" - Edit" if employee else " - New"))
 
         self.employee_code_edit = QLineEdit()
         self.full_name_edit = QLineEdit()
-        self.department_edit = QLineEdit()
-        self.site_name_edit = QLineEdit()
+        self.department_combo = QComboBox()
+        self.site_name_combo = QComboBox()
         self.title_edit = QLineEdit()
         self.email_edit = QLineEdit()
         self.phone_edit = QLineEdit()
         for edit in (
             self.employee_code_edit,
             self.full_name_edit,
-            self.department_edit,
-            self.site_name_edit,
             self.title_edit,
             self.email_edit,
             self.phone_edit,
@@ -39,6 +77,10 @@ class EmployeeEditDialog(QDialog):
             edit.setSizePolicy(CFG.INPUT_POLICY)
             edit.setFixedHeight(CFG.INPUT_HEIGHT)
             edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
+        for combo in (self.department_combo, self.site_name_combo):
+            combo.setSizePolicy(CFG.INPUT_POLICY)
+            combo.setFixedHeight(CFG.INPUT_HEIGHT)
+            combo.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
 
         self.employment_type_combo = QComboBox()
         for employment_type in EmploymentType:
@@ -52,8 +94,6 @@ class EmployeeEditDialog(QDialog):
         if employee is not None:
             self.employee_code_edit.setText(employee.employee_code)
             self.full_name_edit.setText(employee.full_name)
-            self.department_edit.setText(employee.department or "")
-            self.site_name_edit.setText(getattr(employee, "site_name", "") or "")
             self.title_edit.setText(employee.title or "")
             self.email_edit.setText(employee.email or "")
             self.phone_edit.setText(employee.phone or "")
@@ -65,6 +105,19 @@ class EmployeeEditDialog(QDialog):
         else:
             self.active_check.setChecked(True)
 
+        _populate_reference_combo(
+            self.department_combo,
+            options=department_options or [],
+            current_value=employee.department if employee is not None else "",
+            placeholder="Select or type a department",
+        )
+        _populate_reference_combo(
+            self.site_name_combo,
+            options=site_options or [],
+            current_value=getattr(employee, "site_name", "") if employee is not None else "",
+            placeholder="Select or type a site",
+        )
+
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)
         form.setFormAlignment(CFG.ALIGN_TOP)
@@ -73,13 +126,19 @@ class EmployeeEditDialog(QDialog):
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         form.addRow("Employee code:", self.employee_code_edit)
         form.addRow("Full name:", self.full_name_edit)
-        form.addRow("Department:", self.department_edit)
-        form.addRow("Site:", self.site_name_edit)
+        form.addRow("Department:", self.department_combo)
+        form.addRow("Site:", self.site_name_combo)
         form.addRow("Title:", self.title_edit)
         form.addRow("Employment type:", self.employment_type_combo)
         form.addRow("Email:", self.email_edit)
         form.addRow("Phone:", self.phone_edit)
         form.addRow("", self.active_check)
+
+        reference_hint = QLabel(
+            "Department and Site prefer the shared platform masters. If a legacy value is not there yet, you can still keep the readable text during the transition."
+        )
+        reference_hint.setWordWrap(True)
+        reference_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._validate_and_accept)
@@ -89,6 +148,7 @@ class EmployeeEditDialog(QDialog):
         layout.setSpacing(CFG.SPACING_LG)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
         layout.addLayout(form)
+        layout.addWidget(reference_hint)
         layout.addWidget(buttons)
         self.setMinimumSize(self.sizeHint())
 
@@ -111,11 +171,11 @@ class EmployeeEditDialog(QDialog):
 
     @property
     def department(self) -> str:
-        return self.department_edit.text().strip()
+        return self.department_combo.currentText().strip()
 
     @property
     def site_name(self) -> str:
-        return self.site_name_edit.text().strip()
+        return self.site_name_combo.currentText().strip()
 
     @property
     def title(self) -> str:

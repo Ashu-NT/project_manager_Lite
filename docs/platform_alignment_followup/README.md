@@ -44,10 +44,13 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - service registration now builds repository, platform, and `project_management` bundles separately under `infra/platform/service_registration`
   - `infra/platform/services.py` now acts as a thin coordinator that assembles the stable `ServiceGraph`
   - module-specific approval handler registration now lives with the `project_management` registration layer instead of the central service graph builder
+- Completed in the current slice:
+  - employee administration now prefers shared `site` and `department` selectors while keeping readable compatibility strings underneath
+  - the employee UI now exposes explicit links back to the `Sites` and `Departments` workspaces so shared-master ownership stays visible
+  - selector-backed employee editing now refreshes with shared-master change events without forcing a risky storage migration yet
 - Still intentionally transitional:
   - employees still store `site_name` as a compatibility string
   - approved/shared time entries still keep site and department snapshot strings
-  - employee editing does not yet use shared site or department selectors
   - PM task-comment attachments still use their existing module-local storage path until the later UI/integration slice migrates them
   - `site.integration_profile_id` is deferred until a shared integration-profile domain exists
   - `department.default_location_id` is deferred until the shared `location` master is implemented
@@ -183,7 +186,7 @@ Non-goals for this slice:
 
 ### 7. UI Alignment and Selector Migration
 
-Status: planned
+Status: completed
 
 Scope:
 
@@ -194,6 +197,12 @@ Acceptance notes:
 
 - employee, maintenance, inventory, and HR surfaces consume shared masters consistently
 - UI deep-links keep read/write ownership clear across module boundaries
+
+Non-goals for this slice:
+
+- no forced migration of employee storage from `department` / `site_name` text to foreign keys yet
+- no retrofit of future module surfaces before `maintenance_management`, `inventory_procurement`, or `hr_management` have real runtime workflows
+- no rewrite of time-entry snapshot storage, which intentionally stays readable and historical for now
 
 ## Guardrails
 

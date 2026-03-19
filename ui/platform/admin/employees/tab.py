@@ -18,7 +18,7 @@ from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError,
 from core.platform.common.models import Employee
 from core.platform.notifications.domain_events import domain_events
 from core.platform.auth import UserSessionContext
-from core.platform.org import EmployeeService
+from core.platform.org import DepartmentService, EmployeeService, SiteService
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
     dashboard_badge_style,
@@ -34,17 +34,29 @@ class EmployeeAdminTab(QWidget):
     def __init__(
         self,
         employee_service: EmployeeService,
+        site_service: SiteService | None = None,
+        department_service: DepartmentService | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._employee_service = employee_service
+        self._site_service = site_service
+        self._department_service = department_service
         self._user_session = user_session
         self._can_manage_employees = has_permission(self._user_session, "employee.manage")
+        self._can_manage_settings = has_permission(self._user_session, "settings.manage")
         self._rows: list[Employee] = []
+        self._site_options: list[str] = []
+        self._department_options: list[str] = []
+        self._reference_status_text = "Shared refs: unavailable"
         self._setup_ui()
+        self._reload_reference_options(show_feedback=False)
         self.reload_employees()
         domain_events.employees_changed.connect(self._on_employees_changed)
+        domain_events.sites_changed.connect(self._on_reference_catalog_changed)
+        domain_events.departments_changed.connect(self._on_reference_catalog_changed)
+        domain_events.organizations_changed.connect(self._on_reference_catalog_changed)
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -86,12 +98,15 @@ class EmployeeAdminTab(QWidget):
         self.employee_count_badge.setStyleSheet(dashboard_meta_chip_style())
         self.employee_active_badge = QLabel("0 active")
         self.employee_active_badge.setStyleSheet(dashboard_meta_chip_style())
+        self.employee_reference_badge = QLabel(self._reference_status_text)
+        self.employee_reference_badge.setStyleSheet(dashboard_meta_chip_style())
         access_label = "Manage Enabled" if self._can_manage_employees else "Read Only"
         self.employee_access_badge = QLabel(access_label)
         self.employee_access_badge.setStyleSheet(dashboard_meta_chip_style())
         status_layout.addWidget(self.employee_scope_badge, 0, Qt.AlignRight)
         status_layout.addWidget(self.employee_count_badge, 0, Qt.AlignRight)
         status_layout.addWidget(self.employee_active_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.employee_reference_badge, 0, Qt.AlignRight)
         status_layout.addWidget(self.employee_access_badge, 0, Qt.AlignRight)
         status_layout.addStretch(1)
         header_layout.addLayout(status_layout)
@@ -117,21 +132,29 @@ class EmployeeAdminTab(QWidget):
         self.btn_new_employee = QPushButton("New Employee")
         self.btn_edit_employee = QPushButton("Edit Employee")
         self.btn_toggle_active = QPushButton("Toggle Active")
+        self.btn_open_sites = QPushButton("Open Sites")
+        self.btn_open_departments = QPushButton("Open Departments")
         for btn in (
             self.btn_refresh,
             self.btn_new_employee,
             self.btn_edit_employee,
             self.btn_toggle_active,
+            self.btn_open_sites,
+            self.btn_open_departments,
         ):
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.btn_new_employee.setStyleSheet(dashboard_action_button_style("primary"))
         self.btn_edit_employee.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_toggle_active.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_open_sites.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_open_departments.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         toolbar.addWidget(self.btn_new_employee)
         toolbar.addWidget(self.btn_edit_employee)
         toolbar.addWidget(self.btn_toggle_active)
+        toolbar.addWidget(self.btn_open_sites)
+        toolbar.addWidget(self.btn_open_departments)
         toolbar.addStretch()
         toolbar.addWidget(self.btn_refresh)
         controls_layout.addLayout(toolbar)
@@ -166,6 +189,12 @@ class EmployeeAdminTab(QWidget):
         self.btn_toggle_active.clicked.connect(
             make_guarded_slot(self, title="Employees", callback=self.toggle_active)
         )
+        self.btn_open_sites.clicked.connect(
+            make_guarded_slot(self, title="Employees", callback=self._open_sites_workspace)
+        )
+        self.btn_open_departments.clicked.connect(
+            make_guarded_slot(self, title="Employees", callback=self._open_departments_workspace)
+        )
         self.table.itemSelectionChanged.connect(self._sync_actions)
         apply_permission_hint(
             self.btn_new_employee,
@@ -181,6 +210,16 @@ class EmployeeAdminTab(QWidget):
             self.btn_toggle_active,
             allowed=self._can_manage_employees,
             missing_permission="employee.manage",
+        )
+        apply_permission_hint(
+            self.btn_open_sites,
+            allowed=self._can_manage_settings,
+            missing_permission="settings.manage",
+        )
+        apply_permission_hint(
+            self.btn_open_departments,
+            allowed=self._can_manage_settings,
+            missing_permission="settings.manage",
         )
         self._sync_actions()
 
@@ -217,7 +256,12 @@ class EmployeeAdminTab(QWidget):
         self._sync_actions()
 
     def create_employee(self) -> None:
-        dlg = EmployeeEditDialog(parent=self)
+        self._reload_reference_options(show_feedback=False)
+        dlg = EmployeeEditDialog(
+            parent=self,
+            department_options=self._department_options,
+            site_options=self._site_options,
+        )
         while True:
             if dlg.exec() != QDialog.Accepted:
                 return
@@ -247,7 +291,13 @@ class EmployeeAdminTab(QWidget):
         if employee is None:
             QMessageBox.information(self, "Employees", "Please select an employee.")
             return
-        dlg = EmployeeEditDialog(parent=self, employee=employee)
+        self._reload_reference_options(show_feedback=False)
+        dlg = EmployeeEditDialog(
+            parent=self,
+            employee=employee,
+            department_options=self._department_options,
+            site_options=self._site_options,
+        )
         while True:
             if dlg.exec() != QDialog.Accepted:
                 return
@@ -312,16 +362,76 @@ class EmployeeAdminTab(QWidget):
     def _on_employees_changed(self, _employee_id: str) -> None:
         self.reload_employees()
 
+    def _on_reference_catalog_changed(self, _entity_id: str) -> None:
+        self._reload_reference_options(show_feedback=False)
+
     def _sync_actions(self) -> None:
         has_employee = self._selected_employee() is not None
         self.btn_new_employee.setEnabled(self._can_manage_employees)
         self.btn_edit_employee.setEnabled(self._can_manage_employees and has_employee)
         self.btn_toggle_active.setEnabled(self._can_manage_employees and has_employee)
+        self.btn_open_sites.setEnabled(self._can_manage_settings)
+        self.btn_open_departments.setEnabled(self._can_manage_settings)
 
     def _update_header_badges(self, rows: list[Employee]) -> None:
         active_count = sum(1 for row in rows if row.is_active)
         self.employee_count_badge.setText(f"{len(rows)} employees")
         self.employee_active_badge.setText(f"{active_count} active")
+        self.employee_reference_badge.setText(self._reference_status_text)
+
+    def _reload_reference_options(self, *, show_feedback: bool) -> None:
+        self._site_options = self._load_site_options(show_feedback=show_feedback)
+        self._department_options = self._load_department_options(show_feedback=show_feedback)
+        if self._site_service is None and self._department_service is None:
+            self._reference_status_text = "Shared refs: unavailable"
+        elif not self._can_manage_settings and not self._site_options and not self._department_options:
+            self._reference_status_text = "Shared refs: limited access"
+        else:
+            self._reference_status_text = (
+                f"Shared refs: {len(self._site_options)} sites / {len(self._department_options)} departments"
+            )
+        if hasattr(self, "employee_reference_badge"):
+            self.employee_reference_badge.setText(self._reference_status_text)
+
+    def _load_site_options(self, *, show_feedback: bool) -> list[str]:
+        if self._site_service is None:
+            return []
+        try:
+            return [site.name for site in self._site_service.list_sites(active_only=True)]
+        except BusinessRuleError:
+            return []
+        except Exception as exc:
+            if show_feedback:
+                QMessageBox.warning(self, "Employees", f"Unable to load shared sites: {exc}")
+            return []
+
+    def _load_department_options(self, *, show_feedback: bool) -> list[str]:
+        if self._department_service is None:
+            return []
+        try:
+            return [department.name for department in self._department_service.list_departments(active_only=True)]
+        except BusinessRuleError:
+            return []
+        except Exception as exc:
+            if show_feedback:
+                QMessageBox.warning(self, "Employees", f"Unable to load shared departments: {exc}")
+            return []
+
+    def _open_sites_workspace(self) -> None:
+        self._open_workspace("Sites")
+
+    def _open_departments_workspace(self) -> None:
+        self._open_workspace("Departments")
+
+    def _open_workspace(self, label: str) -> None:
+        main_window = self.window()
+        if main_window is not None and hasattr(main_window, "focus_workspace") and main_window.focus_workspace(label):
+            return
+        QMessageBox.information(
+            self,
+            "Employees",
+            f"The {label} workspace is not available in the current shell context.",
+        )
 
 
 __all__ = ["EmployeeAdminTab"]

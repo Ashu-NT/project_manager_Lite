@@ -263,6 +263,14 @@ class MainWindow(QMainWindow):
         if 0 <= index < self.tabs.count() and index != self.tabs.currentIndex():
             self.tabs.setCurrentIndex(index)
 
+    def focus_workspace(self, label: str) -> bool:
+        for index in range(self.tabs.count()):
+            if self.tabs.tabText(index) == label:
+                self.tabs.setCurrentIndex(index)
+                self.shell_navigation.set_current_index(index)
+                return True
+        return False
+
     def _toggle_navigation_visibility(self) -> None:
         self._navigation_auto_hidden = False
         self._navigation_preferred_visible = not self.shell_navigation.isVisible()
