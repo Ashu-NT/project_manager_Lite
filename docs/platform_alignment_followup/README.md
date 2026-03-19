@@ -40,6 +40,10 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - module-neutral `DomainChangeEvent` envelope for generic refresh and integration subscribers
   - additive `domain_changed` bridge that mirrors specific platform and module events without removing them
   - additive `shared_master_changed` bridge for shared reference/master-data refresh flows
+- Completed in the current slice:
+  - service registration now builds repository, platform, and `project_management` bundles separately under `infra/platform/service_registration`
+  - `infra/platform/services.py` now acts as a thin coordinator that assembles the stable `ServiceGraph`
+  - module-specific approval handler registration now lives with the `project_management` registration layer instead of the central service graph builder
 - Still intentionally transitional:
   - employees still store `site_name` as a compatibility string
   - approved/shared time entries still keep site and department snapshot strings
@@ -159,7 +163,7 @@ Non-goals for this slice:
 
 ### 6. Modular Service Registration
 
-Status: planned
+Status: completed
 
 Scope:
 
@@ -170,6 +174,12 @@ Acceptance notes:
 
 - shared platform services are assembled separately from business-module services
 - new modules can register cleanly without expanding one monolithic builder forever
+
+Non-goals for this slice:
+
+- no dynamic plugin discovery or runtime module auto-loading yet
+- no replacement of the stable `build_service_graph()` / `build_service_dict()` public entry points
+- no broad repository-layer rewrite beyond grouping the existing registration wiring
 
 ### 7. UI Alignment and Selector Migration
 

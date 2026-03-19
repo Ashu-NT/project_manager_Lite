@@ -41,6 +41,7 @@ from core.modules.project_management.services.work_calendar import WorkCalendarE
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine as LegacyWorkCalendarEngine
 from core.modules.project_management.services.work_calendar.service import WorkCalendarService as LegacyWorkCalendarService
 from infra.platform.services import ServiceGraph, build_service_graph
+from pathlib import Path
 
 
 def test_service_graph_builder_wires_all_services(session):
@@ -121,3 +122,24 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyReportingService is ReportingService
     assert LegacyBaselineService is BaselineService
     assert LegacyFinanceService is FinanceService
+
+
+def test_services_module_delegates_to_modular_registration_builders():
+    text = (Path(__file__).resolve().parents[1] / "infra" / "platform" / "services.py").read_text(
+        encoding="utf-8",
+        errors="ignore",
+    )
+
+    assert "from infra.platform.service_registration import (" in text
+    assert "build_repository_bundle(session)" in text
+    assert "build_platform_service_bundle(session, repositories)" in text
+    assert "build_project_management_service_bundle(" in text
+
+
+def test_service_registration_package_is_split_by_platform_and_module():
+    root = Path(__file__).resolve().parents[1] / "infra" / "platform" / "service_registration"
+
+    assert (root / "__init__.py").exists()
+    assert (root / "repositories.py").exists()
+    assert (root / "platform_bundle.py").exists()
+    assert (root / "project_management_bundle.py").exists()
