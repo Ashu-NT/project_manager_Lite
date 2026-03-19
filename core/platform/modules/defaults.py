@@ -88,6 +88,12 @@ DEFAULT_ENTERPRISE_MODULES: tuple[EnterpriseModule, ...] = (
         ),
     ),
     EnterpriseModule(
+        code="inventory_procurement",
+        label="Inventory & Procurement",
+        description="Item master, storerooms, stock control, purchasing, and receiving workflows.",
+        primary_capabilities=("items", "storerooms", "stock", "purchasing"),
+    ),
+    EnterpriseModule(
         code="maintenance_management",
         label="Maintenance Management",
         description="Assets, work orders, preventive maintenance, and downtime control.",

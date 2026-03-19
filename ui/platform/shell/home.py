@@ -67,7 +67,7 @@ class PlatformHomeTab(QWidget):
                 "platform_base": "Users, access, audit, approvals, employees, documents, inbox, notifications, settings.",
                 "licensed": "Project Management",
                 "available": "None",
-                "planned": "Maintenance Management, QHSE, HR Management",
+                "planned": "Inventory & Procurement, Maintenance Management, QHSE, HR Management",
             }
         if hasattr(self._platform_runtime_application_service, "snapshot"):
             context_snapshot = self._platform_runtime_application_service.snapshot()

@@ -8,6 +8,7 @@
   - shared business concerns such as auth, access, org, approval, audit, modules, notifications, and time
 - `core/modules/project_management/`
   - the current production-ready business module
+- `core/modules/inventory_procurement/`
 - `core/modules/maintenance_management/`
 - `core/modules/qhse/`
 - `core/modules/hr_management/`

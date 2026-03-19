@@ -18,6 +18,7 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
 
     assert catalog.is_enabled("project_management") is True
     assert catalog.is_licensed("project_management") is True
+    assert catalog.is_enabled("inventory_procurement") is False
     assert catalog.is_enabled("maintenance_management") is False
     assert catalog.is_enabled("qhse") is False
     assert catalog.is_enabled("hr_management") is False
@@ -25,6 +26,7 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
     assert [module.code for module in catalog.list_enabled_modules()] == ["project_management"]
     assert [module.code for module in catalog.list_licensed_modules()] == ["project_management"]
     assert {module.code for module in catalog.list_planned_modules()} == {
+        "inventory_procurement",
         "maintenance_management",
         "qhse",
         "hr_management",
@@ -89,6 +91,7 @@ def test_main_window_runtime_displays_module_summary(
     summary = window.shell_navigation.subtitle_label.text()
 
     assert "Project Management" in summary
+    assert "Inventory & Procurement" in summary
     assert "Maintenance Management" in summary
     assert "QHSE" in summary
     assert "HR Management" in summary

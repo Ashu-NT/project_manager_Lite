@@ -18,10 +18,11 @@ def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, rep
     window = MainWindow(services)
 
     assert window.tabs.tabBar().isHidden() is True
-    assert window.shell_navigation.tree.topLevelItemCount() == 5
-    assert [window.shell_navigation.tree.topLevelItem(i).text(0) for i in range(5)] == [
+    assert window.shell_navigation.tree.topLevelItemCount() == 6
+    assert [window.shell_navigation.tree.topLevelItem(i).text(0) for i in range(6)] == [
         "Platform",
         "Project Management",
+        "Inventory & Procurement",
         "Maintenance Management",
         "QHSE",
         "HR Management",
@@ -173,6 +174,7 @@ def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
     assert section_labels == [
         "Platform",
         "Project Management",
+        "Inventory & Procurement",
         "Maintenance Management",
         "QHSE",
         "HR Management",
