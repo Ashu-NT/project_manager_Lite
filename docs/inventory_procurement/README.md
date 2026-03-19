@@ -792,6 +792,20 @@ Exit criteria:
 - PO receiving can be partial
 - receipts update on-order and on-hand correctly
 
+### Slice 5A. Warehouse Execution Surface
+
+Build:
+
+- operational `Movements` workspace for `issue`, `return`, and `transfer`
+- keep `Stock` focused on positions and ledger history, not execution-only actions
+- keep `Reservations` as a separate commitment queue with issue/release/cancel actions
+
+Exit criteria:
+
+- warehouse users can execute issue, return, and transfer without editing balances directly
+- stock positions remain explainable from transaction history
+- operational execution remains separate from procurement and reservation review
+
 ### Slice 6. Maintenance Integration
 
 Build later:

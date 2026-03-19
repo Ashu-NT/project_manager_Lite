@@ -8,6 +8,7 @@ from application.platform import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
 from ui.modules.inventory_procurement import (
     InventoryItemsTab,
+    MovementsTab,
     PurchaseOrdersTab,
     ReceivingTab,
     ReservationsTab,
@@ -317,6 +318,24 @@ def build_workspace_definitions(
                 label="Reservations",
                 widget=ReservationsTab(
                     reservation_service=services["inventory_reservation_service"],
+                    item_service=services["inventory_item_service"],
+                    inventory_service=services["inventory_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Operations",
+                label="Movements",
+                widget=MovementsTab(
+                    stock_service=services["inventory_stock_service"],
                     item_service=services["inventory_item_service"],
                     inventory_service=services["inventory_service"],
                     platform_runtime_application_service=platform_runtime_application_service,

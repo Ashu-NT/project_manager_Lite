@@ -6,6 +6,7 @@ from uuid import uuid4
 from core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
 from ui.modules.inventory_procurement.items_tab import InventoryItemsTab
+from ui.modules.inventory_procurement.movements_tab import MovementsTab
 from ui.modules.inventory_procurement.purchase_orders_tab import PurchaseOrdersTab
 from ui.modules.inventory_procurement.receiving_tab import ReceivingTab
 from ui.modules.inventory_procurement.reservations_tab import ReservationsTab
@@ -371,6 +372,73 @@ def test_reservations_tab_shows_active_reservation_and_source_reference(qapp, se
     assert "Reserved 4.000" in tab.detail_quantities.text()
 
 
+def test_movements_tab_shows_issue_return_and_transfer_history(qapp, services):
+    _enable_inventory_module(services)
+    site, source, item, _supplier = _create_procurement_context(services)
+    register_and_login(services, username_prefix="inventory-ui-move", role_names=("inventory_manager",))
+    destination = services["inventory_service"].create_storeroom(
+        storeroom_code="SAT",
+        name="Satellite Stores",
+        site_id=site.id,
+        status="ACTIVE",
+    )
+    stock = services["inventory_stock_service"]
+    stock.post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=source.id,
+        quantity=8.0,
+        unit_cost=5.5,
+    )
+    stock.issue_stock(
+        stock_item_id=item.id,
+        storeroom_id=source.id,
+        quantity=2.0,
+        reference_type="work_order_issue",
+        reference_id="WO-110",
+    )
+    stock.return_stock(
+        stock_item_id=item.id,
+        storeroom_id=source.id,
+        quantity=1.0,
+        reference_type="work_order_return",
+        reference_id="WO-110",
+    )
+    stock.transfer_stock(
+        stock_item_id=item.id,
+        source_storeroom_id=source.id,
+        destination_storeroom_id=destination.id,
+        quantity=3.0,
+        notes="Move to satellite store",
+    )
+
+    tab = MovementsTab(
+        stock_service=stock,
+        item_service=services["inventory_item_service"],
+        inventory_service=services["inventory_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 4
+    assert tab.count_badge.text() == "4 movements"
+    assert tab.issue_badge.text() == "1 issues"
+    assert tab.transfer_badge.text() == "2 transfers"
+
+    row_types = {tab.table.item(row, 1).text() for row in range(tab.table.rowCount())}
+    assert row_types == {"Issue", "Return", "Transfer Out", "Transfer In"}
+
+    for row in range(tab.table.rowCount()):
+        if tab.table.item(row, 1).text() == "Transfer Out":
+            tab.table.selectRow(row)
+            break
+    qapp.processEvents()
+
+    assert tab.detail_name.text() == "Transfer Out"
+    assert tab.detail_storeroom.text() == f"{source.storeroom_code} - {source.name}"
+    assert tab.detail_reference.text().startswith("stock_transfer: INV-TRF-")
+    assert "On hand" in tab.detail_result.text()
+
+
 def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     qapp,
     services,
@@ -389,6 +457,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     assert "Items" in labels
     assert "Storerooms" in labels
     assert "Stock" in labels
+    assert "Movements" in labels
     assert "Reservations" in labels
     assert "Requisitions" in labels
     assert "Purchase Orders" in labels
@@ -398,7 +467,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     assert inventory_section.text(0) == "Inventory & Procurement"
     assert _child_labels(inventory_section) == ["Master Data", "Operations", "Procurement"]
     assert _child_labels(inventory_section.child(0)) == ["Items", "Storerooms"]
-    assert _child_labels(inventory_section.child(1)) == ["Reservations", "Stock"]
+    assert _child_labels(inventory_section.child(1)) == ["Reservations", "Movements", "Stock"]
     assert _child_labels(inventory_section.child(2)) == ["Requisitions", "Purchase Orders", "Receiving"]
 
 
@@ -412,6 +481,7 @@ def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():
         (inventory_ui / "reservations_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "requisitions_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "storerooms_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "movements_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "stock_tab.py").read_text(encoding="utf-8", errors="ignore"),
     ]
 
