@@ -10,6 +10,7 @@ from ui.platform.admin.access.tab import AccessTab
 from ui.platform.admin.employees.tab import EmployeeAdminTab
 from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.organizations.tab import OrganizationAdminTab
+from ui.platform.admin.sites.tab import SiteAdminTab
 from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.audit.tab import AuditLogTab
 from ui.modules.project_management.calendar.tab import CalendarTab
@@ -310,6 +311,21 @@ def build_workspace_definitions(
                 widget=OrganizationAdminTab(
                     platform_runtime_application_service=services["platform_runtime_application_service"],
                     organization_service=services["organization_service"],
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if _has_permission(user_session, "settings.manage"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
+                label="Sites",
+                widget=SiteAdminTab(
+                    site_service=services["site_service"],
                     user_session=user_session,
                     parent=parent,
                 ),

@@ -22,6 +22,22 @@ This migration must preserve the current PM workflows while introducing platform
 - Keep all existing tests for PM, enterprise PM, and shell navigation passing at each phase.
 - Treat `auth`, `access`, `audit`, `approval`, `attachments`, `notifications`, and module entitlement as platform concerns.
 
+## Cross-Platform Sharing Rules
+
+This platform should be governed by one core rule:
+
+**share enterprise capabilities, not business ownership.**
+
+That means:
+
+- shared capabilities live once and are reused everywhere
+- business workflows stay inside the module that owns them
+- module ownership is defined by business workflow truth, not by which module happens to consume the data most
+- modules integrate through contracts, references, and events
+- shared masters stay platform-owned unless they are explicitly designated as module-owned
+- direct cross-module schema ownership and duplicated master data should be avoided
+- no module should quietly become a second platform
+
 ## Platform End-State
 
 ## Recommended Repository Shape
@@ -77,16 +93,16 @@ Why this structure is preferred:
 
 ### Shared Platform Capabilities
 
-- identity and RBAC
-- module catalog and entitlement
-- organization, site, department, employee master data
-- shared party master for suppliers, manufacturers, vendors, and contractors
-- approvals and workflow
-- audit log
-- notifications and inbox
-- documents and attachments
-- shared timesheets
-- shared reporting primitives
+- identity and access: `auth`, sessions, RBAC, permissions, entitlement, and workspace visibility stay platform-owned so every module uses one access model
+- organization structure: organization, site, department, and employee master data stay shared so permissions, reporting, and runtime context do not drift per module
+- department ownership note: `department` starts shared; if workforce complexity later becomes HR-owned, the platform should still keep a stable reference model for all modules
+- party master: platform owns party identity; modules own their operational relationships to suppliers, manufacturers, vendors, contractors, and service providers
+- documents and attachments: platform owns storage, metadata, versioning support, attachment plumbing, and object-linking infrastructure
+- audit and traceability: platform owns common audit format, entity and status transition traceability, and future correlation support
+- approvals and workflow: platform owns approval request creation, routing, assignment, and decision infrastructure
+- notifications and inbox: platform owns the awareness layer, while action screens remain module-owned
+- shared timesheets: platform owns the shared time boundary so PM, Maintenance, and HR Management can consume approved time consistently
+- shared reporting primitives: platform owns the reporting framework, shared filters, and export patterns
 
 ### Business Modules
 
@@ -95,6 +111,19 @@ Why this structure is preferred:
 - `maintenance_management`: assets, work orders, preventive maintenance, downtime
 - `qhse`: incidents, inspections, audits, CAPA, permits, compliance
 - `hr_management`: employee operations, approved time intake, payroll preparation, approval, and export
+
+## Cross-Module Integration Pattern
+
+The implementation direction for business-module collaboration should stay explicit:
+
+- inventory, maintenance, HR Management, and QHSE should consume shared platform capabilities without reimplementing them
+- reference shared or external records by stable IDs and business keys rather than duplicating master data
+- use domain events for cross-module refresh, synchronization, and awareness signals
+- avoid direct table ownership crossover even when modules are tightly related
+- avoid embedding inventory, HR, QHSE, or platform workflow logic inside maintenance services
+- keep read and write boundaries module-owned even when UI flows deep-link across modules
+
+The concrete implementation tracker for bringing the current codebase in line with these rules lives in `docs/platform_alignment_followup/README.md`.
 
 ## Concrete Execution Order
 

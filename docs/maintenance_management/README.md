@@ -98,6 +98,19 @@ Recommended ownership split:
 
 This matches the module-oriented direction of the repo better than treating inventory and procurement as low-level platform utilities.
 
+### Cross-Module Boundary Rules
+
+The maintenance design should follow a stricter ownership model so implementation stays scalable:
+
+- `maintenance_management` owns maintenance truth: requests, work orders, PM plans, execution records, downtime, and reliability context
+- `inventory_procurement` owns stock truth: items, storerooms, balances, movements, reservations, requisitions, purchase orders, and receiving
+- `platform` owns enterprise shared services and reference masters: auth, organization and site context, party master, document plumbing, approvals, audit, notifications, and shared time
+- cross-module integrations should use stable references, business keys, and domain events rather than copied master data
+- documents are shared infrastructure, but maintenance owns the operational meaning of those documents and how they are linked into maintenance workflows
+- party records are shared identities, but maintenance owns vendor, supplier, and manufacturer usage across assets, components, plans, and work
+- notifications remain awareness-only; operational action stays in module queues, planners, boards, and detail screens
+- implementation should avoid embedding inventory, HR, or platform workflow logic inside maintenance services and should keep module-owned read/write boundaries explicit even when UI flows link across modules
+
 ## Benchmark Patterns From Established CMMS
 
 When compared with well-known CMMS products such as IBM Maximo, Fiix, MaintainX, and UpKeep, the most important patterns to preserve are:

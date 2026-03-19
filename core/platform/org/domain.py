@@ -43,6 +43,33 @@ class Organization:
 
 
 @dataclass
+class Site:
+    id: str
+    organization_id: str
+    site_code: str
+    display_name: str
+    is_active: bool = True
+    version: int = 1
+
+    @staticmethod
+    def create(
+        organization_id: str,
+        site_code: str,
+        display_name: str,
+        *,
+        is_active: bool = True,
+    ) -> "Site":
+        return Site(
+            id=generate_id(),
+            organization_id=organization_id,
+            site_code=site_code,
+            display_name=display_name,
+            is_active=is_active,
+            version=1,
+        )
+
+
+@dataclass
 class Employee:
     id: str
     employee_code: str
@@ -82,4 +109,4 @@ class Employee:
             version=1,
         )
 
-__all__ = ["Employee", "EmploymentType", "Organization"]
+__all__ = ["Employee", "EmploymentType", "Organization", "Site"]

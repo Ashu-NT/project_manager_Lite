@@ -71,7 +71,11 @@ from infra.platform.db.repositories_auth import (
     SqlAlchemyUserRoleRepository,
 )
 from infra.platform.db.modules import SqlAlchemyModuleEntitlementRepository
-from infra.platform.db.repositories_org import SqlAlchemyEmployeeRepository, SqlAlchemyOrganizationRepository
+from infra.platform.db.repositories_org import (
+    SqlAlchemyEmployeeRepository,
+    SqlAlchemyOrganizationRepository,
+    SqlAlchemySiteRepository,
+)
 
 __all__ = [
     "project_to_orm",
@@ -126,6 +130,7 @@ __all__ = [
     "SqlAlchemyUserRepository",
     "SqlAlchemyEmployeeRepository",
     "SqlAlchemyOrganizationRepository",
+    "SqlAlchemySiteRepository",
     "SqlAlchemyModuleEntitlementRepository",
     "SqlAlchemyRoleRepository",
     "SqlAlchemyPermissionRepository",

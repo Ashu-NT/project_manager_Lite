@@ -5,15 +5,17 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import EmployeeRepository, OrganizationRepository
-from core.platform.common.models import Employee, Organization
-from infra.platform.db.models import EmployeeORM, OrganizationORM
+from core.platform.common.interfaces import EmployeeRepository, OrganizationRepository, SiteRepository
+from core.platform.common.models import Employee, Organization, Site
+from infra.platform.db.models import EmployeeORM, OrganizationORM, SiteORM
 from infra.platform.db.optimistic import update_with_version_check
 from infra.platform.db.org.mapper import (
     employee_from_orm,
     employee_to_orm,
     organization_from_orm,
     organization_to_orm,
+    site_from_orm,
+    site_to_orm,
 )
 
 
@@ -108,4 +110,51 @@ class SqlAlchemyOrganizationRepository(OrganizationRepository):
         return [organization_from_orm(row) for row in rows]
 
 
-__all__ = ["SqlAlchemyEmployeeRepository", "SqlAlchemyOrganizationRepository"]
+class SqlAlchemySiteRepository(SiteRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, site: Site) -> None:
+        self.session.add(site_to_orm(site))
+
+    def update(self, site: Site) -> None:
+        site.version = update_with_version_check(
+            self.session,
+            SiteORM,
+            site.id,
+            getattr(site, "version", 1),
+            {
+                "site_code": site.site_code,
+                "display_name": site.display_name,
+                "is_active": site.is_active,
+            },
+            not_found_message="Site not found.",
+            stale_message="Site was updated by another user.",
+        )
+
+    def get(self, site_id: str) -> Optional[Site]:
+        obj = self.session.get(SiteORM, site_id)
+        return site_from_orm(obj) if obj else None
+
+    def get_by_code(self, organization_id: str, site_code: str) -> Optional[Site]:
+        stmt = select(SiteORM).where(
+            SiteORM.organization_id == organization_id,
+            SiteORM.site_code == site_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return site_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+    ) -> List[Site]:
+        stmt = select(SiteORM).where(SiteORM.organization_id == organization_id)
+        if active_only is not None:
+            stmt = stmt.where(SiteORM.is_active == bool(active_only))
+        rows = self.session.execute(stmt.order_by(SiteORM.display_name.asc())).scalars().all()
+        return [site_from_orm(row) for row in rows]
+
+
+__all__ = ["SqlAlchemyEmployeeRepository", "SqlAlchemyOrganizationRepository", "SqlAlchemySiteRepository"]

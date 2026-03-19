@@ -38,6 +38,7 @@ from .models import (
     UserRoleBinding,
     Employee,
     Organization,
+    Site,
 )
 
 
@@ -313,6 +314,24 @@ class OrganizationRepository(ABC):
     def get_active(self) -> Optional[Organization]: ...
     @abstractmethod
     def list_all(self, *, active_only: bool | None = None) -> List[Organization]: ...
+
+
+class SiteRepository(ABC):
+    @abstractmethod
+    def add(self, site: Site) -> None: ...
+    @abstractmethod
+    def update(self, site: Site) -> None: ...
+    @abstractmethod
+    def get(self, site_id: str) -> Optional[Site]: ...
+    @abstractmethod
+    def get_by_code(self, organization_id: str, site_code: str) -> Optional[Site]: ...
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+    ) -> List[Site]: ...
 
 
 class RoleRepository(ABC):

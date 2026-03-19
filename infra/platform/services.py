@@ -21,7 +21,7 @@ from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
-from core.platform.org import EmployeeService, OrganizationService
+from core.platform.org import EmployeeService, OrganizationService, SiteService
 from core.platform.time import TimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -53,6 +53,7 @@ from infra.platform.db.repositories import (
     SqlAlchemyRoleRepository,
     SqlAlchemyEmployeeRepository,
     SqlAlchemyOrganizationRepository,
+    SqlAlchemySiteRepository,
     SqlAlchemyModuleEntitlementRepository,
     SqlAlchemyResourceRepository,
     SqlAlchemyTaskRepository,
@@ -110,6 +111,7 @@ class ServiceGraph:
     time_service: TimeService
     auth_service: AuthService
     organization_service: OrganizationService
+    site_service: SiteService
     employee_service: EmployeeService
     access_service: AccessControlService
     audit_service: AuditService
@@ -144,6 +146,7 @@ class ServiceGraph:
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
+            "site_service": self.site_service,
             "employee_service": self.employee_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
@@ -177,6 +180,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     resource_repo = SqlAlchemyResourceRepository(session)
     employee_repo = SqlAlchemyEmployeeRepository(session)
     organization_repo = SqlAlchemyOrganizationRepository(session)
+    site_repo = SqlAlchemySiteRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
     time_entry_repo = SqlAlchemyTimeEntryRepository(session)
     timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(session)
@@ -233,6 +237,13 @@ def build_service_graph(session: Session) -> ServiceGraph:
         audit_service=audit_service,
     )
     organization_service.bootstrap_defaults()
+    site_service = SiteService(
+        session=session,
+        site_repo=site_repo,
+        organization_repo=organization_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
 
     def _active_organization():
         return organization_repo.get_active()
@@ -547,6 +558,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         time_service=time_service,
         auth_service=auth_service,
         organization_service=organization_service,
+        site_service=site_service,
         employee_service=employee_service,
         access_service=access_service,
         audit_service=audit_service,

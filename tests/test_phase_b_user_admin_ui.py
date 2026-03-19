@@ -9,6 +9,7 @@ from tests.ui_runtime_helpers import make_settings_store
 from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
 from ui.platform.admin.organizations.tab import OrganizationAdminTab
+from ui.platform.admin.sites.tab import SiteAdminTab
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
 from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.audit.tab import AuditLogTab
@@ -33,6 +34,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Users" in labels
     assert "Employees" in labels
     assert "Organizations" in labels
+    assert "Sites" in labels
     assert "Access" in labels
     assert "Audit" in labels
     assert "Support" in labels
@@ -109,7 +111,7 @@ def test_module_licensing_tab_runtime_toggles_project_management_enablement(qapp
         user_session=services["user_session"],
     )
 
-    assert tab.table.rowCount() == 4
+    assert tab.table.rowCount() == 5
     assert tab.context_badge.text() == "Context: Default Organization"
     assert tab.licensed_badge.text() == "1 licensed"
     assert tab.runtime_badge.text() == "1 runtime"
@@ -178,6 +180,22 @@ def test_organization_edit_dialog_defaults_initial_module_selection(qapp, servic
     )
 
     assert dialog.initial_module_codes == ["project_management"]
+
+
+def test_site_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
+    tab = SiteAdminTab(
+        site_service=services["site_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 0
+    assert tab.site_context_badge.text() == "Context: Default Organization"
+    assert tab.site_count_badge.text() == "0 sites"
+    assert tab.site_active_badge.text() == "0 active"
+    assert tab.site_access_badge.text() == "Manage Enabled"
+    assert tab.btn_new_site.isEnabled() is True
+    assert tab.btn_edit_site.isEnabled() is False
+    assert tab.btn_toggle_active.isEnabled() is False
 
 
 def test_organization_admin_tab_creates_organization_with_initial_module_mix(qapp, services, monkeypatch):
