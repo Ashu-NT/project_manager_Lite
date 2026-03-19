@@ -5,11 +5,13 @@ from datetime import datetime
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
     QHBoxLayout,
     QHeaderView,
     QLabel,
     QMessageBox,
     QPushButton,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -163,9 +165,13 @@ class StockTab(QWidget):
         controls_layout.addLayout(action_row)
         root.addWidget(controls)
 
-        balances_title = QLabel("Stock Positions")
-        balances_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
-        root.addWidget(balances_title)
+        self.work_tabs = QTabWidget()
+        self.work_tabs.setObjectName("inventoryStockWorkTabs")
+
+        positions_page = QWidget()
+        positions_layout = QVBoxLayout(positions_page)
+        positions_layout.setContentsMargins(0, 0, 0, 0)
+        positions_layout.setSpacing(CFG.SPACING_SM)
 
         self.balance_table = QTableWidget(0, 8)
         self.balance_table.setHorizontalHeaderLabels(
@@ -180,11 +186,12 @@ class StockTab(QWidget):
         balance_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
         for index in range(2, 8):
             balance_header.setSectionResizeMode(index, QHeaderView.ResizeToContents)
-        root.addWidget(self.balance_table, 1)
+        positions_layout.addWidget(self.balance_table, 1)
 
-        transactions_title = QLabel("Transaction History")
-        transactions_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
-        root.addWidget(transactions_title)
+        transactions_page = QWidget()
+        transactions_layout = QVBoxLayout(transactions_page)
+        transactions_layout.setContentsMargins(0, 0, 0, 0)
+        transactions_layout.setSpacing(CFG.SPACING_SM)
 
         self.transaction_table = QTableWidget(0, 7)
         self.transaction_table.setHorizontalHeaderLabels(
@@ -202,7 +209,11 @@ class StockTab(QWidget):
         txn_header.setSectionResizeMode(4, QHeaderView.Stretch)
         txn_header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
         txn_header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
-        root.addWidget(self.transaction_table, 1)
+        transactions_layout.addWidget(self.transaction_table, 1)
+
+        self.work_tabs.addTab(positions_page, "Stock Positions")
+        self.work_tabs.addTab(transactions_page, "Transaction History")
+        root.addWidget(self.work_tabs, 1)
 
         self.item_filter.currentIndexChanged.connect(lambda _index: self.reload_stock())
         self.storeroom_filter.currentIndexChanged.connect(lambda _index: self.reload_stock())
@@ -279,7 +290,7 @@ class StockTab(QWidget):
             parent=self,
         )
         while True:
-            if dialog.exec() != dialog.Accepted:
+            if dialog.exec() != QDialog.Accepted:
                 return
             try:
                 self._stock_service.post_opening_balance(
@@ -305,7 +316,7 @@ class StockTab(QWidget):
             parent=self,
         )
         while True:
-            if dialog.exec() != dialog.Accepted:
+            if dialog.exec() != QDialog.Accepted:
                 return
             try:
                 self._stock_service.post_adjustment(

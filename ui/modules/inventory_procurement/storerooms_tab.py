@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
@@ -313,7 +314,7 @@ class StoreroomsTab(QWidget):
             parent=self,
         )
         while True:
-            if dialog.exec() != dialog.Accepted:
+            if dialog.exec() != QDialog.Accepted:
                 return
             try:
                 self._inventory_service.create_storeroom(
@@ -351,7 +352,7 @@ class StoreroomsTab(QWidget):
             parent=self,
         )
         while True:
-            if dialog.exec() != dialog.Accepted:
+            if dialog.exec() != QDialog.Accepted:
                 return
             try:
                 self._inventory_service.update_storeroom(

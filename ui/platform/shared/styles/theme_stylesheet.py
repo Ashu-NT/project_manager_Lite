@@ -209,7 +209,7 @@ def base_stylesheet() -> str:
     QPushButton:focus {{
         border: 2px solid {CFG.COLOR_ACCENT_HOVER};
     }}
-    QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QTextEdit {{
+    QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit, QTextEdit, QPlainTextEdit {{
         background-color: {CFG.COLOR_BG_SURFACE};
         border: 1px solid {CFG.COLOR_BORDER};
         border-radius: 10px;
@@ -218,7 +218,7 @@ def base_stylesheet() -> str:
         selection-background-color: {CFG.COLOR_ACCENT_SOFT};
         selection-color: {CFG.COLOR_TEXT_PRIMARY};
     }}
-    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus, QTextEdit:focus {{
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus, QTextEdit:focus, QPlainTextEdit:focus {{
         border: 1px solid {CFG.COLOR_ACCENT};
     }}
     QComboBox::drop-down {{

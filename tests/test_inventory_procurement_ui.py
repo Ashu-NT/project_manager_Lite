@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from ui.modules.inventory_procurement.items_tab import InventoryItemsTab
 from ui.modules.inventory_procurement.stock_tab import StockTab
 from ui.platform.shell.main_window import MainWindow
+from ui.platform.shared.styles.theme import base_stylesheet
 
 
 def _child_labels(item) -> list[str]:
@@ -95,6 +98,9 @@ def test_stock_tab_shows_balance_and_transaction_history(qapp, services):
         user_session=services["user_session"],
     )
 
+    assert tab.work_tabs.count() == 2
+    assert tab.work_tabs.tabText(0) == "Stock Positions"
+    assert tab.work_tabs.tabText(1) == "Transaction History"
     assert tab.balance_table.rowCount() == 1
     assert tab.balance_count_badge.text() == "1 balances"
     assert tab.on_hand_badge.text() == "On hand: 14.000"
@@ -133,3 +139,23 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     assert _child_labels(inventory_section) == ["Master Data", "Operations"]
     assert _child_labels(inventory_section.child(0)) == ["Items", "Storerooms"]
     assert _child_labels(inventory_section.child(1)) == ["Stock"]
+
+
+def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():
+    root = Path(__file__).resolve().parents[1]
+    inventory_ui = root / "ui" / "modules" / "inventory_procurement"
+    texts = [
+        (inventory_ui / "items_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "storerooms_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "stock_tab.py").read_text(encoding="utf-8", errors="ignore"),
+    ]
+
+    assert all("dialog.Accepted" not in text for text in texts)
+    assert all("QDialog.Accepted" in text for text in texts)
+
+
+def test_base_stylesheet_explicitly_styles_qplaintextedit_note_surfaces():
+    css = base_stylesheet()
+
+    assert "QPlainTextEdit" in css
+    assert "QPlainTextEdit:focus" in css
