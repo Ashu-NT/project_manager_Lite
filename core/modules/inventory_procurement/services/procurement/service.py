@@ -304,6 +304,127 @@ class ProcurementService:
         domain_events.inventory_requisitions_changed.emit(requisition.id)
         return requisition
 
+    def update_requisition(
+        self,
+        requisition_id: str,
+        *,
+        requesting_site_id: str | None = None,
+        requesting_storeroom_id: str | None = None,
+        purpose: str | None = None,
+        needed_by_date: date | None = None,
+        priority: str | None = None,
+        source_reference_type: str | None = None,
+        source_reference_id: str | None = None,
+        notes: str | None = None,
+        expected_version: int | None = None,
+    ) -> PurchaseRequisition:
+        self._require_manage("update purchase requisition")
+        requisition = self._require_draft_requisition(requisition_id)
+        if expected_version is not None and requisition.version != expected_version:
+            raise ConcurrencyError(
+                "Purchase requisition changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+        organization = self._active_organization()
+        next_site_id = normalize_optional_text(requesting_site_id) or requisition.requesting_site_id
+        next_storeroom_id = normalize_optional_text(requesting_storeroom_id) or requisition.requesting_storeroom_id
+        storeroom = self._inventory_service.get_storeroom(next_storeroom_id)
+        if not storeroom.is_active:
+            raise ValidationError(
+                "Requesting storeroom must be active.",
+                code="INVENTORY_REQUISITION_STOREROOM_INACTIVE",
+            )
+        if storeroom.site_id != next_site_id:
+            raise ValidationError(
+                "Requesting storeroom must belong to the selected site.",
+                code="INVENTORY_REQUISITION_SITE_STOREROOM_MISMATCH",
+            )
+        if storeroom.organization_id != organization.id:
+            raise ValidationError(
+                "Requesting storeroom must belong to the active organization.",
+                code="INVENTORY_REQUISITION_STOREROOM_SCOPE_INVALID",
+            )
+        requisition.requesting_site_id = next_site_id
+        requisition.requesting_storeroom_id = next_storeroom_id
+        if purpose is not None:
+            requisition.purpose = normalize_optional_text(purpose)
+        requisition.needed_by_date = needed_by_date
+        if priority is not None:
+            requisition.priority = _normalize_priority(priority)
+        if source_reference_type is not None:
+            requisition.source_reference_type = normalize_optional_text(source_reference_type)
+        if source_reference_id is not None:
+            requisition.source_reference_id = normalize_optional_text(source_reference_id)
+        if notes is not None:
+            requisition.notes = normalize_optional_text(notes)
+        requisition.updated_at = datetime.now(timezone.utc)
+        try:
+            self._requisition_repo.update(requisition)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="inventory_requisition.update",
+            entity_type="purchase_requisition",
+            entity_id=requisition.id,
+            details={
+                "requisition_number": requisition.requisition_number,
+                "site_id": requisition.requesting_site_id,
+                "storeroom_id": requisition.requesting_storeroom_id,
+                "priority": requisition.priority,
+            },
+        )
+        domain_events.inventory_requisitions_changed.emit(requisition.id)
+        return requisition
+
+    def cancel_requisition(
+        self,
+        requisition_id: str,
+        *,
+        note: str = "",
+        expected_version: int | None = None,
+    ) -> PurchaseRequisition:
+        self._require_manage("cancel purchase requisition")
+        requisition = self._require_draft_requisition(requisition_id)
+        if expected_version is not None and requisition.version != expected_version:
+            raise ConcurrencyError(
+                "Purchase requisition changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+        validate_transition(
+            current_status=requisition.status.value,
+            next_status=PurchaseRequisitionStatus.CANCELLED.value,
+            transitions=REQUISITION_STATUS_TRANSITIONS,
+        )
+        effective_at = datetime.now(timezone.utc)
+        requisition.status = PurchaseRequisitionStatus.CANCELLED
+        requisition.cancelled_at = effective_at
+        requisition.updated_at = effective_at
+        lines = self._requisition_line_repo.list_for_requisition(requisition.id)
+        for line in lines:
+            line.status = PurchaseRequisitionLineStatus.CANCELLED
+            self._requisition_line_repo.update(line)
+        try:
+            self._requisition_repo.update(requisition)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="inventory_requisition.cancel",
+            entity_type="purchase_requisition",
+            entity_id=requisition.id,
+            details={
+                "requisition_number": requisition.requisition_number,
+                "note": normalize_optional_text(note),
+            },
+        )
+        domain_events.inventory_requisitions_changed.emit(requisition.id)
+        return requisition
+
     def apply_submitted_requisition_approval(self, request: ApprovalRequest) -> None:
         requisition = self._requisition_repo.get(request.entity_id)
         if requisition is None:

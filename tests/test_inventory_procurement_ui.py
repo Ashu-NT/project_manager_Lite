@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
+from ui.modules.inventory_procurement.item_dialogs import InventoryItemEditDialog
 from ui.modules.inventory_procurement.items_tab import InventoryItemsTab
 from ui.modules.inventory_procurement.movements_tab import MovementsTab
 from ui.modules.inventory_procurement.purchase_orders_tab import PurchaseOrdersTab
@@ -12,6 +13,7 @@ from ui.modules.inventory_procurement.receiving_tab import ReceivingTab
 from ui.modules.inventory_procurement.reservations_tab import ReservationsTab
 from ui.modules.inventory_procurement.requisitions_tab import RequisitionsTab
 from ui.modules.inventory_procurement.stock_tab import StockTab
+from ui.modules.inventory_procurement.storeroom_dialogs import StoreroomEditDialog
 from ui.platform.shell.main_window import MainWindow
 from ui.platform.shared.styles.theme import base_stylesheet
 
@@ -162,6 +164,26 @@ def test_inventory_items_tab_shows_platform_referenced_supplier_context(qapp, se
     assert tab.detail_documents.text() == "No linked documents"
 
 
+def test_new_item_and_storeroom_dialogs_default_to_active_status(qapp, services):
+    site = services["site_service"].create_site(site_code="UID", name="UI Defaults", currency_code="EUR")
+    supplier = services["party_service"].create_party(
+        party_code="SUP-UID",
+        party_name="UI Default Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+
+    item_dialog = InventoryItemEditDialog(
+        party_options=[("SUP-UID - UI Default Supplier", supplier.id)],
+    )
+    storeroom_dialog = StoreroomEditDialog(
+        site_options=[("UID - UI Defaults", site.id)],
+        manager_options=[("SUP-UID - UI Default Supplier", supplier.id)],
+    )
+
+    assert item_dialog.status == "ACTIVE"
+    assert storeroom_dialog.status == "ACTIVE"
+
+
 def test_stock_tab_shows_balance_and_transaction_history(qapp, services):
     _enable_inventory_module(services)
     site = services["site_service"].create_site(site_code="HAM", name="Hamburg Warehouse")
@@ -255,6 +277,68 @@ def test_requisitions_tab_shows_demand_lines_and_shared_context(qapp, services):
     assert tab.detail_storeroom.text() == f"{storeroom.storeroom_code} - {storeroom.name}"
     assert tab.lines_table.rowCount() == 1
     assert item.item_code in tab.lines_table.item(0, 1).text()
+
+
+def test_requisition_and_purchase_order_tabs_enable_draft_edit_actions(qapp, services):
+    _enable_inventory_module(services)
+    site, storeroom, item, supplier = _create_procurement_context(services)
+    register_and_login(services, username_prefix="inventory-ui-edit", role_names=("inventory_manager",))
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="Editable requisition",
+    )
+    procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=2,
+        suggested_supplier_party_id=supplier.id,
+    )
+
+    requisitions_tab = RequisitionsTab(
+        procurement_service=procurement,
+        item_service=services["inventory_item_service"],
+        inventory_service=services["inventory_service"],
+        reference_service=services["inventory_reference_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    requisitions_tab.table.selectRow(0)
+    qapp.processEvents()
+
+    assert requisitions_tab.btn_edit.isEnabled()
+    assert requisitions_tab.btn_cancel.isEnabled()
+
+    purchase_order = purchasing.create_purchase_order(
+        site_id=site.id,
+        supplier_party_id=supplier.id,
+        currency_code="EUR",
+    )
+    purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=2,
+        unit_price=45.0,
+    )
+
+    purchase_orders_tab = PurchaseOrdersTab(
+        purchasing_service=purchasing,
+        procurement_service=procurement,
+        item_service=services["inventory_item_service"],
+        inventory_service=services["inventory_service"],
+        reference_service=services["inventory_reference_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    purchase_orders_tab.table.selectRow(0)
+    qapp.processEvents()
+
+    assert purchase_orders_tab.btn_edit.isEnabled()
+    assert purchase_orders_tab.btn_cancel.isEnabled()
 
 
 def test_purchase_orders_tab_shows_line_and_source_requisition(qapp, services):

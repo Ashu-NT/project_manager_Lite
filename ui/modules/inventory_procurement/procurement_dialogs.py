@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui.platform.shared.styles.style_utils import style_table
+from core.modules.inventory_procurement.domain import PurchaseOrder, PurchaseRequisition
 
 _REQUISITION_PRIORITIES = ("LOW", "NORMAL", "HIGH", "URGENT")
 
@@ -46,13 +47,16 @@ class RequisitionEditDialog(QDialog):
         *,
         site_options: list[tuple[str, str]],
         storeroom_options: list[tuple[str, str, str]],
+        requisition: PurchaseRequisition | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
+        self._requisition = requisition
         self._storeroom_options = list(storeroom_options)
-        self.setWindowTitle("New Purchase Requisition")
+        self.setWindowTitle("Edit Purchase Requisition" if requisition is not None else "New Purchase Requisition")
         self.resize(520, 460)
         self._setup_ui(site_options=site_options)
+        self._load_requisition()
 
     def _setup_ui(self, *, site_options: list[tuple[str, str]]) -> None:
         root = QVBoxLayout(self)
@@ -98,13 +102,27 @@ class RequisitionEditDialog(QDialog):
         self.use_needed_by_check.toggled.connect(self.needed_by_edit.setEnabled)
         self._reload_storerooms()
 
+    def _load_requisition(self) -> None:
+        requisition = self._requisition
+        if requisition is None:
+            return
+        _set_combo_to_data(self.site_combo, requisition.requesting_site_id)
+        self._reload_storerooms()
+        _set_combo_to_data(self.storeroom_combo, requisition.requesting_storeroom_id)
+        self.priority_combo.setCurrentText(requisition.priority or "NORMAL")
+        self.purpose_edit.setText(requisition.purpose)
+        _set_optional_date(self.needed_by_edit, self.use_needed_by_check, requisition.needed_by_date)
+        self.notes_edit.setPlainText(requisition.notes)
+
     def _reload_storerooms(self) -> None:
         site_id = self.site_id
+        current_storeroom_id = self.storeroom_id
         self.storeroom_combo.blockSignals(True)
         self.storeroom_combo.clear()
         for label, storeroom_id, option_site_id in self._storeroom_options:
             if option_site_id == site_id:
                 self.storeroom_combo.addItem(label, storeroom_id)
+        _set_combo_to_data(self.storeroom_combo, current_storeroom_id)
         self.storeroom_combo.blockSignals(False)
 
     @property
@@ -243,16 +261,19 @@ class PurchaseOrderEditDialog(QDialog):
         site_options: list[tuple[str, str]],
         supplier_options: list[tuple[str, str]],
         requisition_options: list[tuple[str, str]],
+        purchase_order: PurchaseOrder | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("New Purchase Order")
+        self._purchase_order = purchase_order
+        self.setWindowTitle("Edit Purchase Order" if purchase_order is not None else "New Purchase Order")
         self.resize(540, 520)
         self._setup_ui(
             site_options=site_options,
             supplier_options=supplier_options,
             requisition_options=requisition_options,
         )
+        self._load_purchase_order()
 
     def _setup_ui(
         self,
@@ -308,6 +329,22 @@ class PurchaseOrderEditDialog(QDialog):
         root.addWidget(buttons)
 
         self.use_expected_delivery_check.toggled.connect(self.expected_delivery_edit.setEnabled)
+
+    def _load_purchase_order(self) -> None:
+        purchase_order = self._purchase_order
+        if purchase_order is None:
+            return
+        _set_combo_to_data(self.site_combo, purchase_order.site_id)
+        _set_combo_to_data(self.supplier_combo, purchase_order.supplier_party_id)
+        _set_combo_to_data(self.source_requisition_combo, purchase_order.source_requisition_id or "")
+        self.currency_code_edit.setText(purchase_order.currency_code)
+        _set_optional_date(
+            self.expected_delivery_edit,
+            self.use_expected_delivery_check,
+            purchase_order.expected_delivery_date,
+        )
+        self.supplier_reference_edit.setText(purchase_order.supplier_reference)
+        self.notes_edit.setPlainText(purchase_order.notes)
 
     @property
     def site_id(self) -> str:

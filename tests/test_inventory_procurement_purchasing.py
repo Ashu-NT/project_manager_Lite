@@ -226,3 +226,64 @@ def test_receiving_validates_open_qty_and_po_status(services):
             approved_order.id,
             receipt_lines=[{"purchase_order_line_id": approved_line.id, "quantity_accepted": 6}],
         )
+
+
+def test_purchase_order_service_can_update_and_cancel_draft_purchase_order(services):
+    auth = services["auth_service"]
+    auth.register_user("inventory-buyer-edit", "StrongPass123", role_names=["inventory_manager"])
+    site, storeroom, item, supplier = _create_procurement_context(services)
+    alternate_site = services["site_service"].create_site(
+        site_code="PO-ALT",
+        name="Alternate PO Site",
+        currency_code="USD",
+    )
+    alternate_storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="PO-ALT-MAIN",
+        name="Alternate PO Stores",
+        site_id=alternate_site.id,
+        status="ACTIVE",
+    )
+    alternate_supplier = services["party_service"].create_party(
+        party_code="SUP-PO-ALT",
+        party_name="Secondary Industrial Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+
+    login_as(services, "inventory-buyer-edit", "StrongPass123")
+
+    purchasing = services["inventory_purchasing_service"]
+    purchase_order = purchasing.create_purchase_order(
+        site_id=site.id,
+        supplier_party_id=supplier.id,
+        currency_code="EUR",
+        supplier_reference="SUP-REF-1",
+    )
+
+    updated = purchasing.update_purchase_order(
+        purchase_order.id,
+        site_id=alternate_site.id,
+        supplier_party_id=alternate_supplier.id,
+        currency_code="USD",
+        expected_delivery_date=date(2026, 5, 12),
+        supplier_reference="SUP-REF-2",
+        notes="Updated before lines were added",
+        expected_version=purchase_order.version,
+    )
+    purchasing.add_purchase_order_line(
+        updated.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=alternate_storeroom.id,
+        quantity_ordered=3,
+        unit_price=210.0,
+    )
+    cancelled = purchasing.cancel_purchase_order(updated.id, expected_version=updated.version)
+    lines = purchasing.list_purchase_order_lines(updated.id)
+
+    assert updated.site_id == alternate_site.id
+    assert updated.supplier_party_id == alternate_supplier.id
+    assert updated.currency_code == "USD"
+    assert updated.expected_delivery_date == date(2026, 5, 12)
+    assert updated.supplier_reference == "SUP-REF-2"
+    assert cancelled.status.value == "CANCELLED"
+    assert cancelled.cancelled_at is not None
+    assert [line.status.value for line in lines] == ["CANCELLED"]

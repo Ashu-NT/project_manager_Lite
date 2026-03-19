@@ -26,7 +26,12 @@ from core.modules.inventory_procurement import (
 )
 from core.modules.inventory_procurement.domain import PurchaseRequisition, PurchaseRequisitionStatus
 from core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.header_support import (
     build_inventory_header_badge_widget,
@@ -193,18 +198,24 @@ class RequisitionsTab(QWidget):
 
         action_row = QHBoxLayout()
         self.btn_new = QPushButton("New Requisition")
+        self.btn_edit = QPushButton("Edit")
         self.btn_add_line = QPushButton("Add Line")
+        self.btn_cancel = QPushButton("Cancel")
         self.btn_submit = QPushButton("Submit")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        for button in (self.btn_new, self.btn_add_line, self.btn_submit, self.btn_refresh):
+        for button in (self.btn_new, self.btn_edit, self.btn_add_line, self.btn_cancel, self.btn_submit, self.btn_refresh):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.btn_new.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_edit.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_add_line.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_cancel.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_submit.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         action_row.addWidget(self.btn_new)
+        action_row.addWidget(self.btn_edit)
         action_row.addWidget(self.btn_add_line)
+        action_row.addWidget(self.btn_cancel)
         action_row.addWidget(self.btn_submit)
         action_row.addStretch(1)
         action_row.addWidget(self.btn_refresh)
@@ -307,9 +318,11 @@ class RequisitionsTab(QWidget):
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Requisitions", callback=self.reload_requisitions))
         self.btn_new.clicked.connect(make_guarded_slot(self, title="Requisitions", callback=self.create_requisition))
+        self.btn_edit.clicked.connect(make_guarded_slot(self, title="Requisitions", callback=self.edit_requisition))
         self.btn_add_line.clicked.connect(make_guarded_slot(self, title="Requisitions", callback=self.add_line))
+        self.btn_cancel.clicked.connect(make_guarded_slot(self, title="Requisitions", callback=self.cancel_requisition))
         self.btn_submit.clicked.connect(make_guarded_slot(self, title="Requisitions", callback=self.submit_requisition))
-        for button in (self.btn_new, self.btn_add_line, self.btn_submit):
+        for button in (self.btn_new, self.btn_edit, self.btn_add_line, self.btn_cancel, self.btn_submit):
             apply_permission_hint(button, allowed=self._can_manage, missing_permission="inventory.manage")
         self._sync_actions()
 
@@ -382,6 +395,42 @@ class RequisitionsTab(QWidget):
         self.reload_requisitions()
         self._select_requisition(requisition.id)
 
+    def edit_requisition(self) -> None:
+        requisition = self._selected_requisition()
+        if requisition is None or not self._can_manage:
+            return
+        dialog = RequisitionEditDialog(
+            site_options=build_option_rows(
+                {site_id: format_site_label(site_id, self._site_lookup) for site_id in self._site_lookup}
+            ),
+            storeroom_options=self._storeroom_option_rows(),
+            requisition=requisition,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+        try:
+            self._procurement_service.update_requisition(
+                requisition.id,
+                requesting_site_id=dialog.site_id,
+                requesting_storeroom_id=dialog.storeroom_id,
+                purpose=dialog.purpose,
+                needed_by_date=dialog.needed_by_date,
+                priority=dialog.priority,
+                notes=dialog.notes,
+                expected_version=requisition.version,
+            )
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
+            QMessageBox.warning(self, "Requisitions", str(exc))
+            if isinstance(exc, ConcurrencyError):
+                self.reload_requisitions()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Requisitions", f"Failed to update requisition: {exc}")
+            return
+        self.reload_requisitions()
+        self._select_requisition(requisition.id)
+
     def add_line(self) -> None:
         requisition = self._selected_requisition()
         if requisition is None or not self._can_manage:
@@ -437,6 +486,32 @@ class RequisitionsTab(QWidget):
             return
         self.reload_requisitions()
         self._select_requisition(requisition.id)
+
+    def cancel_requisition(self) -> None:
+        requisition = self._selected_requisition()
+        if requisition is None or not self._can_manage:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Cancel Requisition",
+            f"Cancel draft requisition {requisition.requisition_number}?",
+        )
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            self._procurement_service.cancel_requisition(
+                requisition.id,
+                expected_version=requisition.version,
+            )
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
+            QMessageBox.warning(self, "Requisitions", str(exc))
+            if isinstance(exc, ConcurrencyError):
+                self.reload_requisitions()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Requisitions", f"Failed to cancel requisition: {exc}")
+            return
+        self.reload_requisitions()
 
     def _apply_search_filter(self, rows: list[PurchaseRequisition]) -> list[PurchaseRequisition]:
         needle = self.search_text
@@ -638,7 +713,9 @@ class RequisitionsTab(QWidget):
     def _sync_actions(self) -> None:
         requisition = self._selected_requisition()
         is_draft = bool(requisition is not None and requisition.status == PurchaseRequisitionStatus.DRAFT)
+        self.btn_edit.setEnabled(self._can_manage and is_draft)
         self.btn_add_line.setEnabled(self._can_manage and is_draft)
+        self.btn_cancel.setEnabled(self._can_manage and is_draft)
         self.btn_submit.setEnabled(self._can_manage and is_draft and bool(self._selected_lines))
 
     def _context_label(self) -> str:

@@ -27,7 +27,12 @@ from core.modules.inventory_procurement import (
 )
 from core.modules.inventory_procurement.domain import PurchaseOrder, PurchaseOrderStatus, PurchaseRequisitionStatus
 from core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.header_support import (
     build_inventory_header_badge_widget,
@@ -190,18 +195,24 @@ class PurchaseOrdersTab(QWidget):
 
         action_row = QHBoxLayout()
         self.btn_new = QPushButton("New Purchase Order")
+        self.btn_edit = QPushButton("Edit")
         self.btn_add_line = QPushButton("Add Line")
+        self.btn_cancel = QPushButton("Cancel")
         self.btn_submit = QPushButton("Submit")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        for button in (self.btn_new, self.btn_add_line, self.btn_submit, self.btn_refresh):
+        for button in (self.btn_new, self.btn_edit, self.btn_add_line, self.btn_cancel, self.btn_submit, self.btn_refresh):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.btn_new.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_edit.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_add_line.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_cancel.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_submit.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         action_row.addWidget(self.btn_new)
+        action_row.addWidget(self.btn_edit)
         action_row.addWidget(self.btn_add_line)
+        action_row.addWidget(self.btn_cancel)
         action_row.addWidget(self.btn_submit)
         action_row.addStretch(1)
         action_row.addWidget(self.btn_refresh)
@@ -305,9 +316,11 @@ class PurchaseOrdersTab(QWidget):
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.reload_purchase_orders))
         self.btn_new.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.create_purchase_order))
+        self.btn_edit.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.edit_purchase_order))
         self.btn_add_line.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.add_line))
+        self.btn_cancel.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.cancel_purchase_order))
         self.btn_submit.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.submit_purchase_order))
-        for button in (self.btn_new, self.btn_add_line, self.btn_submit):
+        for button in (self.btn_new, self.btn_edit, self.btn_add_line, self.btn_cancel, self.btn_submit):
             apply_permission_hint(button, allowed=self._can_manage, missing_permission="inventory.manage")
         self._sync_actions()
 
@@ -378,6 +391,46 @@ class PurchaseOrdersTab(QWidget):
         self.reload_purchase_orders()
         self._select_purchase_order(purchase_order.id)
 
+    def edit_purchase_order(self) -> None:
+        purchase_order = self._selected_purchase_order()
+        if purchase_order is None or not self._can_manage:
+            return
+        dialog = PurchaseOrderEditDialog(
+            site_options=build_option_rows(
+                {site_id: format_site_label(site_id, self._site_lookup) for site_id in self._site_lookup}
+            ),
+            supplier_options=build_option_rows(
+                {party_id: format_party_label(party_id, self._party_lookup) for party_id in self._party_lookup}
+            ),
+            requisition_options=self._requisition_options(),
+            purchase_order=purchase_order,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+        try:
+            self._purchasing_service.update_purchase_order(
+                purchase_order.id,
+                site_id=dialog.site_id,
+                supplier_party_id=dialog.supplier_party_id,
+                currency_code=dialog.currency_code or None,
+                source_requisition_id=dialog.source_requisition_id,
+                expected_delivery_date=dialog.expected_delivery_date,
+                supplier_reference=dialog.supplier_reference,
+                notes=dialog.notes,
+                expected_version=purchase_order.version,
+            )
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
+            QMessageBox.warning(self, "Purchase Orders", str(exc))
+            if isinstance(exc, ConcurrencyError):
+                self.reload_purchase_orders()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Purchase Orders", f"Failed to update purchase order: {exc}")
+            return
+        self.reload_purchase_orders()
+        self._select_purchase_order(purchase_order.id)
+
     def add_line(self) -> None:
         purchase_order = self._selected_purchase_order()
         if purchase_order is None or not self._can_manage:
@@ -432,6 +485,32 @@ class PurchaseOrdersTab(QWidget):
             return
         self.reload_purchase_orders()
         self._select_purchase_order(purchase_order.id)
+
+    def cancel_purchase_order(self) -> None:
+        purchase_order = self._selected_purchase_order()
+        if purchase_order is None or not self._can_manage:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Cancel Purchase Order",
+            f"Cancel draft purchase order {purchase_order.po_number}?",
+        )
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            self._purchasing_service.cancel_purchase_order(
+                purchase_order.id,
+                expected_version=purchase_order.version,
+            )
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
+            QMessageBox.warning(self, "Purchase Orders", str(exc))
+            if isinstance(exc, ConcurrencyError):
+                self.reload_purchase_orders()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Purchase Orders", f"Failed to cancel purchase order: {exc}")
+            return
+        self.reload_purchase_orders()
 
     def _apply_search_filter(self, rows: list[PurchaseOrder]) -> list[PurchaseOrder]:
         needle = self.search_text
@@ -667,7 +746,9 @@ class PurchaseOrdersTab(QWidget):
     def _sync_actions(self) -> None:
         purchase_order = self._selected_purchase_order()
         is_draft = bool(purchase_order is not None and purchase_order.status == PurchaseOrderStatus.DRAFT)
+        self.btn_edit.setEnabled(self._can_manage and is_draft)
         self.btn_add_line.setEnabled(self._can_manage and is_draft)
+        self.btn_cancel.setEnabled(self._can_manage and is_draft)
         self.btn_submit.setEnabled(self._can_manage and is_draft and bool(self._selected_lines))
 
     def _context_label(self) -> str:

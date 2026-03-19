@@ -96,7 +96,7 @@ class InventoryItemEditDialog(QDialog):
     def _load_item(self) -> None:
         item = self._item
         if item is None:
-            self.status_combo.setCurrentText("DRAFT")
+            self.status_combo.setCurrentText("ACTIVE")
             self.stock_uom_edit.setText("EA")
             self.order_uom_edit.setText("EA")
             self.issue_uom_edit.setText("EA")

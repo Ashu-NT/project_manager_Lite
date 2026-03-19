@@ -91,7 +91,7 @@ class StoreroomEditDialog(QDialog):
     def _load_storeroom(self) -> None:
         storeroom = self._storeroom
         if storeroom is None:
-            self.status_combo.setCurrentText("DRAFT")
+            self.status_combo.setCurrentText("ACTIVE")
             self.allows_issue_check.setChecked(True)
             self.allows_transfer_check.setChecked(True)
             self.allows_receiving_check.setChecked(True)

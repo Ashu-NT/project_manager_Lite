@@ -44,7 +44,7 @@ from core.platform.approval import ApprovalService
 from core.platform.approval.domain import ApprovalRequest
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository
 from core.platform.common.models import Organization
 from core.platform.notifications.domain_events import domain_events
@@ -344,6 +344,119 @@ class PurchasingService:
             },
         )
         domain_events.approvals_changed.emit(request.id)
+        domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        return purchase_order
+
+    def update_purchase_order(
+        self,
+        purchase_order_id: str,
+        *,
+        site_id: str | None = None,
+        supplier_party_id: str | None = None,
+        currency_code: str | None = None,
+        source_requisition_id: str | None = None,
+        expected_delivery_date: date | None = None,
+        supplier_reference: str | None = None,
+        notes: str | None = None,
+        expected_version: int | None = None,
+    ) -> PurchaseOrder:
+        self._require_manage("update purchase order")
+        purchase_order = self._require_draft_purchase_order(purchase_order_id)
+        if expected_version is not None and purchase_order.version != expected_version:
+            raise ConcurrencyError(
+                "Purchase order changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+        organization = self._active_organization()
+        next_site_id = normalize_optional_text(site_id) or purchase_order.site_id
+        next_supplier_id = normalize_optional_text(supplier_party_id) or purchase_order.supplier_party_id
+        site = self._reference_service.get_site(next_site_id)
+        if site.organization_id != organization.id or not site.is_active:
+            raise ValidationError(
+                "Selected site must be active in the current organization.",
+                code="INVENTORY_SITE_SCOPE_INVALID",
+            )
+        supplier = self._reference_service.get_party(next_supplier_id)
+        if supplier.organization_id != organization.id or not supplier.is_active:
+            raise ValidationError(
+                "Selected supplier must be active in the current organization.",
+                code="INVENTORY_SUPPLIER_SCOPE_INVALID",
+            )
+        requisition = self._validate_source_requisition(source_requisition_id, organization.id)
+        purchase_order.site_id = site.id
+        purchase_order.supplier_party_id = supplier.id
+        purchase_order.currency_code = _normalize_currency_code(currency_code, fallback=getattr(site, "currency_code", ""))
+        purchase_order.source_requisition_id = requisition.id if requisition is not None else None
+        purchase_order.expected_delivery_date = expected_delivery_date
+        if supplier_reference is not None:
+            purchase_order.supplier_reference = normalize_optional_text(supplier_reference)
+        if notes is not None:
+            purchase_order.notes = normalize_optional_text(notes)
+        purchase_order.updated_at = datetime.now(timezone.utc)
+        try:
+            self._purchase_order_repo.update(purchase_order)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="inventory_purchase_order.update",
+            entity_type="purchase_order",
+            entity_id=purchase_order.id,
+            details={
+                "po_number": purchase_order.po_number,
+                "site_id": purchase_order.site_id,
+                "supplier_party_id": purchase_order.supplier_party_id,
+                "source_requisition_id": purchase_order.source_requisition_id or "",
+            },
+        )
+        domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        return purchase_order
+
+    def cancel_purchase_order(
+        self,
+        purchase_order_id: str,
+        *,
+        note: str = "",
+        expected_version: int | None = None,
+    ) -> PurchaseOrder:
+        self._require_manage("cancel purchase order")
+        purchase_order = self._require_draft_purchase_order(purchase_order_id)
+        if expected_version is not None and purchase_order.version != expected_version:
+            raise ConcurrencyError(
+                "Purchase order changed since you opened it. Refresh and try again.",
+                code="STALE_WRITE",
+            )
+        validate_transition(
+            current_status=purchase_order.status.value,
+            next_status=PurchaseOrderStatus.CANCELLED.value,
+            transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
+        )
+        effective_at = datetime.now(timezone.utc)
+        purchase_order.status = PurchaseOrderStatus.CANCELLED
+        purchase_order.cancelled_at = effective_at
+        purchase_order.updated_at = effective_at
+        lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
+        for line in lines:
+            line.status = PurchaseOrderLineStatus.CANCELLED
+            self._purchase_order_line_repo.update(line)
+        try:
+            self._purchase_order_repo.update(purchase_order)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="inventory_purchase_order.cancel",
+            entity_type="purchase_order",
+            entity_id=purchase_order.id,
+            details={
+                "po_number": purchase_order.po_number,
+                "note": normalize_optional_text(note),
+            },
+        )
         domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
         return purchase_order
 

@@ -143,3 +143,57 @@ def test_requisition_service_validates_draft_and_line_rules(services):
             quantity_requested=1,
             uom="BOX",
         )
+
+
+def test_requisition_service_can_update_and_cancel_draft_requisition(services):
+    auth = services["auth_service"]
+    auth.register_user("inventory-requester-edit", "StrongPass123", role_names=["inventory_manager"])
+    site, storeroom, item, supplier = _create_requisition_context(services)
+    alternate_site = services["site_service"].create_site(
+        site_code="REQ-ALT",
+        name="Alternate Requisition Site",
+        currency_code="EUR",
+    )
+    alternate_storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="REQ-ALT-MAIN",
+        name="Alternate Requisition Stores",
+        site_id=alternate_site.id,
+        status="ACTIVE",
+    )
+
+    login_as(services, "inventory-requester-edit", "StrongPass123")
+
+    procurement = services["inventory_procurement_service"]
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="Initial demand",
+    )
+    procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=2,
+        suggested_supplier_party_id=supplier.id,
+    )
+
+    updated = procurement.update_requisition(
+        requisition.id,
+        requesting_site_id=alternate_site.id,
+        requesting_storeroom_id=alternate_storeroom.id,
+        purpose="Updated demand",
+        needed_by_date=date(2026, 5, 2),
+        priority="URGENT",
+        notes="Replanned before approval",
+        expected_version=requisition.version,
+    )
+    cancelled = procurement.cancel_requisition(updated.id, expected_version=updated.version)
+    lines = procurement.list_requisition_lines(updated.id)
+
+    assert updated.requesting_site_id == alternate_site.id
+    assert updated.requesting_storeroom_id == alternate_storeroom.id
+    assert updated.purpose == "Updated demand"
+    assert updated.needed_by_date == date(2026, 5, 2)
+    assert updated.priority == "URGENT"
+    assert cancelled.status.value == "CANCELLED"
+    assert cancelled.cancelled_at is not None
+    assert [line.status.value for line in lines] == ["CANCELLED"]
