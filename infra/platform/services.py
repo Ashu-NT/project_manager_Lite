@@ -16,7 +16,12 @@ from core.platform.modules.runtime import ModuleCatalogService, ModuleRuntimeSer
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from core.platform.time import TimeService
-from core.modules.inventory_procurement import InventoryReferenceService, InventoryService, ItemMasterService
+from core.modules.inventory_procurement import (
+    InventoryReferenceService,
+    InventoryService,
+    ItemMasterService,
+    StockControlService,
+)
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
@@ -60,6 +65,7 @@ class ServiceGraph:
     inventory_reference_service: InventoryReferenceService
     inventory_item_service: ItemMasterService
     inventory_service: InventoryService
+    inventory_stock_service: StockControlService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -101,6 +107,7 @@ class ServiceGraph:
             "inventory_reference_service": self.inventory_reference_service,
             "inventory_item_service": self.inventory_item_service,
             "inventory_service": self.inventory_service,
+            "inventory_stock_service": self.inventory_stock_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
@@ -152,6 +159,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_reference_service=inventory_procurement_services.inventory_reference_service,
         inventory_item_service=inventory_procurement_services.inventory_item_service,
         inventory_service=inventory_procurement_services.inventory_service,
+        inventory_stock_service=inventory_procurement_services.inventory_stock_service,
         access_service=platform_services.access_service,
         audit_service=platform_services.audit_service,
         approval_service=platform_services.approval_service,

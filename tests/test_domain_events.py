@@ -130,6 +130,7 @@ def test_domain_changed_bridges_inventory_module_events():
     try:
         domain_events.inventory_items_changed.emit("item-1")
         domain_events.inventory_storerooms_changed.emit("storeroom-1")
+        domain_events.inventory_balances_changed.emit("balance-1")
     finally:
         domain_events.domain_changed.disconnect(_handler)
 
@@ -147,6 +148,13 @@ def test_domain_changed_bridges_inventory_module_events():
             entity_type="storeroom",
             entity_id="storeroom-1",
             source_event="inventory_storerooms_changed",
+        ),
+        DomainChangeEvent(
+            category="module",
+            scope_code="inventory_procurement",
+            entity_type="stock_balance",
+            entity_id="balance-1",
+            source_event="inventory_balances_changed",
         ),
     ]
 

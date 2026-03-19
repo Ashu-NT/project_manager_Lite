@@ -32,6 +32,7 @@ from core.platform.common.models import (
     TimesheetPeriodStatus,
     WorkerType,
 ) 
+from core.modules.inventory_procurement.domain import StockTransactionType
 
 
 class ProjectORM(Base):
@@ -407,6 +408,88 @@ class StoreroomORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class StockBalanceORM(Base):
+    __tablename__ = "inventory_stock_balances"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "stock_item_id",
+            "storeroom_id",
+            name="ux_inventory_stock_balances_position",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stock_item_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_stock_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    storeroom_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_storerooms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    on_hand_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    reserved_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    available_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    on_order_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    committed_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    average_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    last_receipt_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_issue_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    reorder_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class StockTransactionORM(Base):
+    __tablename__ = "inventory_stock_transactions"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "transaction_number", name="ux_inventory_stock_transactions_number"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    transaction_number: Mapped[str] = mapped_column(String(64), nullable=False)
+    stock_item_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_stock_items.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    storeroom_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_storerooms.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    transaction_type: Mapped[StockTransactionType] = mapped_column(SAEnum(StockTransactionType), nullable=False)
+    quantity: Mapped[float] = mapped_column(Float, nullable=False)
+    uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    unit_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    transaction_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    reference_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    reference_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    performed_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    performed_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    resulting_on_hand_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    resulting_available_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class ModuleEntitlementORM(Base):
@@ -956,6 +1039,13 @@ Index("idx_inventory_stock_items_active", StockItemORM.is_active)
 Index("idx_inventory_storerooms_org", StoreroomORM.organization_id)
 Index("idx_inventory_storerooms_site", StoreroomORM.site_id)
 Index("idx_inventory_storerooms_active", StoreroomORM.is_active)
+Index("idx_inventory_stock_balances_org", StockBalanceORM.organization_id)
+Index("idx_inventory_stock_balances_item", StockBalanceORM.stock_item_id)
+Index("idx_inventory_stock_balances_storeroom", StockBalanceORM.storeroom_id)
+Index("idx_inventory_stock_transactions_org", StockTransactionORM.organization_id)
+Index("idx_inventory_stock_transactions_item", StockTransactionORM.stock_item_id)
+Index("idx_inventory_stock_transactions_storeroom", StockTransactionORM.storeroom_id)
+Index("idx_inventory_stock_transactions_at", StockTransactionORM.transaction_at)
 Index("idx_org_module_entitlements_org", ModuleEntitlementORM.organization_id)
 Index("idx_resources_employee", ResourceORM.employee_id)
 Index("idx_roles_name", RoleORM.name, unique=True)

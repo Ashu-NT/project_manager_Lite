@@ -66,6 +66,13 @@ def normalize_nonnegative_quantity(value: float | int | None, *, label: str) -> 
     return amount
 
 
+def normalize_positive_quantity(value: float | int | None, *, label: str) -> float:
+    amount = float(value or 0.0)
+    if amount <= 0:
+        raise ValidationError(f"{label} must be greater than zero.", code="INVENTORY_QUANTITY_REQUIRED")
+    return amount
+
+
 def normalize_nonnegative_days(value: int | None, *, label: str) -> int | None:
     if value is None:
         return None
@@ -120,6 +127,7 @@ __all__ = [
     "normalize_inventory_name",
     "normalize_nonnegative_days",
     "normalize_nonnegative_quantity",
+    "normalize_positive_quantity",
     "normalize_optional_text",
     "normalize_status",
     "normalize_uom",

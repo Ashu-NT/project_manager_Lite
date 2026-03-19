@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from enum import Enum
 
 from core.modules.project_management.domain.identifiers import generate_id
+
+
+class StockTransactionType(str, Enum):
+    OPENING_BALANCE = "OPENING_BALANCE"
+    ADJUSTMENT_INCREASE = "ADJUSTMENT_INCREASE"
+    ADJUSTMENT_DECREASE = "ADJUSTMENT_DECREASE"
 
 
 @dataclass
@@ -166,4 +173,110 @@ class Storeroom:
         )
 
 
-__all__ = ["StockItem", "Storeroom"]
+@dataclass
+class StockBalance:
+    id: str
+    organization_id: str
+    stock_item_id: str
+    storeroom_id: str
+    uom: str
+    on_hand_qty: float = 0.0
+    reserved_qty: float = 0.0
+    available_qty: float = 0.0
+    on_order_qty: float = 0.0
+    committed_qty: float = 0.0
+    average_cost: float = 0.0
+    last_receipt_at: datetime | None = None
+    last_issue_at: datetime | None = None
+    reorder_required: bool = False
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        stock_item_id: str,
+        storeroom_id: str,
+        uom: str,
+    ) -> "StockBalance":
+        now = datetime.now(timezone.utc)
+        return StockBalance(
+            id=generate_id(),
+            organization_id=organization_id,
+            stock_item_id=stock_item_id,
+            storeroom_id=storeroom_id,
+            uom=uom,
+            updated_at=now,
+            version=1,
+        )
+
+
+@dataclass
+class StockTransaction:
+    id: str
+    organization_id: str
+    transaction_number: str
+    stock_item_id: str
+    storeroom_id: str
+    transaction_type: StockTransactionType
+    quantity: float
+    uom: str
+    unit_cost: float = 0.0
+    transaction_at: datetime | None = None
+    reference_type: str = ""
+    reference_id: str = ""
+    performed_by_user_id: str | None = None
+    performed_by_username: str = ""
+    resulting_on_hand_qty: float = 0.0
+    resulting_available_qty: float = 0.0
+    notes: str = ""
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        transaction_number: str,
+        stock_item_id: str,
+        storeroom_id: str,
+        transaction_type: StockTransactionType,
+        quantity: float,
+        uom: str,
+        unit_cost: float = 0.0,
+        transaction_at: datetime | None = None,
+        reference_type: str = "",
+        reference_id: str = "",
+        performed_by_user_id: str | None = None,
+        performed_by_username: str = "",
+        resulting_on_hand_qty: float = 0.0,
+        resulting_available_qty: float = 0.0,
+        notes: str = "",
+    ) -> "StockTransaction":
+        return StockTransaction(
+            id=generate_id(),
+            organization_id=organization_id,
+            transaction_number=transaction_number,
+            stock_item_id=stock_item_id,
+            storeroom_id=storeroom_id,
+            transaction_type=transaction_type,
+            quantity=quantity,
+            uom=uom,
+            unit_cost=unit_cost,
+            transaction_at=transaction_at or datetime.now(timezone.utc),
+            reference_type=reference_type,
+            reference_id=reference_id,
+            performed_by_user_id=performed_by_user_id,
+            performed_by_username=performed_by_username,
+            resulting_on_hand_qty=resulting_on_hand_qty,
+            resulting_available_qty=resulting_available_qty,
+            notes=notes,
+        )
+
+
+__all__ = [
+    "StockBalance",
+    "StockItem",
+    "StockTransaction",
+    "StockTransactionType",
+    "Storeroom",
+]

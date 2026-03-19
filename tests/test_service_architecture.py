@@ -12,7 +12,7 @@ from core.platform.org import DepartmentService, EmployeeService, OrganizationSe
 from core.platform.party import PartyService
 from core.platform.modules.runtime import ModuleRuntimeService
 from core.platform.time import TimeService
-from core.modules.inventory_procurement import InventoryReferenceService, InventoryService, ItemMasterService
+from core.modules.inventory_procurement import InventoryReferenceService, InventoryService, ItemMasterService, StockControlService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -63,6 +63,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.inventory_reference_service, InventoryReferenceService)
     assert isinstance(graph.inventory_item_service, ItemMasterService)
     assert isinstance(graph.inventory_service, InventoryService)
+    assert isinstance(graph.inventory_stock_service, StockControlService)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.audit_service, AuditService)
     assert isinstance(graph.collaboration_service, CollaborationService)
@@ -96,6 +97,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["inventory_reference_service"] is graph.inventory_reference_service
     assert as_dict["inventory_item_service"] is graph.inventory_item_service
     assert as_dict["inventory_service"] is graph.inventory_service
+    assert as_dict["inventory_stock_service"] is graph.inventory_stock_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service

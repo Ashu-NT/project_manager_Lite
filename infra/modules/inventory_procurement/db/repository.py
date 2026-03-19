@@ -3,15 +3,24 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.domain import StockItem, Storeroom
-from core.modules.inventory_procurement.interfaces import StockItemRepository, StoreroomRepository
+from core.modules.inventory_procurement.domain import StockBalance, StockItem, StockTransaction, Storeroom
+from core.modules.inventory_procurement.interfaces import (
+    StockBalanceRepository,
+    StockItemRepository,
+    StockTransactionRepository,
+    StoreroomRepository,
+)
 from infra.modules.inventory_procurement.db.mapper import (
+    stock_balance_from_orm,
+    stock_balance_to_orm,
     stock_item_from_orm,
     stock_item_to_orm,
+    stock_transaction_from_orm,
+    stock_transaction_to_orm,
     storeroom_from_orm,
     storeroom_to_orm,
 )
-from infra.platform.db.models import StockItemORM, StoreroomORM
+from infra.platform.db.models import StockBalanceORM, StockItemORM, StockTransactionORM, StoreroomORM
 from infra.platform.db.optimistic import update_with_version_check
 
 
@@ -148,4 +157,111 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
         return [storeroom_from_orm(row) for row in rows]
 
 
-__all__ = ["SqlAlchemyStockItemRepository", "SqlAlchemyStoreroomRepository"]
+class SqlAlchemyStockBalanceRepository(StockBalanceRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, balance: StockBalance) -> None:
+        self.session.add(stock_balance_to_orm(balance))
+
+    def update(self, balance: StockBalance) -> None:
+        balance.version = update_with_version_check(
+            self.session,
+            StockBalanceORM,
+            balance.id,
+            getattr(balance, "version", 1),
+            {
+                "uom": balance.uom,
+                "on_hand_qty": balance.on_hand_qty,
+                "reserved_qty": balance.reserved_qty,
+                "available_qty": balance.available_qty,
+                "on_order_qty": balance.on_order_qty,
+                "committed_qty": balance.committed_qty,
+                "average_cost": balance.average_cost,
+                "last_receipt_at": balance.last_receipt_at,
+                "last_issue_at": balance.last_issue_at,
+                "reorder_required": balance.reorder_required,
+                "updated_at": balance.updated_at,
+            },
+            not_found_message="Stock balance not found.",
+            stale_message="Stock balance was updated by another user.",
+        )
+
+    def get(self, balance_id: str) -> StockBalance | None:
+        obj = self.session.get(StockBalanceORM, balance_id)
+        return stock_balance_from_orm(obj) if obj else None
+
+    def get_for_stock_position(
+        self,
+        organization_id: str,
+        stock_item_id: str,
+        storeroom_id: str,
+    ) -> StockBalance | None:
+        stmt = select(StockBalanceORM).where(
+            StockBalanceORM.organization_id == organization_id,
+            StockBalanceORM.stock_item_id == stock_item_id,
+            StockBalanceORM.storeroom_id == storeroom_id,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return stock_balance_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        stock_item_id: str | None = None,
+        storeroom_id: str | None = None,
+    ) -> list[StockBalance]:
+        stmt = select(StockBalanceORM).where(StockBalanceORM.organization_id == organization_id)
+        if stock_item_id is not None:
+            stmt = stmt.where(StockBalanceORM.stock_item_id == stock_item_id)
+        if storeroom_id is not None:
+            stmt = stmt.where(StockBalanceORM.storeroom_id == storeroom_id)
+        rows = self.session.execute(stmt.order_by(StockBalanceORM.updated_at.desc())).scalars().all()
+        return [stock_balance_from_orm(row) for row in rows]
+
+
+class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, transaction: StockTransaction) -> None:
+        self.session.add(stock_transaction_to_orm(transaction))
+
+    def get(self, transaction_id: str) -> StockTransaction | None:
+        obj = self.session.get(StockTransactionORM, transaction_id)
+        return stock_transaction_from_orm(obj) if obj else None
+
+    def get_by_number(self, organization_id: str, transaction_number: str) -> StockTransaction | None:
+        stmt = select(StockTransactionORM).where(
+            StockTransactionORM.organization_id == organization_id,
+            StockTransactionORM.transaction_number == transaction_number,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return stock_transaction_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        stock_item_id: str | None = None,
+        storeroom_id: str | None = None,
+        limit: int = 200,
+    ) -> list[StockTransaction]:
+        stmt = select(StockTransactionORM).where(StockTransactionORM.organization_id == organization_id)
+        if stock_item_id is not None:
+            stmt = stmt.where(StockTransactionORM.stock_item_id == stock_item_id)
+        if storeroom_id is not None:
+            stmt = stmt.where(StockTransactionORM.storeroom_id == storeroom_id)
+        rows = self.session.execute(
+            stmt.order_by(StockTransactionORM.transaction_at.desc()).limit(max(1, int(limit or 200)))
+        ).scalars().all()
+        return [stock_transaction_from_orm(row) for row in rows]
+
+
+__all__ = [
+    "SqlAlchemyStockBalanceRepository",
+    "SqlAlchemyStockItemRepository",
+    "SqlAlchemyStockTransactionRepository",
+    "SqlAlchemyStoreroomRepository",
+]

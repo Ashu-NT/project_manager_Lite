@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from core.modules.inventory_procurement.domain import StockItem, Storeroom
-from infra.platform.db.models import StockItemORM, StoreroomORM
+from core.modules.inventory_procurement.domain import (
+    StockBalance,
+    StockItem,
+    StockTransaction,
+    StockTransactionType,
+    Storeroom,
+)
+from infra.platform.db.models import StockBalanceORM, StockItemORM, StockTransactionORM, StoreroomORM
 
 
 def stock_item_to_orm(item: StockItem) -> StockItemORM:
@@ -120,9 +126,99 @@ def storeroom_from_orm(obj: StoreroomORM) -> Storeroom:
     )
 
 
+def stock_balance_to_orm(balance: StockBalance) -> StockBalanceORM:
+    return StockBalanceORM(
+        id=balance.id,
+        organization_id=balance.organization_id,
+        stock_item_id=balance.stock_item_id,
+        storeroom_id=balance.storeroom_id,
+        uom=balance.uom,
+        on_hand_qty=balance.on_hand_qty,
+        reserved_qty=balance.reserved_qty,
+        available_qty=balance.available_qty,
+        on_order_qty=balance.on_order_qty,
+        committed_qty=balance.committed_qty,
+        average_cost=balance.average_cost,
+        last_receipt_at=balance.last_receipt_at,
+        last_issue_at=balance.last_issue_at,
+        reorder_required=balance.reorder_required,
+        updated_at=balance.updated_at,
+        version=getattr(balance, "version", 1),
+    )
+
+
+def stock_balance_from_orm(obj: StockBalanceORM) -> StockBalance:
+    return StockBalance(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        stock_item_id=obj.stock_item_id,
+        storeroom_id=obj.storeroom_id,
+        uom=obj.uom,
+        on_hand_qty=float(obj.on_hand_qty or 0.0),
+        reserved_qty=float(obj.reserved_qty or 0.0),
+        available_qty=float(obj.available_qty or 0.0),
+        on_order_qty=float(obj.on_order_qty or 0.0),
+        committed_qty=float(obj.committed_qty or 0.0),
+        average_cost=float(obj.average_cost or 0.0),
+        last_receipt_at=obj.last_receipt_at,
+        last_issue_at=obj.last_issue_at,
+        reorder_required=obj.reorder_required,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def stock_transaction_to_orm(transaction: StockTransaction) -> StockTransactionORM:
+    return StockTransactionORM(
+        id=transaction.id,
+        organization_id=transaction.organization_id,
+        transaction_number=transaction.transaction_number,
+        stock_item_id=transaction.stock_item_id,
+        storeroom_id=transaction.storeroom_id,
+        transaction_type=transaction.transaction_type,
+        quantity=transaction.quantity,
+        uom=transaction.uom,
+        unit_cost=transaction.unit_cost,
+        transaction_at=transaction.transaction_at,
+        reference_type=transaction.reference_type or None,
+        reference_id=transaction.reference_id or None,
+        performed_by_user_id=transaction.performed_by_user_id,
+        performed_by_username=transaction.performed_by_username or None,
+        resulting_on_hand_qty=transaction.resulting_on_hand_qty,
+        resulting_available_qty=transaction.resulting_available_qty,
+        notes=transaction.notes or None,
+    )
+
+
+def stock_transaction_from_orm(obj: StockTransactionORM) -> StockTransaction:
+    return StockTransaction(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        transaction_number=obj.transaction_number,
+        stock_item_id=obj.stock_item_id,
+        storeroom_id=obj.storeroom_id,
+        transaction_type=StockTransactionType(obj.transaction_type),
+        quantity=float(obj.quantity or 0.0),
+        uom=obj.uom,
+        unit_cost=float(obj.unit_cost or 0.0),
+        transaction_at=obj.transaction_at,
+        reference_type=obj.reference_type or "",
+        reference_id=obj.reference_id or "",
+        performed_by_user_id=obj.performed_by_user_id,
+        performed_by_username=obj.performed_by_username or "",
+        resulting_on_hand_qty=float(obj.resulting_on_hand_qty or 0.0),
+        resulting_available_qty=float(obj.resulting_available_qty or 0.0),
+        notes=obj.notes or "",
+    )
+
+
 __all__ = [
+    "stock_balance_from_orm",
+    "stock_balance_to_orm",
     "stock_item_from_orm",
     "stock_item_to_orm",
+    "stock_transaction_from_orm",
+    "stock_transaction_to_orm",
     "storeroom_from_orm",
     "storeroom_to_orm",
 ]
