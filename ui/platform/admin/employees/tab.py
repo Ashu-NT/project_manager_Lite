@@ -73,7 +73,7 @@ class EmployeeAdminTab(QWidget):
         title = QLabel("Employee Directory")
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
         intro.addWidget(title)
-        subtitle = QLabel("Manage internal employees for staffing, planning, and future payroll workflows.")
+        subtitle = QLabel("Manage internal employees for staffing, planning, and future HR and payroll workflows.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
         intro.addWidget(subtitle)

@@ -108,5 +108,5 @@ Execution note:
 
 Progress note:
 - Focused RBAC hardening shipped on 2026-03-12 with deny-by-default sessions, CLI/desktop authentication tightening, and backend read enforcement across the main business-service surfaces.
-- Enterprise role templates, canonical scoped project roles, read-only identity visibility, and payroll-ready permission boundaries were added on 2026-03-13.
+- Enterprise role templates, canonical scoped project roles, read-only identity visibility, and HR/payroll-ready permission boundaries were added on 2026-03-13.
 - The only remaining unchecked item in this tracker is enterprise identity controls; the rest of the open enterprise backlog now lives more specifically in `docs/ENTERPRISE_PM_ROADMAP.md` and `docs/ENTERPRISE_RBAC_MATRIX.md`.

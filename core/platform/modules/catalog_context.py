@@ -1,22 +1,33 @@
 from __future__ import annotations
 
-from core.platform.modules.defaults import MODULE_RUNTIME_ACCESS_STATUSES, default_lifecycle_status
+from core.platform.modules.defaults import (
+    MODULE_RUNTIME_ACCESS_STATUSES,
+    default_lifecycle_status,
+)
+from core.platform.modules.module_codes import normalize_module_code
 from core.platform.modules.repository import ModuleEntitlementRecord
 
 
 class ModuleCatalogContextMixin:
     def _persist_state(self, record: ModuleEntitlementRecord) -> None:
+        module_code = normalize_module_code(record.module_code)
+        normalized_record = ModuleEntitlementRecord(
+            module_code=module_code,
+            licensed=record.licensed,
+            enabled=record.enabled,
+            lifecycle_status=record.lifecycle_status,
+        )
         if self._entitlement_repo is None:
-            if record.licensed:
-                self._licensed_codes.add(record.module_code)
+            if normalized_record.licensed:
+                self._licensed_codes.add(module_code)
             else:
-                self._licensed_codes.discard(record.module_code)
-            if record.enabled and record.licensed:
-                self._enabled_codes.add(record.module_code)
+                self._licensed_codes.discard(module_code)
+            if normalized_record.enabled and normalized_record.licensed:
+                self._enabled_codes.add(module_code)
             else:
-                self._enabled_codes.discard(record.module_code)
+                self._enabled_codes.discard(module_code)
             return
-        self._entitlement_repo.upsert(record)
+        self._entitlement_repo.upsert(normalized_record)
         if self._session is not None:
             self._session.commit()
 
@@ -61,9 +72,9 @@ class ModuleCatalogContextMixin:
         records = self._effective_records()
         if not records:
             return set(self._licensed_codes), set(self._enabled_codes)
-        licensed_codes = {record.module_code for record in records if record.licensed}
+        licensed_codes = {normalize_module_code(record.module_code) for record in records if record.licensed}
         enabled_codes = {
-            record.module_code
+            normalize_module_code(record.module_code)
             for record in records
             if (
                 record.licensed

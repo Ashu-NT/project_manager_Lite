@@ -9,7 +9,7 @@
 - `users/`
   - user, role, password reset, and account lifecycle management
 - `employees/`
-  - employee directory management for staffing and future payroll use
+  - employee directory management for staffing and future HR and payroll use
 - `organizations/`
   - active organization switching and new-organization provisioning with initial module mix
 - `modules/`

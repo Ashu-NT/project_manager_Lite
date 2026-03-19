@@ -29,6 +29,7 @@ from core.platform.modules.defaults import (
     parse_licensed_module_codes,
     parse_module_codes,
 )
+from core.platform.modules.module_codes import module_storage_codes, normalize_module_code
 from core.platform.modules.repository import ModuleEntitlementRepository
 
 
@@ -58,12 +59,12 @@ class ModuleCatalogService(
             if module.default_enabled
         }
         licensed = (
-            {str(code).strip().lower() for code in licensed_codes if str(code).strip()}
+            {normalize_module_code(code) for code in licensed_codes if str(code).strip()}
             if licensed_codes is not None
             else set(default_codes)
         )
         enabled = (
-            {str(code).strip().lower() for code in enabled_codes if str(code).strip()}
+            {normalize_module_code(code) for code in enabled_codes if str(code).strip()}
             if enabled_codes is not None
             else set(licensed)
         )
@@ -127,6 +128,8 @@ __all__ = [
     "MODULE_RUNTIME_ACCESS_STATUSES",
     "PlatformCapability",
     "build_default_module_catalog",
+    "module_storage_codes",
+    "normalize_module_code",
     "parse_enabled_module_codes",
     "parse_licensed_module_codes",
     "parse_module_codes",

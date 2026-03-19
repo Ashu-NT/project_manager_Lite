@@ -15,6 +15,7 @@ from core.platform.modules.service import (
     ModuleEntitlement,
     PlatformCapability,
     build_default_module_catalog,
+    normalize_module_code,
     parse_enabled_module_codes,
     parse_licensed_module_codes,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "PlatformCapability",
     "SupportsModuleEntitlements",
     "build_default_module_catalog",
+    "normalize_module_code",
     "parse_enabled_module_codes",
     "parse_licensed_module_codes",
     "resolve_module_runtime_service",

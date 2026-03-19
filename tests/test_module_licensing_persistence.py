@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import text
 
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from tests.ui_runtime_helpers import make_settings_store
@@ -26,7 +27,47 @@ def test_module_catalog_service_rejects_licensing_planned_module(services):
     catalog = services["module_catalog_service"]
 
     with pytest.raises(ValidationError, match="planned"):
-        catalog.set_module_state("payroll", licensed=True)
+        catalog.set_module_state("hr_management", licensed=True)
+
+
+def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr_management(services, session):
+    active_org = services["organization_service"].get_active_organization()
+    assert active_org is not None
+
+    session.execute(
+        text(
+            """
+        INSERT INTO organization_module_entitlements (
+            organization_id,
+            module_code,
+            licensed,
+            enabled,
+            lifecycle_status,
+            updated_at
+        ) VALUES (
+            :organization_id,
+            'payroll',
+            0,
+            0,
+            'inactive',
+            CURRENT_TIMESTAMP
+        )
+        """
+        ),
+        {"organization_id": active_org.id},
+    )
+    session.commit()
+
+    entitlement = services["module_catalog_service"].set_module_state("hr_management", licensed=False)
+
+    rows = session.execute(
+        text("SELECT module_code FROM organization_module_entitlements WHERE organization_id = :organization_id"),
+        {"organization_id": active_org.id},
+    ).scalars().all()
+
+    assert entitlement.code == "hr_management"
+    assert "hr_management" in rows
+    assert "payroll" not in rows
 
 
 def test_main_window_rebuilds_when_modules_change(qapp, services, repo_workspace, monkeypatch):

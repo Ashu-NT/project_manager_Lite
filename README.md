@@ -19,7 +19,7 @@ Delivered in the current codebase:
 
 Pending major work:
 
-- `Maintenance Management`, `QHSE`, and `Payroll` business modules
+- `Inventory & Procurement`, `Maintenance Management`, `QHSE`, and `HR Management` business modules
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
@@ -27,23 +27,27 @@ The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`
 
 ## Next Priority
 
-The next priority is to start the `Maintenance Management` module skeleton.
+The next priority is to define and start the `Inventory & Procurement` module skeleton, then wire `Maintenance Management` to consume it.
+
+The initial maintenance blueprint is tracked in `docs/maintenance_management/README.md`.
 
 Why this comes first:
 
 - the shared platform time boundary now exists and already carries module-neutral `work_entry` ownership plus employee/site/department snapshot context
 - that removes the biggest platform blocker before opening the next business module
-- maintenance is the safest next module because it can reuse employees, approvals, documents, audit, and shared time without pulling in payroll complexity too early
+- enterprise customers may want stock and purchasing without maintenance
+- professional CMMS patterns usually keep inventory and purchasing as a dedicated business capability that maintenance work orders integrate with
+- maintenance is stronger when it consumes a clean stock and purchasing module instead of owning duplicate inventory logic
 
 Concretely, the next implementation slice should:
 
-1. add the `maintenance_management` module scaffold across `core`, `infra`, and `ui`
-2. introduce the first maintenance aggregates such as `asset`, `work_order`, and `maintenance_plan`
-3. wire the new module into shell entitlements without changing existing PM behavior
+1. add the `inventory_procurement` module scaffold across `core`, `infra`, and `ui`
+2. introduce the first stock and purchasing aggregates such as `item`, `storeroom`, `stock_balance`, `purchase_requisition`, and `purchase_order`
+3. wire `maintenance_management` material demand to that module instead of embedding stock ledgers directly inside maintenance
 
-After that, the next priority should be deeper shared master data for formal site/department directories and then the `QHSE` module skeleton.
+After that, the next priority should be the `Maintenance Management` skeleton, then deeper shared master data for formal site/department directories, and then the `QHSE` module skeleton.
 
-This does not mean Project Management will never grow again. It means the current PM enterprise roadmap has been delivered, and the next cross-module platform investment is Maintenance.
+This does not mean Project Management will never grow again. It means the current PM enterprise roadmap has been delivered, and the next enterprise module investment should establish inventory and procurement as a reusable business capability before Maintenance depends on it.
 
 ## Core Capabilities
 

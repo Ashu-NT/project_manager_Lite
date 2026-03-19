@@ -17,7 +17,7 @@ This licensing model needs to support:
 The repo already has a lightweight product catalog:
 
 - `project_management` is enabled by default
-- `maintenance_management`, `qhse`, and `payroll` are present as planned modules
+- `maintenance_management`, `qhse`, and `hr_management` are present as planned modules
 
 What it does not yet have:
 
@@ -65,7 +65,7 @@ Initial platform capabilities:
 - `project_management`
 - `maintenance_management`
 - `qhse`
-- `payroll`
+- `hr_management`
 
 ## Technical Model
 

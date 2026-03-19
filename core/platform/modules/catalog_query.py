@@ -3,6 +3,7 @@ from __future__ import annotations
 from core.platform.common.exceptions import NotFoundError
 from core.platform.modules.catalog_models import ModuleCatalogSnapshot, ModuleEntitlement
 from core.platform.modules.defaults import default_lifecycle_status
+from core.platform.modules.module_codes import normalize_module_code
 
 
 class ModuleCatalogQueryMixin:
@@ -45,14 +46,14 @@ class ModuleCatalogQueryMixin:
 
     def is_licensed(self, module_code: str) -> bool:
         licensed_codes, _enabled_codes = self._effective_codes()
-        return str(module_code).strip().lower() in licensed_codes
+        return normalize_module_code(module_code) in licensed_codes
 
     def is_enabled(self, module_code: str) -> bool:
         _licensed_codes, enabled_codes = self._effective_codes()
-        return str(module_code).strip().lower() in enabled_codes
+        return normalize_module_code(module_code) in enabled_codes
 
     def get_entitlement(self, module_code: str) -> ModuleEntitlement | None:
-        target_code = str(module_code).strip().lower()
+        target_code = normalize_module_code(module_code)
         for module in self._modules:
             if module.code == target_code:
                 return self._build_entitlement(module)
@@ -111,7 +112,7 @@ class ModuleCatalogQueryMixin:
         )
 
     def _require_module(self, module_code: str):
-        target_code = str(module_code).strip().lower()
+        target_code = normalize_module_code(module_code)
         for module in self._modules:
             if module.code == target_code:
                 return module
@@ -119,7 +120,7 @@ class ModuleCatalogQueryMixin:
 
     def _normalize_selected_module_codes(self, module_codes) -> set[str]:
         normalized_codes = {
-            str(code or "").strip().lower()
+            normalize_module_code(code)
             for code in (module_codes or ())
             if str(code or "").strip()
         }

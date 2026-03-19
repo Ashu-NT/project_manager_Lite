@@ -41,7 +41,9 @@ This avoids mega-tabs and improves local maintainability.
   - portfolio
   - timesheet
 
-Placeholder package roots also exist for `maintenance_management`, `qhse`, and `payroll`.
+Placeholder package roots also exist for `maintenance_management`, `qhse`, and `hr_management`.
+
+Legacy compatibility package roots such as `ui/modules/payroll/` remain available during the rename transition.
 
 ## Permission and Governance UX
 

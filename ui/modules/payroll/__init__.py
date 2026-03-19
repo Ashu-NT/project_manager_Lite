@@ -1,1 +1,1 @@
-"""User-interface package for the payroll module."""
+"""Legacy compatibility package for the HR Management module."""

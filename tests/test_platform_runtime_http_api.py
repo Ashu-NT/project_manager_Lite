@@ -57,7 +57,7 @@ def test_platform_runtime_http_api_maps_validation_errors(services):
 
     response = api.patch_module_state(
         ModuleStatePatchRequest(
-            module_code="payroll",
+            module_code="hr_management",
             licensed=True,
         )
     )

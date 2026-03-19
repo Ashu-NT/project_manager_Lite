@@ -1,1 +1,1 @@
-"""Infrastructure adapters for the payroll module."""
+"""Legacy compatibility package for the HR Management module."""

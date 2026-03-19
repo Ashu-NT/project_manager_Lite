@@ -316,7 +316,7 @@ class MainWindow(QMainWindow):
             self._set_navigation_visible(self._navigation_preferred_visible)
 
     def _on_modules_changed(self, _module_code: str) -> None:
-        self._schedule_module_refresh(immediate=False)
+        self._schedule_module_refresh(immediate=True)
 
     def _on_organizations_changed(self, _organization_id: str) -> None:
         self._schedule_module_refresh(immediate=True)

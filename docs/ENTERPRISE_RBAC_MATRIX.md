@@ -4,10 +4,10 @@
 
 This matrix moves the app from a small-role RBAC model to an enterprise-ready foundation with:
 
-- separated platform, PMO, finance, and payroll responsibilities
+- separated platform, PMO, finance, and HR/payroll responsibilities
 - canonical project-scoped roles
 - read-only identity access separate from identity mutation
-- payroll-ready permissions for the future payroll module
+- payroll-ready permissions for the future HR Management module
 
 ## Status Snapshot
 
@@ -20,7 +20,7 @@ Delivered:
 
 Pending:
 
-- payroll feature slice implementation
+- HR Management feature slice implementation
 - separation-of-duties checks for conflicting role combinations
 - stronger `security.manage` capabilities such as SSO/MFA/session-revocation support
 - a separate `Security` admin surface if module/admin scope keeps growing
@@ -64,7 +64,7 @@ Legacy scope compatibility:
 
 ## Payroll-Ready Permission Set
 
-The payroll module should build on these dedicated permissions:
+The HR Management module should build on these dedicated payroll permissions:
 
 - `payroll.read`
 - `payroll.manage`
@@ -79,7 +79,7 @@ This keeps payroll separate from generic finance admin and supports segregation 
 
 ## Concrete Next Plan
 
-1. Add a dedicated `payroll` feature slice under `core/services`, `infra/db`, and `ui`.
+1. Add a dedicated `hr_management` feature slice under `core/modules`, `infra/modules`, and `ui/modules`.
 2. Model payroll periods, run states, exceptions, and export batches.
 3. Wire payroll actions to the new permissions rather than reusing `finance.manage`.
 4. Add approval and audit events for payroll run prepare, approve, release, reopen, and export.
@@ -90,4 +90,4 @@ This keeps payroll separate from generic finance admin and supports segregation 
 - add role descriptions and search/filtering in the Users admin workspace
 - add deny rules or separation-of-duties checks for conflicting role combinations
 - add SSO/MFA/session revocation so `security.manage` has platform capabilities beyond lockout handling
-- add payroll-specific reports, payslip exports, and ERP/journal integration once the payroll module lands
+- add payroll-specific reports, payslip exports, and ERP/journal integration once the HR Management module lands

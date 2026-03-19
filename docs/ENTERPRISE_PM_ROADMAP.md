@@ -16,7 +16,7 @@ This document does not own:
 
 - platform security and identity controls such as SSO, MFA, and session
   revocation
-- module-level payroll implementation
+- module-level HR Management implementation
 - future module work for Maintenance Management or QHSE
 - hosted API/router delivery planning
 
@@ -53,7 +53,7 @@ Status: implemented in this repo
 - Expanded global RBAC into enterprise-ready role templates including `access_admin`, `security_admin`, `payroll_manager`, `portfolio_manager`, and `approver`
 - Canonicalized project-scoped roles to `viewer`, `contributor`, `lead`, and `owner` with legacy `editor` compatibility
 - Opened read-only identity visibility via `auth.read` and isolated unlock/session operations behind `security.manage`
-- Added payroll-ready permission boundaries so the future payroll module can ship without reusing broad finance/admin permissions
+- Added payroll-ready permission boundaries so the future HR Management module can ship without reusing broad finance/admin permissions
 
 ## Phase 2: PM Follow-Ups
 
@@ -95,8 +95,8 @@ These affect PM, but they are not PM-owned roadmap items anymore:
   - forced password reset
   - suspicious login reporting
   - tracked under `docs/ENTERPRISE_RBAC_MATRIX.md`
-- `Payroll module`
-  - dedicated payroll workspace and service layer
+- `HR Management module`
+  - dedicated HR workspace and payroll service layer
   - payroll periods, run states, exceptions, exports, and approvals
   - tracked under `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md` and
     `docs/ENTERPRISE_RBAC_MATRIX.md`

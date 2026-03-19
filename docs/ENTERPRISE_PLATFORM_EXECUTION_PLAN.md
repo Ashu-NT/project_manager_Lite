@@ -7,9 +7,10 @@ Evolve the current project management app into a modular enterprise platform wit
 Initial target modules:
 
 - `project_management`
+- `inventory_procurement`
 - `maintenance_management`
 - `qhse`
-- `payroll`
+- `hr_management`
 
 This migration must preserve the current PM workflows while introducing platform-level shared services, module boundaries, and future licensing hooks.
 
@@ -42,26 +43,29 @@ core/
   platform/
   modules/
     project_management/
+    inventory_procurement/
     maintenance_management/
     qhse/
-    payroll/
+    hr_management/
 
 infra/
   platform/
   modules/
     project_management/
+    inventory_procurement/
     maintenance_management/
     qhse/
-    payroll/
+    hr_management/
 
 ui/
   platform/
     shell/
   modules/
     project_management/
+    inventory_procurement/
     maintenance_management/
     qhse/
-    payroll/
+    hr_management/
 ```
 
 Why this structure is preferred:
@@ -76,6 +80,7 @@ Why this structure is preferred:
 - identity and RBAC
 - module catalog and entitlement
 - organization, site, department, employee master data
+- shared party master for suppliers, manufacturers, vendors, and contractors
 - approvals and workflow
 - audit log
 - notifications and inbox
@@ -86,9 +91,10 @@ Why this structure is preferred:
 ### Business Modules
 
 - `project_management`: current PM app promoted as Module 1
+- `inventory_procurement`: item master, storerooms, stock control, purchasing, and receiving
 - `maintenance_management`: assets, work orders, preventive maintenance, downtime
 - `qhse`: incidents, inspections, audits, CAPA, permits, compliance
-- `payroll`: approved time intake, payroll preparation, approval, export
+- `hr_management`: employee operations, approved time intake, payroll preparation, approval, and export
 
 ## Concrete Execution Order
 
@@ -146,7 +152,7 @@ Exit criteria:
 
 Status: completed
 
-1. Extract timesheet and employee concepts so they can be consumed by PM, Maintenance, and Payroll.
+1. Extract timesheet and employee concepts so they can be consumed by PM, Maintenance, and HR Management.
 2. Define canonical entities:
    - `employee`
    - `site`
@@ -166,9 +172,30 @@ Progress already shipped:
 Exit criteria:
 
 - PM time approval still works
-- payroll and maintenance can later consume approved time from the same platform
+- HR Management and maintenance can later consume approved time from the same platform
 
-### Phase 4: Maintenance Module Skeleton
+### Phase 4: Inventory & Procurement Module Skeleton
+
+Status: pending
+
+1. Add module scaffold only:
+   - service package
+   - UI workspace registration
+   - placeholder dashboard/items/purchasing
+2. Add core entities:
+   - item master
+   - storeroom
+   - stock balance
+   - purchase requisition
+   - purchase order
+3. Connect to shared party master, approval, document, audit, and time services where applicable.
+
+Exit criteria:
+
+- inventory and procurement exist as a separate module
+- no PM code regression
+
+### Phase 5: Maintenance Module Skeleton
 
 Status: pending
 
@@ -180,14 +207,15 @@ Status: pending
    - asset
    - work order
    - maintenance plan
-3. Connect to shared employee, approval, document, and audit services.
+3. Connect to shared employee, approval, document, audit, and time services.
+4. Integrate materials, reservations, issue/return, and purchase demand through the `inventory_procurement` module instead of duplicating stock ledgers inside maintenance.
 
 Exit criteria:
 
 - maintenance exists as a separate module
-- no PM code regression
+- inventory and procurement integration seams are explicit
 
-### Phase 5: QHSE Module Skeleton
+### Phase 6: QHSE Module Skeleton
 
 Status: pending
 
@@ -200,21 +228,21 @@ Exit criteria:
 - QHSE is independently modeled
 - cross-module linkage is explicit, not hardcoded inside PM
 
-### Phase 6: Payroll Preparation Module
+### Phase 7: HR Management Module (Payroll-First)
 
 Status: pending
 
-1. Start with payroll preparation and export, not full statutory payroll for every country.
+1. Start with payroll preparation and export inside `hr_management`, not full statutory payroll for every country.
 2. Consume approved time from PM and Maintenance.
 3. Add payroll periods, run state, approval, exception handling, and export.
 4. Keep country-specific tax logic behind adapters if later expanded.
 
 Exit criteria:
 
-- payroll is module-based
+- HR Management is module-based
 - no duplication of timesheet logic
 
-### Phase 7: Commercial Module Enablement
+### Phase 8: Commercial Module Enablement
 
 Status: in progress
 
@@ -238,6 +266,6 @@ Exit criteria:
 
 ## Current Recommended Next Step
 
-1. Start Phase 4 with the `maintenance_management` module scaffold across `core`, `infra`, and `ui`.
-2. Introduce the first maintenance aggregates and service seams while reusing shared employees, approvals, documents, audit, and time.
-3. Keep `Payroll` behind the maintenance skeleton so the next module build-out does not skip ahead of the shared operations foundation.
+1. Start Phase 4 with the `inventory_procurement` module scaffold across `core`, `infra`, and `ui`.
+2. Define item, storeroom, stock, requisition, purchase-order, and receiving seams so other modules can depend on them cleanly.
+3. Start Phase 5 maintenance scaffolding with explicit material-demand integration into `inventory_procurement`.

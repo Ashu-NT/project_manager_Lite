@@ -24,7 +24,7 @@ def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, rep
         "Project Management",
         "Maintenance Management",
         "QHSE",
-        "Payroll",
+        "HR Management",
     ]
 
     platform_section = window.shell_navigation.tree.topLevelItem(0)
@@ -175,7 +175,7 @@ def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
         "Project Management",
         "Maintenance Management",
         "QHSE",
-        "Payroll",
+        "HR Management",
     ]
 
     platform_section = window.shell_navigation.tree.topLevelItem(0)

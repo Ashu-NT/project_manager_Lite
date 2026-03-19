@@ -10,8 +10,10 @@
   - the current production-ready business module
 - `core/modules/maintenance_management/`
 - `core/modules/qhse/`
-- `core/modules/payroll/`
+- `core/modules/hr_management/`
   - planned or placeholder module roots
+
+Legacy compatibility package roots such as `core/modules/payroll/` are still preserved where helpful during the rename transition.
 
 ## Design Role
 
