@@ -12,6 +12,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "employee.read": "View employee directory records",
     "employee.manage": "Create and edit employee directory records",
     "inventory.read": "View inventory and procurement workspaces",
+    "inventory.manage": "Create and edit inventory and procurement records",
     "site.read": "View shared site directory records",
     "department.read": "View shared department directory records",
     "party.read": "View shared supplier, vendor, and contractor directory records",
@@ -116,6 +117,7 @@ _FINANCE_CONTROLLER = {
 
 _INVENTORY_MANAGER = {
     "inventory.read",
+    "inventory.manage",
     "site.read",
     "party.read",
     "report.view",

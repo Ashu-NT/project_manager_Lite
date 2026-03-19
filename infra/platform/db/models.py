@@ -325,6 +325,90 @@ class PartyORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class StockItemORM(Base):
+    __tablename__ = "inventory_stock_items"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "item_code", name="ux_inventory_stock_items_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    item_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    item_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT", server_default="DRAFT")
+    stock_uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    order_uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    issue_uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    category_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    commodity_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    is_stocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    is_purchase_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    default_reorder_policy: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    min_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    max_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    reorder_point: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    reorder_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    lead_time_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    is_lot_tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    is_serial_tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    shelf_life_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    preferred_party_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("parties.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class StoreroomORM(Base):
+    __tablename__ = "inventory_storerooms"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "storeroom_code", name="ux_inventory_storerooms_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    storeroom_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    site_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sites.id"),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="DRAFT", server_default="DRAFT")
+    storeroom_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    is_internal_supplier: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    allows_issue: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    allows_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    allows_receiving: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    default_currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    manager_party_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("parties.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 class ModuleEntitlementORM(Base):
     __tablename__ = "organization_module_entitlements"
 
@@ -867,6 +951,11 @@ Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
 Index("idx_employees_active", EmployeeORM.is_active)
 Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
 Index("idx_organizations_active", OrganizationORM.is_active)
+Index("idx_inventory_stock_items_org", StockItemORM.organization_id)
+Index("idx_inventory_stock_items_active", StockItemORM.is_active)
+Index("idx_inventory_storerooms_org", StoreroomORM.organization_id)
+Index("idx_inventory_storerooms_site", StoreroomORM.site_id)
+Index("idx_inventory_storerooms_active", StoreroomORM.is_active)
 Index("idx_org_module_entitlements_org", ModuleEntitlementORM.organization_id)
 Index("idx_resources_employee", ResourceORM.employee_id)
 Index("idx_roles_name", RoleORM.name, unique=True)

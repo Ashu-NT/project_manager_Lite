@@ -40,6 +40,7 @@ def test_inventory_manager_role_exposes_inventory_shared_reference_permissions(s
     permissions = auth.get_user_permissions(user.id)
 
     assert "inventory.read" in permissions
+    assert "inventory.manage" in permissions
     assert "site.read" in permissions
     assert "party.read" in permissions
     assert "settings.manage" not in permissions

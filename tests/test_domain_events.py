@@ -120,6 +120,37 @@ def test_domain_changed_bridges_platform_and_module_events():
     ]
 
 
+def test_domain_changed_bridges_inventory_module_events():
+    seen: list[DomainChangeEvent] = []
+
+    def _handler(event: DomainChangeEvent) -> None:
+        seen.append(event)
+
+    domain_events.domain_changed.connect(_handler)
+    try:
+        domain_events.inventory_items_changed.emit("item-1")
+        domain_events.inventory_storerooms_changed.emit("storeroom-1")
+    finally:
+        domain_events.domain_changed.disconnect(_handler)
+
+    assert seen == [
+        DomainChangeEvent(
+            category="module",
+            scope_code="inventory_procurement",
+            entity_type="stock_item",
+            entity_id="item-1",
+            source_event="inventory_items_changed",
+        ),
+        DomainChangeEvent(
+            category="module",
+            scope_code="inventory_procurement",
+            entity_type="storeroom",
+            entity_id="storeroom-1",
+            source_event="inventory_storerooms_changed",
+        ),
+    ]
+
+
 def test_domain_events_reset_rewires_generic_event_bridges():
     seen: list[DomainChangeEvent] = []
 

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import NotFoundError
+from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository
 from core.platform.common.models import Organization
 from core.platform.documents.domain import Document, DocumentLink, DocumentType
@@ -169,6 +169,77 @@ class DocumentIntegrationService:
                 continue
             rows.append(document)
         return rows
+
+    def link_existing_document(
+        self,
+        *,
+        required_permission: str,
+        operation_label: str,
+        module_code: str,
+        entity_type: str,
+        entity_id: str,
+        document_id: str,
+        link_role: str = "reference",
+    ) -> DocumentLink:
+        require_permission(self._user_session, required_permission, operation_label=operation_label)
+        organization = self._active_organization()
+        document = self._document_repo.get(document_id)
+        if document is None or document.organization_id != organization.id:
+            raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
+        if not document.is_active:
+            raise ValidationError("Document must be active before it can be linked.", code="DOCUMENT_INACTIVE")
+        normalized_module = normalize_module_code(module_code)
+        normalized_entity_type = normalize_entity_label(
+            entity_type,
+            code="DOCUMENT_ENTITY_TYPE_REQUIRED",
+            label="Entity type",
+        )
+        normalized_entity_id = normalize_entity_label(
+            entity_id,
+            code="DOCUMENT_ENTITY_ID_REQUIRED",
+            label="Entity id",
+        )
+        normalized_role = normalize_optional_text(link_role)
+        existing = self._link_repo.find_existing(
+            document_id=document.id,
+            module_code=normalized_module,
+            entity_type=normalized_entity_type,
+            entity_id=normalized_entity_id,
+            link_role=normalized_role,
+        )
+        if existing is not None:
+            raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
+        link = DocumentLink.create(
+            organization_id=organization.id,
+            document_id=document.id,
+            module_code=normalized_module,
+            entity_type=normalized_entity_type,
+            entity_id=normalized_entity_id,
+            link_role=normalized_role,
+        )
+        try:
+            self._link_repo.add(link)
+            self._session.commit()
+        except IntegrityError as exc:
+            self._session.rollback()
+            raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS") from exc
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="document.link_existing",
+            entity_type="document",
+            entity_id=document.id,
+            details={
+                "module_code": normalized_module,
+                "entity_type": normalized_entity_type,
+                "entity_id": normalized_entity_id,
+                "link_role": normalized_role,
+            },
+        )
+        domain_events.documents_changed.emit(document.id)
+        return link
 
     def _active_organization(self) -> Organization:
         organization = self._organization_repo.get_active()

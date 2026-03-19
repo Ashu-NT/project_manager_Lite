@@ -19,6 +19,7 @@ from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
 from core.platform.documents import DocumentIntegrationService, DocumentService
+from core.platform.common.interfaces import OrganizationRepository
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from infra.platform.db.repositories import SqlAlchemyModuleEntitlementRepository
@@ -27,7 +28,9 @@ from infra.platform.service_registration.repositories import RepositoryBundle
 
 @dataclass(frozen=True)
 class PlatformServiceBundle:
+    session: Session
     user_session: UserSessionContext
+    organization_repo: OrganizationRepository
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
@@ -173,7 +176,9 @@ def build_platform_service_bundle(
     )
 
     return PlatformServiceBundle(
+        session=session,
         user_session=user_session,
+        organization_repo=repositories.organization_repo,
         platform_runtime_application_service=platform_runtime_application_service,
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,

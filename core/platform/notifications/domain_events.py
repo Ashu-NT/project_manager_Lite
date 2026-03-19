@@ -34,6 +34,13 @@ class DomainEvents:
     access_changed: Signal[str] = field(default_factory=Signal)  # project_id
     collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
     portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id
+    inventory_items_changed: Signal[str] = field(default_factory=Signal)  # item_id
+    inventory_storerooms_changed: Signal[str] = field(default_factory=Signal)  # storeroom_id
+    inventory_balances_changed: Signal[str] = field(default_factory=Signal)  # balance_id
+    inventory_reservations_changed: Signal[str] = field(default_factory=Signal)  # reservation_id
+    inventory_requisitions_changed: Signal[str] = field(default_factory=Signal)  # requisition_id
+    inventory_purchase_orders_changed: Signal[str] = field(default_factory=Signal)  # po_id
+    inventory_receipts_changed: Signal[str] = field(default_factory=Signal)  # receipt_id
     modules_changed: Signal[str] = field(default_factory=Signal)  # module_code
     shared_master_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
     domain_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
@@ -86,6 +93,49 @@ class DomainEvents:
                 "collaboration_changed",
             ),
             (self.portfolio_changed, "module", "project_management", "portfolio_entity", "portfolio_changed"),
+            (self.inventory_items_changed, "module", "inventory_procurement", "stock_item", "inventory_items_changed"),
+            (
+                self.inventory_storerooms_changed,
+                "module",
+                "inventory_procurement",
+                "storeroom",
+                "inventory_storerooms_changed",
+            ),
+            (
+                self.inventory_balances_changed,
+                "module",
+                "inventory_procurement",
+                "stock_balance",
+                "inventory_balances_changed",
+            ),
+            (
+                self.inventory_reservations_changed,
+                "module",
+                "inventory_procurement",
+                "stock_reservation",
+                "inventory_reservations_changed",
+            ),
+            (
+                self.inventory_requisitions_changed,
+                "module",
+                "inventory_procurement",
+                "purchase_requisition",
+                "inventory_requisitions_changed",
+            ),
+            (
+                self.inventory_purchase_orders_changed,
+                "module",
+                "inventory_procurement",
+                "purchase_order",
+                "inventory_purchase_orders_changed",
+            ),
+            (
+                self.inventory_receipts_changed,
+                "module",
+                "inventory_procurement",
+                "receipt_header",
+                "inventory_receipts_changed",
+            ),
             (self.modules_changed, "platform", "platform", "module_runtime", "modules_changed"),
         )
         for signal, category, scope_code, entity_type, source_event in bridge_specs:

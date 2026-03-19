@@ -1,5 +1,9 @@
 """Inventory & Procurement business module."""
 
-from core.modules.inventory_procurement.services import InventoryReferenceService
+from core.modules.inventory_procurement.services import (
+    InventoryReferenceService,
+    InventoryService,
+    ItemMasterService,
+)
 
-__all__ = ["InventoryReferenceService"]
+__all__ = ["InventoryReferenceService", "ItemMasterService", "InventoryService"]
