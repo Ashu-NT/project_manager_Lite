@@ -216,5 +216,6 @@ Non-goals for this slice:
 ## Follow-Up Pointers
 
 - architecture direction: `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`
+- shared-master reuse gate: `docs/platform_alignment_followup/SHARED_MASTER_READINESS_CHECKLIST.md`
 - maintenance boundary rules: `docs/maintenance_management/README.md`
 - product overview: `README.md`

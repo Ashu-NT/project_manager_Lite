@@ -38,6 +38,8 @@ That means:
 - direct cross-module schema ownership and duplicated master data should be avoided
 - no module should quietly become a second platform
 
+The short frozen decision record for these ownership boundaries is `docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md`.
+
 ## Platform End-State
 
 ## Recommended Repository Shape
