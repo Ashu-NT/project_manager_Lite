@@ -12,9 +12,11 @@ from core.modules.inventory_procurement.services.inventory import InventoryServi
 from core.modules.inventory_procurement.services.item_master import ItemMasterService
 from core.modules.inventory_procurement.services.stock_control import StockControlService
 from core.modules.inventory_procurement.support import (
+    RESERVATION_STATUS_TRANSITIONS,
     normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
+    validate_transition,
 )
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
@@ -180,6 +182,81 @@ class ReservationService:
         reservation = self.get_reservation(reservation_id)
         return self._close_reservation(reservation, status=StockReservationStatus.CANCELLED, note=note)
 
+    def issue_reserved_stock(
+        self,
+        reservation_id: str,
+        *,
+        quantity: float,
+        note: str = "",
+    ) -> StockReservation:
+        self._require_manage("issue reserved stock")
+        reservation = self.get_reservation(reservation_id)
+        if reservation.status not in {StockReservationStatus.ACTIVE, StockReservationStatus.PARTIALLY_ISSUED}:
+            raise ValidationError(
+                "Only active reservations can be issued.",
+                code="INVENTORY_RESERVATION_STATUS_INVALID",
+            )
+        issue_qty = normalize_positive_quantity(quantity, label="Issued quantity")
+        if issue_qty > float(reservation.remaining_qty or 0.0):
+            raise ValidationError(
+                "Issued quantity exceeds the reservation remaining quantity.",
+                code="INVENTORY_RESERVATION_QTY_EXCEEDED",
+            )
+        effective_at = datetime.now(timezone.utc)
+        next_remaining = max(0.0, float(reservation.remaining_qty or 0.0) - issue_qty)
+        next_status = (
+            StockReservationStatus.FULLY_ISSUED
+            if next_remaining <= 0
+            else StockReservationStatus.PARTIALLY_ISSUED
+        )
+        validate_transition(
+            current_status=reservation.status.value,
+            next_status=next_status.value,
+            transitions=RESERVATION_STATUS_TRANSITIONS,
+        )
+        try:
+            transaction = self._stock_service.issue_stock(
+                stock_item_id=reservation.stock_item_id,
+                storeroom_id=reservation.storeroom_id,
+                quantity=issue_qty,
+                uom=reservation.uom,
+                transaction_at=effective_at,
+                release_reserved_qty=issue_qty,
+                reference_type="inventory_reservation",
+                reference_id=reservation.id,
+                notes=normalize_optional_text(note) or reservation.notes,
+                commit=False,
+            )
+            reservation.issued_qty = float(reservation.issued_qty or 0.0) + issue_qty
+            reservation.remaining_qty = next_remaining
+            reservation.status = next_status
+            reservation.notes = normalize_optional_text(note) or reservation.notes
+            self._reservation_repo.update(reservation)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="inventory_reservation.issue",
+            entity_type="stock_reservation",
+            entity_id=reservation.id,
+            details={
+                "reservation_number": reservation.reservation_number,
+                "issued_qty": str(issue_qty),
+                "remaining_qty": str(reservation.remaining_qty),
+            },
+        )
+        self._record_transaction_audit(transaction)
+        balance = self._stock_service.get_balance_for_stock_position(
+            stock_item_id=reservation.stock_item_id,
+            storeroom_id=reservation.storeroom_id,
+        )
+        if balance is not None:
+            domain_events.inventory_balances_changed.emit(balance.id)
+        domain_events.inventory_reservations_changed.emit(reservation.id)
+        return reservation
+
     def _close_reservation(
         self,
         reservation: StockReservation,
@@ -199,6 +276,11 @@ class ReservationService:
                 code="INVENTORY_RESERVATION_ALREADY_CONSUMED",
             )
         effective_at = datetime.now(timezone.utc)
+        validate_transition(
+            current_status=reservation.status.value,
+            next_status=status.value,
+            transitions=RESERVATION_STATUS_TRANSITIONS,
+        )
         try:
             transaction = self._stock_service.release_reservation(
                 stock_item_id=reservation.stock_item_id,

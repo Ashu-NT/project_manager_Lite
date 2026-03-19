@@ -51,6 +51,14 @@ PURCHASE_ORDER_STATUS_TRANSITIONS = {
     "CLOSED": set(),
 }
 
+RESERVATION_STATUS_TRANSITIONS = {
+    "ACTIVE": {"PARTIALLY_ISSUED", "FULLY_ISSUED", "RELEASED", "CANCELLED"},
+    "PARTIALLY_ISSUED": {"FULLY_ISSUED", "RELEASED"},
+    "FULLY_ISSUED": set(),
+    "RELEASED": set(),
+    "CANCELLED": set(),
+}
+
 
 def normalize_inventory_code(value: str, *, label: str) -> str:
     return normalize_code(value, label=label)
@@ -149,6 +157,7 @@ __all__ = [
     "ITEM_STATUS_TRANSITIONS",
     "PURCHASE_ORDER_STATUS_TRANSITIONS",
     "REQUISITION_STATUS_TRANSITIONS",
+    "RESERVATION_STATUS_TRANSITIONS",
     "STOREROOM_STATUS_TRANSITIONS",
     "normalize_inventory_code",
     "normalize_inventory_name",
