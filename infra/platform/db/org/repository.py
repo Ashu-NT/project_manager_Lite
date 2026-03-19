@@ -5,11 +5,18 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import EmployeeRepository, OrganizationRepository, SiteRepository
-from core.platform.common.models import Employee, Organization, Site
-from infra.platform.db.models import EmployeeORM, OrganizationORM, SiteORM
+from core.platform.common.interfaces import (
+    DepartmentRepository,
+    EmployeeRepository,
+    OrganizationRepository,
+    SiteRepository,
+)
+from core.platform.common.models import Department, Employee, Organization, Site
+from infra.platform.db.models import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
 from infra.platform.db.optimistic import update_with_version_check
 from infra.platform.db.org.mapper import (
+    department_from_orm,
+    department_to_orm,
     employee_from_orm,
     employee_to_orm,
     organization_from_orm,
@@ -157,4 +164,56 @@ class SqlAlchemySiteRepository(SiteRepository):
         return [site_from_orm(row) for row in rows]
 
 
-__all__ = ["SqlAlchemyEmployeeRepository", "SqlAlchemyOrganizationRepository", "SqlAlchemySiteRepository"]
+class SqlAlchemyDepartmentRepository(DepartmentRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, department: Department) -> None:
+        self.session.add(department_to_orm(department))
+
+    def update(self, department: Department) -> None:
+        department.version = update_with_version_check(
+            self.session,
+            DepartmentORM,
+            department.id,
+            getattr(department, "version", 1),
+            {
+                "department_code": department.department_code,
+                "display_name": department.display_name,
+                "is_active": department.is_active,
+            },
+            not_found_message="Department not found.",
+            stale_message="Department was updated by another user.",
+        )
+
+    def get(self, department_id: str) -> Optional[Department]:
+        obj = self.session.get(DepartmentORM, department_id)
+        return department_from_orm(obj) if obj else None
+
+    def get_by_code(self, organization_id: str, department_code: str) -> Optional[Department]:
+        stmt = select(DepartmentORM).where(
+            DepartmentORM.organization_id == organization_id,
+            DepartmentORM.department_code == department_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return department_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+    ) -> List[Department]:
+        stmt = select(DepartmentORM).where(DepartmentORM.organization_id == organization_id)
+        if active_only is not None:
+            stmt = stmt.where(DepartmentORM.is_active == bool(active_only))
+        rows = self.session.execute(stmt.order_by(DepartmentORM.display_name.asc())).scalars().all()
+        return [department_from_orm(row) for row in rows]
+
+
+__all__ = [
+    "SqlAlchemyDepartmentRepository",
+    "SqlAlchemyEmployeeRepository",
+    "SqlAlchemyOrganizationRepository",
+    "SqlAlchemySiteRepository",
+]

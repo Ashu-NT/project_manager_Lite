@@ -158,6 +158,24 @@ class SiteORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class DepartmentORM(Base):
+    __tablename__ = "departments"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "department_code", name="ux_departments_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    department_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 class ModuleEntitlementORM(Base):
     __tablename__ = "organization_module_entitlements"
 
@@ -259,6 +277,8 @@ Index("idx_timesheet_periods_resource", TimesheetPeriodORM.resource_id)
 Index("ux_timesheet_periods_resource_start", TimesheetPeriodORM.resource_id, TimesheetPeriodORM.period_start, unique=True)
 Index("idx_sites_organization", SiteORM.organization_id)
 Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)
+Index("idx_departments_organization", DepartmentORM.organization_id)
+Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
 
 class TaskDependencyORM(Base):
     __tablename__ = "task_dependencies"

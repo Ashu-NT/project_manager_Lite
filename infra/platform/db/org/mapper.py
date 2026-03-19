@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from core.platform.common.models import Employee, Organization, Site
-from infra.platform.db.models import EmployeeORM, OrganizationORM, SiteORM
+from core.platform.common.models import Department, Employee, Organization, Site
+from infra.platform.db.models import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
 
 
 def employee_to_orm(employee: Employee) -> EmployeeORM:
@@ -82,7 +82,31 @@ def site_from_orm(obj: SiteORM) -> Site:
     )
 
 
+def department_to_orm(department: Department) -> DepartmentORM:
+    return DepartmentORM(
+        id=department.id,
+        organization_id=department.organization_id,
+        department_code=department.department_code,
+        display_name=department.display_name,
+        is_active=department.is_active,
+        version=getattr(department, "version", 1),
+    )
+
+
+def department_from_orm(obj: DepartmentORM) -> Department:
+    return Department(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        department_code=obj.department_code,
+        display_name=obj.display_name,
+        is_active=obj.is_active,
+        version=getattr(obj, "version", 1),
+    )
+
+
 __all__ = [
+    "department_from_orm",
+    "department_to_orm",
     "employee_from_orm",
     "employee_to_orm",
     "organization_from_orm",

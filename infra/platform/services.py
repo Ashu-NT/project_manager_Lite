@@ -21,7 +21,7 @@ from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
-from core.platform.org import EmployeeService, OrganizationService, SiteService
+from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.time import TimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -45,6 +45,7 @@ from infra.platform.db.repositories import (
     SqlAlchemyBaselineRepository,
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyCostRepository,
+    SqlAlchemyDepartmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyPermissionRepository,
     SqlAlchemyProjectRepository,
@@ -111,6 +112,7 @@ class ServiceGraph:
     time_service: TimeService
     auth_service: AuthService
     organization_service: OrganizationService
+    department_service: DepartmentService
     site_service: SiteService
     employee_service: EmployeeService
     access_service: AccessControlService
@@ -146,6 +148,7 @@ class ServiceGraph:
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "organization_service": self.organization_service,
+            "department_service": self.department_service,
             "site_service": self.site_service,
             "employee_service": self.employee_service,
             "access_service": self.access_service,
@@ -180,6 +183,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     resource_repo = SqlAlchemyResourceRepository(session)
     employee_repo = SqlAlchemyEmployeeRepository(session)
     organization_repo = SqlAlchemyOrganizationRepository(session)
+    department_repo = SqlAlchemyDepartmentRepository(session)
     site_repo = SqlAlchemySiteRepository(session)
     assignment_repo = SqlAlchemyAssignmentRepository(session)
     time_entry_repo = SqlAlchemyTimeEntryRepository(session)
@@ -240,6 +244,13 @@ def build_service_graph(session: Session) -> ServiceGraph:
     site_service = SiteService(
         session=session,
         site_repo=site_repo,
+        organization_repo=organization_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    department_service = DepartmentService(
+        session=session,
+        department_repo=department_repo,
         organization_repo=organization_repo,
         user_session=user_session,
         audit_service=audit_service,
@@ -558,6 +569,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         time_service=time_service,
         auth_service=auth_service,
         organization_service=organization_service,
+        department_service=department_service,
         site_service=site_service,
         employee_service=employee_service,
         access_service=access_service,

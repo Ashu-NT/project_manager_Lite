@@ -1,8 +1,6 @@
 """Compatibility facade for DB repositories and ORM mappers.
-
 New code should import focused modules under ``infra.platform.db.repositories_*`` and
-``infra.platform.db.mappers``. This module keeps legacy imports stable.
-"""
+``infra.platform.db.mappers``. This module keeps legacy imports stable."""
 
 from infra.platform.db.mappers import (
     assignment_from_orm,
@@ -72,6 +70,7 @@ from infra.platform.db.repositories_auth import (
 )
 from infra.platform.db.modules import SqlAlchemyModuleEntitlementRepository
 from infra.platform.db.repositories_org import (
+    SqlAlchemyDepartmentRepository,
     SqlAlchemyEmployeeRepository,
     SqlAlchemyOrganizationRepository,
     SqlAlchemySiteRepository,
@@ -128,6 +127,7 @@ __all__ = [
     "SqlAlchemyWorkingCalendarRepository",
     "SqlAlchemyBaselineRepository",
     "SqlAlchemyUserRepository",
+    "SqlAlchemyDepartmentRepository",
     "SqlAlchemyEmployeeRepository",
     "SqlAlchemyOrganizationRepository",
     "SqlAlchemySiteRepository",

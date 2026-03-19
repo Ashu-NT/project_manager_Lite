@@ -70,6 +70,33 @@ class Site:
 
 
 @dataclass
+class Department:
+    id: str
+    organization_id: str
+    department_code: str
+    display_name: str
+    is_active: bool = True
+    version: int = 1
+
+    @staticmethod
+    def create(
+        organization_id: str,
+        department_code: str,
+        display_name: str,
+        *,
+        is_active: bool = True,
+    ) -> "Department":
+        return Department(
+            id=generate_id(),
+            organization_id=organization_id,
+            department_code=department_code,
+            display_name=display_name,
+            is_active=is_active,
+            version=1,
+        )
+
+
+@dataclass
 class Employee:
     id: str
     employee_code: str
@@ -109,4 +136,4 @@ class Employee:
             version=1,
         )
 
-__all__ = ["Employee", "EmploymentType", "Organization", "Site"]
+__all__ = ["Department", "Employee", "EmploymentType", "Organization", "Site"]

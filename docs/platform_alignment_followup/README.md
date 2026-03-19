@@ -17,10 +17,15 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - persistent `sites` table and repository wiring
   - platform admin `Sites` workspace for managing shared site records by active organization
   - additive `sites_changed` domain event for future cross-module refresh
+- Completed in the current slice:
+  - shared `department` reference model under `core/platform/org`
+  - persistent `departments` table and repository wiring
+  - platform admin `Departments` workspace for managing shared department records by active organization
+  - additive `departments_changed` domain event for future cross-module refresh
 - Still intentionally transitional:
   - employees still store `site_name` as a compatibility string
   - approved/shared time entries still keep site and department snapshot strings
-  - employee editing does not yet use a shared site selector
+  - employee editing does not yet use shared site or department selectors
 
 ## Execution Order
 
@@ -49,7 +54,7 @@ Non-goals for this slice:
 
 ### 2. Shared Department Reference Model
 
-Status: planned
+Status: completed
 
 Scope:
 
@@ -61,6 +66,12 @@ Acceptance notes:
 
 - department stops being only ad hoc text in platform admin workflows
 - module code can reference department by stable IDs and business keys
+
+Non-goals for this slice:
+
+- no forced migration of employee `department` to foreign keys yet
+- no change to shared time snapshot storage yet
+- no HR-owned organizational model handoff yet
 
 ### 3. Shared Documents Domain
 

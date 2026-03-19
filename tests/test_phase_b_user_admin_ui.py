@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QDialog, QLineEdit
 from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
 from ui.platform.admin.modules.tab import ModuleLicensingTab
+from ui.platform.admin.departments.tab import DepartmentAdminTab
 from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
 from ui.platform.admin.organizations.tab import OrganizationAdminTab
 from ui.platform.admin.sites.tab import SiteAdminTab
@@ -35,6 +36,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Employees" in labels
     assert "Organizations" in labels
     assert "Sites" in labels
+    assert "Departments" in labels
     assert "Access" in labels
     assert "Audit" in labels
     assert "Support" in labels
@@ -195,6 +197,22 @@ def test_site_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
     assert tab.site_access_badge.text() == "Manage Enabled"
     assert tab.btn_new_site.isEnabled() is True
     assert tab.btn_edit_site.isEnabled() is False
+    assert tab.btn_toggle_active.isEnabled() is False
+
+
+def test_department_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
+    tab = DepartmentAdminTab(
+        department_service=services["department_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 0
+    assert tab.department_context_badge.text() == "Context: Default Organization"
+    assert tab.department_count_badge.text() == "0 departments"
+    assert tab.department_active_badge.text() == "0 active"
+    assert tab.department_access_badge.text() == "Manage Enabled"
+    assert tab.btn_new_department.isEnabled() is True
+    assert tab.btn_edit_department.isEnabled() is False
     assert tab.btn_toggle_active.isEnabled() is False
 
 

@@ -39,6 +39,7 @@ from .models import (
     Employee,
     Organization,
     Site,
+    Department,
 )
 
 
@@ -332,6 +333,24 @@ class SiteRepository(ABC):
         *,
         active_only: bool | None = None,
     ) -> List[Site]: ...
+
+
+class DepartmentRepository(ABC):
+    @abstractmethod
+    def add(self, department: Department) -> None: ...
+    @abstractmethod
+    def update(self, department: Department) -> None: ...
+    @abstractmethod
+    def get(self, department_id: str) -> Optional[Department]: ...
+    @abstractmethod
+    def get_by_code(self, organization_id: str, department_code: str) -> Optional[Department]: ...
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+    ) -> List[Department]: ...
 
 
 class RoleRepository(ABC):

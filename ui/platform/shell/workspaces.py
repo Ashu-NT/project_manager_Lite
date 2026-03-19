@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QWidget
 from application.platform import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
 from ui.platform.admin.access.tab import AccessTab
+from ui.platform.admin.departments.tab import DepartmentAdminTab
 from ui.platform.admin.employees.tab import EmployeeAdminTab
 from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.organizations.tab import OrganizationAdminTab
@@ -326,6 +327,21 @@ def build_workspace_definitions(
                 label="Sites",
                 widget=SiteAdminTab(
                     site_service=services["site_service"],
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if _has_permission(user_session, "settings.manage"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
+                label="Departments",
+                widget=DepartmentAdminTab(
+                    department_service=services["department_service"],
                     user_session=user_session,
                     parent=parent,
                 ),

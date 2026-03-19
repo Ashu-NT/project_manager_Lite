@@ -3,10 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.platform.org.domain import Employee, EmploymentType, Organization, Site
-    from core.platform.org.service import EmployeeService, OrganizationService, SiteService
+    from core.platform.org.domain import Department, Employee, EmploymentType, Organization, Site
+    from core.platform.org.service import DepartmentService, EmployeeService, OrganizationService, SiteService
 
 __all__ = [
+    "Department",
+    "DepartmentService",
     "Employee",
     "EmployeeService",
     "EmploymentType",
@@ -18,6 +20,10 @@ __all__ = [
 
 
 def __getattr__(name: str):
+    if name == "Department":
+        from core.platform.org.domain import Department
+
+        return Department
     if name == "Employee":
         from core.platform.org.domain import Employee
 
@@ -42,6 +48,10 @@ def __getattr__(name: str):
         from core.platform.org.service import OrganizationService
 
         return OrganizationService
+    if name == "DepartmentService":
+        from core.platform.org.service import DepartmentService
+
+        return DepartmentService
     if name == "SiteService":
         from core.platform.org.service import SiteService
 
