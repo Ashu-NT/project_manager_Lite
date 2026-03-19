@@ -51,18 +51,24 @@ class TimesheetSupportMixin:
         resource,
     ) -> dict[str, str | None]:
         employee_id = getattr(resource, "employee_id", None) if resource is not None else None
+        department_id = None
         department_name = ""
+        site_id = None
         site_name = ""
         if employee_id and self._employee_repo is not None:
             employee = self._employee_repo.get(employee_id)
             if employee is not None:
+                department_id = getattr(employee, "department_id", None)
                 department_name = (employee.department or "").strip()
+                site_id = getattr(employee, "site_id", None)
                 site_name = (getattr(employee, "site_name", "") or "").strip()
         return {
             "owner_type": "task_assignment",
             "owner_id": assignment.id,
             "employee_id": employee_id,
+            "department_id": department_id,
             "department_name": department_name,
+            "site_id": site_id,
             "site_name": site_name,
         }
 
@@ -127,8 +133,12 @@ class TimesheetSupportMixin:
             details["owner_id"] = entry.owner_id
         if entry.employee_id:
             details["employee_id"] = entry.employee_id
+        if getattr(entry, "department_id", None):
+            details["department_id"] = entry.department_id
         if entry.department_name:
             details["department_name"] = entry.department_name
+        if getattr(entry, "site_id", None):
+            details["site_id"] = entry.site_id
         if entry.site_name:
             details["site_name"] = entry.site_name
         for key, value in (extra or {}).items():

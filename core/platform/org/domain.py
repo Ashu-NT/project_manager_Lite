@@ -201,7 +201,9 @@ class Employee:
     id: str
     employee_code: str
     full_name: str
+    department_id: str | None = None
     department: str = ""
+    site_id: str | None = None
     site_name: str = ""
     title: str = ""
     employment_type: EmploymentType = EmploymentType.FULL_TIME
@@ -214,7 +216,9 @@ class Employee:
     def create(
         employee_code: str,
         full_name: str,
+        department_id: str | None = None,
         department: str = "",
+        site_id: str | None = None,
         site_name: str = "",
         title: str = "",
         employment_type: EmploymentType = EmploymentType.FULL_TIME,
@@ -226,7 +230,9 @@ class Employee:
             id=generate_id(),
             employee_code=employee_code,
             full_name=full_name,
+            department_id=department_id,
             department=department,
+            site_id=site_id,
             site_name=site_name,
             title=title,
             employment_type=employment_type,

@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from core.platform.common.models import Organization, Site
@@ -46,9 +46,51 @@ class SiteService:
         self._audit_service = audit_service
 
     def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
-        require_permission(self._user_session, "settings.manage", operation_label="list sites")
+        self._require_site_read_access("list sites")
         organization = self._active_organization()
         return self._site_repo.list_for_organization(organization.id, active_only=active_only)
+
+    def search_sites(
+        self,
+        *,
+        search_text: str = "",
+        active_only: bool | None = True,
+    ) -> list[Site]:
+        self._require_site_read_access("search sites")
+        normalized_search = _normalize_optional_text(search_text).lower()
+        rows = self._site_repo.list_for_organization(self._active_organization().id, active_only=active_only)
+        if not normalized_search:
+            return rows
+        return [
+            site
+            for site in rows
+            if normalized_search in " ".join(
+                filter(
+                    None,
+                    [
+                        site.site_code,
+                        site.name,
+                        site.city,
+                        site.country,
+                        site.site_type,
+                        site.status,
+                    ],
+                )
+            ).lower()
+        ]
+
+    def get_site(self, site_id: str) -> Site:
+        self._require_site_read_access("view site")
+        organization = self._active_organization()
+        site = self._site_repo.get(site_id)
+        if site is None or site.organization_id != organization.id:
+            raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
+        return site
+
+    def find_site_by_code(self, site_code: str) -> Site | None:
+        self._require_site_read_access("resolve site")
+        normalized_code = normalize_code(site_code, label="Site code")
+        return self._site_repo.get_by_code(self._active_organization().id, normalized_code)
 
     def get_context_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view site context")
@@ -257,6 +299,13 @@ class SiteService:
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
+
+    def _require_site_read_access(self, operation_label: str) -> None:
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "site.read"),
+            operation_label=operation_label,
+        )
 
 
 __all__ = ["SiteService"]

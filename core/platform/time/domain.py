@@ -29,7 +29,9 @@ class TimeEntry:
     owner_type: str = "task_assignment"
     owner_id: str | None = None
     employee_id: str | None = None
+    department_id: str | None = None
     department_name: str = ""
+    site_id: str | None = None
     site_name: str = ""
 
     @staticmethod
@@ -44,7 +46,9 @@ class TimeEntry:
         owner_type: str = "task_assignment",
         owner_id: str | None = None,
         employee_id: str | None = None,
+        department_id: str | None = None,
         department_name: str = "",
+        site_id: str | None = None,
         site_name: str = "",
     ) -> "TimeEntry":
         now = datetime.now(timezone.utc)
@@ -61,7 +65,9 @@ class TimeEntry:
             owner_type=(owner_type or "task_assignment").strip() or "task_assignment",
             owner_id=owner_id or assignment_id,
             employee_id=employee_id,
+            department_id=department_id,
             department_name=(department_name or "").strip(),
+            site_id=site_id,
             site_name=(site_name or "").strip(),
         )
 

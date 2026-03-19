@@ -47,8 +47,8 @@ class EmployeeAdminTab(QWidget):
         self._can_manage_employees = has_permission(self._user_session, "employee.manage")
         self._can_manage_settings = has_permission(self._user_session, "settings.manage")
         self._rows: list[Employee] = []
-        self._site_options: list[str] = []
-        self._department_options: list[str] = []
+        self._site_options: list[tuple[str, str]] = []
+        self._department_options: list[tuple[str, str]] = []
         self._reference_status_text = "Shared refs: unavailable"
         self._setup_ui()
         self._reload_reference_options(show_feedback=False)
@@ -269,7 +269,9 @@ class EmployeeAdminTab(QWidget):
                 self._employee_service.create_employee(
                     employee_code=dlg.employee_code,
                     full_name=dlg.full_name,
+                    department_id=dlg.department_id,
                     department=dlg.department,
+                    site_id=dlg.site_id,
                     site_name=dlg.site_name,
                     title=dlg.title,
                     employment_type=dlg.employment_type,
@@ -306,7 +308,9 @@ class EmployeeAdminTab(QWidget):
                     employee.id,
                     employee_code=dlg.employee_code,
                     full_name=dlg.full_name,
+                    department_id=dlg.department_id,
                     department=dlg.department,
+                    site_id=dlg.site_id,
                     site_name=dlg.site_name,
                     title=dlg.title,
                     employment_type=dlg.employment_type,
@@ -393,11 +397,11 @@ class EmployeeAdminTab(QWidget):
         if hasattr(self, "employee_reference_badge"):
             self.employee_reference_badge.setText(self._reference_status_text)
 
-    def _load_site_options(self, *, show_feedback: bool) -> list[str]:
+    def _load_site_options(self, *, show_feedback: bool) -> list[tuple[str, str]]:
         if self._site_service is None:
             return []
         try:
-            return [site.name for site in self._site_service.list_sites(active_only=True)]
+            return [(site.name, site.id) for site in self._site_service.list_sites(active_only=True)]
         except BusinessRuleError:
             return []
         except Exception as exc:
@@ -405,11 +409,11 @@ class EmployeeAdminTab(QWidget):
                 QMessageBox.warning(self, "Employees", f"Unable to load shared sites: {exc}")
             return []
 
-    def _load_department_options(self, *, show_feedback: bool) -> list[str]:
+    def _load_department_options(self, *, show_feedback: bool) -> list[tuple[str, str]]:
         if self._department_service is None:
             return []
         try:
-            return [department.name for department in self._department_service.list_departments(active_only=True)]
+            return [(department.name, department.id) for department in self._department_service.list_departments(active_only=True)]
         except BusinessRuleError:
             return []
         except Exception as exc:

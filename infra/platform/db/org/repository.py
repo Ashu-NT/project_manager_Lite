@@ -42,7 +42,9 @@ class SqlAlchemyEmployeeRepository(EmployeeRepository):
             {
                 "employee_code": employee.employee_code,
                 "full_name": employee.full_name,
+                "department_id": employee.department_id,
                 "department": (employee.department or None),
+                "site_id": employee.site_id,
                 "site_name": (employee.site_name or None),
                 "title": (employee.title or None),
                 "employment_type": employee.employment_type,

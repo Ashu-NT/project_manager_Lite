@@ -204,6 +204,112 @@ Non-goals for this slice:
 - no retrofit of future module surfaces before `maintenance_management`, `inventory_procurement`, or `hr_management` have real runtime workflows
 - no rewrite of time-entry snapshot storage, which intentionally stays readable and historical for now
 
+## Next Execution Block
+
+The next implementation block should now follow this order:
+
+### 8. Shared-Master Read Access Hardening
+
+Status: completed
+
+Scope:
+
+- close the module-safe read/query gaps for `site`, `department`, and `party`
+- let future modules search and resolve these shared masters without `settings.manage`
+- keep write ownership constrained to platform-admin workflows
+
+Acceptance notes:
+
+- future modules can search sites safely
+- future modules can resolve departments safely
+- future modules can select supplier, vendor, and contractor identities safely
+- shared-master reuse no longer requires admin-only permissions for read scenarios
+
+Non-goals for this slice:
+
+- no change to admin ownership of create/update operations
+- no inventory or maintenance workflow implementation yet
+
+Completion notes:
+
+- `site.read`, `department.read`, and `party.read` now provide module-safe read/query seams for shared masters
+- shared-master reads no longer require `settings.manage`
+
+### 9. Canonical Employee Reference Tightening
+
+Status: completed
+
+Scope:
+
+- add canonical `employee.site_id` and `employee.department_id` references
+- keep readable compatibility strings during the transition
+- begin carrying canonical shared-master IDs where shared time and work-entry context benefit from them
+
+Acceptance notes:
+
+- `employee` references shared `site` and `department` through IDs
+- current readable site and department text remains compatible during transition
+- new shared-time/work-entry records can carry canonical IDs without losing readable snapshots
+
+Non-goals for this slice:
+
+- no destructive removal of `site_name` or `department` compatibility fields yet
+- no forced rewrite of historical time-entry text snapshots
+
+Completion notes:
+
+- `employee.site_id` and `employee.department_id` now exist as canonical reference fields
+- shared time entries now carry canonical `site_id` and `department_id` alongside readable snapshots
+
+### 10. Location Ownership ADR
+
+Status: completed
+
+Scope:
+
+- freeze the remaining ownership ambiguity around `location`
+- decide whether `location` stays platform-owned or remains fully inside `maintenance_management`
+- keep `system` ownership explicit alongside that decision
+
+Acceptance notes:
+
+- the next ADR clearly answers the location/system ownership question
+- maintenance and inventory work can proceed without hidden ownership drift
+
+Non-goals for this slice:
+
+- no runtime `location` implementation yet
+- no maintenance domain rollout yet
+
+Completion notes:
+
+- the ownership decision is frozen in `docs/architecture_decisions/ADR-002-location-and-system-ownership.md`
+- `platform` keeps `site`; `maintenance_management` owns both `location` and `system`
+
+### 11. Inventory Kickoff
+
+Status: completed
+
+Scope:
+
+- start the real `inventory_procurement` scaffold as soon as shared-master read access is ready
+- use `site` and `party` through the hardened shared-master seams from day one
+
+Acceptance notes:
+
+- inventory starts as a standalone business module, not as a maintenance sub-feature
+- the scaffold already consumes shared sites and parties through safe read/query paths
+
+Non-goals for this slice:
+
+- no broad purchasing or stock workflow implementation in the same slice as the shared-master hardening
+
+Completion notes:
+
+- the first module-side scaffold now exists through `InventoryReferenceService`
+- inventory starts from shared `site` and `party` reads instead of inventing local copies
+- deeper item, storeroom, stock, and purchasing flows remain the next implementation slice
+
 ## Guardrails
 
 - additive changes first, destructive rewrites later

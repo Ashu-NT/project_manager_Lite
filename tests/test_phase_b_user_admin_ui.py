@@ -288,20 +288,24 @@ def test_employee_edit_dialog_prefers_shared_reference_selectors_but_keeps_legac
     )
     dialog = EmployeeEditDialog(
         employee=employee,
-        department_options=["Operations"],
-        site_options=["Berlin Plant"],
+        department_options=[("Operations", "department-ops")],
+        site_options=[("Berlin Plant", "site-ber")],
     )
 
     assert isinstance(dialog.department_combo, QComboBox)
     assert isinstance(dialog.site_name_combo, QComboBox)
     assert dialog.department == "Legacy Department"
+    assert dialog.department_id is None
     assert dialog.site_name == "Legacy Site"
+    assert dialog.site_id is None
 
     dialog.department_combo.setEditText("Operations")
     dialog.site_name_combo.setEditText("Berlin Plant")
 
     assert dialog.department == "Operations"
+    assert dialog.department_id == "department-ops"
     assert dialog.site_name == "Berlin Plant"
+    assert dialog.site_id == "site-ber"
 
 
 def test_organization_admin_tab_creates_organization_with_initial_module_mix(qapp, services, monkeypatch):

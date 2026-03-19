@@ -11,6 +11,10 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "resource.manage": "Create and edit resources",
     "employee.read": "View employee directory records",
     "employee.manage": "Create and edit employee directory records",
+    "inventory.read": "View inventory and procurement workspaces",
+    "site.read": "View shared site directory records",
+    "department.read": "View shared department directory records",
+    "party.read": "View shared supplier, vendor, and contractor directory records",
     "cost.read": "View costs",
     "cost.manage": "Create and edit costs",
     "finance.read": "View finance snapshots and ledgers",
@@ -84,6 +88,8 @@ _RESOURCE_MANAGER = {
     "resource.manage",
     "employee.read",
     "employee.manage",
+    "site.read",
+    "department.read",
     "report.view",
     "report.export",
     "collaboration.read",
@@ -97,6 +103,7 @@ _FINANCE_CONTROLLER = {
     "resource.read",
     "cost.read",
     "cost.manage",
+    "party.read",
     "register.read",
     "report.view",
     "report.export",
@@ -107,12 +114,21 @@ _FINANCE_CONTROLLER = {
     "approval.request",
 }
 
+_INVENTORY_MANAGER = {
+    "inventory.read",
+    "site.read",
+    "party.read",
+    "report.view",
+}
+
 _PAYROLL_MANAGER = {
     "project.read",
     "task.read",
     "resource.read",
     "employee.read",
     "employee.manage",
+    "site.read",
+    "department.read",
     "report.view",
     "payroll.read",
     "payroll.manage",
@@ -196,6 +212,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "resource_manager": set(_RESOURCE_MANAGER),
     "finance": set(_FINANCE_CONTROLLER),
     "finance_controller": set(_FINANCE_CONTROLLER),
+    "inventory_manager": set(_INVENTORY_MANAGER),
     "payroll_manager": set(_PAYROLL_MANAGER),
     "portfolio_manager": set(_PORTFOLIO_MANAGER),
     "approver": set(_APPROVER),

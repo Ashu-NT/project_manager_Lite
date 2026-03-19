@@ -113,7 +113,17 @@ class EmployeeORM(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     employee_code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     full_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    department_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     department: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    site_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("sites.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     site_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     title: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     employment_type: Mapped[EmploymentType] = mapped_column(
@@ -371,7 +381,17 @@ class TimeEntryORM(Base):
         ForeignKey("employees.id", ondelete="SET NULL"),
         nullable=True,
     )
+    department_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     department_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    site_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("sites.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     site_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     author_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
@@ -383,6 +403,8 @@ Index("idx_time_entries_assignment", TimeEntryORM.assignment_id)
 Index("idx_time_entries_date", TimeEntryORM.entry_date)
 Index("idx_time_entries_owner", TimeEntryORM.owner_type, TimeEntryORM.owner_id)
 Index("idx_time_entries_employee", TimeEntryORM.employee_id)
+Index("idx_time_entries_department", TimeEntryORM.department_id)
+Index("idx_time_entries_site", TimeEntryORM.site_id)
 
 
 class TimesheetPeriodORM(Base):
@@ -416,6 +438,8 @@ Index("idx_timesheet_periods_resource", TimesheetPeriodORM.resource_id)
 Index("ux_timesheet_periods_resource_start", TimesheetPeriodORM.resource_id, TimesheetPeriodORM.period_start, unique=True)
 Index("idx_sites_organization", SiteORM.organization_id)
 Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)
+Index("idx_employees_department", EmployeeORM.department_id)
+Index("idx_employees_site", EmployeeORM.site_id)
 Index("idx_departments_organization", DepartmentORM.organization_id)
 Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
 Index("idx_departments_site", DepartmentORM.site_id)

@@ -37,10 +37,10 @@ Status legend:
 
 | Shared domain | Domain model | Persistence | Business key | Import / export | Service interfaces | Module-safe read | Write ownership | Audit hooks | Linking / reference | Overall reuse readiness |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `site` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `GAP` | `READY` | `READY` | `PARTIAL` | `PARTIAL` |
-| `department` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `GAP` | `READY` | `READY` | `PARTIAL` | `PARTIAL` |
-| `employee` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `READY` | `READY` | `READY` | `PARTIAL` | `PARTIAL` |
-| `party` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `GAP` | `READY` | `READY` | `PARTIAL` | `PARTIAL` |
+| `site` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `READY` | `READY` | `READY` | `READY` | `PARTIAL` |
+| `department` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `READY` | `READY` | `READY` | `READY` | `PARTIAL` |
+| `employee` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `READY` | `READY` | `READY` | `READY` | `PARTIAL` |
+| `party` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `READY` | `READY` | `READY` | `READY` | `PARTIAL` |
 | `document infrastructure` | `READY` | `READY` | `READY` | `PARTIAL` | `READY` | `READY` | `READY` | `READY` | `READY` | `READY` |
 
 ## Domain Notes
@@ -57,15 +57,15 @@ Status legend:
   - admin CRUD behavior exists, but there is no shared CSV, Excel, sync, or export contract yet.
 - Service interfaces: `READY`
   - `SiteRepository` exists in `core/platform/common/interfaces.py`; `SiteService` exists in `core/platform/org/site_service.py`.
-- Module-safe read access: `GAP`
-  - current read APIs are guarded by `settings.manage`, which is fine for admin ownership but not yet suitable for ordinary consuming modules.
+- Module-safe read access: `READY`
+  - `site.read` now exposes safe non-admin query/read access for consuming modules.
 - Write ownership: `READY`
   - writes are constrained to platform-admin ownership through `settings.manage`.
 - Audit hooks: `READY`
   - `site.create` and `site.update` are audited.
-- Linking / reference patterns: `PARTIAL`
-  - `department.site_id` provides a canonical reference pattern, but broader module consumption is not yet exposed through a module-safe query seam.
-  - employee and time records still carry readable site snapshots as strings.
+- Linking / reference patterns: `READY`
+  - `department.site_id`, `employee.site_id`, and shared time-entry `site_id` now provide a canonical reference path.
+  - readable site snapshots remain in place only for compatibility and traceability.
 
 ### 2. Department
 
@@ -79,15 +79,15 @@ Status legend:
   - admin CRUD exists, but there is no shared import/export contract yet.
 - Service interfaces: `READY`
   - `DepartmentRepository` exists in `core/platform/common/interfaces.py`; `DepartmentService` exists in `core/platform/org/department_service.py`.
-- Module-safe read access: `GAP`
-  - current reads require `settings.manage`, so the shared master exists but is not yet safely queryable by ordinary consuming modules.
+- Module-safe read access: `READY`
+  - `department.read` now exposes safe non-admin query/read access for consuming modules.
 - Write ownership: `READY`
   - writes are constrained to platform-admin ownership through `settings.manage`.
 - Audit hooks: `READY`
   - `department.create` and `department.update` are audited.
-- Linking / reference patterns: `PARTIAL`
-  - `site_id`, `parent_department_id`, and `manager_employee_id` define the canonical shape.
-  - employee and approved-time records still keep department as a readable string snapshot rather than a canonical foreign-key reference.
+- Linking / reference patterns: `READY`
+  - `site_id`, `parent_department_id`, and `manager_employee_id` define the canonical department shape.
+  - `employee.department_id` and shared time-entry `department_id` now carry the canonical reference path while readable snapshots stay available for compatibility.
 
 ### 3. Employee
 
@@ -107,9 +107,9 @@ Status legend:
   - writes are constrained through `employee.manage`.
 - Audit hooks: `READY`
   - `employee.create` and `employee.update` are audited.
-- Linking / reference patterns: `PARTIAL`
+- Linking / reference patterns: `READY`
   - `resource.employee_id` and `department.manager_employee_id` already reference employee by ID.
-  - employee still stores `department` and `site_name` as compatibility strings instead of referencing the shared `department` and `site` masters directly.
+  - employee now carries canonical `department_id` and `site_id`, while readable compatibility fields remain for transition and audit-friendly display.
 
 ### 4. Party
 
@@ -123,15 +123,15 @@ Status legend:
   - admin CRUD exists, but there is no shared import/export or ERP-sync contract yet.
 - Service interfaces: `READY`
   - `PartyRepository` exists in `core/platform/party/interfaces.py`; `PartyService` exists in `core/platform/party/service.py`.
-- Module-safe read access: `GAP`
-  - current reads require `settings.manage`, so future modules do not yet have a safe non-admin read/query surface.
+- Module-safe read access: `READY`
+  - `party.read` now exposes safe non-admin query/read access for consuming modules.
 - Write ownership: `READY`
   - writes are constrained to platform-admin ownership through `settings.manage`.
 - Audit hooks: `READY`
   - `party.create` and `party.update` are audited.
-- Linking / reference patterns: `PARTIAL`
-  - the intended shared reference is `party_id` or `party_code`, but there is not yet a first live consuming module proving the pattern end to end.
-  - there is also no shared module-facing helper/query service yet for common party lookup workflows.
+- Linking / reference patterns: `READY`
+  - the intended shared reference remains `party_id` or `party_code`.
+  - the `inventory_procurement` scaffold now consumes shared party reads through a module-facing helper service instead of inventing a local directory.
 
 ### 5. Document Infrastructure
 
@@ -162,10 +162,9 @@ Status legend:
 
 The most important reuse gaps are:
 
-1. Add module-safe query/read services for `site`, `department`, and `party` so future modules do not need `settings.manage` just to read shared masters.
-2. Decide and document import/export behavior for all five shared domains.
-3. Add optional canonical `site_id` / `department_id` linkage to `employee` while keeping the current readable compatibility strings during transition.
-4. Reuse the document integration pattern as the reference design for future shared-master module consumption.
+1. Decide and document import/export behavior for all five shared domains.
+2. Extend the first `inventory_procurement` scaffold into real item, storeroom, stock, and procurement workflows that continue consuming shared masters by reference.
+3. Reuse the document integration pattern as the reference design for future shared-master module consumption.
 
 ## Decision Use
 

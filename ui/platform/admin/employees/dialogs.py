@@ -17,28 +17,49 @@ from core.platform.common.models import Employee, EmploymentType
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
+def _current_reference_id(combo: QComboBox) -> str | None:
+    current_text = combo.currentText().strip()
+    for index in range(combo.count()):
+        if combo.itemText(index).strip() != current_text:
+            continue
+        value = str(combo.itemData(index) or "").strip()
+        return value or None
+    return None
+
+
 def _populate_reference_combo(
     combo: QComboBox,
     *,
-    options: list[str],
+    options: list[tuple[str, str]] | list[str],
+    current_id: str | None = None,
     current_value: str = "",
     placeholder: str,
 ) -> None:
     combo.clear()
     combo.setEditable(True)
     combo.setInsertPolicy(QComboBox.NoInsert)
-    combo.addItem("")
+    combo.addItem("", userData=None)
     seen: set[str] = set()
-    for value in options:
+    by_id: dict[str, int] = {}
+    for option in options:
+        if isinstance(option, tuple):
+            value, option_id = option
+        else:
+            value, option_id = option, ""
         normalized = (value or "").strip()
+        normalized_id = (option_id or "").strip()
         if not normalized or normalized in seen:
             continue
-        combo.addItem(normalized)
+        combo.addItem(normalized, userData=normalized_id or None)
+        by_id[normalized_id] = combo.count() - 1
         seen.add(normalized)
     normalized_current = (current_value or "").strip()
     if normalized_current and normalized_current not in seen:
-        combo.addItem(normalized_current)
-    index = combo.findText(normalized_current, Qt.MatchFixedString)
+        combo.addItem(normalized_current, userData=None)
+    normalized_current_id = (current_id or "").strip()
+    index = by_id.get(normalized_current_id, -1)
+    if index < 0:
+        index = combo.findText(normalized_current, Qt.MatchFixedString)
     if index >= 0:
         combo.setCurrentIndex(index)
     else:
@@ -54,8 +75,8 @@ class EmployeeEditDialog(QDialog):
         parent=None,
         employee: Employee | None = None,
         *,
-        department_options: list[str] | None = None,
-        site_options: list[str] | None = None,
+        department_options: list[tuple[str, str]] | None = None,
+        site_options: list[tuple[str, str]] | None = None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Employee" + (" - Edit" if employee else " - New"))
@@ -108,12 +129,14 @@ class EmployeeEditDialog(QDialog):
         _populate_reference_combo(
             self.department_combo,
             options=department_options or [],
+            current_id=getattr(employee, "department_id", None) if employee is not None else None,
             current_value=employee.department if employee is not None else "",
             placeholder="Select or type a department",
         )
         _populate_reference_combo(
             self.site_name_combo,
             options=site_options or [],
+            current_id=getattr(employee, "site_id", None) if employee is not None else None,
             current_value=getattr(employee, "site_name", "") if employee is not None else "",
             placeholder="Select or type a site",
         )
@@ -174,8 +197,16 @@ class EmployeeEditDialog(QDialog):
         return self.department_combo.currentText().strip()
 
     @property
+    def department_id(self) -> str | None:
+        return _current_reference_id(self.department_combo)
+
+    @property
     def site_name(self) -> str:
         return self.site_name_combo.currentText().strip()
+
+    @property
+    def site_id(self) -> str | None:
+        return _current_reference_id(self.site_name_combo)
 
     @property
     def title(self) -> str:

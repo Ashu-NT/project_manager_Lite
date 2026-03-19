@@ -27,13 +27,13 @@ The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`
 
 ## Next Priority
 
-The next priority is to define and start the `Inventory & Procurement` module skeleton, then wire `Maintenance Management` to consume it.
+The next priority is to deepen the started `Inventory & Procurement` scaffold into real `item`, `storeroom`, `stock`, and `procurement` workflows, then wire `Maintenance Management` to consume it by reference.
 
 The initial maintenance blueprint is tracked in `docs/maintenance_management/README.md`.
 
-The broader platform direction is now governed by a simple architecture rule: share enterprise capabilities, not business ownership. Shared capabilities should live once under the platform spine, business workflows should stay in the module that owns them, and cross-module collaboration should happen through references and events rather than direct schema coupling. The short frozen ownership decision is now locked in `docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md`. See also `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md` and `docs/maintenance_management/README.md`.
+The broader platform direction is now governed by a simple architecture rule: share enterprise capabilities, not business ownership. Shared capabilities should live once under the platform spine, business workflows should stay in the module that owns them, and cross-module collaboration should happen through references and events rather than direct schema coupling. The short frozen ownership decisions are now locked in `docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md` and `docs/architecture_decisions/ADR-002-location-and-system-ownership.md`. See also `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md` and `docs/maintenance_management/README.md`.
 
-The concrete follow-up tracker for making the current codebase match that architecture is now kept in `docs/platform_alignment_followup/README.md`. It starts with shared site master data, then continues with department references, shared documents, shared party identity, broader domain events, and more modular service registration.
+The concrete follow-up tracker for making the current codebase match that architecture is now kept in `docs/platform_alignment_followup/README.md`. The shared-master alignment block is now complete, and the next module-facing work continues from the started inventory scaffold.
 
 Why this comes first:
 

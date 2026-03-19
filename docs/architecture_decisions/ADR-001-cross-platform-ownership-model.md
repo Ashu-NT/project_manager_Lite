@@ -22,6 +22,8 @@ Before building `inventory_procurement`, the platform needs one short frozen dec
 
 The concrete reuse-readiness review for the shared masters covered by this ADR lives in [Shared Master Readiness Checklist](../platform_alignment_followup/SHARED_MASTER_READINESS_CHECKLIST.md).
 
+The follow-on ownership clarification for `location` and `system` is frozen in [ADR-002](ADR-002-location-and-system-ownership.md).
+
 ## Decision
 
 The governing rule is:
@@ -46,7 +48,7 @@ As of 2026-03-19, the current codebase status is:
 - `[x]` platform shared time boundary is implemented
 - `[x]` platform module runtime spine is implemented
 - `[x]` `project_management` is implemented as the active production business module
-- `[ ]` `inventory_procurement` is not implemented yet beyond module catalog and package scaffolding
+- `[~]` `inventory_procurement` now has an initial scaffold and shared-reference service bundle, but item, storeroom, stock, procurement, and receiving workflows are not implemented yet
 - `[ ]` `maintenance_management` is not implemented yet beyond module catalog, package scaffolding, and planning blueprints
 - `[ ]` `qhse` is not implemented yet beyond module catalog and package scaffolding
 - `[ ]` `hr_management` is not implemented yet beyond module catalog, compatibility aliasing from legacy `payroll`, and shared platform foundations it will later consume

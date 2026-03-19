@@ -133,6 +133,7 @@ def test_services_module_delegates_to_modular_registration_builders():
     assert "from infra.platform.service_registration import (" in text
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
+    assert "build_inventory_procurement_service_bundle(platform_services)" in text
     assert "build_project_management_service_bundle(" in text
 
 
@@ -142,4 +143,5 @@ def test_service_registration_package_is_split_by_platform_and_module():
     assert (root / "__init__.py").exists()
     assert (root / "repositories.py").exists()
     assert (root / "platform_bundle.py").exists()
+    assert (root / "inventory_procurement_bundle.py").exists()
     assert (root / "project_management_bundle.py").exists()

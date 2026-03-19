@@ -26,9 +26,15 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
         "StrongPass123",
         role_names=["payroll_manager"],
     )
+    inventory_user = auth.register_user(
+        "inventory-manager-role",
+        "StrongPass123",
+        role_names=["inventory_manager"],
+    )
 
     security_permissions = auth.get_user_permissions(security_user.id)
     payroll_permissions = auth.get_user_permissions(payroll_user.id)
+    inventory_permissions = auth.get_user_permissions(inventory_user.id)
 
     assert "security.manage" in security_permissions
     assert "auth.read" in security_permissions
@@ -43,7 +49,14 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
     assert "timesheet.lock" in payroll_permissions
     assert "employee.read" in payroll_permissions
     assert "employee.manage" in payroll_permissions
+    assert "site.read" in payroll_permissions
+    assert "department.read" in payroll_permissions
     assert "auth.manage" not in payroll_permissions
+
+    assert "inventory.read" in inventory_permissions
+    assert "site.read" in inventory_permissions
+    assert "party.read" in inventory_permissions
+    assert "settings.manage" not in inventory_permissions
 
 
 def test_access_and_security_admin_capabilities_are_separated(services):

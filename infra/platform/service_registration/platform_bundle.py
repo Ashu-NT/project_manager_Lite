@@ -165,6 +165,9 @@ def build_platform_service_bundle(
         session=session,
         employee_repo=repositories.employee_repo,
         resource_repo=repositories.resource_repo,
+        site_repo=repositories.site_repo,
+        department_repo=repositories.department_repo,
+        organization_repo=repositories.organization_repo,
         user_session=user_session,
         audit_service=audit_service,
     )

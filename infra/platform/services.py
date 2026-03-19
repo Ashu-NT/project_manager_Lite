@@ -16,6 +16,7 @@ from core.platform.modules.runtime import ModuleCatalogService, ModuleRuntimeSer
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from core.platform.time import TimeService
+from core.modules.inventory_procurement import InventoryReferenceService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
@@ -34,6 +35,7 @@ from core.modules.project_management.services.timesheet import TimesheetService
 from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from infra.platform.service_registration import (
+    build_inventory_procurement_service_bundle,
     build_platform_service_bundle,
     build_project_management_service_bundle,
     build_repository_bundle,
@@ -55,6 +57,7 @@ class ServiceGraph:
     department_service: DepartmentService
     site_service: SiteService
     employee_service: EmployeeService
+    inventory_reference_service: InventoryReferenceService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -93,6 +96,7 @@ class ServiceGraph:
             "department_service": self.department_service,
             "site_service": self.site_service,
             "employee_service": self.employee_service,
+            "inventory_reference_service": self.inventory_reference_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
@@ -121,6 +125,7 @@ class ServiceGraph:
 def build_service_graph(session: Session) -> ServiceGraph:
     repositories = build_repository_bundle(session)
     platform_services = build_platform_service_bundle(session, repositories)
+    inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
@@ -140,6 +145,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         department_service=platform_services.department_service,
         site_service=platform_services.site_service,
         employee_service=platform_services.employee_service,
+        inventory_reference_service=inventory_procurement_services.inventory_reference_service,
         access_service=platform_services.access_service,
         audit_service=platform_services.audit_service,
         approval_service=platform_services.approval_service,

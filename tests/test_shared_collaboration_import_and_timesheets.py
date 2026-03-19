@@ -114,11 +114,19 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
     ts = services["task_service"]
     rs = services["resource_service"]
     es = services["employee_service"]
+    site = services["site_service"].create_site(site_code="HAM", name="Hamburg Yard")
+    department = services["department_service"].create_department(
+        department_code="OPS",
+        name="Operations",
+        site_id=site.id,
+    )
 
     employee = es.create_employee(
         employee_code="EMP-101",
         full_name="Context Owner",
+        department_id=department.id,
         department="Operations",
+        site_id=site.id,
         site_name="Hamburg Yard",
         title="Technician",
         email="context.owner@example.com",
@@ -144,7 +152,9 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
     assert entry.owner_type == "task_assignment"
     assert entry.owner_id == assignment.id
     assert entry.employee_id == employee.id
+    assert entry.department_id == department.id
     assert entry.department_name == "Operations"
+    assert entry.site_id == site.id
     assert entry.site_name == "Hamburg Yard"
 
 

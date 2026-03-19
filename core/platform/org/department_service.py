@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import (
     DepartmentRepository,
@@ -48,9 +48,50 @@ class DepartmentService:
         self._audit_service = audit_service
 
     def list_departments(self, *, active_only: bool | None = None) -> list[Department]:
-        require_permission(self._user_session, "settings.manage", operation_label="list departments")
+        self._require_department_read_access("list departments")
         organization = self._active_organization()
         return self._department_repo.list_for_organization(organization.id, active_only=active_only)
+
+    def search_departments(
+        self,
+        *,
+        search_text: str = "",
+        active_only: bool | None = True,
+    ) -> list[Department]:
+        self._require_department_read_access("search departments")
+        normalized_search = _normalize_optional_text(search_text).lower()
+        rows = self._department_repo.list_for_organization(self._active_organization().id, active_only=active_only)
+        if not normalized_search:
+            return rows
+        return [
+            department
+            for department in rows
+            if normalized_search in " ".join(
+                filter(
+                    None,
+                    [
+                        department.department_code,
+                        department.name,
+                        department.department_type,
+                        department.cost_center_code,
+                        department.notes,
+                    ],
+                )
+            ).lower()
+        ]
+
+    def get_department(self, department_id: str) -> Department:
+        self._require_department_read_access("view department")
+        organization = self._active_organization()
+        department = self._department_repo.get(department_id)
+        if department is None or department.organization_id != organization.id:
+            raise NotFoundError("Department not found in the active organization.", code="DEPARTMENT_NOT_FOUND")
+        return department
+
+    def find_department_by_code(self, department_code: str) -> Department | None:
+        self._require_department_read_access("resolve department")
+        normalized_code = normalize_code(department_code, label="Department code")
+        return self._department_repo.get_by_code(self._active_organization().id, normalized_code)
 
     def get_context_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view department context")
@@ -261,6 +302,13 @@ class DepartmentService:
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
+
+    def _require_department_read_access(self, operation_label: str) -> None:
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "department.read"),
+            operation_label=operation_label,
+        )
 
 
 __all__ = ["DepartmentService"]

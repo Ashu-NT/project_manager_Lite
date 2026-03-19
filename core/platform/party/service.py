@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository
 from core.platform.common.models import Organization
@@ -47,9 +47,56 @@ class PartyService:
         self._audit_service = audit_service
 
     def list_parties(self, *, active_only: bool | None = None) -> list[Party]:
-        require_permission(self._user_session, "settings.manage", operation_label="list parties")
+        self._require_party_read_access("list parties")
         organization = self._active_organization()
         return self._party_repo.list_for_organization(organization.id, active_only=active_only)
+
+    def search_parties(
+        self,
+        *,
+        search_text: str = "",
+        active_only: bool | None = True,
+        party_type: PartyType | str | None = None,
+    ) -> list[Party]:
+        self._require_party_read_access("search parties")
+        normalized_search = _normalize_optional_text(search_text).lower()
+        resolved_type = _coerce_party_type(party_type) if party_type is not None else None
+        rows = self._party_repo.list_for_organization(self._active_organization().id, active_only=active_only)
+        filtered = [party for party in rows if resolved_type is None or party.party_type == resolved_type]
+        if not normalized_search:
+            return filtered
+        return [
+            party
+            for party in filtered
+            if normalized_search in " ".join(
+                filter(
+                    None,
+                    [
+                        party.party_code,
+                        party.party_name,
+                        party.party_type.value,
+                        party.legal_name,
+                        party.contact_name,
+                        party.country,
+                        party.city,
+                        party.external_reference,
+                    ],
+                )
+            ).lower()
+        ]
+
+    def get_party(self, party_id: str) -> Party:
+        self._require_party_read_access("view party")
+        organization = self._active_organization()
+        party = self._party_repo.get(party_id)
+        if party is None or party.organization_id != organization.id:
+            raise NotFoundError("Party not found in the active organization.", code="PARTY_NOT_FOUND")
+        return party
+
+    def find_party_by_code(self, party_code: str) -> Party | None:
+        self._require_party_read_access("resolve party")
+        normalized_code = normalize_code(party_code, label="Party code")
+        return self._party_repo.get_by_code(self._active_organization().id, normalized_code)
 
     def get_context_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view party context")
@@ -234,6 +281,13 @@ class PartyService:
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
+
+    def _require_party_read_access(self, operation_label: str) -> None:
+        require_any_permission(
+            self._user_session,
+            ("settings.manage", "party.read"),
+            operation_label=operation_label,
+        )
 
 
 __all__ = ["PartyService"]

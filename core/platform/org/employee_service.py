@@ -6,12 +6,23 @@ from sqlalchemy.orm import Session
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import EmployeeRepository, ResourceRepository
-from core.platform.common.models import Employee, EmploymentType, WorkerType
+from core.platform.common.interfaces import (
+    DepartmentRepository,
+    EmployeeRepository,
+    OrganizationRepository,
+    ResourceRepository,
+    SiteRepository,
+)
+from core.platform.common.models import Employee, EmploymentType
 from core.platform.notifications.domain_events import domain_events
+from core.platform.org.employee_support import (
+    build_employee_audit_details,
+    resolve_employee_department_reference,
+    resolve_employee_site_reference,
+    sync_linked_employee_resources,
+)
 from core.platform.org.support import (
     coerce_employment_type,
-    employee_contact,
     normalize_email,
     normalize_phone,
 )
@@ -24,12 +35,18 @@ class EmployeeService:
         employee_repo: EmployeeRepository,
         *,
         resource_repo: ResourceRepository | None = None,
+        site_repo: SiteRepository | None = None,
+        department_repo: DepartmentRepository | None = None,
+        organization_repo: OrganizationRepository | None = None,
         user_session=None,
         audit_service=None,
     ):
         self._session = session
         self._employee_repo = employee_repo
         self._resource_repo = resource_repo
+        self._site_repo = site_repo
+        self._department_repo = department_repo
+        self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -38,7 +55,9 @@ class EmployeeService:
         *,
         employee_code: str,
         full_name: str,
+        department_id: str | None = None,
         department: str = "",
+        site_id: str | None = None,
         site_name: str = "",
         title: str = "",
         employment_type: EmploymentType | str = EmploymentType.FULL_TIME,
@@ -55,12 +74,26 @@ class EmployeeService:
             raise ValidationError("Employee name is required.", code="EMPLOYEE_NAME_REQUIRED")
         if self._employee_repo.get_by_code(normalized_code) is not None:
             raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
+        resolved_department_id, resolved_department_name = resolve_employee_department_reference(
+            department_repo=self._department_repo,
+            organization_repo=self._organization_repo,
+            department_id=department_id,
+            department_name=department or "",
+        )
+        resolved_site_id, resolved_site_name = resolve_employee_site_reference(
+            site_repo=self._site_repo,
+            organization_repo=self._organization_repo,
+            site_id=site_id,
+            site_name=site_name,
+        )
 
         employee = Employee.create(
             employee_code=normalized_code,
             full_name=normalized_name,
-            department=(department or "").strip(),
-            site_name=(site_name or "").strip(),
+            department_id=resolved_department_id,
+            department=resolved_department_name,
+            site_id=resolved_site_id,
+            site_name=resolved_site_name,
             title=(title or "").strip(),
             employment_type=coerce_employment_type(employment_type),
             email=normalize_email(email),
@@ -81,13 +114,7 @@ class EmployeeService:
             action="employee.create",
             entity_type="employee",
             entity_id=employee.id,
-            details={
-                "employee_code": employee.employee_code,
-                "full_name": employee.full_name,
-                "department": employee.department,
-                "site_name": employee.site_name,
-                "title": employee.title,
-            },
+            details=build_employee_audit_details(employee),
         )
         domain_events.employees_changed.emit(employee.id)
         return employee
@@ -98,7 +125,9 @@ class EmployeeService:
         *,
         employee_code: str | None = None,
         full_name: str | None = None,
+        department_id: str | None = None,
         department: str | None = None,
+        site_id: str | None = None,
         site_name: str | None = None,
         title: str | None = None,
         employment_type: EmploymentType | str | None = None,
@@ -130,10 +159,20 @@ class EmployeeService:
             if not normalized_name:
                 raise ValidationError("Employee name is required.", code="EMPLOYEE_NAME_REQUIRED")
             employee.full_name = normalized_name
-        if department is not None:
-            employee.department = (department or "").strip()
-        if site_name is not None:
-            employee.site_name = (site_name or "").strip()
+        if department_id is not None or department is not None:
+            employee.department_id, employee.department = resolve_employee_department_reference(
+                department_repo=self._department_repo,
+                organization_repo=self._organization_repo,
+                department_id=department_id if department_id is not None else None,
+                department_name=department if department is not None else employee.department,
+            )
+        if site_id is not None or site_name is not None:
+            employee.site_id, employee.site_name = resolve_employee_site_reference(
+                site_repo=self._site_repo,
+                organization_repo=self._organization_repo,
+                site_id=site_id if site_id is not None else None,
+                site_name=site_name if site_name is not None else employee.site_name,
+            )
         if title is not None:
             employee.title = (title or "").strip()
         if employment_type is not None:
@@ -147,7 +186,7 @@ class EmployeeService:
 
         try:
             self._employee_repo.update(employee)
-            self._sync_linked_resources(employee)
+            sync_linked_employee_resources(employee, self._resource_repo)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -160,14 +199,7 @@ class EmployeeService:
             action="employee.update",
             entity_type="employee",
             entity_id=employee.id,
-            details={
-                "employee_code": employee.employee_code,
-                "full_name": employee.full_name,
-                "department": employee.department,
-                "site_name": employee.site_name,
-                "title": employee.title,
-                "is_active": str(employee.is_active),
-            },
+            details=build_employee_audit_details(employee),
         )
         domain_events.employees_changed.emit(employee.id)
         return employee
@@ -182,19 +214,5 @@ class EmployeeService:
         if employee is None:
             raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
         return employee
-
-    def _sync_linked_resources(self, employee: Employee) -> None:
-        if self._resource_repo is None:
-            return
-        for resource in self._resource_repo.list_by_employee(employee.id):
-            if getattr(resource, "worker_type", WorkerType.EXTERNAL) != WorkerType.EMPLOYEE:
-                continue
-            resource.name = employee.full_name
-            if employee.title:
-                resource.role = employee.title
-            resource.contact = employee_contact(employee)
-            self._resource_repo.update(resource)
-            domain_events.resources_changed.emit(resource.id)
-
 
 __all__ = ["EmployeeService"]
