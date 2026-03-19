@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,6 +12,21 @@ from core.platform.common.interfaces import OrganizationRepository, SiteReposito
 from core.platform.common.models import Organization, Site
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.support import normalize_code, normalize_name
+
+
+def _normalize_optional_text(value: str | None) -> str:
+    return (value or "").strip()
+
+
+def _resolve_name(*, name: str | None, display_name: str | None, label: str) -> str:
+    return normalize_name(display_name if display_name is not None else name, label=label)
+
+
+def _normalize_status(value: str | None, *, is_active: bool) -> str:
+    normalized = _normalize_optional_text(value).upper()
+    if normalized:
+        return normalized
+    return "ACTIVE" if is_active else "INACTIVE"
 
 
 class SiteService:
@@ -41,20 +58,54 @@ class SiteService:
         self,
         *,
         site_code: str,
-        display_name: str,
+        name: str | None = None,
+        display_name: str | None = None,
+        description: str = "",
+        country: str = "",
+        region: str = "",
+        city: str = "",
+        address_line_1: str = "",
+        address_line_2: str = "",
+        postal_code: str = "",
+        timezone_name: str | None = None,
+        currency_code: str | None = None,
+        site_type: str = "",
+        status: str | None = None,
+        default_calendar_id: str = "",
+        default_language: str = "",
         is_active: bool = True,
+        opened_at: datetime | None = None,
+        closed_at: datetime | None = None,
+        notes: str = "",
     ) -> Site:
         require_permission(self._user_session, "settings.manage", operation_label="create site")
         organization = self._active_organization()
         normalized_code = normalize_code(site_code, label="Site code")
-        normalized_name = normalize_name(display_name, label="Site name")
+        normalized_name = _resolve_name(name=name, display_name=display_name, label="Site name")
         if self._site_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
+        now = datetime.now(timezone.utc)
         site = Site.create(
             organization_id=organization.id,
             site_code=normalized_code,
-            display_name=normalized_name,
+            name=normalized_name,
+            description=_normalize_optional_text(description),
+            country=_normalize_optional_text(country),
+            region=_normalize_optional_text(region),
+            city=_normalize_optional_text(city),
+            address_line_1=_normalize_optional_text(address_line_1),
+            address_line_2=_normalize_optional_text(address_line_2),
+            postal_code=_normalize_optional_text(postal_code),
+            timezone=_normalize_optional_text(timezone_name) or organization.timezone_name,
+            currency_code=_normalize_optional_text(currency_code).upper() or organization.base_currency,
+            site_type=_normalize_optional_text(site_type),
+            status=_normalize_status(status, is_active=bool(is_active)),
+            default_calendar_id=_normalize_optional_text(default_calendar_id) or "default",
+            default_language=_normalize_optional_text(default_language),
             is_active=bool(is_active),
+            opened_at=opened_at or (now if is_active else None),
+            closed_at=closed_at,
+            notes=_normalize_optional_text(notes),
         )
         try:
             self._site_repo.add(site)
@@ -73,7 +124,10 @@ class SiteService:
             details={
                 "organization_id": organization.id,
                 "site_code": site.site_code,
-                "display_name": site.display_name,
+                "name": site.name,
+                "status": site.status,
+                "city": site.city,
+                "country": site.country,
                 "is_active": str(site.is_active),
             },
         )
@@ -85,8 +139,25 @@ class SiteService:
         site_id: str,
         *,
         site_code: str | None = None,
+        name: str | None = None,
         display_name: str | None = None,
+        description: str | None = None,
+        country: str | None = None,
+        region: str | None = None,
+        city: str | None = None,
+        address_line_1: str | None = None,
+        address_line_2: str | None = None,
+        postal_code: str | None = None,
+        timezone_name: str | None = None,
+        currency_code: str | None = None,
+        site_type: str | None = None,
+        status: str | None = None,
+        default_calendar_id: str | None = None,
+        default_language: str | None = None,
         is_active: bool | None = None,
+        opened_at: datetime | None = None,
+        closed_at: datetime | None = None,
+        notes: str | None = None,
         expected_version: int | None = None,
     ) -> Site:
         require_permission(self._user_session, "settings.manage", operation_label="update site")
@@ -105,10 +176,55 @@ class SiteService:
             if existing is not None and existing.id != site.id:
                 raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
             site.site_code = normalized_code
-        if display_name is not None:
-            site.display_name = normalize_name(display_name, label="Site name")
+        if name is not None or display_name is not None:
+            site.name = _resolve_name(name=name, display_name=display_name, label="Site name")
+        if description is not None:
+            site.description = _normalize_optional_text(description)
+        if country is not None:
+            site.country = _normalize_optional_text(country)
+        if region is not None:
+            site.region = _normalize_optional_text(region)
+        if city is not None:
+            site.city = _normalize_optional_text(city)
+        if address_line_1 is not None:
+            site.address_line_1 = _normalize_optional_text(address_line_1)
+        if address_line_2 is not None:
+            site.address_line_2 = _normalize_optional_text(address_line_2)
+        if postal_code is not None:
+            site.postal_code = _normalize_optional_text(postal_code)
+        if timezone_name is not None:
+            site.timezone = _normalize_optional_text(timezone_name)
+        if currency_code is not None:
+            site.currency_code = _normalize_optional_text(currency_code).upper()
+        if site_type is not None:
+            site.site_type = _normalize_optional_text(site_type)
+        if status is not None:
+            site.status = _normalize_status(status, is_active=site.is_active if is_active is None else bool(is_active))
+        if default_calendar_id is not None:
+            site.default_calendar_id = _normalize_optional_text(default_calendar_id)
+        if default_language is not None:
+            site.default_language = _normalize_optional_text(default_language)
+        previous_is_active = site.is_active
         if is_active is not None:
             site.is_active = bool(is_active)
+        if opened_at is not None:
+            site.opened_at = opened_at
+        if closed_at is not None:
+            site.closed_at = closed_at
+        if notes is not None:
+            site.notes = _normalize_optional_text(notes)
+        if is_active is not None and previous_is_active != site.is_active:
+            now = datetime.now(timezone.utc)
+            if site.is_active:
+                if status is None:
+                    site.status = "ACTIVE"
+                site.closed_at = None if closed_at is None else site.closed_at
+                site.opened_at = site.opened_at or now
+            else:
+                if status is None:
+                    site.status = "INACTIVE"
+                site.closed_at = site.closed_at or now
+        site.updated_at = datetime.now(timezone.utc)
         try:
             self._site_repo.update(site)
             self._session.commit()
@@ -126,7 +242,10 @@ class SiteService:
             details={
                 "organization_id": organization.id,
                 "site_code": site.site_code,
-                "display_name": site.display_name,
+                "name": site.name,
+                "status": site.status,
+                "city": site.city,
+                "country": site.country,
                 "is_active": str(site.is_active),
             },
         )

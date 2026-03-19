@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QLineEdit,
     QMessageBox,
+    QTextEdit,
     QVBoxLayout,
 )
 
@@ -20,20 +21,50 @@ class SiteEditDialog(QDialog):
         self.setWindowTitle("Site" + (" - Edit" if site else " - New"))
 
         self.site_code_edit = QLineEdit()
-        self.display_name_edit = QLineEdit()
-        for edit in (self.site_code_edit, self.display_name_edit):
+        self.name_edit = QLineEdit()
+        self.city_edit = QLineEdit()
+        self.country_edit = QLineEdit()
+        self.timezone_edit = QLineEdit()
+        self.currency_code_edit = QLineEdit()
+        self.site_type_edit = QLineEdit()
+        self.status_edit = QLineEdit()
+        self.description_edit = QLineEdit()
+        for edit in (
+            self.site_code_edit,
+            self.name_edit,
+            self.city_edit,
+            self.country_edit,
+            self.timezone_edit,
+            self.currency_code_edit,
+            self.site_type_edit,
+            self.status_edit,
+            self.description_edit,
+        ):
             edit.setSizePolicy(CFG.INPUT_POLICY)
             edit.setFixedHeight(CFG.INPUT_HEIGHT)
             edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
+
+        self.notes_edit = QTextEdit()
+        self.notes_edit.setMinimumHeight(90)
+        self.notes_edit.setPlaceholderText("Optional site notes, operating context, or rollout details.")
 
         self.active_check = QCheckBox("Active")
         self.active_check.setSizePolicy(CFG.CHKBOX_FIXED_HEIGHT)
 
         if site is not None:
             self.site_code_edit.setText(site.site_code)
-            self.display_name_edit.setText(site.display_name)
+            self.name_edit.setText(site.name)
+            self.city_edit.setText(site.city)
+            self.country_edit.setText(site.country)
+            self.timezone_edit.setText(site.timezone)
+            self.currency_code_edit.setText(site.currency_code)
+            self.site_type_edit.setText(site.site_type)
+            self.status_edit.setText(site.status)
+            self.description_edit.setText(site.description)
+            self.notes_edit.setPlainText(site.notes or "")
             self.active_check.setChecked(site.is_active)
         else:
+            self.status_edit.setText("ACTIVE")
             self.active_check.setChecked(True)
 
         form = QFormLayout()
@@ -43,7 +74,15 @@ class SiteEditDialog(QDialog):
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         form.addRow("Site code:", self.site_code_edit)
-        form.addRow("Display name:", self.display_name_edit)
+        form.addRow("Name:", self.name_edit)
+        form.addRow("City:", self.city_edit)
+        form.addRow("Country:", self.country_edit)
+        form.addRow("Timezone:", self.timezone_edit)
+        form.addRow("Currency:", self.currency_code_edit)
+        form.addRow("Site type:", self.site_type_edit)
+        form.addRow("Status:", self.status_edit)
+        form.addRow("Description:", self.description_edit)
+        form.addRow("Notes:", self.notes_edit)
         form.addRow("", self.active_check)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -61,7 +100,7 @@ class SiteEditDialog(QDialog):
         if not self.site_code:
             QMessageBox.warning(self, "Site", "Site code is required.")
             return
-        if not self.display_name:
+        if not self.name:
             QMessageBox.warning(self, "Site", "Site name is required.")
             return
         self.accept()
@@ -71,8 +110,44 @@ class SiteEditDialog(QDialog):
         return self.site_code_edit.text().strip().upper()
 
     @property
+    def name(self) -> str:
+        return self.name_edit.text().strip()
+
+    @property
     def display_name(self) -> str:
-        return self.display_name_edit.text().strip()
+        return self.name
+
+    @property
+    def city(self) -> str:
+        return self.city_edit.text().strip()
+
+    @property
+    def country(self) -> str:
+        return self.country_edit.text().strip()
+
+    @property
+    def timezone_name(self) -> str:
+        return self.timezone_edit.text().strip()
+
+    @property
+    def currency_code(self) -> str:
+        return self.currency_code_edit.text().strip().upper()
+
+    @property
+    def site_type(self) -> str:
+        return self.site_type_edit.text().strip()
+
+    @property
+    def status(self) -> str:
+        return self.status_edit.text().strip().upper()
+
+    @property
+    def description(self) -> str:
+        return self.description_edit.text().strip()
+
+    @property
+    def notes(self) -> str:
+        return self.notes_edit.toPlainText().strip()
 
     @property
     def is_active(self) -> bool:

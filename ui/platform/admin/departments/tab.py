@@ -18,7 +18,7 @@ from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.models import Department
 from core.platform.notifications.domain_events import domain_events
-from core.platform.org import DepartmentService
+from core.platform.org import DepartmentService, SiteService
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
     dashboard_badge_style,
@@ -34,17 +34,21 @@ class DepartmentAdminTab(QWidget):
     def __init__(
         self,
         department_service: DepartmentService,
+        site_service: SiteService | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self._department_service = department_service
+        self._site_service = site_service
         self._user_session = user_session
         self._can_manage_departments = has_permission(self._user_session, "settings.manage")
         self._rows: list[Department] = []
+        self._site_lookup: dict[str, str] = {}
         self._setup_ui()
         self.reload_departments()
         domain_events.departments_changed.connect(self._on_departments_changed)
+        domain_events.sites_changed.connect(self._on_sites_changed)
         domain_events.organizations_changed.connect(self._on_organizations_changed)
 
     def _setup_ui(self) -> None:
@@ -135,8 +139,8 @@ class DepartmentAdminTab(QWidget):
         controls_layout.addLayout(toolbar)
         layout.addWidget(controls)
 
-        self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Code", "Display Name", "Active"])
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(["Code", "Name", "Site", "Type", "Active"])
         style_table(self.table)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
@@ -145,6 +149,8 @@ class DepartmentAdminTab(QWidget):
         header_widget.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header_widget.setSectionResizeMode(1, QHeaderView.Stretch)
         header_widget.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header_widget.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header_widget.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         layout.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(
@@ -168,22 +174,31 @@ class DepartmentAdminTab(QWidget):
         try:
             context = self._department_service.get_context_organization()
             self._rows = self._department_service.list_departments()
+            self._site_lookup = self._load_site_lookup()
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Departments", str(exc))
             context_label = "-"
             self._rows = []
+            self._site_lookup = {}
         except Exception as exc:
             QMessageBox.critical(self, "Departments", f"Failed to load departments: {exc}")
             context_label = "-"
             self._rows = []
+            self._site_lookup = {}
         else:
             context_label = context.display_name
         self.table.setRowCount(len(self._rows))
         for row, department in enumerate(self._rows):
-            values = (department.department_code, department.display_name, "Yes" if department.is_active else "No")
+            values = (
+                department.department_code,
+                department.name,
+                self._site_lookup.get(department.site_id or "", "-"),
+                department.department_type or "-",
+                "Yes" if department.is_active else "No",
+            )
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
-                if col == 2:
+                if col == 4:
                     item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row, col, item)
             self.table.item(row, 0).setData(Qt.UserRole, department.id)
@@ -192,14 +207,24 @@ class DepartmentAdminTab(QWidget):
         self._sync_actions()
 
     def create_department(self) -> None:
-        dlg = DepartmentEditDialog(parent=self)
+        dlg = DepartmentEditDialog(
+            parent=self,
+            sites=self._available_sites(),
+            parent_departments=self._rows,
+        )
         while True:
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
                 self._department_service.create_department(
                     department_code=dlg.department_code,
-                    display_name=dlg.display_name,
+                    name=dlg.name,
+                    description=dlg.description,
+                    site_id=dlg.site_id,
+                    parent_department_id=dlg.parent_department_id,
+                    department_type=dlg.department_type,
+                    cost_center_code=dlg.cost_center_code,
+                    notes=dlg.notes,
                     is_active=dlg.is_active,
                 )
             except ValidationError as exc:
@@ -216,7 +241,12 @@ class DepartmentAdminTab(QWidget):
         if department is None:
             QMessageBox.information(self, "Departments", "Please select a department.")
             return
-        dlg = DepartmentEditDialog(parent=self, department=department)
+        dlg = DepartmentEditDialog(
+            parent=self,
+            department=department,
+            sites=self._available_sites(),
+            parent_departments=self._rows,
+        )
         while True:
             if dlg.exec() != QDialog.Accepted:
                 return
@@ -224,7 +254,13 @@ class DepartmentAdminTab(QWidget):
                 self._department_service.update_department(
                     department.id,
                     department_code=dlg.department_code,
-                    display_name=dlg.display_name,
+                    name=dlg.name,
+                    description=dlg.description,
+                    site_id=dlg.site_id,
+                    parent_department_id=dlg.parent_department_id,
+                    department_type=dlg.department_type,
+                    cost_center_code=dlg.cost_center_code,
+                    notes=dlg.notes,
                     is_active=dlg.is_active,
                     expected_version=department.version,
                 )
@@ -278,7 +314,21 @@ class DepartmentAdminTab(QWidget):
         self.department_count_badge.setText(f"{len(rows)} departments")
         self.department_active_badge.setText(f"{active_count} active")
 
+    def _available_sites(self):
+        if self._site_service is None:
+            return []
+        try:
+            return self._site_service.list_sites(active_only=True)
+        except BusinessRuleError:
+            return []
+
+    def _load_site_lookup(self) -> dict[str, str]:
+        return {site.id: site.site_code for site in self._available_sites()}
+
     def _on_departments_changed(self, _department_id: str) -> None:
+        self.reload_departments()
+
+    def _on_sites_changed(self, _site_id: str) -> None:
         self.reload_departments()
 
     def _on_organizations_changed(self, _organization_id: str) -> None:

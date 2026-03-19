@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timezone
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -13,6 +15,7 @@ from core.platform.documents.domain import (
     DocumentClassification,
     DocumentLink,
     DocumentStorageKind,
+    DocumentType,
 )
 from core.platform.documents.interfaces import DocumentLinkRepository, DocumentRepository
 from core.platform.notifications.domain_events import domain_events
@@ -37,14 +40,14 @@ def _normalize_entity_label(value: str, *, code: str, label: str) -> str:
     return normalized
 
 
-def _coerce_classification(value: DocumentClassification | str | None) -> DocumentClassification:
-    if isinstance(value, DocumentClassification):
+def _coerce_document_type(value: DocumentType | str | None) -> DocumentType:
+    if isinstance(value, DocumentType):
         return value
-    raw = str(value or DocumentClassification.GENERAL.value).strip().upper()
+    raw = str(value or DocumentType.GENERAL.value).strip().upper()
     try:
-        return DocumentClassification(raw)
+        return DocumentType(raw)
     except ValueError as exc:
-        raise ValidationError("Document classification is invalid.", code="DOCUMENT_CLASSIFICATION_INVALID") from exc
+        raise ValidationError("Document type is invalid.", code="DOCUMENT_TYPE_INVALID") from exc
 
 
 def _coerce_storage_kind(value: DocumentStorageKind | str | None) -> DocumentStorageKind:
@@ -55,6 +58,30 @@ def _coerce_storage_kind(value: DocumentStorageKind | str | None) -> DocumentSto
         return DocumentStorageKind(raw)
     except ValueError as exc:
         raise ValidationError("Document storage kind is invalid.", code="DOCUMENT_STORAGE_KIND_INVALID") from exc
+
+
+def _normalize_optional_date(value: date | None) -> date | None:
+    return value
+
+
+def _normalize_confidentiality(value: str | None) -> str:
+    return _normalize_optional_text(value).upper()
+
+
+def _default_file_name(storage_uri: str, explicit_file_name: str | None) -> str:
+    normalized = _normalize_optional_text(explicit_file_name)
+    if normalized:
+        return normalized
+    candidate = storage_uri.rstrip("/\\").split("/")[-1].split("\\")[-1]
+    return candidate.split("?")[0].strip()
+
+
+def _validate_document_dates(*, effective_date: date | None, review_date: date | None) -> None:
+    if effective_date is not None and review_date is not None and review_date < effective_date:
+        raise ValidationError(
+            "Document review date cannot be earlier than the effective date.",
+            code="DOCUMENT_REVIEW_DATE_INVALID",
+        )
 
 
 class DocumentService:
@@ -89,9 +116,21 @@ class DocumentService:
         *,
         document_code: str,
         title: str,
-        classification: DocumentClassification | str = DocumentClassification.GENERAL,
+        document_type: DocumentType | str | None = None,
+        classification: DocumentClassification | str | None = None,
         storage_kind: DocumentStorageKind | str = DocumentStorageKind.FILE_PATH,
-        storage_ref: str = "",
+        storage_uri: str | None = None,
+        storage_ref: str | None = None,
+        file_name: str = "",
+        mime_type: str = "",
+        source_system: str = "",
+        uploaded_at: datetime | None = None,
+        uploaded_by_user_id: str | None = None,
+        effective_date: date | None = None,
+        review_date: date | None = None,
+        confidentiality_level: str = "",
+        revision: str = "",
+        is_current: bool = True,
         notes: str = "",
         is_active: bool = True,
     ) -> Document:
@@ -99,20 +138,32 @@ class DocumentService:
         organization = self._active_organization()
         normalized_code = normalize_code(document_code, label="Document code")
         normalized_title = normalize_name(title, label="Document title")
-        normalized_ref = _normalize_entity_label(
-            storage_ref,
+        normalized_uri = _normalize_entity_label(
+            storage_uri if storage_uri is not None else storage_ref,
             code="DOCUMENT_STORAGE_REF_REQUIRED",
-            label="Document reference",
+            label="Document storage URI",
         )
+        _validate_document_dates(effective_date=effective_date, review_date=review_date)
         if self._document_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
+        principal = self._user_session.principal if self._user_session is not None else None
         document = Document.create(
             organization_id=organization.id,
             document_code=normalized_code,
             title=normalized_title,
-            classification=_coerce_classification(classification),
+            document_type=_coerce_document_type(document_type if document_type is not None else classification),
             storage_kind=_coerce_storage_kind(storage_kind),
-            storage_ref=normalized_ref,
+            storage_uri=normalized_uri,
+            file_name=_default_file_name(normalized_uri, file_name),
+            mime_type=_normalize_optional_text(mime_type),
+            source_system=_normalize_optional_text(source_system) or "platform",
+            uploaded_at=uploaded_at or datetime.now(timezone.utc),
+            uploaded_by_user_id=uploaded_by_user_id or (principal.user_id if principal is not None else None),
+            effective_date=_normalize_optional_date(effective_date),
+            review_date=_normalize_optional_date(review_date),
+            confidentiality_level=_normalize_confidentiality(confidentiality_level),
+            revision=_normalize_optional_text(revision),
+            is_current=bool(is_current),
             notes=_normalize_optional_text(notes),
             is_active=bool(is_active),
         )
@@ -134,7 +185,7 @@ class DocumentService:
                 "organization_id": organization.id,
                 "document_code": document.document_code,
                 "title": document.title,
-                "classification": document.classification.value,
+                "document_type": document.document_type.value,
                 "storage_kind": document.storage_kind.value,
             },
         )
@@ -147,9 +198,21 @@ class DocumentService:
         *,
         document_code: str | None = None,
         title: str | None = None,
+        document_type: DocumentType | str | None = None,
         classification: DocumentClassification | str | None = None,
         storage_kind: DocumentStorageKind | str | None = None,
+        storage_uri: str | None = None,
         storage_ref: str | None = None,
+        file_name: str | None = None,
+        mime_type: str | None = None,
+        source_system: str | None = None,
+        uploaded_at: datetime | None = None,
+        uploaded_by_user_id: str | None = None,
+        effective_date: date | None = None,
+        review_date: date | None = None,
+        confidentiality_level: str | None = None,
+        revision: str | None = None,
+        is_current: bool | None = None,
         notes: str | None = None,
         is_active: bool | None = None,
         expected_version: int | None = None,
@@ -169,16 +232,41 @@ class DocumentService:
             document.document_code = normalized_code
         if title is not None:
             document.title = normalize_name(title, label="Document title")
-        if classification is not None:
-            document.classification = _coerce_classification(classification)
+        if document_type is not None or classification is not None:
+            document.document_type = _coerce_document_type(
+                document_type if document_type is not None else classification
+            )
         if storage_kind is not None:
             document.storage_kind = _coerce_storage_kind(storage_kind)
-        if storage_ref is not None:
-            document.storage_ref = _normalize_entity_label(
-                storage_ref,
+        if storage_uri is not None or storage_ref is not None:
+            document.storage_uri = _normalize_entity_label(
+                storage_uri if storage_uri is not None else storage_ref,
                 code="DOCUMENT_STORAGE_REF_REQUIRED",
-                label="Document reference",
+                label="Document storage URI",
             )
+        if file_name is not None:
+            document.file_name = _default_file_name(document.storage_uri, file_name)
+        if mime_type is not None:
+            document.mime_type = _normalize_optional_text(mime_type)
+        if source_system is not None:
+            document.source_system = _normalize_optional_text(source_system)
+        if uploaded_at is not None:
+            document.uploaded_at = uploaded_at
+        if uploaded_by_user_id is not None:
+            document.uploaded_by_user_id = _normalize_optional_text(uploaded_by_user_id) or None
+        next_effective_date = effective_date if effective_date is not None else document.effective_date
+        next_review_date = review_date if review_date is not None else document.review_date
+        _validate_document_dates(effective_date=next_effective_date, review_date=next_review_date)
+        if effective_date is not None:
+            document.effective_date = _normalize_optional_date(effective_date)
+        if review_date is not None:
+            document.review_date = _normalize_optional_date(review_date)
+        if confidentiality_level is not None:
+            document.confidentiality_level = _normalize_confidentiality(confidentiality_level)
+        if revision is not None:
+            document.revision = _normalize_optional_text(revision)
+        if is_current is not None:
+            document.is_current = bool(is_current)
         if notes is not None:
             document.notes = _normalize_optional_text(notes)
         if is_active is not None:
@@ -201,7 +289,7 @@ class DocumentService:
                 "organization_id": organization.id,
                 "document_code": document.document_code,
                 "title": document.title,
-                "classification": document.classification.value,
+                "document_type": document.document_type.value,
                 "storage_kind": document.storage_kind.value,
                 "is_active": str(document.is_active),
             },

@@ -149,7 +149,7 @@ class DocumentAdminTab(QWidget):
         layout.addWidget(controls)
 
         self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Code", "Title", "Class", "Storage", "Active"])
+        self.table.setHorizontalHeaderLabels(["Code", "Title", "Type", "Revision", "Active"])
         style_table(self.table)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
@@ -226,8 +226,8 @@ class DocumentAdminTab(QWidget):
             values = (
                 document.document_code,
                 document.title,
-                document.classification.value.replace("_", " ").title(),
-                document.storage_kind.value.replace("_", " ").title(),
+                document.document_type.value.replace("_", " ").title(),
+                document.revision or "-",
                 "Yes" if document.is_active else "No",
             )
             for col, value in enumerate(values):
@@ -258,9 +258,13 @@ class DocumentAdminTab(QWidget):
                 self._document_service.create_document(
                     document_code=dlg.document_code,
                     title=dlg.title,
-                    classification=dlg.classification,
+                    document_type=dlg.document_type,
                     storage_kind=dlg.storage_kind,
-                    storage_ref=dlg.storage_ref,
+                    storage_uri=dlg.storage_uri,
+                    file_name=dlg.file_name,
+                    revision=dlg.revision,
+                    source_system=dlg.source_system,
+                    confidentiality_level=dlg.confidentiality_level,
                     notes=dlg.notes,
                     is_active=dlg.is_active,
                 )
@@ -287,9 +291,13 @@ class DocumentAdminTab(QWidget):
                     document.id,
                     document_code=dlg.document_code,
                     title=dlg.title,
-                    classification=dlg.classification,
+                    document_type=dlg.document_type,
                     storage_kind=dlg.storage_kind,
-                    storage_ref=dlg.storage_ref,
+                    storage_uri=dlg.storage_uri,
+                    file_name=dlg.file_name,
+                    revision=dlg.revision,
+                    source_system=dlg.source_system,
+                    confidentiality_level=dlg.confidentiality_level,
                     notes=dlg.notes,
                     is_active=dlg.is_active,
                     expected_version=document.version,

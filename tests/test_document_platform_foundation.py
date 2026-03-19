@@ -11,12 +11,22 @@ def test_document_service_scopes_documents_by_active_organization(services):
     created = document_service.create_document(
         document_code="MAN-001",
         title="Operations Manual",
-        classification="MANUAL",
+        document_type="MANUAL",
         storage_kind="FILE_PATH",
-        storage_ref="C:/docs/manual.pdf",
+        storage_uri="C:/docs/manual.pdf",
+        confidentiality_level="INTERNAL",
+        revision="R1",
     )
 
     assert created.organization_id == default_organization.id
+    assert created.document_type.value == "MANUAL"
+    assert created.storage_uri == "C:/docs/manual.pdf"
+    assert created.file_name == "manual.pdf"
+    assert created.source_system == "platform"
+    assert created.uploaded_by_user_id is not None
+    assert created.is_current is True
+    assert created.revision == "R1"
+    assert created.confidentiality_level == "INTERNAL"
     assert [document.title for document in document_service.list_documents()] == ["Operations Manual"]
 
     second_organization = organization_service.create_organization(
@@ -37,9 +47,9 @@ def test_document_service_links_documents_to_module_entities(services):
     document = document_service.create_document(
         document_code="DRW-001",
         title="Pump Drawing",
-        classification="DRAWING",
+        document_type="DRAWING",
         storage_kind="REFERENCE",
-        storage_ref="vault://pump/drawing-001",
+        storage_uri="vault://pump/drawing-001",
     )
 
     link = document_service.add_link(
@@ -64,18 +74,18 @@ def test_document_service_rejects_duplicate_codes_and_links(services):
     document_service.create_document(
         document_code="DOC-001",
         title="Policy",
-        classification="POLICY",
+        document_type="POLICY",
         storage_kind="EXTERNAL_URL",
-        storage_ref="https://example.test/policy",
+        storage_uri="https://example.test/policy",
     )
 
     try:
         document_service.create_document(
             document_code="DOC-001",
             title="Second Policy",
-            classification="POLICY",
+            document_type="POLICY",
             storage_kind="EXTERNAL_URL",
-            storage_ref="https://example.test/other-policy",
+            storage_uri="https://example.test/other-policy",
         )
     except ValidationError as exc:
         assert exc.code == "DOCUMENT_CODE_EXISTS"
@@ -109,9 +119,11 @@ def test_document_service_updates_and_unlinks_documents(services):
     document = document_service.create_document(
         document_code="DOC-002",
         title="Checklist",
-        classification="PROCEDURE",
+        document_type="PROCEDURE",
         storage_kind="FILE_PATH",
-        storage_ref="C:/docs/checklist.docx",
+        storage_uri="C:/docs/checklist.docx",
+        source_system="sharepoint",
+        revision="R0",
     )
     link = document_service.add_link(
         document_id=document.id,
@@ -124,11 +136,16 @@ def test_document_service_updates_and_unlinks_documents(services):
     updated = document_service.update_document(
         document.id,
         title="Inspection Checklist",
+        revision="R2",
+        confidentiality_level="CONFIDENTIAL",
         is_active=False,
         expected_version=document.version,
     )
 
     assert updated.title == "Inspection Checklist"
+    assert updated.revision == "R2"
+    assert updated.confidentiality_level == "CONFIDENTIAL"
+    assert updated.source_system == "sharepoint"
     assert updated.is_active is False
 
     document_service.remove_link(link.id)

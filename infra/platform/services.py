@@ -266,6 +266,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         session=session,
         department_repo=department_repo,
         organization_repo=organization_repo,
+        site_repo=site_repo,
+        employee_repo=employee_repo,
         user_session=user_session,
         audit_service=audit_service,
     )

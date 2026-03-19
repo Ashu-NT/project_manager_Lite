@@ -153,8 +153,26 @@ class SiteORM(Base):
         nullable=False,
     )
     site_code: Mapped[str] = mapped_column(String(64), nullable=False)
-    display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    country: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    region: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    city: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    address_line_1: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    address_line_2: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    postal_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    timezone: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    site_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    default_calendar_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    default_language: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    opened_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -171,8 +189,29 @@ class DepartmentORM(Base):
         nullable=False,
     )
     department_code: Mapped[str] = mapped_column(String(64), nullable=False)
-    display_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    site_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("sites.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    parent_department_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    department_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    cost_center_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    manager_employee_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -190,9 +229,23 @@ class DocumentORM(Base):
     )
     document_code: Mapped[str] = mapped_column(String(64), nullable=False)
     title: Mapped[str] = mapped_column(String(256), nullable=False)
-    classification: Mapped[str] = mapped_column(String(64), nullable=False)
+    document_type: Mapped[str] = mapped_column(String(64), nullable=False)
     storage_kind: Mapped[str] = mapped_column(String(64), nullable=False)
-    storage_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    storage_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    file_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    mime_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source_system: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    uploaded_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    effective_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    review_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    confidentiality_level: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    revision: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
@@ -331,7 +384,10 @@ Index("idx_sites_organization", SiteORM.organization_id)
 Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)
 Index("idx_departments_organization", DepartmentORM.organization_id)
 Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
+Index("idx_departments_site", DepartmentORM.site_id)
+Index("idx_departments_manager", DepartmentORM.manager_employee_id)
 Index("idx_documents_organization", DocumentORM.organization_id)
+Index("idx_documents_uploaded_by", DocumentORM.uploaded_by_user_id)
 Index("idx_document_links_document", DocumentLinkORM.document_id)
 Index("idx_document_links_entity", DocumentLinkORM.organization_id, DocumentLinkORM.module_code, DocumentLinkORM.entity_type, DocumentLinkORM.entity_id)
 

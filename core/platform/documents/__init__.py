@@ -8,6 +8,7 @@ if TYPE_CHECKING:
         DocumentClassification,
         DocumentLink,
         DocumentStorageKind,
+        DocumentType,
     )
     from core.platform.documents.service import DocumentService
 
@@ -17,6 +18,7 @@ __all__ = [
     "DocumentLink",
     "DocumentService",
     "DocumentStorageKind",
+    "DocumentType",
 ]
 
 
@@ -41,4 +43,8 @@ def __getattr__(name: str):
         from core.platform.documents.service import DocumentService
 
         return DocumentService
+    if name == "DocumentType":
+        from core.platform.documents.domain import DocumentType
+
+        return DocumentType
     raise AttributeError(name)

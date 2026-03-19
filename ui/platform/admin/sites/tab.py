@@ -135,8 +135,8 @@ class SiteAdminTab(QWidget):
         controls_layout.addLayout(toolbar)
         layout.addWidget(controls)
 
-        self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Code", "Display Name", "Active"])
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(["Code", "Name", "City", "Status", "Active"])
         style_table(self.table)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
@@ -145,6 +145,8 @@ class SiteAdminTab(QWidget):
         header_widget.setSectionResizeMode(0, QHeaderView.ResizeToContents)
         header_widget.setSectionResizeMode(1, QHeaderView.Stretch)
         header_widget.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        header_widget.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        header_widget.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         layout.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Sites", callback=self.reload_sites))
@@ -172,10 +174,16 @@ class SiteAdminTab(QWidget):
             context_label = context.display_name
         self.table.setRowCount(len(self._rows))
         for row, site in enumerate(self._rows):
-            values = (site.site_code, site.display_name, "Yes" if site.is_active else "No")
+            values = (
+                site.site_code,
+                site.name,
+                site.city or "-",
+                site.status or "-",
+                "Yes" if site.is_active else "No",
+            )
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
-                if col == 2:
+                if col == 4:
                     item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row, col, item)
             self.table.item(row, 0).setData(Qt.UserRole, site.id)
@@ -191,7 +199,15 @@ class SiteAdminTab(QWidget):
             try:
                 self._site_service.create_site(
                     site_code=dlg.site_code,
-                    display_name=dlg.display_name,
+                    name=dlg.name,
+                    description=dlg.description,
+                    city=dlg.city,
+                    country=dlg.country,
+                    timezone_name=dlg.timezone_name,
+                    currency_code=dlg.currency_code,
+                    site_type=dlg.site_type,
+                    status=dlg.status,
+                    notes=dlg.notes,
                     is_active=dlg.is_active,
                 )
             except ValidationError as exc:
@@ -216,7 +232,15 @@ class SiteAdminTab(QWidget):
                 self._site_service.update_site(
                     site.id,
                     site_code=dlg.site_code,
-                    display_name=dlg.display_name,
+                    name=dlg.name,
+                    description=dlg.description,
+                    city=dlg.city,
+                    country=dlg.country,
+                    timezone_name=dlg.timezone_name,
+                    currency_code=dlg.currency_code,
+                    site_type=dlg.site_type,
+                    status=dlg.status,
+                    notes=dlg.notes,
                     is_active=dlg.is_active,
                     expected_version=site.version,
                 )

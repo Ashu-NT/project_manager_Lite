@@ -343,6 +343,7 @@ def build_workspace_definitions(
                 label="Departments",
                 widget=DepartmentAdminTab(
                     department_service=services["department_service"],
+                    site_service=services.get("site_service"),
                     user_session=user_session,
                     parent=parent,
                 ),

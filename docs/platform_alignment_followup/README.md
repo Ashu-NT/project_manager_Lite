@@ -27,11 +27,19 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - persistent `documents` and `document_links` tables with org-scoped link infrastructure
   - platform admin `Documents` workspace for managing shared document records and links
   - additive `documents_changed` domain event for future cross-module refresh
+- Expanded in the current slice:
+  - `site` now carries operational metadata such as geography, timezone, currency, lifecycle status, calendar defaults, timestamps, and notes
+  - `department` now carries hierarchy and business metadata such as site reference, parent department, type, cost center, manager reference, timestamps, and notes
+  - `document` now carries richer library metadata such as document type, file/storage details, source system, upload metadata, review/effective dates, confidentiality, revision, and current-state flags
 - Still intentionally transitional:
   - employees still store `site_name` as a compatibility string
   - approved/shared time entries still keep site and department snapshot strings
   - employee editing does not yet use shared site or department selectors
   - PM task-comment attachments still use their existing module-local storage path until the later UI/integration slice migrates them
+  - `site.integration_profile_id` is deferred until a shared integration-profile domain exists
+  - `department.default_location_id` is deferred until the shared `location` master is implemented
+  - `document.document_structure_id` is deferred until a document structure domain exists
+  - business-facing document `version` labels are deferred because `version` is currently reserved for optimistic concurrency in the shared document service
 
 ## Execution Order
 

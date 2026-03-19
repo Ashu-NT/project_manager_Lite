@@ -12,8 +12,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.documents import Document, DocumentClassification, DocumentStorageKind
+from core.platform.documents import Document, DocumentStorageKind, DocumentType
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
+
+_CONFIDENTIALITY_LEVELS = ["", "PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
 
 
 class DocumentEditDialog(QDialog):
@@ -23,23 +25,40 @@ class DocumentEditDialog(QDialog):
 
         self.document_code_edit = QLineEdit()
         self.title_edit = QLineEdit()
-        self.storage_ref_edit = QLineEdit()
-        for edit in (self.document_code_edit, self.title_edit, self.storage_ref_edit):
+        self.storage_uri_edit = QLineEdit()
+        self.file_name_edit = QLineEdit()
+        self.revision_edit = QLineEdit()
+        self.source_system_edit = QLineEdit()
+        for edit in (
+            self.document_code_edit,
+            self.title_edit,
+            self.storage_uri_edit,
+            self.file_name_edit,
+            self.revision_edit,
+            self.source_system_edit,
+        ):
             edit.setSizePolicy(CFG.INPUT_POLICY)
             edit.setFixedHeight(CFG.INPUT_HEIGHT)
             edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
 
-        self.classification_combo = QComboBox()
-        for classification in DocumentClassification:
-            self.classification_combo.addItem(classification.value.replace("_", " ").title(), userData=classification)
-        self.classification_combo.setSizePolicy(CFG.INPUT_POLICY)
-        self.classification_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.document_type_combo = QComboBox()
+        for document_type in DocumentType:
+            self.document_type_combo.addItem(document_type.value.replace("_", " ").title(), userData=document_type)
+        self.document_type_combo.setSizePolicy(CFG.INPUT_POLICY)
+        self.document_type_combo.setFixedHeight(CFG.INPUT_HEIGHT)
 
         self.storage_kind_combo = QComboBox()
         for storage_kind in DocumentStorageKind:
             self.storage_kind_combo.addItem(storage_kind.value.replace("_", " ").title(), userData=storage_kind)
         self.storage_kind_combo.setSizePolicy(CFG.INPUT_POLICY)
         self.storage_kind_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+
+        self.confidentiality_combo = QComboBox()
+        for level in _CONFIDENTIALITY_LEVELS:
+            label = level.title() if level else "Not set"
+            self.confidentiality_combo.addItem(label, userData=level)
+        self.confidentiality_combo.setSizePolicy(CFG.INPUT_POLICY)
+        self.confidentiality_combo.setFixedHeight(CFG.INPUT_HEIGHT)
 
         self.notes_edit = QTextEdit()
         self.notes_edit.setMinimumHeight(90)
@@ -51,13 +70,18 @@ class DocumentEditDialog(QDialog):
         if document is not None:
             self.document_code_edit.setText(document.document_code)
             self.title_edit.setText(document.title)
-            self.storage_ref_edit.setText(document.storage_ref)
+            self.storage_uri_edit.setText(document.storage_uri)
+            self.file_name_edit.setText(document.file_name)
+            self.revision_edit.setText(document.revision)
+            self.source_system_edit.setText(document.source_system)
             self.notes_edit.setPlainText(document.notes or "")
             self.active_check.setChecked(document.is_active)
-            self._select_combo(self.classification_combo, document.classification)
+            self._select_combo(self.document_type_combo, document.document_type)
             self._select_combo(self.storage_kind_combo, document.storage_kind)
+            self._select_combo(self.confidentiality_combo, document.confidentiality_level)
         else:
             self.active_check.setChecked(True)
+            self.source_system_edit.setText("platform")
 
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)
@@ -67,9 +91,13 @@ class DocumentEditDialog(QDialog):
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
         form.addRow("Document code:", self.document_code_edit)
         form.addRow("Title:", self.title_edit)
-        form.addRow("Classification:", self.classification_combo)
+        form.addRow("Document type:", self.document_type_combo)
         form.addRow("Storage kind:", self.storage_kind_combo)
-        form.addRow("Reference:", self.storage_ref_edit)
+        form.addRow("Storage URI:", self.storage_uri_edit)
+        form.addRow("File name:", self.file_name_edit)
+        form.addRow("Revision:", self.revision_edit)
+        form.addRow("Source system:", self.source_system_edit)
+        form.addRow("Confidentiality:", self.confidentiality_combo)
         form.addRow("Notes:", self.notes_edit)
         form.addRow("", self.active_check)
 
@@ -97,8 +125,8 @@ class DocumentEditDialog(QDialog):
         if not self.title:
             QMessageBox.warning(self, "Document", "Document title is required.")
             return
-        if not self.storage_ref:
-            QMessageBox.warning(self, "Document", "Document reference is required.")
+        if not self.storage_uri:
+            QMessageBox.warning(self, "Document", "Document storage URI is required.")
             return
         self.accept()
 
@@ -111,16 +139,40 @@ class DocumentEditDialog(QDialog):
         return self.title_edit.text().strip()
 
     @property
-    def classification(self) -> DocumentClassification:
-        return self.classification_combo.currentData() or DocumentClassification.GENERAL
+    def document_type(self) -> DocumentType:
+        return self.document_type_combo.currentData() or DocumentType.GENERAL
+
+    @property
+    def classification(self) -> DocumentType:
+        return self.document_type
 
     @property
     def storage_kind(self) -> DocumentStorageKind:
         return self.storage_kind_combo.currentData() or DocumentStorageKind.FILE_PATH
 
     @property
+    def storage_uri(self) -> str:
+        return self.storage_uri_edit.text().strip()
+
+    @property
     def storage_ref(self) -> str:
-        return self.storage_ref_edit.text().strip()
+        return self.storage_uri
+
+    @property
+    def file_name(self) -> str:
+        return self.file_name_edit.text().strip()
+
+    @property
+    def revision(self) -> str:
+        return self.revision_edit.text().strip()
+
+    @property
+    def source_system(self) -> str:
+        return self.source_system_edit.text().strip()
+
+    @property
+    def confidentiality_level(self) -> str:
+        return self.confidentiality_combo.currentData() or ""
 
     @property
     def notes(self) -> str:

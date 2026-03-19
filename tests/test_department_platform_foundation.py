@@ -6,12 +6,25 @@ from core.platform.common.exceptions import ValidationError
 def test_department_service_scopes_department_master_data_by_active_organization(services):
     organization_service = services["organization_service"]
     department_service = services["department_service"]
+    site_service = services["site_service"]
 
     default_organization = organization_service.get_active_organization()
-    created = department_service.create_department(department_code="OPS", display_name="Operations")
+    site = site_service.create_site(site_code="HQ", name="Headquarters")
+    created = department_service.create_department(
+        department_code="OPS",
+        name="Operations",
+        site_id=site.id,
+        department_type="OPERATIONS",
+        cost_center_code="CC-100",
+    )
 
     assert created.organization_id == default_organization.id
-    assert [department.display_name for department in department_service.list_departments()] == ["Operations"]
+    assert created.site_id == site.id
+    assert created.department_type == "OPERATIONS"
+    assert created.cost_center_code == "CC-100"
+    assert created.created_at is not None
+    assert created.updated_at is not None
+    assert [department.name for department in department_service.list_departments()] == ["Operations"]
 
     second_organization = organization_service.create_organization(
         organization_code="NORTH",
@@ -37,10 +50,10 @@ def test_department_service_scopes_department_master_data_by_active_organization
 def test_department_service_rejects_duplicate_codes_inside_one_organization(services):
     department_service = services["department_service"]
 
-    department_service.create_department(department_code="OPS", display_name="Operations")
+    department_service.create_department(department_code="OPS", name="Operations")
 
     try:
-        department_service.create_department(department_code="OPS", display_name="Second Operations")
+        department_service.create_department(department_code="OPS", name="Second Operations")
     except ValidationError as exc:
         assert exc.code == "DEPARTMENT_CODE_EXISTS"
     else:
@@ -49,17 +62,25 @@ def test_department_service_rejects_duplicate_codes_inside_one_organization(serv
 
 def test_department_service_updates_department_metadata(services):
     department_service = services["department_service"]
-    created = department_service.create_department(department_code="QA", display_name="Quality")
+    site_service = services["site_service"]
+    site = site_service.create_site(site_code="PLANT1", name="Plant 1")
+    created = department_service.create_department(department_code="QA", name="Quality")
 
     updated = department_service.update_department(
         created.id,
-        display_name="Quality Assurance",
+        name="Quality Assurance",
+        site_id=site.id,
+        department_type="QUALITY",
+        cost_center_code="QA-200",
         is_active=False,
         expected_version=created.version,
     )
 
-    assert updated.display_name == "Quality Assurance"
+    assert updated.name == "Quality Assurance"
+    assert updated.site_id == site.id
+    assert updated.department_type == "QUALITY"
+    assert updated.cost_center_code == "QA-200"
     assert updated.is_active is False
-    assert [department.display_name for department in department_service.list_departments(active_only=False)] == [
+    assert [department.name for department in department_service.list_departments(active_only=False)] == [
         "Quality Assurance"
     ]

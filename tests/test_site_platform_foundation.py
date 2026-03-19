@@ -8,10 +8,22 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
     site_service = services["site_service"]
 
     default_organization = organization_service.get_active_organization()
-    created = site_service.create_site(site_code="HQ", display_name="Headquarters")
+    created = site_service.create_site(
+        site_code="HQ",
+        name="Headquarters",
+        city="Lagos",
+        country="Nigeria",
+        site_type="PLANT",
+    )
 
     assert created.organization_id == default_organization.id
-    assert [site.display_name for site in site_service.list_sites()] == ["Headquarters"]
+    assert created.city == "Lagos"
+    assert created.country == "Nigeria"
+    assert created.status == "ACTIVE"
+    assert created.default_calendar_id == "default"
+    assert created.created_at is not None
+    assert created.updated_at is not None
+    assert [site.name for site in site_service.list_sites()] == ["Headquarters"]
 
     second_organization = organization_service.create_organization(
         organization_code="OPS",
@@ -37,10 +49,10 @@ def test_site_service_scopes_site_master_data_by_active_organization(services):
 def test_site_service_rejects_duplicate_codes_inside_one_organization(services):
     site_service = services["site_service"]
 
-    site_service.create_site(site_code="HQ", display_name="Headquarters")
+    site_service.create_site(site_code="HQ", name="Headquarters")
 
     try:
-        site_service.create_site(site_code="HQ", display_name="Second HQ")
+        site_service.create_site(site_code="HQ", name="Second HQ")
     except ValidationError as exc:
         assert exc.code == "SITE_CODE_EXISTS"
     else:
@@ -49,15 +61,23 @@ def test_site_service_rejects_duplicate_codes_inside_one_organization(services):
 
 def test_site_service_updates_site_metadata(services):
     site_service = services["site_service"]
-    created = site_service.create_site(site_code="YARD", display_name="Yard")
+    created = site_service.create_site(site_code="YARD", name="Yard")
 
     updated = site_service.update_site(
         created.id,
-        display_name="North Yard",
+        name="North Yard",
+        city="Berlin",
+        country="Germany",
+        site_type="WAREHOUSE",
         is_active=False,
         expected_version=created.version,
     )
 
-    assert updated.display_name == "North Yard"
+    assert updated.name == "North Yard"
+    assert updated.city == "Berlin"
+    assert updated.country == "Germany"
+    assert updated.site_type == "WAREHOUSE"
+    assert updated.status == "INACTIVE"
+    assert updated.closed_at is not None
     assert updated.is_active is False
-    assert [site.display_name for site in site_service.list_sites(active_only=False)] == ["North Yard"]
+    assert [site.name for site in site_service.list_sites(active_only=False)] == ["North Yard"]

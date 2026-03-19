@@ -132,8 +132,26 @@ class SqlAlchemySiteRepository(SiteRepository):
             getattr(site, "version", 1),
             {
                 "site_code": site.site_code,
-                "display_name": site.display_name,
+                "name": site.name,
+                "description": site.description or None,
+                "country": site.country or None,
+                "region": site.region or None,
+                "city": site.city or None,
+                "address_line_1": site.address_line_1 or None,
+                "address_line_2": site.address_line_2 or None,
+                "postal_code": site.postal_code or None,
+                "timezone": site.timezone or None,
+                "currency_code": site.currency_code or None,
+                "site_type": site.site_type or None,
+                "status": site.status or None,
+                "default_calendar_id": site.default_calendar_id or None,
+                "default_language": site.default_language or None,
                 "is_active": site.is_active,
+                "opened_at": site.opened_at,
+                "closed_at": site.closed_at,
+                "created_at": site.created_at,
+                "updated_at": site.updated_at,
+                "notes": site.notes or None,
             },
             not_found_message="Site not found.",
             stale_message="Site was updated by another user.",
@@ -160,7 +178,7 @@ class SqlAlchemySiteRepository(SiteRepository):
         stmt = select(SiteORM).where(SiteORM.organization_id == organization_id)
         if active_only is not None:
             stmt = stmt.where(SiteORM.is_active == bool(active_only))
-        rows = self.session.execute(stmt.order_by(SiteORM.display_name.asc())).scalars().all()
+        rows = self.session.execute(stmt.order_by(SiteORM.name.asc())).scalars().all()
         return [site_from_orm(row) for row in rows]
 
 
@@ -179,8 +197,17 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
             getattr(department, "version", 1),
             {
                 "department_code": department.department_code,
-                "display_name": department.display_name,
+                "name": department.name,
+                "description": department.description or None,
+                "site_id": department.site_id,
+                "parent_department_id": department.parent_department_id,
+                "department_type": department.department_type or None,
+                "cost_center_code": department.cost_center_code or None,
+                "manager_employee_id": department.manager_employee_id,
                 "is_active": department.is_active,
+                "created_at": department.created_at,
+                "updated_at": department.updated_at,
+                "notes": department.notes or None,
             },
             not_found_message="Department not found.",
             stale_message="Department was updated by another user.",
@@ -207,7 +234,7 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
         stmt = select(DepartmentORM).where(DepartmentORM.organization_id == organization_id)
         if active_only is not None:
             stmt = stmt.where(DepartmentORM.is_active == bool(active_only))
-        rows = self.session.execute(stmt.order_by(DepartmentORM.display_name.asc())).scalars().all()
+        rows = self.session.execute(stmt.order_by(DepartmentORM.name.asc())).scalars().all()
         return [department_from_orm(row) for row in rows]
 
 
