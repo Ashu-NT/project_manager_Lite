@@ -29,9 +29,13 @@ class ApprovalService:
         self._user_session = user_session
         self._audit_service = audit_service
         self._apply_handlers: dict[str, ApplyHandler] = {}
+        self._reject_handlers: dict[str, ApplyHandler] = {}
 
     def register_apply_handler(self, request_type: str, handler: ApplyHandler) -> None:
         self._apply_handlers[request_type.strip().lower()] = handler
+
+    def register_reject_handler(self, request_type: str, handler: ApplyHandler) -> None:
+        self._reject_handlers[request_type.strip().lower()] = handler
 
     def request_change(
         self,
@@ -67,6 +71,9 @@ class ApprovalService:
         if commit:
             self._session.commit()
             domain_events.approvals_changed.emit(request.id)
+        else:
+            # Let callers safely reference the pending request inside the same transaction.
+            self._session.flush()
         return request
 
     def list_requests(
@@ -119,6 +126,9 @@ class ApprovalService:
         request.decided_by_user_id = principal.user_id if principal else None
         request.decided_by_username = principal.username if principal else None
         request.decision_note = (note or "").strip() or None
+        reject_handler = self._reject_handlers.get(request.request_type)
+        if reject_handler is not None:
+            reject_handler(request)
         self._approval_repo.update(request)
         self._record_governance_audit(
             action="governance.reject",

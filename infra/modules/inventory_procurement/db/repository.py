@@ -5,12 +5,18 @@ from sqlalchemy.orm import Session
 
 from core.modules.inventory_procurement.domain import StockBalance, StockItem, StockTransaction, Storeroom
 from core.modules.inventory_procurement.interfaces import (
+    PurchaseRequisitionLineRepository,
+    PurchaseRequisitionRepository,
     StockBalanceRepository,
     StockItemRepository,
     StockTransactionRepository,
     StoreroomRepository,
 )
 from infra.modules.inventory_procurement.db.mapper import (
+    purchase_requisition_from_orm,
+    purchase_requisition_line_from_orm,
+    purchase_requisition_line_to_orm,
+    purchase_requisition_to_orm,
     stock_balance_from_orm,
     stock_balance_to_orm,
     stock_item_from_orm,
@@ -21,6 +27,7 @@ from infra.modules.inventory_procurement.db.mapper import (
     storeroom_to_orm,
 )
 from infra.platform.db.models import StockBalanceORM, StockItemORM, StockTransactionORM, StoreroomORM
+from infra.platform.db.models import PurchaseRequisitionLineORM, PurchaseRequisitionORM
 from infra.platform.db.optimistic import update_with_version_check
 
 
@@ -259,7 +266,114 @@ class SqlAlchemyStockTransactionRepository(StockTransactionRepository):
         return [stock_transaction_from_orm(row) for row in rows]
 
 
+class SqlAlchemyPurchaseRequisitionRepository(PurchaseRequisitionRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, requisition) -> None:
+        self.session.add(purchase_requisition_to_orm(requisition))
+
+    def update(self, requisition) -> None:
+        requisition.version = update_with_version_check(
+            self.session,
+            PurchaseRequisitionORM,
+            requisition.id,
+            getattr(requisition, "version", 1),
+            {
+                "requisition_number": requisition.requisition_number,
+                "requesting_site_id": requisition.requesting_site_id,
+                "requesting_storeroom_id": requisition.requesting_storeroom_id,
+                "requester_user_id": requisition.requester_user_id,
+                "requester_username": requisition.requester_username or None,
+                "status": requisition.status,
+                "purpose": requisition.purpose or None,
+                "needed_by_date": requisition.needed_by_date,
+                "priority": requisition.priority or None,
+                "approval_request_id": requisition.approval_request_id,
+                "source_reference_type": requisition.source_reference_type or None,
+                "source_reference_id": requisition.source_reference_id or None,
+                "submitted_at": requisition.submitted_at,
+                "approved_at": requisition.approved_at,
+                "cancelled_at": requisition.cancelled_at,
+                "notes": requisition.notes or None,
+                "created_at": requisition.created_at,
+                "updated_at": requisition.updated_at,
+            },
+            not_found_message="Purchase requisition not found.",
+            stale_message="Purchase requisition was updated by another user.",
+        )
+
+    def get(self, requisition_id: str):
+        obj = self.session.get(PurchaseRequisitionORM, requisition_id)
+        return purchase_requisition_from_orm(obj) if obj else None
+
+    def get_by_number(self, organization_id: str, requisition_number: str):
+        stmt = select(PurchaseRequisitionORM).where(
+            PurchaseRequisitionORM.organization_id == organization_id,
+            PurchaseRequisitionORM.requisition_number == requisition_number,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return purchase_requisition_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        status: str | None = None,
+        site_id: str | None = None,
+        storeroom_id: str | None = None,
+        limit: int = 200,
+    ):
+        stmt = select(PurchaseRequisitionORM).where(PurchaseRequisitionORM.organization_id == organization_id)
+        if status is not None:
+            stmt = stmt.where(PurchaseRequisitionORM.status == status)
+        if site_id is not None:
+            stmt = stmt.where(PurchaseRequisitionORM.requesting_site_id == site_id)
+        if storeroom_id is not None:
+            stmt = stmt.where(PurchaseRequisitionORM.requesting_storeroom_id == storeroom_id)
+        rows = self.session.execute(
+            stmt.order_by(PurchaseRequisitionORM.created_at.desc()).limit(max(1, int(limit or 200)))
+        ).scalars().all()
+        return [purchase_requisition_from_orm(row) for row in rows]
+
+
+class SqlAlchemyPurchaseRequisitionLineRepository(PurchaseRequisitionLineRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, line) -> None:
+        self.session.add(purchase_requisition_line_to_orm(line))
+
+    def update(self, line) -> None:
+        obj = self.session.get(PurchaseRequisitionLineORM, line.id)
+        if obj is None:
+            raise ValueError("Purchase requisition line not found.")
+        obj.line_number = line.line_number
+        obj.stock_item_id = line.stock_item_id
+        obj.description = line.description or None
+        obj.quantity_requested = line.quantity_requested
+        obj.uom = line.uom
+        obj.needed_by_date = line.needed_by_date
+        obj.estimated_unit_cost = line.estimated_unit_cost
+        obj.suggested_supplier_party_id = line.suggested_supplier_party_id
+        obj.status = line.status
+        obj.notes = line.notes or None
+
+    def get(self, line_id: str):
+        obj = self.session.get(PurchaseRequisitionLineORM, line_id)
+        return purchase_requisition_line_from_orm(obj) if obj else None
+
+    def list_for_requisition(self, requisition_id: str):
+        stmt = select(PurchaseRequisitionLineORM).where(
+            PurchaseRequisitionLineORM.purchase_requisition_id == requisition_id
+        )
+        rows = self.session.execute(stmt.order_by(PurchaseRequisitionLineORM.line_number.asc())).scalars().all()
+        return [purchase_requisition_line_from_orm(row) for row in rows]
+
+
 __all__ = [
+    "SqlAlchemyPurchaseRequisitionLineRepository",
+    "SqlAlchemyPurchaseRequisitionRepository",
     "SqlAlchemyStockBalanceRepository",
     "SqlAlchemyStockItemRepository",
     "SqlAlchemyStockTransactionRepository",

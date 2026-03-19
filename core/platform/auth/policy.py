@@ -121,6 +121,7 @@ _INVENTORY_MANAGER = {
     "site.read",
     "party.read",
     "report.view",
+    "approval.request",
 }
 
 _PAYROLL_MANAGER = {

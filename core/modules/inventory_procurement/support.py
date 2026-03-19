@@ -26,6 +26,18 @@ STOREROOM_STATUS_TRANSITIONS = {
     "CLOSED": set(),
 }
 
+REQUISITION_STATUS_TRANSITIONS = {
+    "DRAFT": {"SUBMITTED", "CANCELLED"},
+    "SUBMITTED": {"UNDER_REVIEW", "APPROVED", "REJECTED", "CANCELLED"},
+    "UNDER_REVIEW": {"APPROVED", "REJECTED", "CANCELLED"},
+    "APPROVED": {"PARTIALLY_SOURCED", "FULLY_SOURCED", "CANCELLED"},
+    "PARTIALLY_SOURCED": {"FULLY_SOURCED", "CANCELLED"},
+    "FULLY_SOURCED": {"CLOSED"},
+    "REJECTED": set(),
+    "CANCELLED": set(),
+    "CLOSED": set(),
+}
+
 
 def normalize_inventory_code(value: str, *, label: str) -> str:
     return normalize_code(value, label=label)
@@ -122,6 +134,7 @@ def validate_transition(
 __all__ = [
     "BUSINESS_PARTY_TYPES",
     "ITEM_STATUS_TRANSITIONS",
+    "REQUISITION_STATUS_TRANSITIONS",
     "STOREROOM_STATUS_TRANSITIONS",
     "normalize_inventory_code",
     "normalize_inventory_name",

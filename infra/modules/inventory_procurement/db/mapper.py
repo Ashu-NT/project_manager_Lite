@@ -1,13 +1,24 @@
 from __future__ import annotations
 
 from core.modules.inventory_procurement.domain import (
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
+    PurchaseRequisitionLineStatus,
+    PurchaseRequisitionStatus,
     StockBalance,
     StockItem,
     StockTransaction,
     StockTransactionType,
     Storeroom,
 )
-from infra.platform.db.models import StockBalanceORM, StockItemORM, StockTransactionORM, StoreroomORM
+from infra.platform.db.models import (
+    PurchaseRequisitionLineORM,
+    PurchaseRequisitionORM,
+    StockBalanceORM,
+    StockItemORM,
+    StockTransactionORM,
+    StoreroomORM,
+)
 
 
 def stock_item_to_orm(item: StockItem) -> StockItemORM:
@@ -212,7 +223,97 @@ def stock_transaction_from_orm(obj: StockTransactionORM) -> StockTransaction:
     )
 
 
+def purchase_requisition_to_orm(requisition: PurchaseRequisition) -> PurchaseRequisitionORM:
+    return PurchaseRequisitionORM(
+        id=requisition.id,
+        organization_id=requisition.organization_id,
+        requisition_number=requisition.requisition_number,
+        requesting_site_id=requisition.requesting_site_id,
+        requesting_storeroom_id=requisition.requesting_storeroom_id,
+        requester_user_id=requisition.requester_user_id,
+        requester_username=requisition.requester_username or None,
+        status=requisition.status,
+        purpose=requisition.purpose or None,
+        needed_by_date=requisition.needed_by_date,
+        priority=requisition.priority or None,
+        approval_request_id=requisition.approval_request_id,
+        source_reference_type=requisition.source_reference_type or None,
+        source_reference_id=requisition.source_reference_id or None,
+        submitted_at=requisition.submitted_at,
+        approved_at=requisition.approved_at,
+        cancelled_at=requisition.cancelled_at,
+        notes=requisition.notes or None,
+        created_at=requisition.created_at,
+        updated_at=requisition.updated_at,
+        version=getattr(requisition, "version", 1),
+    )
+
+
+def purchase_requisition_from_orm(obj: PurchaseRequisitionORM) -> PurchaseRequisition:
+    return PurchaseRequisition(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        requisition_number=obj.requisition_number,
+        requesting_site_id=obj.requesting_site_id,
+        requesting_storeroom_id=obj.requesting_storeroom_id,
+        requester_user_id=obj.requester_user_id,
+        requester_username=obj.requester_username or "",
+        status=PurchaseRequisitionStatus(obj.status),
+        purpose=obj.purpose or "",
+        needed_by_date=obj.needed_by_date,
+        priority=obj.priority or "",
+        approval_request_id=obj.approval_request_id,
+        source_reference_type=obj.source_reference_type or "",
+        source_reference_id=obj.source_reference_id or "",
+        submitted_at=obj.submitted_at,
+        approved_at=obj.approved_at,
+        cancelled_at=obj.cancelled_at,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def purchase_requisition_line_to_orm(line: PurchaseRequisitionLine) -> PurchaseRequisitionLineORM:
+    return PurchaseRequisitionLineORM(
+        id=line.id,
+        purchase_requisition_id=line.purchase_requisition_id,
+        line_number=line.line_number,
+        stock_item_id=line.stock_item_id,
+        description=line.description or None,
+        quantity_requested=line.quantity_requested,
+        uom=line.uom,
+        needed_by_date=line.needed_by_date,
+        estimated_unit_cost=line.estimated_unit_cost,
+        suggested_supplier_party_id=line.suggested_supplier_party_id,
+        status=line.status,
+        notes=line.notes or None,
+    )
+
+
+def purchase_requisition_line_from_orm(obj: PurchaseRequisitionLineORM) -> PurchaseRequisitionLine:
+    return PurchaseRequisitionLine(
+        id=obj.id,
+        purchase_requisition_id=obj.purchase_requisition_id,
+        line_number=obj.line_number,
+        stock_item_id=obj.stock_item_id,
+        description=obj.description or "",
+        quantity_requested=float(obj.quantity_requested or 0.0),
+        uom=obj.uom,
+        needed_by_date=obj.needed_by_date,
+        estimated_unit_cost=float(obj.estimated_unit_cost or 0.0),
+        suggested_supplier_party_id=obj.suggested_supplier_party_id,
+        status=PurchaseRequisitionLineStatus(obj.status),
+        notes=obj.notes or "",
+    )
+
+
 __all__ = [
+    "purchase_requisition_from_orm",
+    "purchase_requisition_line_from_orm",
+    "purchase_requisition_line_to_orm",
+    "purchase_requisition_to_orm",
     "stock_balance_from_orm",
     "stock_balance_to_orm",
     "stock_item_from_orm",

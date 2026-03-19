@@ -6,9 +6,12 @@ from core.modules.inventory_procurement import (
     InventoryReferenceService,
     InventoryService,
     ItemMasterService,
+    ProcurementService,
     StockControlService,
 )
 from infra.modules.inventory_procurement.db import (
+    SqlAlchemyPurchaseRequisitionLineRepository,
+    SqlAlchemyPurchaseRequisitionRepository,
     SqlAlchemyStockBalanceRepository,
     SqlAlchemyStockItemRepository,
     SqlAlchemyStockTransactionRepository,
@@ -23,6 +26,7 @@ class InventoryProcurementServiceBundle:
     inventory_item_service: ItemMasterService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
+    inventory_procurement_service: ProcurementService
 
 
 def build_inventory_procurement_service_bundle(
@@ -30,6 +34,8 @@ def build_inventory_procurement_service_bundle(
 ) -> InventoryProcurementServiceBundle:
     balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
     item_repo = SqlAlchemyStockItemRepository(platform_services.session)
+    requisition_line_repo = SqlAlchemyPurchaseRequisitionLineRepository(platform_services.session)
+    requisition_repo = SqlAlchemyPurchaseRequisitionRepository(platform_services.session)
     transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
     storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
     inventory_service = InventoryService(
@@ -50,6 +56,26 @@ def build_inventory_procurement_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    inventory_procurement_service = ProcurementService(
+        platform_services.session,
+        requisition_repo,
+        requisition_line_repo,
+        organization_repo=platform_services.organization_repo,
+        inventory_service=inventory_service,
+        item_service=inventory_item_service,
+        party_service=platform_services.party_service,
+        approval_service=platform_services.approval_service,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    platform_services.approval_service.register_apply_handler(
+        "purchase_requisition.submit",
+        inventory_procurement_service.apply_submitted_requisition_approval,
+    )
+    platform_services.approval_service.register_reject_handler(
+        "purchase_requisition.submit",
+        inventory_procurement_service.apply_submitted_requisition_rejection,
+    )
     return InventoryProcurementServiceBundle(
         inventory_reference_service=InventoryReferenceService(
             site_service=platform_services.site_service,
@@ -68,6 +94,7 @@ def build_inventory_procurement_service_bundle(
             user_session=platform_services.user_session,
             audit_service=platform_services.audit_service,
         ),
+        inventory_procurement_service=inventory_procurement_service,
     )
 
 

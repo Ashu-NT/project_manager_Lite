@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 
 from core.modules.project_management.domain.identifiers import generate_id
@@ -11,6 +11,26 @@ class StockTransactionType(str, Enum):
     OPENING_BALANCE = "OPENING_BALANCE"
     ADJUSTMENT_INCREASE = "ADJUSTMENT_INCREASE"
     ADJUSTMENT_DECREASE = "ADJUSTMENT_DECREASE"
+
+
+class PurchaseRequisitionStatus(str, Enum):
+    DRAFT = "DRAFT"
+    SUBMITTED = "SUBMITTED"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    PARTIALLY_SOURCED = "PARTIALLY_SOURCED"
+    FULLY_SOURCED = "FULLY_SOURCED"
+    CANCELLED = "CANCELLED"
+    CLOSED = "CLOSED"
+
+
+class PurchaseRequisitionLineStatus(str, Enum):
+    DRAFT = "DRAFT"
+    OPEN = "OPEN"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
+    FULLY_SOURCED = "FULLY_SOURCED"
 
 
 @dataclass
@@ -273,9 +293,130 @@ class StockTransaction:
         )
 
 
+@dataclass
+class PurchaseRequisition:
+    id: str
+    organization_id: str
+    requisition_number: str
+    requesting_site_id: str
+    requesting_storeroom_id: str
+    requester_user_id: str | None = None
+    requester_username: str = ""
+    status: PurchaseRequisitionStatus = PurchaseRequisitionStatus.DRAFT
+    purpose: str = ""
+    needed_by_date: date | None = None
+    priority: str = ""
+    approval_request_id: str | None = None
+    source_reference_type: str = ""
+    source_reference_id: str = ""
+    submitted_at: datetime | None = None
+    approved_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        requisition_number: str,
+        requesting_site_id: str,
+        requesting_storeroom_id: str,
+        requester_user_id: str | None = None,
+        requester_username: str = "",
+        status: PurchaseRequisitionStatus = PurchaseRequisitionStatus.DRAFT,
+        purpose: str = "",
+        needed_by_date: date | None = None,
+        priority: str = "",
+        approval_request_id: str | None = None,
+        source_reference_type: str = "",
+        source_reference_id: str = "",
+        submitted_at: datetime | None = None,
+        approved_at: datetime | None = None,
+        cancelled_at: datetime | None = None,
+        notes: str = "",
+    ) -> "PurchaseRequisition":
+        now = datetime.now(timezone.utc)
+        return PurchaseRequisition(
+            id=generate_id(),
+            organization_id=organization_id,
+            requisition_number=requisition_number,
+            requesting_site_id=requesting_site_id,
+            requesting_storeroom_id=requesting_storeroom_id,
+            requester_user_id=requester_user_id,
+            requester_username=requester_username,
+            status=status,
+            purpose=purpose,
+            needed_by_date=needed_by_date,
+            priority=priority,
+            approval_request_id=approval_request_id,
+            source_reference_type=source_reference_type,
+            source_reference_id=source_reference_id,
+            submitted_at=submitted_at,
+            approved_at=approved_at,
+            cancelled_at=cancelled_at,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
+@dataclass
+class PurchaseRequisitionLine:
+    id: str
+    purchase_requisition_id: str
+    line_number: int
+    stock_item_id: str
+    description: str = ""
+    quantity_requested: float = 0.0
+    uom: str = ""
+    needed_by_date: date | None = None
+    estimated_unit_cost: float = 0.0
+    suggested_supplier_party_id: str | None = None
+    status: PurchaseRequisitionLineStatus = PurchaseRequisitionLineStatus.DRAFT
+    notes: str = ""
+
+    @staticmethod
+    def create(
+        *,
+        purchase_requisition_id: str,
+        line_number: int,
+        stock_item_id: str,
+        description: str = "",
+        quantity_requested: float,
+        uom: str,
+        needed_by_date: date | None = None,
+        estimated_unit_cost: float = 0.0,
+        suggested_supplier_party_id: str | None = None,
+        status: PurchaseRequisitionLineStatus = PurchaseRequisitionLineStatus.DRAFT,
+        notes: str = "",
+    ) -> "PurchaseRequisitionLine":
+        return PurchaseRequisitionLine(
+            id=generate_id(),
+            purchase_requisition_id=purchase_requisition_id,
+            line_number=line_number,
+            stock_item_id=stock_item_id,
+            description=description,
+            quantity_requested=quantity_requested,
+            uom=uom,
+            needed_by_date=needed_by_date,
+            estimated_unit_cost=estimated_unit_cost,
+            suggested_supplier_party_id=suggested_supplier_party_id,
+            status=status,
+            notes=notes,
+        )
+
+
 __all__ = [
     "StockBalance",
     "StockItem",
+    "PurchaseRequisition",
+    "PurchaseRequisitionLine",
+    "PurchaseRequisitionLineStatus",
+    "PurchaseRequisitionStatus",
     "StockTransaction",
     "StockTransactionType",
     "Storeroom",

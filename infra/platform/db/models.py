@@ -33,6 +33,7 @@ from core.platform.common.models import (
     WorkerType,
 ) 
 from core.modules.inventory_procurement.domain import StockTransactionType
+from core.modules.inventory_procurement.domain import PurchaseRequisitionLineStatus, PurchaseRequisitionStatus
 
 
 class ProjectORM(Base):
@@ -489,6 +490,101 @@ class StockTransactionORM(Base):
     performed_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     resulting_on_hand_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
     resulting_available_qty: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class PurchaseRequisitionORM(Base):
+    __tablename__ = "inventory_purchase_requisitions"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "requisition_number", name="ux_inventory_requisitions_number"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    requisition_number: Mapped[str] = mapped_column(String(64), nullable=False)
+    requesting_site_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sites.id"),
+        nullable=False,
+    )
+    requesting_storeroom_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_storerooms.id"),
+        nullable=False,
+    )
+    requester_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    requester_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    status: Mapped[PurchaseRequisitionStatus] = mapped_column(
+        SAEnum(PurchaseRequisitionStatus),
+        nullable=False,
+        default=PurchaseRequisitionStatus.DRAFT,
+        server_default=PurchaseRequisitionStatus.DRAFT.value,
+    )
+    purpose: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    needed_by_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    priority: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    approval_request_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("approval_requests.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_reference_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    source_reference_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cancelled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class PurchaseRequisitionLineORM(Base):
+    __tablename__ = "inventory_purchase_requisition_lines"
+    __table_args__ = (
+        UniqueConstraint(
+            "purchase_requisition_id",
+            "line_number",
+            name="ux_inventory_requisition_lines_number",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    purchase_requisition_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_purchase_requisitions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    line_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    stock_item_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("inventory_stock_items.id"),
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    quantity_requested: Mapped[float] = mapped_column(Float, nullable=False)
+    uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    needed_by_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    estimated_unit_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    suggested_supplier_party_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("parties.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    status: Mapped[PurchaseRequisitionLineStatus] = mapped_column(
+        SAEnum(PurchaseRequisitionLineStatus),
+        nullable=False,
+        default=PurchaseRequisitionLineStatus.DRAFT,
+        server_default=PurchaseRequisitionLineStatus.DRAFT.value,
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
@@ -1046,6 +1142,12 @@ Index("idx_inventory_stock_transactions_org", StockTransactionORM.organization_i
 Index("idx_inventory_stock_transactions_item", StockTransactionORM.stock_item_id)
 Index("idx_inventory_stock_transactions_storeroom", StockTransactionORM.storeroom_id)
 Index("idx_inventory_stock_transactions_at", StockTransactionORM.transaction_at)
+Index("idx_inventory_requisitions_org", PurchaseRequisitionORM.organization_id)
+Index("idx_inventory_requisitions_status", PurchaseRequisitionORM.status)
+Index("idx_inventory_requisitions_site", PurchaseRequisitionORM.requesting_site_id)
+Index("idx_inventory_requisitions_storeroom", PurchaseRequisitionORM.requesting_storeroom_id)
+Index("idx_inventory_requisition_lines_requisition", PurchaseRequisitionLineORM.purchase_requisition_id)
+Index("idx_inventory_requisition_lines_item", PurchaseRequisitionLineORM.stock_item_id)
 Index("idx_org_module_entitlements_org", ModuleEntitlementORM.organization_id)
 Index("idx_resources_employee", ResourceORM.employee_id)
 Index("idx_roles_name", RoleORM.name, unique=True)

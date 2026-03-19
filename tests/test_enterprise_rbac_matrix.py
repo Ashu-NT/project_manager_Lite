@@ -57,6 +57,7 @@ def test_security_and_payroll_roles_expose_expected_permissions(services):
     assert "inventory.manage" in inventory_permissions
     assert "site.read" in inventory_permissions
     assert "party.read" in inventory_permissions
+    assert "approval.request" in inventory_permissions
     assert "settings.manage" not in inventory_permissions
 
 
