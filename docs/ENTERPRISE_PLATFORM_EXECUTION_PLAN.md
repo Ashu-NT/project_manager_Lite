@@ -208,7 +208,9 @@ Exit criteria:
 
 ### Phase 4: Inventory & Procurement Module Skeleton
 
-Status: pending
+Status: in progress
+
+Detailed implementation blueprint: `docs/inventory_procurement/README.md`
 
 1. Add module scaffold only:
    - service package
