@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from core.platform.common.models import CollaborationMentionCandidate, TaskComment
 from core.modules.project_management.services.collaboration import CollaborationService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from ui.modules.project_management.task.document_labels import format_linked_document_label
 from ui.modules.project_management.task.presence import format_presence_lines
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.mention_text_edit import TaskMentionTextEdit
@@ -180,7 +181,10 @@ class TaskCollaborationDialog(QDialog):
         if self._collaboration_service is not None:
             if mark_read:
                 self._collaboration_service.mark_task_mentions_read(self._task_id)
-            comments = self._comment_rows_from_service(self._collaboration_service.list_comments(self._task_id))
+            comments = self._comment_rows_from_service(
+                self._collaboration_service.list_comments(self._task_id),
+                self._collaboration_service.list_comment_documents(self._task_id),
+            )
         else:
             if self._store is None:
                 raise RuntimeError("Task collaboration storage is not configured.")
@@ -195,12 +199,16 @@ class TaskCollaborationDialog(QDialog):
             body = str(row.get("body") or "")
             mentions = [str(m) for m in row.get("mentions", [])]
             attachments = [str(a) for a in row.get("attachments", [])]
+            linked_documents = [str(item) for item in row.get("linked_documents", [])]
             lines = [f"{author}  [{created_at}]"]
             lines.append(body)
             if mentions:
                 lines.append(f"Mentions: {', '.join('@' + m for m in mentions)}")
+            if linked_documents:
+                lines.append("Linked documents:")
+                lines.extend(f"- {item}" for item in linked_documents)
             if attachments:
-                lines.append("Attachments:")
+                lines.append("Attachment references:" if linked_documents else "Attachments:")
                 lines.extend(f"- {item}" for item in attachments)
             item = QListWidgetItem("\n".join(lines))
             self.activity_list.addItem(item)
@@ -221,7 +229,10 @@ class TaskCollaborationDialog(QDialog):
         )
 
     @staticmethod
-    def _comment_rows_from_service(comments: list[TaskComment]) -> list[dict[str, object]]:
+    def _comment_rows_from_service(
+        comments: list[TaskComment],
+        documents_by_comment: dict[str, list[object]] | None = None,
+    ) -> list[dict[str, object]]:
         rows: list[dict[str, object]] = []
         for comment in comments:
             rows.append(
@@ -231,6 +242,10 @@ class TaskCollaborationDialog(QDialog):
                     "body": comment.body,
                     "mentions": list(comment.mentions or []),
                     "attachments": list(comment.attachments or []),
+                    "linked_documents": [
+                        format_linked_document_label(document)
+                        for document in (documents_by_comment or {}).get(comment.id, [])
+                    ],
                 }
             )
         return rows

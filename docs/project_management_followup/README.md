@@ -26,9 +26,13 @@ The guiding rules stay the same:
   - selected PM UI surfaces now consume the module-neutral event bridge instead of depending only on hard-coded PM signals
   - the resource workspace now refreshes from generic platform and shared-master domain events relevant to employee/site/department context
   - the collaboration workspace now refreshes from generic PM and platform domain events for project, task-collaboration, and approval activity
+- Completed in the current slice:
+  - the PM task collaboration dialog now shows linked shared-document records separately from raw attachment references
+  - PM users can see shared document type and storage cues without losing legacy attachment readability
+  - the PM collaboration UX now follows the same document-link pattern that future PM, maintenance, inventory, and QHSE screens can reuse
 - Still intentionally transitional:
   - existing historical PM task-comment attachments remain readable through the legacy attachment list
-  - the task collaboration UI still renders attachment tokens directly instead of a richer shared-document picker/library experience
+  - the task collaboration UI still does not provide a shared-document picker/library experience; the current improvement is additive visibility only
   - file-based local-only collaboration storage remains local-only and is not yet bridged to shared documents
   - PM time-entry site/department snapshots intentionally stay as historical strings
   - PM resources still do not own department/site fields; they consume shared employee context additively at the UI layer
@@ -98,7 +102,7 @@ Non-goals for this slice:
 
 ### 4. Shared Document UX Deepening
 
-Status: pending
+Status: completed
 
 Scope:
 
@@ -107,7 +111,7 @@ Scope:
 
 Acceptance notes:
 
-- PM can distinguish between raw attachment text and shared document records when the UI is ready
+- PM can distinguish between raw attachment text and shared document records in the task collaboration dialog
 - future maintenance/inventory/QHSE integrations can follow the same document-link pattern
 
 Non-goals for this slice:

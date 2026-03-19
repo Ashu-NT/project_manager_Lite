@@ -15,6 +15,7 @@ from core.platform.common.interfaces import (
 )
 from core.platform.documents import DocumentIntegrationService
 from core.modules.project_management.services.collaboration.comments import CollaborationCommentMixin
+from core.modules.project_management.services.collaboration.documents import CollaborationDocumentMixin
 from core.modules.project_management.services.collaboration.inbox import CollaborationInboxMixin
 from core.modules.project_management.services.collaboration.notifications import CollaborationNotificationMixin
 from core.modules.project_management.services.collaboration.presence import CollaborationPresenceMixin
@@ -26,6 +27,7 @@ from core.modules.project_management.services.common.module_guard import Project
 class CollaborationService(
     ProjectManagementModuleGuardMixin,
     CollaborationCommentMixin,
+    CollaborationDocumentMixin,
     CollaborationInboxMixin,
     CollaborationNotificationMixin,
     CollaborationPresenceMixin,

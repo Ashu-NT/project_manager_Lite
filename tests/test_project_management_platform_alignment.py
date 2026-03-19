@@ -8,6 +8,7 @@ from core.platform.notifications.domain_events import DomainChangeEvent, domain_
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.resource.dialogs import ResourceEditDialog
 from ui.modules.project_management.resource.tab import ResourceTab
+from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
 
 
 def test_pm_collaboration_attachments_register_shared_documents(services, repo_workspace, monkeypatch):
@@ -55,6 +56,46 @@ def test_pm_collaboration_attachments_register_shared_documents(services, repo_w
     assert by_uri[str(stored_file)].file_name == "evidence.txt"
     assert by_uri["ticket-123"].storage_kind.value == "REFERENCE"
     assert by_uri["ticket-123"].title == "ticket-123"
+
+
+def test_pm_task_collaboration_dialog_distinguishes_linked_documents(qapp, services, repo_workspace, monkeypatch):
+    monkeypatch.setattr(
+        "infra.modules.project_management.collaboration_attachments.user_data_dir",
+        lambda: repo_workspace,
+    )
+    project = services["project_service"].create_project("PM Document UX")
+    task = services["task_service"].create_task(
+        project.id,
+        "Shared Document Visibility",
+        start_date=date(2026, 3, 19),
+        duration_days=1,
+    )
+    source_dir = repo_workspace / "source"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source_file = source_dir / "procedure.pdf"
+    source_file.write_text("procedure", encoding="utf-8")
+
+    services["collaboration_service"].post_comment(
+        task_id=task.id,
+        body="See the latest procedure and ticket reference.",
+        attachments=[str(source_file), "ticket-123"],
+    )
+
+    dialog = TaskCollaborationDialog(
+        None,
+        collaboration_service=services["collaboration_service"],
+        task_id=task.id,
+        task_name=task.name,
+        username="admin",
+        mention_aliases=["admin"],
+    )
+
+    assert dialog.activity_list.count() == 1
+    rendered = dialog.activity_list.item(0).text()
+    assert "Linked documents:" in rendered
+    assert "procedure.pdf [General | File]" in rendered
+    assert "ticket-123 [General | Reference]" in rendered
+    assert "Attachment references:" in rendered
 
 
 def test_pm_resource_ui_surfaces_shared_employee_context(qapp, services):
