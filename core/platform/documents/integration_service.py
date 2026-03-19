@@ -170,6 +170,17 @@ class DocumentIntegrationService:
             rows.append(document)
         return rows
 
+    def list_available_documents(
+        self,
+        *,
+        required_permission: str,
+        operation_label: str,
+        active_only: bool | None = None,
+    ) -> list[Document]:
+        require_permission(self._user_session, required_permission, operation_label=operation_label)
+        organization = self._active_organization()
+        return self._document_repo.list_for_organization(organization.id, active_only=active_only)
+
     def link_existing_document(
         self,
         *,
@@ -240,6 +251,63 @@ class DocumentIntegrationService:
         )
         domain_events.documents_changed.emit(document.id)
         return link
+
+    def unlink_existing_document(
+        self,
+        *,
+        required_permission: str,
+        operation_label: str,
+        module_code: str,
+        entity_type: str,
+        entity_id: str,
+        document_id: str,
+        link_role: str = "reference",
+    ) -> None:
+        require_permission(self._user_session, required_permission, operation_label=operation_label)
+        organization = self._active_organization()
+        document = self._document_repo.get(document_id)
+        if document is None or document.organization_id != organization.id:
+            raise NotFoundError("Document not found in the active organization.", code="DOCUMENT_NOT_FOUND")
+        normalized_module = normalize_module_code(module_code)
+        normalized_entity_type = normalize_entity_label(
+            entity_type,
+            code="DOCUMENT_ENTITY_TYPE_REQUIRED",
+            label="Entity type",
+        )
+        normalized_entity_id = normalize_entity_label(
+            entity_id,
+            code="DOCUMENT_ENTITY_ID_REQUIRED",
+            label="Entity id",
+        )
+        normalized_role = normalize_optional_text(link_role)
+        existing = self._link_repo.find_existing(
+            document_id=document.id,
+            module_code=normalized_module,
+            entity_type=normalized_entity_type,
+            entity_id=normalized_entity_id,
+            link_role=normalized_role,
+        )
+        if existing is None:
+            raise NotFoundError("Document link not found.", code="DOCUMENT_LINK_NOT_FOUND")
+        try:
+            self._link_repo.delete(existing.id)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="document.unlink_existing",
+            entity_type="document",
+            entity_id=document.id,
+            details={
+                "module_code": normalized_module,
+                "entity_type": normalized_entity_type,
+                "entity_id": normalized_entity_id,
+                "link_role": normalized_role,
+            },
+        )
+        domain_events.documents_changed.emit(document.id)
 
     def _active_organization(self) -> Organization:
         organization = self._organization_repo.get_active()

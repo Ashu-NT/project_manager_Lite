@@ -181,7 +181,18 @@ class PurchaseOrdersTab(QWidget):
         self.search_edit.setPlaceholderText("Search PO number, supplier reference, supplier, or currency")
         self.status_filter = QComboBox()
         self.status_filter.addItem("All statuses", None)
-        for status in ("DRAFT", "SUBMITTED", "APPROVED", "PARTIALLY_RECEIVED", "FULLY_RECEIVED", "REJECTED"):
+        for status in (
+            "DRAFT",
+            "SUBMITTED",
+            "UNDER_REVIEW",
+            "APPROVED",
+            "SENT",
+            "PARTIALLY_RECEIVED",
+            "FULLY_RECEIVED",
+            "REJECTED",
+            "CANCELLED",
+            "CLOSED",
+        ):
             self.status_filter.addItem(humanize_status(status), status)
         self.site_filter = QComboBox()
         self.site_filter.addItem("All sites", None)
@@ -199,8 +210,19 @@ class PurchaseOrdersTab(QWidget):
         self.btn_add_line = QPushButton("Add Line")
         self.btn_cancel = QPushButton("Cancel")
         self.btn_submit = QPushButton("Submit")
+        self.btn_send = QPushButton("Send")
+        self.btn_close = QPushButton("Close")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        for button in (self.btn_new, self.btn_edit, self.btn_add_line, self.btn_cancel, self.btn_submit, self.btn_refresh):
+        for button in (
+            self.btn_new,
+            self.btn_edit,
+            self.btn_add_line,
+            self.btn_cancel,
+            self.btn_submit,
+            self.btn_send,
+            self.btn_close,
+            self.btn_refresh,
+        ):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.btn_new.setStyleSheet(dashboard_action_button_style("primary"))
@@ -208,12 +230,16 @@ class PurchaseOrdersTab(QWidget):
         self.btn_add_line.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_cancel.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_submit.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_send.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_close.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         action_row.addWidget(self.btn_new)
         action_row.addWidget(self.btn_edit)
         action_row.addWidget(self.btn_add_line)
         action_row.addWidget(self.btn_cancel)
         action_row.addWidget(self.btn_submit)
+        action_row.addWidget(self.btn_send)
+        action_row.addWidget(self.btn_close)
         action_row.addStretch(1)
         action_row.addWidget(self.btn_refresh)
         controls_layout.addLayout(action_row)
@@ -320,7 +346,19 @@ class PurchaseOrdersTab(QWidget):
         self.btn_add_line.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.add_line))
         self.btn_cancel.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.cancel_purchase_order))
         self.btn_submit.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.submit_purchase_order))
-        for button in (self.btn_new, self.btn_edit, self.btn_add_line, self.btn_cancel, self.btn_submit):
+        self.btn_send.clicked.connect(make_guarded_slot(self, title="Purchase Orders", callback=self.send_purchase_order))
+        self.btn_close.clicked.connect(
+            make_guarded_slot(self, title="Purchase Orders", callback=self.close_purchase_order)
+        )
+        for button in (
+            self.btn_new,
+            self.btn_edit,
+            self.btn_add_line,
+            self.btn_cancel,
+            self.btn_submit,
+            self.btn_send,
+            self.btn_close,
+        ):
             apply_permission_hint(button, allowed=self._can_manage, missing_permission="inventory.manage")
         self._sync_actions()
 
@@ -512,6 +550,54 @@ class PurchaseOrdersTab(QWidget):
             return
         self.reload_purchase_orders()
 
+    def send_purchase_order(self) -> None:
+        purchase_order = self._selected_purchase_order()
+        if purchase_order is None or not self._can_manage:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Send Purchase Order",
+            f"Mark purchase order {purchase_order.po_number} as sent to the supplier?",
+        )
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            self._purchasing_service.send_purchase_order(purchase_order.id)
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
+            QMessageBox.warning(self, "Purchase Orders", str(exc))
+            if isinstance(exc, ConcurrencyError):
+                self.reload_purchase_orders()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Purchase Orders", f"Failed to send purchase order: {exc}")
+            return
+        self.reload_purchase_orders()
+        self._select_purchase_order(purchase_order.id)
+
+    def close_purchase_order(self) -> None:
+        purchase_order = self._selected_purchase_order()
+        if purchase_order is None or not self._can_manage:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Close Purchase Order",
+            f"Close purchase order {purchase_order.po_number}? This is only allowed once all line quantities are fully processed.",
+        )
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            self._purchasing_service.close_purchase_order(purchase_order.id)
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
+            QMessageBox.warning(self, "Purchase Orders", str(exc))
+            if isinstance(exc, ConcurrencyError):
+                self.reload_purchase_orders()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Purchase Orders", f"Failed to close purchase order: {exc}")
+            return
+        self.reload_purchase_orders()
+        self._select_purchase_order(purchase_order.id)
+
     def _apply_search_filter(self, rows: list[PurchaseOrder]) -> list[PurchaseOrder]:
         needle = self.search_text
         if not needle:
@@ -550,8 +636,10 @@ class PurchaseOrdersTab(QWidget):
                 selected_row = row_index
         if selected_row >= 0:
             self.table.selectRow(selected_row)
+            self._on_selection_changed()
         elif self._rows:
             self.table.selectRow(0)
+            self._on_selection_changed()
         else:
             self._selected_lines = []
             self._update_detail(None)
@@ -725,6 +813,12 @@ class PurchaseOrdersTab(QWidget):
         for row_index, row in enumerate(self._rows):
             if row.id == purchase_order_id:
                 self.table.selectRow(row_index)
+                try:
+                    self._selected_lines = self._purchasing_service.list_purchase_order_lines(row.id)
+                except Exception:
+                    self._selected_lines = []
+                self._update_detail(row)
+                self._sync_actions()
                 return
 
     @property
@@ -746,10 +840,24 @@ class PurchaseOrdersTab(QWidget):
     def _sync_actions(self) -> None:
         purchase_order = self._selected_purchase_order()
         is_draft = bool(purchase_order is not None and purchase_order.status == PurchaseOrderStatus.DRAFT)
+        can_send = bool(purchase_order is not None and purchase_order.status == PurchaseOrderStatus.APPROVED)
+        can_close = bool(
+            purchase_order is not None
+            and purchase_order.status
+            in {
+                PurchaseOrderStatus.APPROVED,
+                PurchaseOrderStatus.SENT,
+                PurchaseOrderStatus.PARTIALLY_RECEIVED,
+                PurchaseOrderStatus.FULLY_RECEIVED,
+            }
+            and _is_fully_processed(self._selected_lines)
+        )
         self.btn_edit.setEnabled(self._can_manage and is_draft)
         self.btn_add_line.setEnabled(self._can_manage and is_draft)
         self.btn_cancel.setEnabled(self._can_manage and is_draft)
         self.btn_submit.setEnabled(self._can_manage and is_draft and bool(self._selected_lines))
+        self.btn_send.setEnabled(self._can_manage and can_send)
+        self.btn_close.setEnabled(self._can_manage and can_close)
 
     def _context_label(self) -> str:
         site_label = "All sites"
@@ -769,6 +877,13 @@ def _set_combo_to_data(combo: QComboBox, value: str) -> None:
     index = combo.findData(value)
     if index >= 0:
         combo.setCurrentIndex(index)
+
+
+def _is_fully_processed(lines) -> bool:
+    return bool(lines) and all(
+        max(0.0, float(line.quantity_ordered or 0.0) - float(line.quantity_received or 0.0) - float(line.quantity_rejected or 0.0)) <= 0
+        for line in lines
+    )
 
 
 __all__ = ["PurchaseOrdersTab"]

@@ -346,6 +346,13 @@ class ItemMasterService:
             active_only=active_only,
         )
 
+    def list_available_documents(self, *, active_only: bool | None = True) -> list[Document]:
+        return self._document_integration_service.list_available_documents(
+            required_permission="inventory.read",
+            operation_label="list inventory document library",
+            active_only=active_only,
+        )
+
     def link_document(
         self,
         item_id: str,
@@ -375,6 +382,35 @@ class ItemMasterService:
         )
         domain_events.inventory_items_changed.emit(item.id)
         return link
+
+    def unlink_document(
+        self,
+        item_id: str,
+        *,
+        document_id: str,
+        link_role: str = "reference",
+    ) -> None:
+        item = self.get_item(item_id)
+        self._document_integration_service.unlink_existing_document(
+            required_permission="inventory.manage",
+            operation_label="unlink inventory item document",
+            module_code="inventory_procurement",
+            entity_type="stock_item",
+            entity_id=item.id,
+            document_id=document_id,
+            link_role=link_role,
+        )
+        record_audit(
+            self,
+            action="inventory_item.unlink_document",
+            entity_type="inventory_item",
+            entity_id=item.id,
+            details={
+                "document_id": document_id,
+                "link_role": normalize_optional_text(link_role) or "reference",
+            },
+        )
+        domain_events.inventory_items_changed.emit(item.id)
 
     def _validate_party_reference(self, party_id: str | None) -> str | None:
         normalized = normalize_optional_text(party_id)

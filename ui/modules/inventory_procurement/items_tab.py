@@ -27,6 +27,7 @@ from ui.modules.inventory_procurement.header_support import (
     build_inventory_header_badge_widget,
     configure_inventory_header_layout,
 )
+from ui.modules.inventory_procurement.document_link_dialogs import InventoryItemDocumentLinkDialog
 from ui.modules.inventory_procurement.item_dialogs import InventoryItemEditDialog
 from ui.modules.inventory_procurement.reference_support import (
     build_option_rows,
@@ -152,17 +153,30 @@ class InventoryItemsTab(QWidget):
         self.btn_new = QPushButton("New Item")
         self.btn_edit = QPushButton("Edit Item")
         self.btn_toggle_active = QPushButton("Toggle Active")
+        self.btn_link_document = QPushButton("Link Document")
+        self.btn_unlink_document = QPushButton("Unlink Document")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        for button in (self.btn_new, self.btn_edit, self.btn_toggle_active, self.btn_refresh):
+        for button in (
+            self.btn_new,
+            self.btn_edit,
+            self.btn_toggle_active,
+            self.btn_link_document,
+            self.btn_unlink_document,
+            self.btn_refresh,
+        ):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.btn_new.setStyleSheet(dashboard_action_button_style("primary"))
         self.btn_edit.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_toggle_active.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_link_document.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_unlink_document.setStyleSheet(dashboard_action_button_style("secondary"))
         self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         action_row.addWidget(self.btn_new)
         action_row.addWidget(self.btn_edit)
         action_row.addWidget(self.btn_toggle_active)
+        action_row.addWidget(self.btn_link_document)
+        action_row.addWidget(self.btn_unlink_document)
         action_row.addStretch(1)
         action_row.addWidget(self.btn_refresh)
         controls_layout.addLayout(action_row)
@@ -242,10 +256,22 @@ class InventoryItemsTab(QWidget):
         self.btn_toggle_active.clicked.connect(
             make_guarded_slot(self, title="Inventory Items", callback=self.toggle_active)
         )
+        self.btn_link_document.clicked.connect(
+            make_guarded_slot(self, title="Inventory Items", callback=self.link_document)
+        )
+        self.btn_unlink_document.clicked.connect(
+            make_guarded_slot(self, title="Inventory Items", callback=self.unlink_document)
+        )
         self.search_edit.textChanged.connect(lambda _text: self.reload_items())
         self.active_filter.currentIndexChanged.connect(lambda _index: self.reload_items())
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
-        for button in (self.btn_new, self.btn_edit, self.btn_toggle_active):
+        for button in (
+            self.btn_new,
+            self.btn_edit,
+            self.btn_toggle_active,
+            self.btn_link_document,
+            self.btn_unlink_document,
+        ):
             apply_permission_hint(button, allowed=self._can_manage, missing_permission="inventory.manage")
         self._sync_actions()
 
@@ -288,6 +314,7 @@ class InventoryItemsTab(QWidget):
         self._update_badges(context_label=context_label)
         if selected_row >= 0:
             self.table.selectRow(selected_row)
+            self._populate_details(self._selected_item())
         else:
             self.table.clearSelection()
             self._populate_details(None)
@@ -392,6 +419,94 @@ class InventoryItemsTab(QWidget):
             return
         self.reload_items()
 
+    def link_document(self) -> None:
+        item = self._selected_item()
+        if item is None or not self._can_manage:
+            return
+        try:
+            linked_documents = self._item_service.list_linked_documents(item.id, active_only=None)
+            linked_ids = {document.id for document in linked_documents}
+            available_documents = [
+                document
+                for document in self._item_service.list_available_documents(active_only=True)
+                if document.id not in linked_ids
+            ]
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Inventory Items", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Inventory Items", f"Failed to load document library: {exc}")
+            return
+        if not available_documents:
+            QMessageBox.information(
+                self,
+                "Inventory Items",
+                "No additional active shared documents are available to link.",
+            )
+            return
+        dialog = InventoryItemDocumentLinkDialog(
+            title="Link Item Document",
+            prompt="Select a shared platform document to link to the selected inventory item.",
+            document_options=[
+                (f"{document.document_code} - {document.title}", document.id)
+                for document in available_documents
+            ],
+            confirm_label="Link Document",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+        try:
+            self._item_service.link_document(item.id, document_id=dialog.document_id)
+        except (ValidationError, NotFoundError, BusinessRuleError) as exc:
+            QMessageBox.warning(self, "Inventory Items", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Inventory Items", f"Failed to link document: {exc}")
+            return
+        self.reload_items()
+        self._select_item(item.id)
+
+    def unlink_document(self) -> None:
+        item = self._selected_item()
+        if item is None or not self._can_manage:
+            return
+        try:
+            linked_documents = self._item_service.list_linked_documents(item.id, active_only=None)
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Inventory Items", str(exc))
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Inventory Items", f"Failed to load linked documents: {exc}")
+            return
+        if not linked_documents:
+            QMessageBox.information(self, "Inventory Items", "The selected item has no linked documents.")
+            return
+        dialog = InventoryItemDocumentLinkDialog(
+            title="Unlink Item Document",
+            prompt="Select the linked document you want to remove from the selected inventory item.",
+            document_options=[
+                (f"{document.document_code} - {document.title}", document.id)
+                for document in linked_documents
+            ],
+            confirm_label="Unlink Document",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+        try:
+            self._item_service.unlink_document(item.id, document_id=dialog.document_id)
+        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
+            QMessageBox.warning(self, "Inventory Items", str(exc))
+            if isinstance(exc, ConcurrencyError):
+                self.reload_items()
+            return
+        except Exception as exc:
+            QMessageBox.critical(self, "Inventory Items", f"Failed to unlink document: {exc}")
+            return
+        self.reload_items()
+        self._select_item(item.id)
+
     @property
     def search_text(self) -> str:
         return self.search_edit.text().strip()
@@ -418,10 +533,20 @@ class InventoryItemsTab(QWidget):
             return None
         return next((row for row in self._rows if row.id == selected_id), None)
 
+    def _select_item(self, item_id: str) -> None:
+        for row_index, row in enumerate(self._rows):
+            if row.id == item_id:
+                self.table.selectRow(row_index)
+                self._populate_details(row)
+                self._sync_actions()
+                return
+
     def _sync_actions(self) -> None:
         has_selection = self._selected_item() is not None
         self.btn_edit.setEnabled(self._can_manage and has_selection)
         self.btn_toggle_active.setEnabled(self._can_manage and has_selection)
+        self.btn_link_document.setEnabled(self._can_manage and has_selection)
+        self.btn_unlink_document.setEnabled(self._can_manage and has_selection)
 
     def _update_badges(self, *, context_label: str) -> None:
         active_count = sum(1 for item in self._rows if item.is_active)

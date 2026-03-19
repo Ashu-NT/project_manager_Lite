@@ -46,6 +46,45 @@ def test_inventory_manager_can_create_items_with_shared_party_and_document_links
     assert [row.id for row in linked_documents] == [document.id]
 
 
+def test_inventory_item_document_library_can_list_and_unlink_shared_documents(services):
+    auth = services["auth_service"]
+    auth.register_user("inventory-item-doc-user", "StrongPass123", role_names=["inventory_manager"])
+    first_document = services["document_service"].create_document(
+        document_code="DOC-INV-201",
+        title="Pump Manual",
+        document_type="MANUAL",
+        storage_kind="REFERENCE",
+        storage_uri="vault://manuals/pump-manual",
+    )
+    second_document = services["document_service"].create_document(
+        document_code="DOC-INV-202",
+        title="Pump Datasheet",
+        document_type="DATASHEET",
+        storage_kind="REFERENCE",
+        storage_uri="vault://manuals/pump-datasheet",
+    )
+
+    login_as(services, "inventory-item-doc-user", "StrongPass123")
+
+    item_service = services["inventory_item_service"]
+    item = item_service.create_item(
+        item_code="PUMP-201",
+        name="Pump 201",
+        status="ACTIVE",
+        stock_uom="EA",
+    )
+    available_before = item_service.list_available_documents(active_only=True)
+    item_service.link_document(item.id, document_id=first_document.id, link_role="manual")
+    linked_documents = item_service.list_linked_documents(item.id, active_only=True)
+    item_service.unlink_document(item.id, document_id=first_document.id, link_role="manual")
+    available_after = item_service.list_available_documents(active_only=True)
+
+    assert {row.id for row in available_before} == {first_document.id, second_document.id}
+    assert [row.id for row in linked_documents] == [first_document.id]
+    assert item_service.list_linked_documents(item.id, active_only=True) == []
+    assert {row.id for row in available_after} == {first_document.id, second_document.id}
+
+
 def test_inventory_manager_can_create_storerooms_under_shared_sites(services):
     auth = services["auth_service"]
     site = services["site_service"].create_site(

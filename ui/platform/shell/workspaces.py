@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QWidget
 from application.platform import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
 from ui.modules.inventory_procurement import (
+    InventoryDashboardTab,
     InventoryItemsTab,
     MovementsTab,
     PurchaseOrdersTab,
@@ -288,6 +289,28 @@ def build_workspace_definitions(
                     cost_service=services["cost_service"],
                     timesheet_service=services.get("timesheet_service"),
                     user_session=user_session,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Overview",
+                label="Inventory Dashboard",
+                widget=InventoryDashboardTab(
+                    item_service=services["inventory_item_service"],
+                    inventory_service=services["inventory_service"],
+                    stock_service=services["inventory_stock_service"],
+                    reservation_service=services["inventory_reservation_service"],
+                    procurement_service=services["inventory_procurement_service"],
+                    purchasing_service=services["inventory_purchasing_service"],
+                    reference_service=services["inventory_reference_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
                 ),
             )
         )

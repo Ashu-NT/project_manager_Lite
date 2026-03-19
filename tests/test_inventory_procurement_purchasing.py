@@ -287,3 +287,60 @@ def test_purchase_order_service_can_update_and_cancel_draft_purchase_order(servi
     assert cancelled.status.value == "CANCELLED"
     assert cancelled.cancelled_at is not None
     assert [line.status.value for line in lines] == ["CANCELLED"]
+
+
+def test_purchase_order_service_can_send_and_close_when_fully_processed(services):
+    (
+        _site,
+        storeroom,
+        item,
+        _supplier,
+        _requisition,
+        _requisition_line,
+        purchase_order,
+        purchase_order_line,
+    ) = _create_approved_purchase_order(services)
+
+    purchasing = services["inventory_purchasing_service"]
+    sent = purchasing.send_purchase_order(purchase_order.id, note="Sent to supplier")
+    purchasing.post_receipt(
+        sent.id,
+        receipt_lines=[
+            {
+                "purchase_order_line_id": purchase_order_line.id,
+                "quantity_accepted": 4,
+                "quantity_rejected": 1,
+                "unit_cost": 240.0,
+            }
+        ],
+    )
+    closed = purchasing.close_purchase_order(sent.id, note="Closed after full processing")
+    balance = services["inventory_stock_service"].get_balance_for_stock_position(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+    )
+
+    assert sent.status.value == "SENT"
+    assert sent.sent_at is not None
+    assert closed.status.value == "CLOSED"
+    assert closed.closed_at is not None
+    assert balance is not None
+    assert balance.on_order_qty == pytest.approx(0.0)
+
+
+def test_purchase_order_service_rejects_close_when_open_qty_remains(services):
+    (
+        _site,
+        _storeroom,
+        _item,
+        _supplier,
+        _requisition,
+        _requisition_line,
+        purchase_order,
+        _purchase_order_line,
+    ) = _create_approved_purchase_order(services)
+
+    purchasing = services["inventory_purchasing_service"]
+
+    with pytest.raises(ValidationError, match="still has open quantity"):
+        purchasing.close_purchase_order(purchase_order.id)

@@ -3,8 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
+from PySide6.QtWidgets import QDialog
+
 from core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
+from ui.modules.inventory_procurement.dashboard_tab import InventoryDashboardTab
 from ui.modules.inventory_procurement.item_dialogs import InventoryItemEditDialog
 from ui.modules.inventory_procurement.items_tab import InventoryItemsTab
 from ui.modules.inventory_procurement.movements_tab import MovementsTab
@@ -162,6 +165,64 @@ def test_inventory_items_tab_shows_platform_referenced_supplier_context(qapp, se
     assert tab.detail_name.text() == "FILTER-01 - Filter Cartridge"
     assert "Preferred party: SUP-INV-01 - North Supply" in tab.detail_status.text()
     assert tab.detail_documents.text() == "No linked documents"
+
+
+def test_inventory_dashboard_tab_surfaces_stock_pressure_and_procurement_queue(qapp, services):
+    _enable_inventory_module(services)
+    (
+        _site,
+        storeroom,
+        _item,
+        _supplier,
+        _requisition,
+        purchase_order,
+        _purchase_order_line,
+        _receipt,
+    ) = _create_purchase_flow(services)
+    low_stock_item = services["inventory_item_service"].create_item(
+        item_code="FILTER-DASH-01",
+        name="Filter Cartridge",
+        status="ACTIVE",
+        stock_uom="EA",
+        reorder_point=2,
+        reorder_qty=5,
+        is_purchase_allowed=True,
+    )
+    services["inventory_stock_service"].post_opening_balance(
+        stock_item_id=low_stock_item.id,
+        storeroom_id=storeroom.id,
+        quantity=1.0,
+        unit_cost=10.0,
+    )
+    services["inventory_reservation_service"].create_reservation(
+        stock_item_id=low_stock_item.id,
+        storeroom_id=storeroom.id,
+        reserved_qty=1.0,
+        source_reference_type="maintenance_task",
+        source_reference_id="MT-100",
+    )
+
+    tab = InventoryDashboardTab(
+        item_service=services["inventory_item_service"],
+        inventory_service=services["inventory_service"],
+        stock_service=services["inventory_stock_service"],
+        reservation_service=services["inventory_reservation_service"],
+        procurement_service=services["inventory_procurement_service"],
+        purchasing_service=services["inventory_purchasing_service"],
+        reference_service=services["inventory_reference_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.low_stock_badge.text() == "1 low stock"
+    assert tab.awaiting_badge.text() == "0 awaiting approval"
+    assert tab.receiving_badge.text() == "1 open receiving"
+    assert tab.on_order_badge.text() == "On order: 5.000"
+    assert tab.low_stock_table.rowCount() == 1
+    assert low_stock_item.item_code in tab.low_stock_table.item(0, 0).text()
+    assert tab.queue_table.rowCount() >= 1
+    queue_numbers = {tab.queue_table.item(row, 1).text() for row in range(tab.queue_table.rowCount())}
+    assert purchase_order.po_number in queue_numbers
 
 
 def test_new_item_and_storeroom_dialogs_default_to_active_status(qapp, services):
@@ -341,6 +402,59 @@ def test_requisition_and_purchase_order_tabs_enable_draft_edit_actions(qapp, ser
     assert purchase_orders_tab.btn_cancel.isEnabled()
 
 
+def test_inventory_items_tab_can_link_and_unlink_shared_documents_via_ui_actions(qapp, services, monkeypatch):
+    _enable_inventory_module(services)
+    document = services["document_service"].create_document(
+        document_code="DOC-LINK-01",
+        title="Inspection Manual",
+        document_type="MANUAL",
+        storage_kind="REFERENCE",
+        storage_uri="vault://docs/inspection-manual",
+    )
+    register_and_login(services, username_prefix="inventory-ui-docs", role_names=("inventory_manager",))
+    item = services["inventory_item_service"].create_item(
+        item_code="DOC-LINK-01",
+        name="Document Link Item",
+        status="ACTIVE",
+        stock_uom="EA",
+    )
+
+    tab = InventoryItemsTab(
+        item_service=services["inventory_item_service"],
+        reference_service=services["inventory_reference_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    tab.table.selectRow(0)
+    qapp.processEvents()
+
+    class _AcceptedDialog:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def exec(self):
+            return QDialog.Accepted
+
+        @property
+        def document_id(self):
+            return document.id
+
+    monkeypatch.setattr("ui.modules.inventory_procurement.items_tab.InventoryItemDocumentLinkDialog", _AcceptedDialog)
+
+    assert tab.btn_link_document.isEnabled() is True
+    assert tab.btn_unlink_document.isEnabled() is True
+
+    tab.link_document()
+    qapp.processEvents()
+
+    assert document.title in tab.detail_documents.text()
+
+    tab.unlink_document()
+    qapp.processEvents()
+
+    assert tab.detail_documents.text() == "No linked documents"
+
+
 def test_purchase_orders_tab_shows_line_and_source_requisition(qapp, services):
     _enable_inventory_module(services)
     (
@@ -376,6 +490,54 @@ def test_purchase_orders_tab_shows_line_and_source_requisition(qapp, services):
     assert tab.lines_table.rowCount() == 1
     assert storeroom.storeroom_code in tab.lines_table.item(0, 2).text()
     assert item.item_code in tab.lines_table.item(0, 1).text()
+
+
+def test_purchase_orders_tab_enables_send_and_close_for_progressed_orders(qapp, services):
+    _enable_inventory_module(services)
+    (
+        _site,
+        _storeroom,
+        _item,
+        _supplier,
+        _requisition,
+        purchase_order,
+        purchase_order_line,
+        _receipt,
+    ) = _create_purchase_flow(services)
+    purchasing = services["inventory_purchasing_service"]
+
+    tab = PurchaseOrdersTab(
+        purchasing_service=purchasing,
+        procurement_service=services["inventory_procurement_service"],
+        item_service=services["inventory_item_service"],
+        inventory_service=services["inventory_service"],
+        reference_service=services["inventory_reference_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    tab.table.selectRow(0)
+    qapp.processEvents()
+
+    assert tab.btn_send.isEnabled() is True
+    assert tab.btn_close.isEnabled() is False
+
+    purchasing.send_purchase_order(purchase_order.id)
+    purchasing.post_receipt(
+        purchase_order.id,
+        receipt_lines=[
+            {
+                "purchase_order_line_id": purchase_order_line.id,
+                "quantity_accepted": 5,
+                "unit_cost": 115.0,
+            }
+        ],
+    )
+    tab.reload_purchase_orders()
+    tab.table.selectRow(0)
+    qapp.processEvents()
+
+    assert tab.btn_send.isEnabled() is False
+    assert tab.btn_close.isEnabled() is True
 
 
 def test_receiving_tab_shows_outstanding_lines_and_receipt_history(qapp, services):
@@ -538,6 +700,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     window = MainWindow(services)
     labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
 
+    assert "Inventory Dashboard" in labels
     assert "Items" in labels
     assert "Storerooms" in labels
     assert "Stock" in labels
@@ -549,10 +712,11 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
 
     inventory_section = window.shell_navigation.tree.topLevelItem(2)
     assert inventory_section.text(0) == "Inventory & Procurement"
-    assert _child_labels(inventory_section) == ["Master Data", "Operations", "Procurement"]
-    assert _child_labels(inventory_section.child(0)) == ["Items", "Storerooms"]
-    assert _child_labels(inventory_section.child(1)) == ["Reservations", "Movements", "Stock"]
-    assert _child_labels(inventory_section.child(2)) == ["Requisitions", "Purchase Orders", "Receiving"]
+    assert _child_labels(inventory_section) == ["Overview", "Master Data", "Operations", "Procurement"]
+    assert _child_labels(inventory_section.child(0)) == ["Inventory Dashboard"]
+    assert _child_labels(inventory_section.child(1)) == ["Items", "Storerooms"]
+    assert _child_labels(inventory_section.child(2)) == ["Reservations", "Movements", "Stock"]
+    assert _child_labels(inventory_section.child(3)) == ["Requisitions", "Purchase Orders", "Receiving"]
 
 
 def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():

@@ -460,6 +460,91 @@ class PurchasingService:
         domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
         return purchase_order
 
+    def send_purchase_order(
+        self,
+        purchase_order_id: str,
+        *,
+        note: str = "",
+    ) -> PurchaseOrder:
+        self._require_manage("send purchase order")
+        purchase_order = self.get_purchase_order(purchase_order_id)
+        validate_transition(
+            current_status=purchase_order.status.value,
+            next_status=PurchaseOrderStatus.SENT.value,
+            transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
+        )
+        effective_at = datetime.now(timezone.utc)
+        purchase_order.status = PurchaseOrderStatus.SENT
+        purchase_order.sent_at = effective_at
+        if purchase_order.order_date is None:
+            purchase_order.order_date = effective_at.date()
+        purchase_order.updated_at = effective_at
+        try:
+            self._purchase_order_repo.update(purchase_order)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="inventory_purchase_order.send",
+            entity_type="purchase_order",
+            entity_id=purchase_order.id,
+            details={
+                "po_number": purchase_order.po_number,
+                "note": normalize_optional_text(note),
+            },
+        )
+        domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        return purchase_order
+
+    def close_purchase_order(
+        self,
+        purchase_order_id: str,
+        *,
+        note: str = "",
+    ) -> PurchaseOrder:
+        self._require_manage("close purchase order")
+        purchase_order = self.get_purchase_order(purchase_order_id)
+        lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
+        if not lines:
+            raise ValidationError(
+                "Purchase order must have at least one line before it can be closed.",
+                code="INVENTORY_PURCHASE_ORDER_LINES_REQUIRED",
+            )
+        if not self._is_purchase_order_fully_processed(lines):
+            raise ValidationError(
+                "Purchase order still has open quantity and cannot be closed.",
+                code="INVENTORY_PURCHASE_ORDER_NOT_FULLY_PROCESSED",
+            )
+        validate_transition(
+            current_status=purchase_order.status.value,
+            next_status=PurchaseOrderStatus.CLOSED.value,
+            transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
+        )
+        effective_at = datetime.now(timezone.utc)
+        purchase_order.status = PurchaseOrderStatus.CLOSED
+        purchase_order.closed_at = effective_at
+        purchase_order.updated_at = effective_at
+        try:
+            self._purchase_order_repo.update(purchase_order)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        record_audit(
+            self,
+            action="inventory_purchase_order.close",
+            entity_type="purchase_order",
+            entity_id=purchase_order.id,
+            details={
+                "po_number": purchase_order.po_number,
+                "note": normalize_optional_text(note),
+            },
+        )
+        domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        return purchase_order
+
     def post_receipt(
         self,
         purchase_order_id: str,
@@ -772,6 +857,9 @@ class PurchasingService:
     def _line_outstanding_qty(self, line: PurchaseOrderLine) -> float:
         return max(0.0, float(line.quantity_ordered or 0.0) - float(line.quantity_received or 0.0) - float(line.quantity_rejected or 0.0))
 
+    def _is_purchase_order_fully_processed(self, lines: list[PurchaseOrderLine]) -> bool:
+        return bool(lines) and all(self._line_outstanding_qty(line) <= 0 for line in lines)
+
     def _resolve_purchase_order_line_status(
         self,
         line: PurchaseOrderLine,
@@ -787,7 +875,7 @@ class PurchasingService:
         return PurchaseOrderLineStatus.PARTIALLY_RECEIVED
 
     def _resolve_purchase_order_receiving_status(self, lines: list[PurchaseOrderLine]) -> PurchaseOrderStatus:
-        if lines and all(self._line_outstanding_qty(line) <= 0 for line in lines):
+        if self._is_purchase_order_fully_processed(lines):
             return PurchaseOrderStatus.FULLY_RECEIVED
         return PurchaseOrderStatus.PARTIALLY_RECEIVED
 
