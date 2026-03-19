@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QMessageBox,
     QVBoxLayout,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.common.models import CostType, Resource, WorkerType
 from core.platform.org import EmployeeService
+from ui.modules.project_management.resource.employee_context import employee_option_label, format_employee_context_from_record
 from ui.platform.shared.styles.ui_config import UIConfig as CFG, CurrencyType
 
 
@@ -90,6 +92,9 @@ class ResourceEditDialog(QDialog):
         self.employee_combo.setFixedHeight(CFG.INPUT_HEIGHT)
         self.employee_combo.addItem("Select employee", userData=None)
         self._load_employees()
+        self.employee_context_value = QLabel("-")
+        self.employee_context_value.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+        self.employee_context_value.setWordWrap(True)
 
         self.active_check = QCheckBox("Active")
         self.active_check.setSizePolicy(CFG.CHKBOX_FIXED_HEIGHT)
@@ -130,6 +135,7 @@ class ResourceEditDialog(QDialog):
         form.setRowWrapPolicy(QFormLayout.DontWrapRows)
         form.addRow("Worker type:", self.worker_type_combo)
         form.addRow("Employee:", self.employee_combo)
+        form.addRow("Shared context:", self.employee_context_value)
         form.addRow("Name:", self.name_edit)
         form.addRow("Role:", self.role_edit)
         form.addRow("Category:", self.category_combo)
@@ -167,10 +173,7 @@ class ResourceEditDialog(QDialog):
             self.employee_combo.setEnabled(False)
             return
         for employee in self._employees:
-            label = f"{employee.employee_code} - {employee.full_name}"
-            if not getattr(employee, "is_active", True):
-                label += " (Inactive)"
-            self.employee_combo.addItem(label, userData=employee.id)
+            self.employee_combo.addItem(employee_option_label(employee), userData=employee.id)
 
     def _selected_employee(self):
         employee_id = self.employee_combo.currentData()
@@ -185,12 +188,14 @@ class ResourceEditDialog(QDialog):
         self.name_edit.setReadOnly(is_employee)
         self.role_edit.setReadOnly(is_employee)
         self.contact_edit.setReadOnly(is_employee)
+        self.employee_context_value.setText("-")
         if is_employee:
             employee = self._selected_employee()
             if employee is not None:
                 self.name_edit.setText(employee.full_name)
                 self.role_edit.setText(employee.title or "")
                 self.contact_edit.setText(employee.email or employee.phone or "")
+                self.employee_context_value.setText(format_employee_context_from_record(employee))
 
     def _validate_and_accept(self) -> None:
         if self.worker_type == WorkerType.EMPLOYEE and not self.employee_id:

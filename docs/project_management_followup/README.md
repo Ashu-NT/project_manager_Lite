@@ -18,11 +18,16 @@ The guiding rules stay the same:
   - PM collaboration attachments now register in the shared platform document domain
   - new task-comment attachments keep their existing readable attachment tokens in PM while also creating shared `document` + `document_link` records
   - the PM collaboration flow no longer treats attachment storage as PM-only metadata
+- Completed in the current slice:
+  - PM resource screens now surface shared employee `department` and `site` context for employee-backed resources
+  - the resource pool table now exposes planner-facing shared workforce context without moving that ownership into the PM resource aggregate
+  - the resource edit dialog now shows employee context directly and refreshes when linked employee records change
 - Still intentionally transitional:
   - existing historical PM task-comment attachments remain readable through the legacy attachment list
   - the task collaboration UI still renders attachment tokens directly instead of a richer shared-document picker/library experience
   - file-based local-only collaboration storage remains local-only and is not yet bridged to shared documents
   - PM time-entry site/department snapshots intentionally stay as historical strings
+  - PM resources still do not own department/site fields; they consume shared employee context additively at the UI layer
 
 ## Execution Order
 
@@ -50,7 +55,7 @@ Non-goals for this slice:
 
 ### 2. Resource Context Alignment
 
-Status: pending
+Status: completed
 
 Scope:
 

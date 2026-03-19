@@ -89,6 +89,10 @@ class ResourceFiltersMixin:
                         getattr(getattr(resource, "worker_type", None), "value", ""),
                         resource_category,
                         resource.currency_code or "",
+                        getattr(self, "_employee_context_by_id", {}).get(
+                            str(getattr(resource, "employee_id", "") or "").strip(),
+                            "",
+                        ),
                         getattr(resource, "address", "") or "",
                         getattr(resource, "contact", "") or "",
                         f"{float(getattr(resource, 'capacity_percent', 100.0) or 100.0):.1f}",

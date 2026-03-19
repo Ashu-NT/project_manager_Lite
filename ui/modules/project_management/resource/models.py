@@ -17,18 +17,30 @@ class ResourceTableModel(QAbstractTableModel):
         "Hourly rate",
         "Capacity",
         "Currency",
-        "Address",
+        "Context",
         "Contact",
         "Active",
     ]
 
-    def __init__(self, resources: list[Resource] | None = None, parent=None):
+    def __init__(
+        self,
+        resources: list[Resource] | None = None,
+        *,
+        employee_context_by_id: dict[str, str] | None = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self._resources: list[Resource] = resources or []
+        self._employee_context_by_id: dict[str, str] = employee_context_by_id or {}
 
     def set_resources(self, resources: list[Resource]):
         self.beginResetModel()
         self._resources = resources
+        self.endResetModel()
+
+    def set_employee_contexts(self, employee_context_by_id: dict[str, str] | None) -> None:
+        self.beginResetModel()
+        self._employee_context_by_id = employee_context_by_id or {}
         self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()):
@@ -57,7 +69,8 @@ class ResourceTableModel(QAbstractTableModel):
         if col == 6:
             return r.currency_code or ""
         if col == 7:
-            return getattr(r, "address", "") or ""
+            employee_id = str(getattr(r, "employee_id", "") or "").strip()
+            return self._employee_context_by_id.get(employee_id, "")
         if col == 8:
             return getattr(r, "contact", "") or ""
         if col == 9:

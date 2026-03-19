@@ -3,6 +3,10 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from core.platform.common.models import WorkerType
+from ui.modules.project_management.resource.dialogs import ResourceEditDialog
+from ui.modules.project_management.resource.tab import ResourceTab
+
 
 def test_pm_collaboration_attachments_register_shared_documents(services, repo_workspace, monkeypatch):
     monkeypatch.setattr(
@@ -49,3 +53,49 @@ def test_pm_collaboration_attachments_register_shared_documents(services, repo_w
     assert by_uri[str(stored_file)].file_name == "evidence.txt"
     assert by_uri["ticket-123"].storage_kind.value == "REFERENCE"
     assert by_uri["ticket-123"].title == "ticket-123"
+
+
+def test_pm_resource_ui_surfaces_shared_employee_context(qapp, services):
+    employee = services["employee_service"].create_employee(
+        employee_code="EMP-CTX-001",
+        full_name="Alice Admin",
+        department="Operations",
+        site_name="Berlin Plant",
+        title="Planner",
+        email="alice@example.com",
+    )
+    resource = services["resource_service"].create_resource(
+        "",
+        hourly_rate=95.0,
+        worker_type=WorkerType.EMPLOYEE,
+        employee_id=employee.id,
+    )
+
+    tab = ResourceTab(
+        resource_service=services["resource_service"],
+        employee_service=services["employee_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.model.data(tab.model.index(0, 7)) == "Operations | Berlin Plant"
+    assert tab.model.data(tab.model.index(0, 8)) == "alice@example.com"
+
+    dialog = ResourceEditDialog(
+        resource=resource,
+        employee_service=services["employee_service"],
+    )
+    employee_index = dialog.employee_combo.findData(employee.id)
+    assert employee_index >= 0
+    assert "Operations | Berlin Plant" in dialog.employee_combo.itemText(employee_index)
+    assert dialog.employee_context_value.text() == "Operations | Berlin Plant"
+
+    updated = services["employee_service"].update_employee(
+        employee.id,
+        department="Planning",
+        site_name="Lagos Hub",
+        expected_version=employee.version,
+    )
+    qapp.processEvents()
+
+    assert updated.department == "Planning"
+    assert tab.model.data(tab.model.index(0, 7)) == "Planning | Lagos Hub"

@@ -18,6 +18,7 @@ from core.platform.org import EmployeeService
 from core.modules.project_management.services.resource import ResourceService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.resource.actions import ResourceActionsMixin
+from ui.modules.project_management.resource.employee_context import build_employee_context_map
 from ui.modules.project_management.resource.filtering import ResourceFiltersMixin
 from ui.modules.project_management.resource.flow import ResourceFlowMixin
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
@@ -27,8 +28,6 @@ from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
 class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin, QWidget):
-    """Resource tab coordinator: UI wiring + delegates actions/flow to mixins."""
-
     def __init__(
         self,
         resource_service: ResourceService,
@@ -46,14 +45,13 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
         self._setup_ui()
         self.reload_resources()
         self._sync_actions()
-        domain_events.resources_changed.connect(self._on_resources_changed)
+        domain_events.resources_changed.connect(self.reload_resources)
+        domain_events.employees_changed.connect(self.reload_resources)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_MD)
-        layout.setContentsMargins(
-            CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD
-        )
+        layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
         header = QWidget()
         self.resource_header_card = header
@@ -214,14 +212,16 @@ class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin,
         )
         self._sync_actions()
 
-    def reload_resources(self) -> None:
+    def reload_resources(self, *_args) -> None:
         selected = self._get_selected_resource()
         selected_id = selected.id if selected else None
+        try:
+            self._employee_context_by_id = build_employee_context_map(self._employee_service)
+        except Exception:
+            self._employee_context_by_id = {}
+        self.model.set_employee_contexts(self._employee_context_by_id)
         self._all_resources = self._resource_service.list_resources()
         self._render_resource_rows(preferred_resource_id=selected_id)
-
-    def _on_resources_changed(self, _resource_id: str) -> None:
-        self.reload_resources()
 
     def _sync_actions(self, *_args) -> None:
         has_row = self._get_selected_resource() is not None
