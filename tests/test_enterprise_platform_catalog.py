@@ -22,11 +22,10 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
     assert catalog.is_enabled("maintenance_management") is False
     assert catalog.is_enabled("qhse") is False
     assert catalog.is_enabled("hr_management") is False
-    assert catalog.list_available_modules() == []
+    assert [module.code for module in catalog.list_available_modules()] == ["inventory_procurement"]
     assert [module.code for module in catalog.list_enabled_modules()] == ["project_management"]
     assert [module.code for module in catalog.list_licensed_modules()] == ["project_management"]
     assert {module.code for module in catalog.list_planned_modules()} == {
-        "inventory_procurement",
         "maintenance_management",
         "qhse",
         "hr_management",

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QWidget
 
 from application.platform import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
+from ui.modules.inventory_procurement import InventoryItemsTab, StockTab, StoreroomsTab
 from ui.platform.admin.access.tab import AccessTab
 from ui.platform.admin.documents.tab import DocumentAdminTab
 from ui.platform.admin.departments.tab import DepartmentAdminTab
@@ -33,6 +34,8 @@ from ui.modules.project_management.task.tab import TaskTab
 
 PLATFORM_MODULE_CODE = "platform"
 PLATFORM_MODULE_LABEL = "Platform"
+INVENTORY_PROCUREMENT_MODULE_CODE = "inventory_procurement"
+INVENTORY_PROCUREMENT_MODULE_LABEL = "Inventory & Procurement"
 PROJECT_MANAGEMENT_MODULE_CODE = "project_management"
 PROJECT_MANAGEMENT_MODULE_LABEL = "Project Management"
 
@@ -64,6 +67,11 @@ def build_workspace_definitions(
         platform_runtime_application_service is not None
         and hasattr(platform_runtime_application_service, "is_enabled")
         and not platform_runtime_application_service.is_enabled(PROJECT_MANAGEMENT_MODULE_CODE)
+    )
+    inventory_procurement_enabled = not bool(
+        platform_runtime_application_service is not None
+        and hasattr(platform_runtime_application_service, "is_enabled")
+        and not platform_runtime_application_service.is_enabled(INVENTORY_PROCUREMENT_MODULE_CODE)
     )
 
     if bool(user_session is not None and user_session.is_authenticated()):
@@ -271,6 +279,58 @@ def build_workspace_definitions(
                     cost_service=services["cost_service"],
                     timesheet_service=services.get("timesheet_service"),
                     user_session=user_session,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Master Data",
+                label="Items",
+                widget=InventoryItemsTab(
+                    item_service=services["inventory_item_service"],
+                    reference_service=services["inventory_reference_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Master Data",
+                label="Storerooms",
+                widget=StoreroomsTab(
+                    inventory_service=services["inventory_service"],
+                    reference_service=services["inventory_reference_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Operations",
+                label="Stock",
+                widget=StockTab(
+                    stock_service=services["inventory_stock_service"],
+                    item_service=services["inventory_item_service"],
+                    inventory_service=services["inventory_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
                 ),
             )
         )
