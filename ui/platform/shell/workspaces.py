@@ -6,7 +6,14 @@ from PySide6.QtWidgets import QWidget
 
 from application.platform import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
-from ui.modules.inventory_procurement import InventoryItemsTab, StockTab, StoreroomsTab
+from ui.modules.inventory_procurement import (
+    InventoryItemsTab,
+    PurchaseOrdersTab,
+    ReceivingTab,
+    RequisitionsTab,
+    StockTab,
+    StoreroomsTab,
+)
 from ui.platform.admin.access.tab import AccessTab
 from ui.platform.admin.documents.tab import DocumentAdminTab
 from ui.platform.admin.departments.tab import DepartmentAdminTab
@@ -328,6 +335,64 @@ def build_workspace_definitions(
                     stock_service=services["inventory_stock_service"],
                     item_service=services["inventory_item_service"],
                     inventory_service=services["inventory_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Procurement",
+                label="Requisitions",
+                widget=RequisitionsTab(
+                    procurement_service=services["inventory_procurement_service"],
+                    item_service=services["inventory_item_service"],
+                    inventory_service=services["inventory_service"],
+                    reference_service=services["inventory_reference_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Procurement",
+                label="Purchase Orders",
+                widget=PurchaseOrdersTab(
+                    purchasing_service=services["inventory_purchasing_service"],
+                    procurement_service=services["inventory_procurement_service"],
+                    item_service=services["inventory_item_service"],
+                    inventory_service=services["inventory_service"],
+                    reference_service=services["inventory_reference_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Procurement",
+                label="Receiving",
+                widget=ReceivingTab(
+                    purchasing_service=services["inventory_purchasing_service"],
+                    item_service=services["inventory_item_service"],
+                    inventory_service=services["inventory_service"],
+                    reference_service=services["inventory_reference_service"],
                     platform_runtime_application_service=platform_runtime_application_service,
                     user_session=user_session,
                     parent=parent,

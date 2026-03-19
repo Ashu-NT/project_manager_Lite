@@ -23,6 +23,10 @@ from core.modules.inventory_procurement.domain import StockItem
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
+from ui.modules.inventory_procurement.header_support import (
+    build_inventory_header_badge_widget,
+    configure_inventory_header_layout,
+)
 from ui.modules.inventory_procurement.item_dialogs import InventoryItemEditDialog
 from ui.modules.inventory_procurement.reference_support import (
     build_option_rows,
@@ -81,11 +85,9 @@ class InventoryItemsTab(QWidget):
             """
         )
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
-        header_layout.setSpacing(CFG.SPACING_MD)
 
         intro = QVBoxLayout()
-        intro.setSpacing(CFG.SPACING_XS)
+        configure_inventory_header_layout(header_layout=header_layout, intro_layout=intro)
         eyebrow = QLabel("ITEM MASTER")
         eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
         title = QLabel("Items")
@@ -100,8 +102,6 @@ class InventoryItemsTab(QWidget):
         intro.addWidget(subtitle)
         header_layout.addLayout(intro, 1)
 
-        badge_layout = QVBoxLayout()
-        badge_layout.setSpacing(CFG.SPACING_SM)
         self.context_badge = QLabel("Context: -")
         self.context_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
         self.count_badge = QLabel("0 items")
@@ -112,16 +112,14 @@ class InventoryItemsTab(QWidget):
         self.stocked_badge.setStyleSheet(dashboard_meta_chip_style())
         self.access_badge = QLabel("Manage Enabled" if self._can_manage else "Read Only")
         self.access_badge.setStyleSheet(dashboard_meta_chip_style())
-        for badge in (
+        badge_widget = build_inventory_header_badge_widget(
             self.context_badge,
             self.count_badge,
             self.active_badge,
             self.stocked_badge,
             self.access_badge,
-        ):
-            badge_layout.addWidget(badge, 0, Qt.AlignRight)
-        badge_layout.addStretch(1)
-        header_layout.addLayout(badge_layout)
+        )
+        header_layout.addWidget(badge_widget, 0, Qt.AlignTop | Qt.AlignRight)
         root.addWidget(header)
 
         controls = QWidget()
