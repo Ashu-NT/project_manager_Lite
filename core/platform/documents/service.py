@@ -18,62 +18,21 @@ from core.platform.documents.domain import (
     DocumentType,
 )
 from core.platform.documents.interfaces import DocumentLinkRepository, DocumentRepository
+from core.platform.documents.support import (
+    coerce_document_type as _coerce_document_type,
+    coerce_storage_kind as _coerce_storage_kind,
+    default_file_name as _default_file_name,
+    normalize_confidentiality as _normalize_confidentiality,
+    normalize_entity_label as _normalize_entity_label,
+    normalize_module_code as _normalize_module_code,
+    normalize_optional_text as _normalize_optional_text,
+)
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.support import normalize_code, normalize_name
 
 
-def _normalize_optional_text(value: str | None) -> str:
-    return (value or "").strip()
-
-
-def _normalize_module_code(value: str) -> str:
-    normalized = (value or "").strip().lower()
-    if not normalized:
-        raise ValidationError("Module code is required.", code="DOCUMENT_MODULE_REQUIRED")
-    return normalized
-
-
-def _normalize_entity_label(value: str, *, code: str, label: str) -> str:
-    normalized = (value or "").strip()
-    if not normalized:
-        raise ValidationError(f"{label} is required.", code=code)
-    return normalized
-
-
-def _coerce_document_type(value: DocumentType | str | None) -> DocumentType:
-    if isinstance(value, DocumentType):
-        return value
-    raw = str(value or DocumentType.GENERAL.value).strip().upper()
-    try:
-        return DocumentType(raw)
-    except ValueError as exc:
-        raise ValidationError("Document type is invalid.", code="DOCUMENT_TYPE_INVALID") from exc
-
-
-def _coerce_storage_kind(value: DocumentStorageKind | str | None) -> DocumentStorageKind:
-    if isinstance(value, DocumentStorageKind):
-        return value
-    raw = str(value or DocumentStorageKind.FILE_PATH.value).strip().upper()
-    try:
-        return DocumentStorageKind(raw)
-    except ValueError as exc:
-        raise ValidationError("Document storage kind is invalid.", code="DOCUMENT_STORAGE_KIND_INVALID") from exc
-
-
 def _normalize_optional_date(value: date | None) -> date | None:
     return value
-
-
-def _normalize_confidentiality(value: str | None) -> str:
-    return _normalize_optional_text(value).upper()
-
-
-def _default_file_name(storage_uri: str, explicit_file_name: str | None) -> str:
-    normalized = _normalize_optional_text(explicit_file_name)
-    if normalized:
-        return normalized
-    candidate = storage_uri.rstrip("/\\").split("/")[-1].split("\\")[-1]
-    return candidate.split("?")[0].strip()
 
 
 def _validate_document_dates(*, effective_date: date | None, review_date: date | None) -> None:

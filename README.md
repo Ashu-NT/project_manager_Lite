@@ -23,7 +23,7 @@ Pending major work:
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
-The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`; it currently has no remaining carryover backlog.
+The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`; it currently has no remaining carryover backlog. The remaining PM work is now technical alignment follow-up, tracked separately in `docs/project_management_followup/README.md`.
 
 ## Next Priority
 

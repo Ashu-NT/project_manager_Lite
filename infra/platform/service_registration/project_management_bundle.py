@@ -219,6 +219,7 @@ def build_project_management_service_bundle(
         user_repo=repositories.user_repo,
         audit_repo=repositories.audit_repo,
         project_membership_repo=repositories.project_membership_repo,
+        document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )

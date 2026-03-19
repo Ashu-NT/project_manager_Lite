@@ -18,7 +18,7 @@ from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
-from core.platform.documents import DocumentService
+from core.platform.documents import DocumentIntegrationService, DocumentService
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from infra.platform.db.repositories import SqlAlchemyModuleEntitlementRepository
@@ -34,6 +34,7 @@ class PlatformServiceBundle:
     auth_service: AuthService
     organization_service: OrganizationService
     document_service: DocumentService
+    document_integration_service: DocumentIntegrationService
     party_service: PartyService
     department_service: DepartmentService
     site_service: SiteService
@@ -81,6 +82,14 @@ def build_platform_service_bundle(
     organization_service.bootstrap_defaults()
 
     document_service = DocumentService(
+        session=session,
+        document_repo=repositories.document_repo,
+        link_repo=repositories.document_link_repo,
+        organization_repo=repositories.organization_repo,
+        user_session=user_session,
+        audit_service=audit_service,
+    )
+    document_integration_service = DocumentIntegrationService(
         session=session,
         document_repo=repositories.document_repo,
         link_repo=repositories.document_link_repo,
@@ -168,6 +177,7 @@ def build_platform_service_bundle(
         auth_service=auth_service,
         organization_service=organization_service,
         document_service=document_service,
+        document_integration_service=document_integration_service,
         party_service=party_service,
         department_service=department_service,
         site_service=site_service,

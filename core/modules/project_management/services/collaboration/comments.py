@@ -81,7 +81,18 @@ class CollaborationCommentMixin:
             attachments=[str(item) for item in (attachments or []) if str(item).strip()],
         )
         self._comment_repo.add(comment)
-        self._session.commit()
+        if self._document_integration_service is not None and comment.attachments:
+            self._document_integration_service.register_entity_attachments(
+                required_permission="collaboration.manage",
+                operation_label="register task collaboration attachments",
+                module_code="project_management",
+                entity_type="task_comment",
+                entity_id=comment.id,
+                attachments=comment.attachments,
+                source_system="project_management",
+            )
+        else:
+            self._session.commit()
         domain_events.collaboration_changed.emit(task_id)
         return comment
 

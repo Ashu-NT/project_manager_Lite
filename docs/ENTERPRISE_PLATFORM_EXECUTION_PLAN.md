@@ -124,6 +124,7 @@ The implementation direction for business-module collaboration should stay expli
 - keep read and write boundaries module-owned even when UI flows deep-link across modules
 
 The concrete implementation tracker for bringing the current codebase in line with these rules lives in `docs/platform_alignment_followup/README.md`.
+The PM-specific technical follow-up tracker lives in `docs/project_management_followup/README.md`.
 
 ## Concrete Execution Order
 
