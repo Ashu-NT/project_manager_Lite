@@ -22,10 +22,16 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - persistent `departments` table and repository wiring
   - platform admin `Departments` workspace for managing shared department records by active organization
   - additive `departments_changed` domain event for future cross-module refresh
+- Completed in the current slice:
+  - shared `documents` domain foundation under `core/platform/documents`
+  - persistent `documents` and `document_links` tables with org-scoped link infrastructure
+  - platform admin `Documents` workspace for managing shared document records and links
+  - additive `documents_changed` domain event for future cross-module refresh
 - Still intentionally transitional:
   - employees still store `site_name` as a compatibility string
   - approved/shared time entries still keep site and department snapshot strings
   - employee editing does not yet use shared site or department selectors
+  - PM task-comment attachments still use their existing module-local storage path until the later UI/integration slice migrates them
 
 ## Execution Order
 
@@ -75,7 +81,7 @@ Non-goals for this slice:
 
 ### 3. Shared Documents Domain
 
-Status: planned
+Status: completed
 
 Scope:
 
@@ -87,6 +93,12 @@ Acceptance notes:
 
 - attachments are no longer only capability labels or module-local blobs
 - maintenance, inventory, HR, and QHSE can link to the same shared document infrastructure
+
+Non-goals for this slice:
+
+- no forced rewrite of PM collaboration attachment storage yet
+- no file-upload transport abstraction yet beyond storing shared metadata and references
+- no module-specific document business rules inside the platform service
 
 ### 4. Shared Party Domain
 

@@ -21,6 +21,7 @@ class DomainEvents:
     organizations_changed: Signal[str] = field(default_factory=Signal)  # organization_id
     sites_changed: Signal[str] = field(default_factory=Signal)  # site_id
     departments_changed: Signal[str] = field(default_factory=Signal)  # department_id
+    documents_changed: Signal[str] = field(default_factory=Signal)  # document_id
     access_changed: Signal[str] = field(default_factory=Signal)  # project_id
     collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
     portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id

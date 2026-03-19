@@ -176,6 +176,58 @@ class DepartmentORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class DocumentORM(Base):
+    __tablename__ = "documents"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "document_code", name="ux_documents_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False)
+    classification: Mapped[str] = mapped_column(String(64), nullable=False)
+    storage_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    storage_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class DocumentLinkORM(Base):
+    __tablename__ = "document_links"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "module_code",
+            "entity_type",
+            "entity_id",
+            "link_role",
+            name="ux_document_links_unique",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    module_code: Mapped[str] = mapped_column(String(128), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    link_role: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+
+
 class ModuleEntitlementORM(Base):
     __tablename__ = "organization_module_entitlements"
 
@@ -279,6 +331,9 @@ Index("idx_sites_organization", SiteORM.organization_id)
 Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)
 Index("idx_departments_organization", DepartmentORM.organization_id)
 Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
+Index("idx_documents_organization", DocumentORM.organization_id)
+Index("idx_document_links_document", DocumentLinkORM.document_id)
+Index("idx_document_links_entity", DocumentLinkORM.organization_id, DocumentLinkORM.module_code, DocumentLinkORM.entity_type, DocumentLinkORM.entity_id)
 
 class TaskDependencyORM(Base):
     __tablename__ = "task_dependencies"

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QDialog, QLineEdit
 
 from core.platform.common.models import Task, TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
+from ui.platform.admin.documents.tab import DocumentAdminTab
 from ui.platform.admin.modules.tab import ModuleLicensingTab
 from ui.platform.admin.departments.tab import DepartmentAdminTab
 from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
@@ -37,6 +38,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Organizations" in labels
     assert "Sites" in labels
     assert "Departments" in labels
+    assert "Documents" in labels
     assert "Access" in labels
     assert "Audit" in labels
     assert "Support" in labels
@@ -214,6 +216,23 @@ def test_department_admin_tab_runtime_bootstraps_active_org_context(qapp, servic
     assert tab.btn_new_department.isEnabled() is True
     assert tab.btn_edit_department.isEnabled() is False
     assert tab.btn_toggle_active.isEnabled() is False
+
+
+def test_document_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
+    tab = DocumentAdminTab(
+        document_service=services["document_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 0
+    assert tab.document_context_badge.text() == "Context: Default Organization"
+    assert tab.document_count_badge.text() == "0 documents"
+    assert tab.document_active_badge.text() == "0 active"
+    assert tab.document_access_badge.text() == "Manage Enabled"
+    assert tab.btn_new_document.isEnabled() is True
+    assert tab.btn_edit_document.isEnabled() is False
+    assert tab.btn_toggle_active.isEnabled() is False
+    assert tab.btn_add_link.isEnabled() is False
 
 
 def test_organization_admin_tab_creates_organization_with_initial_module_mix(qapp, services, monkeypatch):
