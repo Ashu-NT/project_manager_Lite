@@ -17,11 +17,11 @@ from PySide6.QtWidgets import (
 
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.access.policy import PROJECT_SCOPE_ROLE_CHOICES
 from core.platform.access import AccessControlService
 from core.platform.auth import AuthService
 from core.platform.auth import UserSessionContext
 from core.modules.project_management.services.project import ProjectService
+from core.modules.project_management.access.policy import PROJECT_SCOPE_ROLE_CHOICES
 from ui.platform.shared.guards import apply_permission_hint, has_permission
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG

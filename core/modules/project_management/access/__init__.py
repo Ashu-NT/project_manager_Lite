@@ -1,13 +1,5 @@
 from __future__ import annotations
 
-"""Compatibility exports for PM project-scoped access templates.
-
-Platform access now owns the generic scope-aware authorization engine.
-Module-specific scope roles live with their module implementation.
-New PM code should import these symbols from
-`core.modules.project_management.access.policy`.
-"""
-
 from core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_ALIASES,
     PROJECT_SCOPE_ROLE_CHOICES,
@@ -15,7 +7,6 @@ from core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
-
 
 __all__ = [
     "PROJECT_SCOPE_ROLE_ALIASES",

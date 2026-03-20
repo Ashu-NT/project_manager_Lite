@@ -199,3 +199,27 @@ def test_main_window_focus_workspace_selects_existing_tab(qapp, services, repo_w
     assert window.focus_workspace("Sites") is True
     assert window.tabs.tabText(window.tabs.currentIndex()) == "Sites"
     assert window.focus_workspace("Missing Workspace") is False
+
+
+def test_main_window_rebuild_tabs_batches_tab_change_side_effects(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    store = make_settings_store(repo_workspace, prefix="main-window-rebuild-batch")
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+    target_index = min(2, window.tabs.count() - 1)
+    window.tabs.setCurrentIndex(target_index)
+    qapp.processEvents()
+
+    saved_indexes: list[int] = []
+    monkeypatch.setattr(window._settings_store, "save_tab_index", lambda index: saved_indexes.append(index))
+
+    window._rebuild_tabs(current_index=target_index)
+
+    assert window.tabs.currentIndex() == target_index
+    assert saved_indexes == []

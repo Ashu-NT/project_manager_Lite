@@ -354,12 +354,14 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
                     for code in membership.permission_codes
                     if str(code).strip()
                 )
+        scoped_access = {"project": dict(project_access)} if project_access else {}
         return UserSessionPrincipal(
             user_id=user.id,
             username=user.username,
             display_name=user.display_name,
             role_names=frozenset(self.get_user_role_names(user.id)),
             permissions=frozenset(self.get_user_permissions(user.id)),
+            scoped_access=scoped_access,
             project_access=project_access,
             session_expires_at=ensure_utc_datetime(user.session_expires_at),
         )

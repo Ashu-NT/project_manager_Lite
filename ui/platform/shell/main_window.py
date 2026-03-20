@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QSignalBlocker, QTimer
 from PySide6.QtGui import QCloseEvent, QResizeEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -166,17 +166,34 @@ class MainWindow(QMainWindow):
         )
 
     def _rebuild_tabs(self, current_index: int) -> None:
-        while self.tabs.count() > 0:
-            widget = self.tabs.widget(0)
-            self.tabs.removeTab(0)
-            if widget is not None:
+        updates_enabled = self.updatesEnabled()
+        tab_updates_enabled = self.tabs.updatesEnabled()
+        navigation_updates_enabled = self.shell_navigation.updatesEnabled()
+        orphaned_widgets: list[QWidget] = []
+        self.setUpdatesEnabled(False)
+        self.tabs.setUpdatesEnabled(False)
+        self.shell_navigation.setUpdatesEnabled(False)
+        tabs_blocker = QSignalBlocker(self.tabs)
+        try:
+            while self.tabs.count() > 0:
+                widget = self.tabs.widget(0)
+                self.tabs.removeTab(0)
+                if widget is not None:
+                    orphaned_widgets.append(widget)
+            self._build_tabs()
+            if self.tabs.count():
+                safe_index = max(0, min(current_index, self.tabs.count() - 1))
+                self.tabs.setCurrentIndex(safe_index)
+                self.shell_navigation.set_current_index(self.tabs.currentIndex())
+            self._sync_navigation_responsiveness()
+        finally:
+            for widget in orphaned_widgets:
                 widget.deleteLater()
-        self._build_tabs()
-        if self.tabs.count():
-            safe_index = max(0, min(current_index, self.tabs.count() - 1))
-            self.tabs.setCurrentIndex(safe_index)
-            self.shell_navigation.set_current_index(self.tabs.currentIndex())
-        self._sync_navigation_responsiveness()
+            del tabs_blocker
+            self.shell_navigation.setUpdatesEnabled(navigation_updates_enabled)
+            self.tabs.setUpdatesEnabled(tab_updates_enabled)
+            self.setUpdatesEnabled(updates_enabled)
+            self.update()
 
     def _on_theme_changed(self, _index: int) -> None:
         mode = self.theme_combo.currentData()

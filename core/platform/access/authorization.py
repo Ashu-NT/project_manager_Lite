@@ -9,6 +9,27 @@ from core.platform.auth.session import UserSessionContext
 _T = TypeVar("_T")
 
 
+def require_scope_permission(
+    user_session: UserSessionContext | None,
+    scope_type: str,
+    scope_id: str,
+    permission_code: str,
+    *,
+    operation_label: str,
+) -> None:
+    if user_session is not None and user_session.has_scope_permission(scope_type, scope_id, permission_code):
+        return
+    normalized_scope_type = str(scope_type or "").strip().lower() or "scope"
+    normalized_scope_id = str(scope_id or "").strip() or "unknown"
+    raise BusinessRuleError(
+        (
+            f"Permission denied for {operation_label}. "
+            f"Missing scoped '{permission_code}' access for {normalized_scope_type} '{normalized_scope_id}'."
+        ),
+        code="PERMISSION_DENIED",
+    )
+
+
 def require_project_permission(
     user_session: UserSessionContext | None,
     project_id: str,
@@ -16,15 +37,31 @@ def require_project_permission(
     *,
     operation_label: str,
 ) -> None:
-    if user_session is not None and user_session.has_project_permission(project_id, permission_code):
-        return
-    raise BusinessRuleError(
-        (
-            f"Permission denied for {operation_label}. "
-            f"Missing scoped '{permission_code}' access for project '{project_id}'."
-        ),
-        code="PERMISSION_DENIED",
+    require_scope_permission(
+        user_session,
+        "project",
+        project_id,
+        permission_code,
+        operation_label=operation_label,
     )
+
+
+def filter_scope_rows(
+    rows: Iterable[_T],
+    user_session: UserSessionContext | None,
+    *,
+    scope_type: str,
+    permission_code: str,
+    scope_id_getter,
+) -> list[_T]:
+    if user_session is None:
+        return []
+    if not user_session.has_permission(permission_code):
+        return []
+    if not user_session.is_scope_restricted(scope_type):
+        return list(rows)
+    allowed_ids = user_session.scope_ids_for(scope_type, permission_code)
+    return [row for row in rows if scope_id_getter(row) in allowed_ids]
 
 
 def filter_project_rows(
@@ -34,14 +71,18 @@ def filter_project_rows(
     permission_code: str,
     project_id_getter,
 ) -> list[_T]:
-    if user_session is None:
-        return []
-    if not user_session.has_permission(permission_code):
-        return []
-    if not user_session.is_project_restricted():
-        return list(rows)
-    allowed_ids = user_session.project_ids_for(permission_code)
-    return [row for row in rows if project_id_getter(row) in allowed_ids]
+    return filter_scope_rows(
+        rows,
+        user_session,
+        scope_type="project",
+        permission_code=permission_code,
+        scope_id_getter=project_id_getter,
+    )
 
 
-__all__ = ["filter_project_rows", "require_project_permission"]
+__all__ = [
+    "filter_project_rows",
+    "filter_scope_rows",
+    "require_project_permission",
+    "require_scope_permission",
+]
