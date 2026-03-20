@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
@@ -575,6 +576,37 @@ def test_task_tab_surfaces_notifications_outside_collaboration_feed(qapp, servic
 
     assert tab.lbl_notifications.text() == "Notifications: 1"
     assert "Timesheet submitted" in tab.lbl_notifications.toolTip()
+
+
+def test_task_tab_mentions_badge_handles_expired_session_gracefully(qapp, services):
+    project = services["project_service"].create_project("Task Mention Permission Drift Project")
+    services["task_service"].create_task(project.id, "Task Mention Permission Drift")
+
+    tab = TaskTab(
+        project_service=services["project_service"],
+        task_service=services["task_service"],
+        resource_service=services["resource_service"],
+        project_resource_service=services["project_resource_service"],
+        collaboration_service=services["collaboration_service"],
+        settings_store=None,
+        user_session=services["user_session"],
+    )
+
+    principal = services["user_session"].principal
+    assert principal is not None
+    services["user_session"].set_principal(
+        replace(
+            principal,
+            session_expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+        )
+    )
+
+    tab._refresh_mentions_badge()
+
+    assert tab.lbl_mentions.text() == "Mentions: -"
+    assert "collaboration.read" in tab.lbl_mentions.toolTip()
+    assert tab.btn_comments.isEnabled() is False
+    tab._mentions_refresh_timer.stop()
 
 
 def test_portfolio_tab_auto_refreshes_for_project_and_portfolio_events(qapp, services):

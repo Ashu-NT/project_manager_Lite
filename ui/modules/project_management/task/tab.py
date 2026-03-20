@@ -133,6 +133,7 @@ class TaskTab(
             self._refresh_presence_badge()
 
     def _sync_toolbar_actions(self) -> None:
+        self._sync_collaboration_access_state()
         selected_tasks = self._get_selected_tasks()
         has_task = bool(selected_tasks)
         single = len(selected_tasks) == 1

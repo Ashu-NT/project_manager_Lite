@@ -8,10 +8,17 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from ui.modules.project_management.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.task.presence import format_presence_lines, task_presence_session
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from ui.platform.shared.guards import has_permission
 from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
 
 
 class TaskUxEnhancementsMixin:
+    def _sync_collaboration_access_state(self) -> None:
+        self._can_view_collaboration = has_permission(self._user_session, "collaboration.read")
+        self._can_manage_collaboration = has_permission(self._user_session, "collaboration.manage")
+        if hasattr(self, "btn_comments") and hasattr(self, "_get_selected_tasks"):
+            self.btn_comments.setEnabled(self._can_view_collaboration and bool(self._get_selected_tasks()))
+
     def _sync_undo_redo_state(self) -> None:
         self.btn_undo.setEnabled(self._undo_stack.can_undo())
         self.btn_redo.setEnabled(self._undo_stack.can_redo())
@@ -80,18 +87,25 @@ class TaskUxEnhancementsMixin:
         return deduped or ["unknown"]
 
     def _refresh_mentions_badge(self) -> None:
+        self._sync_collaboration_access_state()
         if not self._can_view_collaboration:
             self.lbl_mentions.setText("Mentions: -")
             self.lbl_mentions.setToolTip("Requires 'collaboration.read' permission.")
             self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
             return
         identities = self._mention_identities()
-        if getattr(self, "_collaboration_service", None) is not None:
-            unread = int(self._collaboration_service.unread_mentions_count())
-        elif getattr(self, "_collaboration_store", None) is not None:
-            unread = self._collaboration_store.unread_mentions_count_for_users(identities)
-        else:
-            unread = 0
+        try:
+            if getattr(self, "_collaboration_service", None) is not None:
+                unread = int(self._collaboration_service.unread_mentions_count())
+            elif getattr(self, "_collaboration_store", None) is not None:
+                unread = self._collaboration_store.unread_mentions_count_for_users(identities)
+            else:
+                unread = 0
+        except Exception as exc:
+            self.lbl_mentions.setText("Mentions: -")
+            self.lbl_mentions.setToolTip(str(exc))
+            self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
+            return
         self.lbl_mentions.setText(f"Mentions: {unread}")
         self.lbl_mentions.setToolTip(
             "Watching aliases: " + ", ".join(f"@{name}" for name in identities[:4])
@@ -104,6 +118,7 @@ class TaskUxEnhancementsMixin:
             self.lbl_mentions.setStyleSheet(dashboard_meta_chip_style())
 
     def _refresh_notification_badge(self) -> None:
+        self._sync_collaboration_access_state()
         service = getattr(self, "_collaboration_service", None)
         if service is None or not self._can_view_collaboration:
             self.lbl_notifications.setText("Notifications: -")
@@ -135,6 +150,7 @@ class TaskUxEnhancementsMixin:
             self.lbl_notifications.setStyleSheet(dashboard_meta_chip_style())
 
     def _refresh_presence_badge(self) -> None:
+        self._sync_collaboration_access_state()
         service = getattr(self, "_collaboration_service", None)
         if service is None or not self._can_view_collaboration:
             self.lbl_presence.setText("Active now: -")
@@ -168,6 +184,7 @@ class TaskUxEnhancementsMixin:
             self.lbl_presence.setStyleSheet(dashboard_meta_chip_style())
 
     def _open_task_collaboration(self) -> None:
+        self._sync_collaboration_access_state()
         if not self._can_view_collaboration:
             return
         task = self._get_selected_task()

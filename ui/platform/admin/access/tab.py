@@ -4,7 +4,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -13,6 +12,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
+    QTabWidget,
 )
 
 from core.platform.notifications.domain_events import domain_events
@@ -74,8 +74,11 @@ class AccessTab(QWidget):
         subtitle.setWordWrap(True)
         root.addWidget(title)
         root.addWidget(subtitle)
+        
+        self.access_tabs = QTabWidget()
+        self.access_tabs.setObjectName("AccessControlTabs")
 
-        controls_box = QGroupBox("Project Memberships")
+        controls_box = QWidget()
         controls_layout = QVBoxLayout(controls_box)
         controls_layout.setSpacing(CFG.SPACING_SM)
 
@@ -87,12 +90,12 @@ class AccessTab(QWidget):
         self.role_combo = QComboBox()
         for role_name in PROJECT_SCOPE_ROLE_CHOICES:
             self.role_combo.addItem(role_name.replace("_", " ").title(), userData=role_name)
-        row.addWidget(QLabel("Project"), 0, 0)
+        row.addWidget(QLabel("Project"), 0, 0, alignment=Qt.AlignmentFlag.AlignRight)
         row.addWidget(self.project_combo, 0, 1)
-        row.addWidget(QLabel("User"), 0, 2)
+        row.addWidget(QLabel("User"), 0, 2, alignment=Qt.AlignmentFlag.AlignRight)
         row.addWidget(self.user_combo, 0, 3)
-        row.addWidget(QLabel("Scope Role"), 1, 0)
-        row.addWidget(self.role_combo, 1, 1)
+        row.addWidget(QLabel("Scope Role"), 0, 4, alignment=Qt.AlignmentFlag.AlignRight)
+        row.addWidget(self.role_combo, 0, 5)
         controls_layout.addLayout(row)
 
         button_row = QHBoxLayout()
@@ -120,9 +123,8 @@ class AccessTab(QWidget):
         style_table(self.membership_table)
         self.membership_table.setEnabled(self._can_manage_memberships)
         controls_layout.addWidget(self.membership_table)
-        root.addWidget(controls_box)
-
-        security_box = QGroupBox("Account Security")
+        
+        security_box = QWidget()
         security_layout = QVBoxLayout(security_box)
         security_layout.setSpacing(CFG.SPACING_SM)
         security_header = QHBoxLayout()
@@ -146,7 +148,11 @@ class AccessTab(QWidget):
         style_table(self.security_table)
         self.security_table.setEnabled(self._can_view_user_security)
         security_layout.addWidget(self.security_table)
-        root.addWidget(security_box, 1)
+        
+        self.access_tabs.addTab(controls_box,"Project Memberships")
+        self.access_tabs.addTab(security_box,"Account Security")
+        
+        root.addWidget(self.access_tabs, 1)
 
         self.project_combo.currentIndexChanged.connect(self._reload_memberships)
         self.btn_refresh.clicked.connect(self.reload_data)
