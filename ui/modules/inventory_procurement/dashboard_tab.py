@@ -28,12 +28,12 @@ from core.modules.inventory_procurement.domain import PurchaseOrderStatus, Purch
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import domain_events
-from ui.modules.inventory_procurement.header_support import (
+from ui.modules.inventory_procurement.shared.header_support import (
     build_inventory_header_badge_widget,
     configure_inventory_header_layout,
 )
-from ui.modules.inventory_procurement.procurement_support import format_date, humanize_status
-from ui.modules.inventory_procurement.reference_support import (
+from ui.modules.inventory_procurement.shared.procurement_support import format_date, humanize_status
+from ui.modules.inventory_procurement.shared.reference_support import (
     build_party_lookup,
     build_site_lookup,
     format_party_label,

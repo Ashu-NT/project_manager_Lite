@@ -723,14 +723,14 @@ def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():
     root = Path(__file__).resolve().parents[1]
     inventory_ui = root / "ui" / "modules" / "inventory_procurement"
     texts = [
-        (inventory_ui / "items_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "purchase_orders_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "receiving_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "reservations_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "requisitions_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "storerooms_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "movements_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "stock_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "item_master" / "items_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "procurement" / "purchase_orders_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "procurement" / "receiving_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "reservation" / "reservations_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "procurement" / "requisitions_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "inventory" / "storerooms_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "stock_control" / "movements_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "stock_control" / "stock_tab.py").read_text(encoding="utf-8", errors="ignore"),
     ]
 
     assert all("dialog.Accepted" not in text for text in texts)
