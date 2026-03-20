@@ -1,4 +1,4 @@
-from .models import ImportFieldSpec, ImportPreview, ImportPreviewRow, ImportSummary
+from .models import ImportFieldSpec, ImportPreview, ImportPreviewRow, ImportSourceRow, ImportSummary, RowError
 from .service import DataImportService
 
 __all__ = [
@@ -6,5 +6,7 @@ __all__ = [
     "ImportFieldSpec",
     "ImportPreview",
     "ImportPreviewRow",
+    "ImportSourceRow",
     "ImportSummary",
+    "RowError",
 ]

@@ -310,6 +310,31 @@ Completion notes:
 - inventory starts from shared `site` and `party` reads instead of inventing local copies
 - deeper item, storeroom, stock, and purchasing flows remain the next implementation slice
 
+### 12. Shared Import Export Report Runtime
+
+Status: pending
+
+Detailed follow-up design:
+`docs/platform_alignment_followup/import_export_report_runtime/README.md`
+
+Scope:
+
+- extract platform-owned import, export, and report runtime machinery
+- keep business mappings, report definitions, and formulas in the owning module
+- preserve current PM behavior through compatibility-first wrappers
+
+Acceptance notes:
+
+- platform owns the machinery
+- modules own the meaning
+- the ADR rule stays visible in code structure, not only in docs
+
+Non-goals for this slice:
+
+- no migration of PM KPI, EVM, gantt, baseline, or cost semantics into `platform`
+- no platform-owned PM report definitions
+- no direct platform ownership of module repositories or workflow truth
+
 ## Guardrails
 
 - additive changes first, destructive rewrites later
@@ -323,5 +348,7 @@ Completion notes:
 
 - architecture direction: `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`
 - shared-master reuse gate: `docs/platform_alignment_followup/SHARED_MASTER_READINESS_CHECKLIST.md`
+- import/export/report runtime follow-up:
+  `docs/platform_alignment_followup/import_export_report_runtime/README.md`
 - maintenance boundary rules: `docs/maintenance_management/README.md`
 - product overview: `README.md`

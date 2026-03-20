@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from core.platform.importing import CsvImportRuntime, ImportDefinitionRegistry
+from core.modules.project_management.importing import register_project_management_import_definitions
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.project import ProjectService
@@ -31,20 +33,39 @@ class DataImportService(
         resource_service: ResourceService,
         cost_service: CostService,
         module_catalog_service=None,
+        import_registry: ImportDefinitionRegistry | None = None,
+        import_runtime: CsvImportRuntime | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._resource_service = resource_service
         self._cost_service = cost_service
         self._module_catalog_service = module_catalog_service
+        registry = import_registry or ImportDefinitionRegistry()
+        register_project_management_import_definitions(
+            registry,
+            schemas=self._SCHEMAS,
+            preview_handlers={
+                "projects": self._preview_projects,
+                "resources": self._preview_resources,
+                "tasks": self._preview_tasks,
+                "costs": self._preview_costs,
+            },
+            execution_handlers={
+                "projects": self._import_projects,
+                "resources": self._import_resources,
+                "tasks": self._import_tasks,
+                "costs": self._import_costs,
+            },
+        )
+        self._import_registry = registry
+        self._import_runtime = import_runtime or CsvImportRuntime(registry)
 
     def get_import_schema(self, entity_type: str) -> tuple[ImportFieldSpec, ...]:
-        normalized = self._normalize_entity_type(entity_type)
-        return self._SCHEMAS[normalized]
+        return self._import_runtime.get_import_schema(entity_type)
 
     def read_csv_columns(self, file_path: str | Path) -> list[str]:
-        columns, _rows = self._load_csv_source(file_path)
-        return columns
+        return self._import_runtime.read_csv_columns(file_path)
 
     def preview_csv(
         self,
@@ -54,23 +75,12 @@ class DataImportService(
         column_mapping: dict[str, str | None] | None = None,
         max_rows: int = 100,
     ) -> ImportPreview:
-        normalized = self._normalize_entity_type(entity_type)
-        columns, rows, mapping = self._prepare_rows(
-            normalized,
+        return self._import_runtime.preview_csv(
+            entity_type,
             file_path,
             column_mapping=column_mapping,
+            max_rows=max_rows,
         )
-        handlers = {
-            "projects": self._preview_projects,
-            "resources": self._preview_resources,
-            "tasks": self._preview_tasks,
-            "costs": self._preview_costs,
-        }
-        preview = handlers[normalized](rows[: max(1, int(max_rows))])
-        preview.entity_type = normalized
-        preview.available_columns = columns
-        preview.mapped_columns = mapping
-        return preview
 
     def import_csv(
         self,
@@ -79,19 +89,11 @@ class DataImportService(
         *,
         column_mapping: dict[str, str | None] | None = None,
     ) -> ImportSummary:
-        normalized = self._normalize_entity_type(entity_type)
-        _columns, rows, _mapping = self._prepare_rows(
-            normalized,
+        return self._import_runtime.import_csv(
+            entity_type,
             file_path,
             column_mapping=column_mapping,
         )
-        handlers = {
-            "projects": self._import_projects,
-            "resources": self._import_resources,
-            "tasks": self._import_tasks,
-            "costs": self._import_costs,
-        }
-        return handlers[normalized](rows)
 
 
 __all__ = ["DataImportService"]

@@ -40,7 +40,7 @@ class DataImportExecutionMixin:
                     summary.updated_count += 1
                 existing = self._project_lookup()
             except Exception as exc:
-                summary.error_rows.append(f"line {line_no}: {exc}")
+                summary.add_row_error(line_no=line_no, message=str(exc))
         return summary
 
     def _import_resources(self, rows: list[tuple[int, dict[str, str]]]) -> ImportSummary:
@@ -80,7 +80,7 @@ class DataImportExecutionMixin:
                     current.name.strip().lower(): current for current in self._resource_service.list_resources()
                 }
             except Exception as exc:
-                summary.error_rows.append(f"line {line_no}: {exc}")
+                summary.add_row_error(line_no=line_no, message=str(exc))
         return summary
 
     def _import_tasks(self, rows: list[tuple[int, dict[str, str]]]) -> ImportSummary:
@@ -137,7 +137,7 @@ class DataImportExecutionMixin:
                         )
                     summary.updated_count += 1
             except Exception as exc:
-                summary.error_rows.append(f"line {line_no}: {exc}")
+                summary.add_row_error(line_no=line_no, message=str(exc))
         return summary
 
     def _import_costs(self, rows: list[tuple[int, dict[str, str]]]) -> ImportSummary:
@@ -182,7 +182,7 @@ class DataImportExecutionMixin:
                     )
                     summary.updated_count += 1
             except Exception as exc:
-                summary.error_rows.append(f"line {line_no}: {exc}")
+                summary.add_row_error(line_no=line_no, message=str(exc))
         return summary
 
 
