@@ -50,6 +50,4 @@ class Signal(Generic[T]):
                 stale_callbacks.append(callback)
         if stale_callbacks:
             with self._lock:
-                for callback in stale_callbacks:
-                    if callback in self._subscribers:
-                        self._subscribers.remove(callback)
+                self._subscribers = [cb for cb in self._subscribers if cb not in stale_callbacks]
