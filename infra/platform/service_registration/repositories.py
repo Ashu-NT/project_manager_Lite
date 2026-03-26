@@ -15,7 +15,10 @@ from infra.modules.project_management.db.portfolio import (
     SqlAlchemyPortfolioScenarioRepository,
 )
 from infra.modules.project_management.db.repositories_register import SqlAlchemyRegisterEntryRepository
-from infra.platform.db.access import SqlAlchemyProjectMembershipRepository
+from infra.platform.db.access import (
+    SqlAlchemyProjectMembershipRepository,
+    SqlAlchemyScopedAccessGrantRepository,
+)
 from infra.platform.db.documents import SqlAlchemyDocumentLinkRepository, SqlAlchemyDocumentRepository
 from infra.platform.db.party import SqlAlchemyPartyRepository
 from infra.platform.db.repositories import (
@@ -72,6 +75,7 @@ class RepositoryBundle:
     user_role_repo: SqlAlchemyUserRoleRepository
     role_permission_repo: SqlAlchemyRolePermissionRepository
     project_membership_repo: SqlAlchemyProjectMembershipRepository
+    scoped_access_repo: SqlAlchemyScopedAccessGrantRepository
     audit_repo: SqlAlchemyAuditLogRepository
     approval_repo: SqlAlchemyApprovalRepository
     register_repo: SqlAlchemyRegisterEntryRepository
@@ -110,6 +114,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         user_role_repo=SqlAlchemyUserRoleRepository(session),
         role_permission_repo=SqlAlchemyRolePermissionRepository(session),
         project_membership_repo=SqlAlchemyProjectMembershipRepository(session),
+        scoped_access_repo=SqlAlchemyScopedAccessGrantRepository(session),
         audit_repo=SqlAlchemyAuditLogRepository(session),
         approval_repo=SqlAlchemyApprovalRepository(session),
         register_repo=SqlAlchemyRegisterEntryRepository(session),

@@ -13,13 +13,18 @@ from core.platform import (
     parse_enabled_module_codes,
     parse_licensed_module_codes,
 )
-from core.platform.access import AccessControlService
+from core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
 from core.platform.documents import DocumentIntegrationService, DocumentService
 from core.platform.common.interfaces import OrganizationRepository
+from core.modules.project_management.access.policy import (
+    PROJECT_SCOPE_ROLE_CHOICES,
+    normalize_project_scope_role,
+    resolve_project_scope_permissions,
+)
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from infra.platform.db.repositories import SqlAlchemyModuleEntitlementRepository
@@ -70,6 +75,7 @@ def build_platform_service_bundle(
         permission_repo=repositories.permission_repo,
         user_role_repo=repositories.user_role_repo,
         role_permission_repo=repositories.role_permission_repo,
+        scoped_access_repo=repositories.scoped_access_repo,
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
         audit_service=audit_service,
@@ -161,6 +167,17 @@ def build_platform_service_bundle(
         project_repo=repositories.project_repo,
         user_repo=repositories.user_repo,
         auth_service=auth_service,
+        policy_registry=ScopedRolePolicyRegistry(
+            (
+                ScopedRolePolicy(
+                    scope_type="project",
+                    role_choices=PROJECT_SCOPE_ROLE_CHOICES,
+                    normalize_role=normalize_project_scope_role,
+                    resolve_permissions=resolve_project_scope_permissions,
+                ),
+            )
+        ),
+        scoped_access_repo=repositories.scoped_access_repo,
         user_session=user_session,
         audit_service=audit_service,
     )

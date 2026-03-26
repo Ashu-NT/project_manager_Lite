@@ -15,6 +15,7 @@ from core.platform.common.interfaces import (
     ProjectMembershipRepository,
     RolePermissionRepository,
     RoleRepository,
+    ScopedAccessGrantRepository,
     UserRepository,
     UserRoleRepository,
 )
@@ -49,6 +50,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         permission_repo: PermissionRepository,
         user_role_repo: UserRoleRepository,
         role_permission_repo: RolePermissionRepository,
+        scoped_access_repo: ScopedAccessGrantRepository | None = None,
         project_membership_repo: ProjectMembershipRepository | None = None,
         user_session: UserSessionContext | None = None,
         audit_service: "AuditService | None" = None,
@@ -59,6 +61,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._permission_repo: PermissionRepository = permission_repo
         self._user_role_repo: UserRoleRepository = user_role_repo
         self._role_permission_repo: RolePermissionRepository = role_permission_repo
+        self._scoped_access_repo: ScopedAccessGrantRepository | None = scoped_access_repo
         self._project_membership_repo: ProjectMembershipRepository | None = project_membership_repo
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
@@ -346,15 +349,36 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         return user
 
     def build_principal(self, user: UserAccount) -> UserSessionPrincipal:
-        project_access: dict[str, frozenset[str]] = {}
-        if self._project_membership_repo is not None:
+        scoped_access: dict[str, dict[str, frozenset[str]]] = {}
+        if self._scoped_access_repo is not None:
+            for grant in self._scoped_access_repo.list_by_user(user.id):
+                scope_type = str(grant.scope_type or "").strip().lower()
+                scope_id = str(grant.scope_id or "").strip()
+                if not scope_type or not scope_id:
+                    continue
+                permissions = frozenset(
+                    str(code).strip()
+                    for code in grant.permission_codes
+                    if str(code).strip()
+                )
+                if not permissions:
+                    continue
+                scope_rows = scoped_access.setdefault(scope_type, {})
+                existing_permissions = scope_rows.get(scope_id, frozenset())
+                scope_rows[scope_id] = frozenset(set(existing_permissions).union(permissions))
+        elif self._project_membership_repo is not None:
+            scoped_access["project"] = {}
             for membership in self._project_membership_repo.list_by_user(user.id):
-                project_access[membership.project_id] = frozenset(
+                permissions = frozenset(
                     str(code).strip()
                     for code in membership.permission_codes
                     if str(code).strip()
                 )
-        scoped_access = {"project": dict(project_access)} if project_access else {}
+                if permissions:
+                    scoped_access["project"][membership.project_id] = permissions
+            if not scoped_access["project"]:
+                scoped_access.pop("project", None)
+        project_access = dict(scoped_access.get("project", {}))
         return UserSessionPrincipal(
             user_id=user.id,
             username=user.username,

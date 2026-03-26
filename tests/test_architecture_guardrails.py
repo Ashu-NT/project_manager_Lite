@@ -70,6 +70,33 @@ def test_shared_platform_and_inventory_do_not_depend_on_pm_identity_helpers():
     assert not violations, f"Shared platform code depends on PM-only helpers: {violations}"
 
 
+def test_shared_access_platform_layers_do_not_import_pm_access_code():
+    forbidden_import_targets = (
+        "core.modules.project_management.access.policy",
+        "core.modules.project_management.services.project",
+    )
+    checked_files = (
+        ROOT / "core" / "platform" / "access" / "service.py",
+        ROOT / "ui" / "platform" / "admin" / "access" / "tab.py",
+    )
+    violations: list[tuple[str, str]] = []
+
+    for path in checked_files:
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name in forbidden_import_targets:
+                        violations.append((str(path.relative_to(ROOT)), alias.name))
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod in forbidden_import_targets:
+                    violations.append((str(path.relative_to(ROOT)), mod))
+
+    assert not violations, f"Shared access platform code imports PM-specific access code: {violations}"
+
+
 def test_report_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "report" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")

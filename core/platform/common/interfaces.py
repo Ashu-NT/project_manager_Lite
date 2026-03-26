@@ -7,6 +7,7 @@ from .models import (
     CollaborationInboxItem,
     Project,
     ProjectMembership,
+    ScopedAccessGrant,
     Task,
     TaskComment,
     TaskPresence,
@@ -70,6 +71,33 @@ class ProjectMembershipRepository(ABC):
     def list_by_user(self, user_id: str) -> List[ProjectMembership]: ...
     @abstractmethod
     def delete(self, membership_id: str) -> None: ...
+
+
+class ScopedAccessGrantRepository(ABC):
+    @abstractmethod
+    def add(self, grant: ScopedAccessGrant) -> None: ...
+    @abstractmethod
+    def update(self, grant: ScopedAccessGrant) -> None: ...
+    @abstractmethod
+    def get(self, grant_id: str) -> Optional[ScopedAccessGrant]: ...
+    @abstractmethod
+    def get_for_scope_user(
+        self,
+        scope_type: str,
+        scope_id: str,
+        user_id: str,
+    ) -> Optional[ScopedAccessGrant]: ...
+    @abstractmethod
+    def list_by_scope(self, scope_type: str, scope_id: str) -> List[ScopedAccessGrant]: ...
+    @abstractmethod
+    def list_by_user(
+        self,
+        user_id: str,
+        *,
+        scope_type: str | None = None,
+    ) -> List[ScopedAccessGrant]: ...
+    @abstractmethod
+    def delete(self, grant_id: str) -> None: ...
 
 class ProjectResourceRepository(ABC):
     @abstractmethod

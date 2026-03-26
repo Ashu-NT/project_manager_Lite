@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from core.platform.common.models import ProjectMembership
+from core.platform.common.models import ProjectMembership, ScopedAccessGrant
 from infra.platform.db.models import ProjectMembershipORM
 
 
@@ -32,4 +32,17 @@ def project_membership_from_orm(obj: ProjectMembershipORM) -> ProjectMembership:
     )
 
 
-__all__ = ["project_membership_from_orm", "project_membership_to_orm"]
+def scoped_access_grant_to_orm(grant: ScopedAccessGrant) -> ProjectMembershipORM:
+    return project_membership_to_orm(ProjectMembership.from_scoped_access_grant(grant))
+
+
+def scoped_access_grant_from_orm(obj: ProjectMembershipORM) -> ScopedAccessGrant:
+    return project_membership_from_orm(obj).as_scoped_access_grant()
+
+
+__all__ = [
+    "project_membership_from_orm",
+    "project_membership_to_orm",
+    "scoped_access_grant_from_orm",
+    "scoped_access_grant_to_orm",
+]
