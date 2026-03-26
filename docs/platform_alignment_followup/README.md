@@ -36,6 +36,10 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - persistent `parties` table and repository wiring
   - platform admin `Parties` workspace for managing shared supplier, manufacturer, vendor, contractor, and service-provider identities
   - additive `parties_changed` domain event for future cross-module refresh
+- Expanded after the initial inventory kickoff:
+  - `inventory_procurement` now includes real phase-1 runtime workflows for item master, storerooms, stock balances, stock transactions, reservations, requisitions, purchase orders, and receiving
+  - inventory UI workspaces now surface those phase-1 flows through the enterprise shell when the module is licensed and enabled
+  - shared `site`, `party`, `documents`, `approvals`, and `audit` seams are now exercised by a real non-PM business module
 - Completed in the current slice:
   - module-neutral `DomainChangeEvent` envelope for generic refresh and integration subscribers
   - additive `domain_changed` bridge that mirrors specific platform and module events without removing them
@@ -306,9 +310,10 @@ Non-goals for this slice:
 
 Completion notes:
 
-- the first module-side scaffold now exists through `InventoryReferenceService`
-- inventory starts from shared `site` and `party` reads instead of inventing local copies
-- deeper item, storeroom, stock, and purchasing flows remain the next implementation slice
+- the first module-side scaffold started through `InventoryReferenceService`
+- inventory now consumes shared `site` and `party` reads instead of inventing local copies
+- phase-1 inventory services and UI now cover item master, storerooms, balances, transactions, reservations, requisitions, purchase orders, and receiving
+- the remaining follow-up is enterprise hardening, import/export, and maintenance-facing integration rather than basic module scaffolding
 
 ### 12. Shared Import Export Report Runtime
 
@@ -322,6 +327,7 @@ Scope:
 - extract platform-owned import, export, and report runtime machinery
 - keep business mappings, report definitions, and formulas in the owning module
 - preserve current PM behavior through compatibility-first wrappers
+- use inventory phase-1 as the first non-PM proving ground for shared import/export machinery once the platform runtime exists
 
 Acceptance notes:
 

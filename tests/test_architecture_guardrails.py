@@ -49,6 +49,27 @@ def test_core_layer_does_not_import_ui_layer():
     assert not violations, f"Core layer imports UI layer: {violations}"
 
 
+def test_shared_platform_and_inventory_do_not_depend_on_pm_identity_helpers():
+    forbidden_patterns = (
+        "from core.modules.project_management.domain.identifiers import generate_id",
+        "from core.modules.project_management.services.common.base import ServiceBase",
+    )
+    checked_roots = (
+        ROOT / "core" / "platform",
+        ROOT / "core" / "modules" / "inventory_procurement",
+    )
+    violations: list[tuple[str, str]] = []
+
+    for root in checked_roots:
+        for path in _python_files(root):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for pattern in forbidden_patterns:
+                if pattern in text:
+                    violations.append((str(path.relative_to(ROOT)), pattern))
+
+    assert not violations, f"Shared platform code depends on PM-only helpers: {violations}"
+
+
 def test_report_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "report" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")

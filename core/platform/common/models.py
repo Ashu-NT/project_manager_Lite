@@ -22,7 +22,7 @@ from core.modules.project_management.domain.collaboration import (
 )
 from core.modules.project_management.domain.cost import CostItem
 from core.modules.project_management.domain.enums import CostType, DependencyType, ProjectStatus, TaskStatus, WorkerType
-from core.modules.project_management.domain.identifiers import generate_id
+from core.platform.common.ids import generate_id
 from core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioIntakeItem,

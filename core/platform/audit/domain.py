@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from core.modules.project_management.domain.identifiers import generate_id
+from core.platform.common.ids import generate_id
 
 
 @dataclass

@@ -1,13 +1,5 @@
-from sqlalchemy.orm import Session
+from core.platform.common.service_base import ServiceBase
 
-class ServiceBase:
-    def __init__(self, session: Session):
-        self._session: Session = session
-    
-    def commit(self):
-        try:
-            self._session.commit()
-        except Exception as e:
-            self._session.rollback()
-            raise e
+
+__all__ = ["ServiceBase"]
 

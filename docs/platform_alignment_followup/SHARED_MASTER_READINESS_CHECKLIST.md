@@ -163,7 +163,7 @@ Status legend:
 The most important reuse gaps are:
 
 1. Decide and document import/export behavior for all five shared domains.
-2. Extend the first `inventory_procurement` scaffold into real item, storeroom, stock, and procurement workflows that continue consuming shared masters by reference.
+2. Continue hardening the implemented `inventory_procurement` phase with shared import/export contracts, advanced stock-control rules, and maintenance-facing integration while keeping shared-master consumption by reference.
 3. Reuse the document integration pattern as the reference design for future shared-master module consumption.
 
 ## Decision Use

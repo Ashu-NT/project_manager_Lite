@@ -16,7 +16,8 @@ It focuses on actual package boundaries, runtime flow, and the current enterpris
   - business capabilities live under `modules/`
 - Current business-module state:
   - `project_management` is production-ready
-  - `inventory_procurement`, `maintenance_management`, `qhse`, and `hr_management` remain planned or partial scaffolds
+  - `inventory_procurement` is implemented as a first-phase available module with runtime services and UI workspaces
+  - `maintenance_management`, `qhse`, and `hr_management` remain planned or partial scaffolds
 - Runtime entrypoints:
   - GUI: `main_qt.py`
   - CLI: `main.py`

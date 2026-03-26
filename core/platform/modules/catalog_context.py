@@ -5,10 +5,12 @@ from core.platform.modules.defaults import (
     default_lifecycle_status,
 )
 from core.platform.modules.module_codes import normalize_module_code
-from core.platform.modules.repository import ModuleEntitlementRecord
+from core.platform.modules.repository import ModuleEntitlementRecord, ModuleEntitlementRepository
 
 
 class ModuleCatalogContextMixin:
+    _entitlement_repo: ModuleEntitlementRepository
+    
     def _persist_state(self, record: ModuleEntitlementRecord) -> None:
         module_code = normalize_module_code(record.module_code)
         normalized_record = ModuleEntitlementRecord(

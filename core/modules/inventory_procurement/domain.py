@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 
-from core.modules.project_management.domain.identifiers import generate_id
+from core.platform.common.ids import generate_id
 
 
 class StockTransactionType(str, Enum):

@@ -1,7 +1,8 @@
 # ProjectManagerLite
 
 ProjectManagerLite is a desktop-first enterprise operations platform built with Python + PySide6.
-The current production-ready business capability is the `Project Management` module, supported by shared platform features such as admin, access, audit, organizations, employees, and module licensing.
+The current default-enabled production business capability is the `Project Management` module, supported by shared platform features such as admin, access, audit, organizations, employees, module licensing, approvals, documents, and notifications.
+The codebase also now includes an implemented first-phase `Inventory & Procurement` module that can be licensed and enabled at runtime.
 
 The staged migration plan toward a broader modular enterprise platform is tracked in `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`.
 
@@ -10,6 +11,7 @@ The staged migration plan toward a broader modular enterprise platform is tracke
 Delivered in the current codebase:
 
 - `Project Management` as the active production module for planning, execution, control, dashboarding, reporting, collaboration, and timesheets
+- `Inventory & Procurement` phase 1 as an available module for item master, storerooms, stock balances and transactions, reservations, requisitions, purchase orders, receiving, and shared document/approval integration
 - grouped enterprise shell and platform admin workspaces
 - organization and employee management
 - persistent module licensing with organization-scoped entitlements
@@ -19,7 +21,8 @@ Delivered in the current codebase:
 
 Pending major work:
 
-- `Inventory & Procurement`, `Maintenance Management`, `QHSE`, and `HR Management` business modules
+- deeper hardening for `Inventory & Procurement`, especially shared import/export contracts, advanced UOM conversion, lot/serial and shelf-life controls, and maintenance-facing integration workflows
+- `Maintenance Management`, `QHSE`, and `HR Management` business modules
 - deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
@@ -27,14 +30,14 @@ The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`
 
 ## Next Priority
 
-The next priority is to deepen the started `Inventory & Procurement` scaffold into real `item`, `storeroom`, `stock`, and `procurement` workflows, then wire `Maintenance Management` to consume it by reference.
+The next priority is to harden the implemented `Inventory & Procurement` phase into a fuller enterprise-ready rollout, then wire `Maintenance Management` to consume it by reference.
 
 The initial maintenance blueprint is tracked in `docs/maintenance_management/README.md`.
 The inventory blueprint is now tracked in `docs/inventory_procurement/README.md`.
 
 The broader platform direction is now governed by a simple architecture rule: share enterprise capabilities, not business ownership. Shared capabilities should live once under the platform spine, business workflows should stay in the module that owns them, and cross-module collaboration should happen through references and events rather than direct schema coupling. The short frozen ownership decisions are now locked in `docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md` and `docs/architecture_decisions/ADR-002-location-and-system-ownership.md`. See also `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md` and `docs/maintenance_management/README.md`.
 
-The concrete follow-up tracker for making the current codebase match that architecture is now kept in `docs/platform_alignment_followup/README.md`. The shared-master alignment block is now complete, and the next module-facing work continues from the started inventory scaffold.
+The concrete follow-up tracker for making the current codebase match that architecture is now kept in `docs/platform_alignment_followup/README.md`. The shared-master alignment block is now complete, and the next module-facing work continues from the implemented inventory phase.
 
 Why this comes first:
 
@@ -46,9 +49,9 @@ Why this comes first:
 
 Concretely, the next implementation slice should:
 
-1. add the `inventory_procurement` module scaffold across `core`, `infra`, and `ui`
-2. introduce the first stock and purchasing aggregates such as `item`, `storeroom`, `stock_balance`, `purchase_requisition`, and `purchase_order`
-3. wire `maintenance_management` material demand to that module instead of embedding stock ledgers directly inside maintenance
+1. add shared import/export contracts for inventory masters and operational documents
+2. harden warehouse and procurement rules such as advanced UOM conversion, lot/serial handling, and richer receiving controls
+3. wire `maintenance_management` material demand to `inventory_procurement` instead of embedding stock ledgers directly inside maintenance
 
 After that, the next priority should be the `Maintenance Management` skeleton, then deeper shared master data for formal site/department directories, and then the `QHSE` module skeleton.
 

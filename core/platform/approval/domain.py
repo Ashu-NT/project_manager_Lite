@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
-from core.modules.project_management.domain.identifiers import generate_id
+from core.platform.common.ids import generate_id
 
 
 class ApprovalStatus(str, Enum):

@@ -1,5 +1,9 @@
 # Inventory & Procurement Module Blueprint
 
+Status: phase-1 implemented
+Implementation state: item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, and UI workspaces now exist in the codebase.
+Still pending before a fuller enterprise-complete rollout: shared import/export contracts, advanced UOM conversion, lot/serial and shelf-life controls, richer warehouse execution policy, and maintenance-facing integration flows.
+
 ## Purpose
 
 This document defines the first real implementation plan for the `inventory_procurement` module.
