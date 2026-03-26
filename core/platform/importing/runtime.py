@@ -3,16 +3,40 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
+from core.platform.auth.session import UserSessionContext
+from core.platform.common.runtime_access import enforce_runtime_access
+from core.platform.modules.contracts import SupportsModuleEntitlements
+
 from .models import ImportFieldSpec, ImportPreview, ImportSourceRow, ImportSummary
 from .registry import ImportDefinitionRegistry
 
 
 class CsvImportRuntime:
-    def __init__(self, registry: ImportDefinitionRegistry) -> None:
+    def __init__(
+        self,
+        registry: ImportDefinitionRegistry,
+        *,
+        user_session: UserSessionContext | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
+    ) -> None:
         self._registry = registry
+        self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
-    def get_import_schema(self, operation_key: str) -> tuple[ImportFieldSpec, ...]:
+    def get_import_schema(
+        self,
+        operation_key: str,
+        *,
+        user_session: UserSessionContext | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
+    ) -> tuple[ImportFieldSpec, ...]:
         definition = self._registry.get(operation_key)
+        self._authorize(
+            definition,
+            operation_label=f"view {self._humanize_key(definition.operation_key)} import schema",
+            user_session=user_session,
+            module_catalog_service=module_catalog_service,
+        )
         return tuple(definition.field_specs())
 
     def read_csv_columns(self, file_path: str | Path) -> list[str]:
@@ -26,9 +50,17 @@ class CsvImportRuntime:
         *,
         column_mapping: dict[str, str | None] | None = None,
         max_rows: int = 100,
+        user_session: UserSessionContext | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
     ) -> ImportPreview:
         normalized = self._registry.normalize_key(operation_key)
         definition = self._registry.get(normalized)
+        self._authorize(
+            definition,
+            operation_label=f"preview {self._humanize_key(normalized)} import",
+            user_session=user_session,
+            module_catalog_service=module_catalog_service,
+        )
         columns, rows, mapping = self._prepare_rows(
             definition,
             file_path,
@@ -46,9 +78,17 @@ class CsvImportRuntime:
         file_path: str | Path,
         *,
         column_mapping: dict[str, str | None] | None = None,
+        user_session: UserSessionContext | None = None,
+        module_catalog_service: SupportsModuleEntitlements | None = None,
     ) -> ImportSummary:
         normalized = self._registry.normalize_key(operation_key)
         definition = self._registry.get(normalized)
+        self._authorize(
+            definition,
+            operation_label=f"run {self._humanize_key(normalized)} import",
+            user_session=user_session,
+            module_catalog_service=module_catalog_service,
+        )
         _columns, rows, _mapping = self._prepare_rows(
             definition,
             file_path,
@@ -78,6 +118,30 @@ class CsvImportRuntime:
             for line_no, raw in raw_rows
         ]
         return columns, rows, mapping
+
+    def _authorize(
+        self,
+        definition,
+        *,
+        operation_label: str,
+        user_session: UserSessionContext | None,
+        module_catalog_service: SupportsModuleEntitlements | None,
+    ) -> None:
+        enforce_runtime_access(
+            module_catalog_service=(
+                module_catalog_service
+                if module_catalog_service is not None
+                else self._module_catalog_service
+            ),
+            user_session=user_session if user_session is not None else self._user_session,
+            module_code=definition.module_code,
+            permission_code=definition.permission_code,
+            operation_label=operation_label,
+        )
+
+    @staticmethod
+    def _humanize_key(value: str) -> str:
+        return str(value or "").strip().replace("_", " ") or "data"
 
     @staticmethod
     def _effective_mapping(

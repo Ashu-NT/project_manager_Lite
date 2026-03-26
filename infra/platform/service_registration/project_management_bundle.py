@@ -268,6 +268,7 @@ def build_project_management_service_bundle(
         task_service=task_service,
         resource_service=resource_service,
         cost_service=cost_service,
+        user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
     task_collaboration_store = TaskCollaborationStore(session_factory=lambda: session)

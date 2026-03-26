@@ -32,6 +32,7 @@ class DataImportService(
         task_service: TaskService,
         resource_service: ResourceService,
         cost_service: CostService,
+        user_session=None,
         module_catalog_service=None,
         import_registry: ImportDefinitionRegistry | None = None,
         import_runtime: CsvImportRuntime | None = None,
@@ -40,6 +41,7 @@ class DataImportService(
         self._task_service = task_service
         self._resource_service = resource_service
         self._cost_service = cost_service
+        self._user_session = user_session
         self._module_catalog_service = module_catalog_service
         registry = import_registry or ImportDefinitionRegistry()
         register_project_management_import_definitions(
@@ -59,10 +61,18 @@ class DataImportService(
             },
         )
         self._import_registry = registry
-        self._import_runtime = import_runtime or CsvImportRuntime(registry)
+        self._import_runtime = import_runtime or CsvImportRuntime(
+            registry,
+            user_session=user_session,
+            module_catalog_service=module_catalog_service,
+        )
 
     def get_import_schema(self, entity_type: str) -> tuple[ImportFieldSpec, ...]:
-        return self._import_runtime.get_import_schema(entity_type)
+        return self._import_runtime.get_import_schema(
+            entity_type,
+            user_session=self._user_session,
+            module_catalog_service=self._module_catalog_service,
+        )
 
     def read_csv_columns(self, file_path: str | Path) -> list[str]:
         return self._import_runtime.read_csv_columns(file_path)
@@ -80,6 +90,8 @@ class DataImportService(
             file_path,
             column_mapping=column_mapping,
             max_rows=max_rows,
+            user_session=self._user_session,
+            module_catalog_service=self._module_catalog_service,
         )
 
     def import_csv(
@@ -93,6 +105,8 @@ class DataImportService(
             entity_type,
             file_path,
             column_mapping=column_mapping,
+            user_session=self._user_session,
+            module_catalog_service=self._module_catalog_service,
         )
 
 

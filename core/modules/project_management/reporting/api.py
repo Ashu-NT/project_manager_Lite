@@ -80,6 +80,22 @@ def _artifact_path(result: object) -> Path:
     return Path(result)
 
 
+def _resolve_runtime_access_context(
+    reporting_service: object,
+    *,
+    user_session: object | None,
+    module_catalog_service: object | None,
+) -> tuple[object | None, object | None]:
+    return (
+        user_session
+        if user_session is not None
+        else getattr(reporting_service, "_user_session", None),
+        module_catalog_service
+        if module_catalog_service is not None
+        else getattr(reporting_service, "_module_catalog_service", None),
+    )
+
+
 def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
     as_of = _resolved_as_of(request.as_of)
     reporting_service = request.reporting_service
@@ -234,7 +250,14 @@ def generate_gantt_png(
     output_path: str | Path,
     *,
     bars: list[GanttTaskBar] | None = None,
+    user_session: object | None = None,
+    module_catalog_service: object | None = None,
 ) -> Path:
+    resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
+        reporting_service,
+        user_session=user_session,
+        module_catalog_service=module_catalog_service,
+    )
     return _artifact_path(
         _get_report_runtime().render(
             "gantt_png",
@@ -244,6 +267,8 @@ def generate_gantt_png(
                 output_path=output_path,
                 bars=bars,
             ),
+            user_session=resolved_user_session,
+            module_catalog_service=resolved_module_catalog_service,
         )
     )
 
@@ -254,7 +279,15 @@ def generate_evm_png(
     output_path: str | Path,
     baseline_id: str | None = None,
     as_of: date | None = None,
+    *,
+    user_session: object | None = None,
+    module_catalog_service: object | None = None,
 ) -> Path:
+    resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
+        reporting_service,
+        user_session=user_session,
+        module_catalog_service=module_catalog_service,
+    )
     return _artifact_path(
         _get_report_runtime().render(
             "evm_png",
@@ -265,6 +298,8 @@ def generate_evm_png(
                 baseline_id=baseline_id,
                 as_of=as_of,
             ),
+            user_session=resolved_user_session,
+            module_catalog_service=resolved_module_catalog_service,
         )
     )
 
@@ -276,7 +311,15 @@ def generate_excel_report(
     finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
+    *,
+    user_session: object | None = None,
+    module_catalog_service: object | None = None,
 ) -> Path:
+    resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
+        reporting_service,
+        user_session=user_session,
+        module_catalog_service=module_catalog_service,
+    )
     return _artifact_path(
         _get_report_runtime().render(
             "excel_report",
@@ -288,6 +331,8 @@ def generate_excel_report(
                 baseline_id=baseline_id,
                 as_of=as_of,
             ),
+            user_session=resolved_user_session,
+            module_catalog_service=resolved_module_catalog_service,
         )
     )
 
@@ -300,7 +345,15 @@ def generate_pdf_report(
     finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
+    *,
+    user_session: object | None = None,
+    module_catalog_service: object | None = None,
 ) -> Path:
+    resolved_user_session, resolved_module_catalog_service = _resolve_runtime_access_context(
+        reporting_service,
+        user_session=user_session,
+        module_catalog_service=module_catalog_service,
+    )
     return _artifact_path(
         _get_report_runtime().render(
             "pdf_report",
@@ -313,5 +366,7 @@ def generate_pdf_report(
                 baseline_id=baseline_id,
                 as_of=as_of,
             ),
+            user_session=resolved_user_session,
+            module_catalog_service=resolved_module_catalog_service,
         )
     )

@@ -317,7 +317,7 @@ Completion notes:
 
 ### 12. Shared Import Export Report Runtime
 
-Status: pending
+Status: in progress
 
 Detailed follow-up design:
 `docs/platform_alignment_followup/import_export_report_runtime/README.md`
@@ -340,6 +340,13 @@ Non-goals for this slice:
 - no migration of PM KPI, EVM, gantt, baseline, or cost semantics into `platform`
 - no platform-owned PM report definitions
 - no direct platform ownership of module repositories or workflow truth
+
+Completion notes:
+
+- `core/platform/importing`, `core/platform/exporting`, and `core/platform/report_runtime` now exist as platform-owned runtime packages with neutral registries, envelopes, and dispatch seams
+- PM import and reporting entry points now delegate through compatibility wrappers instead of owning the runtime machinery themselves
+- shared runtime dispatch now enforces module-entitlement and permission checks when connected to the live platform session/runtime context
+- remaining follow-up is broader non-PM adoption, richer writer/background-job orchestration, and shared-master bulk import/export contracts
 
 ## Guardrails
 

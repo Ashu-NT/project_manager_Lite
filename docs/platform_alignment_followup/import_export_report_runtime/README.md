@@ -2,8 +2,8 @@
 
 ## Purpose
 
-This README defines the follow-up design for extracting shared import, export,
-and report runtime machinery into `platform` before implementation starts.
+This README defines the follow-up design and remaining work for extracting shared import, export,
+and report runtime machinery into `platform`.
 
 The governing rule remains:
 
@@ -26,7 +26,17 @@ That is enough for `project_management`, but it is not yet the right shape for
 future modules that will need the same runtime patterns without inheriting PM
 business semantics.
 
-This follow-up exists to define the extraction boundary before code moves.
+This follow-up exists to define the extraction boundary and remaining follow-up after the first implementation landed.
+
+## Implementation Status
+
+- Foundation implemented:
+  - `core/platform/importing`
+  - `core/platform/exporting`
+  - `core/platform/report_runtime`
+- PM compatibility wrappers now register module-owned definitions against those platform runtimes.
+- Shared runtime dispatch now enforces module-entitlement and permission checks when the live platform session/runtime context is supplied.
+- Remaining follow-up is broader module adoption, richer background-job and writer orchestration, and shared-master bulk import/export contracts.
 
 ## Ownership Rule
 
@@ -378,7 +388,7 @@ not be moved wholesale into `platform`.
 
 ### 1. Import Runtime Primitives
 
-Status: pending
+Status: foundation completed
 
 Scope:
 
@@ -394,7 +404,7 @@ Acceptance notes:
 
 ### 2. Export Runtime Primitives
 
-Status: pending
+Status: foundation completed
 
 Scope:
 
@@ -410,7 +420,7 @@ Acceptance notes:
 
 ### 3. Report Runtime Primitives
 
-Status: pending
+Status: foundation completed
 
 Scope:
 
@@ -425,7 +435,7 @@ Acceptance notes:
 
 ### 4. PM Adoption Layer
 
-Status: pending
+Status: in progress
 
 Scope:
 

@@ -5,8 +5,11 @@ from pathlib import Path
 
 import pytest
 
+from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
+from core.platform.common.exceptions import BusinessRuleError
 from core.platform.exporting import ExportDefinitionRegistry, ExportRuntime
 from core.platform.importing import (
+    CsvImportRuntime,
     ImportDefinitionRegistry,
     ImportFieldSpec,
     ImportPreview,
@@ -67,6 +70,39 @@ class _DummyReportDefinition:
         return {"request": request}
 
 
+class _DummyModuleCatalogService:
+    def __init__(self, *, enabled: bool) -> None:
+        self._enabled = enabled
+
+    def get_entitlement(self, module_code: str):
+        return type(
+            "Entitlement",
+            (),
+            {
+                "label": "Project Management",
+                "runtime_enabled": self._enabled,
+                "lifecycle_status": "active",
+            },
+        )()
+
+    def is_enabled(self, module_code: str) -> bool:
+        return self._enabled
+
+
+def _session_with_permissions(*permissions: str) -> UserSessionContext:
+    user_session = UserSessionContext()
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="u1",
+            username="admin",
+            display_name="Admin",
+            role_names=frozenset({"admin"}),
+            permissions=frozenset(permissions),
+        )
+    )
+    return user_session
+
+
 def _python_files(root: Path):
     for path in root.rglob("*.py"):
         yield path
@@ -97,6 +133,51 @@ def test_report_runtime_dispatches_registered_definitions() -> None:
     runtime = ReportRuntime(registry)
 
     result = runtime.render("summary", {"project_id": "p1"})
+
+    assert result == {"request": {"project_id": "p1"}}
+
+
+def test_import_runtime_requires_permission_when_context_is_attached() -> None:
+    registry = ImportDefinitionRegistry()
+    registry.register(_DummyImportDefinition())
+    runtime = CsvImportRuntime(
+        registry,
+        user_session=_session_with_permissions("task.read"),
+        module_catalog_service=_DummyModuleCatalogService(enabled=True),
+    )
+
+    with pytest.raises(BusinessRuleError, match="Permission denied") as exc:
+        runtime.get_import_schema("tasks")
+
+    assert exc.value.code == "PERMISSION_DENIED"
+
+
+def test_export_runtime_blocks_disabled_modules_when_context_is_attached(tmp_path: Path) -> None:
+    registry = ExportDefinitionRegistry()
+    registry.register(_DummyExportDefinition())
+    runtime = ExportRuntime(
+        registry,
+        user_session=_session_with_permissions("report.export"),
+        module_catalog_service=_DummyModuleCatalogService(enabled=False),
+    )
+
+    with pytest.raises(BusinessRuleError, match="not enabled") as exc:
+        runtime.export("artifact", tmp_path / "report.pdf")
+
+    assert exc.value.code == "MODULE_DISABLED"
+
+
+def test_report_runtime_accepts_per_call_access_context() -> None:
+    registry = ReportDefinitionRegistry()
+    registry.register(_DummyReportDefinition())
+    runtime = ReportRuntime(registry)
+
+    result = runtime.render(
+        "summary",
+        {"project_id": "p1"},
+        user_session=_session_with_permissions("report.export"),
+        module_catalog_service=_DummyModuleCatalogService(enabled=True),
+    )
 
     assert result == {"request": {"project_id": "p1"}}
 

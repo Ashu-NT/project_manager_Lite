@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from core.platform.auth.session import UserSessionPrincipal
+from core.platform.common.exceptions import BusinessRuleError
 from core.platform.common.models import TimesheetPeriodStatus
 from core.platform.common.exceptions import ValidationError
 from core.platform.common.models import WorkerType
@@ -329,3 +331,21 @@ def test_data_import_service_imports_projects_resources_tasks_and_costs(services
         assert updated_project.planned_budget == pytest.approx(7500.0)
     finally:
         cleanup_test_workspace(tmp)
+
+
+def test_data_import_service_requires_import_manage_permission_from_live_session(services):
+    importer = services["data_import_service"]
+    services["user_session"].set_principal(
+        UserSessionPrincipal(
+            user_id="u-import",
+            username="pm-reader",
+            display_name="PM Reader",
+            role_names=frozenset({"viewer"}),
+            permissions=frozenset({"project.read"}),
+        )
+    )
+
+    with pytest.raises(BusinessRuleError, match="Permission denied") as exc:
+        importer.get_import_schema("projects")
+
+    assert exc.value.code == "PERMISSION_DENIED"

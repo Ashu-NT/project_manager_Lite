@@ -3,12 +3,14 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+import pytest
 from matplotlib.axes import Axes
 from matplotlib.dates import date2num
 from openpyxl import load_workbook
 
-from core.platform.common.models import CostType, DependencyType
+from core.platform.auth.session import UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
+from core.platform.common.models import CostType, DependencyType
 from core.modules.project_management.reporting import api as reporting_api
 from core.modules.project_management.services.reporting.models import (
     CostSourceBreakdown,
@@ -443,3 +445,24 @@ def test_reporting_api_populates_optional_contexts(monkeypatch, tmp_path):
     assert captured["pdf_ctx"].cost_breakdown == cost_breakdown
     assert captured["pdf_ctx"].cost_sources == cost_sources
     assert captured["pdf_ctx"].as_of == as_of
+
+
+def test_reporting_api_requires_report_export_permission_from_live_session(services, tmp_path):
+    services["user_session"].set_principal(
+        UserSessionPrincipal(
+            user_id="u-report",
+            username="report-viewer",
+            display_name="Report Viewer",
+            role_names=frozenset({"viewer"}),
+            permissions=frozenset({"report.view"}),
+        )
+    )
+
+    with pytest.raises(BusinessRuleError, match="Permission denied") as exc:
+        reporting_api.generate_gantt_png(
+            services["reporting_service"],
+            "project-1",
+            tmp_path / "restricted.png",
+        )
+
+    assert exc.value.code == "PERMISSION_DENIED"
