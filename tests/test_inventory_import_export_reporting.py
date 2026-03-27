@@ -16,6 +16,14 @@ def _suffix() -> str:
     return uuid4().hex[:6].upper()
 
 
+def _enable_inventory_module(services) -> None:
+    services["module_catalog_service"].set_module_state(
+        "inventory_procurement",
+        licensed=True,
+        enabled=True,
+    )
+
+
 def _create_inventory_context(services):
     suffix = _suffix()
     site = services["site_service"].create_site(
@@ -52,6 +60,7 @@ def _create_procurement_context(services):
     auth = services["auth_service"]
     auth.register_user("inventory-report-buyer", "StrongPass123", role_names=["inventory_manager"])
     auth.register_user("inventory-report-approver", "StrongPass123", role_names=["approver"])
+    _enable_inventory_module(services)
 
     site, supplier, storeroom, item = _create_inventory_context(services)
     procurement = services["inventory_procurement_service"]
@@ -117,7 +126,7 @@ def _create_procurement_context(services):
 def test_inventory_data_exchange_service_imports_and_exports_items_and_storerooms(services, tmp_path):
     auth = services["auth_service"]
     auth.register_user("inventory-import-user", "StrongPass123", role_names=["inventory_manager"])
-    login_as(services, "inventory-import-user", "StrongPass123")
+    _enable_inventory_module(services)
 
     service = services["inventory_data_exchange_service"]
     site = services["site_service"].create_site(site_code="IMP-HUB", name="Import Hub", currency_code="EUR")
@@ -126,6 +135,7 @@ def test_inventory_data_exchange_service_imports_and_exports_items_and_storeroom
         party_name="Import Supplier",
         party_type=PartyType.SUPPLIER,
     )
+    login_as(services, "inventory-import-user", "StrongPass123")
 
     storerooms_csv = tmp_path / "storerooms.csv"
     storerooms_csv.write_text(
@@ -216,6 +226,7 @@ def test_inventory_reporting_service_generates_stock_and_procurement_reports(ser
 
 
 def test_inventory_import_and_reporting_services_require_runtime_permissions(services, tmp_path):
+    _enable_inventory_module(services)
     services["user_session"].set_principal(
         UserSessionPrincipal(
             user_id="u-inventory-read",
