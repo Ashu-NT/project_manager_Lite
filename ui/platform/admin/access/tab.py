@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -154,9 +153,6 @@ class AccessTab(QWidget):
         header_layout.addLayout(status_layout)
         root.addWidget(header)
 
-        self.access_tabs = QTabWidget()
-        self.access_tabs.setObjectName("AccessControlTabs")
-
         controls_box = QWidget(self)
         controls_box.setObjectName("accessAdminControlSurface")
         controls_box.setStyleSheet(
@@ -287,14 +283,13 @@ class AccessTab(QWidget):
         self.security_table.setEnabled(self._can_view_user_security)
         security_layout.addWidget(self.security_table)
 
-        if self._show_access_tab and self._show_security_tab:
-            self.access_tabs.addTab(controls_box, "Scope Access")
-            self.access_tabs.addTab(security_box, "Account Security")
-            root.addWidget(self.access_tabs, 1)
-        elif self._show_access_tab:
-            root.addWidget(controls_box, 1)
-        else:
-            root.addWidget(security_box, 1)
+        controls_box.setVisible(self._show_access_tab)
+        security_box.setVisible(self._show_security_tab)
+
+        if self._show_access_tab:
+            root.addWidget(controls_box, 3 if self._show_security_tab else 1)
+        if self._show_security_tab:
+            root.addWidget(security_box, 2 if self._show_access_tab else 1)
 
         self.scope_type_combo.currentIndexChanged.connect(self._on_scope_type_changed)
         self.scope_combo.currentIndexChanged.connect(self._reload_memberships)

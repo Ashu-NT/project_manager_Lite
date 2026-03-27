@@ -126,6 +126,26 @@ def test_main_window_runtime_supports_sidebar_toggle_and_auto_hide(
     assert window.btn_toggle_navigation.text() == "Hide Menu"
 
 
+def test_main_window_workspace_stack_uses_flat_hidden_tab_pane(
+    qapp,
+    services,
+    repo_workspace,
+    monkeypatch,
+):
+    store = make_settings_store(repo_workspace, prefix="main-window-workspace-stack-style")
+    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
+
+    window = MainWindow(services)
+
+    assert window.tabs.documentMode() is True
+    assert "QTabWidget#workspaceStack::pane" in window.tabs.styleSheet()
+    assert "background: transparent;" in window.tabs.styleSheet()
+    assert "border-radius: 0px;" in window.tabs.styleSheet()
+    assert "top: 0px;" in window.tabs.styleSheet()
+    assert "QWidget#qt_tabwidget_stackedwidget" in window.tabs.styleSheet()
+
+
 def test_main_window_theme_switch_refreshes_shell_without_rebuilding_tabs(
     qapp,
     services,

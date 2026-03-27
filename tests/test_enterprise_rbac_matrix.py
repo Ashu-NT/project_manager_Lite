@@ -9,6 +9,7 @@ from core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
+from PySide6.QtWidgets import QTabWidget
 from ui.platform.admin.access.tab import AccessTab
 from ui.platform.shell.main_window import MainWindow
 
@@ -140,6 +141,7 @@ def test_access_tab_security_admin_mode_keeps_security_controls_without_membersh
     assert tab.project_combo.isEnabled() is False
     assert tab.membership_table.rowCount() == 0
     assert tab.security_table.rowCount() >= 3
+    assert tab.findChildren(QTabWidget) == []
 
 
 def test_access_tab_security_only_mode_renders_security_workspace(qapp, services):
@@ -162,3 +164,46 @@ def test_access_tab_security_only_mode_renders_security_workspace(qapp, services
     assert tab.security_table.parent() is not None
     assert tab.security_table.rowCount() >= 3
     assert tab.btn_unlock.isEnabled() is True
+    assert tab.findChildren(QTabWidget) == []
+
+
+def test_access_tab_one_panel_modes_hide_inactive_surface_widgets(qapp, services):
+    auth = services["auth_service"]
+    auth.register_user("single-surface-access", "StrongPass123", role_names=["access_admin"])
+    auth.register_user("single-surface-security", "StrongPass123", role_names=["security_admin"])
+
+    login_as(services, "single-surface-access", "StrongPass123")
+    access_only = AccessTab(
+        access_service=services["access_service"],
+        auth_service=services["auth_service"],
+        project_service=services["project_service"],
+        show_access_tab=True,
+        show_security_tab=False,
+        user_session=services["user_session"],
+    )
+    access_only.show()
+    qapp.processEvents()
+
+    assert access_only.membership_table.isVisibleTo(access_only) is True
+    assert access_only.btn_refresh.isVisibleTo(access_only) is True
+    assert access_only.security_table.isVisibleTo(access_only) is False
+    assert access_only.btn_unlock.isVisibleTo(access_only) is False
+    assert access_only.btn_revoke_sessions.isVisibleTo(access_only) is False
+
+    login_as(services, "single-surface-security", "StrongPass123")
+    security_only = AccessTab(
+        access_service=services["access_service"],
+        auth_service=services["auth_service"],
+        project_service=services["project_service"],
+        show_access_tab=False,
+        show_security_tab=True,
+        user_session=services["user_session"],
+    )
+    security_only.show()
+    qapp.processEvents()
+
+    assert security_only.security_table.isVisibleTo(security_only) is True
+    assert security_only.btn_unlock.isVisibleTo(security_only) is True
+    assert security_only.btn_revoke_sessions.isVisibleTo(security_only) is True
+    assert security_only.membership_table.isVisibleTo(security_only) is False
+    assert security_only.btn_refresh.isVisibleTo(security_only) is False

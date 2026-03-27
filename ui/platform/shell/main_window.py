@@ -118,8 +118,27 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         self.tabs.setObjectName("workspaceStack")
+        self.tabs.setDocumentMode(True)
         self.tabs.tabBar().hide()
-        self.tabs.setStyleSheet("QTabWidget#workspaceStack::pane { border: 0; }")
+        self.tabs.setStyleSheet(
+            """
+            QTabWidget#workspaceStack {
+                background: transparent;
+            }
+            QTabWidget#workspaceStack::pane {
+                border: 0;
+                background: transparent;
+                border-radius: 0px;
+                top: 0px;
+                margin: 0px;
+                padding: 0px;
+            }
+            QTabWidget#workspaceStack QWidget#qt_tabwidget_stackedwidget {
+                background: transparent;
+                border: 0;
+            }
+            """
+        )
         body_layout.addWidget(self.tabs, 1)
 
         layout.addWidget(body, 1)
