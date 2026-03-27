@@ -3,8 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from core.modules.inventory_procurement import (
+    InventoryDataExchangeService,
     InventoryReferenceService,
     InventoryService,
+    InventoryReportingService,
     ItemMasterService,
     ProcurementService,
     PurchasingService,
@@ -30,6 +32,8 @@ from infra.platform.service_registration.platform_bundle import PlatformServiceB
 @dataclass(frozen=True)
 class InventoryProcurementServiceBundle:
     inventory_reference_service: InventoryReferenceService
+    inventory_data_exchange_service: InventoryDataExchangeService
+    inventory_reporting_service: InventoryReportingService
     inventory_item_service: ItemMasterService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
@@ -145,6 +149,29 @@ def build_inventory_procurement_service_bundle(
         party_service=platform_services.party_service,
         user_session=platform_services.user_session,
     )
+    inventory_data_exchange_service = InventoryDataExchangeService(
+        item_service=inventory_item_service,
+        inventory_service=inventory_service,
+        procurement_service=inventory_procurement_service,
+        purchasing_service=inventory_purchasing_service,
+        site_service=platform_services.site_service,
+        party_service=platform_services.party_service,
+        requisition_line_repo=requisition_line_repo,
+        purchase_order_line_repo=purchase_order_line_repo,
+        receipt_line_repo=receipt_line_repo,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
+    inventory_reporting_service = InventoryReportingService(
+        reference_service=inventory_reference_service,
+        item_service=inventory_item_service,
+        inventory_service=inventory_service,
+        stock_service=inventory_stock_service,
+        procurement_service=inventory_procurement_service,
+        purchasing_service=inventory_purchasing_service,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
 
     def _storeroom_exists(storeroom_id: str) -> bool:
         storeroom = storeroom_repo.get(storeroom_id)
@@ -159,6 +186,8 @@ def build_inventory_procurement_service_bundle(
 
     return InventoryProcurementServiceBundle(
         inventory_reference_service=inventory_reference_service,
+        inventory_data_exchange_service=inventory_data_exchange_service,
+        inventory_reporting_service=inventory_reporting_service,
         inventory_item_service=inventory_item_service,
         inventory_service=inventory_service,
         inventory_stock_service=inventory_stock_service,

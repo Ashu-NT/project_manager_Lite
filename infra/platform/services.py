@@ -19,8 +19,10 @@ from core.platform.party import PartyService
 from core.platform.time import TimeService
 from core.modules.inventory_procurement import (
     ProcurementService,
+    InventoryDataExchangeService,
     InventoryReferenceService,
     InventoryService,
+    InventoryReportingService,
     ItemMasterService,
     PurchasingService,
     ReservationService,
@@ -68,6 +70,8 @@ class ServiceGraph:
     employee_service: EmployeeService
     master_data_exchange_service: MasterDataExchangeService
     inventory_reference_service: InventoryReferenceService
+    inventory_data_exchange_service: InventoryDataExchangeService
+    inventory_reporting_service: InventoryReportingService
     inventory_item_service: ItemMasterService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
@@ -114,6 +118,8 @@ class ServiceGraph:
             "employee_service": self.employee_service,
             "master_data_exchange_service": self.master_data_exchange_service,
             "inventory_reference_service": self.inventory_reference_service,
+            "inventory_data_exchange_service": self.inventory_data_exchange_service,
+            "inventory_reporting_service": self.inventory_reporting_service,
             "inventory_item_service": self.inventory_item_service,
             "inventory_service": self.inventory_service,
             "inventory_stock_service": self.inventory_stock_service,
@@ -170,6 +176,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         employee_service=platform_services.employee_service,
         master_data_exchange_service=platform_services.master_data_exchange_service,
         inventory_reference_service=inventory_procurement_services.inventory_reference_service,
+        inventory_data_exchange_service=inventory_procurement_services.inventory_data_exchange_service,
+        inventory_reporting_service=inventory_procurement_services.inventory_reporting_service,
         inventory_item_service=inventory_procurement_services.inventory_item_service,
         inventory_service=inventory_procurement_services.inventory_service,
         inventory_stock_service=inventory_procurement_services.inventory_stock_service,

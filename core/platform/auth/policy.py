@@ -40,7 +40,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "audit.read": "View audit history",
     "support.manage": "Access product support operations",
     "access.manage": "Manage project memberships and access scope",
-    "import.manage": "Run project data imports",
+    "import.manage": "Run governed module data imports",
     "approval.request": "Submit governed change requests",
     "approval.decide": "Approve or reject governed change requests",
     "settings.manage": "Manage app settings",
@@ -121,6 +121,8 @@ _INVENTORY_MANAGER = {
     "site.read",
     "party.read",
     "report.view",
+    "report.export",
+    "import.manage",
     "approval.request",
 }
 

@@ -1,9 +1,9 @@
 # Inventory & Procurement Module Blueprint
 
 Status: phase-1 implemented
-Implementation state: item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, and UI workspaces now exist in the codebase.
-Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts.
-Still pending before a fuller enterprise-complete rollout: inventory-specific import/export contracts, lot/serial and shelf-life controls, richer warehouse execution policy, and maintenance-facing integration flows.
+Implementation state: item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, UI workspaces, and module-owned inventory import/export/reporting services now exist in the codebase.
+Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts; inventory now also ships CSV import for `items` and `storerooms`, raw CSV export for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, plus stock/procurement reports in CSV and Excel.
+Still pending before a fuller enterprise-complete rollout: procurement-document import coverage for requisitions, purchase orders, and receipts; lot/serial and shelf-life controls; richer warehouse execution policy; and maintenance-facing integration flows.
 
 ## Current Execution Plan
 
@@ -11,10 +11,11 @@ Completed in the current execution block:
 
 1. shared platform data exchange groundwork for `site` and `party` through the platform import/export runtime
 2. advanced UOM conversion for inventory procurement and warehouse flows
+3. first inventory-owned import/export/reporting runtime adoption for item, storeroom, requisition, purchase-order, receipt, stock-status, and procurement-overview operations
 
 Next up:
 
-1. module-owned import/export definitions for item, storeroom, requisition, purchase-order, and receipt data
+1. procurement-document import coverage for requisitions, purchase orders, and receipts
 2. lot, serial, shelf-life, and receiving-policy hardening
 3. maintenance-facing material demand and reservation integration
 
