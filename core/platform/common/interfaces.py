@@ -314,6 +314,12 @@ class UserRepository(ABC):
     @abstractmethod
     def get_by_username(self, username: str) -> Optional[UserAccount]: ...
     @abstractmethod
+    def get_by_federated_identity(
+        self,
+        identity_provider: str,
+        federated_subject: str,
+    ) -> Optional[UserAccount]: ...
+    @abstractmethod
     def list_all(self) -> List[UserAccount]: ...
 
 

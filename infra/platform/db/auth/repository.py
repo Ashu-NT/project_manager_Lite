@@ -45,6 +45,14 @@ class SqlAlchemyUserRepository(UserRepository):
                 "password_hash": user.password_hash,
                 "display_name": user.display_name,
                 "email": user.email,
+                "identity_provider": getattr(user, "identity_provider", None),
+                "federated_subject": getattr(user, "federated_subject", None),
+                "mfa_secret": getattr(user, "mfa_secret", None),
+                "mfa_enabled": getattr(user, "mfa_enabled", False),
+                "session_timeout_minutes_override": getattr(user, "session_timeout_minutes_override", None),
+                "session_revision": getattr(user, "session_revision", 1),
+                "last_login_auth_method": getattr(user, "last_login_auth_method", None),
+                "last_login_device_label": getattr(user, "last_login_device_label", None),
                 "is_active": user.is_active,
                 "failed_login_attempts": getattr(user, "failed_login_attempts", 0),
                 "locked_until": getattr(user, "locked_until", None),
@@ -64,6 +72,18 @@ class SqlAlchemyUserRepository(UserRepository):
 
     def get_by_username(self, username: str) -> Optional[UserAccount]:
         stmt = select(UserORM).where(UserORM.username == username)
+        obj = self.session.execute(stmt).scalars().first()
+        return user_from_orm(obj) if obj else None
+
+    def get_by_federated_identity(
+        self,
+        identity_provider: str,
+        federated_subject: str,
+    ) -> Optional[UserAccount]:
+        stmt = select(UserORM).where(
+            UserORM.identity_provider == identity_provider,
+            UserORM.federated_subject == federated_subject,
+        )
         obj = self.session.execute(stmt).scalars().first()
         return user_from_orm(obj) if obj else None
 

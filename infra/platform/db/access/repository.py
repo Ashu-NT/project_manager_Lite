@@ -13,7 +13,7 @@ from infra.platform.db.access.mapper import (
     scoped_access_grant_from_orm,
     scoped_access_grant_to_orm,
 )
-from infra.platform.db.models import ProjectMembershipORM
+from infra.platform.db.models import ProjectMembershipORM, ScopedAccessGrantORM
 
 
 class SqlAlchemyProjectMembershipRepository(ProjectMembershipRepository):
@@ -65,8 +65,11 @@ class SqlAlchemyScopedAccessGrantRepository(ScopedAccessGrantRepository):
         self.session.merge(scoped_access_grant_to_orm(grant))
 
     def get(self, grant_id: str) -> Optional[ScopedAccessGrant]:
-        obj = self.session.get(ProjectMembershipORM, grant_id)
-        return scoped_access_grant_from_orm(obj) if obj else None
+        project_row = self.session.get(ProjectMembershipORM, grant_id)
+        if project_row is not None:
+            return scoped_access_grant_from_orm(project_row)
+        generic_row = self.session.get(ScopedAccessGrantORM, grant_id)
+        return scoped_access_grant_from_orm(generic_row) if generic_row else None
 
     def get_for_scope_user(
         self,
@@ -74,17 +77,32 @@ class SqlAlchemyScopedAccessGrantRepository(ScopedAccessGrantRepository):
         scope_id: str,
         user_id: str,
     ) -> Optional[ScopedAccessGrant]:
-        self._ensure_supported_scope_type(scope_type)
-        stmt = select(ProjectMembershipORM).where(
-            ProjectMembershipORM.project_id == scope_id,
-            ProjectMembershipORM.user_id == user_id,
+        normalized_scope_type = self._normalize_scope_type(scope_type)
+        if normalized_scope_type == "project":
+            stmt = select(ProjectMembershipORM).where(
+                ProjectMembershipORM.project_id == scope_id,
+                ProjectMembershipORM.user_id == user_id,
+            )
+            obj = self.session.execute(stmt).scalars().first()
+            return scoped_access_grant_from_orm(obj) if obj else None
+        stmt = select(ScopedAccessGrantORM).where(
+            ScopedAccessGrantORM.scope_type == normalized_scope_type,
+            ScopedAccessGrantORM.scope_id == scope_id,
+            ScopedAccessGrantORM.user_id == user_id,
         )
         obj = self.session.execute(stmt).scalars().first()
         return scoped_access_grant_from_orm(obj) if obj else None
 
     def list_by_scope(self, scope_type: str, scope_id: str) -> List[ScopedAccessGrant]:
-        self._ensure_supported_scope_type(scope_type)
-        stmt = select(ProjectMembershipORM).where(ProjectMembershipORM.project_id == scope_id)
+        normalized_scope_type = self._normalize_scope_type(scope_type)
+        if normalized_scope_type == "project":
+            stmt = select(ProjectMembershipORM).where(ProjectMembershipORM.project_id == scope_id)
+            rows = self.session.execute(stmt).scalars().all()
+            return [scoped_access_grant_from_orm(row) for row in rows]
+        stmt = select(ScopedAccessGrantORM).where(
+            ScopedAccessGrantORM.scope_type == normalized_scope_type,
+            ScopedAccessGrantORM.scope_id == scope_id,
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [scoped_access_grant_from_orm(row) for row in rows]
 
@@ -94,22 +112,39 @@ class SqlAlchemyScopedAccessGrantRepository(ScopedAccessGrantRepository):
         *,
         scope_type: str | None = None,
     ) -> List[ScopedAccessGrant]:
-        if scope_type is not None:
-            self._ensure_supported_scope_type(scope_type)
-        stmt = select(ProjectMembershipORM).where(ProjectMembershipORM.user_id == user_id)
-        rows = self.session.execute(stmt).scalars().all()
-        return [scoped_access_grant_from_orm(row) for row in rows]
+        normalized_scope_type = (
+            self._normalize_scope_type(scope_type)
+            if scope_type is not None
+            else None
+        )
+        grants: list[ScopedAccessGrant] = []
+        if normalized_scope_type in (None, "project"):
+            stmt = select(ProjectMembershipORM).where(ProjectMembershipORM.user_id == user_id)
+            rows = self.session.execute(stmt).scalars().all()
+            grants.extend(scoped_access_grant_from_orm(row) for row in rows)
+        if normalized_scope_type != "project":
+            stmt = select(ScopedAccessGrantORM).where(ScopedAccessGrantORM.user_id == user_id)
+            if normalized_scope_type is not None:
+                stmt = stmt.where(ScopedAccessGrantORM.scope_type == normalized_scope_type)
+            rows = self.session.execute(stmt).scalars().all()
+            grants.extend(scoped_access_grant_from_orm(row) for row in rows)
+        return grants
 
     def delete(self, grant_id: str) -> None:
-        obj = self.session.get(ProjectMembershipORM, grant_id)
-        if obj is not None:
-            self.session.delete(obj)
+        project_row = self.session.get(ProjectMembershipORM, grant_id)
+        if project_row is not None:
+            self.session.delete(project_row)
+            return
+        generic_row = self.session.get(ScopedAccessGrantORM, grant_id)
+        if generic_row is not None:
+            self.session.delete(generic_row)
 
     @staticmethod
-    def _ensure_supported_scope_type(scope_type: str) -> None:
+    def _normalize_scope_type(scope_type: str | None) -> str:
         normalized = str(scope_type or "").strip().lower()
-        if normalized != "project":
-            raise ValueError(f"Unsupported scope type: {scope_type}")
+        if not normalized:
+            raise ValueError("Scope type is required.")
+        return normalized
 
 
 __all__ = ["SqlAlchemyProjectMembershipRepository", "SqlAlchemyScopedAccessGrantRepository"]

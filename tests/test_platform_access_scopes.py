@@ -4,8 +4,10 @@ import pytest
 
 from core.platform.access.authorization import require_scope_permission
 from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
-from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from core.platform.common.exceptions import BusinessRuleError
+from core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from core.modules.project_management.access.policy import resolve_project_scope_permissions
+from tests.ui_runtime_helpers import login_as
 
 
 def test_user_session_supports_generic_scoped_access_and_project_compatibility():
@@ -87,55 +89,115 @@ def test_auth_build_principal_populates_generic_scoped_access_from_project_membe
     assert principal.project_access[project.id] == principal.scoped_access["project"][project.id]
 
 
-def test_access_service_exposes_generic_scope_grant_wrappers_for_project_scope(services):
+def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(services):
     auth = services["auth_service"]
     access = services["access_service"]
-    project = services["project_service"].create_project("Generic Scope Grant Project")
-    user = auth.register_user("generic-scope-user", "StrongPass123", role_names=["viewer"])
+    site = services["site_service"].create_site(
+        site_code="STR-ACC",
+        name="Scoped Access Site",
+        city="Berlin",
+        currency_code="EUR",
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="STR-ACCESS",
+        name="Scoped Access Storeroom",
+        site_id=site.id,
+        status="ACTIVE",
+        storeroom_type="MAIN",
+    )
+    user = auth.register_user("storeroom-scope-user", "StrongPass123", role_names=["inventory_manager"])
 
     grant = access.assign_scope_grant(
-        scope_type="project",
-        scope_id=project.id,
+        scope_type="storeroom",
+        scope_id=storeroom.id,
         user_id=user.id,
         scope_role="editor",
     )
 
-    assert grant.scope_type == "project"
-    assert grant.scope_id == project.id
-    assert grant.scope_role == "contributor"
-    assert grant.permission_codes == sorted(resolve_project_scope_permissions("contributor"))
-    assert access.list_scope_role_choices("project") == ("viewer", "contributor", "lead", "owner")
-    assert access.list_supported_scope_types() == ("project",)
-    listed_scope_grants = access.list_scope_grants("project", project.id)
-    listed_user_grants = access.list_user_scope_grants(user.id, scope_type="project")
+    assert grant.scope_type == "storeroom"
+    assert grant.scope_id == storeroom.id
+    assert grant.scope_role == "operator"
+    assert grant.permission_codes == sorted(resolve_storeroom_scope_permissions("operator"))
+    assert access.list_scope_role_choices("storeroom") == ("viewer", "operator", "manager")
+    assert access.list_supported_scope_types() == ("project", "storeroom")
+
+    listed_scope_grants = access.list_scope_grants("storeroom", storeroom.id)
+    listed_user_grants = access.list_user_scope_grants(user.id, scope_type="storeroom")
+    principal = auth.build_principal(user)
 
     assert len(listed_scope_grants) == 1
     assert len(listed_user_grants) == 1
     assert listed_scope_grants[0].id == grant.id
-    assert listed_scope_grants[0].scope_role == grant.scope_role
-    assert listed_scope_grants[0].permission_codes == grant.permission_codes
     assert listed_user_grants[0].id == grant.id
-    assert listed_user_grants[0].scope_role == grant.scope_role
-    assert listed_user_grants[0].permission_codes == grant.permission_codes
-
-
-def test_access_service_rejects_unsupported_scope_types_before_repository_calls(services):
-    auth = services["auth_service"]
-    access = services["access_service"]
-    project = services["project_service"].create_project("Unsupported Scope Guardrail Project")
-    user = auth.register_user("unsupported-scope-user", "StrongPass123", role_names=["viewer"])
-
-    access.assign_project_membership(
-        project_id=project.id,
-        user_id=user.id,
-        scope_role="viewer",
+    assert principal.scoped_access["storeroom"][storeroom.id] == frozenset(
+        resolve_storeroom_scope_permissions("operator")
     )
 
-    with pytest.raises(ValidationError, match="Unsupported scope type 'storeroom'"):
-        access.list_scope_grants("storeroom", "storeroom-1")
 
-    with pytest.raises(ValidationError, match="Unsupported scope type 'storeroom'"):
-        access.list_user_scope_grants(user.id, scope_type="storeroom")
+def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):
+    auth = services["auth_service"]
+    access = services["access_service"]
+    site = services["site_service"].create_site(
+        site_code="STR-FLT",
+        name="Filtered Site",
+        city="Hamburg",
+        currency_code="EUR",
+    )
+    accessible = services["inventory_service"].create_storeroom(
+        storeroom_code="FLT-A",
+        name="Accessible Storeroom",
+        site_id=site.id,
+        status="ACTIVE",
+        storeroom_type="MAIN",
+    )
+    blocked = services["inventory_service"].create_storeroom(
+        storeroom_code="FLT-B",
+        name="Blocked Storeroom",
+        site_id=site.id,
+        status="ACTIVE",
+        storeroom_type="MAIN",
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="FLT-ITEM",
+        name="Scoped Filter Item",
+        status="ACTIVE",
+        stock_uom="EA",
+    )
+    services["inventory_stock_service"].post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=accessible.id,
+        quantity=10,
+        unit_cost=2.0,
+    )
+    services["inventory_stock_service"].post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=blocked.id,
+        quantity=5,
+        unit_cost=3.0,
+    )
+    user = auth.register_user("storeroom-filter-user", "StrongPass123", role_names=["inventory_manager"])
+    access.assign_scope_grant(
+        scope_type="storeroom",
+        scope_id=accessible.id,
+        user_id=user.id,
+        scope_role="manager",
+    )
 
-    with pytest.raises(ValidationError, match="Unsupported scope type 'storeroom'"):
-        access.remove_scope_grant(scope_type="storeroom", scope_id="storeroom-1", user_id=user.id)
+    login_as(services, "storeroom-filter-user", "StrongPass123")
+
+    storerooms = services["inventory_service"].list_storerooms()
+    balances = services["inventory_stock_service"].list_balances()
+    transactions = services["inventory_stock_service"].list_transactions()
+
+    assert [row.id for row in storerooms] == [accessible.id]
+    assert {(row.stock_item_id, row.storeroom_id) for row in balances} == {(item.id, accessible.id)}
+    assert {row.storeroom_id for row in transactions} == {accessible.id}
+
+    with pytest.raises(BusinessRuleError, match="storeroom"):
+        services["inventory_service"].get_storeroom(blocked.id)
+
+    with pytest.raises(BusinessRuleError, match="storeroom"):
+        services["inventory_stock_service"].get_balance_for_stock_position(
+            stock_item_id=item.id,
+            storeroom_id=blocked.id,
+        )

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 
+from core.platform.auth.mfa import generate_totp_code
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from infra.platform.services import build_service_dict
 
@@ -134,6 +137,72 @@ def test_admin_can_edit_user_profile_without_touching_password(services):
     assert updated.display_name == "New Name"
     assert updated.email == "new@example.com"
     assert auth.authenticate("profile-target-updated", "StrongPass123").id == user.id
+
+
+def test_auth_service_supports_federated_identity_and_mfa_hooks(services):
+    auth = services["auth_service"]
+    user = auth.register_user("federated-user", "StrongPass123", role_names=["viewer"])
+
+    linked = auth.link_federated_identity(
+        user.id,
+        identity_provider="AzureAD",
+        federated_subject="oidc-user-123",
+    )
+    secret = auth.provision_mfa_secret(user.id)
+    auth.enable_user_mfa(user.id, generate_totp_code(secret))
+
+    assert linked.identity_provider == "azuread"
+    assert linked.federated_subject == "oidc-user-123"
+
+    with pytest.raises(ValidationError, match="Multi-factor authentication code is required"):
+        auth.authenticate("federated-user", "StrongPass123")
+
+    password_login = auth.authenticate(
+        "federated-user",
+        "StrongPass123",
+        mfa_code=generate_totp_code(secret),
+        device_label="QA Laptop",
+    )
+    federated_login = auth.authenticate_federated(
+        identity_provider="azuread",
+        federated_subject="oidc-user-123",
+        mfa_code=generate_totp_code(secret),
+        device_label="SSO Browser",
+    )
+
+    assert password_login.mfa_enabled is True
+    assert password_login.last_login_device_label == "QA Laptop"
+    assert password_login.last_login_auth_method == "password"
+    assert federated_login.last_login_auth_method == "federated:azuread"
+    assert federated_login.last_login_device_label == "SSO Browser"
+
+
+def test_auth_service_enforces_separation_of_duties_for_conflicting_roles(services):
+    auth = services["auth_service"]
+
+    with pytest.raises(ValidationError, match="separation of duties"):
+        auth.register_user(
+            "sod-conflict-user",
+            "StrongPass123",
+            role_names=["planner", "approver"],
+        )
+
+    access_user = auth.register_user("sod-access-user", "StrongPass123", role_names=["access_admin"])
+    with pytest.raises(ValidationError, match="separation of duties"):
+        auth.assign_role(access_user.id, "security_admin")
+
+
+def test_auth_service_supports_per_user_session_timeout_policy(services):
+    auth = services["auth_service"]
+    user = auth.register_user("session-policy-user", "StrongPass123", role_names=["viewer"])
+
+    auth.set_user_session_policy(user.id, session_timeout_minutes_override=30)
+    authenticated = auth.authenticate("session-policy-user", "StrongPass123")
+
+    assert authenticated.session_expires_at is not None
+    assert authenticated.last_login_at is not None
+    delta_seconds = (authenticated.session_expires_at - authenticated.last_login_at).total_seconds()
+    assert delta_seconds == pytest.approx(timedelta(minutes=30).total_seconds(), rel=0.0, abs=5.0)
 
 
 def test_edit_user_profile_rejects_duplicate_username(services):

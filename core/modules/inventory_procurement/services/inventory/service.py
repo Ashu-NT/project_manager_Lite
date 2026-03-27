@@ -19,6 +19,7 @@ from core.modules.inventory_procurement.support import (
     validate_transition,
 )
 from core.platform.audit.helpers import record_audit
+from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository
@@ -59,10 +60,17 @@ class InventoryService:
         normalized_site_id = normalize_optional_text(site_id) or None
         if normalized_site_id is not None:
             self._validate_site_reference(normalized_site_id)
-        return self._storeroom_repo.list_for_organization(
+        rows = self._storeroom_repo.list_for_organization(
             organization.id,
             active_only=active_only,
             site_id=normalized_site_id,
+        )
+        return filter_scope_rows(
+            rows,
+            self._user_session,
+            scope_type="storeroom",
+            permission_code="inventory.read",
+            scope_id_getter=lambda row: getattr(row, "id", ""),
         )
 
     def search_storerooms(
@@ -101,13 +109,30 @@ class InventoryService:
         storeroom = self._storeroom_repo.get(storeroom_id)
         if storeroom is None or storeroom.organization_id != organization.id:
             raise NotFoundError("Storeroom not found in the active organization.", code="INVENTORY_STOREROOM_NOT_FOUND")
+        require_scope_permission(
+            self._user_session,
+            "storeroom",
+            storeroom.id,
+            "inventory.read",
+            operation_label="view storeroom",
+        )
         return storeroom
 
     def find_storeroom_by_code(self, storeroom_code: str) -> Storeroom | None:
         self._require_read("resolve storeroom")
         organization = self._active_organization()
         normalized_code = normalize_inventory_code(storeroom_code, label="Storeroom code")
-        return self._storeroom_repo.get_by_code(organization.id, normalized_code)
+        storeroom = self._storeroom_repo.get_by_code(organization.id, normalized_code)
+        if storeroom is None:
+            return None
+        require_scope_permission(
+            self._user_session,
+            "storeroom",
+            storeroom.id,
+            "inventory.read",
+            operation_label="resolve storeroom",
+        )
+        return storeroom
 
     def create_storeroom(
         self,
@@ -211,6 +236,13 @@ class InventoryService:
         storeroom = self._storeroom_repo.get(storeroom_id)
         if storeroom is None or storeroom.organization_id != organization.id:
             raise NotFoundError("Storeroom not found in the active organization.", code="INVENTORY_STOREROOM_NOT_FOUND")
+        require_scope_permission(
+            self._user_session,
+            "storeroom",
+            storeroom.id,
+            "inventory.manage",
+            operation_label="update storeroom",
+        )
         if expected_version is not None and storeroom.version != expected_version:
             raise ConcurrencyError(
                 "Storeroom changed since you opened it. Refresh and try again.",

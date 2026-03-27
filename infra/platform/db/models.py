@@ -617,12 +617,23 @@ class RegisterEntryORM(Base):
 
 class UserORM(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("identity_provider", "federated_subject", name="ux_users_federated_identity"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     username: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    identity_provider: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    federated_subject: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    mfa_secret: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    session_timeout_minutes_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    session_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    last_login_auth_method: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    last_login_device_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     failed_login_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -691,6 +702,30 @@ class ProjectMembershipORM(Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
+    user_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    scope_role: Mapped[str] = mapped_column(String(64), nullable=False, default="viewer", server_default="viewer")
+    permission_codes_json: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="[]",
+        server_default="[]",
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ScopedAccessGrantORM(Base):
+    __tablename__ = "scoped_access_grants"
+    __table_args__ = (
+        UniqueConstraint("scope_type", "scope_id", "user_id", name="ux_scoped_access_scope_user"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    scope_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope_id: Mapped[str] = mapped_column(String, nullable=False)
     user_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -890,6 +925,8 @@ Index("idx_role_permissions_role", RolePermissionORM.role_id)
 Index("idx_role_permissions_permission", RolePermissionORM.permission_id)
 Index("idx_project_memberships_project", ProjectMembershipORM.project_id)
 Index("idx_project_memberships_user", ProjectMembershipORM.user_id)
+Index("idx_scoped_access_scope", ScopedAccessGrantORM.scope_type, ScopedAccessGrantORM.scope_id)
+Index("idx_scoped_access_user", ScopedAccessGrantORM.user_id)
 Index("idx_audit_logs_occurred_at", AuditLogORM.occurred_at)
 Index("idx_audit_logs_project", AuditLogORM.project_id)
 Index("idx_audit_logs_entity", AuditLogORM.entity_type, AuditLogORM.entity_id)

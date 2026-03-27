@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from core.modules.inventory_procurement.domain import StockBalance, StockTransaction
 from core.modules.inventory_procurement.support import normalize_optional_text
+from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.common.exceptions import NotFoundError
 
 
@@ -14,10 +15,17 @@ class StockControlQueryMixin:
     ) -> list[StockBalance]:
         self._require_read("list stock balances")
         organization = self._active_organization()
-        return self._balance_repo.list_for_organization(
+        rows = self._balance_repo.list_for_organization(
             organization.id,
             stock_item_id=normalize_optional_text(stock_item_id) or None,
             storeroom_id=normalize_optional_text(storeroom_id) or None,
+        )
+        return filter_scope_rows(
+            rows,
+            self._user_session,
+            scope_type="storeroom",
+            permission_code="inventory.read",
+            scope_id_getter=lambda row: getattr(row, "storeroom_id", ""),
         )
 
     def get_balance(self, balance_id: str) -> StockBalance:
@@ -26,6 +34,13 @@ class StockControlQueryMixin:
         balance = self._balance_repo.get(balance_id)
         if balance is None or balance.organization_id != organization.id:
             raise NotFoundError("Stock balance not found in the active organization.", code="INVENTORY_STOCK_BALANCE_NOT_FOUND")
+        require_scope_permission(
+            self._user_session,
+            "storeroom",
+            balance.storeroom_id,
+            "inventory.read",
+            operation_label="view stock balance",
+        )
         return balance
 
     def get_balance_for_stock_position(self, *, stock_item_id: str, storeroom_id: str) -> StockBalance | None:
@@ -45,11 +60,18 @@ class StockControlQueryMixin:
     ) -> list[StockTransaction]:
         self._require_read("list stock transactions")
         organization = self._active_organization()
-        return self._transaction_repo.list_for_organization(
+        rows = self._transaction_repo.list_for_organization(
             organization.id,
             stock_item_id=normalize_optional_text(stock_item_id) or None,
             storeroom_id=normalize_optional_text(storeroom_id) or None,
             limit=max(1, int(limit or 200)),
+        )
+        return filter_scope_rows(
+            rows,
+            self._user_session,
+            scope_type="storeroom",
+            permission_code="inventory.read",
+            scope_id_getter=lambda row: getattr(row, "storeroom_id", ""),
         )
 
 

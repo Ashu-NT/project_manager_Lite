@@ -45,6 +45,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Documents" in labels
     assert "Parties" in labels
     assert "Access" in labels
+    assert "Security" in labels
     assert "Audit" in labels
     assert "Support" in labels
     assert "Modules" in labels

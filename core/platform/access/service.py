@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
@@ -35,6 +36,7 @@ class AccessControlService:
         auth_service: "AuthService",
         policy_registry: ScopedRolePolicyRegistry | None = None,
         scoped_access_repo: ScopedAccessGrantRepository | None = None,
+        scope_exists_resolvers: dict[str, Callable[[str], bool]] | None = None,
         user_session: "UserSessionContext | None" = None,
         audit_service: "AuditService | None" = None,
     ) -> None:
@@ -45,8 +47,15 @@ class AccessControlService:
         self._auth_service = auth_service
         self._policy_registry = policy_registry or ScopedRolePolicyRegistry()
         self._scoped_access_repo = scoped_access_repo
+        self._scope_exists_resolvers = {
+            self._normalize_scope_type(scope_type): resolver
+            for scope_type, resolver in dict(scope_exists_resolvers or {}).items()
+        }
         self._user_session = user_session
         self._audit_service = audit_service
+
+    def register_scope_exists_resolver(self, scope_type: str, resolver: Callable[[str], bool]) -> None:
+        self._scope_exists_resolvers[self._normalize_scope_type(scope_type)] = resolver
 
     def list_supported_scope_types(self) -> tuple[str, ...]:
         return self._policy_registry.list_scope_types()
@@ -126,63 +135,68 @@ class AccessControlService:
         if not permissions:
             raise ValidationError("Scope role must resolve to at least one permission.")
 
+        entity_type = "project_membership"
         if normalized_scope_type == "project":
             project = self._project_repo.get(normalized_scope_id)
             if project is None:
                 raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-            if self._scoped_access_repo is not None:
-                grant = self._scoped_access_repo.get_for_scope_user(
-                    normalized_scope_type,
-                    normalized_scope_id,
-                    user_id,
-                )
-                if grant is None:
-                    grant = ScopedAccessGrant.create(
-                        scope_type=normalized_scope_type,
-                        scope_id=normalized_scope_id,
-                        user_id=user_id,
-                        scope_role=role_name,
-                        permission_codes=permissions,
-                    )
-                    self._scoped_access_repo.add(grant)
-                else:
-                    grant.scope_role = role_name
-                    grant.permission_codes = permissions
-                    self._scoped_access_repo.update(grant)
-            else:
-                membership = self._membership_repo.get_for_project_user(normalized_scope_id, user_id)
-                if membership is None:
-                    membership = ProjectMembership.create(
-                        project_id=normalized_scope_id,
-                        user_id=user_id,
-                        scope_role=role_name,
-                        permission_codes=permissions,
-                    )
-                    self._membership_repo.add(membership)
-                else:
-                    membership.scope_role = role_name
-                    membership.permission_codes = permissions
-                    self._membership_repo.update(membership)
-                grant = membership.as_scoped_access_grant()
-            self._session.commit()
-            record_audit(
-                self,
-                action="access.membership.upsert",
-                entity_type="project_membership",
-                entity_id=grant.id,
-                project_id=normalized_scope_id,
-                details={
-                    "scope_type": normalized_scope_type,
-                    "scope_id": normalized_scope_id,
-                    "username": user.username,
-                    "scope_role": grant.scope_role,
-                },
-            )
-            domain_events.access_changed.emit(normalized_scope_id)
-            self._refresh_current_session_if_needed(user_id)
-            return grant
+        else:
+            self._assert_scope_exists(normalized_scope_type, normalized_scope_id)
+            entity_type = f"{normalized_scope_type}_access_grant"
 
-        self._raise_unsupported_scope_type(normalized_scope_type)
+        if self._scoped_access_repo is not None:
+            grant = self._scoped_access_repo.get_for_scope_user(
+                normalized_scope_type,
+                normalized_scope_id,
+                user_id,
+            )
+            if grant is None:
+                grant = ScopedAccessGrant.create(
+                    scope_type=normalized_scope_type,
+                    scope_id=normalized_scope_id,
+                    user_id=user_id,
+                    scope_role=role_name,
+                    permission_codes=permissions,
+                )
+                self._scoped_access_repo.add(grant)
+            else:
+                grant.scope_role = role_name
+                grant.permission_codes = permissions
+                self._scoped_access_repo.update(grant)
+        elif normalized_scope_type == "project":
+            membership = self._membership_repo.get_for_project_user(normalized_scope_id, user_id)
+            if membership is None:
+                membership = ProjectMembership.create(
+                    project_id=normalized_scope_id,
+                    user_id=user_id,
+                    scope_role=role_name,
+                    permission_codes=permissions,
+                )
+                self._membership_repo.add(membership)
+            else:
+                membership.scope_role = role_name
+                membership.permission_codes = permissions
+                self._membership_repo.update(membership)
+            grant = membership.as_scoped_access_grant()
+        else:
+            self._raise_unsupported_scope_type(normalized_scope_type)
+        self._session.commit()
+        record_audit(
+            self,
+            action="access.membership.upsert",
+            entity_type=entity_type,
+            entity_id=grant.id,
+            project_id=normalized_scope_id if normalized_scope_type == "project" else None,
+            details={
+                "scope_type": normalized_scope_type,
+                "scope_id": normalized_scope_id,
+                "username": user.username,
+                "scope_role": grant.scope_role,
+            },
+        )
+        domain_events.access_changed.emit(normalized_scope_id)
+        self._refresh_current_session_if_needed(user_id)
+        return grant
 
     def assign_project_membership(
         self,
@@ -207,37 +221,40 @@ class AccessControlService:
         normalized_scope_id = str(scope_id or "").strip()
         if not normalized_scope_id:
             raise ValidationError("Scope id is required.", code="SCOPE_ID_REQUIRED")
-        if normalized_scope_type == "project":
-            if self._scoped_access_repo is not None:
-                grant = self._scoped_access_repo.get_for_scope_user(normalized_scope_type, normalized_scope_id, user_id)
-            else:
-                membership = self._membership_repo.get_for_project_user(normalized_scope_id, user_id)
-                grant = membership.as_scoped_access_grant() if membership is not None else None
-            if grant is None:
-                raise NotFoundError("Project membership not found.", code="PROJECT_MEMBERSHIP_NOT_FOUND")
-            user = self._user_repo.get(user_id)
-            if self._scoped_access_repo is not None:
-                self._scoped_access_repo.delete(grant.id)
-            else:
-                self._membership_repo.delete(grant.id)
-            self._session.commit()
-            record_audit(
-                self,
-                action="access.membership.remove",
-                entity_type="project_membership",
-                entity_id=grant.id,
-                project_id=normalized_scope_id,
-                details={
-                    "scope_type": normalized_scope_type,
-                    "scope_id": normalized_scope_id,
-                    "username": user.username if user is not None else user_id,
-                    "scope_role": grant.scope_role,
-                },
-            )
-            domain_events.access_changed.emit(normalized_scope_id)
-            self._refresh_current_session_if_needed(user_id)
-            return
-        self._raise_unsupported_scope_type(normalized_scope_type)
+        if self._scoped_access_repo is not None:
+            grant = self._scoped_access_repo.get_for_scope_user(normalized_scope_type, normalized_scope_id, user_id)
+        elif normalized_scope_type == "project":
+            membership = self._membership_repo.get_for_project_user(normalized_scope_id, user_id)
+            grant = membership.as_scoped_access_grant() if membership is not None else None
+        else:
+            self._raise_unsupported_scope_type(normalized_scope_type)
+        if grant is None:
+            not_found_code = "PROJECT_MEMBERSHIP_NOT_FOUND" if normalized_scope_type == "project" else "SCOPED_ACCESS_GRANT_NOT_FOUND"
+            not_found_label = "Project membership" if normalized_scope_type == "project" else "Scoped access grant"
+            raise NotFoundError(f"{not_found_label} not found.", code=not_found_code)
+        user = self._user_repo.get(user_id)
+        if self._scoped_access_repo is not None:
+            self._scoped_access_repo.delete(grant.id)
+        else:
+            self._membership_repo.delete(grant.id)
+        entity_type = "project_membership" if normalized_scope_type == "project" else f"{normalized_scope_type}_access_grant"
+        self._session.commit()
+        record_audit(
+            self,
+            action="access.membership.remove",
+            entity_type=entity_type,
+            entity_id=grant.id,
+            project_id=normalized_scope_id if normalized_scope_type == "project" else None,
+            details={
+                "scope_type": normalized_scope_type,
+                "scope_id": normalized_scope_id,
+                "username": user.username if user is not None else user_id,
+                "scope_role": grant.scope_role,
+            },
+        )
+        domain_events.access_changed.emit(normalized_scope_id)
+        self._refresh_current_session_if_needed(user_id)
+        return
 
     def remove_project_membership(self, *, project_id: str, user_id: str) -> None:
         self.remove_scope_grant(scope_type="project", scope_id=project_id, user_id=user_id)
@@ -265,6 +282,16 @@ class AccessControlService:
 
     def _normalize_scope_type(self, scope_type: str) -> str:
         return ScopedRolePolicyRegistry.normalize_scope_type(scope_type)
+
+    def _assert_scope_exists(self, scope_type: str, scope_id: str) -> None:
+        if scope_type == "project":
+            return
+        resolver = self._scope_exists_resolvers.get(scope_type)
+        if resolver is None:
+            return
+        if resolver(scope_id):
+            return
+        raise NotFoundError(f"{scope_type.title()} not found.", code=f"{scope_type.upper()}_NOT_FOUND")
 
     @staticmethod
     def _raise_unsupported_scope_type(scope_type: str):

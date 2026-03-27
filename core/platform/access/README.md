@@ -40,24 +40,28 @@ The platform service and admin tab now also expose scope-neutral operations and 
 - `ScopedAccessGrantRepository` as the platform persistence seam for scoped grants
 - a scope-oriented Access admin tab that can host future non-project scope types without importing PM policy code directly
 
-## Phase 1 Outcome
+## Phase 2 Outcome
 
-Phase 1 intentionally does not change the database schema. Existing `project_memberships` rows are projected into generic scoped access with:
+The current implementation now supports two persistence paths:
 
 - `scope_type = "project"`
 - `scope_id = project_id`
+- dedicated `scoped_access_grants` rows for non-project scope types such as `storeroom`
 
-This keeps the migration low-risk while enabling future modules to adopt the same platform authorization model.
+This keeps project compatibility intact while allowing real non-project enterprise scopes to use the same platform authorization model.
 
 The current implementation now also includes:
 
 - a generic `ScopedAccessGrantRepository` contract in `core/platform/common/interfaces.py`
-- a compatibility SQLAlchemy adapter that projects project-membership storage into scoped grants
+- a mixed SQLAlchemy adapter that reads project grants from `project_memberships` and non-project grants from `scoped_access_grants`
 - principal-building in `AuthService` that hydrates `scoped_access` from the generic grant repository when available
 - compatibility wrappers that still preserve `project_access` and PM membership APIs for the current runtime
+- first live non-project scope policy registration for `storeroom`
+- scope-aware inventory filtering for storeroom administration and stock ledger queries
+- split `Access` and `Security` shell workspaces while keeping `AccessTab` as a reusable shared surface
 
 ## Suggested Next Steps
 
-1. Add dedicated persistence for non-project scope types when another module needs real scoped grants.
-2. Register and ship module-owned scope policies such as storeroom, asset, or maintenance-area access through the same platform seam.
-3. Evolve the access admin UX from project-first labels to a broader multi-scope management console as new scope types come online.
+1. Add more module-owned scope policies such as asset and maintenance-area access through the same platform seam.
+2. Keep pushing scope-aware enforcement deeper into inventory/procurement and future maintenance services.
+3. Evolve the access admin UX from project-first labels to a broader multi-scope management console as more scope types come online.

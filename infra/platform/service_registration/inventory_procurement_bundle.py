@@ -145,6 +145,18 @@ def build_inventory_procurement_service_bundle(
         party_service=platform_services.party_service,
         user_session=platform_services.user_session,
     )
+
+    def _storeroom_exists(storeroom_id: str) -> bool:
+        storeroom = storeroom_repo.get(storeroom_id)
+        organization = platform_services.organization_repo.get_active()
+        return bool(
+            storeroom is not None
+            and organization is not None
+            and storeroom.organization_id == organization.id
+        )
+
+    platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)
+
     return InventoryProcurementServiceBundle(
         inventory_reference_service=inventory_reference_service,
         inventory_item_service=inventory_item_service,

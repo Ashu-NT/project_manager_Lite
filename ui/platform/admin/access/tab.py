@@ -40,14 +40,20 @@ class AccessTab(QWidget):
         scope_type_choices: tuple[tuple[str, str], ...] | None = None,
         scope_option_loaders: dict[str, ScopeOptionLoader] | None = None,
         scope_disabled_hints: dict[str, str] | None = None,
+        show_access_tab: bool = True,
+        show_security_tab: bool = True,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        if not show_access_tab and not show_security_tab:
+            raise ValueError("AccessTab requires at least one visible section.")
         self._access_service = access_service
         self._auth_service = auth_service
         self._project_service = project_service
         self._user_session = user_session
+        self._show_access_tab = bool(show_access_tab)
+        self._show_security_tab = bool(show_security_tab)
         self._scope_type_choices = scope_type_choices or (("Project", "project"),)
         self._scope_option_loaders = dict(scope_option_loaders or {})
         if "project" not in self._scope_option_loaders and self._project_service is not None:
@@ -83,11 +89,19 @@ class AccessTab(QWidget):
         root.setSpacing(CFG.SPACING_MD)
         root.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        title = QLabel("Access Control")
+        if self._show_access_tab and self._show_security_tab:
+            title_text = "Access Control"
+            subtitle_text = "Manage scoped access grants and inspect login security state for user accounts."
+        elif self._show_access_tab:
+            title_text = "Scoped Access"
+            subtitle_text = "Manage scope-specific access grants across enabled platform and module scopes."
+        else:
+            title_text = "Account Security"
+            subtitle_text = "Inspect lockout, session, and account-security state for user accounts."
+
+        title = QLabel(title_text)
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        subtitle = QLabel(
-            "Manage scoped access grants and inspect login security state for user accounts."
-        )
+        subtitle = QLabel(subtitle_text)
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
         root.addWidget(title)
@@ -96,7 +110,7 @@ class AccessTab(QWidget):
         self.access_tabs = QTabWidget()
         self.access_tabs.setObjectName("AccessControlTabs")
 
-        controls_box = QWidget()
+        controls_box = QWidget(self)
         controls_layout = QVBoxLayout(controls_box)
         controls_layout.setSpacing(CFG.SPACING_SM)
 
@@ -146,16 +160,20 @@ class AccessTab(QWidget):
         self.membership_table.setEnabled(self._can_manage_memberships)
         controls_layout.addWidget(self.membership_table)
 
-        security_box = QWidget()
+        security_box = QWidget(self)
         security_layout = QVBoxLayout(security_box)
         security_layout.setSpacing(CFG.SPACING_SM)
         security_header = QHBoxLayout()
         self.security_hint = QLabel("Unlock accounts after lockout or inspect active session expiry state.")
         self.security_hint.setStyleSheet(CFG.NOTE_STYLE_SHEET)
         self.btn_unlock = QPushButton("Unlock Selected User")
+        self.btn_revoke_sessions = QPushButton("Revoke Sessions")
         self.btn_unlock.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_unlock.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+        self.btn_revoke_sessions.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_revoke_sessions.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         security_header.addWidget(self.security_hint, 1)
+        security_header.addWidget(self.btn_revoke_sessions)
         security_header.addWidget(self.btn_unlock)
         security_layout.addLayout(security_header)
 
@@ -171,16 +189,24 @@ class AccessTab(QWidget):
         self.security_table.setEnabled(self._can_view_user_security)
         security_layout.addWidget(self.security_table)
 
-        self.access_tabs.addTab(controls_box, "Scope Access")
-        self.access_tabs.addTab(security_box, "Account Security")
+        if self._show_access_tab:
+            self.access_tabs.addTab(controls_box, "Scope Access")
+        if self._show_security_tab:
+            self.access_tabs.addTab(security_box, "Account Security")
 
-        root.addWidget(self.access_tabs, 1)
+        if self.access_tabs.count() > 1:
+            root.addWidget(self.access_tabs, 1)
+        elif self._show_access_tab:
+            root.addWidget(controls_box, 1)
+        else:
+            root.addWidget(security_box, 1)
 
         self.scope_type_combo.currentIndexChanged.connect(self._on_scope_type_changed)
         self.scope_combo.currentIndexChanged.connect(self._reload_memberships)
         self.btn_refresh.clicked.connect(self.reload_data)
         self.btn_assign.clicked.connect(self._assign_membership)
         self.btn_remove.clicked.connect(self._remove_membership)
+        self.btn_revoke_sessions.clicked.connect(self._revoke_sessions_for_selected_user)
         self.btn_unlock.clicked.connect(self._unlock_selected_user)
         for widget in (self.scope_type_combo, self.scope_combo, self.user_combo, self.role_combo):
             widget.setEnabled(self._can_manage_memberships)
@@ -197,6 +223,11 @@ class AccessTab(QWidget):
         )
         apply_permission_hint(
             self.btn_unlock,
+            allowed=self._can_unlock_users,
+            missing_permission="auth.manage or security.manage",
+        )
+        apply_permission_hint(
+            self.btn_revoke_sessions,
             allowed=self._can_unlock_users,
             missing_permission="auth.manage or security.manage",
         )
@@ -338,6 +369,29 @@ class AccessTab(QWidget):
             return
         try:
             self._auth_service.unlock_user_account(user_id)
+        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
+            QMessageBox.warning(self, "Access Control", str(exc))
+            return
+        self.reload_data()
+
+    def _revoke_sessions_for_selected_user(self) -> None:
+        if not self._can_unlock_users:
+            QMessageBox.information(
+                self,
+                "Access Control",
+                "Revoking sessions requires auth.manage or security.manage.",
+            )
+            return
+        row = self.security_table.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "Access Control", "Select a user first.")
+            return
+        item = self.security_table.item(row, 0)
+        user_id = str(item.data(Qt.UserRole) or "") if item is not None else ""
+        if not user_id:
+            return
+        try:
+            self._auth_service.revoke_user_sessions(user_id, note="Revoked from Account Security workspace.")
         except (BusinessRuleError, ValidationError, NotFoundError) as exc:
             QMessageBox.warning(self, "Access Control", str(exc))
             return

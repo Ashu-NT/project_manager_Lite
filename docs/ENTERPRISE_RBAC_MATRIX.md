@@ -19,13 +19,17 @@ Delivered:
 - access/security separation in the admin surfaces
 - explicit bootstrap-admin password requirements and forced-password-change flags for first-run admin creation
 - repo-backed session validation plus `security.manage` session revocation controls
+- federated identity linking and MFA enrollment/verification hooks in shared auth
+- per-user session-timeout policy plus session-revision invalidation controls
+- true non-project scoped access persistence with first live `storeroom` scope grants
+- first separation-of-duties guardrails for conflicting approval and access/security permission combinations
 
 Pending:
 
 - HR Management feature slice implementation
-- separation-of-duties checks for conflicting role combinations
-- stronger `security.manage` capabilities such as SSO/MFA, hosted identity federation, and richer session/device governance
-- a separate `Security` admin surface if module/admin scope keeps growing
+- broader configurable separation-of-duties policy beyond the delivered core conflicts
+- stronger `security.manage` capabilities such as hosted SSO adapters, external IdP provisioning, and richer device/session posture governance
+- deeper non-project scope adoption beyond `storeroom`, especially asset and maintenance-area controls
 
 ## Global Roles
 
@@ -81,15 +85,15 @@ This keeps payroll separate from generic finance admin and supports segregation 
 
 ## Concrete Next Plan
 
-1. Add a dedicated `hr_management` feature slice under `core/modules`, `infra/modules`, and `ui/modules`.
-2. Model payroll periods, run states, exceptions, and export batches.
-3. Wire payroll actions to the new permissions rather than reusing `finance.manage`.
-4. Add approval and audit events for payroll run prepare, approve, release, reopen, and export.
-5. Split the current Access workspace into `Access` and `Security` when the module count justifies separate admin surfaces.
+1. Add hosted SSO adapter seams and IdP-provisioning workflows on top of the delivered federated identity model.
+2. Expand the scoped-access policy registry and persistence layer to asset, maintenance-area, and other non-project scopes.
+3. Move separation-of-duties from fixed guardrails to a configurable enterprise policy matrix.
+4. Add richer Security workspace actions for password reset, MFA state inspection/reset, and federated-account lifecycle.
+5. Add a dedicated `hr_management` feature slice that consumes the delivered payroll-ready permissions.
 
 ## Follow-Ups
 
 - add role descriptions and search/filtering in the Users admin workspace
-- add deny rules or separation-of-duties checks for conflicting role combinations
-- add SSO/MFA and stronger hosted-session/device governance so `security.manage` grows beyond lockout + revocation handling
+- add broader deny rules / configurable separation-of-duties checks beyond the delivered baseline conflicts
+- add hosted SSO rollout, IdP provisioning, and stronger device/session governance so `security.manage` grows beyond lockout + revocation + timeout policy
 - add payroll-specific reports, payslip exports, and ERP/journal integration once the HR Management module lands

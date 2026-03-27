@@ -26,6 +26,11 @@ from core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
+from core.modules.inventory_procurement.access.policy import (
+    STOREROOM_SCOPE_ROLE_CHOICES,
+    normalize_storeroom_scope_role,
+    resolve_storeroom_scope_permissions,
+)
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from infra.platform.db.repositories import SqlAlchemyModuleEntitlementRepository
@@ -177,6 +182,12 @@ def build_platform_service_bundle(
                     role_choices=PROJECT_SCOPE_ROLE_CHOICES,
                     normalize_role=normalize_project_scope_role,
                     resolve_permissions=resolve_project_scope_permissions,
+                ),
+                ScopedRolePolicy(
+                    scope_type="storeroom",
+                    role_choices=STOREROOM_SCOPE_ROLE_CHOICES,
+                    normalize_role=normalize_storeroom_scope_role,
+                    resolve_permissions=resolve_storeroom_scope_permissions,
                 ),
             )
         ),

@@ -14,6 +14,14 @@ class UserAccount:
     password_hash: str
     display_name: Optional[str] = None
     email: Optional[str] = None
+    identity_provider: Optional[str] = None
+    federated_subject: Optional[str] = None
+    mfa_secret: Optional[str] = None
+    mfa_enabled: bool = False
+    session_timeout_minutes_override: int | None = None
+    session_revision: int = 1
+    last_login_auth_method: Optional[str] = None
+    last_login_device_label: Optional[str] = None
     is_active: bool = True
     failed_login_attempts: int = 0
     locked_until: datetime | None = None
@@ -40,6 +48,14 @@ class UserAccount:
             password_hash=password_hash,
             display_name=display_name,
             email=email,
+            identity_provider=None,
+            federated_subject=None,
+            mfa_secret=None,
+            mfa_enabled=False,
+            session_timeout_minutes_override=None,
+            session_revision=1,
+            last_login_auth_method=None,
+            last_login_device_label=None,
             is_active=is_active,
             failed_login_attempts=0,
             locked_until=None,

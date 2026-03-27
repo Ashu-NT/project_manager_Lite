@@ -83,6 +83,20 @@ def build_workspace_definitions(
         and hasattr(platform_runtime_application_service, "is_enabled")
         and not platform_runtime_application_service.is_enabled(INVENTORY_PROCUREMENT_MODULE_CODE)
     )
+    access_scope_type_choices: list[tuple[str, str]] = [("Project", "project")]
+    access_scope_option_loaders: dict[str, object] = {}
+    access_scope_disabled_hints: dict[str, str] = {}
+    inventory_service = services.get("inventory_service")
+    if inventory_procurement_enabled and _has_any_permission(user_session, "inventory.read", "inventory.manage"):
+        if inventory_service is not None and hasattr(inventory_service, "list_storerooms"):
+            access_scope_type_choices.append(("Storeroom", "storeroom"))
+            access_scope_option_loaders["storeroom"] = lambda: [
+                (f"{storeroom.storeroom_code} - {storeroom.name}", storeroom.id)
+                for storeroom in inventory_service.list_storerooms()
+            ]
+            access_scope_disabled_hints["storeroom"] = (
+                "Inventory & Procurement is disabled. Enable it in Modules before managing storeroom-scoped access."
+            )
 
     if bool(user_session is not None and user_session.is_authenticated()):
         definitions.append(
@@ -569,7 +583,7 @@ def build_workspace_definitions(
             )
         )
 
-    if _has_any_permission(user_session, "access.manage", "security.manage"):
+    if _has_permission(user_session, "access.manage"):
         definitions.append(
             WorkspaceDefinition(
                 module_code=PLATFORM_MODULE_CODE,
@@ -580,6 +594,30 @@ def build_workspace_definitions(
                     access_service=services["access_service"],
                     auth_service=services["auth_service"],
                     project_service=services["project_service"],
+                    scope_type_choices=tuple(access_scope_type_choices),
+                    scope_option_loaders=access_scope_option_loaders,
+                    scope_disabled_hints=access_scope_disabled_hints,
+                    show_access_tab=True,
+                    show_security_tab=False,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if _has_any_permission(user_session, "auth.manage", "security.manage"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Administration",
+                label="Security",
+                widget=AccessTab(
+                    access_service=services["access_service"],
+                    auth_service=services["auth_service"],
+                    project_service=services["project_service"],
+                    show_access_tab=False,
+                    show_security_tab=True,
                     user_session=user_session,
                     parent=parent,
                 ),

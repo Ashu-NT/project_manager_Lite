@@ -23,7 +23,7 @@ Pending major work:
 
 - deeper hardening for `Inventory & Procurement`, especially inventory-specific import/export contracts, lot/serial and shelf-life controls, richer warehouse execution policies, and maintenance-facing integration workflows
 - `Maintenance Management`, `QHSE`, and `HR Management` business modules
-- deeper enterprise identity controls such as SSO/MFA, hosted identity federation, and separation-of-duties enforcement after the delivered session-revocation groundwork
+- deeper enterprise identity controls such as hosted SSO rollout, external IdP provisioning, broader separation-of-duties policy, and richer device posture rules after the delivered federation/MFA/session-policy groundwork
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
 The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`; it currently has no remaining carryover backlog. The remaining PM work is now technical alignment follow-up, tracked separately in `docs/project_management_followup/README.md`.
@@ -47,17 +47,17 @@ Why this comes first:
 - professional CMMS patterns usually keep inventory and purchasing as a dedicated business capability that maintenance work orders integrate with
 - maintenance is stronger when it consumes a clean stock and purchasing module instead of owning duplicate inventory logic
 
-The current execution block delivered:
+The current enterprise auth/access hardening block delivered:
 
-1. explicit bootstrap-admin password requirements, forced-password-change flags, repo-backed live-session validation, and `security.manage` session revocation groundwork
-2. configured inventory UOM conversion across stock transactions, reservations, requisitions, purchase orders, approvals, and receipts
-3. platform-owned shared master data exchange for `site` and `party` through the shared import/export runtime
+1. federation and MFA hooks in the shared auth service: linked federated identities, MFA secret provisioning and verification, per-user session-timeout policy, session-revision validation, and richer login/session metadata
+2. true non-project scoped access persistence with the first live non-project scope type: `storeroom`, including principal hydration from mixed project + scoped grants
+3. cross-cutting enterprise guardrails: first separation-of-duties enforcement for conflicting security/governance permission sets and a split `Access` vs `Security` admin workspace
 
 The next implementation slice should now focus on:
 
-1. inventory-specific import/export contracts for item, storeroom, requisition, purchase-order, and receipt data
-2. lot/serial, shelf-life, and richer warehouse receiving/execution policy
-3. wiring `maintenance_management` material demand to `inventory_procurement` instead of embedding stock ledgers directly inside maintenance
+1. hosted SSO/IdP adapters and deeper `security.manage` workflows such as stronger device visibility and security event handling
+2. broader scoped-access adoption inside inventory flows beyond storeroom admin/ledger boundaries, then asset/maintenance-area scope types
+3. configurable separation-of-duties policy management and fuller security admin UX for password reset, MFA state, and federated-account lifecycle
 
 After that, the next priority should be the `Maintenance Management` skeleton, then deeper shared master data for formal site/department directories, and then the `QHSE` module skeleton.
 

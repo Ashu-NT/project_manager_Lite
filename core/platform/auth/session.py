@@ -60,6 +60,9 @@ class UserSessionPrincipal:
     project_access: dict[str, FrozenSet[str]] = field(default_factory=dict)
     session_expires_at: datetime | None = None
     must_change_password: bool = False
+    session_revision: int = 1
+    identity_provider: str | None = None
+    last_login_auth_method: str | None = None
 
 
 class UserSessionContext:
@@ -96,6 +99,9 @@ class UserSessionContext:
             project_access=dict(normalized_scoped_access.get("project", {})),
             session_expires_at=ensure_utc_datetime(principal.session_expires_at),
             must_change_password=bool(getattr(principal, "must_change_password", False)),
+            session_revision=max(1, int(getattr(principal, "session_revision", 1) or 1)),
+            identity_provider=(str(getattr(principal, "identity_provider", "") or "").strip() or None),
+            last_login_auth_method=(str(getattr(principal, "last_login_auth_method", "") or "").strip() or None),
         )
 
     def clear(self) -> None:
