@@ -213,6 +213,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
                 "session_expires_at": user.session_expires_at.isoformat() if user.session_expires_at else "",
             },
         )
+        self._refresh_current_session_if_user(user.id)
         return user
 
     def change_password(self, user_id: str, current_password: str, new_password: str) -> None:
