@@ -140,3 +140,25 @@ def test_access_tab_security_admin_mode_keeps_security_controls_without_membersh
     assert tab.project_combo.isEnabled() is False
     assert tab.membership_table.rowCount() == 0
     assert tab.security_table.rowCount() >= 3
+
+
+def test_access_tab_security_only_mode_renders_security_workspace(qapp, services):
+    auth = services["auth_service"]
+    auth.register_user("security-only-user", "StrongPass123", role_names=["security_admin"])
+    auth.register_user("security-only-target", "StrongPass123", role_names=["viewer"])
+
+    login_as(services, "security-only-user", "StrongPass123")
+
+    tab = AccessTab(
+        access_service=services["access_service"],
+        auth_service=services["auth_service"],
+        project_service=services["project_service"],
+        show_access_tab=False,
+        show_security_tab=True,
+        user_session=services["user_session"],
+    )
+
+    assert tab.layout() is not None
+    assert tab.security_table.parent() is not None
+    assert tab.security_table.rowCount() >= 3
+    assert tab.btn_unlock.isEnabled() is True

@@ -22,6 +22,11 @@ from core.platform.auth import AuthService
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
+from ui.modules.project_management.dashboard.styles import (
+    dashboard_action_button_style,
+    dashboard_badge_style,
+    dashboard_meta_chip_style,
+)
 from ui.platform.shared.guards import apply_permission_hint, has_permission
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -90,29 +95,92 @@ class AccessTab(QWidget):
         root.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
         if self._show_access_tab and self._show_security_tab:
+            eyebrow_text = "IDENTITY & ACCESS"
             title_text = "Access Control"
             subtitle_text = "Manage scoped access grants and inspect login security state for user accounts."
+            scope_badge_text = "Combined Surface"
         elif self._show_access_tab:
+            eyebrow_text = "PLATFORM ACCESS"
             title_text = "Scoped Access"
             subtitle_text = "Manage scope-specific access grants across enabled platform and module scopes."
+            scope_badge_text = "Multi-Scope Grants"
         else:
+            eyebrow_text = "PLATFORM SECURITY"
             title_text = "Account Security"
             subtitle_text = "Inspect lockout, session, and account-security state for user accounts."
+            scope_badge_text = "Session Governance"
 
+        header = QWidget(self)
+        header.setObjectName("accessAdminHeaderCard")
+        header.setStyleSheet(
+            f"""
+            QWidget#accessAdminHeaderCard {{
+                background-color: {CFG.COLOR_BG_SURFACE};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
+        header_layout.setSpacing(CFG.SPACING_MD)
+        intro = QVBoxLayout()
+        intro.setSpacing(CFG.SPACING_XS)
+        eyebrow = QLabel(eyebrow_text)
+        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
+        intro.addWidget(eyebrow)
         title = QLabel(title_text)
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
+        intro.addWidget(title)
         subtitle = QLabel(subtitle_text)
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        root.addWidget(title)
-        root.addWidget(subtitle)
+        intro.addWidget(subtitle)
+        header_layout.addLayout(intro, 1)
+
+        status_layout = QVBoxLayout()
+        status_layout.setSpacing(CFG.SPACING_SM)
+        self.header_scope_badge = QLabel(scope_badge_text)
+        self.header_scope_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
+        access_label = "Manage Enabled" if (self._can_manage_memberships or self._can_unlock_users) else "Read Only"
+        self.header_access_badge = QLabel(access_label)
+        self.header_access_badge.setStyleSheet(dashboard_meta_chip_style())
+        self.header_mode_badge = QLabel("Live Session View" if self._show_security_tab else "Grant Directory")
+        self.header_mode_badge.setStyleSheet(dashboard_meta_chip_style())
+        status_layout.addWidget(self.header_scope_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.header_access_badge, 0, Qt.AlignRight)
+        status_layout.addWidget(self.header_mode_badge, 0, Qt.AlignRight)
+        status_layout.addStretch(1)
+        header_layout.addLayout(status_layout)
+        root.addWidget(header)
 
         self.access_tabs = QTabWidget()
         self.access_tabs.setObjectName("AccessControlTabs")
 
         controls_box = QWidget(self)
+        controls_box.setObjectName("accessAdminControlSurface")
+        controls_box.setStyleSheet(
+            f"""
+            QWidget#accessAdminControlSurface {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
         controls_layout = QVBoxLayout(controls_box)
+        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
         controls_layout.setSpacing(CFG.SPACING_SM)
+
+        controls_title = QLabel("Grant Scoped Access")
+        controls_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        controls_description = QLabel(
+            "Select a scope, user, and scope role to manage membership and effective permissions."
+        )
+        controls_description.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        controls_description.setWordWrap(True)
+        controls_layout.addWidget(controls_title)
+        controls_layout.addWidget(controls_description)
 
         row = QGridLayout()
         row.setHorizontalSpacing(CFG.SPACING_MD)
@@ -124,14 +192,16 @@ class AccessTab(QWidget):
         self.project_combo = self.scope_combo
         self.user_combo = QComboBox()
         self.role_combo = QComboBox()
+        row.setColumnStretch(1, 1)
+        row.setColumnStretch(3, 1)
         row.addWidget(QLabel("Scope Type"), 0, 0, alignment=Qt.AlignmentFlag.AlignRight)
         row.addWidget(self.scope_type_combo, 0, 1)
         row.addWidget(QLabel("Scope"), 0, 2, alignment=Qt.AlignmentFlag.AlignRight)
         row.addWidget(self.scope_combo, 0, 3)
-        row.addWidget(QLabel("User"), 0, 4, alignment=Qt.AlignmentFlag.AlignRight)
-        row.addWidget(self.user_combo, 0, 5)
-        row.addWidget(QLabel("Scope Role"), 1, 0, alignment=Qt.AlignmentFlag.AlignRight)
-        row.addWidget(self.role_combo, 1, 1)
+        row.addWidget(QLabel("User"), 1, 0, alignment=Qt.AlignmentFlag.AlignRight)
+        row.addWidget(self.user_combo, 1, 1)
+        row.addWidget(QLabel("Scope Role"), 1, 2, alignment=Qt.AlignmentFlag.AlignRight)
+        row.addWidget(self.role_combo, 1, 3)
         controls_layout.addLayout(row)
 
         button_row = QHBoxLayout()
@@ -141,7 +211,11 @@ class AccessTab(QWidget):
         for button in (self.btn_refresh, self.btn_assign, self.btn_remove):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
+            button.setMinimumWidth(CFG.BUTTON_MIN_WIDTH_SM)
             button_row.addWidget(button)
+        self.btn_assign.setStyleSheet(dashboard_action_button_style("primary"))
+        self.btn_remove.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
         button_row.addStretch()
         controls_layout.addLayout(button_row)
 
@@ -161,21 +235,45 @@ class AccessTab(QWidget):
         controls_layout.addWidget(self.membership_table)
 
         security_box = QWidget(self)
+        security_box.setObjectName("accessAdminSecuritySurface")
+        security_box.setStyleSheet(
+            f"""
+            QWidget#accessAdminSecuritySurface {{
+                background-color: {CFG.COLOR_BG_SURFACE_ALT};
+                border: 1px solid {CFG.COLOR_BORDER};
+                border-radius: 12px;
+            }}
+            """
+        )
         security_layout = QVBoxLayout(security_box)
+        security_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
         security_layout.setSpacing(CFG.SPACING_SM)
-        security_header = QHBoxLayout()
-        self.security_hint = QLabel("Unlock accounts after lockout or inspect active session expiry state.")
-        self.security_hint.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+
+        security_title = QLabel("Session And Lockout Controls")
+        security_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        self.security_hint = QLabel(
+            "Inspect account state, unlock locked users, and revoke live sessions when access needs to be cut immediately."
+        )
+        self.security_hint.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.security_hint.setWordWrap(True)
         self.btn_unlock = QPushButton("Unlock Selected User")
         self.btn_revoke_sessions = QPushButton("Revoke Sessions")
         self.btn_unlock.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_unlock.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
         self.btn_revoke_sessions.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_revoke_sessions.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        security_header.addWidget(self.security_hint, 1)
-        security_header.addWidget(self.btn_revoke_sessions)
-        security_header.addWidget(self.btn_unlock)
-        security_layout.addLayout(security_header)
+        self.btn_unlock.setMinimumWidth(CFG.BUTTON_MIN_WIDTH_SM)
+        self.btn_revoke_sessions.setMinimumWidth(CFG.BUTTON_MIN_WIDTH_SM)
+        self.btn_unlock.setStyleSheet(dashboard_action_button_style("secondary"))
+        self.btn_revoke_sessions.setStyleSheet(dashboard_action_button_style("secondary"))
+        security_layout.addWidget(security_title)
+        security_layout.addWidget(self.security_hint)
+
+        security_actions = QHBoxLayout()
+        security_actions.addStretch()
+        security_actions.addWidget(self.btn_revoke_sessions)
+        security_actions.addWidget(self.btn_unlock)
+        security_layout.addLayout(security_actions)
 
         self.security_table = QTableWidget(0, 5)
         self.security_table.setHorizontalHeaderLabels(
@@ -189,12 +287,9 @@ class AccessTab(QWidget):
         self.security_table.setEnabled(self._can_view_user_security)
         security_layout.addWidget(self.security_table)
 
-        if self._show_access_tab:
+        if self._show_access_tab and self._show_security_tab:
             self.access_tabs.addTab(controls_box, "Scope Access")
-        if self._show_security_tab:
             self.access_tabs.addTab(security_box, "Account Security")
-
-        if self.access_tabs.count() > 1:
             root.addWidget(self.access_tabs, 1)
         elif self._show_access_tab:
             root.addWidget(controls_box, 1)
