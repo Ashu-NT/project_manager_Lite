@@ -75,14 +75,15 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._session.flush()
 
         admin_username = (os.getenv("PM_ADMIN_USERNAME", "admin").strip() or "admin").lower()
-        admin_password = os.getenv("PM_ADMIN_PASSWORD", "ChangeMe123!")
         admin = self._user_repo.get_by_username(admin_username)
         if admin is None:
+            admin_password = self._resolve_bootstrap_admin_password()
             admin = self.register_user(
                 username=admin_username,
                 raw_password=admin_password,
                 display_name="Administrator",
                 role_names=["admin"],
+                must_change_password=True,
                 commit=False,
                 bypass_permission=True,
             )
@@ -102,6 +103,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         email: str | None = None,
         is_active: bool = True,
         role_names: Iterable[str] | None = None,
+        must_change_password: bool = False,
         *,
         commit: bool = True,
         bypass_permission: bool = False,
@@ -124,6 +126,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             email=normalized_email,
             is_active=is_active,
         )
+        user.must_change_password = bool(must_change_password)
         try:
             with self._session.begin_nested():
                 self._user_repo.add(user)
@@ -196,7 +199,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.failed_login_attempts = 0
         user.locked_until = None
         user.last_login_at = now
-        user.session_expires_at = now + timedelta(minutes=session_timeout_minutes())
+        user.session_expires_at = self._next_session_expiry(now)
         user.updated_at = now
         self._user_repo.update(user)
         self._session.commit()
@@ -221,6 +224,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.password_hash = hash_password(new_password)
         user.updated_at = datetime.now(timezone.utc)
         user.password_changed_at = user.updated_at
+        user.must_change_password = False
+        user.session_expires_at = self._next_session_expiry(user.updated_at)
         self._user_repo.update(user)
         self._session.commit()
         domain_events.auth_changed.emit(user.id)
@@ -233,7 +238,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.password_hash = hash_password(new_password)
         user.updated_at = datetime.now(timezone.utc)
         user.password_changed_at = user.updated_at
-        user.must_change_password = False
+        user.must_change_password = True
+        user.session_expires_at = self._next_session_expiry(user.updated_at)
         self._user_repo.update(user)
         self._session.commit()
         domain_events.auth_changed.emit(user.id)
@@ -348,6 +354,44 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._refresh_current_session_if_user(user.id)
         return user
 
+    def revoke_user_sessions(self, user_id: str, *, note: str = "") -> UserAccount:
+        require_any_permission(
+            self._user_session,
+            ("auth.manage", "security.manage"),
+            operation_label="revoke user sessions",
+        )
+        user = self._require_user(user_id)
+        user.session_expires_at = datetime.now(timezone.utc)
+        user.updated_at = user.session_expires_at
+        self._user_repo.update(user)
+        self._session.commit()
+        domain_events.auth_changed.emit(user.id)
+        self._record_auth_event(
+            action="auth.session.revoked",
+            username=user.username,
+            user_id=user.id,
+            details={"note": note.strip()},
+        )
+        self._refresh_current_session_if_user(user.id)
+        return user
+
+    def validate_session_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal | None:
+        user = self._user_repo.get(principal.user_id)
+        if user is None or not user.is_active:
+            return None
+        current_expires_at = ensure_utc_datetime(user.session_expires_at)
+        if current_expires_at is None:
+            return None
+        now = datetime.now(timezone.utc)
+        if now >= current_expires_at:
+            return None
+        principal_expires_at = ensure_utc_datetime(principal.session_expires_at)
+        if principal_expires_at is None or principal_expires_at != current_expires_at:
+            return None
+        if bool(principal.must_change_password) != bool(user.must_change_password):
+            return self.build_principal(user)
+        return principal
+
     def build_principal(self, user: UserAccount) -> UserSessionPrincipal:
         scoped_access: dict[str, dict[str, frozenset[str]]] = {}
         if self._scoped_access_repo is not None:
@@ -388,6 +432,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             scoped_access=scoped_access,
             project_access=project_access,
             session_expires_at=ensure_utc_datetime(user.session_expires_at),
+            must_change_password=bool(user.must_change_password),
         )
 
     def _assign_roles_for_user(self, user_id: str, role_names: Iterable[str]) -> None:
@@ -395,6 +440,26 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             role = self._require_role_by_name(role_name)
             if not self._user_role_repo.exists(user_id, role.id):
                 self._user_role_repo.add(UserRoleBinding.create(user_id=user_id, role_id=role.id))
+
+    @staticmethod
+    def _truthy_env(value: str | None) -> bool:
+        return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+    def _resolve_bootstrap_admin_password(self) -> str:
+        configured = os.getenv("PM_ADMIN_PASSWORD")
+        if configured is not None and configured.strip():
+            return configured
+        if self._truthy_env(os.getenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD")):
+            logger.warning("Bootstrapping admin user with insecure default password because PM_ALLOW_DEFAULT_ADMIN_PASSWORD is enabled.")
+            return "ChangeMe123!"
+        raise ValidationError(
+            "PM_ADMIN_PASSWORD must be set before the first administrator account can be bootstrapped.",
+            code="AUTH_BOOTSTRAP_PASSWORD_REQUIRED",
+        )
+
+    @staticmethod
+    def _next_session_expiry(now: datetime) -> datetime:
+        return now + timedelta(minutes=session_timeout_minutes())
 
     def _ensure_default_permissions(self) -> None:
         for code, description in DEFAULT_PERMISSIONS.items():
@@ -482,6 +547,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             return
         user = self._user_repo.get(user_id)
         if user is None or not user.is_active:
+            self._user_session.clear()
+            return
+        if user.session_expires_at is not None and datetime.now(timezone.utc) >= ensure_utc_datetime(user.session_expires_at):
             self._user_session.clear()
             return
         self._user_session.set_principal(self.build_principal(user))

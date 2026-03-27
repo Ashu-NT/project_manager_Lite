@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
+from core.platform.auth.session import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.platform.common.models import DependencyType
 from tests.ui_runtime_helpers import login_as, register_and_login, wait_until
@@ -45,6 +46,22 @@ def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch)
 
     assert user_session.is_authenticated() is False
     assert user_session.principal is None
+
+
+def test_security_admin_can_revoke_live_user_sessions(services):
+    auth = services["auth_service"]
+    auth.register_user("revoked-user", "StrongPass123", role_names=["viewer"])
+
+    stale_session = UserSessionContext(principal_validator=auth.validate_session_principal)
+    stale_session.set_principal(auth.build_principal(auth.authenticate("revoked-user", "StrongPass123")))
+
+    auth.revoke_user_sessions(
+        next(row for row in auth.list_users() if row.username == "revoked-user").id,
+        note="Offboarding test",
+    )
+
+    assert stale_session.is_authenticated() is False
+    assert stale_session.principal is None
 
 
 def test_project_memberships_restrict_project_and_task_queries(services):

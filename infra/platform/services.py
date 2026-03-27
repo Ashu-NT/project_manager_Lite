@@ -11,6 +11,7 @@ from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
+from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.documents import DocumentService
 from core.platform.modules.runtime import ModuleCatalogService, ModuleRuntimeService
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
@@ -65,6 +66,7 @@ class ServiceGraph:
     department_service: DepartmentService
     site_service: SiteService
     employee_service: EmployeeService
+    master_data_exchange_service: MasterDataExchangeService
     inventory_reference_service: InventoryReferenceService
     inventory_item_service: ItemMasterService
     inventory_service: InventoryService
@@ -110,6 +112,7 @@ class ServiceGraph:
             "department_service": self.department_service,
             "site_service": self.site_service,
             "employee_service": self.employee_service,
+            "master_data_exchange_service": self.master_data_exchange_service,
             "inventory_reference_service": self.inventory_reference_service,
             "inventory_item_service": self.inventory_item_service,
             "inventory_service": self.inventory_service,
@@ -165,6 +168,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         department_service=platform_services.department_service,
         site_service=platform_services.site_service,
         employee_service=platform_services.employee_service,
+        master_data_exchange_service=platform_services.master_data_exchange_service,
         inventory_reference_service=inventory_procurement_services.inventory_reference_service,
         inventory_item_service=inventory_procurement_services.inventory_item_service,
         inventory_service=inventory_procurement_services.inventory_service,

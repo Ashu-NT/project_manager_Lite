@@ -346,7 +346,8 @@ Completion notes:
 - `core/platform/importing`, `core/platform/exporting`, and `core/platform/report_runtime` now exist as platform-owned runtime packages with neutral registries, envelopes, and dispatch seams
 - PM import and reporting entry points now delegate through compatibility wrappers instead of owning the runtime machinery themselves
 - shared runtime dispatch now enforces module-entitlement and permission checks when connected to the live platform session/runtime context
-- remaining follow-up is broader non-PM adoption, richer writer/background-job orchestration, and shared-master bulk import/export contracts
+- platform-owned shared master data exchange now covers `site` and `party` import/export through `MasterDataExchangeService`
+- remaining follow-up is broader non-PM adoption, richer writer/background-job orchestration, and inventory/maintenance-specific bulk import/export contracts
 
 ## Guardrails
 

@@ -19,6 +19,7 @@ from core.platform.audit import AuditService
 from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
 from core.platform.documents import DocumentIntegrationService, DocumentService
+from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.common.interfaces import OrganizationRepository
 from core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
@@ -47,6 +48,7 @@ class PlatformServiceBundle:
     department_service: DepartmentService
     site_service: SiteService
     employee_service: EmployeeService
+    master_data_exchange_service: MasterDataExchangeService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -80,6 +82,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         audit_service=audit_service,
     )
+    user_session.set_validator(auth_service.validate_session_principal)
     auth_service.bootstrap_defaults()
 
     organization_service = OrganizationService(
@@ -191,6 +194,11 @@ def build_platform_service_bundle(
         user_session=user_session,
         audit_service=audit_service,
     )
+    master_data_exchange_service = MasterDataExchangeService(
+        site_service=site_service,
+        party_service=party_service,
+        user_session=user_session,
+    )
 
     return PlatformServiceBundle(
         session=session,
@@ -207,6 +215,7 @@ def build_platform_service_bundle(
         department_service=department_service,
         site_service=site_service,
         employee_service=employee_service,
+        master_data_exchange_service=master_data_exchange_service,
         access_service=access_service,
         audit_service=audit_service,
         approval_service=approval_service,

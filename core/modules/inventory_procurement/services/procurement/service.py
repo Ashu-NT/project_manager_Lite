@@ -26,6 +26,7 @@ from core.modules.inventory_procurement.support import (
     normalize_positive_quantity,
     normalize_status,
     normalize_uom,
+    resolve_item_uom_factor,
     validate_transition,
 )
 from core.platform.approval import ApprovalService
@@ -206,11 +207,7 @@ class ProcurementService:
                 code="INVENTORY_ITEM_PURCHASE_FORBIDDEN",
             )
         normalized_uom = normalize_uom(uom or item.stock_uom, label="Requisition line UOM")
-        if normalized_uom != item.stock_uom:
-            raise ValidationError(
-                "Phase-1 requisition lines must use the item's stock UOM.",
-                code="INVENTORY_UOM_CONVERSION_REQUIRED",
-            )
+        resolve_item_uom_factor(item, normalized_uom, label="Requisition line UOM")
         supplier_id = self._validate_supplier_reference(suggested_supplier_party_id)
         next_line_number = len(self._requisition_line_repo.list_for_requisition(requisition.id)) + 1
         line = PurchaseRequisitionLine.create(

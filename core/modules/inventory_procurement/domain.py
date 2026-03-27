@@ -85,6 +85,8 @@ class StockItem:
     stock_uom: str = ""
     order_uom: str = ""
     issue_uom: str = ""
+    order_uom_ratio: float = 1.0
+    issue_uom_ratio: float = 1.0
     category_code: str = ""
     commodity_code: str = ""
     is_stocked: bool = True
@@ -117,6 +119,8 @@ class StockItem:
         stock_uom: str,
         order_uom: str = "",
         issue_uom: str = "",
+        order_uom_ratio: float = 1.0,
+        issue_uom_ratio: float = 1.0,
         category_code: str = "",
         commodity_code: str = "",
         is_stocked: bool = True,
@@ -146,6 +150,8 @@ class StockItem:
             stock_uom=stock_uom,
             order_uom=order_uom,
             issue_uom=issue_uom,
+            order_uom_ratio=order_uom_ratio,
+            issue_uom_ratio=issue_uom_ratio,
             category_code=category_code,
             commodity_code=commodity_code,
             is_stocked=is_stocked,

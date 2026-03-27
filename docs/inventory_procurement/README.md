@@ -2,7 +2,21 @@
 
 Status: phase-1 implemented
 Implementation state: item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, and UI workspaces now exist in the codebase.
-Still pending before a fuller enterprise-complete rollout: shared import/export contracts, advanced UOM conversion, lot/serial and shelf-life controls, richer warehouse execution policy, and maintenance-facing integration flows.
+Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts.
+Still pending before a fuller enterprise-complete rollout: inventory-specific import/export contracts, lot/serial and shelf-life controls, richer warehouse execution policy, and maintenance-facing integration flows.
+
+## Current Execution Plan
+
+Completed in the current execution block:
+
+1. shared platform data exchange groundwork for `site` and `party` through the platform import/export runtime
+2. advanced UOM conversion for inventory procurement and warehouse flows
+
+Next up:
+
+1. module-owned import/export definitions for item, storeroom, requisition, purchase-order, and receipt data
+2. lot, serial, shelf-life, and receiving-policy hardening
+3. maintenance-facing material demand and reservation integration
 
 ## Purpose
 

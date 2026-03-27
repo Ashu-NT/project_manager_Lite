@@ -144,3 +144,52 @@ def test_inventory_ledger_restricts_transactions_to_stock_uom_and_active_masters
             storeroom_id=inactive_storeroom.id,
             quantity=1,
         )
+
+
+def test_inventory_ledger_converts_configured_issue_and_order_uoms(services):
+    site = services["site_service"].create_site(
+        site_code="LEDGER-UOM",
+        name="Ledger UOM Site",
+        currency_code="EUR",
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="MOTOR-UOM",
+        name="Motor With Alternate UOM",
+        status="ACTIVE",
+        stock_uom="EA",
+        order_uom="BOX",
+        order_uom_ratio=10,
+        issue_uom="PACK",
+        issue_uom_ratio=2,
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="LEDGER-UOM-MAIN",
+        name="Ledger UOM Main",
+        site_id=site.id,
+        status="ACTIVE",
+    )
+    stock_service = services["inventory_stock_service"]
+
+    opening = stock_service.post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        quantity=1,
+        uom="BOX",
+        unit_cost=100.0,
+    )
+    issued = stock_service.issue_stock(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        quantity=2,
+        uom="PACK",
+    )
+    balance = stock_service.get_balance_for_stock_position(stock_item_id=item.id, storeroom_id=storeroom.id)
+
+    assert opening.uom == "BOX"
+    assert opening.quantity == pytest.approx(1.0)
+    assert issued.uom == "PACK"
+    assert issued.quantity == pytest.approx(2.0)
+    assert balance is not None
+    assert balance.on_hand_qty == pytest.approx(6.0)
+    assert balance.available_qty == pytest.approx(6.0)
+    assert balance.average_cost == pytest.approx(10.0)

@@ -15,6 +15,7 @@ from core.modules.inventory_procurement.support import (
     normalize_nonnegative_days,
     normalize_nonnegative_quantity,
     normalize_optional_text,
+    resolve_configured_uom_ratio,
     normalize_status,
     normalize_uom,
     resolve_active_flag_from_status,
@@ -90,6 +91,9 @@ class ItemMasterService:
 
     def get_item(self, item_id: str) -> StockItem:
         self._require_read("view inventory item")
+        return self.get_item_for_internal_use(item_id)
+
+    def get_item_for_internal_use(self, item_id: str) -> StockItem:
         organization = self._active_organization()
         item = self._item_repo.get(item_id)
         if item is None or item.organization_id != organization.id:
@@ -113,6 +117,8 @@ class ItemMasterService:
         stock_uom: str,
         order_uom: str | None = None,
         issue_uom: str | None = None,
+        order_uom_ratio: float | None = None,
+        issue_uom_ratio: float | None = None,
         category_code: str = "",
         commodity_code: str = "",
         is_stocked: bool = True,
@@ -134,6 +140,9 @@ class ItemMasterService:
         normalized_code = normalize_inventory_code(item_code, label="Item code")
         if self._item_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Item code already exists in the active organization.", code="INVENTORY_ITEM_CODE_EXISTS")
+        normalized_stock_uom = normalize_uom(stock_uom, label="Stock UOM")
+        normalized_order_uom = normalize_uom(order_uom or stock_uom, label="Order UOM")
+        normalized_issue_uom = normalize_uom(issue_uom or stock_uom, label="Issue UOM")
         resolved_status = normalize_status(
             status,
             default_status="DRAFT",
@@ -147,9 +156,21 @@ class ItemMasterService:
             description=normalize_optional_text(description),
             item_type=normalize_optional_text(item_type).upper(),
             status=resolved_status,
-            stock_uom=normalize_uom(stock_uom, label="Stock UOM"),
-            order_uom=normalize_uom(order_uom or stock_uom, label="Order UOM"),
-            issue_uom=normalize_uom(issue_uom or stock_uom, label="Issue UOM"),
+            stock_uom=normalized_stock_uom,
+            order_uom=normalized_order_uom,
+            issue_uom=normalized_issue_uom,
+            order_uom_ratio=resolve_configured_uom_ratio(
+                uom=normalized_order_uom,
+                stock_uom=normalized_stock_uom,
+                ratio=order_uom_ratio,
+                label="Order",
+            ),
+            issue_uom_ratio=resolve_configured_uom_ratio(
+                uom=normalized_issue_uom,
+                stock_uom=normalized_stock_uom,
+                ratio=issue_uom_ratio,
+                label="Issue",
+            ),
             category_code=normalize_optional_text(category_code).upper(),
             commodity_code=normalize_optional_text(commodity_code).upper(),
             is_stocked=bool(is_stocked),
@@ -167,6 +188,7 @@ class ItemMasterService:
             preferred_party_id=self._validate_party_reference(preferred_party_id),
             notes=normalize_optional_text(notes),
         )
+        self._validate_uom_configuration(item)
         self._validate_reorder_quantities(item)
         try:
             self._item_repo.add(item)
@@ -208,6 +230,8 @@ class ItemMasterService:
         stock_uom: str | None = None,
         order_uom: str | None = None,
         issue_uom: str | None = None,
+        order_uom_ratio: float | None = None,
+        issue_uom_ratio: float | None = None,
         category_code: str | None = None,
         commodity_code: str | None = None,
         default_reorder_policy: str | None = None,
@@ -234,6 +258,7 @@ class ItemMasterService:
                 "Inventory item changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+        previous_stock_uom = item.stock_uom
         if item_code is not None:
             normalized_code = normalize_inventory_code(item_code, label="Item code")
             existing = self._item_repo.get_by_code(organization.id, normalized_code)
@@ -250,12 +275,34 @@ class ItemMasterService:
             item.stock_uom = normalize_uom(stock_uom, label="Stock UOM")
         if order_uom is not None:
             item.order_uom = normalize_uom(order_uom, label="Order UOM")
-        elif stock_uom is not None and not normalize_optional_text(item.order_uom):
+        elif stock_uom is not None and normalize_optional_text(item.order_uom).upper() == previous_stock_uom:
             item.order_uom = item.stock_uom
         if issue_uom is not None:
             item.issue_uom = normalize_uom(issue_uom, label="Issue UOM")
-        elif stock_uom is not None and not normalize_optional_text(item.issue_uom):
+        elif stock_uom is not None and normalize_optional_text(item.issue_uom).upper() == previous_stock_uom:
             item.issue_uom = item.stock_uom
+        if stock_uom is not None and item.order_uom != item.stock_uom and order_uom_ratio is None:
+            raise ValidationError(
+                "Order UOM factor must be provided when stock UOM changes and order UOM remains different.",
+                code="INVENTORY_UOM_FACTOR_REQUIRED",
+            )
+        if stock_uom is not None and item.issue_uom != item.stock_uom and issue_uom_ratio is None:
+            raise ValidationError(
+                "Issue UOM factor must be provided when stock UOM changes and issue UOM remains different.",
+                code="INVENTORY_UOM_FACTOR_REQUIRED",
+            )
+        item.order_uom_ratio = resolve_configured_uom_ratio(
+            uom=item.order_uom,
+            stock_uom=item.stock_uom,
+            ratio=order_uom_ratio if order_uom_ratio is not None else item.order_uom_ratio,
+            label="Order",
+        )
+        item.issue_uom_ratio = resolve_configured_uom_ratio(
+            uom=item.issue_uom,
+            stock_uom=item.stock_uom,
+            ratio=issue_uom_ratio if issue_uom_ratio is not None else item.issue_uom_ratio,
+            label="Issue",
+        )
         if category_code is not None:
             item.category_code = normalize_optional_text(category_code).upper()
         if commodity_code is not None:
@@ -307,6 +354,7 @@ class ItemMasterService:
         item.is_active = resolve_active_flag_from_status(item.status)
         if notes is not None:
             item.notes = normalize_optional_text(notes)
+        self._validate_uom_configuration(item)
         self._validate_reorder_quantities(item)
         item.updated_at = datetime.now(timezone.utc)
         try:
@@ -436,6 +484,13 @@ class ItemMasterService:
             raise ValidationError(
                 "Reorder point cannot exceed maximum quantity.",
                 code="INVENTORY_REORDER_POINT_INVALID",
+            )
+
+    def _validate_uom_configuration(self, item: StockItem) -> None:
+        if item.order_uom == item.issue_uom and abs(float(item.order_uom_ratio) - float(item.issue_uom_ratio)) > 1e-9:
+            raise ValidationError(
+                "Order and issue UOM factors must match when they use the same UOM code.",
+                code="INVENTORY_UOM_FACTOR_CONFLICT",
             )
 
     def _active_organization(self) -> Organization:

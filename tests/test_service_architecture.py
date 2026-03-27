@@ -7,6 +7,7 @@ from core.platform.auth import AuthService
 from core.platform.auth.service import AuthService as LegacyAuthService
 from core.platform.audit import AuditService
 from core.platform.audit.service import AuditService as LegacyAuditService
+from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.documents import DocumentService
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
@@ -68,6 +69,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.department_service, DepartmentService)
     assert isinstance(graph.site_service, SiteService)
     assert isinstance(graph.employee_service, EmployeeService)
+    assert isinstance(graph.master_data_exchange_service, MasterDataExchangeService)
     assert isinstance(graph.inventory_reference_service, InventoryReferenceService)
     assert isinstance(graph.inventory_item_service, ItemMasterService)
     assert isinstance(graph.inventory_service, InventoryService)
@@ -105,6 +107,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["department_service"] is graph.department_service
     assert as_dict["site_service"] is graph.site_service
     assert as_dict["employee_service"] is graph.employee_service
+    assert as_dict["master_data_exchange_service"] is graph.master_data_exchange_service
     assert as_dict["inventory_reference_service"] is graph.inventory_reference_service
     assert as_dict["inventory_item_service"] is graph.inventory_item_service
     assert as_dict["inventory_service"] is graph.inventory_service

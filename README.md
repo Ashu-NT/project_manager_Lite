@@ -21,9 +21,9 @@ Delivered in the current codebase:
 
 Pending major work:
 
-- deeper hardening for `Inventory & Procurement`, especially shared import/export contracts, advanced UOM conversion, lot/serial and shelf-life controls, and maintenance-facing integration workflows
+- deeper hardening for `Inventory & Procurement`, especially inventory-specific import/export contracts, lot/serial and shelf-life controls, richer warehouse execution policies, and maintenance-facing integration workflows
 - `Maintenance Management`, `QHSE`, and `HR Management` business modules
-- deeper enterprise identity controls such as SSO/MFA and stronger session-revocation flows
+- deeper enterprise identity controls such as SSO/MFA, hosted identity federation, and separation-of-duties enforcement after the delivered session-revocation groundwork
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
 The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`; it currently has no remaining carryover backlog. The remaining PM work is now technical alignment follow-up, tracked separately in `docs/project_management_followup/README.md`.
@@ -47,11 +47,17 @@ Why this comes first:
 - professional CMMS patterns usually keep inventory and purchasing as a dedicated business capability that maintenance work orders integrate with
 - maintenance is stronger when it consumes a clean stock and purchasing module instead of owning duplicate inventory logic
 
-Concretely, the next implementation slice should:
+The current execution block delivered:
 
-1. add shared import/export contracts for inventory masters and operational documents
-2. harden warehouse and procurement rules such as advanced UOM conversion, lot/serial handling, and richer receiving controls
-3. wire `maintenance_management` material demand to `inventory_procurement` instead of embedding stock ledgers directly inside maintenance
+1. explicit bootstrap-admin password requirements, forced-password-change flags, repo-backed live-session validation, and `security.manage` session revocation groundwork
+2. configured inventory UOM conversion across stock transactions, reservations, requisitions, purchase orders, approvals, and receipts
+3. platform-owned shared master data exchange for `site` and `party` through the shared import/export runtime
+
+The next implementation slice should now focus on:
+
+1. inventory-specific import/export contracts for item, storeroom, requisition, purchase-order, and receipt data
+2. lot/serial, shelf-life, and richer warehouse receiving/execution policy
+3. wiring `maintenance_management` material demand to `inventory_procurement` instead of embedding stock ledgers directly inside maintenance
 
 After that, the next priority should be the `Maintenance Management` skeleton, then deeper shared master data for formal site/department directories, and then the `QHSE` module skeleton.
 

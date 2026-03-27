@@ -50,6 +50,8 @@ class StockItemORM(Base):
     stock_uom: Mapped[str] = mapped_column(String(32), nullable=False)
     order_uom: Mapped[str] = mapped_column(String(32), nullable=False)
     issue_uom: Mapped[str] = mapped_column(String(32), nullable=False)
+    order_uom_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1.0")
+    issue_uom_ratio: Mapped[float] = mapped_column(Float, nullable=False, default=1.0, server_default="1.0")
     category_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     commodity_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     is_stocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")

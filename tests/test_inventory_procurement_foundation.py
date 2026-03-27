@@ -183,3 +183,15 @@ def test_inventory_item_service_enforces_status_and_reorder_rules(services):
             min_qty=10,
             max_qty=2,
         )
+
+
+def test_inventory_item_service_requires_conversion_factors_for_alternate_uoms(services):
+    item_service = services["inventory_item_service"]
+
+    with pytest.raises(ValidationError, match="Order UOM factor"):
+        item_service.create_item(
+            item_code="VALVE-ALT",
+            name="Alternate Valve",
+            stock_uom="EA",
+            order_uom="BOX",
+        )

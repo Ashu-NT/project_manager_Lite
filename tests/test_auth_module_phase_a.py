@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
+from infra.platform.services import build_service_dict
 
 
 def test_bootstrap_creates_admin_and_permissions(services):
@@ -11,11 +12,20 @@ def test_bootstrap_creates_admin_and_permissions(services):
     admin = auth.authenticate("admin", "ChangeMe123!")
     permissions = auth.get_user_permissions(admin.id)
 
+    assert admin.must_change_password is True
     assert "auth.manage" in permissions
     assert "project.manage" in permissions
     assert "report.export" in permissions
     assert "approval.request" in permissions
     assert "approval.decide" in permissions
+
+
+def test_bootstrap_requires_explicit_admin_password(session, monkeypatch):
+    monkeypatch.delenv("PM_ADMIN_PASSWORD", raising=False)
+    monkeypatch.delenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD", raising=False)
+
+    with pytest.raises(ValidationError, match="PM_ADMIN_PASSWORD must be set"):
+        build_service_dict(session)
 
 
 def test_register_user_uses_default_viewer_role(services):
@@ -99,6 +109,7 @@ def test_admin_can_reset_other_user_password(services):
 
     authenticated = auth.authenticate("reset-target", "NewStrongPass123")
     assert authenticated.id == user.id
+    assert authenticated.must_change_password is True
     with pytest.raises(ValidationError, match="Invalid credentials"):
         auth.authenticate("reset-target", "StrongPass123")
 

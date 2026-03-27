@@ -344,3 +344,111 @@ def test_purchase_order_service_rejects_close_when_open_qty_remains(services):
 
     with pytest.raises(ValidationError, match="still has open quantity"):
         purchasing.close_purchase_order(purchase_order.id)
+
+
+def test_purchase_order_workflow_converts_between_issue_and_order_uoms(services):
+    auth = services["auth_service"]
+    auth.register_user("inventory-buyer-uom", "StrongPass123", role_names=["inventory_manager"])
+    auth.register_user("inventory-approver-uom", "StrongPass123", role_names=["approver"])
+
+    site = services["site_service"].create_site(
+        site_code="PO-UOM",
+        name="PO UOM Site",
+        currency_code="EUR",
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="MOTOR-UOM-PO",
+        name="Motor Alternate UOM",
+        status="ACTIVE",
+        stock_uom="EA",
+        order_uom="BOX",
+        order_uom_ratio=10,
+        issue_uom="PACK",
+        issue_uom_ratio=2,
+        is_purchase_allowed=True,
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="PO-UOM-MAIN",
+        name="PO UOM Main",
+        site_id=site.id,
+        status="ACTIVE",
+    )
+    supplier = services["party_service"].create_party(
+        party_code="SUP-PO-UOM",
+        party_name="Alternate UOM Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+    approvals = services["approval_service"]
+
+    login_as(services, "inventory-buyer-uom", "StrongPass123")
+    requisition = procurement.create_requisition(
+        requesting_site_id=site.id,
+        requesting_storeroom_id=storeroom.id,
+        purpose="Order alternate UOM stock",
+    )
+    requisition_line = procurement.add_requisition_line(
+        requisition.id,
+        stock_item_id=item.id,
+        quantity_requested=5,
+        uom="PACK",
+        suggested_supplier_party_id=supplier.id,
+    )
+    requisition = procurement.submit_requisition(requisition.id)
+
+    login_as(services, "inventory-approver-uom", "StrongPass123")
+    approvals.approve_and_apply(requisition.approval_request_id, note="Approved alternate UOM requisition")
+
+    login_as(services, "inventory-buyer-uom", "StrongPass123")
+    purchase_order = purchasing.create_purchase_order(
+        site_id=site.id,
+        supplier_party_id=supplier.id,
+        currency_code="EUR",
+        source_requisition_id=requisition.id,
+    )
+    purchase_order_line = purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=1,
+        uom="BOX",
+        unit_price=120.0,
+        source_requisition_line_id=requisition_line.id,
+    )
+    purchase_order = purchasing.submit_purchase_order(purchase_order.id)
+
+    login_as(services, "inventory-approver-uom", "StrongPass123")
+    approvals.approve_and_apply(purchase_order.approval_request_id, note="Approved alternate UOM PO")
+
+    login_as(services, "inventory-buyer-uom", "StrongPass123")
+    refreshed_requisition_line = procurement.list_requisition_lines(requisition.id)[0]
+    balance_after_approval = services["inventory_stock_service"].get_balance_for_stock_position(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+    )
+
+    assert purchase_order_line.uom == "BOX"
+    assert refreshed_requisition_line.uom == "PACK"
+    assert refreshed_requisition_line.quantity_sourced == pytest.approx(5.0)
+    assert balance_after_approval is not None
+    assert balance_after_approval.on_order_qty == pytest.approx(10.0)
+
+    purchasing.post_receipt(
+        purchase_order.id,
+        receipt_lines=[
+            {
+                "purchase_order_line_id": purchase_order_line.id,
+                "quantity_accepted": 1,
+                "unit_cost": 120.0,
+            }
+        ],
+    )
+    balance_after_receipt = services["inventory_stock_service"].get_balance_for_stock_position(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+    )
+
+    assert balance_after_receipt is not None
+    assert balance_after_receipt.on_hand_qty == pytest.approx(10.0)
+    assert balance_after_receipt.on_order_qty == pytest.approx(0.0)

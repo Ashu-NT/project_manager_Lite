@@ -17,10 +17,13 @@ from core.modules.inventory_procurement.interfaces import StockBalanceRepository
 from core.modules.inventory_procurement.services.inventory import InventoryService
 from core.modules.inventory_procurement.services.item_master import ItemMasterService
 from core.modules.inventory_procurement.support import (
+    convert_item_quantity,
+    convert_item_unit_cost_to_stock,
     normalize_nonnegative_quantity,
     normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
+    resolve_item_uom_factor,
 )
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
@@ -409,12 +412,20 @@ class StockControlService:
     ) -> StockTransaction:
         normalized_quantity = normalize_positive_quantity(quantity, label="Transaction quantity")
         normalized_uom = normalize_uom(uom or item.stock_uom, label="Transaction UOM")
-        if normalized_uom != item.stock_uom:
-            raise ValidationError(
-                "Phase-1 stock transactions must use the item's stock UOM.",
-                code="INVENTORY_UOM_CONVERSION_REQUIRED",
-            )
+        stock_quantity = convert_item_quantity(
+            item,
+            normalized_quantity,
+            from_uom=normalized_uom,
+            to_uom=item.stock_uom,
+            label="Transaction UOM",
+        )
         normalized_unit_cost = normalize_nonnegative_quantity(unit_cost, label="Unit cost")
+        stock_unit_cost = convert_item_unit_cost_to_stock(
+            item,
+            normalized_unit_cost,
+            uom=normalized_uom,
+            label="Unit cost",
+        )
         effective_at = transaction_at or datetime.now(timezone.utc)
         balance = self._balance_repo.get_for_stock_position(organization.id, item.id, storeroom.id)
         is_new_balance = balance is None
@@ -427,7 +438,7 @@ class StockControlService:
             )
         previous_on_hand = float(balance.on_hand_qty or 0.0)
         previous_reserved = float(balance.reserved_qty or 0.0)
-        delta = self._resolve_quantity_delta(transaction_type, normalized_quantity)
+        delta = self._resolve_quantity_delta(transaction_type, stock_quantity)
         new_on_hand = previous_on_hand + delta
         if new_on_hand < 0:
             raise ValidationError(
@@ -446,8 +457,8 @@ class StockControlService:
             balance=balance,
             previous_on_hand=previous_on_hand,
             delta=delta,
-            quantity=normalized_quantity,
-            unit_cost=normalized_unit_cost,
+            quantity=stock_quantity,
+            unit_cost=stock_unit_cost,
         )
         if delta > 0:
             balance.last_receipt_at = effective_at
@@ -527,11 +538,13 @@ class StockControlService:
     ) -> StockTransaction:
         normalized_quantity = normalize_positive_quantity(quantity, label="Reservation quantity")
         normalized_uom = normalize_uom(uom or item.stock_uom, label="Reservation UOM")
-        if normalized_uom != item.stock_uom:
-            raise ValidationError(
-                "Phase-1 reservation transactions must use the item's stock UOM.",
-                code="INVENTORY_UOM_CONVERSION_REQUIRED",
-            )
+        stock_quantity = convert_item_quantity(
+            item,
+            normalized_quantity,
+            from_uom=normalized_uom,
+            to_uom=item.stock_uom,
+            label="Reservation UOM",
+        )
         effective_at = transaction_at or datetime.now(timezone.utc)
         balance = self._balance_repo.get_for_stock_position(organization.id, item.id, storeroom.id)
         if balance is None:
@@ -541,7 +554,7 @@ class StockControlService:
             )
         previous_reserved = float(balance.reserved_qty or 0.0)
         previous_on_hand = float(balance.on_hand_qty or 0.0)
-        delta = normalized_quantity if transaction_type == StockTransactionType.RESERVATION_HOLD else -normalized_quantity
+        delta = stock_quantity if transaction_type == StockTransactionType.RESERVATION_HOLD else -stock_quantity
         new_reserved = previous_reserved + delta
         if new_reserved < 0:
             raise ValidationError(
@@ -630,16 +643,25 @@ class StockControlService:
     ) -> StockTransaction:
         normalized_quantity = normalize_positive_quantity(quantity, label="Movement quantity")
         normalized_reserved_release = normalize_nonnegative_quantity(release_reserved_qty, label="Reserved release quantity")
-        if normalized_reserved_release > normalized_quantity:
+        normalized_uom = normalize_uom(uom or item.stock_uom, label="Movement UOM")
+        movement_stock_quantity = convert_item_quantity(
+            item,
+            normalized_quantity,
+            from_uom=normalized_uom,
+            to_uom=item.stock_uom,
+            label="Movement UOM",
+        )
+        reserved_release_stock_quantity = convert_item_quantity(
+            item,
+            normalized_reserved_release,
+            from_uom=normalized_uom,
+            to_uom=item.stock_uom,
+            label="Movement UOM",
+        )
+        if reserved_release_stock_quantity > movement_stock_quantity:
             raise ValidationError(
                 "Reserved release quantity cannot exceed issued quantity.",
                 code="INVENTORY_RESERVED_RELEASE_INVALID",
-            )
-        normalized_uom = normalize_uom(uom or item.stock_uom, label="Movement UOM")
-        if normalized_uom != item.stock_uom:
-            raise ValidationError(
-                "Phase-1 stock movements must use the item's stock UOM.",
-                code="INVENTORY_UOM_CONVERSION_REQUIRED",
             )
         effective_at = transaction_at or datetime.now(timezone.utc)
         balance = self._balance_repo.get_for_stock_position(organization.id, item.id, storeroom.id)
@@ -658,8 +680,12 @@ class StockControlService:
             )
         previous_on_hand = float(balance.on_hand_qty or 0.0)
         previous_reserved = float(balance.reserved_qty or 0.0)
-        on_hand_delta = normalized_quantity if transaction_type in {StockTransactionType.RETURN, StockTransactionType.TRANSFER_IN} else -normalized_quantity
-        reserved_delta = -normalized_reserved_release
+        on_hand_delta = (
+            movement_stock_quantity
+            if transaction_type in {StockTransactionType.RETURN, StockTransactionType.TRANSFER_IN}
+            else -movement_stock_quantity
+        )
+        reserved_delta = -reserved_release_stock_quantity
         new_on_hand = previous_on_hand + on_hand_delta
         new_reserved = previous_reserved + reserved_delta
         if new_on_hand < 0:
@@ -678,11 +704,17 @@ class StockControlService:
                 "Movement would make available quantity negative.",
                 code="INVENTORY_NEGATIVE_AVAILABLE",
             )
-        effective_unit_cost = (
-            normalize_nonnegative_quantity(unit_cost, label="Unit cost")
-            if unit_cost is not None
-            else float(balance.average_cost or 0.0)
-        )
+        if unit_cost is None:
+            stock_unit_cost = float(balance.average_cost or 0.0)
+            effective_unit_cost = stock_unit_cost * resolve_item_uom_factor(item, normalized_uom, label="Movement UOM")
+        else:
+            effective_unit_cost = normalize_nonnegative_quantity(unit_cost, label="Unit cost")
+            stock_unit_cost = convert_item_unit_cost_to_stock(
+                item,
+                effective_unit_cost,
+                uom=normalized_uom,
+                label="Unit cost",
+            )
         balance.on_hand_qty = new_on_hand
         balance.reserved_qty = new_reserved
         balance.available_qty = new_available
@@ -693,8 +725,8 @@ class StockControlService:
                 balance=balance,
                 previous_on_hand=previous_on_hand,
                 delta=on_hand_delta,
-                quantity=normalized_quantity,
-                unit_cost=effective_unit_cost,
+                quantity=movement_stock_quantity,
+                unit_cost=stock_unit_cost,
             )
         else:
             balance.last_issue_at = effective_at

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.modules.inventory_procurement.domain import StockItem
 from core.platform.common.exceptions import ValidationError
 from core.platform.org.support import normalize_code, normalize_name
 from core.platform.party.domain import PartyType
@@ -106,6 +107,80 @@ def normalize_positive_quantity(value: float | int | None, *, label: str) -> flo
     return amount
 
 
+def resolve_configured_uom_ratio(
+    *,
+    uom: str,
+    stock_uom: str,
+    ratio: float | int | None,
+    label: str,
+) -> float:
+    normalized_stock_uom = normalize_uom(stock_uom, label="Stock UOM")
+    normalized_uom = normalize_uom(uom, label=f"{label} UOM")
+    if normalized_uom == normalized_stock_uom:
+        return 1.0
+    if ratio is None:
+        raise ValidationError(
+            f"{label} UOM factor is required when {label.lower()} UOM differs from stock UOM.",
+            code="INVENTORY_UOM_FACTOR_REQUIRED",
+        )
+    factor = float(ratio)
+    if factor <= 0:
+        raise ValidationError(
+            f"{label} UOM factor must be greater than zero.",
+            code="INVENTORY_UOM_FACTOR_REQUIRED",
+        )
+    return factor
+
+
+def resolve_item_uom_factor(item: StockItem, uom: str, *, label: str) -> float:
+    normalized_uom = normalize_uom(uom, label=label)
+    if normalized_uom == item.stock_uom:
+        return 1.0
+    if normalized_uom == item.order_uom:
+        return resolve_configured_uom_ratio(
+            uom=item.order_uom,
+            stock_uom=item.stock_uom,
+            ratio=item.order_uom_ratio,
+            label="Order",
+        )
+    if normalized_uom == item.issue_uom:
+        return resolve_configured_uom_ratio(
+            uom=item.issue_uom,
+            stock_uom=item.stock_uom,
+            ratio=item.issue_uom_ratio,
+            label="Issue",
+        )
+    raise ValidationError(
+        f"{label} must match the item's configured stock UOM or supported order/issue UOM.",
+        code="INVENTORY_UOM_CONVERSION_REQUIRED",
+    )
+
+
+def convert_item_quantity(
+    item: StockItem,
+    quantity: float,
+    *,
+    from_uom: str,
+    to_uom: str,
+    label: str,
+) -> float:
+    from_factor = resolve_item_uom_factor(item, from_uom, label=label)
+    to_factor = resolve_item_uom_factor(item, to_uom, label=label)
+    stock_quantity = float(quantity) * from_factor
+    return stock_quantity / to_factor
+
+
+def convert_item_unit_cost_to_stock(
+    item: StockItem,
+    unit_cost: float,
+    *,
+    uom: str,
+    label: str,
+) -> float:
+    factor = resolve_item_uom_factor(item, uom, label=label)
+    return normalize_nonnegative_quantity(unit_cost, label=label) / factor
+
+
 def normalize_nonnegative_days(value: int | None, *, label: str) -> int | None:
     if value is None:
         return None
@@ -167,6 +242,10 @@ __all__ = [
     "normalize_optional_text",
     "normalize_status",
     "normalize_uom",
+    "convert_item_quantity",
+    "convert_item_unit_cost_to_stock",
+    "resolve_configured_uom_ratio",
+    "resolve_item_uom_factor",
     "resolve_active_flag_from_status",
     "resolve_status_from_active",
     "validate_transition",

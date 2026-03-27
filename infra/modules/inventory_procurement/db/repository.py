@@ -89,6 +89,8 @@ class SqlAlchemyStockItemRepository(StockItemRepository):
                 "stock_uom": item.stock_uom,
                 "order_uom": item.order_uom,
                 "issue_uom": item.issue_uom,
+                "order_uom_ratio": item.order_uom_ratio,
+                "issue_uom_ratio": item.issue_uom_ratio,
                 "category_code": item.category_code or None,
                 "commodity_code": item.commodity_code or None,
                 "is_stocked": item.is_stocked,

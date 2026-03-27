@@ -34,10 +34,12 @@ from core.modules.inventory_procurement.services.stock_control import StockContr
 from core.modules.inventory_procurement.support import (
     PURCHASE_ORDER_STATUS_TRANSITIONS,
     REQUISITION_STATUS_TRANSITIONS,
+    convert_item_quantity,
     normalize_nonnegative_quantity,
     normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
+    resolve_item_uom_factor,
     validate_transition,
 )
 from core.platform.approval import ApprovalService
@@ -248,15 +250,13 @@ class PurchasingService:
         if not storeroom.allows_receiving:
             raise ValidationError("Destination storeroom does not allow receiving.", code="INVENTORY_RECEIVING_FORBIDDEN")
         normalized_uom = normalize_uom(uom or item.stock_uom, label="Purchase-order line UOM")
-        if normalized_uom != item.stock_uom:
-            raise ValidationError(
-                "Phase-1 purchase-order lines must use the item's stock UOM.",
-                code="INVENTORY_UOM_CONVERSION_REQUIRED",
-            )
+        resolve_item_uom_factor(item, normalized_uom, label="Purchase-order line UOM")
         source_line = self._validate_source_requisition_line(
             purchase_order=purchase_order,
+            item=item,
             source_requisition_line_id=source_requisition_line_id,
             quantity_ordered=quantity_ordered,
+            quantity_ordered_uom=normalized_uom,
         )
         next_line_number = len(self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)) + 1
         line = PurchaseOrderLine.create(
@@ -646,7 +646,7 @@ class PurchasingService:
                         touched_balance_ids.add(balance.id)
                 self._adjust_on_order_balance(
                     organization_id=purchase_order.organization_id,
-                    stock_item_id=po_line.stock_item_id,
+                    item=self._item_service.get_item_for_internal_use(po_line.stock_item_id),
                     storeroom_id=po_line.destination_storeroom_id,
                     uom=po_line.uom,
                     delta=-processed,
@@ -729,7 +729,7 @@ class PurchasingService:
             self._purchase_order_line_repo.update(line)
             self._adjust_on_order_balance(
                 organization_id=purchase_order.organization_id,
-                stock_item_id=line.stock_item_id,
+                item=self._item_service.get_item_for_internal_use(line.stock_item_id),
                 storeroom_id=line.destination_storeroom_id,
                 uom=line.uom,
                 delta=line.quantity_ordered,
@@ -744,7 +744,15 @@ class PurchasingService:
                 touched_balance_ids.add(balance.id)
             if line.source_requisition_line_id:
                 requisition_line = self._require_requisition_line(line.source_requisition_line_id)
-                new_sourced_qty = float(requisition_line.quantity_sourced or 0.0) + float(line.quantity_ordered or 0.0)
+                item = self._item_service.get_item_for_internal_use(line.stock_item_id)
+                sourced_qty = convert_item_quantity(
+                    item,
+                    float(line.quantity_ordered or 0.0),
+                    from_uom=line.uom,
+                    to_uom=requisition_line.uom,
+                    label="Purchase-order line UOM",
+                )
+                new_sourced_qty = float(requisition_line.quantity_sourced or 0.0) + sourced_qty
                 if new_sourced_qty > float(requisition_line.quantity_requested or 0.0):
                     raise ValidationError(
                         "Approved purchase order would oversource the requisition line.",
@@ -826,19 +834,33 @@ class PurchasingService:
         self,
         *,
         purchase_order: PurchaseOrder,
+        item,
         source_requisition_line_id: str | None,
         quantity_ordered: float,
+        quantity_ordered_uom: str,
     ) -> PurchaseRequisitionLine | None:
         line_id = normalize_optional_text(source_requisition_line_id)
         if not line_id:
             return None
         requisition_line = self._require_requisition_line(line_id)
+        if requisition_line.stock_item_id != item.id:
+            raise ValidationError(
+                "Source requisition line must reference the same stock item.",
+                code="INVENTORY_REQUISITION_LINE_SCOPE_INVALID",
+            )
         if purchase_order.source_requisition_id and requisition_line.purchase_requisition_id != purchase_order.source_requisition_id:
             raise ValidationError("Source requisition line does not belong to the purchase-order requisition.", code="INVENTORY_REQUISITION_LINE_SCOPE_INVALID")
         remaining = max(0.0, float(requisition_line.quantity_requested or 0.0) - float(requisition_line.quantity_sourced or 0.0))
         if remaining <= 0:
             raise ValidationError("Source requisition line is already fully sourced.", code="INVENTORY_REQUISITION_LINE_FULLY_SOURCED")
-        if normalize_positive_quantity(quantity_ordered, label="Purchase-order quantity") > remaining:
+        ordered_in_requisition_uom = convert_item_quantity(
+            item,
+            normalize_positive_quantity(quantity_ordered, label="Purchase-order quantity"),
+            from_uom=quantity_ordered_uom,
+            to_uom=requisition_line.uom,
+            label="Purchase-order line UOM",
+        )
+        if ordered_in_requisition_uom > remaining:
             raise ValidationError("Purchase-order quantity exceeds the remaining requisition demand.", code="INVENTORY_REQUISITION_LINE_QTY_EXCEEDED")
         return requisition_line
 
@@ -912,7 +934,7 @@ class PurchasingService:
         self,
         *,
         organization_id: str,
-        stock_item_id: str,
+        item,
         storeroom_id: str,
         uom: str,
         delta: float,
@@ -920,22 +942,29 @@ class PurchasingService:
     ) -> None:
         if delta == 0:
             return
-        balance = self._balance_repo.get_for_stock_position(organization_id, stock_item_id, storeroom_id)
+        delta_in_stock_uom = convert_item_quantity(
+            item,
+            float(delta),
+            from_uom=uom,
+            to_uom=item.stock_uom,
+            label="Purchase-order line UOM",
+        )
+        balance = self._balance_repo.get_for_stock_position(organization_id, item.id, storeroom_id)
         is_new_balance = balance is None
         if balance is None:
             from core.modules.inventory_procurement.domain import StockBalance
 
             balance = StockBalance.create(
                 organization_id=organization_id,
-                stock_item_id=stock_item_id,
+                stock_item_id=item.id,
                 storeroom_id=storeroom_id,
-                uom=uom,
+                uom=item.stock_uom,
             )
-        new_on_order = float(balance.on_order_qty or 0.0) + float(delta)
+        new_on_order = float(balance.on_order_qty or 0.0) + float(delta_in_stock_uom)
         if new_on_order < 0:
             raise ValidationError("On-order quantity cannot become negative.", code="INVENTORY_NEGATIVE_ON_ORDER")
         balance.on_order_qty = new_on_order
-        balance.uom = uom
+        balance.uom = item.stock_uom
         balance.updated_at = effective_at
         if is_new_balance:
             self._balance_repo.add(balance)

@@ -65,7 +65,8 @@ Environment variables used across the current platform:
   - `PM_ENABLED_MODULES`
 - Auth bootstrap:
   - `PM_ADMIN_USERNAME`
-  - `PM_ADMIN_PASSWORD`
+  - `PM_ADMIN_PASSWORD` (required when the first bootstrap admin is created)
+  - `PM_ALLOW_DEFAULT_ADMIN_PASSWORD` (escape hatch for explicitly allowing the insecure default bootstrap password in non-production scenarios)
 - Governance:
   - `PM_GOVERNANCE_MODE`
   - `PM_GOVERNANCE_ACTIONS`

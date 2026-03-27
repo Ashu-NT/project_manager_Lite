@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import FrozenSet
+from typing import Callable, FrozenSet
 
 from core.platform.auth.datetime_utils import ensure_utc_datetime
 
@@ -59,27 +59,43 @@ class UserSessionPrincipal:
     scoped_access: dict[str, dict[str, FrozenSet[str]]] = field(default_factory=dict)
     project_access: dict[str, FrozenSet[str]] = field(default_factory=dict)
     session_expires_at: datetime | None = None
+    must_change_password: bool = False
 
 
 class UserSessionContext:
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        principal_validator: Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None = None,
+    ):
         self._principal: UserSessionPrincipal | None = None
+        self._principal_validator = principal_validator
 
     @property
     def principal(self) -> UserSessionPrincipal | None:
         return self._principal
 
     def set_principal(self, principal: UserSessionPrincipal) -> None:
+        self._principal = self._normalize_principal(principal)
+
+    def set_validator(
+        self,
+        validator: Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None,
+    ) -> None:
+        self._principal_validator = validator
+
+    def _normalize_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal:
         normalized_scoped_access = _normalize_scoped_access(
             principal.scoped_access,
             principal.project_access,
         )
-        self._principal = replace(
+        return replace(
             principal,
             permissions=_normalize_permission_set(principal.permissions),
             scoped_access=normalized_scoped_access,
             project_access=dict(normalized_scoped_access.get("project", {})),
             session_expires_at=ensure_utc_datetime(principal.session_expires_at),
+            must_change_password=bool(getattr(principal, "must_change_password", False)),
         )
 
     def clear(self) -> None:
@@ -161,6 +177,16 @@ class UserSessionContext:
         if expires_at is not None and datetime.now(timezone.utc) >= expires_at:
             self.clear()
             return None
+        validator = self._principal_validator
+        if validator is not None:
+            validated = validator(principal)
+            if validated is None:
+                self.clear()
+                return None
+            normalized = self._normalize_principal(validated)
+            if normalized != principal:
+                principal = normalized
+                self._principal = principal
         return principal
 
     @staticmethod

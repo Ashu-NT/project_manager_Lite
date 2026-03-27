@@ -17,12 +17,14 @@ Delivered:
 - payroll-ready permission codes
 - read-only identity visibility split from mutation/security operations
 - access/security separation in the admin surfaces
+- explicit bootstrap-admin password requirements and forced-password-change flags for first-run admin creation
+- repo-backed session validation plus `security.manage` session revocation controls
 
 Pending:
 
 - HR Management feature slice implementation
 - separation-of-duties checks for conflicting role combinations
-- stronger `security.manage` capabilities such as SSO/MFA/session-revocation support
+- stronger `security.manage` capabilities such as SSO/MFA, hosted identity federation, and richer session/device governance
 - a separate `Security` admin surface if module/admin scope keeps growing
 
 ## Global Roles
@@ -89,5 +91,5 @@ This keeps payroll separate from generic finance admin and supports segregation 
 
 - add role descriptions and search/filtering in the Users admin workspace
 - add deny rules or separation-of-duties checks for conflicting role combinations
-- add SSO/MFA/session revocation so `security.manage` has platform capabilities beyond lockout handling
+- add SSO/MFA and stronger hosted-session/device governance so `security.manage` grows beyond lockout + revocation handling
 - add payroll-specific reports, payslip exports, and ERP/journal integration once the HR Management module lands

@@ -36,7 +36,8 @@ This follow-up exists to define the extraction boundary and remaining follow-up 
   - `core/platform/report_runtime`
 - PM compatibility wrappers now register module-owned definitions against those platform runtimes.
 - Shared runtime dispatch now enforces module-entitlement and permission checks when the live platform session/runtime context is supplied.
-- Remaining follow-up is broader module adoption, richer background-job and writer orchestration, and shared-master bulk import/export contracts.
+- Platform-owned shared master data exchange is now live for `site` and `party` through `MasterDataExchangeService`.
+- Remaining follow-up is broader module adoption, richer background-job and writer orchestration, and inventory/maintenance-specific bulk import/export contracts.
 
 ## Ownership Rule
 

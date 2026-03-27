@@ -16,6 +16,7 @@ from core.modules.inventory_procurement.support import (
     normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
+    resolve_item_uom_factor,
     validate_transition,
 )
 from core.platform.audit.helpers import record_audit
@@ -111,11 +112,7 @@ class ReservationService:
             )
         normalized_qty = normalize_positive_quantity(reserved_qty, label="Reservation quantity")
         normalized_uom = normalize_uom(uom or item.stock_uom, label="Reservation UOM")
-        if normalized_uom != item.stock_uom:
-            raise ValidationError(
-                "Phase-1 stock reservations must use the item's stock UOM.",
-                code="INVENTORY_UOM_CONVERSION_REQUIRED",
-            )
+        resolve_item_uom_factor(item, normalized_uom, label="Reservation UOM")
         principal = self._user_session.principal if self._user_session is not None else None
         reservation = StockReservation.create(
             organization_id=organization.id,
