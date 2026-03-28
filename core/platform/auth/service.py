@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ValidationError
 from core.platform.common.interfaces import (
+    AuthSessionRepository,
     PermissionRepository,
     ProjectMembershipRepository,
     RolePermissionRepository,
@@ -20,6 +21,7 @@ from core.platform.common.interfaces import (
     UserRoleRepository,
 )
 from core.platform.auth.domain import (
+    AuthSession,
     Permission,
     Role,
     RolePermissionBinding,
@@ -39,7 +41,7 @@ from core.platform.auth.policy import (
 )
 from core.platform.auth.query import AuthQueryMixin
 from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
-from core.platform.auth.sod import find_separation_of_duties_conflicts
+from core.platform.auth.sod import SeparationOfDutiesPolicy, find_separation_of_duties_conflicts
 from core.platform.auth.validation import AuthValidationMixin
 
 if TYPE_CHECKING:
@@ -58,10 +60,12 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         permission_repo: PermissionRepository,
         user_role_repo: UserRoleRepository,
         role_permission_repo: RolePermissionRepository,
+        auth_session_repo: AuthSessionRepository | None = None,
         scoped_access_repo: ScopedAccessGrantRepository | None = None,
         project_membership_repo: ProjectMembershipRepository | None = None,
         user_session: UserSessionContext | None = None,
         audit_service: "AuditService | None" = None,
+        sod_policy: SeparationOfDutiesPolicy | None = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -69,10 +73,12 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._permission_repo: PermissionRepository = permission_repo
         self._user_role_repo: UserRoleRepository = user_role_repo
         self._role_permission_repo: RolePermissionRepository = role_permission_repo
+        self._auth_session_repo: AuthSessionRepository | None = auth_session_repo
         self._scoped_access_repo: ScopedAccessGrantRepository | None = scoped_access_repo
         self._project_membership_repo: ProjectMembershipRepository | None = project_membership_repo
         self._user_session: UserSessionContext | None = user_session
         self._audit_service: AuditService | None = audit_service
+        self._sod_policy = sod_policy or SeparationOfDutiesPolicy()
 
     def bootstrap_defaults(self) -> UserAccount:
         self._ensure_default_permissions()
@@ -338,6 +344,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.must_change_password = False
         self._rotate_session_revision(user)
         user.session_expires_at = self._next_session_expiry(user.updated_at, user=user)
+        self._revoke_all_persisted_sessions(user, revoked_at=user.updated_at)
         self._user_repo.update(user)
         self._session.commit()
         domain_events.auth_changed.emit(user.id)
@@ -353,6 +360,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.must_change_password = True
         self._rotate_session_revision(user)
         user.session_expires_at = self._next_session_expiry(user.updated_at, user=user)
+        self._revoke_all_persisted_sessions(user, revoked_at=user.updated_at)
         self._user_repo.update(user)
         self._session.commit()
         domain_events.auth_changed.emit(user.id)
@@ -572,6 +580,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.updated_at = datetime.now(timezone.utc)
         self._rotate_session_revision(user)
         user.session_expires_at = self._next_session_expiry(user.updated_at, user=user)
+        self._revoke_all_persisted_sessions(user, revoked_at=user.updated_at)
         self._user_repo.update(user)
         self._session.commit()
         domain_events.auth_changed.emit(user.id)
@@ -588,6 +597,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._rotate_session_revision(user)
         user.session_expires_at = datetime.now(timezone.utc)
         user.updated_at = user.session_expires_at
+        self._revoke_all_persisted_sessions(user, revoked_at=user.updated_at)
         self._user_repo.update(user)
         self._session.commit()
         domain_events.auth_changed.emit(user.id)
@@ -600,26 +610,74 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._refresh_current_session_if_user(user.id)
         return user
 
+    def list_user_sessions(self, user_id: str) -> list[AuthSession]:
+        require_any_permission(
+            self._user_session,
+            ("auth.read", "auth.manage", "security.manage"),
+            operation_label="list user sessions",
+        )
+        user = self._require_user(user_id)
+        if self._auth_session_repo is None:
+            return []
+        return self._auth_session_repo.list_by_user(user.id)
+
+    def revoke_session(self, session_id: str, *, note: str = "") -> AuthSession:
+        require_any_permission(
+            self._user_session,
+            ("auth.manage", "security.manage"),
+            operation_label="revoke session",
+        )
+        if self._auth_session_repo is None:
+            raise ValidationError(
+                "Session persistence is not configured.",
+                code="AUTH_SESSION_PERSISTENCE_REQUIRED",
+            )
+        auth_session = self._auth_session_repo.get(session_id)
+        if auth_session is None:
+            raise ValidationError("Session not found.", code="AUTH_SESSION_NOT_FOUND")
+        revoked_at = datetime.now(timezone.utc)
+        auth_session.revoked_at = revoked_at
+        auth_session.updated_at = revoked_at
+        self._auth_session_repo.update(auth_session)
+        self._session.commit()
+        self._record_auth_event(
+            action="auth.session.revoked",
+            username="",
+            user_id=auth_session.user_id,
+            details={"note": note.strip(), "session_id": auth_session.id},
+        )
+        self._refresh_current_session_if_user(auth_session.user_id)
+        return auth_session
+
     def validate_session_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal | None:
         user = self._user_repo.get(principal.user_id)
         if user is None or not user.is_active:
             return None
-        current_expires_at = ensure_utc_datetime(user.session_expires_at)
-        if current_expires_at is None:
-            return None
         now = datetime.now(timezone.utc)
-        if now >= current_expires_at:
+        current_expires_at = ensure_utc_datetime(user.session_expires_at)
+        if current_expires_at is None or now >= current_expires_at:
             return None
         principal_expires_at = ensure_utc_datetime(principal.session_expires_at)
+        if self._auth_session_repo is not None and getattr(principal, "session_id", None):
+            auth_session = self._auth_session_repo.get(principal.session_id)
+            if auth_session is None or auth_session.user_id != user.id:
+                return None
+            if auth_session.revoked_at is not None:
+                return None
+            if auth_session.expires_at is None or now >= ensure_utc_datetime(auth_session.expires_at):
+                return None
+            if int(auth_session.session_revision or 1) != int(getattr(user, "session_revision", 1) or 1):
+                return None
+            if principal_expires_at is None or principal_expires_at != ensure_utc_datetime(auth_session.expires_at):
+                return self.build_principal(user, session_id=auth_session.id)
+            return self.build_principal(user, session_id=auth_session.id)
         if principal_expires_at is None or principal_expires_at != current_expires_at:
             return None
         if int(getattr(principal, "session_revision", 1) or 1) != int(getattr(user, "session_revision", 1) or 1):
             return None
-        if bool(principal.must_change_password) != bool(user.must_change_password):
-            return self.build_principal(user)
-        return principal
+        return self.build_principal(user)
 
-    def build_principal(self, user: UserAccount) -> UserSessionPrincipal:
+    def build_principal(self, user: UserAccount, *, session_id: str | None = None) -> UserSessionPrincipal:
         scoped_access: dict[str, dict[str, frozenset[str]]] = {}
         if self._scoped_access_repo is not None:
             for grant in self._scoped_access_repo.list_by_user(user.id):
@@ -650,6 +708,19 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             if not scoped_access["project"]:
                 scoped_access.pop("project", None)
         project_access = dict(scoped_access.get("project", {}))
+        resolved_session_id = (
+            str(session_id or "").strip()
+            or str(getattr(user, "active_session_id", "") or "").strip()
+            or None
+        )
+        resolved_session = (
+            self._auth_session_repo.get(resolved_session_id)
+            if self._auth_session_repo is not None and resolved_session_id is not None
+            else None
+        )
+        if resolved_session is not None and resolved_session.revoked_at is not None:
+            resolved_session = None
+            resolved_session_id = None
         return UserSessionPrincipal(
             user_id=user.id,
             username=user.username,
@@ -658,11 +729,16 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             permissions=frozenset(self.get_user_permissions(user.id)),
             scoped_access=scoped_access,
             project_access=project_access,
-            session_expires_at=ensure_utc_datetime(user.session_expires_at),
+            session_expires_at=ensure_utc_datetime(
+                resolved_session.expires_at if resolved_session is not None else user.session_expires_at
+            ),
             must_change_password=bool(user.must_change_password),
             session_revision=int(getattr(user, "session_revision", 1) or 1),
             identity_provider=getattr(user, "identity_provider", None),
-            last_login_auth_method=getattr(user, "last_login_auth_method", None),
+            last_login_auth_method=(
+                resolved_session.auth_method if resolved_session is not None else getattr(user, "last_login_auth_method", None)
+            ),
+            session_id=resolved_session_id,
         )
 
     def _assign_roles_for_user(self, user_id: str, role_names: Iterable[str]) -> None:
@@ -810,9 +886,20 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         user.last_login_at = occurred_at
         user.last_login_auth_method = auth_method
         user.last_login_device_label = self._normalize_device_label(device_label)
-        self._rotate_session_revision(user)
         user.session_expires_at = self._next_session_expiry(occurred_at, user=user)
         user.updated_at = occurred_at
+        if self._auth_session_repo is not None:
+            auth_session = AuthSession.create(
+                user_id=user.id,
+                session_revision=int(getattr(user, "session_revision", 1) or 1),
+                auth_method=auth_method,
+                expires_at=user.session_expires_at,
+                device_label=user.last_login_device_label,
+            )
+            user.active_session_id = auth_session.id
+            self._auth_session_repo.add(auth_session)
+        else:
+            user.active_session_id = None
         self._user_repo.update(user)
         self._session.commit()
         domain_events.auth_changed.emit(user.id)
@@ -865,7 +952,8 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         if user.session_expires_at is not None and datetime.now(timezone.utc) >= ensure_utc_datetime(user.session_expires_at):
             self._user_session.clear()
             return
-        self._user_session.set_principal(self.build_principal(user))
+        preferred_session_id = self._resolve_current_principal_session_id(user_id)
+        self._user_session.set_principal(self.build_principal(user, session_id=preferred_session_id))
 
     @staticmethod
     def _rotate_session_revision(user: UserAccount) -> None:
@@ -883,12 +971,36 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         for role_name in normalized_role_names:
             role = self._require_role_by_name(role_name)
             permission_codes.update(DEFAULT_ROLE_PERMISSIONS.get(role.name, set()))
-        conflicts = find_separation_of_duties_conflicts(permission_codes)
+        conflicts = self._sod_policy.find_conflicts(permission_codes)
         if conflicts:
             raise ValidationError(
                 f"Role assignment violates separation of duties. {conflicts[0]}",
                 code="ROLE_CONFLICT",
             )
+
+    def _resolve_current_principal_session_id(self, user_id: str) -> str | None:
+        if self._user_session is None:
+            return None
+        principal = self._user_session.principal
+        if principal is None or principal.user_id != user_id:
+            return None
+        session_id = str(getattr(principal, "session_id", "") or "").strip() or None
+        if session_id is None or self._auth_session_repo is None:
+            return session_id
+        auth_session = self._auth_session_repo.get(session_id)
+        if auth_session is None or auth_session.revoked_at is not None:
+            return None
+        return session_id
+
+    def _revoke_all_persisted_sessions(self, user: UserAccount, *, revoked_at: datetime) -> None:
+        if self._auth_session_repo is None:
+            return
+        for auth_session in self._auth_session_repo.list_by_user(user.id):
+            if auth_session.revoked_at is not None:
+                continue
+            auth_session.revoked_at = revoked_at
+            auth_session.updated_at = revoked_at
+            self._auth_session_repo.update(auth_session)
 
 
 __all__ = ["AuthService"]

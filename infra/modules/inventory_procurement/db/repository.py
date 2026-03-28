@@ -164,6 +164,8 @@ class SqlAlchemyStoreroomRepository(StoreroomRepository):
                 "allows_issue": storeroom.allows_issue,
                 "allows_transfer": storeroom.allows_transfer,
                 "allows_receiving": storeroom.allows_receiving,
+                "requires_reservation_for_issue": storeroom.requires_reservation_for_issue,
+                "requires_supplier_reference_for_receipt": storeroom.requires_supplier_reference_for_receipt,
                 "default_currency_code": storeroom.default_currency_code or None,
                 "manager_party_id": storeroom.manager_party_id,
                 "created_at": storeroom.created_at,

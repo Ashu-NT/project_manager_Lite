@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta, timezone
+
 from core.modules.inventory_procurement.domain import StockItem
 from core.platform.common.exceptions import ValidationError
 from core.platform.org.support import normalize_code, normalize_name
@@ -60,6 +62,17 @@ RESERVATION_STATUS_TRANSITIONS = {
     "CANCELLED": set(),
 }
 
+INVENTORY_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
+    "task",
+    "work_order",
+    "maintenance_task",
+    "maintenance_work_order",
+    "maintenance_request",
+    "reservation",
+    "requisition",
+    "purchase_order",
+)
+
 
 def normalize_inventory_code(value: str, *, label: str) -> str:
     return normalize_code(value, label=label)
@@ -71,6 +84,23 @@ def normalize_inventory_name(value: str | None, *, label: str) -> str:
 
 def normalize_optional_text(value: str | None) -> str:
     return (value or "").strip()
+
+
+def normalize_optional_date(value: date | str | None, *, label: str) -> date | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    normalized = normalize_optional_text(str(value))
+    if not normalized:
+        return None
+    try:
+        return date.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValidationError(
+            f"{label} must use ISO date format YYYY-MM-DD.",
+            code="INVENTORY_DATE_INVALID",
+        ) from exc
 
 
 def normalize_uom(value: str | None, *, label: str) -> str:
@@ -190,6 +220,60 @@ def normalize_nonnegative_days(value: int | None, *, label: str) -> int | None:
     return days
 
 
+def normalize_source_reference_type(value: str | None) -> str:
+    normalized = normalize_optional_text(value).lower()
+    if not normalized:
+        return ""
+    if normalized not in INVENTORY_SOURCE_REFERENCE_TYPES:
+        raise ValidationError(
+            "Source reference type is invalid.",
+            code="INVENTORY_SOURCE_REFERENCE_TYPE_INVALID",
+        )
+    return normalized
+
+
+def validate_receipt_tracking(
+    *,
+    item: StockItem,
+    accepted_quantity: float,
+    lot_number: str,
+    serial_number: str,
+    expiry_date: date | None,
+    receipt_date: datetime,
+) -> None:
+    if accepted_quantity <= 0:
+        return
+    if item.is_lot_tracked and not lot_number:
+        raise ValidationError(
+            "Lot-tracked items require a lot number when quantity is accepted.",
+            code="INVENTORY_RECEIPT_LOT_REQUIRED",
+        )
+    if item.is_serial_tracked:
+        if not serial_number:
+            raise ValidationError(
+                "Serial-tracked items require a serial number when quantity is accepted.",
+                code="INVENTORY_RECEIPT_SERIAL_REQUIRED",
+            )
+        if abs(float(accepted_quantity) - 1.0) > 1e-9:
+            raise ValidationError(
+                "Serial-tracked items must be received one serial number at a time.",
+                code="INVENTORY_RECEIPT_SERIAL_QTY_INVALID",
+            )
+    if item.shelf_life_days is not None:
+        if expiry_date is None:
+            raise ValidationError(
+                "Shelf-life-controlled items require an expiry date when quantity is accepted.",
+                code="INVENTORY_RECEIPT_EXPIRY_REQUIRED",
+            )
+        received_on = receipt_date.astimezone(timezone.utc).date()
+        minimum_expiry = received_on + timedelta(days=max(0, int(item.shelf_life_days or 0)))
+        if expiry_date < minimum_expiry:
+            raise ValidationError(
+                "Expiry date does not satisfy the configured shelf-life window.",
+                code="INVENTORY_RECEIPT_EXPIRY_INVALID",
+            )
+
+
 def resolve_active_flag_from_status(status: str) -> bool:
     return status == "ACTIVE"
 
@@ -230,18 +314,22 @@ def validate_transition(
 __all__ = [
     "BUSINESS_PARTY_TYPES",
     "ITEM_STATUS_TRANSITIONS",
+    "INVENTORY_SOURCE_REFERENCE_TYPES",
     "PURCHASE_ORDER_STATUS_TRANSITIONS",
     "REQUISITION_STATUS_TRANSITIONS",
     "RESERVATION_STATUS_TRANSITIONS",
     "STOREROOM_STATUS_TRANSITIONS",
     "normalize_inventory_code",
     "normalize_inventory_name",
+    "normalize_optional_date",
     "normalize_nonnegative_days",
     "normalize_nonnegative_quantity",
     "normalize_positive_quantity",
     "normalize_optional_text",
+    "normalize_source_reference_type",
     "normalize_status",
     "normalize_uom",
+    "validate_receipt_tracking",
     "convert_item_quantity",
     "convert_item_unit_cost_to_stock",
     "resolve_configured_uom_ratio",

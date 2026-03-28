@@ -21,16 +21,19 @@ Delivered:
 - repo-backed session validation plus `security.manage` session revocation controls
 - federated identity linking and MFA enrollment/verification hooks in shared auth
 - per-user session-timeout policy plus session-revision invalidation controls
+- dedicated `auth_sessions` persistence with multi-session validation, listing, and single-session revocation
 - true non-project scoped access persistence with first live `storeroom` scope grants
-- first separation-of-duties guardrails for conflicting approval and access/security permission combinations
+- broader non-project scope rollout with first live `site` scope grants
+- policy-backed separation-of-duties rules for conflicting approval and access/security permission combinations
 - a platform-owned authorization engine seam so future web-policy and ABAC-style adapters have one integration point
 
 Pending:
 
 - HR Management feature slice implementation
-- broader configurable separation-of-duties policy beyond the delivered core conflicts
-- stronger `security.manage` capabilities such as hosted SSO adapters, external IdP provisioning, and richer device/session posture governance
-- deeper non-project scope adoption beyond `storeroom`, especially asset and maintenance-area controls
+- web auth transport and middleware for the future hosted surface
+- richer contextual policy inputs for ABAC-style decisions
+- stronger `security.manage` capabilities such as hosted SSO adapters, external IdP provisioning, deeper MFA lifecycle tools, and richer device/session posture governance
+- deeper non-project scope adoption beyond `site` and `storeroom`, especially asset and maintenance-area controls
 
 ## Global Roles
 
@@ -86,11 +89,11 @@ This keeps payroll separate from generic finance admin and supports segregation 
 
 ## Concrete Next Plan
 
-1. Move session governance from the current user-row session markers to a true per-session model for future desktop + web deployments.
+1. Add hosted web auth transport and middleware on top of the delivered per-session auth model.
 2. Add hosted SSO adapter seams and IdP-provisioning workflows on top of the delivered federated identity model.
 3. Expand the scoped-access policy registry and persistence layer to asset, maintenance-area, and other non-project scopes.
-4. Move separation-of-duties from fixed guardrails to a configurable enterprise policy matrix.
-5. Add richer Security workspace actions for password reset, MFA state inspection/reset, and federated-account lifecycle.
+4. Enrich the authorization engine with richer resource/context inputs for ABAC-style decisions.
+5. Add richer Security workspace actions for password reset, MFA state inspection/reset, federated-account lifecycle, and session posture review.
 6. Add a dedicated `hr_management` feature slice that consumes the delivered payroll-ready permissions.
 
 ## Follow-Ups

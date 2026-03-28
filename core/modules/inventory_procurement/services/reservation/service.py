@@ -15,6 +15,7 @@ from core.modules.inventory_procurement.support import (
     RESERVATION_STATUS_TRANSITIONS,
     normalize_optional_text,
     normalize_positive_quantity,
+    normalize_source_reference_type,
     normalize_uom,
     resolve_item_uom_factor,
     validate_transition,
@@ -103,7 +104,7 @@ class ReservationService:
             raise ValidationError("Reservation item must be an active stocked item.", code="INVENTORY_ITEM_NOT_STOCKED")
         if not storeroom.is_active:
             raise ValidationError("Reservation storeroom must be active.", code="INVENTORY_STOREROOM_INACTIVE")
-        normalized_source_type = normalize_optional_text(source_reference_type)
+        normalized_source_type = normalize_source_reference_type(source_reference_type)
         normalized_source_id = normalize_optional_text(source_reference_id)
         if not normalized_source_type or not normalized_source_id:
             raise ValidationError(

@@ -8,7 +8,9 @@ from core.modules.inventory_procurement.support import (
     PURCHASE_ORDER_STATUS_TRANSITIONS,
     convert_item_quantity,
     normalize_nonnegative_quantity,
+    normalize_optional_date,
     normalize_optional_text,
+    validate_receipt_tracking,
     validate_transition,
 )
 from core.platform.approval.domain import ApprovalRequest
@@ -26,6 +28,7 @@ class PurchasingReceivingMixin:
         receipt_date: datetime | None = None,
         supplier_delivery_reference: str = "",
         notes: str = "",
+        receipt_number: str | None = None,
     ) -> ReceiptHeader:
         self._require_manage("post receipt")
         purchase_order = self.get_purchase_order(purchase_order_id)
@@ -43,14 +46,15 @@ class PurchasingReceivingMixin:
             raise ValidationError("At least one receipt line is required.", code="INVENTORY_RECEIPT_LINES_REQUIRED")
         principal = self._user_session.principal if self._user_session is not None else None
         effective_receipt_date = receipt_date or datetime.now(timezone.utc)
+        normalized_supplier_reference = normalize_optional_text(supplier_delivery_reference)
         receipt = ReceiptHeader.create(
             organization_id=purchase_order.organization_id,
-            receipt_number=build_receipt_number(),
+            receipt_number=normalize_optional_text(receipt_number) or build_receipt_number(),
             purchase_order_id=purchase_order.id,
             received_site_id=purchase_order.site_id,
             supplier_party_id=purchase_order.supplier_party_id,
             receipt_date=effective_receipt_date,
-            supplier_delivery_reference=normalize_optional_text(supplier_delivery_reference),
+            supplier_delivery_reference=normalized_supplier_reference,
             received_by_user_id=getattr(principal, "user_id", None),
             received_by_username=str(getattr(principal, "username", "") or ""),
             notes=normalize_optional_text(notes),
@@ -68,6 +72,13 @@ class PurchasingReceivingMixin:
                 po_line = order_lines.get(line_id)
                 if po_line is None:
                     raise ValidationError("Receipt line does not belong to the selected purchase order.", code="INVENTORY_RECEIPT_LINE_SCOPE_INVALID")
+                item = self._item_service.get_item_for_internal_use(po_line.stock_item_id)
+                storeroom = self._inventory_service.get_storeroom(po_line.destination_storeroom_id)
+                if storeroom.requires_supplier_reference_for_receipt and not normalized_supplier_reference:
+                    raise ValidationError(
+                        "Selected storeroom requires a supplier delivery reference for receipts.",
+                        code="INVENTORY_RECEIPT_REFERENCE_REQUIRED",
+                    )
                 accepted = normalize_nonnegative_quantity(payload.get("quantity_accepted"), label="Accepted quantity")
                 rejected = normalize_nonnegative_quantity(payload.get("quantity_rejected"), label="Rejected quantity")
                 processed = accepted + rejected
@@ -77,6 +88,17 @@ class PurchasingReceivingMixin:
                 if processed > outstanding:
                     raise ValidationError("Receipt quantity exceeds the remaining open quantity.", code="INVENTORY_RECEIPT_EXCEEDS_OPEN_QTY")
                 unit_cost = normalize_nonnegative_quantity(payload.get("unit_cost", po_line.unit_price), label="Receipt unit cost")
+                lot_number = normalize_optional_text(str(payload.get("lot_number") or ""))
+                serial_number = normalize_optional_text(str(payload.get("serial_number") or ""))
+                expiry_date = normalize_optional_date(payload.get("expiry_date"), label="Expiry date")
+                validate_receipt_tracking(
+                    item=item,
+                    accepted_quantity=accepted,
+                    lot_number=lot_number,
+                    serial_number=serial_number,
+                    expiry_date=expiry_date,
+                    receipt_date=effective_receipt_date,
+                )
                 receipt_line = ReceiptLine.create(
                     receipt_header_id=receipt.id,
                     purchase_order_line_id=po_line.id,
@@ -87,6 +109,9 @@ class PurchasingReceivingMixin:
                     quantity_rejected=rejected,
                     uom=po_line.uom,
                     unit_cost=unit_cost,
+                    lot_number=lot_number,
+                    serial_number=serial_number,
+                    expiry_date=expiry_date,
                     notes=normalize_optional_text(str(payload.get("notes") or "")),
                 )
                 self._receipt_line_repo.add(receipt_line)

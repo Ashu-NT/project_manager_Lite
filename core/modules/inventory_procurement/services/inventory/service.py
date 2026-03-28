@@ -147,6 +147,8 @@ class InventoryService:
         allows_issue: bool = True,
         allows_transfer: bool = True,
         allows_receiving: bool = True,
+        requires_reservation_for_issue: bool = False,
+        requires_supplier_reference_for_receipt: bool = False,
         default_currency_code: str | None = None,
         manager_party_id: str | None = None,
         notes: str = "",
@@ -179,6 +181,8 @@ class InventoryService:
             allows_issue=bool(allows_issue),
             allows_transfer=bool(allows_transfer),
             allows_receiving=bool(allows_receiving),
+            requires_reservation_for_issue=bool(requires_reservation_for_issue),
+            requires_supplier_reference_for_receipt=bool(requires_supplier_reference_for_receipt),
             default_currency_code=(normalize_optional_text(default_currency_code).upper() or site.currency_code or ""),
             manager_party_id=self._validate_party_reference(manager_party_id),
             notes=normalize_optional_text(notes),
@@ -225,6 +229,8 @@ class InventoryService:
         allows_issue: bool | None = None,
         allows_transfer: bool | None = None,
         allows_receiving: bool | None = None,
+        requires_reservation_for_issue: bool | None = None,
+        requires_supplier_reference_for_receipt: bool | None = None,
         default_currency_code: str | None = None,
         manager_party_id: str | None = None,
         is_active: bool | None = None,
@@ -273,6 +279,12 @@ class InventoryService:
             storeroom.allows_transfer = bool(allows_transfer)
         if allows_receiving is not None:
             storeroom.allows_receiving = bool(allows_receiving)
+        if requires_reservation_for_issue is not None:
+            storeroom.requires_reservation_for_issue = bool(requires_reservation_for_issue)
+        if requires_supplier_reference_for_receipt is not None:
+            storeroom.requires_supplier_reference_for_receipt = bool(
+                requires_supplier_reference_for_receipt
+            )
         if default_currency_code is not None:
             storeroom.default_currency_code = normalize_optional_text(default_currency_code).upper()
         if manager_party_id is not None:

@@ -7,6 +7,7 @@ from core.platform.access.domain import ProjectMembership, ScopedAccessGrant
 from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from core.platform.audit.domain import AuditLogEntry
 from core.platform.auth.domain import (
+    AuthSession,
     Permission,
     Role,
     RolePermissionBinding,
@@ -95,6 +96,20 @@ class UserRepository(ABC):
 
     @abstractmethod
     def list_all(self) -> List[UserAccount]: ...
+
+
+class AuthSessionRepository(ABC):
+    @abstractmethod
+    def add(self, auth_session: AuthSession) -> None: ...
+
+    @abstractmethod
+    def update(self, auth_session: AuthSession) -> None: ...
+
+    @abstractmethod
+    def get(self, session_id: str) -> Optional[AuthSession]: ...
+
+    @abstractmethod
+    def list_by_user(self, user_id: str) -> List[AuthSession]: ...
 
 
 class EmployeeRepository(ABC):
@@ -270,6 +285,7 @@ class ApprovalRepository(ABC):
 
 __all__ = [
     "ApprovalRepository",
+    "AuthSessionRepository",
     "AuditLogRepository",
     "DepartmentRepository",
     "EmployeeRepository",

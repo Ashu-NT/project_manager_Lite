@@ -317,7 +317,7 @@ Completion notes:
 - the first module-side scaffold started through `InventoryReferenceService`
 - inventory now consumes shared `site` and `party` reads instead of inventing local copies
 - phase-1 inventory services and UI now cover item master, storerooms, balances, transactions, reservations, requisitions, purchase orders, and receiving
-- the remaining follow-up is enterprise hardening, import/export, and maintenance-facing integration rather than basic module scaffolding
+- the remaining follow-up is deeper enterprise hardening, maintenance-facing integration, and richer warehouse control rather than basic module scaffolding
 
 ### 12. Shared Import Export Report Runtime
 
@@ -351,7 +351,9 @@ Completion notes:
 - PM import and reporting entry points now delegate through compatibility wrappers instead of owning the runtime machinery themselves
 - shared runtime dispatch now enforces module-entitlement and permission checks when connected to the live platform session/runtime context
 - platform-owned shared master data exchange now covers `site` and `party` import/export through `MasterDataExchangeService`
-- remaining follow-up is broader non-PM adoption, richer writer/background-job orchestration, and inventory/maintenance-specific bulk import/export contracts
+- inventory now uses the shared runtimes for requisition, purchase-order, and receipt import/export plus stock/procurement report rendering
+- persisted runtime execution tracking now records shared import, export, and report runs across platform and inventory operations
+- remaining follow-up is richer writer/background-job orchestration, maintenance-specific bulk import/export contracts, and async job controls
 
 ## Guardrails
 

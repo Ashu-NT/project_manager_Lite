@@ -21,9 +21,9 @@ Delivered in the current codebase:
 
 Pending major work:
 
-- deeper hardening for `Inventory & Procurement`, especially inventory-specific import/export contracts, lot/serial and shelf-life controls, richer warehouse execution policies, and maintenance-facing integration workflows
+- deeper hardening for `Inventory & Procurement`, especially maintenance-facing integration workflows, broader serial/lot lifecycle traceability, and richer warehouse execution policies beyond the delivered document-import and receiving hardening
 - `Maintenance Management`, `QHSE`, and `HR Management` business modules
-- deeper enterprise identity controls such as hosted SSO rollout, external IdP provisioning, broader separation-of-duties policy, and richer device posture rules after the delivered federation/MFA/session-policy groundwork
+- deeper enterprise identity controls such as hosted SSO rollout, richer contextual policy evaluation, broader scope adoption, and stronger security operations on top of the delivered federation/MFA/per-session groundwork
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
 The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`; it currently has no remaining carryover backlog. The remaining PM work is now technical alignment follow-up, tracked separately in `docs/project_management_followup/README.md`.
@@ -53,13 +53,15 @@ The current enterprise auth/access hardening block delivered:
 2. true non-project scoped access persistence with the first live non-project scope type: `storeroom`, including principal hydration from mixed project + scoped grants
 3. cross-cutting enterprise guardrails: first separation-of-duties enforcement for conflicting security/governance permission sets and a split `Access` vs `Security` admin workspace
 4. a platform-owned authorization engine seam in `core/platform/authorization` so future web auth middleware and ABAC-style adapters have one central integration point
+5. per-session persistence through dedicated `auth_sessions`, including single-session revocation and session-backed principal validation for desktop + future web use
+6. broader non-project scope rollout with first live `site` scope policy support alongside `storeroom`
 
 The next implementation slice should now focus on:
 
-1. per-session desktop + web session persistence instead of only user-row session markers
+1. hosted web auth transport and middleware on top of the delivered per-session model
 2. hosted SSO/IdP adapters and deeper `security.manage` workflows such as stronger device visibility and security event handling
-3. broader scoped-access adoption inside inventory flows beyond storeroom admin/ledger boundaries, then asset/maintenance-area scope types
-4. configurable separation-of-duties policy management and fuller security admin UX for password reset, MFA state, and federated-account lifecycle
+3. richer authorization-engine context inputs plus broader scoped-access adoption inside inventory flows beyond current site/storeroom boundaries, then asset/maintenance-area scope types
+4. fuller security admin UX for password reset, MFA state, and federated-account lifecycle
 
 The concrete tracker for that work is now `docs/platform_alignment_followup/auth_access_scaling/README.md`.
 

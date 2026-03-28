@@ -7,6 +7,7 @@ from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
 from core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from core.modules.project_management.access.policy import resolve_project_scope_permissions
+from core.platform.org.access_policy import resolve_site_scope_permissions
 from tests.ui_runtime_helpers import login_as
 
 
@@ -119,7 +120,7 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
     assert grant.scope_role == "operator"
     assert grant.permission_codes == sorted(resolve_storeroom_scope_permissions("operator"))
     assert access.list_scope_role_choices("storeroom") == ("viewer", "operator", "manager")
-    assert access.list_supported_scope_types() == ("project", "storeroom")
+    assert access.list_supported_scope_types() == ("project", "site", "storeroom")
 
     listed_scope_grants = access.list_scope_grants("storeroom", storeroom.id)
     listed_user_grants = access.list_user_scope_grants(user.id, scope_type="storeroom")
@@ -132,6 +133,40 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
     assert principal.scoped_access["storeroom"][storeroom.id] == frozenset(
         resolve_storeroom_scope_permissions("operator")
     )
+
+
+def test_access_service_supports_site_scope_grants_and_site_filtering(services):
+    auth = services["auth_service"]
+    access = services["access_service"]
+    site_a = services["site_service"].create_site(
+        site_code="SITE-A",
+        name="Allowed Site",
+        city="Berlin",
+        currency_code="EUR",
+    )
+    services["site_service"].create_site(
+        site_code="SITE-B",
+        name="Blocked Site",
+        city="Munich",
+        currency_code="EUR",
+    )
+    user = auth.register_user("site-scope-user", "StrongPass123", role_names=["inventory_manager"])
+
+    grant = access.assign_scope_grant(
+        scope_type="site",
+        scope_id=site_a.id,
+        user_id=user.id,
+        scope_role="manager",
+    )
+
+    assert grant.permission_codes == sorted(resolve_site_scope_permissions("manager"))
+    principal = auth.build_principal(user)
+    assert principal.scoped_access["site"][site_a.id] == frozenset(resolve_site_scope_permissions("manager"))
+
+    login_as(services, "site-scope-user", "StrongPass123")
+    visible_sites = services["site_service"].list_sites()
+
+    assert [site.id for site in visible_sites] == [site_a.id]
 
 
 def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):

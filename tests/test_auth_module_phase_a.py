@@ -212,3 +212,24 @@ def test_edit_user_profile_rejects_duplicate_username(services):
 
     with pytest.raises(ValidationError, match="Username already exists"):
         auth.update_user_profile(target.id, username="profile-alpha")
+
+
+def test_auth_service_persists_sessions_and_supports_single_session_revocation(services):
+    auth = services["auth_service"]
+    user = auth.register_user("session-persist-user", "StrongPass123", role_names=["viewer"])
+
+    desktop_login = auth.authenticate("session-persist-user", "StrongPass123", device_label="Desktop")
+    desktop_principal = auth.build_principal(desktop_login)
+    browser_login = auth.authenticate("session-persist-user", "StrongPass123", device_label="Browser")
+    browser_principal = auth.build_principal(browser_login)
+    sessions = auth.list_user_sessions(user.id)
+
+    assert desktop_principal.session_id is not None
+    assert browser_principal.session_id is not None
+    assert desktop_principal.session_id != browser_principal.session_id
+    assert len(sessions) == 2
+
+    auth.revoke_session(desktop_principal.session_id, note="Revoke one device")
+
+    assert auth.validate_session_principal(desktop_principal) is None
+    assert auth.validate_session_principal(browser_principal) is not None

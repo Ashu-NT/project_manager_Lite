@@ -32,6 +32,7 @@ class UserAccount:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     version: int = 1
+    active_session_id: str | None = None
 
     @staticmethod
     def create(
@@ -66,6 +67,46 @@ class UserAccount:
             created_at=now,
             updated_at=now,
             version=1,
+            active_session_id=None,
+        )
+
+
+@dataclass
+class AuthSession:
+    id: str
+    user_id: str
+    session_revision: int
+    auth_method: str
+    device_label: Optional[str] = None
+    issued_at: datetime | None = None
+    expires_at: datetime | None = None
+    last_validated_at: datetime | None = None
+    revoked_at: datetime | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    @staticmethod
+    def create(
+        *,
+        user_id: str,
+        session_revision: int,
+        auth_method: str,
+        expires_at: datetime,
+        device_label: str | None = None,
+    ) -> "AuthSession":
+        now = datetime.now(timezone.utc)
+        return AuthSession(
+            id=generate_id(),
+            user_id=user_id,
+            session_revision=max(1, int(session_revision or 1)),
+            auth_method=str(auth_method or "").strip() or "password",
+            device_label=(str(device_label or "").strip() or None),
+            issued_at=now,
+            expires_at=expires_at,
+            last_validated_at=now,
+            revoked_at=None,
+            created_at=now,
+            updated_at=now,
         )
 
 
@@ -132,6 +173,7 @@ class RolePermissionBinding:
 
 
 __all__ = [
+    "AuthSession",
     "UserAccount",
     "Role",
     "Permission",

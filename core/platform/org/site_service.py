@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
@@ -48,7 +49,14 @@ class SiteService:
     def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
         self._require_site_read_access("list sites")
         organization = self._active_organization()
-        return self._site_repo.list_for_organization(organization.id, active_only=active_only)
+        rows = self._site_repo.list_for_organization(organization.id, active_only=active_only)
+        return filter_scope_rows(
+            rows,
+            self._user_session,
+            scope_type="site",
+            permission_code="site.read",
+            scope_id_getter=lambda row: getattr(row, "id", ""),
+        )
 
     def search_sites(
         self,
@@ -58,7 +66,7 @@ class SiteService:
     ) -> list[Site]:
         self._require_site_read_access("search sites")
         normalized_search = _normalize_optional_text(search_text).lower()
-        rows = self._site_repo.list_for_organization(self._active_organization().id, active_only=active_only)
+        rows = self.list_sites(active_only=active_only)
         if not normalized_search:
             return rows
         return [
@@ -85,6 +93,13 @@ class SiteService:
         site = self._site_repo.get(site_id)
         if site is None or site.organization_id != organization.id:
             raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
+        require_scope_permission(
+            self._user_session,
+            "site",
+            site.id,
+            "site.read",
+            operation_label="view site",
+        )
         return site
 
     def find_site_by_code(self, site_code: str) -> Site | None:

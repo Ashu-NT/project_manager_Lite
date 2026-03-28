@@ -104,6 +104,18 @@ class StoreroomORM(Base):
     allows_issue: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     allows_transfer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     allows_receiving: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    requires_reservation_for_issue: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
+    requires_supplier_reference_for_receipt: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
     default_currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     manager_party_id: Mapped[Optional[str]] = mapped_column(
         String,
@@ -519,6 +531,9 @@ class ReceiptLineORM(Base):
     quantity_rejected: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
     uom: Mapped[str] = mapped_column(String(32), nullable=False)
     unit_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    lot_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    serial_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 

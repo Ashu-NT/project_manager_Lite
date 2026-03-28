@@ -62,6 +62,7 @@ from infra.platform.db.time.repository import (
     SqlAlchemyTimesheetPeriodRepository,
 )
 from infra.platform.db.auth.repository import (
+    SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
@@ -113,6 +114,7 @@ __all__ = [
     "user_role_from_orm",
     "role_permission_to_orm",
     "role_permission_from_orm",
+    "SqlAlchemyAuthSessionRepository",
     "SqlAlchemyProjectRepository",
     "SqlAlchemyProjectResourceRepository",
     "SqlAlchemyRegisterEntryRepository",

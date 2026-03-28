@@ -6,6 +6,7 @@ from pathlib import Path
 from core.platform.auth.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
 from core.platform.modules.contracts import SupportsModuleEntitlements
+from core.platform.runtime_tracking import RuntimeExecutionService
 
 from .models import ImportFieldSpec, ImportPreview, ImportSourceRow, ImportSummary
 from .registry import ImportDefinitionRegistry
@@ -18,10 +19,12 @@ class CsvImportRuntime:
         *,
         user_session: UserSessionContext | None = None,
         module_catalog_service: SupportsModuleEntitlements | None = None,
+        runtime_execution_service: RuntimeExecutionService | None = None,
     ) -> None:
         self._registry = registry
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+        self._runtime_execution_service = runtime_execution_service
 
     def get_import_schema(
         self,
@@ -89,14 +92,36 @@ class CsvImportRuntime:
             user_session=user_session,
             module_catalog_service=module_catalog_service,
         )
-        _columns, rows, _mapping = self._prepare_rows(
-            definition,
-            file_path,
-            column_mapping=column_mapping,
+        execution = (
+            self._runtime_execution_service.start_execution(
+                operation_type="import",
+                operation_key=normalized,
+                module_code=definition.module_code,
+                input_path=file_path,
+            )
+            if self._runtime_execution_service is not None
+            else None
         )
-        summary = definition.execute(rows)
-        summary.entity_type = normalized
-        return summary
+        try:
+            _columns, rows, _mapping = self._prepare_rows(
+                definition,
+                file_path,
+                column_mapping=column_mapping,
+            )
+            summary = definition.execute(rows)
+            summary.entity_type = normalized
+            if execution is not None:
+                self._runtime_execution_service.complete_execution(
+                    execution,
+                    created_count=getattr(summary, "created_count", 0),
+                    updated_count=getattr(summary, "updated_count", 0),
+                    error_count=len(getattr(summary, "row_errors", ()) or ()),
+                )
+            return summary
+        except Exception as exc:
+            if execution is not None:
+                self._runtime_execution_service.fail_execution(execution, error_message=str(exc))
+            raise
 
     def _prepare_rows(
         self,

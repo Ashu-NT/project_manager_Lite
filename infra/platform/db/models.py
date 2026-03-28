@@ -653,6 +653,26 @@ class UserORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class AuthSessionORM(Base):
+    __tablename__ = "auth_sessions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    session_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    auth_method: Mapped[str] = mapped_column(String(64), nullable=False)
+    device_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    issued_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class RoleORM(Base):
     __tablename__ = "roles"
 
@@ -774,6 +794,28 @@ class ApprovalRequestORM(Base):
     decided_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class RuntimeExecutionORM(Base):
+    __tablename__ = "runtime_executions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    operation_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    operation_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    module_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="RUNNING", server_default="RUNNING")
+    requested_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    requested_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    input_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    output_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    updated_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
 class TaskCommentORM(Base):
@@ -913,6 +955,9 @@ Index("idx_register_entries_type", RegisterEntryORM.entry_type)
 Index("idx_register_entries_status", RegisterEntryORM.status)
 Index("idx_register_entries_due", RegisterEntryORM.due_date)
 Index("idx_users_username", UserORM.username, unique=True)
+Index("idx_auth_sessions_user", AuthSessionORM.user_id)
+Index("idx_auth_sessions_expires", AuthSessionORM.expires_at)
+Index("idx_auth_sessions_revoked", AuthSessionORM.revoked_at)
 Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
 Index("idx_employees_active", EmployeeORM.is_active)
 Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
@@ -935,6 +980,8 @@ Index("idx_audit_logs_entity", AuditLogORM.entity_type, AuditLogORM.entity_id)
 Index("idx_approval_status", ApprovalRequestORM.status)
 Index("idx_approval_project", ApprovalRequestORM.project_id)
 Index("idx_approval_type", ApprovalRequestORM.request_type)
+Index("idx_runtime_executions_started", RuntimeExecutionORM.started_at)
+Index("idx_runtime_executions_module_status", RuntimeExecutionORM.module_code, RuntimeExecutionORM.status)
 Index("idx_task_comments_task", TaskCommentORM.task_id)
 Index("idx_task_comments_created", TaskCommentORM.created_at)
 Index("idx_task_presence_task", TaskPresenceORM.task_id)

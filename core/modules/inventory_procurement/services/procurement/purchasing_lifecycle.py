@@ -32,6 +32,7 @@ class PurchasingLifecycleMixin:
         expected_delivery_date: date | None = None,
         supplier_reference: str = "",
         notes: str = "",
+        po_number: str | None = None,
     ) -> PurchaseOrder:
         self._require_manage("create purchase order")
         organization = self._active_organization()
@@ -44,7 +45,7 @@ class PurchasingLifecycleMixin:
         requisition = self._validate_source_requisition(source_requisition_id, organization.id)
         purchase_order = PurchaseOrder.create(
             organization_id=organization.id,
-            po_number=build_purchase_order_number(),
+            po_number=normalize_optional_text(po_number) or build_purchase_order_number(),
             site_id=site.id,
             supplier_party_id=supplier.id,
             currency_code=normalize_currency_code(currency_code, fallback=getattr(site, "currency_code", "")),

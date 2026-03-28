@@ -189,6 +189,8 @@ class Storeroom:
     allows_issue: bool = True
     allows_transfer: bool = True
     allows_receiving: bool = True
+    requires_reservation_for_issue: bool = False
+    requires_supplier_reference_for_receipt: bool = False
     default_currency_code: str = ""
     manager_party_id: str | None = None
     created_at: datetime | None = None
@@ -211,6 +213,8 @@ class Storeroom:
         allows_issue: bool = True,
         allows_transfer: bool = True,
         allows_receiving: bool = True,
+        requires_reservation_for_issue: bool = False,
+        requires_supplier_reference_for_receipt: bool = False,
         default_currency_code: str = "",
         manager_party_id: str | None = None,
         notes: str = "",
@@ -230,6 +234,8 @@ class Storeroom:
             allows_issue=allows_issue,
             allows_transfer=allows_transfer,
             allows_receiving=allows_receiving,
+            requires_reservation_for_issue=requires_reservation_for_issue,
+            requires_supplier_reference_for_receipt=requires_supplier_reference_for_receipt,
             default_currency_code=default_currency_code,
             manager_party_id=manager_party_id,
             created_at=now,
@@ -721,6 +727,9 @@ class ReceiptLine:
     quantity_rejected: float = 0.0
     uom: str = ""
     unit_cost: float = 0.0
+    lot_number: str = ""
+    serial_number: str = ""
+    expiry_date: date | None = None
     notes: str = ""
 
     @staticmethod
@@ -735,6 +744,9 @@ class ReceiptLine:
         quantity_rejected: float = 0.0,
         uom: str,
         unit_cost: float = 0.0,
+        lot_number: str = "",
+        serial_number: str = "",
+        expiry_date: date | None = None,
         notes: str = "",
     ) -> "ReceiptLine":
         return ReceiptLine(
@@ -748,6 +760,9 @@ class ReceiptLine:
             quantity_rejected=quantity_rejected,
             uom=uom,
             unit_cost=unit_cost,
+            lot_number=lot_number,
+            serial_number=serial_number,
+            expiry_date=expiry_date,
             notes=notes,
         )
 

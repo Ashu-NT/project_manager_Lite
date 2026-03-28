@@ -42,6 +42,13 @@ class StockControlMovementMixin:
         item = self._validate_stock_item(stock_item_id)
         storeroom = self._validate_storeroom(storeroom_id)
         self._ensure_same_scope(item, storeroom, organization)
+        if not storeroom.allows_issue:
+            raise ValidationError("Selected storeroom does not allow issues.", code="INVENTORY_ISSUE_FORBIDDEN")
+        if storeroom.requires_reservation_for_issue and float(release_reserved_qty or 0.0) <= 0:
+            raise ValidationError(
+                "Selected storeroom requires a linked reservation release for issues.",
+                code="INVENTORY_ISSUE_RESERVATION_REQUIRED",
+            )
         return self._post_movement_transaction(
             organization=organization,
             item=item,

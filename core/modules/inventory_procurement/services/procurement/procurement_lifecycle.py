@@ -9,8 +9,10 @@ from core.modules.inventory_procurement.services.procurement.procurement_support
 from core.modules.inventory_procurement.support import (
     REQUISITION_STATUS_TRANSITIONS,
     normalize_nonnegative_quantity,
+    normalize_optional_date,
     normalize_optional_text,
     normalize_positive_quantity,
+    normalize_source_reference_type,
     normalize_uom,
     resolve_item_uom_factor,
     validate_transition,
@@ -32,6 +34,7 @@ class ProcurementLifecycleMixin:
         source_reference_type: str = "",
         source_reference_id: str = "",
         notes: str = "",
+        requisition_number: str | None = None,
     ) -> PurchaseRequisition:
         self._require_manage("create purchase requisition")
         organization = self._active_organization()
@@ -54,15 +57,15 @@ class ProcurementLifecycleMixin:
         principal = self._user_session.principal if self._user_session is not None else None
         requisition = PurchaseRequisition.create(
             organization_id=organization.id,
-            requisition_number=build_requisition_number(),
+            requisition_number=normalize_optional_text(requisition_number) or build_requisition_number(),
             requesting_site_id=requesting_site_id,
             requesting_storeroom_id=requesting_storeroom_id,
             requester_user_id=getattr(principal, "user_id", None),
             requester_username=str(getattr(principal, "username", "") or ""),
             purpose=normalize_optional_text(purpose),
-            needed_by_date=needed_by_date,
+            needed_by_date=normalize_optional_date(needed_by_date, label="Needed-by date"),
             priority=normalize_priority(priority),
-            source_reference_type=normalize_optional_text(source_reference_type),
+            source_reference_type=normalize_source_reference_type(source_reference_type),
             source_reference_id=normalize_optional_text(source_reference_id),
             notes=normalize_optional_text(notes),
         )
@@ -257,11 +260,11 @@ class ProcurementLifecycleMixin:
         requisition.requesting_storeroom_id = next_storeroom_id
         if purpose is not None:
             requisition.purpose = normalize_optional_text(purpose)
-        requisition.needed_by_date = needed_by_date
+        requisition.needed_by_date = normalize_optional_date(needed_by_date, label="Needed-by date")
         if priority is not None:
             requisition.priority = normalize_priority(priority)
         if source_reference_type is not None:
-            requisition.source_reference_type = normalize_optional_text(source_reference_type)
+            requisition.source_reference_type = normalize_source_reference_type(source_reference_type)
         if source_reference_id is not None:
             requisition.source_reference_id = normalize_optional_text(source_reference_id)
         if notes is not None:

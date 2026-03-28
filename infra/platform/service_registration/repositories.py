@@ -25,6 +25,7 @@ from infra.platform.db.documents import SqlAlchemyDocumentLinkRepository, SqlAlc
 from infra.platform.db.party import SqlAlchemyPartyRepository
 from infra.platform.db.repositories import (
     SqlAlchemyAssignmentRepository,
+    SqlAlchemyAuthSessionRepository,
     SqlAlchemyBaselineRepository,
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyCostRepository,
@@ -70,6 +71,7 @@ class RepositoryBundle:
     baseline_repo: SqlAlchemyBaselineRepository
     project_resource_repo: SqlAlchemyProjectResourceRepository
     user_repo: SqlAlchemyUserRepository
+    auth_session_repo: SqlAlchemyAuthSessionRepository
     role_repo: SqlAlchemyRoleRepository
     permission_repo: SqlAlchemyPermissionRepository
     user_role_repo: SqlAlchemyUserRoleRepository
@@ -109,6 +111,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         baseline_repo=SqlAlchemyBaselineRepository(session),
         project_resource_repo=SqlAlchemyProjectResourceRepository(session),
         user_repo=SqlAlchemyUserRepository(session),
+        auth_session_repo=SqlAlchemyAuthSessionRepository(session),
         role_repo=SqlAlchemyRoleRepository(session),
         permission_repo=SqlAlchemyPermissionRepository(session),
         user_role_repo=SqlAlchemyUserRoleRepository(session),

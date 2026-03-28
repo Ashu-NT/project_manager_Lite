@@ -48,9 +48,73 @@ STOREROOM_FIELDS: tuple[ImportFieldSpec, ...] = (
     ImportFieldSpec(key="allows_issue", label="Allows Issue"),
     ImportFieldSpec(key="allows_transfer", label="Allows Transfer"),
     ImportFieldSpec(key="allows_receiving", label="Allows Receiving"),
+    ImportFieldSpec(key="requires_reservation_for_issue", label="Requires Reservation For Issue"),
+    ImportFieldSpec(key="requires_supplier_reference_for_receipt", label="Requires Supplier Reference For Receipt"),
     ImportFieldSpec(key="default_currency_code", label="Default Currency Code"),
     ImportFieldSpec(key="manager_party_code", label="Manager Party Code"),
     ImportFieldSpec(key="notes", label="Notes"),
+)
+
+REQUISITION_FIELDS: tuple[ImportFieldSpec, ...] = (
+    ImportFieldSpec(key="requisition_number", label="Requisition Number", required=True),
+    ImportFieldSpec(key="requesting_site_code", label="Requesting Site Code", required=True),
+    ImportFieldSpec(key="requesting_storeroom_code", label="Requesting Storeroom Code", required=True),
+    ImportFieldSpec(key="purpose", label="Purpose"),
+    ImportFieldSpec(key="needed_by_date", label="Needed By Date"),
+    ImportFieldSpec(key="priority", label="Priority"),
+    ImportFieldSpec(key="source_reference_type", label="Source Reference Type"),
+    ImportFieldSpec(key="source_reference_id", label="Source Reference ID"),
+    ImportFieldSpec(key="status", label="Status"),
+    ImportFieldSpec(key="header_notes", label="Header Notes"),
+    ImportFieldSpec(key="line_number", label="Line Number", required=True),
+    ImportFieldSpec(key="item_code", label="Item Code", required=True),
+    ImportFieldSpec(key="line_description", label="Line Description"),
+    ImportFieldSpec(key="quantity_requested", label="Quantity Requested", required=True),
+    ImportFieldSpec(key="uom", label="UOM"),
+    ImportFieldSpec(key="line_needed_by_date", label="Line Needed By Date"),
+    ImportFieldSpec(key="estimated_unit_cost", label="Estimated Unit Cost"),
+    ImportFieldSpec(key="suggested_supplier_code", label="Suggested Supplier Code"),
+    ImportFieldSpec(key="line_notes", label="Line Notes"),
+)
+
+PURCHASE_ORDER_FIELDS: tuple[ImportFieldSpec, ...] = (
+    ImportFieldSpec(key="po_number", label="PO Number", required=True),
+    ImportFieldSpec(key="site_code", label="Site Code", required=True),
+    ImportFieldSpec(key="supplier_code", label="Supplier Code", required=True),
+    ImportFieldSpec(key="currency_code", label="Currency Code"),
+    ImportFieldSpec(key="source_requisition_number", label="Source Requisition Number"),
+    ImportFieldSpec(key="order_date", label="Order Date"),
+    ImportFieldSpec(key="expected_delivery_date", label="Expected Delivery Date"),
+    ImportFieldSpec(key="supplier_reference", label="Supplier Reference"),
+    ImportFieldSpec(key="status", label="Status"),
+    ImportFieldSpec(key="header_notes", label="Header Notes"),
+    ImportFieldSpec(key="line_number", label="Line Number", required=True),
+    ImportFieldSpec(key="item_code", label="Item Code", required=True),
+    ImportFieldSpec(key="destination_storeroom_code", label="Destination Storeroom Code", required=True),
+    ImportFieldSpec(key="line_description", label="Line Description"),
+    ImportFieldSpec(key="quantity_ordered", label="Quantity Ordered", required=True),
+    ImportFieldSpec(key="uom", label="UOM"),
+    ImportFieldSpec(key="unit_price", label="Unit Price"),
+    ImportFieldSpec(key="line_expected_delivery_date", label="Line Expected Delivery Date"),
+    ImportFieldSpec(key="source_requisition_line_ref", label="Source Requisition Line Ref"),
+    ImportFieldSpec(key="line_notes", label="Line Notes"),
+)
+
+RECEIPT_FIELDS: tuple[ImportFieldSpec, ...] = (
+    ImportFieldSpec(key="receipt_number", label="Receipt Number", required=True),
+    ImportFieldSpec(key="purchase_order_number", label="Purchase Order Number", required=True),
+    ImportFieldSpec(key="receipt_date", label="Receipt Date"),
+    ImportFieldSpec(key="supplier_delivery_reference", label="Supplier Delivery Reference"),
+    ImportFieldSpec(key="header_notes", label="Header Notes"),
+    ImportFieldSpec(key="line_number", label="Line Number", required=True),
+    ImportFieldSpec(key="purchase_order_line_number", label="Purchase Order Line Number", required=True),
+    ImportFieldSpec(key="quantity_accepted", label="Quantity Accepted", required=True),
+    ImportFieldSpec(key="quantity_rejected", label="Quantity Rejected"),
+    ImportFieldSpec(key="unit_cost", label="Unit Cost"),
+    ImportFieldSpec(key="lot_number", label="Lot Number"),
+    ImportFieldSpec(key="serial_number", label="Serial Number"),
+    ImportFieldSpec(key="expiry_date", label="Expiry Date"),
+    ImportFieldSpec(key="line_notes", label="Line Notes"),
 )
 
 ITEM_EXPORT_FIELDS: tuple[str, ...] = tuple(field.key for field in ITEM_FIELDS)
@@ -131,6 +195,9 @@ RECEIPT_EXPORT_FIELDS: tuple[str, ...] = (
     "quantity_rejected",
     "uom",
     "unit_cost",
+    "lot_number",
+    "serial_number",
+    "expiry_date",
     "line_notes",
     "header_notes",
 )
@@ -213,6 +280,19 @@ def parse_optional_int(value: str | None, *, label: str) -> int | None:
         ) from exc
 
 
+def parse_optional_date(value: str | None, *, label: str) -> date | None:
+    normalized = text(value)
+    if not normalized:
+        return None
+    try:
+        return date.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValidationError(
+            f"{label} must use ISO date format YYYY-MM-DD.",
+            code="INVENTORY_IMPORT_DATE_INVALID",
+        ) from exc
+
+
 def write_rows(output_path: Path, fieldnames: tuple[str, ...], rows: list[dict[str, object]]) -> None:
     with output_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(fieldnames))
@@ -226,14 +306,18 @@ __all__ = [
     "ITEM_FIELDS",
     "InventoryExportRequest",
     "PURCHASE_ORDER_EXPORT_FIELDS",
+    "PURCHASE_ORDER_FIELDS",
     "RECEIPT_EXPORT_FIELDS",
+    "RECEIPT_FIELDS",
     "REQUISITION_EXPORT_FIELDS",
+    "REQUISITION_FIELDS",
     "STOREROOM_EXPORT_FIELDS",
     "STOREROOM_FIELDS",
     "enum_value",
     "isoformat",
     "optional_text",
     "parse_optional_bool",
+    "parse_optional_date",
     "parse_optional_float",
     "parse_optional_int",
     "stringify_bool",

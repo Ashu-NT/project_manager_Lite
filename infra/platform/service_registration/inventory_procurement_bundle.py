@@ -154,6 +154,7 @@ def build_inventory_procurement_service_bundle(
         inventory_service=inventory_service,
         procurement_service=inventory_procurement_service,
         purchasing_service=inventory_purchasing_service,
+        approval_service=platform_services.approval_service,
         site_service=platform_services.site_service,
         party_service=platform_services.party_service,
         requisition_line_repo=requisition_line_repo,
@@ -161,6 +162,7 @@ def build_inventory_procurement_service_bundle(
         receipt_line_repo=receipt_line_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
+        runtime_execution_service=platform_services.runtime_execution_service,
     )
     inventory_reporting_service = InventoryReportingService(
         reference_service=inventory_reference_service,
@@ -171,6 +173,7 @@ def build_inventory_procurement_service_bundle(
         purchasing_service=inventory_purchasing_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
+        runtime_execution_service=platform_services.runtime_execution_service,
     )
 
     def _storeroom_exists(storeroom_id: str) -> bool:

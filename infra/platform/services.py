@@ -17,6 +17,7 @@ from core.platform.modules.runtime import ModuleCatalogService, ModuleRuntimeSer
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from core.platform.time import TimeService
+from core.platform.runtime_tracking import RuntimeExecutionService
 from core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,
@@ -69,6 +70,7 @@ class ServiceGraph:
     site_service: SiteService
     employee_service: EmployeeService
     master_data_exchange_service: MasterDataExchangeService
+    runtime_execution_service: RuntimeExecutionService
     inventory_reference_service: InventoryReferenceService
     inventory_data_exchange_service: InventoryDataExchangeService
     inventory_reporting_service: InventoryReportingService
@@ -117,6 +119,7 @@ class ServiceGraph:
             "site_service": self.site_service,
             "employee_service": self.employee_service,
             "master_data_exchange_service": self.master_data_exchange_service,
+            "runtime_execution_service": self.runtime_execution_service,
             "inventory_reference_service": self.inventory_reference_service,
             "inventory_data_exchange_service": self.inventory_data_exchange_service,
             "inventory_reporting_service": self.inventory_reporting_service,
@@ -175,6 +178,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         site_service=platform_services.site_service,
         employee_service=platform_services.employee_service,
         master_data_exchange_service=platform_services.master_data_exchange_service,
+        runtime_execution_service=platform_services.runtime_execution_service,
         inventory_reference_service=inventory_procurement_services.inventory_reference_service,
         inventory_data_exchange_service=inventory_procurement_services.inventory_data_exchange_service,
         inventory_reporting_service=inventory_procurement_services.inventory_reporting_service,

@@ -31,9 +31,16 @@ from core.modules.inventory_procurement.access.policy import (
     normalize_storeroom_scope_role,
     resolve_storeroom_scope_permissions,
 )
+from core.platform.org.access_policy import (
+    SITE_SCOPE_ROLE_CHOICES,
+    normalize_site_scope_role,
+    resolve_site_scope_permissions,
+)
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
+from core.platform.runtime_tracking import RuntimeExecutionService
 from infra.platform.db.repositories import SqlAlchemyModuleEntitlementRepository
+from infra.platform.db.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from infra.platform.service_registration.repositories import RepositoryBundle
 
 
@@ -54,6 +61,7 @@ class PlatformServiceBundle:
     site_service: SiteService
     employee_service: EmployeeService
     master_data_exchange_service: MasterDataExchangeService
+    runtime_execution_service: RuntimeExecutionService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -82,6 +90,7 @@ def build_platform_service_bundle(
         permission_repo=repositories.permission_repo,
         user_role_repo=repositories.user_role_repo,
         role_permission_repo=repositories.role_permission_repo,
+        auth_session_repo=repositories.auth_session_repo,
         scoped_access_repo=repositories.scoped_access_repo,
         project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
@@ -169,6 +178,10 @@ def build_platform_service_bundle(
         module_runtime_service=module_runtime_service,
         organization_service=organization_service,
     )
+    runtime_execution_service = RuntimeExecutionService(
+        runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(session),
+        user_session=user_session,
+    )
     access_service = AccessControlService(
         session=session,
         membership_repo=repositories.project_membership_repo,
@@ -183,6 +196,12 @@ def build_platform_service_bundle(
                     resolve_permissions=resolve_project_scope_permissions,
                 ),
                 ScopedRolePolicy(
+                    scope_type="site",
+                    role_choices=SITE_SCOPE_ROLE_CHOICES,
+                    normalize_role=normalize_site_scope_role,
+                    resolve_permissions=resolve_site_scope_permissions,
+                ),
+                ScopedRolePolicy(
                     scope_type="storeroom",
                     role_choices=STOREROOM_SCOPE_ROLE_CHOICES,
                     normalize_role=normalize_storeroom_scope_role,
@@ -193,6 +212,7 @@ def build_platform_service_bundle(
         scoped_access_repo=repositories.scoped_access_repo,
         scope_exists_resolvers={
             "project": lambda project_id: repositories.project_repo.get(project_id) is not None,
+            "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
         },
         user_session=user_session,
         audit_service=audit_service,
@@ -229,6 +249,7 @@ def build_platform_service_bundle(
         site_service=site_service,
         employee_service=employee_service,
         master_data_exchange_service=master_data_exchange_service,
+        runtime_execution_service=runtime_execution_service,
         access_service=access_service,
         audit_service=audit_service,
         approval_service=approval_service,

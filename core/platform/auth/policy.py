@@ -187,6 +187,7 @@ _AUDITOR = {
 
 _ACCESS_ADMIN = {
     "project.read",
+    "site.read",
     "auth.read",
     "access.manage",
     "audit.read",

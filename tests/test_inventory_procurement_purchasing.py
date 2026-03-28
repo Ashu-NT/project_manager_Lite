@@ -228,6 +228,53 @@ def test_receiving_validates_open_qty_and_po_status(services):
         )
 
 
+def test_receiving_enforces_lot_and_shelf_life_controls(services):
+    (
+        _site,
+        _storeroom,
+        item,
+        _supplier,
+        _requisition,
+        _requisition_line,
+        purchase_order,
+        purchase_order_line,
+    ) = _create_approved_purchase_order(services)
+
+    services["inventory_item_service"].update_item(
+        item.id,
+        is_lot_tracked=True,
+        shelf_life_days=30,
+    )
+    purchasing = services["inventory_purchasing_service"]
+
+    with pytest.raises(ValidationError, match="lot number"):
+        purchasing.post_receipt(
+            purchase_order.id,
+            receipt_lines=[
+                {
+                    "purchase_order_line_id": purchase_order_line.id,
+                    "quantity_accepted": 1,
+                    "unit_cost": 240.0,
+                }
+            ],
+            supplier_delivery_reference="DEL-TRACK-1",
+        )
+
+    with pytest.raises(ValidationError, match="expiry date"):
+        purchasing.post_receipt(
+            purchase_order.id,
+            receipt_lines=[
+                {
+                    "purchase_order_line_id": purchase_order_line.id,
+                    "quantity_accepted": 1,
+                    "unit_cost": 240.0,
+                    "lot_number": "LOT-001",
+                }
+            ],
+            supplier_delivery_reference="DEL-TRACK-2",
+        )
+
+
 def test_purchase_order_service_can_update_and_cancel_draft_purchase_order(services):
     auth = services["auth_service"]
     auth.register_user("inventory-buyer-edit", "StrongPass123", role_names=["inventory_manager"])

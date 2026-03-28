@@ -244,3 +244,95 @@ def test_inventory_import_and_reporting_services_require_runtime_permissions(ser
 
     assert import_exc.value.code == "PERMISSION_DENIED"
     assert report_exc.value.code == "PERMISSION_DENIED"
+
+
+def test_inventory_data_exchange_imports_procurement_documents_and_records_runtime_executions(services, tmp_path):
+    _enable_inventory_module(services)
+    login_as(services, "admin", "ChangeMe123!")
+    services["auth_service"].register_user("inventory-import-approver", "StrongPass123", role_names=["approver"])
+
+    site = services["site_service"].create_site(
+        site_code="IMP-PROC-SITE",
+        name="Import Procurement Site",
+        currency_code="EUR",
+    )
+    supplier = services["party_service"].create_party(
+        party_code="IMP-PROC-SUP",
+        party_name="Import Procurement Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+    services["inventory_service"].create_storeroom(
+        storeroom_code="IMP-PROC-ST",
+        name="Import Procurement Stores",
+        site_id=site.id,
+        status="ACTIVE",
+        requires_supplier_reference_for_receipt=True,
+    )
+    services["inventory_item_service"].create_item(
+        item_code="IMP-PROC-ITEM",
+        name="Import Procurement Item",
+        status="ACTIVE",
+        stock_uom="EA",
+        is_lot_tracked=True,
+        shelf_life_days=30,
+        preferred_party_id=supplier.id,
+    )
+    exchange = services["inventory_data_exchange_service"]
+
+    requisitions_csv = tmp_path / "requisitions-import.csv"
+    requisitions_csv.write_text(
+        "requisition_number,requesting_site_code,requesting_storeroom_code,purpose,needed_by_date,priority,source_reference_type,source_reference_id,status,line_number,item_code,quantity_requested,uom,estimated_unit_cost,suggested_supplier_code\n"
+        "REQ-IMPORT-001,IMP-PROC-SITE,IMP-PROC-ST,Imported maintenance demand,2026-05-01,HIGH,maintenance_work_order,MWO-001,DRAFT,1,IMP-PROC-ITEM,5,EA,12.5,IMP-PROC-SUP\n",
+        encoding="utf-8",
+    )
+    requisition_summary = exchange.import_csv("requisitions", requisitions_csv)
+    requisition = services["inventory_procurement_service"].find_requisition_by_number("REQ-IMPORT-001")
+    requisition = services["inventory_procurement_service"].submit_requisition(requisition.id)
+
+    login_as(services, "inventory-import-approver", "StrongPass123")
+    services["approval_service"].approve_and_apply(requisition.approval_request_id, note="Approve imported requisition")
+    login_as(services, "admin", "ChangeMe123!")
+    requisition = services["inventory_procurement_service"].find_requisition_by_number("REQ-IMPORT-001")
+
+    purchase_orders_csv = tmp_path / "purchase-orders-import.csv"
+    purchase_orders_csv.write_text(
+        "po_number,site_code,supplier_code,currency_code,source_requisition_number,expected_delivery_date,supplier_reference,status,line_number,item_code,destination_storeroom_code,quantity_ordered,uom,unit_price,source_requisition_line_ref\n"
+        "PO-IMPORT-001,IMP-PROC-SITE,IMP-PROC-SUP,EUR,REQ-IMPORT-001,2026-05-10,SUP-REF-001,DRAFT,1,IMP-PROC-ITEM,IMP-PROC-ST,5,EA,11.0,REQ-IMPORT-001:1\n",
+        encoding="utf-8",
+    )
+    po_summary = exchange.import_csv("purchase_orders", purchase_orders_csv)
+    purchase_order = services["inventory_purchasing_service"].find_purchase_order_by_number("PO-IMPORT-001")
+    purchase_order = services["inventory_purchasing_service"].submit_purchase_order(purchase_order.id)
+
+    login_as(services, "inventory-import-approver", "StrongPass123")
+    services["approval_service"].approve_and_apply(purchase_order.approval_request_id, note="Approve imported PO")
+    login_as(services, "admin", "ChangeMe123!")
+    purchase_order = services["inventory_purchasing_service"].find_purchase_order_by_number("PO-IMPORT-001")
+    purchase_order = services["inventory_purchasing_service"].send_purchase_order(purchase_order.id)
+
+    receipts_csv = tmp_path / "receipts-import.csv"
+    receipts_csv.write_text(
+        "receipt_number,purchase_order_number,receipt_date,supplier_delivery_reference,line_number,purchase_order_line_number,quantity_accepted,quantity_rejected,unit_cost,lot_number,expiry_date\n"
+        "RCV-IMPORT-001,PO-IMPORT-001,2026-05-10,DEL-IMPORT-001,1,1,5,0,11.0,LOT-IMPORT-001,2026-06-15\n",
+        encoding="utf-8",
+    )
+    receipt_summary = exchange.import_csv("receipts", receipts_csv)
+    receipt = services["inventory_purchasing_service"].find_receipt_by_number("RCV-IMPORT-001")
+    receipt_lines = services["inventory_purchasing_service"].list_receipt_lines(receipt.id)
+    executions = services["runtime_execution_service"].list_recent(limit=10)
+
+    assert requisition_summary.created_count == 1
+    assert po_summary.created_count == 1
+    assert receipt_summary.created_count == 1
+    assert requisition is not None
+    assert requisition.status.value == "APPROVED"
+    assert purchase_order is not None
+    assert purchase_order.status.value == "SENT"
+    assert receipt is not None
+    assert receipt_lines[0].lot_number == "LOT-IMPORT-001"
+    assert str(receipt_lines[0].expiry_date) == "2026-06-15"
+    assert {(execution.operation_type, execution.operation_key, execution.status) for execution in executions} >= {
+        ("import", "requisitions", "COMPLETED"),
+        ("import", "purchase_orders", "COMPLETED"),
+        ("import", "receipts", "COMPLETED"),
+    }

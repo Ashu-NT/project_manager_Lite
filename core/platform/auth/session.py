@@ -63,6 +63,7 @@ class UserSessionPrincipal:
     session_revision: int = 1
     identity_provider: str | None = None
     last_login_auth_method: str | None = None
+    session_id: str | None = None
 
 
 class UserSessionContext:
@@ -102,6 +103,7 @@ class UserSessionContext:
             session_revision=max(1, int(getattr(principal, "session_revision", 1) or 1)),
             identity_provider=(str(getattr(principal, "identity_provider", "") or "").strip() or None),
             last_login_auth_method=(str(getattr(principal, "last_login_auth_method", "") or "").strip() or None),
+            session_id=(str(getattr(principal, "session_id", "") or "").strip() or None),
         )
 
     def clear(self) -> None:

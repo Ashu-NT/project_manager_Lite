@@ -35,6 +35,14 @@ class PurchasingQueryMixin:
             )
         return purchase_order
 
+    def find_purchase_order_by_number(self, po_number: str) -> PurchaseOrder | None:
+        self._require_read("resolve purchase order")
+        organization = self._active_organization()
+        normalized_number = normalize_optional_text(po_number)
+        if not normalized_number:
+            return None
+        return self._purchase_order_repo.get_by_number(organization.id, normalized_number)
+
     def list_purchase_order_lines(self, purchase_order_id: str) -> list[PurchaseOrderLine]:
         purchase_order = self.get_purchase_order(purchase_order_id)
         return self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
@@ -60,6 +68,14 @@ class PurchasingQueryMixin:
         if receipt is None or receipt.organization_id != organization.id:
             raise NotFoundError("Receipt not found in the active organization.", code="INVENTORY_RECEIPT_NOT_FOUND")
         return receipt
+
+    def find_receipt_by_number(self, receipt_number: str) -> ReceiptHeader | None:
+        self._require_read("resolve receipt")
+        organization = self._active_organization()
+        normalized_number = normalize_optional_text(receipt_number)
+        if not normalized_number:
+            return None
+        return self._receipt_header_repo.get_by_number(organization.id, normalized_number)
 
     def list_receipt_lines(self, receipt_id: str) -> list[ReceiptLine]:
         receipt = self.get_receipt(receipt_id)

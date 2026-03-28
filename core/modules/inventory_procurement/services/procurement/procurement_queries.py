@@ -35,6 +35,14 @@ class ProcurementQueryMixin:
             )
         return requisition
 
+    def find_requisition_by_number(self, requisition_number: str) -> PurchaseRequisition | None:
+        self._require_read("resolve purchase requisition")
+        organization = self._active_organization()
+        normalized_number = normalize_optional_text(requisition_number)
+        if not normalized_number:
+            return None
+        return self._requisition_repo.get_by_number(organization.id, normalized_number)
+
     def list_requisition_lines(self, requisition_id: str) -> list[PurchaseRequisitionLine]:
         requisition = self.get_requisition(requisition_id)
         return self._requisition_line_repo.list_for_requisition(requisition.id)

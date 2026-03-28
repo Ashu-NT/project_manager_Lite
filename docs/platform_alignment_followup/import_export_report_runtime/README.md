@@ -37,7 +37,9 @@ This follow-up exists to define the extraction boundary and remaining follow-up 
 - PM compatibility wrappers now register module-owned definitions against those platform runtimes.
 - Shared runtime dispatch now enforces module-entitlement and permission checks when the live platform session/runtime context is supplied.
 - Platform-owned shared master data exchange is now live for `site` and `party` through `MasterDataExchangeService`.
-- Remaining follow-up is broader module adoption, richer background-job and writer orchestration, and inventory/maintenance-specific bulk import/export contracts.
+- Inventory is now a real non-PM adopter of those runtimes for `items`, `storerooms`, `requisitions`, `purchase_orders`, `receipts`, and stock/procurement reporting.
+- Platform-owned runtime execution tracking now records persisted import/export/report execution metadata and outcome counts.
+- Remaining follow-up is richer background-job and writer orchestration, maintenance-specific bulk import/export contracts, and broader async execution controls such as retries and cancellation.
 
 ## Ownership Rule
 

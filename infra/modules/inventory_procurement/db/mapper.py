@@ -122,6 +122,8 @@ def storeroom_to_orm(storeroom: Storeroom) -> StoreroomORM:
         allows_issue=storeroom.allows_issue,
         allows_transfer=storeroom.allows_transfer,
         allows_receiving=storeroom.allows_receiving,
+        requires_reservation_for_issue=storeroom.requires_reservation_for_issue,
+        requires_supplier_reference_for_receipt=storeroom.requires_supplier_reference_for_receipt,
         default_currency_code=storeroom.default_currency_code or None,
         manager_party_id=storeroom.manager_party_id,
         created_at=storeroom.created_at,
@@ -146,6 +148,8 @@ def storeroom_from_orm(obj: StoreroomORM) -> Storeroom:
         allows_issue=obj.allows_issue,
         allows_transfer=obj.allows_transfer,
         allows_receiving=obj.allows_receiving,
+        requires_reservation_for_issue=obj.requires_reservation_for_issue,
+        requires_supplier_reference_for_receipt=obj.requires_supplier_reference_for_receipt,
         default_currency_code=obj.default_currency_code or "",
         manager_party_id=obj.manager_party_id,
         created_at=obj.created_at,
@@ -519,6 +523,9 @@ def receipt_line_to_orm(line: ReceiptLine) -> ReceiptLineORM:
         quantity_rejected=line.quantity_rejected,
         uom=line.uom,
         unit_cost=line.unit_cost,
+        lot_number=line.lot_number or None,
+        serial_number=line.serial_number or None,
+        expiry_date=line.expiry_date,
         notes=line.notes or None,
     )
 
@@ -535,6 +542,9 @@ def receipt_line_from_orm(obj: ReceiptLineORM) -> ReceiptLine:
         quantity_rejected=float(obj.quantity_rejected or 0.0),
         uom=obj.uom,
         unit_cost=float(obj.unit_cost or 0.0),
+        lot_number=obj.lot_number or "",
+        serial_number=obj.serial_number or "",
+        expiry_date=obj.expiry_date,
         notes=obj.notes or "",
     )
 

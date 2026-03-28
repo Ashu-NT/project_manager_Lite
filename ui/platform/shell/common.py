@@ -69,6 +69,13 @@ def build_shell_workspace_context(
     access_scope_type_choices: list[tuple[str, str]] = [("Project", "project")]
     access_scope_option_loaders: dict[str, ScopeOptionsLoader] = {}
     access_scope_disabled_hints: dict[str, str] = {}
+    site_service = services.get("site_service")
+    if site_service is not None and has_any_permission(user_session, "site.read", "settings.manage"):
+        access_scope_type_choices.append(("Site", "site"))
+        access_scope_option_loaders["site"] = lambda: [
+            (f"{site.site_code} - {site.name}", site.id)
+            for site in site_service.list_sites(active_only=None)
+        ]
     inventory_service = services.get("inventory_service")
     if inventory_procurement_enabled and has_any_permission(user_session, "inventory.read", "inventory.manage"):
         if inventory_service is not None and hasattr(inventory_service, "list_storerooms"):

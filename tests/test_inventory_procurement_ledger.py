@@ -193,3 +193,56 @@ def test_inventory_ledger_converts_configured_issue_and_order_uoms(services):
     assert balance.on_hand_qty == pytest.approx(6.0)
     assert balance.available_qty == pytest.approx(6.0)
     assert balance.average_cost == pytest.approx(10.0)
+
+
+def test_inventory_ledger_enforces_reservation_required_issue_policy(services):
+    site = services["site_service"].create_site(
+        site_code="LEDGER-POLICY",
+        name="Ledger Policy Site",
+        currency_code="EUR",
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="LEDGER-POLICY-ITEM",
+        name="Policy Item",
+        status="ACTIVE",
+        stock_uom="EA",
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="LEDGER-POLICY-ST",
+        name="Policy Storeroom",
+        site_id=site.id,
+        status="ACTIVE",
+        requires_reservation_for_issue=True,
+    )
+    stock_service = services["inventory_stock_service"]
+    stock_service.post_opening_balance(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        quantity=5,
+        unit_cost=4.0,
+    )
+
+    with pytest.raises(ValidationError, match="requires a linked reservation release"):
+        stock_service.issue_stock(
+            stock_item_id=item.id,
+            storeroom_id=storeroom.id,
+            quantity=1,
+        )
+
+    reservation = services["inventory_reservation_service"].create_reservation(
+        stock_item_id=item.id,
+        storeroom_id=storeroom.id,
+        reserved_qty=1,
+        source_reference_type="maintenance_work_order",
+        source_reference_id="MWO-LEDGER-001",
+    )
+    issued = services["inventory_reservation_service"].issue_reserved_stock(
+        reservation.id,
+        quantity=1,
+        note="Issue against reserved maintenance demand",
+    )
+    balance = stock_service.get_balance_for_stock_position(stock_item_id=item.id, storeroom_id=storeroom.id)
+
+    assert issued.status.value == "FULLY_ISSUED"
+    assert balance is not None
+    assert balance.on_hand_qty == pytest.approx(4.0)

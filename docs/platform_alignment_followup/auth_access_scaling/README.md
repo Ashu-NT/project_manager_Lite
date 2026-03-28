@@ -17,14 +17,16 @@ Completed in the current slice:
 - default `SessionAuthorizationEngine` that preserves the current RBAC + scoped-access behavior
 - `core/platform/auth/authorization.py` and `core/platform/access/authorization.py` now delegate through the shared engine instead of embedding decision logic directly
 - tracker and platform documentation updated so future auth/access work is anchored in-repo
+- dedicated `auth_sessions` persistence with per-session issuance, validation, listing, and single-session revocation
+- policy-backed separation-of-duties seam instead of a permanently fixed conflict helper
+- broader non-project scope rollout with the first platform-owned `site` scope policy and scope-aware site filtering
 
 Still pending:
 
-- per-device / per-session persistence for future hosted web deployments
 - web auth transport and middleware
 - richer contextual policy inputs for ABAC-like decisions
-- broader non-project scope rollout beyond `storeroom`
-- configurable enterprise separation-of-duties policy
+- broader non-project scope rollout beyond `site` and `storeroom`
+- richer configurable enterprise separation-of-duties administration and security workflows
 
 ## Execution Order
 
@@ -52,7 +54,7 @@ Non-goals for this slice:
 
 ### 2. Session Model For Desktop + Web
 
-Status: planned
+Status: completed
 
 Scope:
 
@@ -113,7 +115,7 @@ Non-goals for this slice:
 
 ### 5. Enterprise SoD And Security Workflows
 
-Status: planned
+Status: in progress
 
 Scope:
 
@@ -127,11 +129,11 @@ Acceptance notes:
 
 ### 6. Broader Scope Rollout
 
-Status: planned
+Status: in progress
 
 Scope:
 
-- expand scope-aware enforcement beyond `project` and `storeroom`
+- expand scope-aware enforcement beyond `project`, `storeroom`, and `site`
 - add module-owned scope policies for asset, maintenance-area, and future operational scopes
 - keep row filtering and scope enforcement centralized
 

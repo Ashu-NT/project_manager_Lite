@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core.platform.auth.domain import (
+    AuthSession,
     Permission,
     Role,
     RolePermissionBinding,
@@ -8,7 +9,7 @@ from core.platform.auth.domain import (
     UserRoleBinding,
 )
 from core.platform.auth.datetime_utils import ensure_utc_datetime
-from infra.platform.db.models import PermissionORM, RoleORM, RolePermissionORM, UserORM, UserRoleORM
+from infra.platform.db.models import AuthSessionORM, PermissionORM, RoleORM, RolePermissionORM, UserORM, UserRoleORM
 
 
 def user_to_orm(user: UserAccount) -> UserORM:
@@ -64,6 +65,38 @@ def user_from_orm(obj: UserORM) -> UserAccount:
         created_at=ensure_utc_datetime(obj.created_at),
         updated_at=ensure_utc_datetime(obj.updated_at),
         version=getattr(obj, "version", 1),
+    )
+
+
+def auth_session_to_orm(auth_session: AuthSession) -> AuthSessionORM:
+    return AuthSessionORM(
+        id=auth_session.id,
+        user_id=auth_session.user_id,
+        session_revision=auth_session.session_revision,
+        auth_method=auth_session.auth_method,
+        device_label=auth_session.device_label,
+        issued_at=auth_session.issued_at,
+        expires_at=auth_session.expires_at,
+        last_validated_at=auth_session.last_validated_at,
+        revoked_at=auth_session.revoked_at,
+        created_at=auth_session.created_at,
+        updated_at=auth_session.updated_at,
+    )
+
+
+def auth_session_from_orm(obj: AuthSessionORM) -> AuthSession:
+    return AuthSession(
+        id=obj.id,
+        user_id=obj.user_id,
+        session_revision=obj.session_revision,
+        auth_method=obj.auth_method,
+        device_label=obj.device_label,
+        issued_at=ensure_utc_datetime(obj.issued_at),
+        expires_at=ensure_utc_datetime(obj.expires_at),
+        last_validated_at=ensure_utc_datetime(obj.last_validated_at),
+        revoked_at=ensure_utc_datetime(obj.revoked_at),
+        created_at=ensure_utc_datetime(obj.created_at),
+        updated_at=ensure_utc_datetime(obj.updated_at),
     )
 
 
@@ -134,6 +167,8 @@ def role_permission_from_orm(obj: RolePermissionORM) -> RolePermissionBinding:
 
 
 __all__ = [
+    "auth_session_from_orm",
+    "auth_session_to_orm",
     "user_to_orm",
     "user_from_orm",
     "role_to_orm",

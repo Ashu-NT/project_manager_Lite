@@ -57,6 +57,7 @@ class InventoryReportingService:
         purchasing_service: PurchasingService,
         user_session=None,
         module_catalog_service=None,
+        runtime_execution_service=None,
         report_registry: ReportDefinitionRegistry | None = None,
         report_runtime: ReportRuntime | None = None,
         excel_renderer: InventoryExcelReportRenderer | None = None,
@@ -85,6 +86,7 @@ class InventoryReportingService:
             registry,
             user_session=user_session,
             module_catalog_service=module_catalog_service,
+            runtime_execution_service=runtime_execution_service,
         )
 
     def generate_stock_status_csv(self, output_path: str | Path, *, site_id: str | None = None, storeroom_id: str | None = None):
