@@ -80,12 +80,7 @@ class DashboardTab(
         self._layout_sync_scheduled = False
         self._setup_ui()
         self.reload_projects()
-        domain_events.costs_changed.connect(self._on_domain_changed)
-        domain_events.tasks_changed.connect(self._on_domain_changed)
-        domain_events.project_changed.connect(self._on_project_catalog_changed)
-        domain_events.resources_changed.connect(self._on_resources_changed)
-        domain_events.baseline_changed.connect(self._on_baseline_changed)
-        domain_events.register_changed.connect(self._on_register_changed)
+        domain_events.domain_changed.connect(self._on_generic_domain_change)
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)

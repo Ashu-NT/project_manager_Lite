@@ -28,10 +28,10 @@ from ui.modules.project_management.project.filtering import ProjectFiltersMixin
 from ui.modules.project_management.project.import_actions import ProjectImportActionsMixin
 from ui.modules.project_management.project.models import ProjectTableModel
 from ui.modules.project_management.project.resource_panel import ProjectResourcePanelMixin
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
-
 
 class ProjectTab(
     ProjectImportActionsMixin,
@@ -66,8 +66,7 @@ class ProjectTab(
         self._setup_ui()
         self.reload_projects()
         self._sync_actions()
-        domain_events.project_changed.connect(self._on_project_changed_event)
-        domain_events.resources_changed.connect(self._on_resources_changed_event)
+        domain_events.domain_changed.connect(self._on_domain_change)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -258,6 +257,12 @@ class ProjectTab(
 
     def _on_resources_changed_event(self, _resource_id: str) -> None:
         self._reload_project_resource_panel_for_selected_project()
+
+    def _on_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project"):
+            self._on_project_changed_event(event.entity_id)
+        elif is_project_management_domain_event(event, "resource"):
+            self._on_resources_changed_event(event.entity_id)
 
     def _on_project_selection_changed(self, *_args) -> None:
         ProjectResourcePanelMixin._on_project_selection_changed(self, *_args)

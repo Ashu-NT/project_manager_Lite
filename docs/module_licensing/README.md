@@ -20,12 +20,15 @@ The repo already has a lightweight product catalog:
 - `inventory_procurement` is present as an available module that can be licensed and enabled
 - `maintenance_management`, `qhse`, and `hr_management` are still planned modules
 
-What it does not yet have:
+What it now has in the current codebase:
 
-- a distinction between `licensed` and `enabled`
+- a distinction between `licensed`, `enabled`, `available`, and `accessible`
 - platform-base capability modeling
-- a path from single-install defaults to client-specific entitlements
-- shell filtering that is explicitly driven by entitlement state
+- persistent organization-scoped entitlements for the desktop/runtime path
+- shell and backend filtering driven by shared entitlement state
+
+The remaining licensing follow-up is now primarily the concrete hosted web/server
+delivery layer, tracked later in this README.
 
 ## Target Licensing Model
 

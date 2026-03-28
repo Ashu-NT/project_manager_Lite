@@ -21,6 +21,7 @@ from core.modules.project_management.domain.collaboration import (
 )
 from core.modules.project_management.services.collaboration import CollaborationService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from ui.modules.project_management.task.document_link_dialogs import ProjectManagementDocumentLinkDialog
 from ui.modules.project_management.task.document_labels import format_linked_document_label
 from ui.modules.project_management.task.presence import format_presence_lines
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -62,6 +63,7 @@ class TaskCollaborationDialog(QDialog):
             except Exception as exc:
                 self._mention_candidate_error = str(exc)
         self._pending_attachments: list[str] = []
+        self._pending_linked_documents: list[tuple[str, str]] = []
         self.setWindowTitle(f"Task Collaboration - {task_name}")
         self._setup_ui()
         self.reload_comments(mark_read=True)
@@ -126,6 +128,9 @@ class TaskCollaborationDialog(QDialog):
         self.attachments_label = QLabel("Attachments: none")
         self.attachments_label.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
         root.addWidget(self.attachments_label)
+        self.linked_documents_label = QLabel("Shared documents: none")
+        self.linked_documents_label.setStyleSheet(CFG.DASHBOARD_KPI_SUB_STYLE)
+        root.addWidget(self.linked_documents_label)
 
         self.comment_input = TaskMentionTextEdit()
         self.comment_input.set_mention_handles([candidate.handle for candidate in self._mention_candidates])
@@ -135,10 +140,17 @@ class TaskCollaborationDialog(QDialog):
 
         row = QHBoxLayout()
         self.btn_add_attachment = QPushButton("Attach File")
+        self.btn_link_document = QPushButton("Link Shared Document")
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_post = QPushButton("Post Update")
         self.btn_close = QPushButton(CFG.CLOSE_BUTTON_LABEL)
-        for btn in (self.btn_add_attachment, self.btn_refresh, self.btn_post, self.btn_close):
+        for btn in (
+            self.btn_add_attachment,
+            self.btn_link_document,
+            self.btn_refresh,
+            self.btn_post,
+            self.btn_close,
+        ):
             btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
             btn.setFixedHeight(CFG.BUTTON_HEIGHT)
             row.addWidget(btn)
@@ -146,10 +158,12 @@ class TaskCollaborationDialog(QDialog):
         root.addLayout(row)
 
         self.btn_add_attachment.clicked.connect(self._add_attachment)
+        self.btn_link_document.clicked.connect(self._link_shared_document)
         self.btn_refresh.clicked.connect(lambda: self.reload_comments(mark_read=True))
         self.btn_post.clicked.connect(self._post_comment)
         self.btn_close.clicked.connect(self.accept)
         self.btn_add_attachment.setEnabled(self._can_post)
+        self.btn_link_document.setEnabled(self._can_post and self._collaboration_service is not None)
         self.comment_input.setReadOnly(not self._can_post)
         self.btn_post.setEnabled(self._can_post)
         if hasattr(self, "btn_insert_mention"):
@@ -172,13 +186,62 @@ class TaskCollaborationDialog(QDialog):
         self._pending_attachments.append(path)
         self._refresh_attachment_label()
 
+    def _link_shared_document(self) -> None:
+        if self._collaboration_service is None:
+            QMessageBox.information(
+                self,
+                "Shared Documents",
+                "Shared document linking requires the service-backed collaboration runtime.",
+            )
+            return
+        try:
+            pending_ids = {document_id for document_id, _label in self._pending_linked_documents}
+            available_documents = [
+                document
+                for document in self._collaboration_service.list_available_documents(active_only=True)
+                if document.id not in pending_ids
+            ]
+        except Exception as exc:
+            QMessageBox.warning(self, "Shared Documents", str(exc))
+            return
+        if not available_documents:
+            QMessageBox.information(
+                self,
+                "Shared Documents",
+                "No additional active shared documents are available to link.",
+            )
+            return
+        dialog = ProjectManagementDocumentLinkDialog(
+            title="Link Shared Document",
+            prompt="Select an active shared document to link to the comment you are about to post.",
+            document_options=[
+                (f"{document.document_code} - {document.title}", document.id)
+                for document in available_documents
+            ],
+            confirm_label="Link Document",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+        document_id = dialog.document_id
+        if not document_id:
+            return
+        self._pending_linked_documents.append((document_id, dialog.document_label()))
+        self._refresh_attachment_label()
+
     def _refresh_attachment_label(self) -> None:
         if not self._pending_attachments:
             self.attachments_label.setText("Attachments: none")
-            return
-        names = [Path(path).name for path in self._pending_attachments]
-        preview = ", ".join(names[:4]) + ("..." if len(names) > 4 else "")
-        self.attachments_label.setText(f"Attachments: {preview}")
+        else:
+            names = [Path(path).name for path in self._pending_attachments]
+            preview = ", ".join(names[:4]) + ("..." if len(names) > 4 else "")
+            self.attachments_label.setText(f"Attachments: {preview}")
+        if not self._pending_linked_documents:
+            self.linked_documents_label.setText("Shared documents: none")
+        else:
+            labels = [label for _document_id, label in self._pending_linked_documents]
+            preview = ", ".join(labels[:3]) + ("..." if len(labels) > 3 else "")
+            self.linked_documents_label.setText(f"Shared documents: {preview}")
 
     def reload_comments(self, *, mark_read: bool = True) -> None:
         if self._collaboration_service is not None:
@@ -267,6 +330,7 @@ class TaskCollaborationDialog(QDialog):
                     task_id=self._task_id,
                     body=body,
                     attachments=list(self._pending_attachments),
+                    linked_document_ids=[document_id for document_id, _label in self._pending_linked_documents],
                 )
             else:
                 if self._store is None:
@@ -282,6 +346,7 @@ class TaskCollaborationDialog(QDialog):
             return
         self.comment_input.clear()
         self._pending_attachments.clear()
+        self._pending_linked_documents.clear()
         self._refresh_attachment_label()
         # Keep newly posted mentions unread until user explicitly refreshes.
         self.reload_comments(mark_read=False)

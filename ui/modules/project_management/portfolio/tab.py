@@ -30,6 +30,7 @@ from ui.modules.project_management.portfolio.scenario_dialog import PortfolioSce
 from ui.modules.project_management.portfolio.scoring_template_dialog import (
     PortfolioScoringTemplateDialog,
 )
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.platform.shared.async_job import JobUiConfig, start_async_job
 from ui.platform.shared.guards import apply_permission_hint, has_permission
 from ui.platform.shared.styles.style_utils import style_table
@@ -61,8 +62,7 @@ class PortfolioTab(QWidget):
         self._reload_pending = False
         self._setup_ui()
         self.reload_data()
-        domain_events.project_changed.connect(self._on_domain_change)
-        domain_events.portfolio_changed.connect(self._on_domain_change)
+        domain_events.domain_changed.connect(self._on_generic_domain_change)
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -698,6 +698,10 @@ class PortfolioTab(QWidget):
             self._refresh_dependency_views(preferred_dependency_id=payload)
             return
         self.reload_data()
+
+    def _on_generic_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project", "portfolio_entity"):
+            self._on_domain_change(event.entity_id)
 
     def _create_project_dependency(self) -> None:
         if not self._can_manage:

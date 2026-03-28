@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QComboBox, QMessageBox
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.dashboard import DashboardData, DashboardService, PORTFOLIO_SCOPE_ID
 from core.modules.project_management.services.project import ProjectService
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.modules.project_management.dashboard.async_actions import run_generate_baseline_async, run_refresh_dashboard_async
 from ui.modules.project_management.dashboard.access import sync_dashboard_baseline_actions
 from ui.platform.shared.combo import current_data_and_text
@@ -51,6 +52,18 @@ class DashboardDataOpsMixin:
 
     def _on_register_changed(self, project_id: str):
         self._on_domain_changed(project_id)
+
+    def _on_generic_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project_costs", "project_tasks"):
+            self._on_domain_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "project"):
+            self._on_project_catalog_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "resource"):
+            self._on_resources_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "project_baseline"):
+            self._on_baseline_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "register_scope"):
+            self._on_register_changed(event.entity_id)
 
     def _on_project_changed(self, index: int = 0):
         proj_id, _ = self._current_project_id_and_name()

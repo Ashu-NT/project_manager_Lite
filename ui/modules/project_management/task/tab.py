@@ -29,6 +29,7 @@ from ui.modules.project_management.task.layout import TaskLayoutMixin
 from ui.modules.project_management.task.models import TaskTableModel  # noqa: F401 - kept for architecture compatibility checks
 from ui.modules.project_management.task.project_flow import TaskProjectFlowMixin
 from ui.modules.project_management.task.ux_enhancements import TaskUxEnhancementsMixin
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 
 
 class TaskTab(
@@ -113,10 +114,7 @@ class TaskTab(
         self._mentions_refresh_timer.timeout.connect(self._refresh_notification_badge)
         self._mentions_refresh_timer.timeout.connect(self._refresh_presence_badge)
         self._mentions_refresh_timer.start()
-        domain_events.tasks_changed.connect(self._on_task_changed)
-        domain_events.project_changed.connect(self._on_project_changed_event)
-        domain_events.resources_changed.connect(self._on_resources_changed)
-        domain_events.collaboration_changed.connect(self._on_collaboration_changed)
+        domain_events.domain_changed.connect(self._on_domain_change)
 
     def _on_task_selection_changed(self, *_args) -> None:
         TaskAssignmentPanelMixin._on_task_selection_changed(self, *_args)
@@ -131,6 +129,16 @@ class TaskTab(
         if selected is not None and selected.id == task_id:
             self._refresh_mentions_badge()
             self._refresh_presence_badge()
+
+    def _on_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project_tasks"):
+            self._on_task_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "project"):
+            self._on_project_changed_event(event.entity_id)
+        elif is_project_management_domain_event(event, "resource"):
+            self._on_resources_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "task_collaboration"):
+            self._on_collaboration_changed(event.entity_id)
 
     def _sync_toolbar_actions(self) -> None:
         self._sync_collaboration_access_state()

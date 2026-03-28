@@ -82,7 +82,9 @@ Based on the current codebase, the shared platform spine already exists for:
 - shared time
 - documents and notifications
 
-There is currently no standalone inventory or procurement business module implemented yet.
+The repo now includes a standalone `Inventory & Procurement` module with item master,
+storerooms, stock balances and movements, reservations, requisitions, purchase orders,
+receiving, and module-owned import/export/reporting.
 
 After comparing your architecture direction with how established CMMS/EAM products typically handle this area, the better fit is:
 

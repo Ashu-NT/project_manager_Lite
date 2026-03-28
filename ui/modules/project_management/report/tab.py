@@ -11,6 +11,7 @@ from core.modules.project_management.services.task import TaskService
 from ui.modules.project_management.report.actions import ReportActionsMixin
 from ui.modules.project_management.report.project_flow import ReportProjectFlowMixin
 from ui.modules.project_management.report.surface import ReportSurfaceMixin
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 
 
 class ReportTab(ReportSurfaceMixin, ReportProjectFlowMixin, ReportActionsMixin, QWidget):
@@ -33,4 +34,8 @@ class ReportTab(ReportSurfaceMixin, ReportProjectFlowMixin, ReportActionsMixin, 
         self._user_session = user_session
         self._setup_ui()
         self._load_projects()
-        domain_events.project_changed.connect(self._on_project_changed_event)
+        domain_events.domain_changed.connect(self._on_domain_change)
+
+    def _on_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project"):
+            self._on_project_changed_event(event.entity_id)

@@ -13,7 +13,6 @@ from core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.collaboration.mentions import resolve_mentions
 from infra.modules.project_management.collaboration_attachments import store_task_comment_attachments
 
-
 class CollaborationCommentMixin:
     def list_comments(self, task_id: str) -> list[TaskComment]:
         task = self._require_task(task_id)
@@ -43,6 +42,7 @@ class CollaborationCommentMixin:
         task_id: str,
         body: str,
         attachments: Iterable[str] | None = None,
+        linked_document_ids: Iterable[str] | None = None,
     ) -> TaskComment:
         task = self._require_task(task_id)
         require_permission(self._user_session, "collaboration.manage", operation_label="post task collaboration update")
@@ -55,7 +55,6 @@ class CollaborationCommentMixin:
         text = (body or "").strip()
         if not text:
             raise ValidationError("Comment text is required.", code="COLLABORATION_BODY_REQUIRED")
-
         mention_candidates = self._list_mention_candidates_for_project(task.project_id)
         mentions, mentioned_user_ids, unresolved = resolve_mentions(
             text=text,
@@ -67,8 +66,8 @@ class CollaborationCommentMixin:
                 f"Unknown mention handle(s): {preview}. Mention project collaborators with access to this task.",
                 code="COLLABORATION_MENTION_UNKNOWN",
             )
-
         principal = self._user_session.principal if self._user_session is not None else None
+        normalized_linked_document_ids = self._normalize_linked_document_ids(linked_document_ids)
         comment = TaskComment.create(
             task_id=task_id,
             author_user_id=getattr(principal, "user_id", None),
@@ -96,6 +95,10 @@ class CollaborationCommentMixin:
             )
         else:
             self._session.commit()
+        self._link_existing_comment_documents(
+            comment_id=comment.id,
+            document_ids=normalized_linked_document_ids,
+        )
         domain_events.collaboration_changed.emit(task_id)
         return comment
 
@@ -143,6 +146,5 @@ class CollaborationCommentMixin:
 
     def unread_mentions_count(self) -> int:
         return sum(1 for item in self.list_inbox(limit=500) if item.unread)
-
 
 __all__ = ["CollaborationCommentMixin"]

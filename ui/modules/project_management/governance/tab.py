@@ -30,6 +30,7 @@ from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.governance.timesheet_review_dialog import TimesheetReviewDialog
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.platform.settings import MainWindowSettingsStore
 from ui.platform.shared.guards import make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
@@ -76,9 +77,7 @@ class GovernanceTab(QWidget):
         )
         self._setup_ui()
         self.reload_data()
-        domain_events.approvals_changed.connect(self._on_approvals_changed)
-        if self._can_review_timesheets:
-            domain_events.timesheet_periods_changed.connect(self._on_timesheet_periods_changed)
+        domain_events.domain_changed.connect(self._on_domain_change)
 
     def _setup_ui(self) -> None:
         layout = QVBoxLayout(self)
@@ -509,6 +508,12 @@ class GovernanceTab(QWidget):
 
     def _on_timesheet_periods_changed(self, _period_id: str) -> None:
         self._reload_timesheet_queue()
+
+    def _on_domain_change(self, event) -> None:
+        if event.category == "platform" and event.entity_type == "approval_request":
+            self._on_approvals_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "timesheet_period"):
+            self._on_timesheet_periods_changed(event.entity_id)
 
     def _load_project_name_index(self) -> dict[str, str]:
         return {project.id: project.name for project in self._project_service.list_projects()}

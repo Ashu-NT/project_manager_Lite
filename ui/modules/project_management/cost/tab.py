@@ -17,6 +17,7 @@ from ui.modules.project_management.cost.labor_summary import CostLaborSummaryMix
 from ui.modules.project_management.cost.models import CostTableModel  # noqa: F401
 from ui.modules.project_management.cost.project_flow import CostProjectFlowMixin
 from ui.modules.project_management.cost.surface import CostSurfaceMixin
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.platform.shared.deferred_call import DeferredCall
 from ui.platform.shared.guards import can_execute_governed_action
 
@@ -75,7 +76,12 @@ class CostTab(
         self._setup_ui()
         self._load_projects()
         self._sync_cost_actions()
-        domain_events.costs_changed.connect(self._on_costs_or_tasks_changed)
-        domain_events.tasks_changed.connect(self._on_costs_or_tasks_changed)
-        domain_events.project_changed.connect(self._on_project_changed_event)
-        domain_events.resources_changed.connect(self._on_resources_changed)
+        domain_events.domain_changed.connect(self._on_domain_change)
+
+    def _on_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project_costs", "project_tasks"):
+            self._on_costs_or_tasks_changed(event.entity_id)
+        elif is_project_management_domain_event(event, "project"):
+            self._on_project_changed_event(event.entity_id)
+        elif is_project_management_domain_event(event, "resource"):
+            self._on_resources_changed(event.entity_id)

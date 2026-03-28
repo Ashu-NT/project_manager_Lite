@@ -13,6 +13,7 @@ from ui.modules.project_management.calendar.holidays import CalendarHolidaysMixi
 from ui.modules.project_management.calendar.project_ops import CalendarProjectOpsMixin
 from ui.modules.project_management.calendar.surface import CalendarSurfaceMixin
 from ui.modules.project_management.calendar.working_time import CalendarWorkingTimeMixin
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.platform.shared.guards import has_permission
 
 
@@ -53,4 +54,8 @@ class CalendarTab(
         self.load_calendar_config()
         self.load_holidays()
         self.reload_projects()
-        domain_events.project_changed.connect(self._on_project_changed)
+        domain_events.domain_changed.connect(self._on_domain_change)
+
+    def _on_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project"):
+            self._on_project_changed(event.entity_id)

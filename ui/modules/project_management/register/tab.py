@@ -30,6 +30,7 @@ from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.register import RegisterService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.register.dialogs import RegisterEntryDialog
+from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -53,8 +54,7 @@ class RegisterTab(QWidget):
         self._project_name_by_id: dict[str, str] = {}
         self._setup_ui()
         self.reload_entries()
-        domain_events.project_changed.connect(self._on_project_catalog_changed)
-        domain_events.register_changed.connect(self._on_register_changed)
+        domain_events.domain_changed.connect(self._on_domain_change)
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -423,6 +423,10 @@ class RegisterTab(QWidget):
 
     def _on_register_changed(self, _project_id: str) -> None:
         self.reload_entries()
+
+    def _on_domain_change(self, event) -> None:
+        if is_project_management_domain_event(event, "project", "register_scope"):
+            self.reload_entries()
 
 
 __all__ = ["RegisterTab"]

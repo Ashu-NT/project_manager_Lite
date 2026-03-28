@@ -30,13 +30,17 @@ The guiding rules stay the same:
   - the PM task collaboration dialog now shows linked shared-document records separately from raw attachment references
   - PM users can see shared document type and storage cues without losing legacy attachment readability
   - the PM collaboration UX now follows the same document-link pattern that future PM, maintenance, inventory, and QHSE screens can reuse
+- Completed in the current slice:
+  - the PM task collaboration dialog can now link existing shared platform documents to new task comments before posting
+  - PM collaboration comment creation now supports both new attachment registration and existing shared-document linking through the same task workflow
+- Completed in the current slice:
+  - the remaining major PM workspaces now subscribe to the module-neutral domain-event bridge alongside their legacy event hooks
+  - PM refresh behavior stays compatible while reducing dependence on PM-only signal wiring
 - Still intentionally transitional:
   - existing historical PM task-comment attachments remain readable through the legacy attachment list
-  - the task collaboration UI still does not provide a shared-document picker/library experience; the current improvement is additive visibility only
-  - file-based local-only collaboration storage remains local-only and is not yet bridged to shared documents
   - PM time-entry site/department snapshots intentionally stay as historical strings
   - PM resources still do not own department/site fields; they consume shared employee context additively at the UI layer
-  - not every PM tab is subscribed to the neutral event layer yet; the change is targeted to the screens where the new shared-platform seams matter most today
+  - the lightweight fallback collaboration store remains a compatibility path for local-only testing rather than the shared-document-first runtime
 
 ## Execution Order
 
@@ -118,6 +122,44 @@ Non-goals for this slice:
 
 - no large document-management workspace inside PM
 - no duplicate document master outside the platform
+
+### 5. Shared Document Library Linking
+
+Status: completed
+
+Scope:
+
+- let PM users link existing shared platform documents while posting task collaboration updates
+- keep comment-level linked-document ownership in PM while reusing the shared platform library
+
+Acceptance notes:
+
+- PM users can choose active shared documents directly from the task collaboration dialog
+- new PM collaboration comments can combine uploaded attachments and linked shared documents
+
+Non-goals for this slice:
+
+- no standalone PM document library workspace
+- no destructive migration of legacy attachment references
+
+### 6. Broader Neutral Event Adoption
+
+Status: completed
+
+Scope:
+
+- connect the remaining major PM workspaces to the additive module-neutral domain-event bridge
+- preserve existing specific PM signal hooks during the transition
+
+Acceptance notes:
+
+- task, dashboard, project, register, report, cost, calendar, portfolio, and governance surfaces respond to the neutral bridge
+- existing PM-specific event subscribers remain compatible
+
+Non-goals for this slice:
+
+- no broker/process-wide async event transport
+- no forced removal of the older specific PM signal hooks
 
 ## Guardrails
 
