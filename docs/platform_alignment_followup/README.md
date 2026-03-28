@@ -25,7 +25,7 @@ This tracker exists so the next implementation slices stay visible, ordered, and
 - Completed in the current slice:
   - shared `documents` domain foundation under `core/platform/documents`
   - persistent `documents` and `document_links` tables with org-scoped link infrastructure
-  - platform admin `Documents` workspace for managing shared document records and links
+  - platform admin `Documents` workspace now behaves as a shared document library with preview state, richer metadata, and cross-module link visibility
   - additive `documents_changed` domain event for future cross-module refresh
 - Expanded in the current slice:
   - `site` now carries operational metadata such as geography, timezone, currency, lifecycle status, calendar defaults, timestamps, and notes

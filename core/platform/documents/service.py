@@ -22,6 +22,7 @@ from core.platform.documents.support import (
     coerce_document_type as _coerce_document_type,
     coerce_storage_kind as _coerce_storage_kind,
     default_file_name as _default_file_name,
+    infer_mime_type as _infer_mime_type,
     normalize_confidentiality as _normalize_confidentiality,
     normalize_entity_label as _normalize_entity_label,
     normalize_module_code as _normalize_module_code,
@@ -106,6 +107,8 @@ class DocumentService:
         if self._document_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Document code already exists in the active organization.", code="DOCUMENT_CODE_EXISTS")
         principal = self._user_session.principal if self._user_session is not None else None
+        normalized_file_name = _default_file_name(normalized_uri, file_name)
+        normalized_mime_type = _normalize_optional_text(mime_type) or _infer_mime_type(normalized_file_name or normalized_uri)
         document = Document.create(
             organization_id=organization.id,
             document_code=normalized_code,
@@ -113,8 +116,8 @@ class DocumentService:
             document_type=_coerce_document_type(document_type if document_type is not None else classification),
             storage_kind=_coerce_storage_kind(storage_kind),
             storage_uri=normalized_uri,
-            file_name=_default_file_name(normalized_uri, file_name),
-            mime_type=_normalize_optional_text(mime_type),
+            file_name=normalized_file_name,
+            mime_type=normalized_mime_type,
             source_system=_normalize_optional_text(source_system) or "platform",
             uploaded_at=uploaded_at or datetime.now(timezone.utc),
             uploaded_by_user_id=uploaded_by_user_id or (principal.user_id if principal is not None else None),
@@ -206,7 +209,13 @@ class DocumentService:
         if file_name is not None:
             document.file_name = _default_file_name(document.storage_uri, file_name)
         if mime_type is not None:
-            document.mime_type = _normalize_optional_text(mime_type)
+            document.mime_type = _normalize_optional_text(mime_type) or _infer_mime_type(
+                document.file_name or document.storage_uri
+            )
+        elif storage_uri is not None or file_name is not None:
+            document.mime_type = _normalize_optional_text(document.mime_type) or _infer_mime_type(
+                document.file_name or document.storage_uri
+            )
         if source_system is not None:
             document.source_system = _normalize_optional_text(source_system)
         if uploaded_at is not None:

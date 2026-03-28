@@ -150,3 +150,20 @@ def test_document_service_updates_and_unlinks_documents(services):
 
     document_service.remove_link(link.id)
     assert document_service.list_links(document.id) == []
+
+
+def test_document_service_infers_mime_type_from_storage_path(services, tmp_path):
+    document_service = services["document_service"]
+    pdf_path = tmp_path / "pump-manual.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n")
+
+    document = document_service.create_document(
+        document_code="DOC-PDF",
+        title="Pump Manual",
+        document_type="MANUAL",
+        storage_kind="FILE_PATH",
+        storage_uri=str(pdf_path),
+    )
+
+    assert document.file_name == "pump-manual.pdf"
+    assert document.mime_type == "application/pdf"

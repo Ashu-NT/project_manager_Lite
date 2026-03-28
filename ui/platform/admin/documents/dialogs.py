@@ -5,9 +5,12 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFileDialog,
     QFormLayout,
+    QHBoxLayout,
     QLineEdit,
     QMessageBox,
+    QPushButton,
     QTextEdit,
     QVBoxLayout,
 )
@@ -32,6 +35,7 @@ class DocumentEditDialog(QDialog):
             hint_getters=(lambda: self.title_edit.text(), lambda: self.file_name_edit.text()),
         )
         self.storage_uri_edit = QLineEdit()
+        self.storage_uri_browse_button = QPushButton("Browse...")
         self.file_name_edit = QLineEdit()
         self.revision_edit = QLineEdit()
         self.source_system_edit = QLineEdit()
@@ -46,6 +50,8 @@ class DocumentEditDialog(QDialog):
             edit.setSizePolicy(CFG.INPUT_POLICY)
             edit.setFixedHeight(CFG.INPUT_HEIGHT)
             edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
+        self.storage_uri_browse_button.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.storage_uri_browse_button.setMinimumWidth(CFG.BUTTON_MIN_WIDTH_SM)
 
         self.document_type_combo = QComboBox()
         for document_type in DocumentType:
@@ -89,6 +95,16 @@ class DocumentEditDialog(QDialog):
             self.active_check.setChecked(True)
             self.source_system_edit.setText("platform")
 
+        self.storage_uri_edit.setPlaceholderText("Local file path, web URL, or enterprise reference...")
+        self.file_name_edit.setPlaceholderText("Optional override. Defaults from the selected path or URL.")
+        self.revision_edit.setPlaceholderText("R1, Rev A, 2026.03 ...")
+        self.source_system_edit.setPlaceholderText("platform, sharepoint, dms, maintenance ...")
+
+        storage_uri_row = QHBoxLayout()
+        storage_uri_row.setSpacing(CFG.SPACING_SM)
+        storage_uri_row.addWidget(self.storage_uri_edit, 1)
+        storage_uri_row.addWidget(self.storage_uri_browse_button)
+
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)
         form.setFormAlignment(CFG.ALIGN_TOP)
@@ -99,7 +115,7 @@ class DocumentEditDialog(QDialog):
         form.addRow("Title:", self.title_edit)
         form.addRow("Document type:", self.document_type_combo)
         form.addRow("Storage kind:", self.storage_kind_combo)
-        form.addRow("Storage URI:", self.storage_uri_edit)
+        form.addRow("Storage URI:", storage_uri_row)
         form.addRow("File name:", self.file_name_edit)
         form.addRow("Revision:", self.revision_edit)
         form.addRow("Source system:", self.source_system_edit)
@@ -110,6 +126,7 @@ class DocumentEditDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._validate_and_accept)
         buttons.rejected.connect(self.reject)
+        self.storage_uri_browse_button.clicked.connect(self._browse_for_file)
 
         layout = QVBoxLayout(self)
         layout.setSpacing(CFG.SPACING_LG)
@@ -117,6 +134,21 @@ class DocumentEditDialog(QDialog):
         layout.addLayout(form)
         layout.addWidget(buttons)
         self.resize(max(self.width(), 520), max(self.height(), 360))
+
+    def _browse_for_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select document",
+            "",
+            "Documents (*.pdf *.doc *.docx *.xls *.xlsx *.ppt *.pptx *.png *.jpg *.jpeg *.txt);;All files (*.*)",
+        )
+        if not path:
+            return
+        self.storage_kind_combo.setCurrentIndex(self.storage_kind_combo.findData(DocumentStorageKind.FILE_PATH))
+        self.storage_uri_edit.setText(path)
+        if not self.file_name_edit.text().strip():
+            normalized = path.replace("\\", "/").split("/")[-1]
+            self.file_name_edit.setText(normalized)
 
     def _select_combo(self, combo: QComboBox, value) -> None:
         for index in range(combo.count()):
@@ -202,6 +234,10 @@ class DocumentLinkEditDialog(QDialog):
             edit.setSizePolicy(CFG.INPUT_POLICY)
             edit.setFixedHeight(CFG.INPUT_HEIGHT)
             edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
+        self.module_code_edit.setPlaceholderText("project_management, maintenance_management, qhse, hr_management ...")
+        self.entity_type_edit.setPlaceholderText("task, asset, employee, inspection, report ...")
+        self.entity_id_edit.setPlaceholderText("Business object identifier")
+        self.link_role_edit.setPlaceholderText("reference, attachment, evidence, certificate ...")
 
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)
