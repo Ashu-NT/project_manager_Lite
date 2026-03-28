@@ -3,10 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtWidgets import QDialog
+from PySide6.QtWidgets import QDialog, QSizePolicy
+from openpyxl import load_workbook
 
 from core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
+from ui.modules.inventory_procurement.data_exchange.import_dialog import InventoryImportDialog
+from ui.modules.inventory_procurement.data_exchange_tab import InventoryDataExchangeTab
 from ui.modules.inventory_procurement.dashboard_tab import InventoryDashboardTab
 from ui.modules.inventory_procurement.item_dialogs import InventoryItemEditDialog
 from ui.modules.inventory_procurement.items_tab import InventoryItemsTab
@@ -15,6 +18,7 @@ from ui.modules.inventory_procurement.purchase_orders_tab import PurchaseOrdersT
 from ui.modules.inventory_procurement.receiving_tab import ReceivingTab
 from ui.modules.inventory_procurement.reservations_tab import ReservationsTab
 from ui.modules.inventory_procurement.requisitions_tab import RequisitionsTab
+from ui.modules.inventory_procurement.reports_tab import InventoryReportsTab
 from ui.modules.inventory_procurement.stock_tab import StockTab
 from ui.modules.inventory_procurement.storeroom_dialogs import StoreroomEditDialog
 from ui.platform.shell.main_window import MainWindow
@@ -23,6 +27,18 @@ from ui.platform.shared.styles.theme import base_stylesheet
 
 def _child_labels(item) -> list[str]:
     return [item.child(i).text(0) for i in range(item.childCount())]
+
+
+def _select_combo_value(combo, value) -> None:
+    index = combo.findData(value)
+    assert index >= 0
+    combo.setCurrentIndex(index)
+
+
+def _mute_message_boxes(monkeypatch) -> None:
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", lambda *args, **kwargs: None)
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", lambda *args, **kwargs: None)
 
 
 def _enable_inventory_module(services) -> None:
@@ -223,6 +239,108 @@ def test_inventory_dashboard_tab_surfaces_stock_pressure_and_procurement_queue(q
     assert tab.queue_table.rowCount() >= 1
     queue_numbers = {tab.queue_table.item(row, 1).text() for row in range(tab.queue_table.rowCount())}
     assert purchase_order.po_number in queue_numbers
+
+
+def test_inventory_import_dialog_previews_and_imports_storerooms_csv(qapp, services, tmp_path, monkeypatch):
+    _enable_inventory_module(services)
+    _mute_message_boxes(monkeypatch)
+    site = services["site_service"].create_site(site_code="UI-IMP", name="UI Import Site", currency_code="EUR")
+    supplier = services["party_service"].create_party(
+        party_code="UI-SUP",
+        party_name="UI Import Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+    register_and_login(services, username_prefix="inventory-ui-import", role_names=("inventory_manager",))
+
+    csv_path = tmp_path / "storerooms-ui.csv"
+    csv_path.write_text(
+        "storeroom_code,name,site_code,status,manager_party_code,allows_receiving\n"
+        f"UI-IMP-MAIN,Imported Main,{site.site_code},ACTIVE,{supplier.party_code},true\n",
+        encoding="utf-8",
+    )
+
+    dialog = InventoryImportDialog(data_exchange_service=services["inventory_data_exchange_service"])
+    _select_combo_value(dialog.type_combo, "storerooms")
+    dialog.file_path_edit.setText(str(csv_path))
+    dialog._load_columns_into_mapping()
+
+    dialog.preview_import()
+
+    assert dialog.preview_table.rowCount() == 1
+    assert "1 ready rows" in dialog.summary_label.text()
+
+    dialog.execute_import()
+
+    storerooms = services["inventory_service"].list_storerooms()
+    assert any(storeroom.storeroom_code == "UI-IMP-MAIN" for storeroom in storerooms)
+
+
+def test_inventory_data_exchange_tab_exports_item_and_purchase_order_feeds(qapp, services, tmp_path, monkeypatch):
+    _enable_inventory_module(services)
+    _mute_message_boxes(monkeypatch)
+    (
+        _site,
+        _storeroom,
+        item,
+        _supplier,
+        _requisition,
+        purchase_order,
+        _purchase_order_line,
+        _receipt,
+    ) = _create_purchase_flow(services)
+
+    tab = InventoryDataExchangeTab(
+        data_exchange_service=services["inventory_data_exchange_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+
+    _select_combo_value(tab.export_type_combo, "items")
+    items_path = tab.export_selected_csv(tmp_path / "inventory-items.csv")
+    _select_combo_value(tab.export_type_combo, "purchase_orders")
+    purchase_order_path = tab.export_selected_csv(tmp_path / "inventory-purchase-orders.csv")
+
+    assert items_path is not None
+    assert purchase_order_path is not None
+    assert item.item_code in items_path.read_text(encoding="utf-8")
+    assert purchase_order.po_number in purchase_order_path.read_text(encoding="utf-8")
+
+
+def test_inventory_reports_tab_exports_stock_and_procurement_packages(qapp, services, tmp_path, monkeypatch):
+    _enable_inventory_module(services)
+    _mute_message_boxes(monkeypatch)
+    (
+        site,
+        storeroom,
+        item,
+        supplier,
+        _requisition,
+        _purchase_order,
+        _purchase_order_line,
+        _receipt,
+    ) = _create_purchase_flow(services, with_receipt=True)
+
+    tab = InventoryReportsTab(
+        reporting_service=services["inventory_reporting_service"],
+        reference_service=services["inventory_reference_service"],
+        inventory_service=services["inventory_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    assert tab.report_header_card.sizePolicy().verticalPolicy() == QSizePolicy.Fixed
+    assert tab.report_controls_card.sizePolicy().verticalPolicy() == QSizePolicy.Fixed
+    _select_combo_value(tab.site_combo, site.id)
+    _select_combo_value(tab.storeroom_combo, storeroom.id)
+    _select_combo_value(tab.supplier_combo, supplier.id)
+
+    stock_path = tab.export_stock_status_csv(tmp_path / "inventory-stock.csv")
+    procurement_path = tab.export_procurement_overview_excel(tmp_path / "inventory-procurement.xlsx")
+
+    assert stock_path is not None
+    assert procurement_path is not None
+    assert item.item_code in stock_path.read_text(encoding="utf-8")
+    workbook = load_workbook(procurement_path)
+    assert {"Summary", "Requisitions", "Purchase Orders", "Receipts"} <= set(workbook.sheetnames)
 
 
 def test_new_item_and_storeroom_dialogs_default_to_active_status(qapp, services):
@@ -709,14 +827,17 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     assert "Requisitions" in labels
     assert "Purchase Orders" in labels
     assert "Receiving" in labels
+    assert "Data Exchange" in labels
+    assert "Reports" in labels
 
     inventory_section = window.shell_navigation.tree.topLevelItem(2)
     assert inventory_section.text(0) == "Inventory & Procurement"
-    assert _child_labels(inventory_section) == ["Overview", "Master Data", "Operations", "Procurement"]
+    assert _child_labels(inventory_section) == ["Overview", "Master Data", "Operations", "Procurement", "Control"]
     assert _child_labels(inventory_section.child(0)) == ["Inventory Dashboard"]
     assert _child_labels(inventory_section.child(1)) == ["Items", "Storerooms"]
     assert _child_labels(inventory_section.child(2)) == ["Reservations", "Movements", "Stock"]
     assert _child_labels(inventory_section.child(3)) == ["Requisitions", "Purchase Orders", "Receiving"]
+    assert _child_labels(inventory_section.child(4)) == ["Data Exchange", "Reports"]
 
 
 def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():

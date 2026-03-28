@@ -7,8 +7,10 @@ from PySide6.QtWidgets import QWidget
 from application.platform import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
 from ui.modules.inventory_procurement import (
+    InventoryDataExchangeTab,
     InventoryDashboardTab,
     InventoryItemsTab,
+    InventoryReportsTab,
     MovementsTab,
     PurchaseOrdersTab,
     ReceivingTab,
@@ -468,6 +470,47 @@ def build_workspace_definitions(
                     item_service=services["inventory_item_service"],
                     inventory_service=services["inventory_service"],
                     reference_service=services["inventory_reference_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read") and _has_any_permission(
+        user_session,
+        "import.manage",
+        "report.export",
+    ):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Control",
+                label="Data Exchange",
+                widget=InventoryDataExchangeTab(
+                    data_exchange_service=services["inventory_data_exchange_service"],
+                    platform_runtime_application_service=platform_runtime_application_service,
+                    user_session=user_session,
+                    parent=parent,
+                ),
+            )
+        )
+
+    if inventory_procurement_enabled and _has_permission(user_session, "inventory.read") and _has_permission(
+        user_session,
+        "report.export",
+    ):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+                module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+                group_label="Control",
+                label="Reports",
+                widget=InventoryReportsTab(
+                    reporting_service=services["inventory_reporting_service"],
+                    reference_service=services["inventory_reference_service"],
+                    inventory_service=services["inventory_service"],
                     platform_runtime_application_service=platform_runtime_application_service,
                     user_session=user_session,
                     parent=parent,
