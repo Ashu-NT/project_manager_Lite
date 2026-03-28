@@ -202,7 +202,8 @@ Required hardening:
 Current state:
 
 - shared document metadata and linking are live
-- `document_structure_id` and business-facing document version labeling are still explicitly deferred
+- shared `document_structures` are live in the platform document library
+- documents now carry a dedicated business-facing version / revision label without colliding with optimistic-lock `version`
 - future web-facing upload/file-handling plumbing is still a runtime follow-up item
 
 Why this matters:
@@ -212,8 +213,8 @@ Why this matters:
 
 Required hardening:
 
-- add the shared `document_structure` domain before the maintenance document library grows
-- define business-facing document version/revision handling that does not conflict with optimistic locking
+- done: add the shared `document_structure` domain before the maintenance document library grows
+- done: define business-facing document version/revision handling that does not conflict with optimistic locking
 - keep growing the shared upload/storage abstraction so desktop and future web can use one document model
 
 #### 5. Explicit inventory-to-maintenance material contracts
@@ -267,10 +268,10 @@ Required hardening:
 
 ### Recommended Pre-Maintenance Hardening Order
 
-1. Broader maintenance scopes in auth/access.
-2. Module-neutral governance queue and approval UX.
-3. Shared time boundary generalization for labor booking.
-4. Shared document taxonomy and lifecycle hardening.
+1. Broader maintenance scopes in auth/access. Done.
+2. Module-neutral governance queue and approval UX. Done.
+3. Shared time boundary generalization for labor booking. Done.
+4. Shared document taxonomy and lifecycle hardening. Done.
 5. Explicit inventory-to-maintenance material contracts.
 6. Maintenance-specific import/export/report contracts and async runtime controls.
 7. Shared org-to-maintenance location reference path once location records exist.

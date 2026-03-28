@@ -44,10 +44,17 @@ def test_document_service_scopes_documents_by_active_organization(services):
 
 def test_document_service_links_documents_to_module_entities(services):
     document_service = services["document_service"]
+    structure = document_service.create_document_structure(
+        structure_code="ASSET_MANUALS",
+        name="Asset Manuals",
+        object_scope="ASSET",
+        default_document_type="MANUAL",
+    )
     document = document_service.create_document(
         document_code="DRW-001",
         title="Pump Drawing",
         document_type="DRAWING",
+        document_structure_id=structure.id,
         storage_kind="REFERENCE",
         storage_uri="vault://pump/drawing-001",
     )
@@ -61,6 +68,7 @@ def test_document_service_links_documents_to_module_entities(services):
     )
 
     assert link.module_code == "maintenance_management"
+    assert document.document_structure_id == structure.id
     assert [item.entity_id for item in document_service.list_links(document.id)] == ["asset-001"]
     assert [item.document_id for item in document_service.list_links_for_entity(
         module_code="maintenance_management",
@@ -167,3 +175,50 @@ def test_document_service_infers_mime_type_from_storage_path(services, tmp_path)
 
     assert document.file_name == "pump-manual.pdf"
     assert document.mime_type == "application/pdf"
+
+
+def test_document_service_manages_document_structures_and_business_version_labels(services):
+    document_service = services["document_service"]
+
+    parent = document_service.create_document_structure(
+        structure_code="ASSET_DOCS",
+        name="Asset Documents",
+        object_scope="ASSET",
+        default_document_type="GENERAL",
+        sort_order=10,
+    )
+    child = document_service.create_document_structure(
+        structure_code="CAL_CERTS",
+        name="Calibration Certificates",
+        parent_structure_id=parent.id,
+        object_scope="ASSET",
+        default_document_type="CERTIFICATE",
+        sort_order=20,
+    )
+
+    structures = document_service.list_document_structures(object_scope="ASSET")
+    assert [row.structure_code for row in structures] == ["ASSET_DOCS", "CAL_CERTS"]
+
+    document = document_service.create_document(
+        document_code="CERT-001",
+        title="Pump Calibration Certificate",
+        document_type="CERTIFICATE",
+        document_structure_id=child.id,
+        storage_kind="REFERENCE",
+        storage_uri="vault://certs/pump-001",
+        business_version_label="Rev C",
+    )
+
+    assert document.document_structure_id == child.id
+    assert document.business_version_label == "Rev C"
+    assert document.revision == "Rev C"
+
+    updated_child = document_service.update_document_structure(
+        child.id,
+        name="Calibration and Test Certificates",
+        is_active=False,
+        expected_version=child.version,
+    )
+
+    assert updated_child.name == "Calibration and Test Certificates"
+    assert updated_child.is_active is False

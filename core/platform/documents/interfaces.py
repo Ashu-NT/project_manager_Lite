@@ -3,7 +3,26 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from core.platform.documents.domain import Document, DocumentLink
+from core.platform.documents.domain import Document, DocumentLink, DocumentStructure
+
+
+class DocumentStructureRepository(ABC):
+    @abstractmethod
+    def add(self, structure: DocumentStructure) -> None: ...
+    @abstractmethod
+    def update(self, structure: DocumentStructure) -> None: ...
+    @abstractmethod
+    def get(self, structure_id: str) -> Optional[DocumentStructure]: ...
+    @abstractmethod
+    def get_by_code(self, organization_id: str, structure_code: str) -> Optional[DocumentStructure]: ...
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        object_scope: str | None = None,
+    ) -> list[DocumentStructure]: ...
 
 
 class DocumentRepository(ABC):
@@ -47,4 +66,4 @@ class DocumentLinkRepository(ABC):
     def delete(self, link_id: str) -> None: ...
 
 
-__all__ = ["DocumentLinkRepository", "DocumentRepository"]
+__all__ = ["DocumentLinkRepository", "DocumentRepository", "DocumentStructureRepository"]

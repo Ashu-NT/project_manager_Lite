@@ -62,8 +62,7 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - PM task-comment attachments still use their existing module-local storage path until the later UI/integration slice migrates them
   - `site.integration_profile_id` is deferred until a shared integration-profile domain exists
   - `department.default_location_id` is deferred until the shared `location` master is implemented
-  - `document.document_structure_id` is deferred until a document structure domain exists
-  - business-facing document `version` labels are deferred because `version` is currently reserved for optimistic concurrency in the shared document service
+  - shared document storage/upload transport is still desktop-first and will need a fuller web-facing storage adapter later
 
 ## Execution Order
 
@@ -384,6 +383,10 @@ Non-goals for this slice:
 - no second stock, document, approval, or time engine inside Maintenance
 
 Progress notes:
+
+- shared `document_structures` are now live as an organization-scoped master under the platform document domain
+- documents now carry `document_structure_id` plus a business-facing version/revision label without colliding with optimistic-concurrency `version`
+- the platform document admin UI can manage structures, assign them to documents, and filter the shared library by taxonomy
 
 - scoped-access policy ownership now keeps `site` platform-owned while module-owned scopes register from the owning service-registration bundle
 - approval review now has a shared platform control workspace, while PM governance keeps PM-only controls such as governance mode and timesheet review

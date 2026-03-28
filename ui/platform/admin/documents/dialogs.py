@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.documents import Document, DocumentStorageKind, DocumentType
+from core.platform.documents import Document, DocumentStorageKind, DocumentStructure, DocumentType
 from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
@@ -23,8 +23,14 @@ _CONFIDENTIALITY_LEVELS = ["", "PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED
 
 
 class DocumentEditDialog(QDialog):
-    def __init__(self, parent=None, document: Document | None = None):
+    def __init__(
+        self,
+        parent=None,
+        document: Document | None = None,
+        structures: list[DocumentStructure] | None = None,
+    ):
         super().__init__(parent)
+        self._structures = list(structures or [])
         self.setWindowTitle("Document" + (" - Edit" if document else " - New"))
 
         self.document_code_edit = QLineEdit()
@@ -39,6 +45,7 @@ class DocumentEditDialog(QDialog):
         self.file_name_edit = QLineEdit()
         self.revision_edit = QLineEdit()
         self.source_system_edit = QLineEdit()
+        self.structure_combo = QComboBox()
         for edit in (
             self.document_code_edit,
             self.title_edit,
@@ -52,6 +59,14 @@ class DocumentEditDialog(QDialog):
             edit.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
         self.storage_uri_browse_button.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.storage_uri_browse_button.setMinimumWidth(CFG.BUTTON_MIN_WIDTH_SM)
+        self.structure_combo.setSizePolicy(CFG.INPUT_POLICY)
+        self.structure_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.structure_combo.addItem("No structure", userData="")
+        for structure in self._structures:
+            self.structure_combo.addItem(
+                f"{structure.structure_code} - {structure.name}",
+                userData=structure.id,
+            )
 
         self.document_type_combo = QComboBox()
         for document_type in DocumentType:
@@ -84,13 +99,14 @@ class DocumentEditDialog(QDialog):
             self.title_edit.setText(document.title)
             self.storage_uri_edit.setText(document.storage_uri)
             self.file_name_edit.setText(document.file_name)
-            self.revision_edit.setText(document.revision)
+            self.revision_edit.setText(document.business_version_label)
             self.source_system_edit.setText(document.source_system)
             self.notes_edit.setPlainText(document.notes or "")
             self.active_check.setChecked(document.is_active)
             self._select_combo(self.document_type_combo, document.document_type)
             self._select_combo(self.storage_kind_combo, document.storage_kind)
             self._select_combo(self.confidentiality_combo, document.confidentiality_level)
+            self._select_combo(self.structure_combo, document.document_structure_id or "")
         else:
             self.active_check.setChecked(True)
             self.source_system_edit.setText("platform")
@@ -114,10 +130,11 @@ class DocumentEditDialog(QDialog):
         form.addRow("Document code:", self.document_code_field)
         form.addRow("Title:", self.title_edit)
         form.addRow("Document type:", self.document_type_combo)
+        form.addRow("Document structure:", self.structure_combo)
         form.addRow("Storage kind:", self.storage_kind_combo)
         form.addRow("Storage URI:", storage_uri_row)
         form.addRow("File name:", self.file_name_edit)
-        form.addRow("Revision:", self.revision_edit)
+        form.addRow("Version / revision:", self.revision_edit)
         form.addRow("Source system:", self.source_system_edit)
         form.addRow("Confidentiality:", self.confidentiality_combo)
         form.addRow("Notes:", self.notes_edit)
@@ -185,6 +202,12 @@ class DocumentEditDialog(QDialog):
         return self.document_type
 
     @property
+    def document_structure_id(self) -> str | None:
+        value = self.structure_combo.currentData()
+        normalized = str(value or "").strip()
+        return normalized or None
+
+    @property
     def storage_kind(self) -> DocumentStorageKind:
         return self.storage_kind_combo.currentData() or DocumentStorageKind.FILE_PATH
 
@@ -201,8 +224,12 @@ class DocumentEditDialog(QDialog):
         return self.file_name_edit.text().strip()
 
     @property
-    def revision(self) -> str:
+    def business_version_label(self) -> str:
         return self.revision_edit.text().strip()
+
+    @property
+    def revision(self) -> str:
+        return self.business_version_label
 
     @property
     def source_system(self) -> str:

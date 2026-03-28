@@ -49,6 +49,25 @@ def normalize_confidentiality(value: str | None) -> str:
     return normalize_optional_text(value).upper()
 
 
+def normalize_structure_code(value: str) -> str:
+    normalized = normalize_optional_text(value).upper().replace(" ", "_").replace("-", "_")
+    if not normalized:
+        raise ValidationError("Document structure code is required.", code="DOCUMENT_STRUCTURE_CODE_REQUIRED")
+    return normalized
+
+
+def normalize_structure_name(value: str) -> str:
+    normalized = normalize_optional_text(value)
+    if not normalized:
+        raise ValidationError("Document structure name is required.", code="DOCUMENT_STRUCTURE_NAME_REQUIRED")
+    return normalized
+
+
+def normalize_object_scope(value: str | None) -> str:
+    normalized = normalize_optional_text(value).upper().replace(" ", "_").replace("-", "_")
+    return normalized or "GENERAL"
+
+
 def default_file_name(storage_uri: str, explicit_file_name: str | None) -> str:
     normalized = normalize_optional_text(explicit_file_name)
     if normalized:
@@ -88,9 +107,12 @@ __all__ = [
     "infer_file_name",
     "infer_mime_type",
     "infer_storage_kind",
+    "normalize_object_scope",
     "infer_title",
     "normalize_confidentiality",
     "normalize_entity_label",
     "normalize_module_code",
     "normalize_optional_text",
+    "normalize_structure_code",
+    "normalize_structure_name",
 ]

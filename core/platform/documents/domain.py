@@ -27,12 +27,58 @@ DocumentClassification = DocumentType
 
 
 @dataclass
+class DocumentStructure:
+    id: str
+    organization_id: str
+    structure_code: str
+    name: str
+    description: str = ""
+    parent_structure_id: str | None = None
+    object_scope: str = "GENERAL"
+    default_document_type: DocumentType = DocumentType.GENERAL
+    sort_order: int = 0
+    is_active: bool = True
+    notes: str = ""
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        structure_code: str,
+        name: str,
+        description: str = "",
+        parent_structure_id: str | None = None,
+        object_scope: str = "GENERAL",
+        default_document_type: DocumentType = DocumentType.GENERAL,
+        sort_order: int = 0,
+        is_active: bool = True,
+        notes: str = "",
+    ) -> "DocumentStructure":
+        return DocumentStructure(
+            id=generate_id(),
+            organization_id=organization_id,
+            structure_code=structure_code,
+            name=name,
+            description=description,
+            parent_structure_id=parent_structure_id,
+            object_scope=object_scope,
+            default_document_type=default_document_type,
+            sort_order=int(sort_order or 0),
+            is_active=bool(is_active),
+            notes=notes,
+            version=1,
+        )
+
+
+@dataclass
 class Document:
     id: str
     organization_id: str
     document_code: str
     title: str
     document_type: DocumentType = DocumentType.GENERAL
+    document_structure_id: str | None = None
     storage_kind: DocumentStorageKind = DocumentStorageKind.FILE_PATH
     storage_uri: str = ""
     file_name: str = ""
@@ -43,7 +89,7 @@ class Document:
     effective_date: date | None = None
     review_date: date | None = None
     confidentiality_level: str = ""
-    revision: str = ""
+    business_version_label: str = ""
     is_current: bool = True
     notes: str = ""
     is_active: bool = True
@@ -56,6 +102,7 @@ class Document:
         document_code: str,
         title: str,
         document_type: DocumentType = DocumentType.GENERAL,
+        document_structure_id: str | None = None,
         storage_kind: DocumentStorageKind = DocumentStorageKind.FILE_PATH,
         storage_uri: str = "",
         file_name: str = "",
@@ -66,6 +113,7 @@ class Document:
         effective_date: date | None = None,
         review_date: date | None = None,
         confidentiality_level: str = "",
+        business_version_label: str = "",
         revision: str = "",
         is_current: bool = True,
         notes: str = "",
@@ -78,6 +126,7 @@ class Document:
             document_code=document_code,
             title=title,
             document_type=document_type,
+            document_structure_id=document_structure_id,
             storage_kind=storage_kind,
             storage_uri=storage_uri,
             file_name=file_name,
@@ -88,7 +137,7 @@ class Document:
             effective_date=effective_date,
             review_date=review_date,
             confidentiality_level=confidentiality_level,
-            revision=revision,
+            business_version_label=business_version_label or revision,
             is_current=is_current,
             notes=notes,
             is_active=is_active,
@@ -102,6 +151,14 @@ class Document:
     @classification.setter
     def classification(self, value: DocumentType) -> None:
         self.document_type = value
+
+    @property
+    def revision(self) -> str:
+        return self.business_version_label
+
+    @revision.setter
+    def revision(self, value: str) -> None:
+        self.business_version_label = value
 
     @property
     def storage_ref(self) -> str:
@@ -148,5 +205,6 @@ __all__ = [
     "DocumentClassification",
     "DocumentLink",
     "DocumentStorageKind",
+    "DocumentStructure",
     "DocumentType",
 ]

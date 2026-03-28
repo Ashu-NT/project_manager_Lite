@@ -5,8 +5,43 @@ from core.platform.documents.domain import (
     DocumentType,
     DocumentLink,
     DocumentStorageKind,
+    DocumentStructure,
 )
-from infra.platform.db.models import DocumentLinkORM, DocumentORM
+from infra.platform.db.models import DocumentLinkORM, DocumentORM, DocumentStructureORM
+
+
+def document_structure_to_orm(structure: DocumentStructure) -> DocumentStructureORM:
+    return DocumentStructureORM(
+        id=structure.id,
+        organization_id=structure.organization_id,
+        structure_code=structure.structure_code,
+        name=structure.name,
+        description=structure.description or None,
+        parent_structure_id=structure.parent_structure_id,
+        object_scope=structure.object_scope,
+        default_document_type=structure.default_document_type.value,
+        sort_order=structure.sort_order,
+        is_active=structure.is_active,
+        notes=structure.notes or None,
+        version=getattr(structure, "version", 1),
+    )
+
+
+def document_structure_from_orm(obj: DocumentStructureORM) -> DocumentStructure:
+    return DocumentStructure(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        structure_code=obj.structure_code,
+        name=obj.name,
+        description=obj.description or "",
+        parent_structure_id=obj.parent_structure_id,
+        object_scope=obj.object_scope or "GENERAL",
+        default_document_type=DocumentType(obj.default_document_type),
+        sort_order=obj.sort_order,
+        is_active=obj.is_active,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
 
 
 def document_to_orm(document: Document) -> DocumentORM:
@@ -16,6 +51,7 @@ def document_to_orm(document: Document) -> DocumentORM:
         document_code=document.document_code,
         title=document.title,
         document_type=document.document_type.value,
+        document_structure_id=document.document_structure_id,
         storage_kind=document.storage_kind.value,
         storage_uri=document.storage_uri,
         file_name=document.file_name or None,
@@ -27,6 +63,7 @@ def document_to_orm(document: Document) -> DocumentORM:
         review_date=document.review_date,
         confidentiality_level=document.confidentiality_level or None,
         revision=document.revision or None,
+        business_version_label=document.business_version_label or None,
         is_current=document.is_current,
         notes=document.notes or None,
         is_active=document.is_active,
@@ -41,6 +78,7 @@ def document_from_orm(obj: DocumentORM) -> Document:
         document_code=obj.document_code,
         title=obj.title,
         document_type=DocumentType(obj.document_type),
+        document_structure_id=getattr(obj, "document_structure_id", None),
         storage_kind=DocumentStorageKind(obj.storage_kind),
         storage_uri=obj.storage_uri or "",
         file_name=obj.file_name or "",
@@ -51,7 +89,7 @@ def document_from_orm(obj: DocumentORM) -> Document:
         effective_date=obj.effective_date,
         review_date=obj.review_date,
         confidentiality_level=obj.confidentiality_level or "",
-        revision=obj.revision or "",
+        business_version_label=(getattr(obj, "business_version_label", None) or obj.revision or ""),
         is_current=obj.is_current,
         notes=obj.notes or "",
         is_active=obj.is_active,
@@ -87,5 +125,7 @@ __all__ = [
     "document_from_orm",
     "document_link_from_orm",
     "document_link_to_orm",
+    "document_structure_from_orm",
+    "document_structure_to_orm",
     "document_to_orm",
 ]

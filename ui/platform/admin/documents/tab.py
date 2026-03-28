@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.documents import Document, DocumentLink, DocumentService, DocumentType
+from core.platform.documents import Document, DocumentLink, DocumentService, DocumentStructure, DocumentType
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
@@ -32,6 +32,7 @@ from ui.modules.project_management.dashboard.styles import (
 )
 from ui.platform.admin.documents.dialogs import DocumentEditDialog, DocumentLinkEditDialog
 from ui.platform.admin.documents.preview import build_document_preview_state
+from ui.platform.admin.documents.structure_dialogs import DocumentStructureManagerDialog
 from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.admin.shared_surface import (
     ToolbarButtonSpec,
@@ -59,6 +60,7 @@ class DocumentAdminTab(QWidget):
         self._all_rows: list[Document] = []
         self._rows: list[Document] = []
         self._link_rows: list[DocumentLink] = []
+        self._structure_rows: list[DocumentStructure] = []
         self._detail_labels: dict[str, QLabel] = {}
         self._setup_ui()
         self.reload_documents()
@@ -80,6 +82,7 @@ class DocumentAdminTab(QWidget):
             badge_specs=(
                 ("document_context_badge", "Context: -", "accent"),
                 ("document_count_badge", "0 documents", "meta"),
+                ("document_structure_badge", "0 structures", "meta"),
                 ("document_active_badge", "0 active", "meta"),
                 ("document_access_badge", "Manage Enabled" if self._can_manage_documents else "Read Only", "meta"),
             ),
@@ -93,11 +96,12 @@ class DocumentAdminTab(QWidget):
                 ToolbarButtonSpec("btn_new_document", "New Document", "primary"),
                 ToolbarButtonSpec("btn_edit_document", "Edit Document"),
                 ToolbarButtonSpec("btn_toggle_active", "Toggle Active"),
+                ToolbarButtonSpec("btn_manage_structures", "Manage Structures"),
                 ToolbarButtonSpec("btn_add_link", "Add Link"),
                 ToolbarButtonSpec("btn_remove_link", "Remove Link"),
                 ToolbarButtonSpec("btn_refresh", CFG.REFRESH_BUTTON_LABEL),
             ),
-            helper_text="Platform documents stay shared. Modules link them to tasks, equipment, systems, inspections, employees, and reports without duplicating metadata.",
+            helper_text="Platform documents stay shared. Structures govern taxonomy, and modules link documents to tasks, equipment, systems, inspections, employees, and reports without duplicating metadata.",
         )
 
         self._build_content(root)
@@ -120,6 +124,9 @@ class DocumentAdminTab(QWidget):
         self.btn_toggle_active.clicked.connect(
             make_guarded_slot(self, title="Documents", callback=self.toggle_active)
         )
+        self.btn_manage_structures.clicked.connect(
+            make_guarded_slot(self, title="Documents", callback=self.manage_structures)
+        )
         self.btn_add_link.clicked.connect(make_guarded_slot(self, title="Documents", callback=self.add_link))
         self.btn_remove_link.clicked.connect(make_guarded_slot(self, title="Documents", callback=self.remove_link))
         self.btn_preview_document.clicked.connect(
@@ -130,12 +137,14 @@ class DocumentAdminTab(QWidget):
         )
         self.search_edit.textChanged.connect(self._apply_document_filters)
         self.type_filter_combo.currentIndexChanged.connect(self._apply_document_filters)
+        self.structure_filter_combo.currentIndexChanged.connect(self._apply_document_filters)
         self.active_filter_combo.currentIndexChanged.connect(self._apply_document_filters)
         self.table.itemSelectionChanged.connect(self._on_document_selection_changed)
         for button in (
             self.btn_new_document,
             self.btn_edit_document,
             self.btn_toggle_active,
+            self.btn_manage_structures,
             self.btn_add_link,
             self.btn_remove_link,
         ):
@@ -152,6 +161,9 @@ class DocumentAdminTab(QWidget):
         self.type_filter_combo.addItem("All types", userData=None)
         for document_type in DocumentType:
             self.type_filter_combo.addItem(document_type.value.replace("_", " ").title(), userData=document_type)
+        self.structure_filter_combo = QComboBox()
+        self.structure_filter_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+        self.structure_filter_combo.addItem("All structures", userData=None)
         self.active_filter_combo = QComboBox()
         self.active_filter_combo.setFixedHeight(CFG.INPUT_HEIGHT)
         self.active_filter_combo.addItem("All statuses", userData=None)
@@ -160,6 +172,7 @@ class DocumentAdminTab(QWidget):
         filters = QHBoxLayout()
         filters.addWidget(self.search_edit, 2)
         filters.addWidget(self.type_filter_combo, 1)
+        filters.addWidget(self.structure_filter_combo, 1)
         filters.addWidget(self.active_filter_combo, 1)
         layout.addLayout(filters)
         self.filter_summary_label = QLabel("Library filter: showing all documents.")
@@ -167,10 +180,11 @@ class DocumentAdminTab(QWidget):
         self.filter_summary_label.setWordWrap(True)
         layout.addWidget(self.filter_summary_label)
         self.table = build_admin_table(
-            headers=("Code", "Title", "Type", "File", "Revision", "Active"),
+            headers=("Code", "Title", "Type", "Structure", "File", "Version/Revision", "Active"),
             resize_modes=(
                 QHeaderView.ResizeToContents,
                 QHeaderView.Stretch,
+                QHeaderView.ResizeToContents,
                 QHeaderView.ResizeToContents,
                 QHeaderView.ResizeToContents,
                 QHeaderView.ResizeToContents,
@@ -235,9 +249,10 @@ class DocumentAdminTab(QWidget):
         form = QFormLayout()
         for key, label in (
             ("code", "Code:"),
+            ("structure", "Structure:"),
             ("file_name", "File name:"),
             ("mime_type", "Mime type:"),
-            ("revision", "Revision:"),
+            ("revision", "Version / revision:"),
             ("source", "Source system:"),
             ("confidentiality", "Confidentiality:"),
             ("uploaded", "Uploaded:"),
@@ -260,8 +275,37 @@ class DocumentAdminTab(QWidget):
         layout.addStretch(1)
         return outer
 
+    def _reload_document_structures(self) -> None:
+        try:
+            self._structure_rows = self._document_service.list_document_structures(active_only=None)
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Documents", str(exc))
+            self._structure_rows = []
+        except Exception as exc:
+            QMessageBox.critical(self, "Documents", f"Failed to load document structures: {exc}")
+            self._structure_rows = []
+        self._refresh_structure_filter()
+
+    def _refresh_structure_filter(self) -> None:
+        selected_structure_id = self.structure_filter_combo.currentData()
+        self.structure_filter_combo.blockSignals(True)
+        self.structure_filter_combo.clear()
+        self.structure_filter_combo.addItem("All structures", userData=None)
+        for structure in self._structure_rows:
+            self.structure_filter_combo.addItem(
+                f"{structure.structure_code} - {structure.name}",
+                userData=structure.id,
+            )
+        if selected_structure_id:
+            for index in range(self.structure_filter_combo.count()):
+                if self.structure_filter_combo.itemData(index) == selected_structure_id:
+                    self.structure_filter_combo.setCurrentIndex(index)
+                    break
+        self.structure_filter_combo.blockSignals(False)
+
     def reload_documents(self) -> None:
         selected_id = self._selected_document_id()
+        self._reload_document_structures()
         try:
             context = self._document_service.get_context_organization()
             self._all_rows = self._document_service.list_documents()
@@ -277,7 +321,7 @@ class DocumentAdminTab(QWidget):
         self._apply_document_filters(selected_id=selected_id)
 
     def create_document(self) -> None:
-        dialog = DocumentEditDialog(parent=self)
+        dialog = DocumentEditDialog(parent=self, structures=self._structure_rows)
         while True:
             if dialog.exec() != QDialog.Accepted:
                 return
@@ -286,10 +330,11 @@ class DocumentAdminTab(QWidget):
                     document_code=dialog.document_code,
                     title=dialog.title,
                     document_type=dialog.document_type,
+                    document_structure_id=dialog.document_structure_id,
                     storage_kind=dialog.storage_kind,
                     storage_uri=dialog.storage_uri,
                     file_name=dialog.file_name,
-                    revision=dialog.revision,
+                    business_version_label=dialog.business_version_label,
                     source_system=dialog.source_system,
                     confidentiality_level=dialog.confidentiality_level,
                     notes=dialog.notes,
@@ -309,7 +354,7 @@ class DocumentAdminTab(QWidget):
         if document is None:
             QMessageBox.information(self, "Documents", "Please select a document.")
             return
-        dialog = DocumentEditDialog(parent=self, document=document)
+        dialog = DocumentEditDialog(parent=self, document=document, structures=self._structure_rows)
         while True:
             if dialog.exec() != QDialog.Accepted:
                 return
@@ -319,10 +364,11 @@ class DocumentAdminTab(QWidget):
                     document_code=dialog.document_code,
                     title=dialog.title,
                     document_type=dialog.document_type,
+                    document_structure_id=dialog.document_structure_id or "",
                     storage_kind=dialog.storage_kind,
                     storage_uri=dialog.storage_uri,
                     file_name=dialog.file_name,
-                    revision=dialog.revision,
+                    business_version_label=dialog.business_version_label,
                     source_system=dialog.source_system,
                     confidentiality_level=dialog.confidentiality_level,
                     notes=dialog.notes,
@@ -358,6 +404,11 @@ class DocumentAdminTab(QWidget):
         except Exception as exc:
             QMessageBox.critical(self, "Documents", f"Failed to update document: {exc}")
             return
+        self.reload_documents()
+
+    def manage_structures(self) -> None:
+        dialog = DocumentStructureManagerDialog(document_service=self._document_service, parent=self)
+        dialog.exec()
         self.reload_documents()
 
     def add_link(self) -> None:
@@ -415,14 +466,19 @@ class DocumentAdminTab(QWidget):
         selected_id = selected_id or self._selected_document_id()
         search = self.search_edit.text().strip().lower()
         selected_type = self.type_filter_combo.currentData()
+        selected_structure_id = self.structure_filter_combo.currentData()
         selected_active = self.active_filter_combo.currentData()
+        structure_by_id = {structure.id: structure for structure in self._structure_rows}
         self._rows = []
         for document in self._all_rows:
+            structure = structure_by_id.get(document.document_structure_id or "")
             if search:
                 haystack = " ".join(
                     [
                         document.document_code,
                         document.title,
+                        structure.structure_code if structure is not None else "",
+                        structure.name if structure is not None else "",
                         document.file_name,
                         document.storage_uri,
                         document.source_system,
@@ -433,6 +489,8 @@ class DocumentAdminTab(QWidget):
                     continue
             if selected_type is not None and document.document_type != selected_type:
                 continue
+            if selected_structure_id is not None and document.document_structure_id != selected_structure_id:
+                continue
             if selected_active is not None and document.is_active != bool(selected_active):
                 continue
             self._rows.append(document)
@@ -440,17 +498,19 @@ class DocumentAdminTab(QWidget):
         self.table.setRowCount(len(self._rows))
         selected_row = -1
         for row, document in enumerate(self._rows):
+            structure = structure_by_id.get(document.document_structure_id or "")
             values = (
                 document.document_code,
                 document.title,
                 document.document_type.value.replace("_", " ").title(),
+                structure.structure_code if structure is not None else "-",
                 document.file_name or "-",
-                document.revision or "-",
+                document.business_version_label or "-",
                 "Yes" if document.is_active else "No",
             )
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
-                if col == 5:
+                if col == 6:
                     item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row, col, item)
             self.table.item(row, 0).setData(Qt.UserRole, document.id)
@@ -459,7 +519,7 @@ class DocumentAdminTab(QWidget):
 
         self._update_header_badges()
         self.filter_summary_label.setText(
-            f"Library filter: search={search or 'none'} | type={self.type_filter_combo.currentText()} | status={self.active_filter_combo.currentText()}."
+            f"Library filter: search={search or 'none'} | type={self.type_filter_combo.currentText()} | structure={self.structure_filter_combo.currentText()} | status={self.active_filter_combo.currentText()}."
         )
         if selected_row >= 0:
             self.table.selectRow(selected_row)
@@ -479,6 +539,7 @@ class DocumentAdminTab(QWidget):
         active = sum(1 for row in self._all_rows if row.is_active)
         self.document_context_badge.setText(f"Context: {self._context_label}")
         self.document_count_badge.setText(f"{shown} shown / {total} documents" if shown != total else f"{total} documents")
+        self.document_structure_badge.setText(f"{len(self._structure_rows)} structures")
         self.document_active_badge.setText(f"{active} active")
 
     def _reload_links_for_selected_document(self) -> None:
@@ -515,9 +576,10 @@ class DocumentAdminTab(QWidget):
             self.detail_notes_value.setPlainText("")
             return
         preview_state = build_document_preview_state(document)
+        structure = self._structure_by_id(document.document_structure_id)
         self.selected_document_title.setText(document.title)
         self.selected_document_summary.setText(
-            f"{document.document_code} | {document.document_type.value.replace('_', ' ').title()} | {'Active' if document.is_active else 'Inactive'} | {len(self._link_rows)} linked records"
+            f"{document.document_code} | {document.document_type.value.replace('_', ' ').title()} | {(structure.name if structure is not None else 'Unstructured')} | {'Active' if document.is_active else 'Inactive'} | {len(self._link_rows)} linked records"
         )
         self.document_type_badge.setText(f"Type: {document.document_type.value.replace('_', ' ').title()}")
         self.document_storage_badge.setText(f"Storage: {document.storage_kind.value.replace('_', ' ').title()}")
@@ -528,9 +590,14 @@ class DocumentAdminTab(QWidget):
         self.btn_view_links.setText(f"View Linked Records ({len(self._link_rows)})")
         values = {
             "code": document.document_code or "-",
+            "structure": (
+                f"{structure.structure_code} - {structure.name}"
+                if structure is not None
+                else "-"
+            ),
             "file_name": document.file_name or "-",
             "mime_type": document.mime_type or "-",
-            "revision": document.revision or "-",
+            "revision": document.business_version_label or "-",
             "source": document.source_system or "-",
             "confidentiality": document.confidentiality_level or "-",
             "uploaded": self._format_datetime(document.uploaded_at),
@@ -559,6 +626,15 @@ class DocumentAdminTab(QWidget):
                 return document
         return None
 
+    def _structure_by_id(self, structure_id: str | None) -> DocumentStructure | None:
+        normalized = str(structure_id or "").strip()
+        if not normalized:
+            return None
+        for structure in self._structure_rows:
+            if structure.id == normalized:
+                return structure
+        return None
+
     def _on_document_selection_changed(self) -> None:
         self._reload_links_for_selected_document()
 
@@ -573,6 +649,7 @@ class DocumentAdminTab(QWidget):
         self.btn_new_document.setEnabled(self._can_manage_documents)
         self.btn_edit_document.setEnabled(self._can_manage_documents and has_document)
         self.btn_toggle_active.setEnabled(self._can_manage_documents and has_document)
+        self.btn_manage_structures.setEnabled(self._can_manage_documents)
         self.btn_add_link.setEnabled(self._can_manage_documents and has_document)
         self.btn_remove_link.setEnabled(self._can_manage_documents and has_document and bool(self._link_rows))
         self.btn_preview_document.setEnabled(has_document)

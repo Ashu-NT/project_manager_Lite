@@ -21,7 +21,11 @@ from infra.platform.db.access import (
 )
 from infra.platform.db.approval.repository import SqlAlchemyApprovalRepository
 from infra.platform.db.audit.repository import SqlAlchemyAuditLogRepository
-from infra.platform.db.documents import SqlAlchemyDocumentLinkRepository, SqlAlchemyDocumentRepository
+from infra.platform.db.documents import (
+    SqlAlchemyDocumentLinkRepository,
+    SqlAlchemyDocumentRepository,
+    SqlAlchemyDocumentStructureRepository,
+)
 from infra.platform.db.party import SqlAlchemyPartyRepository
 from infra.platform.db.repositories import (
     SqlAlchemyAssignmentRepository,
@@ -58,6 +62,7 @@ class RepositoryBundle:
     organization_repo: SqlAlchemyOrganizationRepository
     document_repo: SqlAlchemyDocumentRepository
     document_link_repo: SqlAlchemyDocumentLinkRepository
+    document_structure_repo: SqlAlchemyDocumentStructureRepository
     party_repo: SqlAlchemyPartyRepository
     department_repo: SqlAlchemyDepartmentRepository
     site_repo: SqlAlchemySiteRepository
@@ -98,6 +103,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         organization_repo=SqlAlchemyOrganizationRepository(session),
         document_repo=SqlAlchemyDocumentRepository(session),
         document_link_repo=SqlAlchemyDocumentLinkRepository(session),
+        document_structure_repo=SqlAlchemyDocumentStructureRepository(session),
         party_repo=SqlAlchemyPartyRepository(session),
         department_repo=SqlAlchemyDepartmentRepository(session),
         site_repo=SqlAlchemySiteRepository(session),

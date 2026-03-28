@@ -10,9 +10,12 @@ from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository
-from core.platform.org.domain import Organization
-from core.platform.documents.domain import Document, DocumentLink, DocumentType
-from core.platform.documents.interfaces import DocumentLinkRepository, DocumentRepository
+from core.platform.documents.domain import Document, DocumentLink, DocumentStructure, DocumentType
+from core.platform.documents.interfaces import (
+    DocumentLinkRepository,
+    DocumentRepository,
+    DocumentStructureRepository,
+)
 from core.platform.documents.support import (
     coerce_document_type,
     infer_file_name,
@@ -24,6 +27,7 @@ from core.platform.documents.support import (
     normalize_optional_text,
 )
 from core.platform.notifications.domain_events import domain_events
+from core.platform.org.domain import Organization
 
 
 def _build_document_code(*, module_code: str, entity_type: str) -> str:
@@ -39,6 +43,7 @@ class DocumentIntegrationService:
         session: Session,
         document_repo: DocumentRepository,
         link_repo: DocumentLinkRepository,
+        structure_repo: DocumentStructureRepository,
         *,
         organization_repo: OrganizationRepository,
         user_session=None,
@@ -47,6 +52,7 @@ class DocumentIntegrationService:
         self._session = session
         self._document_repo = document_repo
         self._link_repo = link_repo
+        self._structure_repo = structure_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._audit_service = audit_service
@@ -61,6 +67,9 @@ class DocumentIntegrationService:
         entity_id: str,
         attachments: list[str] | None,
         document_type: DocumentType | str | None = None,
+        document_structure_id: str | None = None,
+        business_version_label: str = "",
+        revision: str = "",
         source_system: str = "",
         link_role: str = "attachment",
         uploaded_by_user_id: str | None = None,
@@ -81,6 +90,7 @@ class DocumentIntegrationService:
             code="DOCUMENT_ENTITY_ID_REQUIRED",
             label="Entity id",
         )
+        structure = self._resolve_structure_for_context(document_structure_id, organization=organization)
         normalized_role = normalize_optional_text(link_role)
         resolved_type = coerce_document_type(document_type)
         principal = self._user_session.principal if self._user_session is not None else None
@@ -96,6 +106,7 @@ class DocumentIntegrationService:
                     ),
                     title=infer_title(token),
                     document_type=resolved_type,
+                    document_structure_id=structure.id if structure is not None else None,
                     storage_kind=infer_storage_kind(token),
                     storage_uri=token,
                     file_name=infer_file_name(token),
@@ -103,6 +114,7 @@ class DocumentIntegrationService:
                     source_system=normalize_optional_text(source_system) or normalized_module,
                     uploaded_at=datetime.now(timezone.utc),
                     uploaded_by_user_id=uploader,
+                    business_version_label=normalize_optional_text(business_version_label or revision),
                 )
                 self._document_repo.add(document)
                 self._session.flush()
@@ -137,6 +149,7 @@ class DocumentIntegrationService:
                     "link_role": normalized_role,
                     "storage_kind": document.storage_kind.value,
                     "storage_uri": document.storage_uri,
+                    "document_structure_id": document.document_structure_id,
                 },
             )
             domain_events.documents_changed.emit(document.id)
@@ -308,6 +321,20 @@ class DocumentIntegrationService:
             },
         )
         domain_events.documents_changed.emit(document.id)
+
+    def _resolve_structure_for_context(
+        self,
+        structure_id: str | None,
+        *,
+        organization: Organization,
+    ) -> DocumentStructure | None:
+        normalized_id = normalize_optional_text(structure_id)
+        if not normalized_id:
+            return None
+        structure = self._structure_repo.get(normalized_id)
+        if structure is None or structure.organization_id != organization.id:
+            raise NotFoundError("Document structure not found in the active organization.", code="DOCUMENT_STRUCTURE_NOT_FOUND")
+        return structure
 
     def _active_organization(self) -> Organization:
         organization = self._organization_repo.get_active()
