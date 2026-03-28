@@ -32,7 +32,7 @@ The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`
 
 The next priority is to harden the implemented `Inventory & Procurement` phase into a fuller enterprise-ready rollout, then wire `Maintenance Management` to consume it by reference.
 
-The initial maintenance blueprint is tracked in `docs/maintenance_management/README.md`.
+The maintenance blueprint is already available and is now benchmarked against current CMMS/EAM patterns in `docs/maintenance_management/README.md`.
 The inventory blueprint is now tracked in `docs/inventory_procurement/README.md`.
 
 The broader platform direction is now governed by a simple architecture rule: share enterprise capabilities, not business ownership. Shared capabilities should live once under the platform spine, business workflows should stay in the module that owns them, and cross-module collaboration should happen through references and events rather than direct schema coupling. The short frozen ownership decisions are now locked in `docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md` and `docs/architecture_decisions/ADR-002-location-and-system-ownership.md`. See also `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md` and `docs/maintenance_management/README.md`.

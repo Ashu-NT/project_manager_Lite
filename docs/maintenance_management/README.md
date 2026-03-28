@@ -1,6 +1,6 @@
 # Maintenance Management Module Blueprint
 
-Status: planning blueprint  
+Status: planning blueprint, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
 Implementation state: not yet scaffolded beyond empty module packages
 
@@ -62,6 +62,82 @@ That means:
 - Refresh UI in place with `reload/update`, not rebuild whole screens.
 - Keep expensive planning and analytics async.
 
+## Blueprint Availability
+
+This README is the authoritative maintenance blueprint for the repo.
+
+No maintenance code should be started until the ownership boundary, workflows,
+master data, and rollout phases in this document are accepted.
+
+That means this file is not only a wishlist. It is the intended contract for:
+
+- module ownership
+- service boundaries
+- table catalog
+- queue and execution UX direction
+- inventory, document, and party integration
+- import, reporting, and analytics scope
+- desktop-first delivery with future web parity
+
+## 2026 Market Benchmark Refresh
+
+As of 2026-03-28, this blueprint has been refreshed against official product or
+documentation sources from:
+
+- IBM Maximo Manage
+- SAP Asset Management / SAP Service and Asset Manager
+- Oracle Maintenance
+- Fiix
+- UpKeep
+- Limble
+
+The benchmark matters because the maintenance module should be stronger than a
+lightweight work-order app, but also more usable and modular than a heavy
+legacy EAM rollout.
+
+### Repeating Patterns In Leading CMMS/EAM Products
+
+Across those products, the same enterprise patterns show up repeatedly:
+
+- a reusable maintenance template layer such as job plans, task lists, or work definitions
+- execution copies that are detached from the source template once work is issued
+- asset, location, and system hierarchy as a first-class navigation model
+- preventive maintenance based on time, usage, condition, or threshold logic
+- parts, reservations, and purchasing linked directly to work execution
+- measurement, meter, counter, or sensor readings that can trigger maintenance
+- documents, history, and compliance evidence attached to work and assets
+- spreadsheet or bulk-load capability for enterprise rollout
+- planner/scheduler views instead of only flat work-order lists
+- mobile/web-friendly execution patterns for technicians in the field
+
+### What The Current Repo Already Has
+
+Compared with a greenfield CMMS build, this codebase already gives Maintenance a
+stronger enterprise starting point:
+
+- shared organization, site, department, party, document, auth, access, approval, audit, and notification services already exist under `platform`
+- the shared document library already supports preview state, metadata, and cross-module links
+- the shared auth/access layer already supports scoped access, session persistence, MFA groundwork, and SoD evolution seams
+- the `inventory_procurement` module already exists for item categories, item master, storerooms, balances, reservations, requisitions, purchase orders, receiving, and inventory import/export/reporting
+- the inventory module already carries maintenance-oriented concepts such as spare/equipment categories, lot/serial/shelf-life rules, and maintenance-facing source references
+- the codebase already has application and transport seams for a future desktop + web product instead of forcing Maintenance to be desktop-only forever
+
+### Superior Product Target
+
+To be stronger than typical mid-market CMMS products while staying cleaner than
+heavy EAM suites, this module should deliberately aim for the following:
+
+- enterprise asset hierarchy like an EAM, but with a simpler queue-first execution UX
+- true cross-module materials planning by consuming the live inventory/procurement module instead of maintaining a duplicate parts ledger
+- a shared document library that can serve maintenance, QHSE, HR, and project workflows from one controlled source
+- maintenance templates with revision safety, copied execution records, and task-step evidence capture
+- hybrid preventive logic that handles calendar, usage, condition, and stale-sensor exception cases explicitly
+- planner-grade scheduling views for backlog, shutdowns, crew loading, and material readiness
+- stronger scope-aware access for site, storeroom, asset, and maintenance-area boundaries
+- import/export/reporting that is ready for large rollout and future web/API automation
+- desktop execution that still maps cleanly to future web/mobile field workflows
+- reliability and compliance features that are native design goals, not later add-ons
+
 ## Fit With The Current Repo Architecture
 
 This repo already separates shared enterprise concerns under `platform/` and business workflows under `modules/`.
@@ -115,7 +191,8 @@ The maintenance design should follow a stricter ownership model so implementatio
 
 ## Benchmark Patterns From Established CMMS
 
-When compared with well-known CMMS products such as IBM Maximo, Fiix, MaintainX, and UpKeep, the most important patterns to preserve are:
+When compared with established CMMS and EAM products, the most important
+patterns to preserve are:
 
 - an admin-controlled job plan, checklist, or task library
 - preventive logic that generates execution work instead of editing templates directly
@@ -127,17 +204,49 @@ When compared with well-known CMMS products such as IBM Maximo, Fiix, MaintainX,
 
 This blueprint should follow those patterns.
 
-Observed enterprise pattern across established CMMS and EAM products:
+Observed enterprise pattern across the benchmarked products:
 
-- IBM Maximo-style setups keep work management, inventory, storerooms, and purchasing as related but distinct application areas; job plans can carry labor, materials, services, and tools into generated work
-- SAP-style enterprise setups usually separate Plant Maintenance from Materials Management, then integrate maintenance demand into stock and purchasing flows
-- Fiix treats parts and supplies as inventory records with stock by location, then allows scheduled maintenance and work orders to consume those records
-- MaintainX and UpKeep expose parts inventory and purchase-order workflows as dedicated operational areas that are linked back to work orders
+- IBM Maximo uses job plans, work plans, meters, scheduling views, and separate inventory/storeroom processes while still linking materials, services, tools, and safety context to the work order
+- SAP Asset Management separates maintenance from materials while supporting maintenance task lists, measuring points, counters, and threshold-driven notification generation
+- Oracle Maintenance uses work definitions, work-order operations, components, resources, exceptions, document references, history, and multi-asset work-order patterns
+- Fiix emphasizes hierarchy, spreadsheet bulk import, and work-order parts usage against location-based stock
+- UpKeep and Limble reinforce the importance of modern PM generation, planner-friendly usability, mobile execution, and tightly linked parts / PO visibility
 
 Implication for this product:
 
 - stock and purchasing should not be hidden as a small sub-feature inside Maintenance only
 - they should be modeled as a standalone business module that Maintenance integrates with
+
+### Benchmark Source Notes
+
+Reference sources used for this refresh:
+
+- IBM Maximo Manage overview, job plans, work plans, meters, and planning/scheduling:
+  - https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=overview-work-order-management-plans
+  - https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=module-meters
+  - https://www.ibm.com/docs/en/masv-and-l/maximo-manage/cd?topic=managing-planning-scheduling-work
+- SAP Asset Management measuring points, thresholds, counters, and maintenance materials planning:
+  - https://help.sap.com/doc/b183ce53118d4308e10000000a174cb4/700_SFIN3E%20006/en-US/de29bf53d25ab64ce10000000a174cb4.html
+  - https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/efc7922405fd4d56b7571930c5eaa798/3dc9b65334e6b54ce10000000a174cb4.html
+- Oracle Maintenance work orders, work definitions, operations, materials, resources, exceptions, and history:
+  - https://docs.oracle.com/en/cloud/saas/supply-chain-and-manufacturing/24b/faumm/overview-of-maintenance-work-orders.html
+  - https://docs.oracle.com/en/cloud/saas/supply-chain-and-manufacturing/25d/faumm/overview-of-maintenance-work-definitions.html
+  - https://docs.oracle.com/en/cloud/saas/supply-chain-and-manufacturing/26a/faumm/overview-of-maintenance-work-execution.html
+  - https://docs.oracle.com/en/cloud/saas/supply-chain-and-manufacturing/24c/inv24c/24C-inventory-wn-f33528.htm
+- Fiix hierarchy, bulk import, and parts-on-work-order patterns:
+  - https://helpdesk.fiixsoftware.com/hc/en-us/articles/211107603-Add-equipment-assets
+  - https://helpdesk.fiixsoftware.com/hc/en-us/articles/212767823-Bulk-import-assets
+  - https://helpdesk.fiixsoftware.com/hc/en-us/articles/15389271862932-Add-parts-to-a-work-order
+- UpKeep PM, work-order, and parts visibility patterns:
+  - https://help.onupkeep.com/en/articles/398039-what-is-a-cmms
+  - https://help.onupkeep.com/en/articles/4753592-how-to-stop-a-preventive-maintenance-trigger
+  - https://help.onupkeep.com/en/articles/9621157-preventive-maintenance-section-overview
+  - https://help.onupkeep.com/en/articles/9746146-how-to-track-incoming-part-quantities-on-purchase-orders
+  - https://help.onupkeep.com/en/articles/6699722-location-based-permissions-for-users-in-upkeep
+  - https://help.onupkeep.com/en/articles/12325916-using-the-provider-portal-in-upkeep
+- Limble CMMS work, PM, inventory, and desktop/mobile positioning:
+  - https://limble.com/learn/cmms
+  - https://limblecmms.com/cmms/maintenance-scheduling-software/
 
 ## Real CMMS Operating Model
 

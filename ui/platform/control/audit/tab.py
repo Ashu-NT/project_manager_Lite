@@ -28,7 +28,8 @@ from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
-from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
+from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
+from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.shared.guards import make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -67,50 +68,20 @@ class AuditLogTab(QWidget):
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        header = QWidget()
-        header.setObjectName("auditHeaderCard")
-        header.setStyleSheet(
-            f"""
-            QWidget#auditHeaderCard {{
-                background-color: {CFG.COLOR_BG_SURFACE};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
+        build_admin_header(
+            self,
+            layout,
+            object_name="auditHeaderCard",
+            eyebrow_text="AUDIT TRAIL",
+            title_text="Audit Log",
+            subtitle_text="Immutable activity trail for governance and core create, update, and delete operations.",
+            badge_specs=(
+                ("audit_scope_badge", "Append-only", "accent"),
+                ("audit_project_badge", "All Projects", "meta"),
+                ("audit_count_badge", "0 rows", "meta"),
+                ("audit_date_badge", "All Dates", "meta"),
+            ),
         )
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
-        header_layout.setSpacing(CFG.SPACING_MD)
-        intro = QVBoxLayout()
-        intro.setSpacing(CFG.SPACING_XS)
-        eyebrow = QLabel("AUDIT TRAIL")
-        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
-        intro.addWidget(eyebrow)
-        title = QLabel("Audit Log")
-        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        intro.addWidget(title)
-        subtitle = QLabel("Immutable activity trail for governance and core create/update/delete operations.")
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        intro.addWidget(subtitle)
-        header_layout.addLayout(intro, 1)
-        status_layout = QVBoxLayout()
-        status_layout.setSpacing(CFG.SPACING_SM)
-        self.audit_scope_badge = QLabel("Append-only")
-        self.audit_scope_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
-        self.audit_project_badge = QLabel("All Projects")
-        self.audit_project_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.audit_count_badge = QLabel("0 rows")
-        self.audit_count_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.audit_date_badge = QLabel("All Dates")
-        self.audit_date_badge.setStyleSheet(dashboard_meta_chip_style())
-        status_layout.addWidget(self.audit_scope_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.audit_project_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.audit_count_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.audit_date_badge, 0, Qt.AlignRight)
-        status_layout.addStretch(1)
-        header_layout.addLayout(status_layout)
-        layout.addWidget(header)
 
         controls = QWidget()
         controls.setObjectName("auditControlSurface")
