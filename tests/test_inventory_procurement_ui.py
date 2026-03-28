@@ -12,6 +12,7 @@ from ui.modules.inventory_procurement.data_exchange.import_dialog import Invento
 from ui.modules.inventory_procurement.data_exchange.tab import InventoryDataExchangeTab
 from ui.modules.inventory_procurement.dashboard_tab import InventoryDashboardTab
 from ui.modules.inventory_procurement.inventory.storeroom_dialogs import StoreroomEditDialog
+from ui.modules.inventory_procurement.item_master.categories_tab import InventoryItemCategoriesTab
 from ui.modules.inventory_procurement.item_master.item_dialogs import InventoryItemEditDialog
 from ui.modules.inventory_procurement.item_master.items_tab import InventoryItemsTab
 from ui.modules.inventory_procurement.procurement.purchase_orders import PurchaseOrdersTab
@@ -164,6 +165,7 @@ def test_inventory_items_tab_shows_platform_referenced_supplier_context(qapp, se
 
     tab = InventoryItemsTab(
         item_service=services["inventory_item_service"],
+        category_service=services["inventory_item_category_service"],
         reference_service=services["inventory_reference_service"],
         platform_runtime_application_service=services["platform_runtime_application_service"],
         user_session=services["user_session"],
@@ -173,7 +175,7 @@ def test_inventory_items_tab_shows_platform_referenced_supplier_context(qapp, se
     assert tab.count_badge.text() == "1 items"
     assert tab.active_badge.text() == "1 active"
     assert tab.stocked_badge.text() == "1 stocked"
-    assert tab.table.item(0, 5).text() == "SUP-INV-01 - North Supply"
+    assert tab.table.item(0, 6).text() == "SUP-INV-01 - North Supply"
 
     tab.table.selectRow(0)
     qapp.processEvents()
@@ -539,6 +541,7 @@ def test_inventory_items_tab_can_link_and_unlink_shared_documents_via_ui_actions
 
     tab = InventoryItemsTab(
         item_service=services["inventory_item_service"],
+        category_service=services["inventory_item_category_service"],
         reference_service=services["inventory_reference_service"],
         platform_runtime_application_service=services["platform_runtime_application_service"],
         user_session=services["user_session"],
@@ -574,6 +577,80 @@ def test_inventory_items_tab_can_link_and_unlink_shared_documents_via_ui_actions
     qapp.processEvents()
 
     assert tab.detail_documents.text() == "No linked documents"
+
+
+def test_inventory_item_categories_tab_and_item_filters_surface_equipment_usage(qapp, services):
+    _enable_inventory_module(services)
+    register_and_login(services, username_prefix="inventory-ui-cats", role_names=("inventory_manager",))
+    category_service = services["inventory_item_category_service"]
+    equipment_category = category_service.create_category(
+        category_code="EQUIP",
+        name="Reusable Equipment",
+        category_type="EQUIPMENT",
+        supports_project_usage=True,
+        supports_maintenance_usage=True,
+    )
+    spare_category = category_service.create_category(
+        category_code="SPARE",
+        name="Maintenance Spares",
+        category_type="SPARE",
+        supports_maintenance_usage=True,
+    )
+    services["inventory_item_service"].create_item(
+        item_code="GEN-01",
+        name="Portable Generator",
+        status="ACTIVE",
+        stock_uom="EA",
+        category_code=equipment_category.category_code,
+    )
+    services["inventory_item_service"].create_item(
+        item_code="BRG-01",
+        name="Bearing Kit",
+        status="ACTIVE",
+        stock_uom="EA",
+        category_code=spare_category.category_code,
+    )
+
+    category_tab = InventoryItemCategoriesTab(
+        category_service=category_service,
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    assert category_tab.table.rowCount() == 2
+
+    for row in range(category_tab.table.rowCount()):
+        if category_tab.table.item(row, 0).text() == "EQUIP":
+            category_tab.table.selectRow(row)
+            break
+    qapp.processEvents()
+
+    assert category_tab.detail_name.text() == "EQUIP - Reusable Equipment"
+    assert category_tab.detail_type.text() == "EQUIPMENT"
+    assert "Projects" in category_tab.detail_usage.text()
+    assert "Maintenance" in category_tab.detail_usage.text()
+
+    items_tab = InventoryItemsTab(
+        item_service=services["inventory_item_service"],
+        category_service=category_service,
+        reference_service=services["inventory_reference_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    assert items_tab.table.rowCount() == 2
+
+    _select_combo_value(items_tab.usage_filter, "equipment")
+    qapp.processEvents()
+
+    assert items_tab.table.rowCount() == 1
+    assert items_tab.table.item(0, 0).text() == "GEN-01"
+    assert items_tab.table.item(0, 2).text() == "EQUIP - Reusable Equipment"
+
+    _select_combo_value(items_tab.usage_filter, None)
+    _select_combo_value(items_tab.category_filter, "SPARE")
+    qapp.processEvents()
+
+    assert items_tab.table.rowCount() == 1
+    assert items_tab.table.item(0, 0).text() == "BRG-01"
 
 
 def test_purchase_orders_tab_shows_line_and_source_requisition(qapp, services):
@@ -823,6 +900,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
 
     assert "Inventory Dashboard" in labels
     assert "Items" in labels
+    assert "Item Categories" in labels
     assert "Storerooms" in labels
     assert "Stock" in labels
     assert "Movements" in labels
@@ -837,7 +915,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     assert inventory_section.text(0) == "Inventory & Procurement"
     assert _child_labels(inventory_section) == ["Overview", "Master Data", "Operations", "Procurement", "Control"]
     assert _child_labels(inventory_section.child(0)) == ["Inventory Dashboard"]
-    assert _child_labels(inventory_section.child(1)) == ["Items", "Storerooms"]
+    assert _child_labels(inventory_section.child(1)) == ["Items", "Item Categories", "Storerooms"]
     assert _child_labels(inventory_section.child(2)) == ["Reservations", "Movements", "Stock"]
     assert _child_labels(inventory_section.child(3)) == ["Requisitions", "Purchase Orders", "Receiving"]
     assert _child_labels(inventory_section.child(4)) == ["Data Exchange", "Reports"]

@@ -18,8 +18,8 @@ from PySide6.QtWidgets import (
 )
 
 from application.platform import PlatformRuntimeApplicationService
-from core.modules.inventory_procurement import InventoryReferenceService, ItemMasterService
-from core.modules.inventory_procurement.domain import StockItem
+from core.modules.inventory_procurement import InventoryReferenceService, ItemCategoryService, ItemMasterService
+from core.modules.inventory_procurement.domain import InventoryItemCategory, StockItem
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
@@ -49,6 +49,7 @@ class InventoryItemsTab(QWidget):
         self,
         *,
         item_service: ItemMasterService,
+        category_service: ItemCategoryService,
         reference_service: InventoryReferenceService,
         platform_runtime_application_service: PlatformRuntimeApplicationService | None = None,
         user_session: UserSessionContext | None = None,
@@ -56,15 +57,18 @@ class InventoryItemsTab(QWidget):
     ) -> None:
         super().__init__(parent)
         self._item_service = item_service
+        self._category_service = category_service
         self._reference_service = reference_service
         self._platform_runtime_application_service = platform_runtime_application_service
         self._user_session = user_session
         self._can_manage = has_permission(self._user_session, "inventory.manage")
         self._rows: list[StockItem] = []
+        self._category_lookup: dict[str, InventoryItemCategory] = {}
         self._party_lookup: dict[str, object] = {}
         self._setup_ui()
         self.reload_items()
         domain_events.inventory_items_changed.connect(self._on_inventory_changed)
+        domain_events.inventory_item_categories_changed.connect(self._on_inventory_changed)
         domain_events.documents_changed.connect(self._on_inventory_changed)
         domain_events.parties_changed.connect(self._on_inventory_changed)
         domain_events.organizations_changed.connect(self._on_inventory_changed)
@@ -141,11 +145,20 @@ class InventoryItemsTab(QWidget):
         filter_row = QHBoxLayout()
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search code, name, type, category, or UOM")
+        self.category_filter = QComboBox()
+        self.category_filter.addItem("All categories", None)
+        self.usage_filter = QComboBox()
+        self.usage_filter.addItem("All usage", None)
+        self.usage_filter.addItem("Equipment-ready", "equipment")
+        self.usage_filter.addItem("Project-capable", "project")
+        self.usage_filter.addItem("Maintenance-capable", "maintenance")
         self.active_filter = QComboBox()
         self.active_filter.addItem("All statuses", None)
         self.active_filter.addItem("Active only", True)
         self.active_filter.addItem("Inactive only", False)
         filter_row.addWidget(self.search_edit, 1)
+        filter_row.addWidget(self.category_filter)
+        filter_row.addWidget(self.usage_filter)
         filter_row.addWidget(self.active_filter)
         controls_layout.addLayout(filter_row)
 
@@ -185,8 +198,10 @@ class InventoryItemsTab(QWidget):
         content_row = QHBoxLayout()
         content_row.setSpacing(CFG.SPACING_MD)
 
-        self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["Code", "Name", "Type", "Status", "Stock UOM", "Preferred Party"])
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(
+            ["Code", "Name", "Category", "Type", "Status", "Stock UOM", "Preferred Party"]
+        )
         style_table(self.table)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
@@ -198,6 +213,7 @@ class InventoryItemsTab(QWidget):
         header_widget.setSectionResizeMode(3, QHeaderView.ResizeToContents)
         header_widget.setSectionResizeMode(4, QHeaderView.ResizeToContents)
         header_widget.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        header_widget.setSectionResizeMode(6, QHeaderView.ResizeToContents)
         content_row.addWidget(self.table, 2)
 
         detail_card = QWidget()
@@ -263,6 +279,8 @@ class InventoryItemsTab(QWidget):
             make_guarded_slot(self, title="Inventory Items", callback=self.unlink_document)
         )
         self.search_edit.textChanged.connect(lambda _text: self.reload_items())
+        self.category_filter.currentIndexChanged.connect(lambda _index: self.reload_items())
+        self.usage_filter.currentIndexChanged.connect(lambda _index: self.reload_items())
         self.active_filter.currentIndexChanged.connect(lambda _index: self.reload_items())
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
         for button in (
@@ -278,20 +296,28 @@ class InventoryItemsTab(QWidget):
     def reload_items(self) -> None:
         selected_id = self._selected_item_id()
         try:
+            self._category_lookup = self._build_category_lookup()
+            self._refresh_category_filter_options()
             self._party_lookup = build_party_lookup(self._reference_service.list_business_parties(active_only=None))
             self._rows = self._item_service.search_items(
                 search_text=self.search_text,
                 active_only=self._selected_active_filter(),
+                category_code=self._selected_category_filter(),
+                equipment_only=self._selected_usage_flag("equipment"),
+                project_usage_only=self._selected_usage_flag("project"),
+                maintenance_usage_only=self._selected_usage_flag("maintenance"),
             )
             context_label = self._context_label()
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Inventory Items", str(exc))
             self._rows = []
+            self._category_lookup = {}
             self._party_lookup = {}
             context_label = "-"
         except Exception as exc:
             QMessageBox.critical(self, "Inventory Items", f"Failed to load items: {exc}")
             self._rows = []
+            self._category_lookup = {}
             self._party_lookup = {}
             context_label = "-"
         self.table.setRowCount(len(self._rows))
@@ -300,6 +326,7 @@ class InventoryItemsTab(QWidget):
             values = (
                 item.item_code,
                 item.name,
+                self._format_category_label(item),
                 item.item_type or "-",
                 item.status,
                 item.stock_uom,
@@ -323,6 +350,7 @@ class InventoryItemsTab(QWidget):
     def create_item(self) -> None:
         dialog = InventoryItemEditDialog(
             party_options=self._party_options(include_blank=True),
+            category_options=self._category_options(include_blank=True),
             parent=self,
         )
         while True:
@@ -362,6 +390,7 @@ class InventoryItemsTab(QWidget):
         dialog = InventoryItemEditDialog(
             item=item,
             party_options=self._party_options(include_blank=True),
+            category_options=self._category_options(include_blank=True, current_code=item.category_code),
             parent=self,
         )
         while True:
@@ -514,12 +543,40 @@ class InventoryItemsTab(QWidget):
     def _selected_active_filter(self) -> bool | None:
         return self.active_filter.currentData()
 
+    def _selected_category_filter(self) -> str | None:
+        return self.category_filter.currentData()
+
+    def _selected_usage_filter(self) -> str | None:
+        return self.usage_filter.currentData()
+
+    def _selected_usage_flag(self, usage_key: str) -> bool | None:
+        selected = self._selected_usage_filter()
+        if selected is None:
+            return None
+        return True if selected == usage_key else None
+
     def _party_options(self, *, include_blank: bool) -> list[tuple[str, str]]:
         labels_by_id = {
             party_id: format_party_label(party_id, self._party_lookup)
             for party_id in self._party_lookup.keys()
         }
         return build_option_rows(labels_by_id, include_blank=include_blank)
+
+    def _category_options(
+        self,
+        *,
+        include_blank: bool,
+        current_code: str | None = None,
+    ) -> list[tuple[str, str]]:
+        labels_by_code = {
+            category.category_code: self._format_category_option(category)
+            for category in self._category_lookup.values()
+            if category.is_active or category.category_code == (current_code or "")
+        }
+        legacy_code = str(current_code or "").strip()
+        if legacy_code and legacy_code not in labels_by_code:
+            labels_by_code[legacy_code] = f"{legacy_code} - Legacy mapping"
+        return build_option_rows(labels_by_code, include_blank=include_blank)
 
     def _selected_item_id(self) -> str | None:
         selected = self.table.selectedItems()
@@ -585,7 +642,7 @@ class InventoryItemsTab(QWidget):
             f"{item.status} | Preferred party: {format_party_label(item.preferred_party_id, self._party_lookup)}"
         )
         self.detail_type.setText(item.item_type or "-")
-        self.detail_category.setText(item.category_code or "-")
+        self.detail_category.setText(self._format_category_label(item))
         self.detail_reorder.setText(
             f"Point {item.reorder_point:.3f} / Qty {item.reorder_qty:.3f} / UOM {item.stock_uom}"
         )
@@ -598,6 +655,14 @@ class InventoryItemsTab(QWidget):
             flags.append("Lot tracked")
         if item.is_serial_tracked:
             flags.append("Serial tracked")
+        category = self._category_lookup.get(item.category_code)
+        if category is not None:
+            if category.is_equipment:
+                flags.append("Equipment-ready")
+            if category.supports_project_usage:
+                flags.append("Projects")
+            if category.supports_maintenance_usage:
+                flags.append("Maintenance")
         self.detail_flags.setText(", ".join(flags) or "-")
         try:
             documents = self._item_service.list_linked_documents(item.id)
@@ -608,6 +673,36 @@ class InventoryItemsTab(QWidget):
             document_summary = f"{document_summary} (+{len(documents) - 3} more)"
         self.detail_documents.setText(document_summary)
         self.detail_notes.setText(item.notes or "-")
+
+    def _build_category_lookup(self) -> dict[str, InventoryItemCategory]:
+        return {
+            category.category_code: category
+            for category in self._category_service.list_categories(active_only=None)
+        }
+
+    def _refresh_category_filter_options(self) -> None:
+        selected = self.category_filter.currentData()
+        self.category_filter.blockSignals(True)
+        self.category_filter.clear()
+        self.category_filter.addItem("All categories", None)
+        for category in sorted(self._category_lookup.values(), key=lambda row: (row.name.lower(), row.category_code)):
+            label = self._format_category_option(category)
+            if not category.is_active:
+                label = f"{label} (Inactive)"
+            self.category_filter.addItem(label, category.category_code)
+        index = self.category_filter.findData(selected)
+        self.category_filter.setCurrentIndex(index if index >= 0 else 0)
+        self.category_filter.blockSignals(False)
+
+    def _format_category_label(self, item: StockItem) -> str:
+        category = self._category_lookup.get(item.category_code)
+        if category is None:
+            return item.category_code or "-"
+        return self._format_category_option(category)
+
+    @staticmethod
+    def _format_category_option(category: InventoryItemCategory) -> str:
+        return f"{category.category_code} - {category.name}"
 
 
 __all__ = ["InventoryItemsTab"]

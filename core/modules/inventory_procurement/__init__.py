@@ -5,6 +5,7 @@ from core.modules.inventory_procurement.services import (
     InventoryReferenceService,
     InventoryService,
     InventoryReportingService,
+    ItemCategoryService,
     ItemMasterService,
     ProcurementService,
     PurchasingService,
@@ -15,6 +16,7 @@ from core.modules.inventory_procurement.services import (
 __all__ = [
     "InventoryDataExchangeService",
     "InventoryReferenceService",
+    "ItemCategoryService",
     "ItemMasterService",
     "InventoryService",
     "InventoryReportingService",

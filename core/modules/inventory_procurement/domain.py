@@ -74,6 +74,53 @@ class ReceiptStatus(str, Enum):
 
 
 @dataclass
+class InventoryItemCategory:
+    id: str
+    organization_id: str
+    category_code: str
+    name: str
+    description: str = ""
+    category_type: str = "MATERIAL"
+    is_equipment: bool = False
+    supports_project_usage: bool = False
+    supports_maintenance_usage: bool = False
+    is_active: bool = True
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        category_code: str,
+        name: str,
+        description: str = "",
+        category_type: str = "MATERIAL",
+        is_equipment: bool = False,
+        supports_project_usage: bool = False,
+        supports_maintenance_usage: bool = False,
+        is_active: bool = True,
+    ) -> "InventoryItemCategory":
+        now = datetime.now(timezone.utc)
+        return InventoryItemCategory(
+            id=generate_id(),
+            organization_id=organization_id,
+            category_code=category_code,
+            name=name,
+            description=description,
+            category_type=category_type,
+            is_equipment=is_equipment,
+            supports_project_usage=supports_project_usage,
+            supports_maintenance_usage=supports_maintenance_usage,
+            is_active=is_active,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
+@dataclass
 class StockItem:
     id: str
     organization_id: str
@@ -768,6 +815,7 @@ class ReceiptLine:
 
 
 __all__ = [
+    "InventoryItemCategory",
     "StockBalance",
     "StockItem",
     "PurchaseRequisition",

@@ -3,6 +3,7 @@ from __future__ import annotations
 from ui.modules.inventory_procurement import (
     InventoryDataExchangeTab,
     InventoryDashboardTab,
+    InventoryItemCategoriesTab,
     InventoryItemsTab,
     InventoryReportsTab,
     MovementsTab,
@@ -56,7 +57,20 @@ def build_inventory_procurement_workspace_definitions(
             label="Items",
             widget=InventoryItemsTab(
                 item_service=services["inventory_item_service"],
+                category_service=services["inventory_item_category_service"],
                 reference_service=services["inventory_reference_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        ),
+        WorkspaceDefinition(
+            module_code=INVENTORY_PROCUREMENT_MODULE_CODE,
+            module_label=INVENTORY_PROCUREMENT_MODULE_LABEL,
+            group_label="Master Data",
+            label="Item Categories",
+            widget=InventoryItemCategoriesTab(
+                category_service=services["inventory_item_category_service"],
                 platform_runtime_application_service=context.platform_runtime_application_service,
                 user_session=context.user_session,
                 parent=context.parent,

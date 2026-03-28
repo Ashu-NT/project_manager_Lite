@@ -7,6 +7,7 @@ from core.modules.inventory_procurement import (
     InventoryReferenceService,
     InventoryService,
     InventoryReportingService,
+    ItemCategoryService,
     ItemMasterService,
     ProcurementService,
     PurchasingService,
@@ -14,6 +15,7 @@ from core.modules.inventory_procurement import (
     StockControlService,
 )
 from infra.modules.inventory_procurement.db import (
+    SqlAlchemyInventoryItemCategoryRepository,
     SqlAlchemyPurchaseOrderLineRepository,
     SqlAlchemyPurchaseOrderRepository,
     SqlAlchemyPurchaseRequisitionLineRepository,
@@ -34,6 +36,7 @@ class InventoryProcurementServiceBundle:
     inventory_reference_service: InventoryReferenceService
     inventory_data_exchange_service: InventoryDataExchangeService
     inventory_reporting_service: InventoryReportingService
+    inventory_item_category_service: ItemCategoryService
     inventory_item_service: ItemMasterService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
@@ -46,6 +49,7 @@ def build_inventory_procurement_service_bundle(
     platform_services: PlatformServiceBundle,
 ) -> InventoryProcurementServiceBundle:
     balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
+    category_repo = SqlAlchemyInventoryItemCategoryRepository(platform_services.session)
     item_repo = SqlAlchemyStockItemRepository(platform_services.session)
     purchase_order_line_repo = SqlAlchemyPurchaseOrderLineRepository(platform_services.session)
     purchase_order_repo = SqlAlchemyPurchaseOrderRepository(platform_services.session)
@@ -56,6 +60,13 @@ def build_inventory_procurement_service_bundle(
     reservation_repo = SqlAlchemyStockReservationRepository(platform_services.session)
     transaction_repo = SqlAlchemyStockTransactionRepository(platform_services.session)
     storeroom_repo = SqlAlchemyStoreroomRepository(platform_services.session)
+    inventory_item_category_service = ItemCategoryService(
+        platform_services.session,
+        category_repo,
+        organization_repo=platform_services.organization_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     inventory_service = InventoryService(
         platform_services.session,
         storeroom_repo,
@@ -68,6 +79,7 @@ def build_inventory_procurement_service_bundle(
     inventory_item_service = ItemMasterService(
         platform_services.session,
         item_repo,
+        category_repo=category_repo,
         organization_repo=platform_services.organization_repo,
         party_service=platform_services.party_service,
         document_integration_service=platform_services.document_integration_service,
@@ -191,6 +203,7 @@ def build_inventory_procurement_service_bundle(
         inventory_reference_service=inventory_reference_service,
         inventory_data_exchange_service=inventory_data_exchange_service,
         inventory_reporting_service=inventory_reporting_service,
+        inventory_item_category_service=inventory_item_category_service,
         inventory_item_service=inventory_item_service,
         inventory_service=inventory_service,
         inventory_stock_service=inventory_stock_service,

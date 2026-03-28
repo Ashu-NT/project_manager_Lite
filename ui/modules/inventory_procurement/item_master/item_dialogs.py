@@ -26,11 +26,13 @@ class InventoryItemEditDialog(QDialog):
         *,
         item: StockItem | None = None,
         party_options: list[tuple[str, str]] | None = None,
+        category_options: list[tuple[str, str]] | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._item = item
         self._party_options = list(party_options or [])
+        self._category_options = list(category_options or [])
         self.setWindowTitle("Edit Inventory Item" if item is not None else "New Inventory Item")
         self.resize(540, 560)
         self._setup_ui()
@@ -53,7 +55,11 @@ class InventoryItemEditDialog(QDialog):
         self.stock_uom_edit = QLineEdit()
         self.order_uom_edit = QLineEdit()
         self.issue_uom_edit = QLineEdit()
-        self.category_code_edit = QLineEdit()
+        self.category_code_combo = QComboBox()
+        for label, category_code in self._category_options:
+            self.category_code_combo.addItem(label, category_code)
+        if self.category_code_combo.count() == 0:
+            self.category_code_combo.addItem("None", "")
         self.reorder_point_spin = QDoubleSpinBox()
         self.reorder_point_spin.setDecimals(3)
         self.reorder_point_spin.setMaximum(999999999)
@@ -75,7 +81,7 @@ class InventoryItemEditDialog(QDialog):
         form.addRow("Stock UOM", self.stock_uom_edit)
         form.addRow("Order UOM", self.order_uom_edit)
         form.addRow("Issue UOM", self.issue_uom_edit)
-        form.addRow("Category", self.category_code_edit)
+        form.addRow("Category", self.category_code_combo)
         form.addRow("Reorder Point", self.reorder_point_spin)
         form.addRow("Reorder Qty", self.reorder_qty_spin)
         form.addRow("Preferred Party", self.preferred_party_combo)
@@ -110,7 +116,8 @@ class InventoryItemEditDialog(QDialog):
         self.stock_uom_edit.setText(item.stock_uom)
         self.order_uom_edit.setText(item.order_uom or item.stock_uom)
         self.issue_uom_edit.setText(item.issue_uom or item.stock_uom)
-        self.category_code_edit.setText(item.category_code)
+        self._ensure_combo_option(self.category_code_combo, item.category_code, fallback_label=item.category_code)
+        self._set_combo_to_data(self.category_code_combo, item.category_code)
         self.reorder_point_spin.setValue(float(item.reorder_point or 0.0))
         self.reorder_qty_spin.setValue(float(item.reorder_qty or 0.0))
         self._set_combo_to_data(self.preferred_party_combo, item.preferred_party_id or "")
@@ -123,6 +130,15 @@ class InventoryItemEditDialog(QDialog):
         index = combo.findData(value)
         if index >= 0:
             combo.setCurrentIndex(index)
+
+    @staticmethod
+    def _ensure_combo_option(combo: QComboBox, value: str, *, fallback_label: str) -> None:
+        normalized = str(value or "").strip()
+        if not normalized:
+            return
+        if combo.findData(normalized) >= 0:
+            return
+        combo.addItem(fallback_label, normalized)
 
     @property
     def item_code(self) -> str:
@@ -154,7 +170,7 @@ class InventoryItemEditDialog(QDialog):
 
     @property
     def category_code(self) -> str:
-        return self.category_code_edit.text().strip()
+        return str(self.category_code_combo.currentData() or "").strip()
 
     @property
     def reorder_point(self) -> float:

@@ -18,6 +18,7 @@ from core.modules.inventory_procurement import (
     InventoryReferenceService,
     InventoryReportingService,
     InventoryService,
+    ItemCategoryService,
     ItemMasterService,
     ProcurementService,
     PurchasingService,
@@ -75,6 +76,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.inventory_reference_service, InventoryReferenceService)
     assert isinstance(graph.inventory_data_exchange_service, InventoryDataExchangeService)
     assert isinstance(graph.inventory_reporting_service, InventoryReportingService)
+    assert isinstance(graph.inventory_item_category_service, ItemCategoryService)
     assert isinstance(graph.inventory_item_service, ItemMasterService)
     assert isinstance(graph.inventory_service, InventoryService)
     assert isinstance(graph.inventory_stock_service, StockControlService)
@@ -115,6 +117,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["inventory_reference_service"] is graph.inventory_reference_service
     assert as_dict["inventory_data_exchange_service"] is graph.inventory_data_exchange_service
     assert as_dict["inventory_reporting_service"] is graph.inventory_reporting_service
+    assert as_dict["inventory_item_category_service"] is graph.inventory_item_category_service
     assert as_dict["inventory_item_service"] is graph.inventory_item_service
     assert as_dict["inventory_service"] is graph.inventory_service
     assert as_dict["inventory_stock_service"] is graph.inventory_stock_service

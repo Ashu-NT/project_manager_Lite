@@ -56,6 +56,13 @@ class DomainEvents:
         ("portfolio_changed", "module", "project_management", "portfolio_entity", "portfolio_changed"),
         ("inventory_items_changed", "module", "inventory_procurement", "stock_item", "inventory_items_changed"),
         (
+            "inventory_item_categories_changed",
+            "module",
+            "inventory_procurement",
+            "inventory_item_category",
+            "inventory_item_categories_changed",
+        ),
+        (
             "inventory_storerooms_changed",
             "module",
             "inventory_procurement",
@@ -119,6 +126,7 @@ class DomainEvents:
     collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
     portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id
     inventory_items_changed: Signal[str] = field(default_factory=Signal)  # item_id
+    inventory_item_categories_changed: Signal[str] = field(default_factory=Signal)  # category_id
     inventory_storerooms_changed: Signal[str] = field(default_factory=Signal)  # storeroom_id
     inventory_balances_changed: Signal[str] = field(default_factory=Signal)  # balance_id
     inventory_reservations_changed: Signal[str] = field(default_factory=Signal)  # reservation_id

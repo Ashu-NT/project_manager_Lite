@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.domain import StockItem
-from core.modules.inventory_procurement.interfaces import StockItemRepository
+from core.modules.inventory_procurement.domain import InventoryItemCategory, StockItem
+from core.modules.inventory_procurement.interfaces import InventoryItemCategoryRepository, StockItemRepository
 from core.modules.inventory_procurement.support import (
     BUSINESS_PARTY_TYPES,
     ITEM_STATUS_TRANSITIONS,
@@ -39,6 +39,7 @@ class ItemMasterService:
         session: Session,
         item_repo: StockItemRepository,
         *,
+        category_repo: InventoryItemCategoryRepository | None = None,
         organization_repo: OrganizationRepository,
         party_service: PartyService,
         document_integration_service: DocumentIntegrationService,
@@ -47,6 +48,7 @@ class ItemMasterService:
     ):
         self._session = session
         self._item_repo = item_repo
+        self._category_repo = category_repo
         self._organization_repo = organization_repo
         self._party_service = party_service
         self._document_integration_service = document_integration_service
@@ -63,31 +65,58 @@ class ItemMasterService:
         *,
         search_text: str = "",
         active_only: bool | None = True,
+        category_code: str | None = None,
+        equipment_only: bool | None = None,
+        project_usage_only: bool | None = None,
+        maintenance_usage_only: bool | None = None,
     ) -> list[StockItem]:
         self._require_read("search inventory items")
         normalized_search = normalize_optional_text(search_text).lower()
+        normalized_category_code = normalize_optional_text(category_code).upper()
         rows = self.list_items(active_only=active_only)
+        category_lookup = self._category_lookup()
         if not normalized_search:
-            return rows
-        return [
-            item
-            for item in rows
-            if normalized_search in " ".join(
-                filter(
-                    None,
-                    [
-                        item.item_code,
-                        item.name,
-                        item.description,
-                        item.item_type,
-                        item.category_code,
-                        item.commodity_code,
-                        item.status,
-                        item.stock_uom,
-                    ],
-                )
-            ).lower()
-        ]
+            filtered = rows
+        else:
+            filtered = [
+                item
+                for item in rows
+                if normalized_search in " ".join(
+                    filter(
+                        None,
+                        [
+                            item.item_code,
+                            item.name,
+                            item.description,
+                            item.item_type,
+                            item.category_code,
+                            item.commodity_code,
+                            item.status,
+                            item.stock_uom,
+                            self._category_label(item, category_lookup),
+                        ],
+                    )
+                ).lower()
+            ]
+        result: list[StockItem] = []
+        for item in filtered:
+            category = category_lookup.get(item.category_code)
+            if normalized_category_code and item.category_code != normalized_category_code:
+                continue
+            if equipment_only is True and not self._is_equipment_item(item, category):
+                continue
+            if equipment_only is False and self._is_equipment_item(item, category):
+                continue
+            if project_usage_only is True and not bool(category and category.supports_project_usage):
+                continue
+            if project_usage_only is False and bool(category and category.supports_project_usage):
+                continue
+            if maintenance_usage_only is True and not bool(category and category.supports_maintenance_usage):
+                continue
+            if maintenance_usage_only is False and bool(category and category.supports_maintenance_usage):
+                continue
+            result.append(item)
+        return result
 
     def get_item(self, item_id: str) -> StockItem:
         self._require_read("view inventory item")
@@ -143,6 +172,10 @@ class ItemMasterService:
         normalized_stock_uom = normalize_uom(stock_uom, label="Stock UOM")
         normalized_order_uom = normalize_uom(order_uom or stock_uom, label="Order UOM")
         normalized_issue_uom = normalize_uom(issue_uom or stock_uom, label="Issue UOM")
+        resolved_category_code, category = self._resolve_category_reference(category_code)
+        normalized_item_type = normalize_optional_text(item_type).upper()
+        if not normalized_item_type and category is not None:
+            normalized_item_type = category.category_type
         resolved_status = normalize_status(
             status,
             default_status="DRAFT",
@@ -154,7 +187,7 @@ class ItemMasterService:
             item_code=normalized_code,
             name=normalize_inventory_name(name, label="Item name"),
             description=normalize_optional_text(description),
-            item_type=normalize_optional_text(item_type).upper(),
+            item_type=normalized_item_type,
             status=resolved_status,
             stock_uom=normalized_stock_uom,
             order_uom=normalized_order_uom,
@@ -171,7 +204,7 @@ class ItemMasterService:
                 ratio=issue_uom_ratio,
                 label="Issue",
             ),
-            category_code=normalize_optional_text(category_code).upper(),
+            category_code=resolved_category_code,
             commodity_code=normalize_optional_text(commodity_code).upper(),
             is_stocked=bool(is_stocked),
             is_purchase_allowed=bool(is_purchase_allowed),
@@ -304,7 +337,11 @@ class ItemMasterService:
             label="Issue",
         )
         if category_code is not None:
-            item.category_code = normalize_optional_text(category_code).upper()
+            resolved_category_code, _category = self._resolve_category_reference(
+                category_code,
+                allow_existing_code=item.category_code,
+            )
+            item.category_code = resolved_category_code
         if commodity_code is not None:
             item.commodity_code = normalize_optional_text(commodity_code).upper()
         if is_stocked is not None:
@@ -473,6 +510,64 @@ class ItemMasterService:
                 code="INVENTORY_PARTY_SCOPE_INVALID",
             )
         return party.id
+
+    def _resolve_category_reference(
+        self,
+        category_code: str | None,
+        *,
+        allow_existing_code: str | None = None,
+    ) -> tuple[str, InventoryItemCategory | None]:
+        normalized = normalize_optional_text(category_code).upper()
+        if not normalized:
+            return "", None
+        existing_code = normalize_optional_text(allow_existing_code).upper()
+        if existing_code and normalized == existing_code:
+            return normalized, self._find_category_by_code_internal(normalized)
+        category = self._find_category_by_code_internal(normalized, active_only=True)
+        if category is None:
+            raise ValidationError(
+                "Category code must reference an active inventory item category.",
+                code="INVENTORY_CATEGORY_NOT_FOUND",
+            )
+        return category.category_code, category
+
+    def _find_category_by_code_internal(
+        self,
+        category_code: str,
+        *,
+        active_only: bool | None = None,
+    ) -> InventoryItemCategory | None:
+        if self._category_repo is None:
+            return None
+        organization = self._active_organization()
+        category = self._category_repo.get_by_code(organization.id, category_code)
+        if category is None:
+            return None
+        if active_only is not None and category.is_active != bool(active_only):
+            return None
+        return category
+
+    def _category_lookup(self) -> dict[str, InventoryItemCategory]:
+        if self._category_repo is None:
+            return {}
+        organization = self._active_organization()
+        return {
+            category.category_code: category
+            for category in self._category_repo.list_for_organization(organization.id, active_only=None)
+        }
+
+    @staticmethod
+    def _category_label(item: StockItem, category_lookup: dict[str, InventoryItemCategory]) -> str:
+        category = category_lookup.get(item.category_code)
+        if category is None:
+            return item.category_code
+        return f"{category.category_code} {category.name} {category.category_type}"
+
+    @staticmethod
+    def _is_equipment_item(item: StockItem, category: InventoryItemCategory | None) -> bool:
+        if category is not None:
+            return category.is_equipment
+        return normalize_optional_text(item.item_type).upper() == "EQUIPMENT"
 
     def _validate_reorder_quantities(self, item: StockItem) -> None:
         if item.max_qty and item.max_qty < item.min_qty:

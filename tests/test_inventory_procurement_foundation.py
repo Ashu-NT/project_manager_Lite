@@ -195,3 +195,64 @@ def test_inventory_item_service_requires_conversion_factors_for_alternate_uoms(s
             stock_uom="EA",
             order_uom="BOX",
         )
+
+
+def test_inventory_item_categories_govern_equipment_and_cross_module_usage_flags(services):
+    category_service = services["inventory_item_category_service"]
+    equipment_category = category_service.create_category(
+        category_code="EQUIP-GEN",
+        name="Generators",
+        category_type="EQUIPMENT",
+        supports_project_usage=True,
+        supports_maintenance_usage=True,
+    )
+    spare_category = category_service.create_category(
+        category_code="SPARE-MECH",
+        name="Mechanical Spares",
+        category_type="SPARE",
+        supports_maintenance_usage=True,
+    )
+
+    assert equipment_category.is_equipment is True
+    assert [row.category_code for row in category_service.list_project_resource_categories()] == ["EQUIP-GEN"]
+    assert {row.category_code for row in category_service.list_maintenance_categories()} == {
+        "EQUIP-GEN",
+        "SPARE-MECH",
+    }
+    assert [row.category_code for row in category_service.search_categories(equipment_only=True)] == ["EQUIP-GEN"]
+
+    updated = category_service.update_category(
+        spare_category.id,
+        supports_project_usage=True,
+        expected_version=spare_category.version,
+    )
+    assert updated.supports_project_usage is True
+
+
+def test_inventory_item_service_requires_active_category_master_when_assigning_category(services):
+    category_service = services["inventory_item_category_service"]
+    item_service = services["inventory_item_service"]
+    category = category_service.create_category(
+        category_code="CONS-ELEC",
+        name="Electrical Consumables",
+        category_type="CONSUMABLE",
+    )
+
+    item = item_service.create_item(
+        item_code="TAPE-01",
+        name="Electrical Tape",
+        status="ACTIVE",
+        stock_uom="EA",
+        category_code=category.category_code,
+    )
+
+    assert item.category_code == "CONS-ELEC"
+    assert [row.item_code for row in item_service.search_items(category_code="CONS-ELEC")] == ["TAPE-01"]
+
+    with pytest.raises(ValidationError, match="active inventory item category"):
+        item_service.create_item(
+            item_code="BAD-CAT",
+            name="Bad Category Item",
+            stock_uom="EA",
+            category_code="UNKNOWN",
+        )

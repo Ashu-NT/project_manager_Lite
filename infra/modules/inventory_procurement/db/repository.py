@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.modules.inventory_procurement.domain import (
+    InventoryItemCategory,
     PurchaseOrder,
     PurchaseOrderLine,
     ReceiptHeader,
@@ -15,6 +16,7 @@ from core.modules.inventory_procurement.domain import (
     Storeroom,
 )
 from core.modules.inventory_procurement.interfaces import (
+    InventoryItemCategoryRepository,
     PurchaseOrderLineRepository,
     PurchaseOrderRepository,
     PurchaseRequisitionLineRepository,
@@ -28,6 +30,8 @@ from core.modules.inventory_procurement.interfaces import (
     StoreroomRepository,
 )
 from infra.modules.inventory_procurement.db.mapper import (
+    inventory_item_category_from_orm,
+    inventory_item_category_to_orm,
     purchase_order_from_orm,
     purchase_order_line_from_orm,
     purchase_order_line_to_orm,
@@ -52,6 +56,7 @@ from infra.modules.inventory_procurement.db.mapper import (
     storeroom_to_orm,
 )
 from infra.platform.db.models import (
+    InventoryItemCategoryORM,
     PurchaseOrderLineORM,
     PurchaseOrderORM,
     PurchaseRequisitionLineORM,
@@ -65,6 +70,65 @@ from infra.platform.db.models import (
     StoreroomORM,
 )
 from infra.platform.db.optimistic import update_with_version_check
+
+
+class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, category: InventoryItemCategory) -> None:
+        self.session.add(inventory_item_category_to_orm(category))
+
+    def update(self, category: InventoryItemCategory) -> None:
+        category.version = update_with_version_check(
+            self.session,
+            InventoryItemCategoryORM,
+            category.id,
+            getattr(category, "version", 1),
+            {
+                "category_code": category.category_code,
+                "name": category.name,
+                "description": category.description or None,
+                "category_type": category.category_type,
+                "is_equipment": category.is_equipment,
+                "supports_project_usage": category.supports_project_usage,
+                "supports_maintenance_usage": category.supports_maintenance_usage,
+                "is_active": category.is_active,
+                "created_at": category.created_at,
+                "updated_at": category.updated_at,
+            },
+            not_found_message="Inventory item category not found.",
+            stale_message="Inventory item category was updated by another user.",
+        )
+
+    def get(self, category_id: str) -> InventoryItemCategory | None:
+        obj = self.session.get(InventoryItemCategoryORM, category_id)
+        return inventory_item_category_from_orm(obj) if obj else None
+
+    def get_by_code(self, organization_id: str, category_code: str) -> InventoryItemCategory | None:
+        stmt = select(InventoryItemCategoryORM).where(
+            InventoryItemCategoryORM.organization_id == organization_id,
+            InventoryItemCategoryORM.category_code == category_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return inventory_item_category_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        category_type: str | None = None,
+    ) -> list[InventoryItemCategory]:
+        stmt = select(InventoryItemCategoryORM).where(InventoryItemCategoryORM.organization_id == organization_id)
+        if active_only is not None:
+            stmt = stmt.where(InventoryItemCategoryORM.is_active == bool(active_only))
+        if category_type is not None:
+            stmt = stmt.where(InventoryItemCategoryORM.category_type == category_type)
+        rows = self.session.execute(
+            stmt.order_by(InventoryItemCategoryORM.name.asc(), InventoryItemCategoryORM.category_code.asc())
+        ).scalars().all()
+        return [inventory_item_category_from_orm(row) for row in rows]
 
 
 class SqlAlchemyStockItemRepository(StockItemRepository):
@@ -646,6 +710,7 @@ class SqlAlchemyReceiptLineRepository(ReceiptLineRepository):
 
 
 __all__ = [
+    "SqlAlchemyInventoryItemCategoryRepository",
     "SqlAlchemyPurchaseOrderLineRepository",
     "SqlAlchemyPurchaseOrderRepository",
     "SqlAlchemyPurchaseRequisitionLineRepository",

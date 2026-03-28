@@ -1,8 +1,9 @@
 # Inventory & Procurement Module Blueprint
 
 Status: phase-1 implemented and materially hardened
-Implementation state: item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, UI workspaces, and module-owned inventory import/export/reporting services now exist in the codebase.
+Implementation state: item category master, item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, UI workspaces, and module-owned inventory import/export/reporting services now exist in the codebase.
 Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts; inventory now also ships CSV import for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, raw CSV export for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, plus stock/procurement reports in CSV and Excel. Receiving now enforces lot, serial, and shelf-life controls, storerooms can require reservation-backed issues and supplier-reference-backed receipts, and maintenance-facing source-reference types are validated consistently across reservations and requisitions.
+Inventory also now owns a governed item category master for consumables, spares, equipment, and other stocked classifications, including project-usage and maintenance-usage flags for future cross-module consumption.
 Still pending before a fuller enterprise-complete rollout: deeper maintenance command/event integration, richer warehouse execution such as directed/bin policies and inspection flows, and broader serial/lot lifecycle traceability beyond receipt capture.
 
 ## Current Execution Plan
@@ -62,6 +63,7 @@ Inventory must consume these shared capabilities; it must not duplicate them:
 The module owns inventory and procurement workflow truth:
 
 - `stock_item`
+- `inventory_item_category`
 - `storeroom`
 - `stock_balance`
 - `stock_transaction`
@@ -75,7 +77,7 @@ The module owns inventory and procurement workflow truth:
 
 ### Other Modules Consume By Reference
 
-- `maintenance_management` must reference item, storeroom, reservation, requisition, purchase-order, and receipt records
+- `maintenance_management` must reference item category, item, storeroom, reservation, requisition, purchase-order, and receipt records
 - no other module may create a shadow item master or stock ledger
 
 ## First Implementation Scope

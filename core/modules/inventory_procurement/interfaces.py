@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from core.modules.inventory_procurement.domain import (
+    InventoryItemCategory,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseRequisition,
@@ -15,6 +16,29 @@ from core.modules.inventory_procurement.domain import (
     StockTransaction,
     Storeroom,
 )
+
+
+class InventoryItemCategoryRepository(ABC):
+    @abstractmethod
+    def add(self, category: InventoryItemCategory) -> None: ...
+
+    @abstractmethod
+    def update(self, category: InventoryItemCategory) -> None: ...
+
+    @abstractmethod
+    def get(self, category_id: str) -> InventoryItemCategory | None: ...
+
+    @abstractmethod
+    def get_by_code(self, organization_id: str, category_code: str) -> InventoryItemCategory | None: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        category_type: str | None = None,
+    ) -> list[InventoryItemCategory]: ...
 
 
 class StockItemRepository(ABC):
@@ -249,6 +273,7 @@ class ReceiptLineRepository(ABC):
 
 
 __all__ = [
+    "InventoryItemCategoryRepository",
     "PurchaseOrderLineRepository",
     "PurchaseOrderRepository",
     "PurchaseRequisitionLineRepository",

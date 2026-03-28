@@ -3,7 +3,7 @@
 from ui.modules.inventory_procurement.data_exchange import InventoryDataExchangeTab
 from ui.modules.inventory_procurement.dashboard_tab import InventoryDashboardTab
 from ui.modules.inventory_procurement.inventory import StoreroomsTab
-from ui.modules.inventory_procurement.item_master import InventoryItemsTab
+from ui.modules.inventory_procurement.item_master import InventoryItemCategoriesTab, InventoryItemsTab
 from ui.modules.inventory_procurement.procurement import (
     PurchaseOrdersTab,
     ReceivingTab,
@@ -16,6 +16,7 @@ from ui.modules.inventory_procurement.stock_control import MovementsTab, StockTa
 __all__ = [
     "InventoryDataExchangeTab",
     "InventoryDashboardTab",
+    "InventoryItemCategoriesTab",
     "InventoryItemsTab",
     "MovementsTab",
     "PurchaseOrdersTab",

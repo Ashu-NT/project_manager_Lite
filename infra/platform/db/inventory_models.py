@@ -30,6 +30,41 @@ from core.modules.inventory_procurement.domain import (
 from infra.platform.db.base import Base
 
 
+class InventoryItemCategoryORM(Base):
+    __tablename__ = "inventory_item_categories"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "category_code", name="ux_inventory_item_categories_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    category_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    category_type: Mapped[str] = mapped_column(String(32), nullable=False, default="MATERIAL", server_default="MATERIAL")
+    is_equipment: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    supports_project_usage: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
+    supports_maintenance_usage: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="0",
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 class StockItemORM(Base):
     __tablename__ = "inventory_stock_items"
     __table_args__ = (
@@ -537,6 +572,8 @@ class ReceiptLineORM(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
+Index("idx_inventory_item_categories_org", InventoryItemCategoryORM.organization_id)
+Index("idx_inventory_item_categories_active", InventoryItemCategoryORM.is_active)
 Index("idx_inventory_stock_items_org", StockItemORM.organization_id)
 Index("idx_inventory_stock_items_active", StockItemORM.is_active)
 Index("idx_inventory_storerooms_org", StoreroomORM.organization_id)
@@ -575,6 +612,7 @@ Index("idx_inventory_receipt_lines_po_line", ReceiptLineORM.purchase_order_line_
 
 
 __all__ = [
+    "InventoryItemCategoryORM",
     "PurchaseOrderLineORM",
     "PurchaseOrderORM",
     "PurchaseRequisitionLineORM",

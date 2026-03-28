@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from core.modules.inventory_procurement.domain import (
+    InventoryItemCategory,
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderLineStatus,
@@ -21,6 +22,7 @@ from core.modules.inventory_procurement.domain import (
     Storeroom,
 )
 from infra.platform.db.models import (
+    InventoryItemCategoryORM,
     PurchaseOrderLineORM,
     PurchaseOrderORM,
     PurchaseRequisitionLineORM,
@@ -33,6 +35,42 @@ from infra.platform.db.models import (
     StockTransactionORM,
     StoreroomORM,
 )
+
+
+def inventory_item_category_to_orm(category: InventoryItemCategory) -> InventoryItemCategoryORM:
+    return InventoryItemCategoryORM(
+        id=category.id,
+        organization_id=category.organization_id,
+        category_code=category.category_code,
+        name=category.name,
+        description=category.description or None,
+        category_type=category.category_type,
+        is_equipment=category.is_equipment,
+        supports_project_usage=category.supports_project_usage,
+        supports_maintenance_usage=category.supports_maintenance_usage,
+        is_active=category.is_active,
+        created_at=category.created_at,
+        updated_at=category.updated_at,
+        version=getattr(category, "version", 1),
+    )
+
+
+def inventory_item_category_from_orm(obj: InventoryItemCategoryORM) -> InventoryItemCategory:
+    return InventoryItemCategory(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        category_code=obj.category_code,
+        name=obj.name,
+        description=obj.description or "",
+        category_type=obj.category_type,
+        is_equipment=obj.is_equipment,
+        supports_project_usage=obj.supports_project_usage,
+        supports_maintenance_usage=obj.supports_maintenance_usage,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
 
 
 def stock_item_to_orm(item: StockItem) -> StockItemORM:

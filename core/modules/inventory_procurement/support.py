@@ -22,6 +22,17 @@ ITEM_STATUS_TRANSITIONS = {
     "OBSOLETE": set(),
 }
 
+ITEM_CATEGORY_TYPES = {
+    "CONSUMABLE",
+    "SPARE",
+    "EQUIPMENT",
+    "TOOL",
+    "CHEMICAL",
+    "MATERIAL",
+    "SERVICE",
+    "OTHER",
+}
+
 STOREROOM_STATUS_TRANSITIONS = {
     "DRAFT": {"ACTIVE"},
     "ACTIVE": {"INACTIVE", "CLOSED"},
@@ -120,6 +131,13 @@ def normalize_status(
     normalized = normalize_optional_text(value).upper() or default_status
     if normalized not in allowed_statuses:
         raise ValidationError(f"{label} is invalid.", code="INVENTORY_STATUS_INVALID")
+    return normalized
+
+
+def normalize_item_category_type(value: str | None, *, label: str = "Item category type") -> str:
+    normalized = normalize_optional_text(value).upper() or "MATERIAL"
+    if normalized not in ITEM_CATEGORY_TYPES:
+        raise ValidationError(f"{label} is invalid.", code="INVENTORY_CATEGORY_TYPE_INVALID")
     return normalized
 
 
@@ -314,6 +332,7 @@ def validate_transition(
 __all__ = [
     "BUSINESS_PARTY_TYPES",
     "ITEM_STATUS_TRANSITIONS",
+    "ITEM_CATEGORY_TYPES",
     "INVENTORY_SOURCE_REFERENCE_TYPES",
     "PURCHASE_ORDER_STATUS_TRANSITIONS",
     "REQUISITION_STATUS_TRANSITIONS",
@@ -321,6 +340,7 @@ __all__ = [
     "STOREROOM_STATUS_TRANSITIONS",
     "normalize_inventory_code",
     "normalize_inventory_name",
+    "normalize_item_category_type",
     "normalize_optional_date",
     "normalize_nonnegative_days",
     "normalize_nonnegative_quantity",

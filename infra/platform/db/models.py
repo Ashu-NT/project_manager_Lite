@@ -35,6 +35,7 @@ from core.modules.project_management.domain.register import (
 )
 from core.platform.time.domain import TimesheetPeriodStatus
 from infra.platform.db.inventory_models import (
+    InventoryItemCategoryORM,
     PurchaseOrderLineORM,
     PurchaseOrderORM,
     PurchaseRequisitionLineORM,
