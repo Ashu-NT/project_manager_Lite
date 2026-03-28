@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
-from core.platform.common.models import PortfolioExecutiveRow, PortfolioRecentAction
+from core.modules.project_management.domain.portfolio import (
+    PortfolioExecutiveRow,
+    PortfolioRecentAction,
+)
 from core.platform.auth.authorization import require_permission
 
 

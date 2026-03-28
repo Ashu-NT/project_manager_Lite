@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from core.platform.common.models import ProjectStatus, TaskStatus
+from core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from core.modules.project_management.services.dashboard import PORTFOLIO_SCOPE_ID
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.dashboard.tab import DashboardTab

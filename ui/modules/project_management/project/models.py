@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 
-from core.platform.common.models import Project
+from core.modules.project_management.domain.project import Project
 from ui.platform.shared.table_model import horizontal_header_data
 from ui.platform.shared.styles.formatting import fmt_currency
 

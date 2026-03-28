@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import Task, TaskAssignment, TaskDependency
+from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency
 from infra.platform.db.models import TaskAssignmentORM, TaskDependencyORM, TaskORM
 
 

@@ -1,4 +1,4 @@
-from core.platform.common.models import CostType
+from core.modules.project_management.domain.enums import CostType
 
 
 def test_project_defaults_currency_to_eur(services):

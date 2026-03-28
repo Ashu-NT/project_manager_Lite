@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import (
-    AuditLogRepository,
+from core.platform.common.interfaces import AuditLogRepository
+from core.modules.project_management.interfaces import (
     PortfolioIntakeRepository,
     PortfolioProjectDependencyRepository,
     PortfolioScoringTemplateRepository,

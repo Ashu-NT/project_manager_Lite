@@ -8,9 +8,9 @@ import pytest
 
 from core.platform.auth.session import UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.common.models import TimesheetPeriodStatus
+from core.platform.time.domain import TimesheetPeriodStatus
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.models import WorkerType
+from core.modules.project_management.domain.enums import WorkerType
 from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 

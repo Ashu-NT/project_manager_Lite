@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.modules.project_management.domain.identifiers import generate_id
-from core.platform.common.interfaces import TaskCommentRepository, TaskPresenceRepository
-from core.platform.common.models import TaskComment, TaskPresence
+from core.modules.project_management.interfaces import TaskCommentRepository, TaskPresenceRepository
+from core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
 from infra.modules.project_management.db.collaboration.mapper import (
     task_comment_from_orm,
     task_comment_to_orm,

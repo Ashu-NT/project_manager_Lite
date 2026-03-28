@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 import os
 
-from core.platform.common.models import ApprovalStatus
+from core.platform.approval.domain import ApprovalStatus
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from ui.modules.project_management.governance.tab import GovernanceTab
 from ui.platform.shell.main_window import MainWindow

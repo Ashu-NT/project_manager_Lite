@@ -17,7 +17,7 @@ from core.modules.inventory_procurement.support import (
     resolve_item_uom_factor,
 )
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.models import Organization
+from core.platform.org.domain import Organization
 from core.platform.notifications.domain_events import domain_events
 
 

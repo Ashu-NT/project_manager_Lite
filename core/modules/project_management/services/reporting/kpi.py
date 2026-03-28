@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from typing import Dict, List, Tuple
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.interfaces import (
+from core.modules.project_management.interfaces import (
     AssignmentRepository,
     CostRepository,
     ProjectRepository,

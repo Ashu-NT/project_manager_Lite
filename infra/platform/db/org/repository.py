@@ -11,7 +11,7 @@ from core.platform.common.interfaces import (
     OrganizationRepository,
     SiteRepository,
 )
-from core.platform.common.models import Department, Employee, Organization, Site
+from core.platform.org.domain import Department, Employee, Organization, Site
 from infra.platform.db.models import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
 from infra.platform.db.optimistic import update_with_version_check
 from infra.platform.db.org.mapper import (

@@ -5,13 +5,13 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import (
+from core.modules.project_management.interfaces import (
     PortfolioIntakeRepository,
     PortfolioProjectDependencyRepository,
     PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
 )
-from core.platform.common.models import (
+from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioProjectDependency,
     PortfolioScoringTemplate,

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QGridLayout
 from PySide6.QtWidgets import QDialog
 
 from core.modules.project_management.domain.enums import TaskStatus
-from core.platform.common.models import DependencyType
+from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.services.dashboard import PORTFOLIO_SCOPE_ID
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from tests.ui_runtime_helpers import make_settings_store

@@ -58,6 +58,7 @@ These live under `core/modules/project_management/domain/`.
 
 `core/modules/project_management/domain/identifiers.generate_id()` remains the shared ID generator used across current aggregates.
 
-## Compatibility Layer
+## Import Direction
 
-`core/platform/common/models.py` re-exports the most commonly used domain symbols so older imports continue to work while newer code uses focused packages directly.
+Domain consumers now import types directly from their owning platform or module
+packages instead of going through a shared model facade.

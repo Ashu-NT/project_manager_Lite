@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 from core.platform.common.interfaces import (
     AuditLogRepository,
     ProjectMembershipRepository,
+    UserRepository,
+)
+from core.modules.project_management.interfaces import (
     ProjectRepository,
     TaskCommentRepository,
     TaskPresenceRepository,
     TaskRepository,
-    UserRepository,
 )
 from core.platform.documents import DocumentIntegrationService
 from core.modules.project_management.services.collaboration.comments import CollaborationCommentMixin

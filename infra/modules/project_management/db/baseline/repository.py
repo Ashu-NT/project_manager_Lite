@@ -5,8 +5,8 @@ from typing import List, Optional
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import BaselineRepository
-from core.platform.common.models import BaselineTask, ProjectBaseline
+from core.modules.project_management.interfaces import BaselineRepository
+from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
 from infra.modules.project_management.db.baseline.mapper import (
     baseline_from_orm,
     baseline_task_from_orm,

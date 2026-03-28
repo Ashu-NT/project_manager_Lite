@@ -8,7 +8,7 @@ from core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from core.platform.common.models import ProjectStatus
+from core.modules.project_management.domain.enums import ProjectStatus
 from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.project.dialogs import ProjectEditDialog
 

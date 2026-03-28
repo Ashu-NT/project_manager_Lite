@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import BaselineTask, ProjectBaseline
+from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
 from infra.platform.db.models import BaselineTaskORM, ProjectBaselineORM
 
 

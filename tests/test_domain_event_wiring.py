@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.common.models import DependencyType
+from core.modules.project_management.domain.enums import DependencyType
 from core.platform.notifications.domain_events import domain_events
 
 

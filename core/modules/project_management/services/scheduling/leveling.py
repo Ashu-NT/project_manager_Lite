@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from typing import Callable
 
-from core.platform.common.models import Task, TaskAssignment, TaskDependency
+from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency
 from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict, ResourceConflictEntry
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 

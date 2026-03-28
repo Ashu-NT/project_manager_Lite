@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import List
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.interfaces import (
+from core.modules.project_management.interfaces import (
     AssignmentRepository,
     ProjectRepository,
     ProjectResourceRepository,
     ResourceRepository,
     TaskRepository,
 )
-from core.platform.common.models import TaskAssignment
+from core.modules.project_management.domain.task import TaskAssignment
 from core.modules.project_management.services.reporting.models import LaborAssignmentRow, LaborPlanActualRow, LaborResourceRow
 
 

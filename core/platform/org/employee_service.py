@@ -10,10 +10,10 @@ from core.platform.common.interfaces import (
     DepartmentRepository,
     EmployeeRepository,
     OrganizationRepository,
-    ResourceRepository,
     SiteRepository,
 )
-from core.platform.common.models import Employee, EmploymentType
+from core.modules.project_management.interfaces import ResourceRepository
+from core.platform.org.domain import Employee, EmploymentType
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.employee_support import (
     build_employee_audit_details,

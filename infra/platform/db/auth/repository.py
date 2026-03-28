@@ -12,7 +12,13 @@ from core.platform.common.interfaces import (
     UserRepository,
     UserRoleRepository,
 )
-from core.platform.common.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
+from core.platform.auth.domain import (
+    Permission,
+    Role,
+    RolePermissionBinding,
+    UserAccount,
+    UserRoleBinding,
+)
 from infra.platform.db.auth.mapper import (
     permission_from_orm,
     permission_to_orm,

@@ -5,8 +5,12 @@ from typing import List, Optional
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import AssignmentRepository, DependencyRepository, TaskRepository
-from core.platform.common.models import Task, TaskAssignment, TaskDependency
+from core.modules.project_management.interfaces import (
+    AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
+from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency
 from infra.platform.db.models import TaskAssignmentORM, TaskDependencyORM, TaskORM
 from infra.platform.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.task.mapper import (

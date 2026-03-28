@@ -3,8 +3,9 @@ from typing import Optional, Dict, List
 
 from sqlalchemy.orm import Session
 
-from core.platform.common.models import ProjectBaseline, BaselineTask, CostType
-from core.platform.common.interfaces import (
+from core.modules.project_management.domain.baseline import ProjectBaseline, BaselineTask
+from core.modules.project_management.domain.enums import CostType
+from core.modules.project_management.interfaces import (
     ProjectRepository,
     TaskRepository,
     CostRepository,

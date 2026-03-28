@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.common.models import UserAccount
+from core.platform.auth.domain import UserAccount
 from core.platform.auth import AuthService, UserSessionContext
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserCreateDialog, UserEditDialog
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style

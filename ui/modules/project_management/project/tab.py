@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.notifications.domain_events import domain_events
-from core.platform.common.models import Project
+from core.modules.project_management.domain.project import Project
 from core.platform.auth import UserSessionContext
 from core.modules.project_management.services.import_service import DataImportService
 from core.modules.project_management.services.project import ProjectResourceService, ProjectService

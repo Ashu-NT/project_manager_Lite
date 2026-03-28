@@ -3,7 +3,7 @@ from __future__ import annotations
 import calendar
 from datetime import date
 
-from core.platform.common.interfaces import BaselineRepository, ProjectRepository
+from core.modules.project_management.interfaces import BaselineRepository, ProjectRepository
 from core.modules.project_management.services.reporting.models import EvmSeriesPoint
 
 

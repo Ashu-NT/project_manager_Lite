@@ -6,7 +6,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from core.platform.common.interfaces import ApprovalRepository
-from core.platform.common.models import ApprovalRequest, ApprovalStatus
+from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from infra.platform.db.approval.mapper import approval_from_orm, approval_to_orm
 from infra.platform.db.models import ApprovalRequestORM
 

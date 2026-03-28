@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from core.platform.access.authorization import filter_project_rows
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.models import (
+from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioScenarioComparison,

@@ -7,7 +7,7 @@ import pytest
 
 from core.platform.auth.session import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
-from core.platform.common.models import DependencyType
+from core.modules.project_management.domain.enums import DependencyType
 from tests.ui_runtime_helpers import login_as, register_and_login, wait_until
 from ui.platform.admin.access.tab import AccessTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab

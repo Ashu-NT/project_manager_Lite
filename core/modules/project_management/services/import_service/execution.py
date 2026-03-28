@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import CostType, ProjectStatus, TaskStatus
+from core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus
 
 from .models import ImportSummary
 

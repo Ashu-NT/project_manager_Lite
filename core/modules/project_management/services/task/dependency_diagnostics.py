@@ -5,8 +5,9 @@ from dataclasses import dataclass, replace
 from datetime import date
 from typing import Dict, List, Optional
 
-from core.platform.common.interfaces import DependencyRepository, TaskRepository
-from core.platform.common.models import DependencyType, Task, TaskDependency
+from core.modules.project_management.interfaces import DependencyRepository, TaskRepository
+from core.modules.project_management.domain.enums import DependencyType
+from core.modules.project_management.domain.task import Task, TaskDependency
 from core.modules.project_management.services.scheduling.date_compute import compute_task_dates_common
 from core.modules.project_management.services.scheduling.graph import build_project_dependency_graph
 from core.modules.project_management.services.scheduling.models import CPMTaskInfo

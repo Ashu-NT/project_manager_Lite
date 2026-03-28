@@ -7,7 +7,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 PATH_REWRITE_EXACT = {
     "core/domain/__init__.py": "core/modules/project_management/domain/__init__.py",
-    "core/models.py": "core/platform/common/models.py",
     "core/interfaces.py": "core/platform/common/interfaces.py",
     "core/exceptions.py": "core/platform/common/exceptions.py",
     "infra/services.py": "infra/platform/services.py",

@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.common.models import CostType, Resource
+from core.modules.project_management.domain.enums import CostType
+from core.modules.project_management.domain.resource import Resource
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService

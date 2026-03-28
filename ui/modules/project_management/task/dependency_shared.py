@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import TaskDependency
+from core.modules.project_management.domain.task import TaskDependency
 
 REL_CURRENT_DEPENDS = "current_depends"
 REL_OTHER_DEPENDS = "other_depends"

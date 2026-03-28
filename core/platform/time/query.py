@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.interfaces import AssignmentRepository
+from core.modules.project_management.interfaces import AssignmentRepository
 from core.platform.time.domain import TimeEntry, TimesheetPeriod
 from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 

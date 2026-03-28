@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.models import Site
+from core.platform.org.domain import Site
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org import SiteService
 from ui.modules.project_management.dashboard.styles import (

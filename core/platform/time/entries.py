@@ -5,7 +5,11 @@ from datetime import date, datetime, timezone
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.interfaces import AssignmentRepository, ResourceRepository, TaskRepository
+from core.modules.project_management.interfaces import (
+    AssignmentRepository,
+    ResourceRepository,
+    TaskRepository,
+)
 from core.platform.notifications.domain_events import domain_events
 from core.platform.time.domain import TimeEntry
 from core.platform.time.interfaces import TimeEntryRepository

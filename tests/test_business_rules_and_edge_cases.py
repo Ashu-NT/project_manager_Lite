@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.common.models import DependencyType
+from core.modules.project_management.domain.enums import DependencyType
 
 
 def test_task_name_validation_rules(services):

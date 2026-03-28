@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from core.platform.common.models import CostType
+from core.modules.project_management.domain.enums import CostType
 from ui.platform.shared.styles.formatting import currency_symbol_from_code, fmt_currency
 
 

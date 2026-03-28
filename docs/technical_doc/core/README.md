@@ -19,18 +19,20 @@ Legacy compatibility package roots such as `core/modules/payroll/` are still pre
 ## Design Role
 
 - source of truth for domain rules
-- repository and service contract ownership through `core/platform/common/interfaces.py`
+- shared repository contracts through `core/platform/common/interfaces.py`
+- PM repository contracts through `core/modules/project_management/interfaces.py`
 - module guard enforcement for business capabilities
 - domain-event emission for reactive desktop refresh behavior
 
 ## Key Packages
 
-- `core/platform/common/`: shared interfaces, exceptions, and compatibility facades
+- `core/platform/common/`: shared interfaces, exceptions, IDs, and error contracts
 - `core/platform/modules/`: module entitlement rules and runtime guards
 - `core/platform/notifications/`: domain event hub and signal primitive
 - `core/platform/org/`: organization and employee domain/services, including site context on employees
 - `core/platform/time/`: canonical work-entry/time-entry and timesheet-period domain and service boundary
 - `core/modules/project_management/domain/`: PM aggregates and enums
+- `core/modules/project_management/interfaces.py`: PM-owned repository/service contracts
 - `core/modules/project_management/services/`: PM business services
 - `core/modules/project_management/reporting/`: export and rendering pipeline
 
@@ -46,7 +48,7 @@ Architecture guardrails in `tests/test_architecture_guardrails.py` enforce the m
 
 - dataclass-first aggregates and typed enums
 - `create(...)` factories centralize ID generation and safe defaults
-- compatibility exports in `core/platform/common/models.py` keep older import paths working while the focused package structure evolves
+- domain types now import directly from their owning platform or module packages
 
 ## Error Semantics
 

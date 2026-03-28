@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from core.platform.auth.authorization import require_permission
-from core.platform.common.models import CollaborationInboxItem, CollaborationNotificationItem
+from core.modules.project_management.domain.collaboration import (
+    CollaborationInboxItem,
+    CollaborationNotificationItem,
+)
 
 
 class CollaborationNotificationMixin:

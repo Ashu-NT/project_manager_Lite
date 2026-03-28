@@ -1,8 +1,9 @@
 from __future__ import annotations
 from datetime import date
 from typing import List
-from core.platform.common.models import CalendarEvent, Task
-from core.platform.common.interfaces import CalendarEventRepository, TaskRepository
+from core.modules.project_management.domain.calendar import CalendarEvent
+from core.modules.project_management.domain.task import Task
+from core.modules.project_management.interfaces import CalendarEventRepository, TaskRepository
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.auth.authorization import require_permission

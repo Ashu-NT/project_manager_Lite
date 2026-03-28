@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 
 from core.platform.auth.session import UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.common.models import CostType, DependencyType
+from core.modules.project_management.domain.enums import CostType, DependencyType
 from core.modules.project_management.reporting import api as reporting_api
 from core.modules.project_management.services.reporting.models import (
     CostSourceBreakdown,

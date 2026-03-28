@@ -19,7 +19,13 @@ from core.platform.common.interfaces import (
     UserRepository,
     UserRoleRepository,
 )
-from core.platform.common.models import Permission, Role, RolePermissionBinding, UserAccount, UserRoleBinding
+from core.platform.auth.domain import (
+    Permission,
+    Role,
+    RolePermissionBinding,
+    UserAccount,
+    UserRoleBinding,
+)
 from core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.auth.datetime_utils import ensure_utc_datetime
 from core.platform.auth.mfa import generate_mfa_secret, verify_totp_code

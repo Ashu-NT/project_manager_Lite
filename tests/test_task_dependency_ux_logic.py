@@ -1,4 +1,5 @@
-from core.platform.common.models import DependencyType, TaskDependency
+from core.modules.project_management.domain.enums import DependencyType
+from core.modules.project_management.domain.task import TaskDependency
 from ui.modules.project_management.task.dependency_dialogs import _dependency_direction
 
 

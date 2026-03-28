@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.models import Employee, EmploymentType
+from core.platform.org.domain import Employee, EmploymentType
 
 
 def normalize_email(value: str | None) -> str | None:

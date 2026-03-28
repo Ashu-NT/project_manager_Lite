@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.interfaces import (
+from core.modules.project_management.interfaces import (
     CostRepository,
     ProjectRepository,
     ProjectResourceRepository,

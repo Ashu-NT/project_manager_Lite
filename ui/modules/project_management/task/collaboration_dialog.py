@@ -15,7 +15,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.common.models import CollaborationMentionCandidate, TaskComment
+from core.modules.project_management.domain.collaboration import (
+    CollaborationMentionCandidate,
+    TaskComment,
+)
 from core.modules.project_management.services.collaboration import CollaborationService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from ui.modules.project_management.task.document_labels import format_linked_document_label

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import Department, Employee, Organization, Site
+from core.platform.org.domain import Department, Employee, Organization, Site
 from infra.platform.db.models import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
 
 

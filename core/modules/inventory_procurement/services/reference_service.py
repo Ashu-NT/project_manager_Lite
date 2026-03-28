@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.platform.auth.authorization import require_permission
-from core.platform.common.models import Site
+from core.platform.org.domain import Site
 from core.platform.org import SiteService
 from core.platform.party import PartyService
 from core.platform.party.domain import Party, PartyType

@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from core.platform.common.models import Project
+from core.modules.project_management.domain.project import Project
 from core.modules.project_management.services.project import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from ui.modules.project_management.project.dialogs import ProjectResourceEditDialog

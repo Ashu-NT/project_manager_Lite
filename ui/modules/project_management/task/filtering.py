@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.project_management.domain.enums import TaskStatus
-from core.platform.common.models import Task
+from core.modules.project_management.domain.task import Task
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.platform.settings.main_window_store import MainWindowSettingsStore
 from ui.platform.shared.styles.ui_config import UIConfig as CFG

@@ -5,7 +5,7 @@ from typing import Optional
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout
 
 from core.modules.project_management.domain.enums import ProjectStatus
-from core.platform.common.models import Project
+from core.modules.project_management.domain.project import Project
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

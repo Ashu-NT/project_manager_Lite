@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import ProjectRepository, RegisterEntryRepository
+from core.modules.project_management.interfaces import ProjectRepository, RegisterEntryRepository
 from core.platform.audit.service import AuditService
 from core.platform.auth.session import UserSessionContext
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin

@@ -4,7 +4,10 @@ from typing import Iterable
 
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.models import CollaborationMentionCandidate, TaskComment
+from core.modules.project_management.domain.collaboration import (
+    CollaborationMentionCandidate,
+    TaskComment,
+)
 from core.platform.access.authorization import require_project_permission
 from core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.collaboration.mentions import resolve_mentions

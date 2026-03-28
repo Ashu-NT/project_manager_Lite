@@ -4,10 +4,11 @@ from core.platform.common.exceptions import ValidationError
 from core.platform.common.interfaces import (
     DepartmentRepository,
     OrganizationRepository,
-    ResourceRepository,
     SiteRepository,
 )
-from core.platform.common.models import Employee, WorkerType
+from core.modules.project_management.interfaces import ResourceRepository
+from core.platform.org.domain import Employee
+from core.modules.project_management.domain.enums import WorkerType
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.support import employee_contact
 

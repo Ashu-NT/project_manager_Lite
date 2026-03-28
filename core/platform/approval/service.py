@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from core.platform.common.interfaces import ApprovalRepository
-from core.platform.common.models import ApprovalRequest, ApprovalStatus
+from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.auth.session import UserSessionContext
 from core.platform.audit.service import AuditService

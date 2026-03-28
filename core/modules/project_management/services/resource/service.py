@@ -6,14 +6,14 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from core.platform.common.models import CostType, Resource, WorkerType
-from core.platform.common.interfaces import (
+from core.modules.project_management.domain.enums import CostType, WorkerType
+from core.modules.project_management.domain.resource import Resource
+from core.modules.project_management.interfaces import (
     AssignmentRepository,
-    EmployeeRepository,
     ProjectResourceRepository,
     ResourceRepository,
-    TimeEntryRepository,
 )
+from core.platform.common.interfaces import EmployeeRepository, TimeEntryRepository
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.auth.authorization import require_permission
 from core.platform.audit.helpers import record_audit

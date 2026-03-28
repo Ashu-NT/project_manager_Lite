@@ -14,7 +14,9 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.common.models import ProjectResource, Resource, Task
+from core.modules.project_management.domain.project import ProjectResource
+from core.modules.project_management.domain.resource import Resource
+from core.modules.project_management.domain.task import Task
 from core.modules.project_management.services.project import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService

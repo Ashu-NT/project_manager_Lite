@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.common.interfaces import (
+from core.modules.project_management.interfaces import (
     AssignmentRepository,
     DependencyRepository,
     ProjectRepository,

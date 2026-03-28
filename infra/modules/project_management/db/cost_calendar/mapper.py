@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Set
 
-from core.platform.common.models import CalendarEvent, CostItem, CostType, Holiday, WorkingCalendar
+from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
+from core.modules.project_management.domain.cost import CostItem
+from core.modules.project_management.domain.enums import CostType
 from infra.platform.db.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
 
 

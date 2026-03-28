@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from core.platform.common.models import CollaborationMentionCandidate
+from core.modules.project_management.domain.collaboration import CollaborationMentionCandidate
 
 
 MENTION_RE = re.compile(r"@([A-Za-z0-9_.-]+)")

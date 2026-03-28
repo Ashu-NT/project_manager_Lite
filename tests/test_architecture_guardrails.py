@@ -528,19 +528,9 @@ def test_legacy_infra_repository_wrappers_are_removed():
         assert not path.exists()
 
 
-def test_core_models_module_is_facade_only():
-    models_path = ROOT / "core" / "models.py"
-    text = models_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from core.modules.project_management.domain.project import" in text
-    assert "from core.modules.project_management.domain.task import" in text
-    assert "from core.modules.project_management.domain.resource import" in text
-    assert "from core.modules.project_management.domain.cost import" in text
-    assert "from core.modules.project_management.domain.calendar import" in text
-    assert "from core.modules.project_management.domain.baseline import" in text
-    assert "class Project(" not in text
-    assert "class Task(" not in text
-    assert "class Resource(" not in text
+def test_legacy_common_models_facade_is_removed():
+    assert not (ROOT / "core" / "platform" / "common" / "models.py").exists()
+    assert not (ROOT / "core" / "models.py").exists()
 
 
 def test_theme_module_is_facade_only():
@@ -618,6 +608,16 @@ def test_org_service_is_facade_only():
     assert "from core.platform.org.organization_service import OrganizationService" in text
     assert "class EmployeeService" not in text
     assert "class OrganizationService" not in text
+
+
+def test_platform_common_interfaces_are_platform_only():
+    interfaces_path = ROOT / "core" / "platform" / "common" / "interfaces.py"
+    text = interfaces_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "core.modules.project_management" not in text
+    assert "class ProjectRepository" not in text
+    assert "class TaskRepository" not in text
+    assert "class BaselineRepository" not in text
 
 
 def test_project_service_is_orchestrator_only():
@@ -783,7 +783,6 @@ def test_known_large_modules_have_growth_budgets():
         "ui/modules/project_management/resource/flow.py": 80,
         "ui/modules/project_management/resource/models.py": 100,
         "ui/modules/project_management/resource/dialogs.py": 260,
-        "core/platform/common/models.py": 110,
         "core/domain/__init__.py": 70,
         "core/modules/project_management/domain/identifiers.py": 40,
         "core/modules/project_management/domain/enums.py": 90,
@@ -793,6 +792,7 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/domain/cost.py": 90,
         "core/modules/project_management/domain/calendar.py": 120,
         "core/modules/project_management/domain/baseline.py": 90,
+        "core/modules/project_management/interfaces.py": 420,
         "core/modules/project_management/services/dashboard/service.py": 170,
         "core/modules/project_management/services/dashboard/models.py": 120,
         "core/modules/project_management/services/dashboard/alerts.py": 180,

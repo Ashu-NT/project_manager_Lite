@@ -5,7 +5,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from core.platform.common.models import CostType
+from core.modules.project_management.domain.enums import CostType
 from core.modules.project_management.reporting import api as reporting_api
 
 

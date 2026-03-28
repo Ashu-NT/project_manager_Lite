@@ -5,12 +5,9 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 
-from core.platform.common.models import ProjectResource
+from core.modules.project_management.domain.project import ProjectResource
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from core.platform.common.interfaces import (
-    ProjectResourceRepository,
-    ResourceRepository,
-)
+from core.modules.project_management.interfaces import ProjectResourceRepository, ResourceRepository
 from core.platform.notifications.domain_events import domain_events
 from core.platform.access.authorization import require_project_permission
 from core.platform.audit.helpers import record_audit

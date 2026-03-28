@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import Resource
+from core.modules.project_management.domain.resource import Resource
 from infra.platform.db.models import ResourceORM
 
 

@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.common.models import DependencyType
+from core.modules.project_management.domain.enums import DependencyType
 
 
 def test_preview_resource_conflicts_detects_overallocation(services):

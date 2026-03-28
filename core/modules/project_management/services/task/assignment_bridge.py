@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.common.models import ProjectResource, TaskAssignment
+from core.modules.project_management.domain.project import ProjectResource
+from core.modules.project_management.domain.task import TaskAssignment
 
 
 class TaskAssignmentBridgeMixin:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.interfaces import ProjectRepository
+from core.modules.project_management.interfaces import ProjectRepository
 
 
 class ProjectValidationMixin:

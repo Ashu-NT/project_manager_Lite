@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.notifications.domain_events import domain_events
-from core.platform.common.models import Resource
+from core.modules.project_management.domain.resource import Resource
 from core.platform.auth import UserSessionContext
 from core.platform.org import EmployeeService
 from core.modules.project_management.services.resource import ResourceService

@@ -1,6 +1,6 @@
 from datetime import date
 
-from core.platform.common.models import DependencyType
+from core.modules.project_management.domain.enums import DependencyType
 from core.platform.common.exceptions import BusinessRuleError
 
 def test_cpm_forward_backward_basic(services):

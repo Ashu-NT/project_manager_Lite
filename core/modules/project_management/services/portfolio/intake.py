@@ -4,7 +4,10 @@ from datetime import datetime, timezone
 
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.models import PortfolioIntakeItem, PortfolioIntakeStatus
+from core.modules.project_management.domain.portfolio import (
+    PortfolioIntakeItem,
+    PortfolioIntakeStatus,
+)
 from core.platform.auth.authorization import require_permission
 
 

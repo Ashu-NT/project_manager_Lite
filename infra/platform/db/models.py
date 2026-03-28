@@ -20,18 +20,20 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from infra.platform.db.base import Base
-from core.platform.common.models import (
+from core.modules.project_management.domain.enums import (
     CostType,
     DependencyType,
-    EmploymentType,
     ProjectStatus,
+    TaskStatus,
+    WorkerType,
+)
+from core.platform.org.domain import EmploymentType
+from core.modules.project_management.domain.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
-    TaskStatus,
-    TimesheetPeriodStatus,
-    WorkerType,
-) 
+)
+from core.platform.time.domain import TimesheetPeriodStatus
 from infra.platform.db.inventory_models import (
     PurchaseOrderLineORM,
     PurchaseOrderORM,

@@ -9,7 +9,7 @@ from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository, SiteRepository
-from core.platform.common.models import Organization, Site
+from core.platform.org.domain import Organization, Site
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.support import normalize_code, normalize_name
 

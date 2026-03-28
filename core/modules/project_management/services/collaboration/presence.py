@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from core.platform.notifications.domain_events import domain_events
-from core.platform.common.models import TaskPresenceStatusItem
+from core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
 from core.platform.access.authorization import require_project_permission
 from core.platform.auth.authorization import require_permission
 

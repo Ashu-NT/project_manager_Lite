@@ -4,7 +4,12 @@ from sqlalchemy.orm import Session
 
 from core.platform.audit.service import AuditService
 from core.platform.auth.session import UserSessionContext
-from core.platform.common.interfaces import AssignmentRepository, EmployeeRepository, ResourceRepository, TaskRepository
+from core.modules.project_management.interfaces import (
+    AssignmentRepository,
+    ResourceRepository,
+    TaskRepository,
+)
+from core.platform.common.interfaces import EmployeeRepository
 from core.platform.time.entries import TimesheetEntriesMixin
 from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from core.platform.time.periods import TimesheetPeriodsMixin

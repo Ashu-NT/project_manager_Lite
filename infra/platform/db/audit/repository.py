@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.platform.common.interfaces import AuditLogRepository
-from core.platform.common.models import AuditLogEntry
+from core.platform.audit.domain import AuditLogEntry
 from infra.platform.db.audit.mapper import audit_from_orm, audit_to_orm
 from infra.platform.db.models import AuditLogORM
 

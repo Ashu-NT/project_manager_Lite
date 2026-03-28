@@ -5,7 +5,8 @@ The executable service layer is now split between shared platform services and m
 ## Service Style
 
 - orchestrator classes plus focused mixins/helpers where needed
-- explicit repository interfaces from `core/platform/common/interfaces.py`
+- explicit shared repository interfaces from `core/platform/common/interfaces.py`
+- explicit PM repository interfaces from `core/modules/project_management/interfaces.py`
 - transaction control through injected SQLAlchemy sessions
 - typed exceptions for deterministic UI and transport handling
 

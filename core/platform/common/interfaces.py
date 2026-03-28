@@ -1,74 +1,41 @@
-# core/platform/common/interfaces.py
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
-from .models import (
-    CollaborationInboxItem,
-    Project,
-    ProjectMembership,
-    ScopedAccessGrant,
-    Task,
-    TaskComment,
-    TaskPresence,
-    Resource,
-    TaskAssignment,
-    TaskDependency,
-    CostItem,
-    CalendarEvent,
-    WorkingCalendar,
-    Holiday,
-    ProjectBaseline,
-    BaselineTask,
-    ProjectResource,
-    RegisterEntry,
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
-    RegisterEntryType,
-    AuditLogEntry,
-    ApprovalRequest,
+
+from core.platform.access.domain import ProjectMembership, ScopedAccessGrant
+from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from core.platform.audit.domain import AuditLogEntry
+from core.platform.auth.domain import (
     Permission,
-    PortfolioIntakeItem,
-    PortfolioProjectDependency,
-    PortfolioScoringTemplate,
-    PortfolioScenario,
     Role,
     RolePermissionBinding,
-    ApprovalStatus,
     UserAccount,
     UserRoleBinding,
-    Employee,
-    Organization,
-    Site,
-    Department,
 )
+from core.platform.org.domain import Department, Employee, Organization, Site
+from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 
-
-class ProjectRepository(ABC):
-    @abstractmethod
-    def add(self, project: Project) -> None: ...
-    @abstractmethod
-    def update(self, project: Project) -> None: ...
-    @abstractmethod
-    def delete(self, project_id: str) -> None: ...
-    @abstractmethod
-    def get(self, project_id: str) -> Optional[Project]: ...
-    @abstractmethod
-    def list_all(self) -> List[Project]: ...
 
 class ProjectMembershipRepository(ABC):
     @abstractmethod
     def add(self, membership: ProjectMembership) -> None: ...
+
     @abstractmethod
     def update(self, membership: ProjectMembership) -> None: ...
+
     @abstractmethod
     def get(self, membership_id: str) -> Optional[ProjectMembership]: ...
+
     @abstractmethod
     def get_for_project_user(self, project_id: str, user_id: str) -> Optional[ProjectMembership]: ...
+
     @abstractmethod
     def list_by_project(self, project_id: str) -> List[ProjectMembership]: ...
+
     @abstractmethod
     def list_by_user(self, user_id: str) -> List[ProjectMembership]: ...
+
     @abstractmethod
     def delete(self, membership_id: str) -> None: ...
 
@@ -76,10 +43,13 @@ class ProjectMembershipRepository(ABC):
 class ScopedAccessGrantRepository(ABC):
     @abstractmethod
     def add(self, grant: ScopedAccessGrant) -> None: ...
+
     @abstractmethod
     def update(self, grant: ScopedAccessGrant) -> None: ...
+
     @abstractmethod
     def get(self, grant_id: str) -> Optional[ScopedAccessGrant]: ...
+
     @abstractmethod
     def get_for_scope_user(
         self,
@@ -87,8 +57,10 @@ class ScopedAccessGrantRepository(ABC):
         scope_id: str,
         user_id: str,
     ) -> Optional[ScopedAccessGrant]: ...
+
     @abstractmethod
     def list_by_scope(self, scope_type: str, scope_id: str) -> List[ScopedAccessGrant]: ...
+
     @abstractmethod
     def list_by_user(
         self,
@@ -96,229 +68,31 @@ class ScopedAccessGrantRepository(ABC):
         *,
         scope_type: str | None = None,
     ) -> List[ScopedAccessGrant]: ...
+
     @abstractmethod
     def delete(self, grant_id: str) -> None: ...
-
-class ProjectResourceRepository(ABC):
-    @abstractmethod
-    def add(self, pr: ProjectResource) -> None: ...
-    @abstractmethod
-    def get(self, pr_id: str) -> Optional[ProjectResource]: ...
-    @abstractmethod
-    def list_by_project(self, project_id: str) -> List[ProjectResource]: ...
-    @abstractmethod
-    def get_for_project(self, project_id: str, resource_id: str) -> Optional[ProjectResource]: ...
-    @abstractmethod
-    def delete(self, pr_id: str) -> None: ...
-    @abstractmethod
-    def delete_by_resource(self, res_id: str) -> None: ...
-    @abstractmethod
-    def update(self, pr: ProjectResource) -> None: ...
-    
-class TaskRepository(ABC):
-    @abstractmethod
-    def add(self, task: Task) -> None: ...
-    @abstractmethod
-    def update(self, task: Task) -> None: ...
-    @abstractmethod
-    def delete(self, task_id: str) -> None: ...
-    @abstractmethod
-    def get(self, task_id: str) -> Optional[Task]: ...
-    @abstractmethod
-    def list_by_project(self, project_id: str) -> List[Task]: ...
-
-
-class ResourceRepository(ABC):
-    @abstractmethod
-    def add(self, resource: Resource) -> None: ...
-    @abstractmethod
-    def update(self, resource: Resource) -> None: ...
-    @abstractmethod
-    def delete(self, resource_id: str) -> None: ...
-    @abstractmethod
-    def get(self, resource_id: str) -> Optional[Resource]: ...
-    @abstractmethod
-    def list_all(self) -> List[Resource]: ...
-    @abstractmethod
-    def list_by_employee(self, employee_id: str) -> List[Resource]: ...
-
-
-class AssignmentRepository(ABC):
-    @abstractmethod
-    def add(self, assignment: TaskAssignment) -> None: ...
-    @abstractmethod
-    def get(self, assignment_id: str) -> Optional[TaskAssignment]: ...
-    @abstractmethod
-    def list_by_task(self, task_id: str) -> List[TaskAssignment]: ...
-    @abstractmethod
-    def list_by_resource(self, resource_id: str) -> List[TaskAssignment]: ...
-    @abstractmethod
-    def update(self, assignment: TaskAssignment) -> None: ...
-    @abstractmethod
-    def delete(self, assignment_id: str) -> None: ...
-    @abstractmethod
-    def delete_by_task(self, task_id: str) -> None: ...
-    @abstractmethod
-    def list_by_assignment(self, task_id: str) -> List[TaskAssignment]: ...
-    @abstractmethod
-    def list_by_tasks(self, task_ids: List[str]) -> List[TaskAssignment]: ...
-
-
-class TaskCommentRepository(ABC):
-    @abstractmethod
-    def add(self, comment: TaskComment) -> None: ...
-    @abstractmethod
-    def update(self, comment: TaskComment) -> None: ...
-    @abstractmethod
-    def get(self, comment_id: str) -> Optional[TaskComment]: ...
-    @abstractmethod
-    def list_by_task(self, task_id: str) -> List[TaskComment]: ...
-    @abstractmethod
-    def list_recent_for_tasks(self, task_ids: List[str], limit: int = 200) -> List[TaskComment]: ...
-
-
-class TaskPresenceRepository(ABC):
-    @abstractmethod
-    def touch(
-        self,
-        *,
-        task_id: str,
-        user_id: str | None,
-        username: str,
-        display_name: str | None,
-        activity: str,
-    ) -> TaskPresence: ...
-
-    @abstractmethod
-    def clear(self, *, task_id: str, username: str) -> None: ...
-
-    @abstractmethod
-    def list_recent_for_tasks(
-        self,
-        task_ids: List[str],
-        *,
-        since,
-        limit: int = 200,
-    ) -> List[TaskPresence]: ...
-
-
-class DependencyRepository(ABC):
-    @abstractmethod
-    def add(self, dependency: TaskDependency) -> None: ...
-    @abstractmethod
-    def get(self, dependency_id: str) -> Optional[TaskDependency]: ...
-    @abstractmethod
-    def list_by_project(self, project_id: str) -> List[TaskDependency]: ...
-    @abstractmethod
-    def delete(self, dependency_id: str) -> None: ...
-    @abstractmethod
-    def delete_for_task(self, task_id: str) -> None: ...
-    @abstractmethod
-    def list_by_task(self, task_id: str) -> List[TaskDependency]: ...
-    
-
-class CostRepository(ABC):
-    @abstractmethod
-    def add(self, cost_item: CostItem) -> None: ...
-    @abstractmethod
-    def update(self, cost_item: CostItem) -> None: ...
-    @abstractmethod
-    def delete(self, cost_id: str) -> None: ...
-    @abstractmethod
-    def list_by_project(self, project_id: str) -> List[CostItem]: ...
-    @abstractmethod
-    def delete_by_project(self, project_id: str) -> None: ...
-    @abstractmethod
-    def get(self, cost_id: str) -> Optional[CostItem]: ...
-
-class CalendarEventRepository(ABC):
-    @abstractmethod
-    def add(self, event: CalendarEvent) -> None: ...
-    @abstractmethod
-    def update(self, event: CalendarEvent) -> None: ...
-    @abstractmethod
-    def delete(self, event_id: str) -> None: ...
-    @abstractmethod
-    def get(self, event_id: str) -> Optional[CalendarEvent]: ...
-    @abstractmethod
-    def list_for_project(self, project_id: str) -> List[CalendarEvent]: ...
-    @abstractmethod
-    def list_range(self, start_date, end_date) -> List[CalendarEvent]: ...
-    @abstractmethod
-    def delete_for_task(self, task_id: str) -> None: ...
-    @abstractmethod
-    def delete_for_project(self, project_id: str) -> None: ...
-    
-
-class WorkingCalendarRepository(ABC):
-    @abstractmethod
-    def get(self, calendar_id: str) -> Optional[WorkingCalendar]: ...
-    @abstractmethod
-    def get_default(self) -> Optional[WorkingCalendar]: ...
-    @abstractmethod
-    def upsert(self, calendar: WorkingCalendar) -> None: ...
-    @abstractmethod
-    def list_holidays(self, calendar_id: str) -> List[Holiday]: ...
-    @abstractmethod
-    def add_holiday(self, holiday: Holiday) -> None: ...
-    @abstractmethod
-    def delete_holiday(self, holiday_id: str) -> None: ...
-    
-class BaselineRepository(ABC):
-    @abstractmethod
-    def add_baseline(self, b: ProjectBaseline) -> ProjectBaseline: ...
-    @abstractmethod
-    def get_baseline(self, baseline_id: str) -> Optional[ProjectBaseline]: ...
-    @abstractmethod
-    def get_latest_for_project(self, project_id: str) -> Optional[ProjectBaseline]: ...
-    @abstractmethod
-    def list_for_project(self, project_id: str) -> List[ProjectBaseline]: ...
-    @abstractmethod
-    def delete_baseline(self, baseline_id: str) -> None: ...
-
-    @abstractmethod
-    def add_baseline_tasks(self, tasks: List[BaselineTask]) -> None: ...
-    @abstractmethod
-    def list_tasks(self, baseline_id: str) -> List[BaselineTask]: ...
-    @abstractmethod
-    def delete_tasks(self, baseline_id: str) -> None: ...
-
-
-class RegisterEntryRepository(ABC):
-    @abstractmethod
-    def add(self, entry: RegisterEntry) -> None: ...
-    @abstractmethod
-    def update(self, entry: RegisterEntry) -> None: ...
-    @abstractmethod
-    def delete(self, entry_id: str) -> None: ...
-    @abstractmethod
-    def get(self, entry_id: str) -> Optional[RegisterEntry]: ...
-    @abstractmethod
-    def list_entries(
-        self,
-        *,
-        project_id: str | None = None,
-        entry_type: RegisterEntryType | None = None,
-        status: RegisterEntryStatus | None = None,
-        severity: RegisterEntrySeverity | None = None,
-    ) -> List[RegisterEntry]: ...
 
 
 class UserRepository(ABC):
     @abstractmethod
     def add(self, user: UserAccount) -> None: ...
+
     @abstractmethod
     def update(self, user: UserAccount) -> None: ...
+
     @abstractmethod
     def get(self, user_id: str) -> Optional[UserAccount]: ...
+
     @abstractmethod
     def get_by_username(self, username: str) -> Optional[UserAccount]: ...
+
     @abstractmethod
     def get_by_federated_identity(
         self,
         identity_provider: str,
         federated_subject: str,
     ) -> Optional[UserAccount]: ...
+
     @abstractmethod
     def list_all(self) -> List[UserAccount]: ...
 
@@ -326,12 +100,16 @@ class UserRepository(ABC):
 class EmployeeRepository(ABC):
     @abstractmethod
     def add(self, employee: Employee) -> None: ...
+
     @abstractmethod
     def update(self, employee: Employee) -> None: ...
+
     @abstractmethod
     def get(self, employee_id: str) -> Optional[Employee]: ...
+
     @abstractmethod
     def get_by_code(self, employee_code: str) -> Optional[Employee]: ...
+
     @abstractmethod
     def list_all(self, *, active_only: bool | None = None) -> List[Employee]: ...
 
@@ -339,14 +117,19 @@ class EmployeeRepository(ABC):
 class OrganizationRepository(ABC):
     @abstractmethod
     def add(self, organization: Organization) -> None: ...
+
     @abstractmethod
     def update(self, organization: Organization) -> None: ...
+
     @abstractmethod
     def get(self, organization_id: str) -> Optional[Organization]: ...
+
     @abstractmethod
     def get_by_code(self, organization_code: str) -> Optional[Organization]: ...
+
     @abstractmethod
     def get_active(self) -> Optional[Organization]: ...
+
     @abstractmethod
     def list_all(self, *, active_only: bool | None = None) -> List[Organization]: ...
 
@@ -354,12 +137,16 @@ class OrganizationRepository(ABC):
 class SiteRepository(ABC):
     @abstractmethod
     def add(self, site: Site) -> None: ...
+
     @abstractmethod
     def update(self, site: Site) -> None: ...
+
     @abstractmethod
     def get(self, site_id: str) -> Optional[Site]: ...
+
     @abstractmethod
     def get_by_code(self, organization_id: str, site_code: str) -> Optional[Site]: ...
+
     @abstractmethod
     def list_for_organization(
         self,
@@ -372,12 +159,16 @@ class SiteRepository(ABC):
 class DepartmentRepository(ABC):
     @abstractmethod
     def add(self, department: Department) -> None: ...
+
     @abstractmethod
     def update(self, department: Department) -> None: ...
+
     @abstractmethod
     def get(self, department_id: str) -> Optional[Department]: ...
+
     @abstractmethod
     def get_by_code(self, organization_id: str, department_code: str) -> Optional[Department]: ...
+
     @abstractmethod
     def list_for_organization(
         self,
@@ -390,10 +181,13 @@ class DepartmentRepository(ABC):
 class RoleRepository(ABC):
     @abstractmethod
     def add(self, role: Role) -> None: ...
+
     @abstractmethod
     def get(self, role_id: str) -> Optional[Role]: ...
+
     @abstractmethod
     def get_by_name(self, name: str) -> Optional[Role]: ...
+
     @abstractmethod
     def list_all(self) -> List[Role]: ...
 
@@ -401,10 +195,13 @@ class RoleRepository(ABC):
 class PermissionRepository(ABC):
     @abstractmethod
     def add(self, permission: Permission) -> None: ...
+
     @abstractmethod
     def get(self, permission_id: str) -> Optional[Permission]: ...
+
     @abstractmethod
     def get_by_code(self, code: str) -> Optional[Permission]: ...
+
     @abstractmethod
     def list_all(self) -> List[Permission]: ...
 
@@ -412,10 +209,13 @@ class PermissionRepository(ABC):
 class UserRoleRepository(ABC):
     @abstractmethod
     def add(self, binding: UserRoleBinding) -> None: ...
+
     @abstractmethod
     def delete(self, user_id: str, role_id: str) -> None: ...
+
     @abstractmethod
     def exists(self, user_id: str, role_id: str) -> bool: ...
+
     @abstractmethod
     def list_role_ids(self, user_id: str) -> List[str]: ...
 
@@ -423,10 +223,13 @@ class UserRoleRepository(ABC):
 class RolePermissionRepository(ABC):
     @abstractmethod
     def add(self, binding: RolePermissionBinding) -> None: ...
+
     @abstractmethod
     def delete(self, role_id: str, permission_id: str) -> None: ...
+
     @abstractmethod
     def exists(self, role_id: str, permission_id: str) -> bool: ...
+
     @abstractmethod
     def list_permission_ids(self, role_id: str) -> List[str]: ...
 
@@ -434,6 +237,7 @@ class RolePermissionRepository(ABC):
 class AuditLogRepository(ABC):
     @abstractmethod
     def add(self, entry: AuditLogEntry) -> None: ...
+
     @abstractmethod
     def list_recent(
         self,
@@ -447,10 +251,13 @@ class AuditLogRepository(ABC):
 class ApprovalRepository(ABC):
     @abstractmethod
     def add(self, request: ApprovalRequest) -> None: ...
+
     @abstractmethod
     def update(self, request: ApprovalRequest) -> None: ...
+
     @abstractmethod
     def get(self, request_id: str) -> Optional[ApprovalRequest]: ...
+
     @abstractmethod
     def list_by_status(
         self,
@@ -461,49 +268,20 @@ class ApprovalRepository(ABC):
     ) -> List[ApprovalRequest]: ...
 
 
-class PortfolioIntakeRepository(ABC):
-    @abstractmethod
-    def add(self, item: PortfolioIntakeItem) -> None: ...
-    @abstractmethod
-    def update(self, item: PortfolioIntakeItem) -> None: ...
-    @abstractmethod
-    def get(self, item_id: str) -> Optional[PortfolioIntakeItem]: ...
-    @abstractmethod
-    def list_all(self) -> List[PortfolioIntakeItem]: ...
-    @abstractmethod
-    def delete(self, item_id: str) -> None: ...
-
-
-class PortfolioScenarioRepository(ABC):
-    @abstractmethod
-    def add(self, scenario: PortfolioScenario) -> None: ...
-    @abstractmethod
-    def update(self, scenario: PortfolioScenario) -> None: ...
-    @abstractmethod
-    def get(self, scenario_id: str) -> Optional[PortfolioScenario]: ...
-    @abstractmethod
-    def list_all(self) -> List[PortfolioScenario]: ...
-    @abstractmethod
-    def delete(self, scenario_id: str) -> None: ...
-
-
-class PortfolioProjectDependencyRepository(ABC):
-    @abstractmethod
-    def add(self, dependency: PortfolioProjectDependency) -> None: ...
-    @abstractmethod
-    def get(self, dependency_id: str) -> Optional[PortfolioProjectDependency]: ...
-    @abstractmethod
-    def list_all(self) -> List[PortfolioProjectDependency]: ...
-    @abstractmethod
-    def delete(self, dependency_id: str) -> None: ...
-
-
-class PortfolioScoringTemplateRepository(ABC):
-    @abstractmethod
-    def add(self, template: PortfolioScoringTemplate) -> None: ...
-    @abstractmethod
-    def update(self, template: PortfolioScoringTemplate) -> None: ...
-    @abstractmethod
-    def get(self, template_id: str) -> Optional[PortfolioScoringTemplate]: ...
-    @abstractmethod
-    def list_all(self) -> List[PortfolioScoringTemplate]: ...
+__all__ = [
+    "ApprovalRepository",
+    "AuditLogRepository",
+    "DepartmentRepository",
+    "EmployeeRepository",
+    "OrganizationRepository",
+    "PermissionRepository",
+    "ProjectMembershipRepository",
+    "RolePermissionRepository",
+    "RoleRepository",
+    "ScopedAccessGrantRepository",
+    "SiteRepository",
+    "TimeEntryRepository",
+    "TimesheetPeriodRepository",
+    "UserRepository",
+    "UserRoleRepository",
+]

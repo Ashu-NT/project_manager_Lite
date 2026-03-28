@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.common.interfaces import BaselineRepository, TaskRepository
-from core.platform.common.models import BaselineTask, ProjectBaseline
+from core.modules.project_management.interfaces import BaselineRepository, TaskRepository
+from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
 from core.modules.project_management.services.reporting.models import BaselineComparisonResult, BaselineComparisonRow
 
 

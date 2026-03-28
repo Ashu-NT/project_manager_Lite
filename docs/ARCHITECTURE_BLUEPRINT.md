@@ -48,8 +48,9 @@ The biggest remaining maintainability hotspots are:
 3. `infra/platform/db/mappers.py`
    Mapping logic is still broader than ideal and should continue to split by
    aggregate.
-4. `core/platform/common/models.py`
-   Shared model density remains high and should be watched for further growth.
+4. `infra/platform/db/repositories.py`
+   The remaining top-level repository facade still aggregates many focused
+   repository exports.
 
 ## Next Structural Refactors
 

@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 from application.platform import PlatformRuntimeApplicationService
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.models import Organization
+from core.platform.org.domain import Organization
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org import OrganizationService
 from ui.modules.project_management.dashboard.styles import (

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from core.platform.common.models import Task
+from core.modules.project_management.domain.task import Task
 
 
 @dataclass

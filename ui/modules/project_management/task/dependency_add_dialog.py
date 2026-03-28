@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QVBoxLayout,
 )
-
-from core.platform.common.models import DependencyType, Task
+from core.modules.project_management.domain.enums import DependencyType
+from core.modules.project_management.domain.task import Task
 from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.task.dependency_diagnostics import DependencyImpactRow
 from ui.platform.shared.styles.style_utils import style_table

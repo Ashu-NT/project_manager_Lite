@@ -24,7 +24,7 @@ from core.modules.inventory_procurement.support import (
 )
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.models import Organization
+from core.platform.org.domain import Organization
 
 
 def build_purchase_order_number() -> str:

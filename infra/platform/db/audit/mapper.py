@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from core.platform.common.models import AuditLogEntry
+from core.platform.audit.domain import AuditLogEntry
 from infra.platform.db.models import AuditLogORM
 
 

@@ -4,7 +4,7 @@ from datetime import date
 
 from PySide6.QtWidgets import QSizePolicy
 
-from core.platform.common.models import CostType
+from core.modules.project_management.domain.enums import CostType
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.project.tab import ProjectTab
 from ui.modules.project_management.resource.tab import ResourceTab

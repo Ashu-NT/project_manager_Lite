@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from core.platform.common.models import CostType, DependencyType
+from core.modules.project_management.domain.enums import CostType, DependencyType
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,8 @@ from datetime import date
 from typing import Callable, Dict, List, Optional
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.models import DependencyType, Task, TaskDependency
+from core.modules.project_management.domain.enums import DependencyType
+from core.modules.project_management.domain.task import Task, TaskDependency
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date
 from typing import List, Optional
 
-from core.platform.common.interfaces import BaselineRepository, ProjectRepository
-from core.platform.common.models import CostType
+from core.modules.project_management.interfaces import BaselineRepository, ProjectRepository
+from core.modules.project_management.domain.enums import CostType
 from core.modules.project_management.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.modules.project_management.services.reporting.models import CostBreakdownRow
 

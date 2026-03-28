@@ -5,13 +5,13 @@ from datetime import date
 from typing import Dict, Tuple
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.interfaces import (
+from core.modules.project_management.interfaces import (
     CostRepository,
     ProjectRepository,
     ProjectResourceRepository,
     ResourceRepository,
 )
-from core.platform.common.models import CostType
+from core.modules.project_management.domain.enums import CostType
 from core.modules.project_management.services.reporting.models import CostSourceBreakdown, CostSourceRow
 
 CostBucketKey = Tuple[CostType, str]

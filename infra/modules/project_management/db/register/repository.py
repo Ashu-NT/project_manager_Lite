@@ -3,8 +3,13 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import RegisterEntryRepository
-from core.platform.common.models import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
+from core.modules.project_management.interfaces import RegisterEntryRepository
+from core.modules.project_management.domain.register import (
+    RegisterEntry,
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
+)
 from infra.platform.db.models import RegisterEntryORM
 from infra.platform.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.register.mapper import register_entry_from_orm, register_entry_to_orm

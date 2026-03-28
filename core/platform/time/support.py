@@ -5,8 +5,13 @@ from datetime import date
 from typing import Protocol
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.common.interfaces import AssignmentRepository, EmployeeRepository, ResourceRepository, TaskRepository
-from core.platform.common.models import TaskAssignment
+from core.modules.project_management.interfaces import (
+    AssignmentRepository,
+    ResourceRepository,
+    TaskRepository,
+)
+from core.platform.common.interfaces import EmployeeRepository
+from core.modules.project_management.domain.task import TaskAssignment
 from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 

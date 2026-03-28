@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QComboBox, QLineEdit
 
-from core.platform.common.models import CostType
+from core.modules.project_management.domain.enums import CostType
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

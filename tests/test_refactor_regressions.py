@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.models import DependencyType
+from core.modules.project_management.domain.enums import DependencyType
 from infra.platform.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
 from ui.platform.shared.styles.theme import base_stylesheet
 from ui.platform.shared.styles.theme import set_theme_mode

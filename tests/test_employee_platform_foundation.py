@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import WorkerType
+from core.modules.project_management.domain.enums import WorkerType
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from ui.platform.shell.main_window import MainWindow
 

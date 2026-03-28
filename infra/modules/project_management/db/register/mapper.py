@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import RegisterEntry
+from core.modules.project_management.domain.register import RegisterEntry
 from infra.platform.db.models import RegisterEntryORM
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from core.platform.common.models import WorkerType
+from core.modules.project_management.domain.enums import WorkerType
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.resource.dialogs import ResourceEditDialog

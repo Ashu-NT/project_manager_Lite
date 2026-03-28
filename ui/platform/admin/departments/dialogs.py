@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.common.models import Department, Site
+from core.platform.org.domain import Department, Site
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

@@ -22,7 +22,8 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.common.models import TaskAssignment, TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from core.modules.project_management.domain.task import TaskAssignment
+from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from core.platform.auth import UserSessionContext
 from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService

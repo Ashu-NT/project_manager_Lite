@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from core.platform.common.models import ProjectMembership, ScopedAccessGrant
+from core.platform.access.domain import ProjectMembership, ScopedAccessGrant
 from infra.platform.db.models import ProjectMembershipORM, ScopedAccessGrantORM
 
 

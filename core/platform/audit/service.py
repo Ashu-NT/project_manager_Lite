@@ -5,7 +5,7 @@ from typing import Any, List
 from sqlalchemy.orm import Session
 
 from core.platform.common.interfaces import AuditLogRepository
-from core.platform.common.models import AuditLogEntry
+from core.platform.audit.domain import AuditLogEntry
 from core.platform.auth.authorization import require_permission
 from core.platform.auth.session import UserSessionContext
 

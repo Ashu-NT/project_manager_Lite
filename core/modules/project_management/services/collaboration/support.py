@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.models import CollaborationMentionCandidate, TaskComment
+from core.modules.project_management.domain.collaboration import (
+    CollaborationMentionCandidate,
+    TaskComment,
+)
 
 
 class CollaborationSupportMixin:

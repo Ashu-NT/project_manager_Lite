@@ -6,12 +6,13 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import (
+from core.modules.project_management.interfaces import (
     CalendarEventRepository,
     CostRepository,
     WorkingCalendarRepository,
 )
-from core.platform.common.models import CalendarEvent, CostItem, Holiday, WorkingCalendar
+from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
+from core.modules.project_management.domain.cost import CostItem
 from infra.modules.project_management.db.cost_calendar.mapper import (
     calendar_from_orm,
     cost_from_orm,

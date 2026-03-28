@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from datetime import date
 
-from core.platform.common.interfaces import CostRepository, ProjectResourceRepository, ResourceRepository
-from core.platform.common.models import CostType, Project
+from core.modules.project_management.interfaces import (
+    CostRepository,
+    ProjectResourceRepository,
+    ResourceRepository,
+)
+from core.modules.project_management.domain.enums import CostType
+from core.modules.project_management.domain.project import Project
 from core.modules.project_management.services.finance.helpers import normalize_currency, resolve_rate
 from core.modules.project_management.services.finance.models import FinanceLedgerRow
 from core.modules.project_management.services.reporting import ReportingService

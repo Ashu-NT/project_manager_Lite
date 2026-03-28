@@ -11,11 +11,11 @@ from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.interfaces import (
     ProjectMembershipRepository,
-    ProjectRepository,
     ScopedAccessGrantRepository,
     UserRepository,
 )
-from core.platform.common.models import ProjectMembership
+from core.modules.project_management.interfaces import ProjectRepository
+from core.platform.access.domain import ProjectMembership
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 

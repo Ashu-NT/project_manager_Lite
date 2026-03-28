@@ -5,8 +5,8 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import ResourceRepository
-from core.platform.common.models import Resource
+from core.modules.project_management.interfaces import ResourceRepository
+from core.modules.project_management.domain.resource import Resource
 from infra.platform.db.models import ResourceORM
 from infra.platform.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.resource.mapper import resource_from_orm, resource_to_orm

@@ -7,7 +7,7 @@ import pytest
 from PySide6.QtWidgets import QDialog
 
 from core.platform.common.exceptions import ConcurrencyError
-from core.platform.common.models import TaskStatus
+from core.modules.project_management.domain.enums import TaskStatus
 from ui.modules.project_management.cost.actions import CostActionsMixin
 from ui.modules.project_management.project.actions import ProjectActionsMixin
 from ui.modules.project_management.resource.actions import ResourceActionsMixin

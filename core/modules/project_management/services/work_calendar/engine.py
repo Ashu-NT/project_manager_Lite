@@ -1,8 +1,8 @@
 # core/modules/project_management/services/work_calendar/engine.py
 from datetime import date, timedelta
 from typing import Set
-from core.platform.common.interfaces import WorkingCalendarRepository
-from core.platform.common.models import WorkingCalendar
+from core.modules.project_management.interfaces import WorkingCalendarRepository
+from core.modules.project_management.domain.calendar import WorkingCalendar
 
 
 class WorkCalendarEngine:

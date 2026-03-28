@@ -9,7 +9,7 @@ from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository
-from core.platform.common.models import Organization
+from core.platform.org.domain import Organization
 from core.platform.documents.domain import (
     Document,
     DocumentClassification,

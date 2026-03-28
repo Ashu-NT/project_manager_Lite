@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from core.platform.common.models import (
+from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioProjectDependency,

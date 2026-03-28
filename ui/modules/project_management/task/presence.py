@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from core.platform.common.models import TaskPresenceStatusItem
+from core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
 from core.modules.project_management.services.collaboration import CollaborationService
 
 

@@ -8,7 +8,7 @@ from core.platform.common.interfaces import (
     UserRepository,
     UserRoleRepository,
 )
-from core.platform.common.models import Role, UserAccount
+from core.platform.auth.domain import Role, UserAccount
 
 
 class AuthQueryMixin:

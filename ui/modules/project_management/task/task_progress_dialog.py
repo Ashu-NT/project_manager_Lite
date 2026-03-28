@@ -17,7 +17,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.common.models import Task, TaskStatus
+from core.modules.project_management.domain.task import Task
+from core.modules.project_management.domain.enums import TaskStatus
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

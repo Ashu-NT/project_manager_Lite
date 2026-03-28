@@ -10,7 +10,9 @@ from core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from core.platform.common.models import CostItem, Project, Task
+from core.modules.project_management.domain.cost import CostItem
+from core.modules.project_management.domain.project import Project
+from core.modules.project_management.domain.task import Task
 from core.modules.project_management.services.cost import CostService
 from ui.modules.project_management.cost.cost_dialogs import CostEditDialog
 from ui.modules.project_management.cost.error_handling import show_cost_business_rule

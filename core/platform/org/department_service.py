@@ -14,7 +14,7 @@ from core.platform.common.interfaces import (
     OrganizationRepository,
     SiteRepository,
 )
-from core.platform.common.models import Department, Organization
+from core.platform.org.domain import Department, Organization
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.support import normalize_code, normalize_name
 

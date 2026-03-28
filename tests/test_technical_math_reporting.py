@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from core.platform.common.models import CostType, DependencyType, TaskStatus
+from core.modules.project_management.domain.enums import CostType, DependencyType, TaskStatus
 
 
 def _bar_map(bars):

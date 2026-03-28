@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.models import (
+from core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     CollaborationWorkspaceSnapshot,
 )
