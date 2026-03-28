@@ -146,3 +146,23 @@ def test_shell_workspace_builders_are_split_by_module_packages():
     assert "build_project_management_workspace_definitions" in coordinator
     assert "build_inventory_procurement_workspace_definitions" in coordinator
     assert "build_platform_administration_workspace_definitions" in coordinator
+
+
+def test_inventory_procurement_procurement_tabs_are_split_by_subpackages():
+    root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "inventory_procurement" / "procurement"
+
+    assert (root / "purchase_orders" / "__init__.py").exists()
+    assert (root / "purchase_orders" / "surface.py").exists()
+    assert (root / "purchase_orders" / "actions.py").exists()
+    assert (root / "purchase_orders" / "views.py").exists()
+    assert (root / "purchase_orders" / "tab.py").exists()
+    assert (root / "requisitions" / "__init__.py").exists()
+    assert (root / "requisitions" / "surface.py").exists()
+    assert (root / "requisitions" / "actions.py").exists()
+    assert (root / "requisitions" / "views.py").exists()
+    assert (root / "requisitions" / "tab.py").exists()
+
+    purchase_orders_shim = (root / "purchase_orders_tab.py").read_text(encoding="utf-8", errors="ignore")
+    requisitions_shim = (root / "requisitions_tab.py").read_text(encoding="utf-8", errors="ignore")
+    assert "procurement.purchase_orders import PurchaseOrdersTab" in purchase_orders_shim
+    assert "procurement.requisitions import RequisitionsTab" in requisitions_shim

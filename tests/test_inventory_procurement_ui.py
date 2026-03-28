@@ -845,10 +845,10 @@ def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():
     inventory_ui = root / "ui" / "modules" / "inventory_procurement"
     texts = [
         (inventory_ui / "item_master" / "items_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "procurement" / "purchase_orders_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "procurement" / "purchase_orders" / "actions.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "procurement" / "receiving_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "reservation" / "reservations_tab.py").read_text(encoding="utf-8", errors="ignore"),
-        (inventory_ui / "procurement" / "requisitions_tab.py").read_text(encoding="utf-8", errors="ignore"),
+        (inventory_ui / "procurement" / "requisitions" / "actions.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "inventory" / "storerooms_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "stock_control" / "movements_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "stock_control" / "stock_tab.py").read_text(encoding="utf-8", errors="ignore"),
