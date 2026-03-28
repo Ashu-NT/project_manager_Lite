@@ -33,9 +33,14 @@ from ui.modules.project_management.dashboard.styles import (
 from ui.platform.admin.documents.dialogs import DocumentEditDialog, DocumentLinkEditDialog
 from ui.platform.admin.documents.preview import build_document_preview_state
 from ui.platform.admin.shared_header import build_admin_header
+from ui.platform.admin.shared_surface import (
+    ToolbarButtonSpec,
+    build_admin_surface_card,
+    build_admin_table,
+    build_admin_toolbar_surface,
+)
 from ui.platform.admin.documents.viewer_dialogs import DocumentLinksDialog, DocumentPreviewDialog
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -80,51 +85,20 @@ class DocumentAdminTab(QWidget):
             ),
         )
 
-        controls = self._make_card("documentAdminControlSurface", alt=True)
-        controls_layout = QVBoxLayout(controls)
-        toolbar = QHBoxLayout()
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_new_document = QPushButton("New Document")
-        self.btn_edit_document = QPushButton("Edit Document")
-        self.btn_toggle_active = QPushButton("Toggle Active")
-        self.btn_add_link = QPushButton("Add Link")
-        self.btn_remove_link = QPushButton("Remove Link")
-        for button in (
-            self.btn_refresh,
-            self.btn_new_document,
-            self.btn_edit_document,
-            self.btn_toggle_active,
-            self.btn_add_link,
-            self.btn_remove_link,
-        ):
-            button.setFixedHeight(CFG.BUTTON_HEIGHT)
-        self.btn_new_document.setStyleSheet(dashboard_action_button_style("primary"))
-        for button in (
-            self.btn_refresh,
-            self.btn_edit_document,
-            self.btn_toggle_active,
-            self.btn_add_link,
-            self.btn_remove_link,
-        ):
-            button.setStyleSheet(dashboard_action_button_style("secondary"))
-        for button in (
-            self.btn_new_document,
-            self.btn_edit_document,
-            self.btn_toggle_active,
-            self.btn_add_link,
-            self.btn_remove_link,
-        ):
-            toolbar.addWidget(button)
-        toolbar.addStretch(1)
-        toolbar.addWidget(self.btn_refresh)
-        controls_layout.addLayout(toolbar)
-        helper = QLabel(
-            "Platform documents stay shared. Modules link them to tasks, equipment, systems, inspections, employees, and reports without duplicating metadata."
+        build_admin_toolbar_surface(
+            self,
+            root,
+            object_name="documentAdminControlSurface",
+            button_specs=(
+                ToolbarButtonSpec("btn_new_document", "New Document", "primary"),
+                ToolbarButtonSpec("btn_edit_document", "Edit Document"),
+                ToolbarButtonSpec("btn_toggle_active", "Toggle Active"),
+                ToolbarButtonSpec("btn_add_link", "Add Link"),
+                ToolbarButtonSpec("btn_remove_link", "Remove Link"),
+                ToolbarButtonSpec("btn_refresh", CFG.REFRESH_BUTTON_LABEL),
+            ),
+            helper_text="Platform documents stay shared. Modules link them to tasks, equipment, systems, inspections, employees, and reports without duplicating metadata.",
         )
-        helper.setWordWrap(True)
-        helper.setStyleSheet(CFG.NOTE_STYLE_SHEET)
-        controls_layout.addWidget(helper)
-        root.addWidget(controls)
 
         self._build_content(root)
 
@@ -169,8 +143,7 @@ class DocumentAdminTab(QWidget):
         self._sync_actions()
 
     def _build_library_panel(self) -> QWidget:
-        panel = self._make_card("documentLibraryPanel", alt=False)
-        layout = QVBoxLayout(panel)
+        panel, layout = build_admin_surface_card(object_name="documentLibraryPanel", alt=False)
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search by code, title, file, source, or notes...")
         self.search_edit.setFixedHeight(CFG.INPUT_HEIGHT)
@@ -193,19 +166,17 @@ class DocumentAdminTab(QWidget):
         self.filter_summary_label.setStyleSheet(CFG.NOTE_STYLE_SHEET)
         self.filter_summary_label.setWordWrap(True)
         layout.addWidget(self.filter_summary_label)
-        self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["Code", "Title", "Type", "File", "Revision", "Active"])
-        style_table(self.table)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        self.table = build_admin_table(
+            headers=("Code", "Title", "Type", "File", "Revision", "Active"),
+            resize_modes=(
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+            ),
+        )
         layout.addWidget(self.table, 1)
         return panel
 

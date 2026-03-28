@@ -19,13 +19,10 @@ from core.platform.org.domain import Employee
 from core.platform.notifications.domain_events import domain_events
 from core.platform.auth import UserSessionContext
 from core.platform.org import DepartmentService, EmployeeService, SiteService
-from ui.modules.project_management.dashboard.styles import (
-    dashboard_action_button_style,
-)
 from ui.platform.admin.employees.dialogs import EmployeeEditDialog
 from ui.platform.admin.shared_header import build_admin_header
+from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -79,71 +76,33 @@ class EmployeeAdminTab(QWidget):
             ),
         )
 
-        controls = QWidget()
-        controls.setObjectName("employeeAdminControlSurface")
-        controls.setStyleSheet(
-            f"""
-            QWidget#employeeAdminControlSurface {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
+        build_admin_toolbar_surface(
+            self,
+            layout,
+            object_name="employeeAdminControlSurface",
+            button_specs=(
+                ToolbarButtonSpec("btn_new_employee", "New Employee", "primary"),
+                ToolbarButtonSpec("btn_edit_employee", "Edit Employee"),
+                ToolbarButtonSpec("btn_toggle_active", "Toggle Active"),
+                ToolbarButtonSpec("btn_open_sites", "Open Sites"),
+                ToolbarButtonSpec("btn_open_departments", "Open Departments"),
+                ToolbarButtonSpec("btn_refresh", CFG.REFRESH_BUTTON_LABEL),
+            ),
         )
-        controls_layout = QVBoxLayout(controls)
-        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        controls_layout.setSpacing(CFG.SPACING_SM)
 
-        toolbar = QHBoxLayout()
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_new_employee = QPushButton("New Employee")
-        self.btn_edit_employee = QPushButton("Edit Employee")
-        self.btn_toggle_active = QPushButton("Toggle Active")
-        self.btn_open_sites = QPushButton("Open Sites")
-        self.btn_open_departments = QPushButton("Open Departments")
-        for btn in (
-            self.btn_refresh,
-            self.btn_new_employee,
-            self.btn_edit_employee,
-            self.btn_toggle_active,
-            self.btn_open_sites,
-            self.btn_open_departments,
-        ):
-            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        self.btn_new_employee.setStyleSheet(dashboard_action_button_style("primary"))
-        self.btn_edit_employee.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_toggle_active.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_open_sites.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_open_departments.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
-        toolbar.addWidget(self.btn_new_employee)
-        toolbar.addWidget(self.btn_edit_employee)
-        toolbar.addWidget(self.btn_toggle_active)
-        toolbar.addWidget(self.btn_open_sites)
-        toolbar.addWidget(self.btn_open_departments)
-        toolbar.addStretch()
-        toolbar.addWidget(self.btn_refresh)
-        controls_layout.addLayout(toolbar)
-        layout.addWidget(controls)
-
-        self.table = QTableWidget(0, 8)
-        self.table.setHorizontalHeaderLabels(
-            ["Code", "Full Name", "Department", "Site", "Title", "Type", "Contact", "Active"]
+        self.table = build_admin_table(
+            headers=("Code", "Full Name", "Department", "Site", "Title", "Type", "Contact", "Active"),
+            resize_modes=(
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+                QHeaderView.ResizeToContents,
+            ),
         )
-        style_table(self.table)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        header_widget = self.table.horizontalHeader()
-        header_widget.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(1, QHeaderView.Stretch)
-        header_widget.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(5, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(6, QHeaderView.Stretch)
-        header_widget.setSectionResizeMode(7, QHeaderView.ResizeToContents)
         layout.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Employees", callback=self.reload_employees))

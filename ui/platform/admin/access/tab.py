@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QMessageBox,
     QPushButton,
@@ -26,8 +27,8 @@ from ui.modules.project_management.dashboard.styles import (
     dashboard_meta_chip_style,
 )
 from ui.platform.admin.shared_header import build_admin_header
+from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
 from ui.platform.shared.guards import apply_permission_hint, has_permission
-from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -124,20 +125,7 @@ class AccessTab(QWidget):
             ),
         )
 
-        controls_box = QWidget(self)
-        controls_box.setObjectName("accessAdminControlSurface")
-        controls_box.setStyleSheet(
-            f"""
-            QWidget#accessAdminControlSurface {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
-        )
-        controls_layout = QVBoxLayout(controls_box)
-        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        controls_layout.setSpacing(CFG.SPACING_SM)
+        controls_box, controls_layout = build_admin_surface_card(object_name="accessAdminControlSurface", alt=True)
 
         controls_title = QLabel("Grant Scoped Access")
         controls_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
@@ -191,30 +179,18 @@ class AccessTab(QWidget):
         self.membership_hint.setWordWrap(True)
         controls_layout.addWidget(self.membership_hint)
 
-        self.membership_table = QTableWidget(0, 3)
-        self.membership_table.setHorizontalHeaderLabels(["User", "Scope Role", "Permissions"])
-        self.membership_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.membership_table.setSelectionMode(QTableWidget.SingleSelection)
-        self.membership_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.membership_table.horizontalHeader().setStretchLastSection(True)
-        style_table(self.membership_table)
+        self.membership_table = build_admin_table(
+            headers=("User", "Scope Role", "Permissions"),
+            resize_modes=(
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+            ),
+        )
         self.membership_table.setEnabled(self._can_manage_memberships)
         controls_layout.addWidget(self.membership_table)
 
-        security_box = QWidget(self)
-        security_box.setObjectName("accessAdminSecuritySurface")
-        security_box.setStyleSheet(
-            f"""
-            QWidget#accessAdminSecuritySurface {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
-        )
-        security_layout = QVBoxLayout(security_box)
-        security_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        security_layout.setSpacing(CFG.SPACING_SM)
+        security_box, security_layout = build_admin_surface_card(object_name="accessAdminSecuritySurface", alt=True)
 
         security_title = QLabel("Session And Lockout Controls")
         security_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
@@ -242,25 +218,23 @@ class AccessTab(QWidget):
         security_actions.addWidget(self.btn_unlock)
         security_layout.addLayout(security_actions)
 
-        self.security_table = QTableWidget(0, 5)
-        self.security_table.setHorizontalHeaderLabels(
-            ["User", "Active", "Failed Attempts", "Locked Until", "Session Expires"]
+        self.security_table = build_admin_table(
+            headers=("User", "Active", "Failed Attempts", "Locked Until", "Session Expires"),
+            resize_modes=(
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+            ),
         )
-        self.security_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.security_table.setSelectionMode(QTableWidget.SingleSelection)
-        self.security_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.security_table.horizontalHeader().setStretchLastSection(True)
-        style_table(self.security_table)
         self.security_table.setEnabled(self._can_view_user_security)
         security_layout.addWidget(self.security_table)
 
         controls_box.setVisible(self._show_access_tab)
         security_box.setVisible(self._show_security_tab)
-
-        if self._show_access_tab:
-            root.addWidget(controls_box, 3 if self._show_security_tab else 1)
-        if self._show_security_tab:
-            root.addWidget(security_box, 2 if self._show_access_tab else 1)
+        root.addWidget(controls_box, 3)
+        root.addWidget(security_box, 2)
 
         self.scope_type_combo.currentIndexChanged.connect(self._on_scope_type_changed)
         self.scope_combo.currentIndexChanged.connect(self._reload_memberships)

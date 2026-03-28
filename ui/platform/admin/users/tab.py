@@ -19,10 +19,9 @@ from core.platform.common.exceptions import BusinessRuleError, NotFoundError, Va
 from core.platform.auth.domain import UserAccount
 from core.platform.auth import AuthService, UserSessionContext
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserCreateDialog, UserEditDialog
-from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.platform.admin.shared_header import build_admin_header
+from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -62,70 +61,31 @@ class UserAdminTab(QWidget):
             ),
         )
 
-        controls = QWidget()
-        controls.setObjectName("userAdminControlSurface")
-        controls.setStyleSheet(
-            f"""
-            QWidget#userAdminControlSurface {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
+        build_admin_toolbar_surface(
+            self,
+            layout,
+            object_name="userAdminControlSurface",
+            button_specs=(
+                ToolbarButtonSpec("btn_new_user", "New User", "primary"),
+                ToolbarButtonSpec("btn_edit_user", "Edit User"),
+                ToolbarButtonSpec("btn_assign_role", "Assign Role"),
+                ToolbarButtonSpec("btn_revoke_role", "Revoke Role"),
+                ToolbarButtonSpec("btn_reset_password", "Reset Password"),
+                ToolbarButtonSpec("btn_toggle_active", "Toggle Active"),
+                ToolbarButtonSpec("btn_refresh", CFG.REFRESH_BUTTON_LABEL),
+            ),
         )
-        controls_layout = QVBoxLayout(controls)
-        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        controls_layout.setSpacing(CFG.SPACING_SM)
 
-        toolbar = QHBoxLayout()
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_new_user = QPushButton("New User")
-        self.btn_edit_user = QPushButton("Edit User")
-        self.btn_assign_role = QPushButton("Assign Role")
-        self.btn_revoke_role = QPushButton("Revoke Role")
-        self.btn_reset_password = QPushButton("Reset Password")
-        self.btn_toggle_active = QPushButton("Toggle Active")
-        for btn in (
-            self.btn_refresh,
-            self.btn_new_user,
-            self.btn_edit_user,
-            self.btn_assign_role,
-            self.btn_revoke_role,
-            self.btn_reset_password,
-            self.btn_toggle_active,
-        ):
-            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        self.btn_new_user.setStyleSheet(dashboard_action_button_style("primary"))
-        self.btn_edit_user.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_assign_role.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_revoke_role.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_reset_password.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_toggle_active.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
-        toolbar.addWidget(self.btn_new_user)
-        toolbar.addWidget(self.btn_edit_user)
-        toolbar.addWidget(self.btn_assign_role)
-        toolbar.addWidget(self.btn_revoke_role)
-        toolbar.addWidget(self.btn_reset_password)
-        toolbar.addWidget(self.btn_toggle_active)
-        toolbar.addStretch()
-        toolbar.addWidget(self.btn_refresh)
-        controls_layout.addLayout(toolbar)
-        layout.addWidget(controls)
-
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Username", "Display Name", "Email", "Active", "Roles"])
-        style_table(self.table)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.Stretch)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.Stretch)
+        self.table = build_admin_table(
+            headers=("Username", "Display Name", "Email", "Active", "Roles"),
+            resize_modes=(
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+                QHeaderView.Stretch,
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+            ),
+        )
         layout.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(

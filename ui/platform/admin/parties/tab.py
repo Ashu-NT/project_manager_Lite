@@ -18,13 +18,10 @@ from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
 from core.platform.party import Party, PartyService
-from ui.modules.project_management.dashboard.styles import (
-    dashboard_action_button_style,
-)
 from ui.platform.admin.parties.dialogs import PartyEditDialog
 from ui.platform.admin.shared_header import build_admin_header
+from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -66,53 +63,28 @@ class PartyAdminTab(QWidget):
             ),
         )
 
-        controls = QWidget()
-        controls.setObjectName("partyAdminControlSurface")
-        controls.setStyleSheet(
-            f"""
-            QWidget#partyAdminControlSurface {{
-                background-color: {CFG.COLOR_BG_SURFACE_ALT};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
+        build_admin_toolbar_surface(
+            self,
+            layout,
+            object_name="partyAdminControlSurface",
+            button_specs=(
+                ToolbarButtonSpec("btn_new_party", "New Party", "primary"),
+                ToolbarButtonSpec("btn_edit_party", "Edit Party"),
+                ToolbarButtonSpec("btn_toggle_active", "Toggle Active"),
+                ToolbarButtonSpec("btn_refresh", CFG.REFRESH_BUTTON_LABEL),
+            ),
         )
-        controls_layout = QVBoxLayout(controls)
-        controls_layout.setContentsMargins(CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM, CFG.MARGIN_SM)
-        controls_layout.setSpacing(CFG.SPACING_SM)
 
-        toolbar = QHBoxLayout()
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_new_party = QPushButton("New Party")
-        self.btn_edit_party = QPushButton("Edit Party")
-        self.btn_toggle_active = QPushButton("Toggle Active")
-        for btn in (self.btn_refresh, self.btn_new_party, self.btn_edit_party, self.btn_toggle_active):
-            btn.setFixedHeight(CFG.BUTTON_HEIGHT)
-            btn.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-        self.btn_new_party.setStyleSheet(dashboard_action_button_style("primary"))
-        self.btn_edit_party.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_toggle_active.setStyleSheet(dashboard_action_button_style("secondary"))
-        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
-        toolbar.addWidget(self.btn_new_party)
-        toolbar.addWidget(self.btn_edit_party)
-        toolbar.addWidget(self.btn_toggle_active)
-        toolbar.addStretch()
-        toolbar.addWidget(self.btn_refresh)
-        controls_layout.addLayout(toolbar)
-        layout.addWidget(controls)
-
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Code", "Name", "Type", "Country", "Active"])
-        style_table(self.table)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        header_widget = self.table.horizontalHeader()
-        header_widget.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(1, QHeaderView.Stretch)
-        header_widget.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header_widget.setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.table = build_admin_table(
+            headers=("Code", "Name", "Type", "Country", "Active"),
+            resize_modes=(
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+            ),
+        )
         layout.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Parties", callback=self.reload_parties))

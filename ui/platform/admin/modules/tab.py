@@ -18,8 +18,8 @@ from application.platform import PlatformRuntimeApplicationService
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
+from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -75,39 +75,30 @@ class ModuleLicensingTab(QWidget):
         summary_row.addStretch(1)
         root.addLayout(summary_row)
 
-        button_row = QHBoxLayout()
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_toggle_license = QPushButton("Toggle License")
-        self.btn_toggle_enabled = QPushButton("Toggle Enabled")
-        self.btn_change_status = QPushButton("Change Status")
-        for button in (
-            self.btn_refresh,
-            self.btn_toggle_license,
-            self.btn_toggle_enabled,
-            self.btn_change_status,
-        ):
-            button.setFixedHeight(CFG.BUTTON_HEIGHT)
-            button.setSizePolicy(CFG.BTN_FIXED_HEIGHT)
-            button_row.addWidget(button)
-        button_row.addStretch(1)
-        root.addLayout(button_row)
-
-        self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(
-            ["Module", "Stage", "Lifecycle", "Licensed", "Enabled", "Runtime", "Capabilities"]
+        build_admin_toolbar_surface(
+            self,
+            root,
+            object_name="moduleAdminControlSurface",
+            button_specs=(
+                ToolbarButtonSpec("btn_toggle_license", "Toggle License"),
+                ToolbarButtonSpec("btn_toggle_enabled", "Toggle Enabled"),
+                ToolbarButtonSpec("btn_change_status", "Change Status"),
+                ToolbarButtonSpec("btn_refresh", CFG.REFRESH_BUTTON_LABEL),
+            ),
         )
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        style_table(self.table)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(6, QHeaderView.Stretch)
+
+        self.table = build_admin_table(
+            headers=("Module", "Stage", "Lifecycle", "Licensed", "Enabled", "Runtime", "Capabilities"),
+            resize_modes=(
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.ResizeToContents,
+                QHeaderView.Stretch,
+            ),
+        )
         root.addWidget(self.table, 1)
 
         self.btn_refresh.clicked.connect(make_guarded_slot(self, title="Modules", callback=self.reload_modules))
