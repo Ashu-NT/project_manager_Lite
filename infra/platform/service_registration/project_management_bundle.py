@@ -6,7 +6,13 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from core.platform.access import ScopedRolePolicy
 from core.modules.project_management.domain.enums import CostType, DependencyType
+from core.modules.project_management.access.policy import (
+    PROJECT_SCOPE_ROLE_CHOICES,
+    normalize_project_scope_role,
+    resolve_project_scope_permissions,
+)
 from core.platform.time import TimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -80,6 +86,18 @@ def build_project_management_service_bundle(
     repositories: RepositoryBundle,
     platform_services: PlatformServiceBundle,
 ) -> ProjectManagementServiceBundle:
+    platform_services.access_service.register_scope_policy(
+        ScopedRolePolicy(
+            scope_type="project",
+            role_choices=PROJECT_SCOPE_ROLE_CHOICES,
+            normalize_role=normalize_project_scope_role,
+            resolve_permissions=resolve_project_scope_permissions,
+        )
+    )
+    platform_services.access_service.register_scope_exists_resolver(
+        "project",
+        lambda project_id: repositories.project_repo.get(project_id) is not None,
+    )
     work_calendar_engine = WorkCalendarEngine(repositories.work_calendar_repo, calendar_id="default")
     project_service = ProjectService(
         session,

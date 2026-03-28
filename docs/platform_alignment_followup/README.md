@@ -355,6 +355,40 @@ Completion notes:
 - persisted runtime execution tracking now records shared import, export, and report runs across platform and inventory operations
 - remaining follow-up is richer writer/background-job orchestration, maintenance-specific bulk import/export contracts, and async job controls
 
+### 13. Maintenance Readiness Hardening
+
+Status: in progress
+
+Detailed functional target:
+`docs/maintenance_management/README.md`
+
+Scope:
+
+- harden the existing platform and module seams that Maintenance will consume from day one
+- avoid starting maintenance implementation on top of PM-shaped governance/time/access leftovers
+- keep ownership rules from ADR-001 and ADR-002 intact while making the shared seams more maintenance-ready
+
+Acceptance notes:
+
+- access can handle maintenance scopes such as asset and maintenance-area
+- approval review is no longer tied to PM-only governance UX
+- shared time can book labor against maintenance-owned work records cleanly
+- shared document taxonomy is ready for a document-heavy module
+- inventory integration points for maintenance material demand are explicit and stable
+- maintenance import/export/report contracts have a clean runtime path before rollout-scale data loads begin
+
+Non-goals for this slice:
+
+- no full maintenance module implementation yet
+- no relocation of `location` or `system` ownership into platform
+- no second stock, document, approval, or time engine inside Maintenance
+
+Progress notes:
+
+- scoped-access policy ownership is being hardened first so `platform_bundle` no longer owns module access templates
+- `site` remains platform-owned, while module-owned scopes now register from the owning service-registration bundle
+- this keeps the access core generic and prepares the next maintenance scopes such as `asset` and `maintenance_area`
+
 ## Guardrails
 
 - additive changes first, destructive rewrites later

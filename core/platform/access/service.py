@@ -51,6 +51,9 @@ class AccessControlService:
         self._user_session = user_session
         self._audit_service = audit_service
 
+    def register_scope_policy(self, policy: ScopedRolePolicy) -> None:
+        self._policy_registry.register(policy)
+
     def register_scope_exists_resolver(self, scope_type: str, resolver: Callable[[str], bool]) -> None:
         self._scope_exists_resolvers[self._normalize_scope_type(scope_type)] = resolver
 

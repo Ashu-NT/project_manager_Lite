@@ -60,7 +60,7 @@ The current implementation now also includes:
 - a mixed SQLAlchemy adapter that reads project grants from `project_memberships` and non-project grants from `scoped_access_grants`
 - principal-building in `AuthService` that hydrates `scoped_access` from the generic grant repository when available
 - compatibility wrappers that still preserve `project_access` and PM membership APIs for the current runtime
-- first live non-project scope policy registration for `storeroom`
+- module-owned scope policy registration, with `site` staying platform-owned while `project` and `storeroom` register from their owning service bundles
 - scope-aware inventory filtering for storeroom administration and stock ledger queries
 - split `Access` and `Security` shell workspaces while keeping `AccessTab` as a reusable shared surface
 - a platform-owned authorization engine seam that `auth.authorization` and `access.authorization` now delegate through before future ABAC/web adapters are introduced

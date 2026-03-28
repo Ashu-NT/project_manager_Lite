@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from core.platform.access import ScopedRolePolicy
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     InventoryReferenceService,
@@ -13,6 +14,11 @@ from core.modules.inventory_procurement import (
     PurchasingService,
     ReservationService,
     StockControlService,
+)
+from core.modules.inventory_procurement.access.policy import (
+    STOREROOM_SCOPE_ROLE_CHOICES,
+    normalize_storeroom_scope_role,
+    resolve_storeroom_scope_permissions,
 )
 from infra.modules.inventory_procurement.db import (
     SqlAlchemyInventoryItemCategoryRepository,
@@ -48,6 +54,14 @@ class InventoryProcurementServiceBundle:
 def build_inventory_procurement_service_bundle(
     platform_services: PlatformServiceBundle,
 ) -> InventoryProcurementServiceBundle:
+    platform_services.access_service.register_scope_policy(
+        ScopedRolePolicy(
+            scope_type="storeroom",
+            role_choices=STOREROOM_SCOPE_ROLE_CHOICES,
+            normalize_role=normalize_storeroom_scope_role,
+            resolve_permissions=resolve_storeroom_scope_permissions,
+        )
+    )
     balance_repo = SqlAlchemyStockBalanceRepository(platform_services.session)
     category_repo = SqlAlchemyInventoryItemCategoryRepository(platform_services.session)
     item_repo = SqlAlchemyStockItemRepository(platform_services.session)

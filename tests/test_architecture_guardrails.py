@@ -97,6 +97,41 @@ def test_shared_access_platform_layers_do_not_import_pm_access_code():
     assert not violations, f"Shared access platform code imports PM-specific access code: {violations}"
 
 
+def test_platform_bundle_only_registers_platform_owned_scope_policies():
+    platform_bundle_path = ROOT / "infra" / "platform" / "service_registration" / "platform_bundle.py"
+    source = platform_bundle_path.read_text(encoding="utf-8", errors="ignore")
+    tree = ast.parse(source)
+    forbidden_import_targets = (
+        "core.modules.project_management.access.policy",
+        "core.modules.inventory_procurement.access.policy",
+    )
+    violations: list[tuple[str, str]] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in forbidden_import_targets:
+                    violations.append((str(platform_bundle_path.relative_to(ROOT)), alias.name))
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            if mod in forbidden_import_targets:
+                violations.append((str(platform_bundle_path.relative_to(ROOT)), mod))
+
+    assert not violations, f"Platform bundle imports module-owned access policies: {violations}"
+
+
+def test_module_service_bundles_register_their_owned_scope_policies():
+    project_bundle_path = ROOT / "infra" / "platform" / "service_registration" / "project_management_bundle.py"
+    inventory_bundle_path = ROOT / "infra" / "platform" / "service_registration" / "inventory_procurement_bundle.py"
+    project_text = project_bundle_path.read_text(encoding="utf-8", errors="ignore")
+    inventory_text = inventory_bundle_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from core.modules.project_management.access.policy import" in project_text
+    assert 'scope_type="project"' in project_text
+    assert "from core.modules.inventory_procurement.access.policy import" in inventory_text
+    assert 'scope_type="storeroom"' in inventory_text
+
+
 def test_report_tab_is_coordinator_only():
     tab_path = ROOT / "ui" / "report" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")

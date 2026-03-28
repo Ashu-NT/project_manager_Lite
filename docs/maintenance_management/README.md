@@ -122,6 +122,165 @@ stronger enterprise starting point:
 - the inventory module already carries maintenance-oriented concepts such as spare/equipment categories, lot/serial/shelf-life rules, and maintenance-facing source references
 - the codebase already has application and transport seams for a future desktop + web product instead of forcing Maintenance to be desktop-only forever
 
+## Pre-Implementation Hardening Needed In Existing Platform And Modules
+
+Before `maintenance_management` implementation starts, the current repo should
+finish a small but important hardening block so Maintenance can plug into the
+shared platform cleanly instead of adding another round of compatibility debt.
+
+### Ready Enough Today
+
+These seams are already strong enough to be consumed from the maintenance
+module with normal module-owned adapters:
+
+- shared auth, audit, approvals, notifications, organization, site, department, and party foundations
+- shared `DocumentIntegrationService` for module-level document browsing and linking without forcing platform-admin-only document workflows
+- inventory-owned item categories, storerooms, balances, reservations, requisitions, purchase orders, receipts, and maintenance-facing source-reference types
+- shared import/export/report runtime foundation with persisted execution tracking
+
+### Hardening Checklist Before Maintenance Buildout
+
+#### 1. Broader scoped access for maintenance objects
+
+Current state:
+
+- platform access now supports `project`, `site`, and `storeroom`
+- `project` and `storeroom` scope policies can now register from their owning module service bundles instead of being hard-coded in the platform bundle
+- the access roadmap still calls out future `asset` and `maintenance-area` scopes
+
+Why this matters:
+
+- maintenance needs tighter access boundaries than project-only or org-wide reads
+- planners, supervisors, contractors, and technicians often need access limited by site, area, system, asset family, or assigned work
+
+Required hardening:
+
+- add module-owned scope policies for `asset`, `location`/`maintenance_area`, and later `system`
+- make those scopes available through the shared access admin surface and authorization engine
+
+#### 2. Module-neutral governance queue and approval UX
+
+Current state:
+
+- `ApprovalService` is platform-owned and generic
+- the main approval review UX still lives under Project Management governance screens
+
+Why this matters:
+
+- maintenance will need approval queues for governed work-order release, shutdown work, permit-sensitive jobs, vendor work, plan changes, and other operational decisions
+- those flows should not inherit a PM-shaped governance screen
+
+Required hardening:
+
+- extract a module-neutral governance queue surface or platform control workspace
+- keep module request-type meaning in the owning module, but stop making approval review feel PM-specific
+
+#### 3. Shared time and labor booking generalization
+
+Current state:
+
+- shared time exists, but the current work-entry context still assumes `task_assignment`
+- the neutral time ports are better than before, but the terminology and permission labels are still task-shaped in places
+
+Why this matters:
+
+- maintenance needs labor booking against work orders, operations, task steps, crews, and possibly contractor work packages
+- maintenance should consume the shared time engine, not fork it
+
+Required hardening:
+
+- widen the shared time boundary from project-task wording toward neutral work-owner semantics
+- support maintenance work-order / operation references without pretending they are PM task assignments
+- make sure labor-booking permissions and review flows do not depend on PM-only naming
+
+#### 4. Shared document taxonomy and lifecycle hardening
+
+Current state:
+
+- shared document metadata and linking are live
+- `document_structure_id` and business-facing document version labeling are still explicitly deferred
+- future web-facing upload/file-handling plumbing is still a runtime follow-up item
+
+Why this matters:
+
+- maintenance will be document-heavy from day one: manuals, drawings, SOPs, permits, photos, certificates, calibration evidence, and vendor reports
+- QHSE and HR will also consume the same shared document spine later
+
+Required hardening:
+
+- add the shared `document_structure` domain before the maintenance document library grows
+- define business-facing document version/revision handling that does not conflict with optimistic locking
+- keep growing the shared upload/storage abstraction so desktop and future web can use one document model
+
+#### 5. Explicit inventory-to-maintenance material contracts
+
+Current state:
+
+- inventory already validates maintenance-facing `source_reference_type` values and item categories carry maintenance-usage flags
+- the inventory roadmap still calls deeper maintenance command/event integration pending
+
+Why this matters:
+
+- maintenance needs clear contracts for reserve, issue, return, shortage, direct-charge procurement, and material-availability status
+- those flows should be explicit module integration points, not free-text references sprinkled through services
+
+Required hardening:
+
+- define the maintenance-side contract for work-order material demand, reservation, issue, return, and purchasing escalation
+- emit stable domain events and shared statuses that planners can use without reading inventory internals directly
+
+#### 6. Maintenance-specific import/export/report runtime contracts
+
+Current state:
+
+- the platform runtime foundation exists and inventory is already using it
+- the follow-up tracker still lists maintenance-specific bulk contracts plus richer retries/cancellation as pending
+
+Why this matters:
+
+- maintenance rollout will need large workbook imports for locations, systems, assets, components, meters, plans, and documents
+- enterprise maintenance users will also expect exportable backlog, compliance, downtime, and execution reports
+
+Required hardening:
+
+- define maintenance workbook contracts early instead of inventing them inside module services later
+- add richer async controls, retries, cancellation, and artifact handling before large rollout imports begin
+
+#### 7. Shared org-to-maintenance location reference path
+
+Current state:
+
+- ADR-002 already freezes ownership so `maintenance_management` owns `location` and `system`
+- platform follow-up still notes that `department.default_location_id` is deferred until the location model exists
+
+Why this matters:
+
+- maintenance work assignment, crews, permits, and workforce planning will eventually want stable location references from shared organization/employee context
+
+Required hardening:
+
+- once maintenance location exists, add a clean reference seam from shared org records into maintenance-owned locations without moving location ownership back into platform
+
+### Recommended Pre-Maintenance Hardening Order
+
+1. Broader maintenance scopes in auth/access.
+2. Module-neutral governance queue and approval UX.
+3. Shared time boundary generalization for labor booking.
+4. Shared document taxonomy and lifecycle hardening.
+5. Explicit inventory-to-maintenance material contracts.
+6. Maintenance-specific import/export/report contracts and async runtime controls.
+7. Shared org-to-maintenance location reference path once location records exist.
+
+### What Does Not Need To Block The First Maintenance Slice
+
+These items are important, but they do not have to be finished before phase-1
+maintenance master data and work-order implementation starts:
+
+- hosted web auth middleware rollout
+- broader ABAC-style contextual authorization beyond the current engine seam
+- fully mature async orchestration for every runtime use case
+- full QHSE and HR document workflows
+
 ### Superior Product Target
 
 To be stronger than typical mid-market CMMS products while staying cleaner than

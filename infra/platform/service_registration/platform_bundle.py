@@ -21,16 +21,6 @@ from core.platform.auth.session import UserSessionContext
 from core.platform.documents import DocumentIntegrationService, DocumentService
 from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.common.interfaces import OrganizationRepository
-from core.modules.project_management.access.policy import (
-    PROJECT_SCOPE_ROLE_CHOICES,
-    normalize_project_scope_role,
-    resolve_project_scope_permissions,
-)
-from core.modules.inventory_procurement.access.policy import (
-    STOREROOM_SCOPE_ROLE_CHOICES,
-    normalize_storeroom_scope_role,
-    resolve_storeroom_scope_permissions,
-)
 from core.platform.org.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
@@ -190,28 +180,15 @@ def build_platform_service_bundle(
         policy_registry=ScopedRolePolicyRegistry(
             (
                 ScopedRolePolicy(
-                    scope_type="project",
-                    role_choices=PROJECT_SCOPE_ROLE_CHOICES,
-                    normalize_role=normalize_project_scope_role,
-                    resolve_permissions=resolve_project_scope_permissions,
-                ),
-                ScopedRolePolicy(
                     scope_type="site",
                     role_choices=SITE_SCOPE_ROLE_CHOICES,
                     normalize_role=normalize_site_scope_role,
                     resolve_permissions=resolve_site_scope_permissions,
                 ),
-                ScopedRolePolicy(
-                    scope_type="storeroom",
-                    role_choices=STOREROOM_SCOPE_ROLE_CHOICES,
-                    normalize_role=normalize_storeroom_scope_role,
-                    resolve_permissions=resolve_storeroom_scope_permissions,
-                ),
             )
         ),
         scoped_access_repo=repositories.scoped_access_repo,
         scope_exists_resolvers={
-            "project": lambda project_id: repositories.project_repo.get(project_id) is not None,
             "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
         },
         user_session=user_session,

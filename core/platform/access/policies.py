@@ -51,7 +51,7 @@ class ScopedRolePolicyRegistry:
         return self.normalize_scope_type(scope_type) in self._policies
 
     def list_scope_types(self) -> tuple[str, ...]:
-        return tuple(self._policies.keys())
+        return tuple(sorted(self._policies.keys()))
 
     @staticmethod
     def normalize_scope_type(scope_type: str) -> str:
