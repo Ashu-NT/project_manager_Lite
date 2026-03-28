@@ -388,6 +388,7 @@ Progress notes:
 - scoped-access policy ownership is being hardened first so `platform_bundle` no longer owns module access templates
 - `site` remains platform-owned, while module-owned scopes now register from the owning service-registration bundle
 - this keeps the access core generic and prepares the next maintenance scopes such as `asset` and `maintenance_area`
+- approval review now has a module-neutral `Approvals` control workspace, while PM governance keeps PM-only mode and timesheet review concerns
 
 ## Guardrails
 

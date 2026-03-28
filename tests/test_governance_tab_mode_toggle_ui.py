@@ -83,7 +83,8 @@ def test_main_window_runtime_exposes_governance_tab_for_request_permissions(
     window = MainWindow(services)
     labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
 
-    assert "Governance" in labels
+    assert "Approvals" in labels
+    assert "Governance" not in labels
     assert "Users" not in labels
     assert "Audit" not in labels
 

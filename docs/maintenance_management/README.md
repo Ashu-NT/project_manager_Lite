@@ -163,7 +163,8 @@ Required hardening:
 Current state:
 
 - `ApprovalService` is platform-owned and generic
-- the main approval review UX still lives under Project Management governance screens
+- a shared `Approvals` control workspace now exposes module-neutral approval review
+- the Project Management `Governance` screen now keeps PM-only concerns such as PM governance mode and timesheet review
 
 Why this matters:
 
@@ -174,6 +175,7 @@ Required hardening:
 
 - extract a module-neutral governance queue surface or platform control workspace
 - keep module request-type meaning in the owning module, but stop making approval review feel PM-specific
+- keep PM-only controls such as PM governance mode and timesheet review separate from the shared approval queue
 
 #### 3. Shared time and labor booking generalization
 

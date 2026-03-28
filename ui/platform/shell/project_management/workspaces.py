@@ -197,8 +197,7 @@ def build_project_management_workspace_definitions(
 
     if has_any_permission(
         context.user_session,
-        "approval.request",
-        "approval.decide",
+        "settings.manage",
         "timesheet.approve",
     ):
         definitions.append(

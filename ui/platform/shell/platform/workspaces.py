@@ -10,6 +10,7 @@ from ui.platform.admin.parties.tab import PartyAdminTab
 from ui.platform.admin.sites.tab import SiteAdminTab
 from ui.platform.admin.support.tab import SupportTab
 from ui.platform.admin.users.tab import UserAdminTab
+from ui.platform.control.approvals.tab import ApprovalControlTab
 from ui.platform.control.audit.tab import AuditLogTab
 from ui.platform.shell.common import (
     PLATFORM_MODULE_CODE,
@@ -175,6 +176,21 @@ def build_platform_administration_workspace_definitions(
                     project_service=services["project_service"],
                     show_access_tab=False,
                     show_security_tab=True,
+                    user_session=context.user_session,
+                    parent=context.parent,
+                ),
+            )
+        )
+
+    if has_any_permission(context.user_session, "approval.request", "approval.decide"):
+        definitions.append(
+            WorkspaceDefinition(
+                module_code=PLATFORM_MODULE_CODE,
+                module_label=PLATFORM_MODULE_LABEL,
+                group_label="Control",
+                label="Approvals",
+                widget=ApprovalControlTab(
+                    approval_service=services["approval_service"],
                     user_session=context.user_session,
                     parent=context.parent,
                 ),

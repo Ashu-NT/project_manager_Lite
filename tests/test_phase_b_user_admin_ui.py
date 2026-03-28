@@ -19,6 +19,7 @@ from ui.platform.admin.parties.tab import PartyAdminTab
 from ui.platform.admin.sites.tab import SiteAdminTab
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
 from ui.platform.admin.users.tab import UserAdminTab
+from ui.platform.control.approvals.tab import ApprovalControlTab
 from ui.platform.control.audit.tab import AuditLogTab
 from ui.platform.shared.auth.login_dialog import LoginDialog
 from ui.platform.shell.main_window import MainWindow
@@ -47,6 +48,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
     assert "Parties" in labels
     assert "Access" in labels
     assert "Security" in labels
+    assert "Approvals" in labels
     assert "Audit" in labels
     assert "Support" in labels
     assert "Modules" in labels
@@ -92,6 +94,29 @@ def test_audit_log_tab_runtime_uses_compact_header_and_updates_badges(qapp, serv
     assert tab.audit_count_badge.text().endswith("rows")
     assert tab.audit_date_badge.text() == "All Dates"
     assert tab.btn_refresh.isEnabled() is True
+
+
+def test_approval_control_tab_runtime_uses_shared_queue_badges(qapp, services):
+    project = services["project_service"].create_project("Approval Control Project")
+    services["approval_service"].request_change(
+        request_type="baseline.create",
+        entity_type="baseline",
+        entity_id="baseline-1",
+        project_id=project.id,
+        payload={"name": "Gate Baseline", "project_name": project.name},
+    )
+
+    tab = ApprovalControlTab(
+        approval_service=services["approval_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 1
+    assert tab.approval_scope_badge.text() == "Shared Review"
+    assert tab.approval_access_badge.text() == "Decision Enabled"
+    assert tab.approval_status_badge.text() == "Pending"
+    assert tab.approval_count_badge.text() == "1 requests"
+    assert tab.table.item(0, 2).text() == "Project Management"
 
 
 def test_audit_log_tab_refreshes_when_module_entitlements_change(qapp, services):
