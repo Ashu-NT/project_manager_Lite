@@ -12,8 +12,8 @@ from core.platform.common.interfaces import (
     OrganizationRepository,
     SiteRepository,
 )
-from core.modules.project_management.interfaces import ResourceRepository
 from core.platform.org.domain import Employee, EmploymentType
+from core.platform.org.interfaces import LinkedEmployeeResourceRepository
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.employee_support import (
     build_employee_audit_details,
@@ -34,7 +34,7 @@ class EmployeeService:
         session: Session,
         employee_repo: EmployeeRepository,
         *,
-        resource_repo: ResourceRepository | None = None,
+        resource_repo: LinkedEmployeeResourceRepository | None = None,
         site_repo: SiteRepository | None = None,
         department_repo: DepartmentRepository | None = None,
         organization_repo: OrganizationRepository | None = None,

@@ -64,6 +64,7 @@ The current implementation now also includes:
 - scope-aware inventory filtering for storeroom administration and stock ledger queries
 - split `Access` and `Security` shell workspaces while keeping `AccessTab` as a reusable shared surface
 - a platform-owned authorization engine seam that `auth.authorization` and `access.authorization` now delegate through before future ABAC/web adapters are introduced
+- scope existence validation through injected resolver callbacks so the access core no longer imports module repositories directly
 
 ## Suggested Next Steps
 

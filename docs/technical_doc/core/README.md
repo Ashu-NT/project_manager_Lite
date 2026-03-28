@@ -20,6 +20,7 @@ Legacy compatibility package roots such as `core/modules/payroll/` are still pre
 
 - source of truth for domain rules
 - shared repository contracts through `core/platform/common/interfaces.py`
+- platform-owned integration ports through package-local interfaces such as `core/platform/time/interfaces.py` and `core/platform/org/interfaces.py`
 - PM repository contracts through `core/modules/project_management/interfaces.py`
 - module guard enforcement for business capabilities
 - domain-event emission for reactive desktop refresh behavior
@@ -30,7 +31,7 @@ Legacy compatibility package roots such as `core/modules/payroll/` are still pre
 - `core/platform/modules/`: module entitlement rules and runtime guards
 - `core/platform/notifications/`: domain event hub and signal primitive
 - `core/platform/org/`: organization and employee domain/services, including site context on employees
-- `core/platform/time/`: canonical work-entry/time-entry and timesheet-period domain and service boundary
+- `core/platform/time/`: canonical work-entry/time-entry and timesheet-period domain, service boundary, and neutral work ports
 - `core/modules/project_management/domain/`: PM aggregates and enums
 - `core/modules/project_management/interfaces.py`: PM-owned repository/service contracts
 - `core/modules/project_management/services/`: PM business services

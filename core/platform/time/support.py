@@ -5,15 +5,18 @@ from datetime import date
 from typing import Protocol
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.modules.project_management.interfaces import (
-    AssignmentRepository,
-    ResourceRepository,
-    TaskRepository,
-)
 from core.platform.common.interfaces import EmployeeRepository
-from core.modules.project_management.domain.task import TaskAssignment
 from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
-from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
+from core.platform.time.interfaces import (
+    TimeEntryRepository,
+    TimesheetPeriodRepository,
+    WorkAssignmentRecord,
+    WorkAssignmentRepository,
+    WorkResourceRecord,
+    WorkResourceRepository,
+    WorkTaskRecord,
+    WorkTaskRepository,
+)
 
 
 class _TaskSeedContext(Protocol):
@@ -24,9 +27,9 @@ class _TaskSeedContext(Protocol):
 
 
 class TimesheetSupportMixin:
-    _assignment_repo: AssignmentRepository
-    _resource_repo: ResourceRepository
-    _task_repo: TaskRepository
+    _assignment_repo: WorkAssignmentRepository
+    _resource_repo: WorkResourceRepository
+    _task_repo: WorkTaskRepository
     _employee_repo: EmployeeRepository | None
     _time_entry_repo: TimeEntryRepository | None
     _timesheet_period_repo: TimesheetPeriodRepository | None
@@ -52,8 +55,8 @@ class TimesheetSupportMixin:
     def _resolve_work_entry_context(
         self,
         *,
-        assignment: TaskAssignment,
-        resource,
+        assignment: WorkAssignmentRecord,
+        resource: WorkResourceRecord | None,
     ) -> dict[str, str | None]:
         employee_id = getattr(resource, "employee_id", None) if resource is not None else None
         department_id = None
@@ -87,7 +90,7 @@ class TimesheetSupportMixin:
         assignment.hours_logged = sum(float(item.hours or 0.0) for item in entries)
         self._assignment_repo.update(assignment)
 
-    def _seed_legacy_hours_entry(self, assignment: TaskAssignment, task: _TaskSeedContext) -> TimeEntry | None:
+    def _seed_legacy_hours_entry(self, assignment: WorkAssignmentRecord, task: _TaskSeedContext) -> TimeEntry | None:
         if self._time_entry_repo is None:
             return None
         if self._time_entry_repo.list_by_assignment(assignment.id):
@@ -121,8 +124,8 @@ class TimesheetSupportMixin:
     @staticmethod
     def _build_time_entry_audit_details(
         *,
-        assignment: TaskAssignment,
-        task: _TaskSeedContext,
+        assignment: WorkAssignmentRecord,
+        task: WorkTaskRecord,
         resource_name: str,
         entry: TimeEntry,
         extra: dict[str, object] | None = None,

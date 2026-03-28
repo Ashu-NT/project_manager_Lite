@@ -14,7 +14,6 @@ from core.platform.common.interfaces import (
     ScopedAccessGrantRepository,
     UserRepository,
 )
-from core.modules.project_management.interfaces import ProjectRepository
 from core.platform.access.domain import ProjectMembership
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
@@ -31,7 +30,6 @@ class AccessControlService:
         *,
         session: Session,
         membership_repo: ProjectMembershipRepository,
-        project_repo: ProjectRepository,
         user_repo: UserRepository,
         auth_service: "AuthService",
         policy_registry: ScopedRolePolicyRegistry | None = None,
@@ -42,7 +40,6 @@ class AccessControlService:
     ) -> None:
         self._session = session
         self._membership_repo = membership_repo
-        self._project_repo = project_repo
         self._user_repo = user_repo
         self._auth_service = auth_service
         self._policy_registry = policy_registry or ScopedRolePolicyRegistry()
@@ -135,14 +132,12 @@ class AccessControlService:
         if not permissions:
             raise ValidationError("Scope role must resolve to at least one permission.")
 
-        entity_type = "project_membership"
-        if normalized_scope_type == "project":
-            project = self._project_repo.get(normalized_scope_id)
-            if project is None:
-                raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        else:
-            self._assert_scope_exists(normalized_scope_type, normalized_scope_id)
-            entity_type = f"{normalized_scope_type}_access_grant"
+        self._assert_scope_exists(normalized_scope_type, normalized_scope_id)
+        entity_type = (
+            "project_membership"
+            if normalized_scope_type == "project"
+            else f"{normalized_scope_type}_access_grant"
+        )
 
         if self._scoped_access_repo is not None:
             grant = self._scoped_access_repo.get_for_scope_user(
@@ -284,8 +279,6 @@ class AccessControlService:
         return ScopedRolePolicyRegistry.normalize_scope_type(scope_type)
 
     def _assert_scope_exists(self, scope_type: str, scope_id: str) -> None:
-        if scope_type == "project":
-            return
         resolver = self._scope_exists_resolvers.get(scope_type)
         if resolver is None:
             return

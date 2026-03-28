@@ -172,7 +172,6 @@ def build_platform_service_bundle(
     access_service = AccessControlService(
         session=session,
         membership_repo=repositories.project_membership_repo,
-        project_repo=repositories.project_repo,
         user_repo=repositories.user_repo,
         auth_service=auth_service,
         policy_registry=ScopedRolePolicyRegistry(
@@ -192,6 +191,9 @@ def build_platform_service_bundle(
             )
         ),
         scoped_access_repo=repositories.scoped_access_repo,
+        scope_exists_resolvers={
+            "project": lambda project_id: repositories.project_repo.get(project_id) is not None,
+        },
         user_session=user_session,
         audit_service=audit_service,
     )

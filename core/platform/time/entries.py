@@ -5,20 +5,20 @@ from datetime import date, datetime, timezone
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ValidationError
-from core.modules.project_management.interfaces import (
-    AssignmentRepository,
-    ResourceRepository,
-    TaskRepository,
-)
 from core.platform.notifications.domain_events import domain_events
 from core.platform.time.domain import TimeEntry
-from core.platform.time.interfaces import TimeEntryRepository
+from core.platform.time.interfaces import (
+    TimeEntryRepository,
+    WorkAssignmentRepository,
+    WorkResourceRepository,
+    WorkTaskRepository,
+)
 
 
 class TimesheetEntriesMixin:
-    _assignment_repo: AssignmentRepository
-    _resource_repo: ResourceRepository
-    _task_repo: TaskRepository
+    _assignment_repo: WorkAssignmentRepository
+    _resource_repo: WorkResourceRepository
+    _task_repo: WorkTaskRepository
     _time_entry_repo: TimeEntryRepository | None
 
     def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:

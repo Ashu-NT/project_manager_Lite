@@ -6,9 +6,8 @@ from core.platform.common.interfaces import (
     OrganizationRepository,
     SiteRepository,
 )
-from core.modules.project_management.interfaces import ResourceRepository
 from core.platform.org.domain import Employee
-from core.modules.project_management.domain.enums import WorkerType
+from core.platform.org.interfaces import LinkedEmployeeResource, LinkedEmployeeResourceRepository
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.support import employee_contact
 
@@ -26,11 +25,14 @@ def build_employee_audit_details(employee: Employee) -> dict[str, str]:
     }
 
 
-def sync_linked_employee_resources(employee: Employee, resource_repo: ResourceRepository | None) -> None:
+def sync_linked_employee_resources(
+    employee: Employee,
+    resource_repo: LinkedEmployeeResourceRepository | None,
+) -> None:
     if resource_repo is None:
         return
     for resource in resource_repo.list_by_employee(employee.id):
-        if getattr(resource, "worker_type", WorkerType.EXTERNAL) != WorkerType.EMPLOYEE:
+        if _worker_type_code(resource) != "employee":
             continue
         resource.name = employee.full_name
         if employee.title:
@@ -38,6 +40,12 @@ def sync_linked_employee_resources(employee: Employee, resource_repo: ResourceRe
         resource.contact = employee_contact(employee)
         resource_repo.update(resource)
         domain_events.resources_changed.emit(resource.id)
+
+
+def _worker_type_code(resource: LinkedEmployeeResource) -> str:
+    worker_type = getattr(resource, "worker_type", None)
+    normalized = getattr(worker_type, "value", worker_type)
+    return str(normalized or "").strip().lower()
 
 
 def resolve_employee_site_reference(

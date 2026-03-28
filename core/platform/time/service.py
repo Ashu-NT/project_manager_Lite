@@ -4,14 +4,15 @@ from sqlalchemy.orm import Session
 
 from core.platform.audit.service import AuditService
 from core.platform.auth.session import UserSessionContext
-from core.modules.project_management.interfaces import (
-    AssignmentRepository,
-    ResourceRepository,
-    TaskRepository,
-)
 from core.platform.common.interfaces import EmployeeRepository
 from core.platform.time.entries import TimesheetEntriesMixin
-from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
+from core.platform.time.interfaces import (
+    TimeEntryRepository,
+    TimesheetPeriodRepository,
+    WorkAssignmentRepository,
+    WorkResourceRepository,
+    WorkTaskRepository,
+)
 from core.platform.time.periods import TimesheetPeriodsMixin
 from core.platform.time.query import TimesheetQueryMixin
 from core.platform.time.review import TimesheetReviewMixin
@@ -30,9 +31,9 @@ class TimeService(
     def __init__(
         self,
         session: Session,
-        assignment_repo: AssignmentRepository,
-        task_repo: TaskRepository,
-        resource_repo: ResourceRepository,
+        assignment_repo: WorkAssignmentRepository,
+        task_repo: WorkTaskRepository,
+        resource_repo: WorkResourceRepository,
         employee_repo: EmployeeRepository | None,
         time_entry_repo: TimeEntryRepository | None,
         timesheet_period_repo: TimesheetPeriodRepository | None,
@@ -41,9 +42,9 @@ class TimeService(
         module_catalog_service=None,
     ):
         self._session: Session = session
-        self._assignment_repo: AssignmentRepository = assignment_repo
-        self._task_repo: TaskRepository = task_repo
-        self._resource_repo: ResourceRepository = resource_repo
+        self._assignment_repo: WorkAssignmentRepository = assignment_repo
+        self._task_repo: WorkTaskRepository = task_repo
+        self._resource_repo: WorkResourceRepository = resource_repo
         self._employee_repo: EmployeeRepository | None = employee_repo
         self._time_entry_repo = time_entry_repo
         self._timesheet_period_repo = timesheet_period_repo

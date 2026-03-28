@@ -2,8 +2,46 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import date
+from typing import Protocol
 
 from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+
+
+class WorkAssignmentRecord(Protocol):
+    id: str
+    task_id: str
+    resource_id: str
+    hours_logged: float
+
+
+class WorkTaskRecord(Protocol):
+    id: str
+    project_id: str
+    name: str
+    start_date: date | None
+    actual_start: date | None
+
+
+class WorkResourceRecord(Protocol):
+    id: str
+    name: str
+    employee_id: str | None
+
+
+class WorkAssignmentRepository(Protocol):
+    def get(self, assignment_id: str) -> WorkAssignmentRecord | None: ...
+
+    def list_by_resource(self, resource_id: str) -> list[WorkAssignmentRecord]: ...
+
+    def update(self, assignment: WorkAssignmentRecord) -> None: ...
+
+
+class WorkTaskRepository(Protocol):
+    def get(self, task_id: str) -> WorkTaskRecord | None: ...
+
+
+class WorkResourceRepository(Protocol):
+    def get(self, resource_id: str) -> WorkResourceRecord | None: ...
 
 
 class TimeEntryRepository(ABC):
@@ -51,4 +89,13 @@ class TimesheetPeriodRepository(ABC):
     ) -> list[TimesheetPeriod]: ...
 
 
-__all__ = ["TimeEntryRepository", "TimesheetPeriodRepository"]
+__all__ = [
+    "TimeEntryRepository",
+    "TimesheetPeriodRepository",
+    "WorkAssignmentRecord",
+    "WorkAssignmentRepository",
+    "WorkResourceRecord",
+    "WorkResourceRepository",
+    "WorkTaskRecord",
+    "WorkTaskRepository",
+]

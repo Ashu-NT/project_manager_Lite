@@ -4,13 +4,16 @@ from datetime import date, datetime, timezone
 
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError
-from core.modules.project_management.interfaces import AssignmentRepository
 from core.platform.time.domain import TimeEntry, TimesheetPeriod
-from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
+from core.platform.time.interfaces import (
+    TimeEntryRepository,
+    TimesheetPeriodRepository,
+    WorkAssignmentRepository,
+)
 
 
 class TimesheetQueryMixin:
-    _assignment_repo: AssignmentRepository
+    _assignment_repo: WorkAssignmentRepository
     _time_entry_repo: TimeEntryRepository | None
     _timesheet_period_repo: TimesheetPeriodRepository | None
 

@@ -620,6 +620,27 @@ def test_platform_common_interfaces_are_platform_only():
     assert "class BaselineRepository" not in text
 
 
+def test_core_platform_does_not_import_module_contracts():
+    platform_root = ROOT / "core" / "platform"
+    violations: list[tuple[str, str]] = []
+
+    for path in _python_files(platform_root):
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(source)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    name = alias.name
+                    if name == "core.modules" or name.startswith("core.modules."):
+                        violations.append((str(path.relative_to(ROOT)), name))
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod == "core.modules" or mod.startswith("core.modules."):
+                    violations.append((str(path.relative_to(ROOT)), mod))
+
+    assert not violations, f"Core platform layer imports module code directly: {violations}"
+
+
 def test_project_service_is_orchestrator_only():
     service_path = ROOT / "core" / "services" / "project" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
