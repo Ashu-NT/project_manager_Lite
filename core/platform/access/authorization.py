@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable, TypeVar
 
+from core.platform.authorization import get_authorization_engine
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.auth.session import UserSessionContext
 
@@ -17,7 +18,8 @@ def require_scope_permission(
     *,
     operation_label: str,
 ) -> None:
-    if user_session is not None and user_session.has_scope_permission(scope_type, scope_id, permission_code):
+    engine = get_authorization_engine()
+    if engine.has_scope_permission(user_session, scope_type, scope_id, permission_code):
         return
     normalized_scope_type = str(scope_type or "").strip().lower() or "scope"
     normalized_scope_id = str(scope_id or "").strip() or "unknown"
@@ -54,14 +56,13 @@ def filter_scope_rows(
     permission_code: str,
     scope_id_getter,
 ) -> list[_T]:
-    if user_session is None:
-        return []
-    if not user_session.has_permission(permission_code):
-        return []
-    if not user_session.is_scope_restricted(scope_type):
-        return list(rows)
-    allowed_ids = user_session.scope_ids_for(scope_type, permission_code)
-    return [row for row in rows if scope_id_getter(row) in allowed_ids]
+    return get_authorization_engine().filter_scope_rows(
+        rows,
+        user_session,
+        scope_type=scope_type,
+        permission_code=permission_code,
+        scope_id_getter=scope_id_getter,
+    )
 
 
 def filter_project_rows(

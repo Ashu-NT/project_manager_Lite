@@ -49,6 +49,10 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - `infra/platform/services.py` now acts as a thin coordinator that assembles the stable `ServiceGraph`
   - module-specific approval handler registration now lives with the `project_management` registration layer instead of the central service graph builder
 - Completed in the current slice:
+  - shared `core/platform/authorization` engine seam for future auth/access policy evolution
+  - auth and access authorization helpers now delegate through one shared decision path
+  - dedicated auth/access scaling tracker in `docs/platform_alignment_followup/auth_access_scaling/README.md`
+- Completed in the current slice:
   - employee administration now prefers shared `site` and `department` selectors while keeping readable compatibility strings underneath
   - the employee UI now exposes explicit links back to the `Sites` and `Departments` workspaces so shared-master ownership stays visible
   - selector-backed employee editing now refreshes with shared-master change events without forcing a risky storage migration yet

@@ -52,12 +52,16 @@ The current enterprise auth/access hardening block delivered:
 1. federation and MFA hooks in the shared auth service: linked federated identities, MFA secret provisioning and verification, per-user session-timeout policy, session-revision validation, and richer login/session metadata
 2. true non-project scoped access persistence with the first live non-project scope type: `storeroom`, including principal hydration from mixed project + scoped grants
 3. cross-cutting enterprise guardrails: first separation-of-duties enforcement for conflicting security/governance permission sets and a split `Access` vs `Security` admin workspace
+4. a platform-owned authorization engine seam in `core/platform/authorization` so future web auth middleware and ABAC-style adapters have one central integration point
 
 The next implementation slice should now focus on:
 
-1. hosted SSO/IdP adapters and deeper `security.manage` workflows such as stronger device visibility and security event handling
-2. broader scoped-access adoption inside inventory flows beyond storeroom admin/ledger boundaries, then asset/maintenance-area scope types
-3. configurable separation-of-duties policy management and fuller security admin UX for password reset, MFA state, and federated-account lifecycle
+1. per-session desktop + web session persistence instead of only user-row session markers
+2. hosted SSO/IdP adapters and deeper `security.manage` workflows such as stronger device visibility and security event handling
+3. broader scoped-access adoption inside inventory flows beyond storeroom admin/ledger boundaries, then asset/maintenance-area scope types
+4. configurable separation-of-duties policy management and fuller security admin UX for password reset, MFA state, and federated-account lifecycle
+
+The concrete tracker for that work is now `docs/platform_alignment_followup/auth_access_scaling/README.md`.
 
 After that, the next priority should be the `Maintenance Management` skeleton, then deeper shared master data for formal site/department directories, and then the `QHSE` module skeleton.
 

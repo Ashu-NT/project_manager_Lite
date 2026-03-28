@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from core.platform.authorization import get_authorization_engine
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.auth.session import UserSessionContext
 
@@ -12,7 +13,8 @@ def require_permission(
     *,
     operation_label: str,
 ) -> None:
-    if user_session is not None and user_session.has_permission(permission_code):
+    engine = get_authorization_engine()
+    if engine.has_permission(user_session, permission_code):
         return
     raise BusinessRuleError(
         f"Permission denied for {operation_label}. Missing '{permission_code}'.",
@@ -27,7 +29,8 @@ def require_any_permission(
     operation_label: str,
 ) -> None:
     codes = [code for code in permission_codes if str(code).strip()]
-    if user_session is not None and any(user_session.has_permission(code) for code in codes):
+    engine = get_authorization_engine()
+    if engine.has_any_permission(user_session, codes):
         return
     expected = " or ".join(f"'{code}'" for code in codes) or "required permission"
     raise BusinessRuleError(
@@ -37,10 +40,7 @@ def require_any_permission(
 
 
 def is_admin_session(user_session: UserSessionContext | None) -> bool:
-    principal = user_session.principal if user_session is not None else None
-    if principal is None:
-        return False
-    return "admin" in principal.role_names
+    return get_authorization_engine().is_admin_session(user_session)
 
 
 __all__ = ["require_permission", "require_any_permission", "is_admin_session"]

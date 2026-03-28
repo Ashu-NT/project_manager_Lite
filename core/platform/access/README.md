@@ -1,13 +1,17 @@
 # Platform Access Architecture
 
-This package owns the reusable authorization engine for the application.
+This package owns the reusable scoped-access model for the application.
 
 ## Platform Responsibilities
 
-- Define and enforce permission checks.
+- Define and enforce scope-aware permission checks.
 - Resolve access by scope type and scope id.
 - Store scoped access in the authenticated session principal.
 - Provide compatibility wrappers for existing project-scoped PM checks.
+
+The shared decision seam for permission evaluation now lives under:
+
+- `core/platform/authorization`
 
 ## Module Responsibilities
 
@@ -59,9 +63,11 @@ The current implementation now also includes:
 - first live non-project scope policy registration for `storeroom`
 - scope-aware inventory filtering for storeroom administration and stock ledger queries
 - split `Access` and `Security` shell workspaces while keeping `AccessTab` as a reusable shared surface
+- a platform-owned authorization engine seam that `auth.authorization` and `access.authorization` now delegate through before future ABAC/web adapters are introduced
 
 ## Suggested Next Steps
 
 1. Add more module-owned scope policies such as asset and maintenance-area access through the same platform seam.
 2. Keep pushing scope-aware enforcement deeper into inventory/procurement and future maintenance services.
-3. Evolve the access admin UX from project-first labels to a broader multi-scope management console as more scope types come online.
+3. Route richer contextual policy inputs through the shared authorization engine so future ABAC-style checks do not expand ad hoc across services.
+4. Evolve the access admin UX from project-first labels to a broader multi-scope management console as more scope types come online.
