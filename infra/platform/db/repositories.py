@@ -1,6 +1,5 @@
 """Compatibility facade for DB repositories and ORM mappers.
-New code should import focused modules under ``infra.platform.db.repositories_*`` and
-``infra.platform.db.mappers``. This module keeps legacy imports stable."""
+New code should import focused modules under ``infra.platform.db.repositories_*`` and ``infra.platform.db.mappers``. This module keeps legacy imports stable."""
 
 from infra.platform.db.mappers import (
     assignment_from_orm,
