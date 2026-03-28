@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from application.platform import PlatformRuntimeApplicationService
 from core.platform import build_default_module_catalog
 from core.platform.modules.runtime import ModuleRuntimeService
@@ -125,3 +127,22 @@ def test_workspace_definitions_hide_project_management_when_module_disabled(
 
 def test_legacy_shell_package_reexports_platform_shell():
     assert LegacyShellNavigation is PlatformShellNavigation
+
+
+def test_shell_workspace_builders_are_split_by_module_packages():
+    root = Path(__file__).resolve().parents[1] / "ui" / "platform" / "shell"
+
+    assert (root / "common.py").exists()
+    assert (root / "platform" / "__init__.py").exists()
+    assert (root / "platform" / "home.py").exists()
+    assert (root / "platform" / "workspaces.py").exists()
+    assert (root / "project_management" / "__init__.py").exists()
+    assert (root / "project_management" / "workspaces.py").exists()
+    assert (root / "inventory_procurement" / "__init__.py").exists()
+    assert (root / "inventory_procurement" / "workspaces.py").exists()
+
+    coordinator = (root / "workspaces.py").read_text(encoding="utf-8", errors="ignore")
+    assert "build_platform_home_workspace_definitions" in coordinator
+    assert "build_project_management_workspace_definitions" in coordinator
+    assert "build_inventory_procurement_workspace_definitions" in coordinator
+    assert "build_platform_administration_workspace_definitions" in coordinator

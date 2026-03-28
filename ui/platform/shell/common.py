@@ -1,0 +1,121 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+from PySide6.QtWidgets import QWidget
+
+from application.platform import resolve_platform_runtime_application_service
+from core.platform.auth import UserSessionContext
+from ui.platform.settings import MainWindowSettingsStore
+
+PLATFORM_MODULE_CODE = "platform"
+PLATFORM_MODULE_LABEL = "Platform"
+INVENTORY_PROCUREMENT_MODULE_CODE = "inventory_procurement"
+INVENTORY_PROCUREMENT_MODULE_LABEL = "Inventory & Procurement"
+PROJECT_MANAGEMENT_MODULE_CODE = "project_management"
+PROJECT_MANAGEMENT_MODULE_LABEL = "Project Management"
+
+ScopeOptionsLoader = Callable[[], list[tuple[str, str]]]
+
+
+@dataclass(frozen=True)
+class WorkspaceDefinition:
+    module_code: str
+    module_label: str
+    group_label: str
+    label: str
+    widget: QWidget
+
+
+@dataclass(frozen=True)
+class ShellWorkspaceContext:
+    services: dict[str, object]
+    settings_store: MainWindowSettingsStore
+    user_session: UserSessionContext | None
+    parent: QWidget | None
+    platform_runtime_application_service: object | None
+    project_management_enabled: bool
+    inventory_procurement_enabled: bool
+    access_scope_type_choices: tuple[tuple[str, str], ...]
+    access_scope_option_loaders: dict[str, ScopeOptionsLoader]
+    access_scope_disabled_hints: dict[str, str]
+
+
+def build_shell_workspace_context(
+    *,
+    services: dict[str, object],
+    settings_store: MainWindowSettingsStore,
+    user_session: UserSessionContext | None,
+    parent: QWidget | None = None,
+) -> ShellWorkspaceContext:
+    platform_runtime_application_service = resolve_platform_runtime_application_service(
+        platform_runtime_application_service=services.get("platform_runtime_application_service"),
+        module_runtime_service=services.get("module_runtime_service"),
+        module_catalog_service=services.get("module_catalog_service"),
+        organization_service=services.get("organization_service"),
+    )
+    project_management_enabled = not bool(
+        platform_runtime_application_service is not None
+        and hasattr(platform_runtime_application_service, "is_enabled")
+        and not platform_runtime_application_service.is_enabled(PROJECT_MANAGEMENT_MODULE_CODE)
+    )
+    inventory_procurement_enabled = not bool(
+        platform_runtime_application_service is not None
+        and hasattr(platform_runtime_application_service, "is_enabled")
+        and not platform_runtime_application_service.is_enabled(INVENTORY_PROCUREMENT_MODULE_CODE)
+    )
+
+    access_scope_type_choices: list[tuple[str, str]] = [("Project", "project")]
+    access_scope_option_loaders: dict[str, ScopeOptionsLoader] = {}
+    access_scope_disabled_hints: dict[str, str] = {}
+    inventory_service = services.get("inventory_service")
+    if inventory_procurement_enabled and has_any_permission(user_session, "inventory.read", "inventory.manage"):
+        if inventory_service is not None and hasattr(inventory_service, "list_storerooms"):
+            access_scope_type_choices.append(("Storeroom", "storeroom"))
+            access_scope_option_loaders["storeroom"] = lambda: [
+                (f"{storeroom.storeroom_code} - {storeroom.name}", storeroom.id)
+                for storeroom in inventory_service.list_storerooms()
+            ]
+            access_scope_disabled_hints["storeroom"] = (
+                "Inventory & Procurement is disabled. Enable it in Modules before managing storeroom-scoped access."
+            )
+
+    return ShellWorkspaceContext(
+        services=services,
+        settings_store=settings_store,
+        user_session=user_session,
+        parent=parent,
+        platform_runtime_application_service=platform_runtime_application_service,
+        project_management_enabled=project_management_enabled,
+        inventory_procurement_enabled=inventory_procurement_enabled,
+        access_scope_type_choices=tuple(access_scope_type_choices),
+        access_scope_option_loaders=access_scope_option_loaders,
+        access_scope_disabled_hints=access_scope_disabled_hints,
+    )
+
+
+def has_permission(user_session: UserSessionContext | None, permission_code: str) -> bool:
+    return bool(user_session is not None and user_session.has_permission(permission_code))
+
+
+def has_any_permission(
+    user_session: UserSessionContext | None,
+    *permission_codes: str,
+) -> bool:
+    return any(has_permission(user_session, permission_code) for permission_code in permission_codes)
+
+
+__all__ = [
+    "INVENTORY_PROCUREMENT_MODULE_CODE",
+    "INVENTORY_PROCUREMENT_MODULE_LABEL",
+    "PLATFORM_MODULE_CODE",
+    "PLATFORM_MODULE_LABEL",
+    "PROJECT_MANAGEMENT_MODULE_CODE",
+    "PROJECT_MANAGEMENT_MODULE_LABEL",
+    "ShellWorkspaceContext",
+    "WorkspaceDefinition",
+    "build_shell_workspace_context",
+    "has_any_permission",
+    "has_permission",
+]
