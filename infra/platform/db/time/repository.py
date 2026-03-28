@@ -33,17 +33,17 @@ class SqlAlchemyTimeEntryRepository(TimeEntryRepository):
     def delete(self, entry_id: str) -> None:
         self.session.query(TimeEntryORM).filter_by(id=entry_id).delete()
 
-    def list_by_assignment(self, assignment_id: str) -> list[TimeEntry]:
+    def list_by_work_allocation(self, work_allocation_id: str) -> list[TimeEntry]:
         stmt = (
             select(TimeEntryORM)
-            .where(TimeEntryORM.assignment_id == assignment_id)
+            .where(TimeEntryORM.work_allocation_id == work_allocation_id)
             .order_by(TimeEntryORM.entry_date.asc(), TimeEntryORM.created_at.asc())
         )
         rows = self.session.execute(stmt).scalars().all()
         return [time_entry_from_orm(row) for row in rows]
 
-    def delete_by_assignment(self, assignment_id: str) -> None:
-        self.session.query(TimeEntryORM).filter_by(assignment_id=assignment_id).delete()
+    def delete_by_work_allocation(self, work_allocation_id: str) -> None:
+        self.session.query(TimeEntryORM).filter_by(work_allocation_id=work_allocation_id).delete()
 
 
 class SqlAlchemyTimesheetPeriodRepository(TimesheetPeriodRepository):

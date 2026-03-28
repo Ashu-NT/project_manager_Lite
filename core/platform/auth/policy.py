@@ -7,6 +7,8 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "project.manage": "Create and edit projects",
     "task.read": "View tasks",
     "task.manage": "Create and edit tasks",
+    "time.read": "View shared labor bookings and time entries",
+    "time.manage": "Create and edit shared labor bookings and time entries",
     "resource.read": "View resources",
     "resource.manage": "Create and edit resources",
     "employee.read": "View employee directory records",
@@ -52,6 +54,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
 _VIEWER = {
     "project.read",
     "task.read",
+    "time.read",
     "resource.read",
     "cost.read",
     "register.read",
@@ -67,6 +70,7 @@ _TEAM_MEMBER = _VIEWER | {
 _PLANNER = _TEAM_MEMBER | {
     "project.manage",
     "task.manage",
+    "time.manage",
     "baseline.manage",
     "register.manage",
     "report.export",
@@ -85,6 +89,7 @@ _PROJECT_MANAGER = _PLANNER | {
 _RESOURCE_MANAGER = {
     "project.read",
     "task.read",
+    "time.read",
     "resource.read",
     "resource.manage",
     "employee.read",
@@ -101,6 +106,7 @@ _RESOURCE_MANAGER = {
 _FINANCE_CONTROLLER = {
     "project.read",
     "task.read",
+    "time.read",
     "resource.read",
     "cost.read",
     "cost.manage",
@@ -129,6 +135,7 @@ _INVENTORY_MANAGER = {
 _PAYROLL_MANAGER = {
     "project.read",
     "task.read",
+    "time.read",
     "resource.read",
     "employee.read",
     "employee.manage",
@@ -147,6 +154,7 @@ _PAYROLL_MANAGER = {
 _PORTFOLIO_MANAGER = {
     "project.read",
     "task.read",
+    "time.read",
     "resource.read",
     "cost.read",
     "register.read",
@@ -162,6 +170,7 @@ _APPROVER = {
     "project.read",
     "resource.read",
     "task.read",
+    "time.read",
     "cost.read",
     "register.read",
     "report.view",
@@ -174,6 +183,7 @@ _APPROVER = {
 _AUDITOR = {
     "project.read",
     "task.read",
+    "time.read",
     "resource.read",
     "cost.read",
     "finance.read",
@@ -203,6 +213,7 @@ _SECURITY_ADMIN = {
 _SUPPORT_ADMIN = {
     "project.read",
     "task.read",
+    "time.read",
     "register.read",
     "report.view",
     "auth.read",

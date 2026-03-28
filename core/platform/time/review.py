@@ -32,6 +32,9 @@ class TimesheetReviewEntry:
     hours: float
     note: str
     author_username: str | None
+    owner_type: str
+    owner_id: str | None
+    owner_label: str
     task_id: str | None
     task_name: str
     project_id: str | None
@@ -104,8 +107,9 @@ class TimesheetReviewMixin:
     def _build_review_entries(self, entries: list[TimeEntry]) -> list[TimesheetReviewEntry]:
         rows: list[TimesheetReviewEntry] = []
         for entry in entries:
-            assignment = self._assignment_repo.get(entry.assignment_id)
-            task = self._task_repo.get(assignment.task_id) if assignment is not None else None
+            task_id = entry.owner_id if entry.owner_type == "task_assignment" else None
+            task_name = entry.owner_label or (task_id or entry.work_allocation_id)
+            project_id = entry.scope_id if entry.scope_type == "project" else self._resolve_entry_project_id(entry=entry)
             rows.append(
                 TimesheetReviewEntry(
                     entry_id=entry.id,
@@ -113,9 +117,12 @@ class TimesheetReviewMixin:
                     hours=float(entry.hours or 0.0),
                     note=entry.note or "",
                     author_username=entry.author_username,
-                    task_id=task.id if task is not None else None,
-                    task_name=task.name if task is not None else (assignment.task_id if assignment is not None else ""),
-                    project_id=task.project_id if task is not None else None,
+                    owner_type=entry.owner_type,
+                    owner_id=entry.owner_id,
+                    owner_label=entry.owner_label or "",
+                    task_id=task_id,
+                    task_name=task_name,
+                    project_id=project_id,
                 )
             )
         rows.sort(key=lambda item: (item.entry_date, item.task_name.lower(), item.entry_id))

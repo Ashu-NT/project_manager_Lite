@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 
+from core.platform.auth.session import UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
 
 
@@ -250,3 +251,53 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     _login_as(services, "viewer-timesheet", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="timesheet.submit"):
         ts.submit_timesheet_period(resource.id, period_start=date(2026, 6, 1))
+
+
+def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
+    ps = services["project_service"]
+    rs = services["resource_service"]
+    ts = services["task_service"]
+    timesheet_service = services["timesheet_service"]
+    user_session = services["user_session"]
+
+    project = ps.create_project("Shared Time Permission Alias")
+    task = ts.create_task(project.id, "Alias Permission Task", start_date=date(2026, 7, 1), duration_days=2)
+    resource = rs.create_resource("Alias Logger", hourly_rate=100.0)
+    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
+    first = timesheet_service.add_time_entry(
+        assignment.id,
+        entry_date=date(2026, 7, 1),
+        hours=2.0,
+        note="Admin seed entry",
+    )
+
+    user_session.set_validator(None)
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="u-time-read",
+            username="time-reader",
+            display_name="Time Reader",
+            role_names=frozenset({"time_reader"}),
+            permissions=frozenset({"time.read"}),
+        )
+    )
+    visible = timesheet_service.list_time_entries_for_assignment(assignment.id)
+    assert [row.id for row in visible] == [first.id]
+
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="u-time-manage",
+            username="time-manager",
+            display_name="Time Manager",
+            role_names=frozenset({"time_manager"}),
+            permissions=frozenset({"time.manage", "time.read"}),
+        )
+    )
+    second = timesheet_service.add_work_entry(
+        assignment.id,
+        entry_date=date(2026, 7, 2),
+        hours=3.5,
+        note="Shared manage permission entry",
+    )
+    assert second.work_allocation_id == assignment.id
+    assert len(timesheet_service.list_time_entries_for_work_allocation(assignment.id)) == 2

@@ -150,14 +150,51 @@ def test_time_entries_capture_platform_work_entry_context_for_employee_resources
         note="Shared platform work entry snapshot",
     )
 
+    assert entry.work_allocation_id == assignment.id
     assert entry.assignment_id == assignment.id
     assert entry.owner_type == "task_assignment"
     assert entry.owner_id == assignment.id
+    assert entry.owner_label == task.name
+    assert entry.scope_type == "project"
+    assert entry.scope_id == project.id
     assert entry.employee_id == employee.id
     assert entry.department_id == department.id
     assert entry.department_name == "Operations"
     assert entry.site_id == site.id
     assert entry.site_name == "Hamburg Yard"
+
+
+def test_shared_time_work_allocation_aliases_preserve_pm_timesheet_flows(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    timesheet_service = services["timesheet_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("Shared Time Alias Project")
+    task = ts.create_task(project.id, "Alias Task", start_date=date(2026, 9, 1), duration_days=2)
+    resource = rs.create_resource("Alias Resource", hourly_rate=105.0)
+    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
+
+    entry = timesheet_service.add_work_entry(
+        assignment.id,
+        entry_date=date(2026, 9, 1),
+        hours=4.0,
+        note="Shared work allocation entry",
+    )
+
+    listed = timesheet_service.list_time_entries_for_work_allocation(assignment.id)
+    listed_period = timesheet_service.list_time_entries_for_work_allocation_period(
+        assignment.id,
+        period_start=date(2026, 9, 15),
+    )
+
+    assert entry.work_allocation_id == assignment.id
+    assert entry.assignment_id == assignment.id
+    assert entry.owner_label == task.name
+    assert entry.scope_type == "project"
+    assert entry.scope_id == project.id
+    assert [row.id for row in listed] == [entry.id]
+    assert [row.id for row in listed_period] == [entry.id]
 
 
 def test_timesheet_period_submission_blocks_edits_for_that_month_only(services):

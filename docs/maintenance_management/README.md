@@ -181,8 +181,10 @@ Required hardening:
 
 Current state:
 
-- shared time exists, but the current work-entry context still assumes `task_assignment`
-- the neutral time ports are better than before, but the terminology and permission labels are still task-shaped in places
+- shared time now persists a neutral `work_allocation_id` alongside PM compatibility `assignment_id`
+- shared time entries now carry owner and scope snapshots such as `owner_label`, `scope_type`, and `scope_id`
+- the platform time service now exposes neutral `work allocation` read/write aliases while keeping PM assignment wrappers intact
+- shared time permissions now include `time.read` and `time.manage`, while PM compatibility still accepts `task.read` and `task.manage`
 
 Why this matters:
 
@@ -191,9 +193,9 @@ Why this matters:
 
 Required hardening:
 
-- widen the shared time boundary from project-task wording toward neutral work-owner semantics
-- support maintenance work-order / operation references without pretending they are PM task assignments
-- make sure labor-booking permissions and review flows do not depend on PM-only naming
+- done: widen the shared time boundary from project-task wording toward neutral work-owner semantics
+- done: support future maintenance work-order / operation references without pretending they are PM task assignments in storage
+- done: make labor-booking permissions and review flows stop depending only on PM task naming
 
 #### 4. Shared document taxonomy and lifecycle hardening
 

@@ -7,12 +7,16 @@ from infra.platform.db.models import TimeEntryORM, TimesheetPeriodORM
 def time_entry_to_orm(entry: TimeEntry) -> TimeEntryORM:
     return TimeEntryORM(
         id=entry.id,
+        work_allocation_id=entry.work_allocation_id,
         assignment_id=entry.assignment_id,
         entry_date=entry.entry_date,
         hours=entry.hours,
         note=entry.note,
         owner_type=entry.owner_type,
         owner_id=entry.owner_id,
+        owner_label=entry.owner_label or None,
+        scope_type=entry.scope_type,
+        scope_id=entry.scope_id,
         employee_id=entry.employee_id,
         department_id=entry.department_id,
         department_name=entry.department_name or None,
@@ -26,14 +30,20 @@ def time_entry_to_orm(entry: TimeEntry) -> TimeEntryORM:
 
 
 def time_entry_from_orm(obj: TimeEntryORM) -> TimeEntry:
+    work_allocation_id = getattr(obj, "work_allocation_id", None) or obj.assignment_id
+    owner_type = getattr(obj, "owner_type", None) or ("task_assignment" if obj.assignment_id else "work_allocation")
     return TimeEntry(
         id=obj.id,
+        work_allocation_id=work_allocation_id,
         assignment_id=obj.assignment_id,
         entry_date=obj.entry_date,
         hours=obj.hours,
         note=obj.note,
-        owner_type=getattr(obj, "owner_type", "task_assignment"),
-        owner_id=getattr(obj, "owner_id", None),
+        owner_type=owner_type,
+        owner_id=getattr(obj, "owner_id", None) or obj.assignment_id or work_allocation_id,
+        owner_label=getattr(obj, "owner_label", None) or "",
+        scope_type=getattr(obj, "scope_type", None),
+        scope_id=getattr(obj, "scope_id", None),
         employee_id=getattr(obj, "employee_id", None),
         department_id=getattr(obj, "department_id", None),
         department_name=getattr(obj, "department_name", None) or "",

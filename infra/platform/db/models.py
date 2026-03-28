@@ -382,16 +382,20 @@ class TimeEntryORM(Base):
     __tablename__ = "time_entries"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    assignment_id: Mapped[str] = mapped_column(
+    work_allocation_id: Mapped[str] = mapped_column(String, nullable=False)
+    assignment_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("task_assignments.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     entry_date: Mapped[date] = mapped_column(Date, nullable=False)
     hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    owner_type: Mapped[str] = mapped_column(String(64), nullable=False, default="task_assignment", server_default="task_assignment")
+    owner_type: Mapped[str] = mapped_column(String(64), nullable=False, default="work_allocation", server_default="work_allocation")
     owner_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    owner_label: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    scope_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    scope_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     employee_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("employees.id", ondelete="SET NULL"),
@@ -415,9 +419,11 @@ class TimeEntryORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_time_entries_work_allocation", TimeEntryORM.work_allocation_id)
 Index("idx_time_entries_assignment", TimeEntryORM.assignment_id)
 Index("idx_time_entries_date", TimeEntryORM.entry_date)
 Index("idx_time_entries_owner", TimeEntryORM.owner_type, TimeEntryORM.owner_id)
+Index("idx_time_entries_scope", TimeEntryORM.scope_type, TimeEntryORM.scope_id)
 Index("idx_time_entries_employee", TimeEntryORM.employee_id)
 Index("idx_time_entries_department", TimeEntryORM.department_id)
 Index("idx_time_entries_site", TimeEntryORM.site_id)

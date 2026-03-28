@@ -9,9 +9,9 @@ from core.platform.time.entries import TimesheetEntriesMixin
 from core.platform.time.interfaces import (
     TimeEntryRepository,
     TimesheetPeriodRepository,
-    WorkAssignmentRepository,
+    WorkAllocationRepository,
+    WorkOwnerRepository,
     WorkResourceRepository,
-    WorkTaskRepository,
 )
 from core.platform.time.periods import TimesheetPeriodsMixin
 from core.platform.time.query import TimesheetQueryMixin
@@ -31,8 +31,8 @@ class TimeService(
     def __init__(
         self,
         session: Session,
-        assignment_repo: WorkAssignmentRepository,
-        task_repo: WorkTaskRepository,
+        assignment_repo: WorkAllocationRepository,
+        task_repo: WorkOwnerRepository,
         resource_repo: WorkResourceRepository,
         employee_repo: EmployeeRepository | None,
         time_entry_repo: TimeEntryRepository | None,
@@ -42,8 +42,10 @@ class TimeService(
         module_catalog_service=None,
     ):
         self._session: Session = session
-        self._assignment_repo: WorkAssignmentRepository = assignment_repo
-        self._task_repo: WorkTaskRepository = task_repo
+        self._work_allocation_repo: WorkAllocationRepository = assignment_repo
+        self._assignment_repo: WorkAllocationRepository = assignment_repo
+        self._work_owner_repo: WorkOwnerRepository = task_repo
+        self._task_repo: WorkOwnerRepository = task_repo
         self._resource_repo: WorkResourceRepository = resource_repo
         self._employee_repo: EmployeeRepository | None = employee_repo
         self._time_entry_repo = time_entry_repo

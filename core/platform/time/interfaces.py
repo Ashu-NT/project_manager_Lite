@@ -7,19 +7,15 @@ from typing import Protocol
 from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 
-class WorkAssignmentRecord(Protocol):
+class WorkAllocationRecord(Protocol):
     id: str
-    task_id: str
     resource_id: str
     hours_logged: float
 
 
-class WorkTaskRecord(Protocol):
+class WorkOwnerRecord(Protocol):
     id: str
-    project_id: str
     name: str
-    start_date: date | None
-    actual_start: date | None
 
 
 class WorkResourceRecord(Protocol):
@@ -28,16 +24,16 @@ class WorkResourceRecord(Protocol):
     employee_id: str | None
 
 
-class WorkAssignmentRepository(Protocol):
-    def get(self, assignment_id: str) -> WorkAssignmentRecord | None: ...
+class WorkAllocationRepository(Protocol):
+    def get(self, work_allocation_id: str) -> WorkAllocationRecord | None: ...
 
-    def list_by_resource(self, resource_id: str) -> list[WorkAssignmentRecord]: ...
+    def list_by_resource(self, resource_id: str) -> list[WorkAllocationRecord]: ...
 
-    def update(self, assignment: WorkAssignmentRecord) -> None: ...
+    def update(self, work_allocation: WorkAllocationRecord) -> None: ...
 
 
-class WorkTaskRepository(Protocol):
-    def get(self, task_id: str) -> WorkTaskRecord | None: ...
+class WorkOwnerRepository(Protocol):
+    def get(self, owner_id: str) -> WorkOwnerRecord | None: ...
 
 
 class WorkResourceRepository(Protocol):
@@ -58,10 +54,16 @@ class TimeEntryRepository(ABC):
     def delete(self, entry_id: str) -> None: ...
 
     @abstractmethod
-    def list_by_assignment(self, assignment_id: str) -> list[TimeEntry]: ...
+    def list_by_work_allocation(self, work_allocation_id: str) -> list[TimeEntry]: ...
 
     @abstractmethod
-    def delete_by_assignment(self, assignment_id: str) -> None: ...
+    def delete_by_work_allocation(self, work_allocation_id: str) -> None: ...
+
+    def list_by_assignment(self, assignment_id: str) -> list[TimeEntry]:
+        return self.list_by_work_allocation(assignment_id)
+
+    def delete_by_assignment(self, assignment_id: str) -> None:
+        self.delete_by_work_allocation(assignment_id)
 
 
 class TimesheetPeriodRepository(ABC):
@@ -89,11 +91,21 @@ class TimesheetPeriodRepository(ABC):
     ) -> list[TimesheetPeriod]: ...
 
 
+WorkAssignmentRecord = WorkAllocationRecord
+WorkAssignmentRepository = WorkAllocationRepository
+WorkTaskRecord = WorkOwnerRecord
+WorkTaskRepository = WorkOwnerRepository
+
+
 __all__ = [
     "TimeEntryRepository",
     "TimesheetPeriodRepository",
+    "WorkAllocationRecord",
+    "WorkAllocationRepository",
     "WorkAssignmentRecord",
     "WorkAssignmentRepository",
+    "WorkOwnerRecord",
+    "WorkOwnerRepository",
     "WorkResourceRecord",
     "WorkResourceRepository",
     "WorkTaskRecord",

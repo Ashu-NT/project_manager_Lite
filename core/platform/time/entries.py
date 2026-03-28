@@ -3,98 +3,107 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ValidationError
 from core.platform.notifications.domain_events import domain_events
 from core.platform.time.domain import TimeEntry
 from core.platform.time.interfaces import (
     TimeEntryRepository,
-    WorkAssignmentRepository,
+    WorkAllocationRepository,
+    WorkOwnerRepository,
     WorkResourceRepository,
-    WorkTaskRepository,
 )
 
 
 class TimesheetEntriesMixin:
-    _assignment_repo: WorkAssignmentRepository
+    _work_allocation_repo: WorkAllocationRepository
+    _work_owner_repo: WorkOwnerRepository
     _resource_repo: WorkResourceRepository
-    _task_repo: WorkTaskRepository
     _time_entry_repo: TimeEntryRepository | None
 
-    def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
-        require_permission(self._user_session, "task.manage", operation_label="open timesheet")
-        assignment, task, resource = self._load_assignment_context(assignment_id)
+    def initialize_timesheet_for_work_allocation(self, work_allocation_id: str) -> list[TimeEntry]:
+        self._require_time_manage_permission("open timesheet")
+        work_allocation, work_owner, resource = self._load_work_allocation_context(work_allocation_id)
         if self._time_entry_repo is None:
             return []
         seeded_entry = None
         try:
-            seeded_entry = self._seed_legacy_hours_entry(assignment, task)
+            seeded_entry = self._seed_legacy_hours_entry(work_allocation, work_owner, resource)
             if seeded_entry is not None:
                 self._session.commit()
         except Exception:
             self._session.rollback()
             raise
+        project_id = self._resolve_entry_project_id(work_allocation=work_allocation, work_owner=work_owner)
         if seeded_entry is not None:
             record_audit(
                 self,
                 action="time_entry.bootstrap_legacy_hours",
                 entity_type="time_entry",
                 entity_id=seeded_entry.id,
-                project_id=task.project_id,
+                project_id=project_id,
                 details=self._build_time_entry_audit_details(
-                    assignment=assignment,
-                    task=task,
-                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    work_allocation=work_allocation,
+                    work_owner=work_owner,
+                    resource_name=resource.name if resource is not None else work_allocation.resource_id,
                     entry=seeded_entry,
                     extra={"legacy_hours_migrated": seeded_entry.hours},
                 ),
             )
-        return self._time_entry_repo.list_by_assignment(assignment_id)
+        return self._time_entry_repo.list_by_work_allocation(work_allocation_id)
 
-    def add_time_entry(
+    def initialize_timesheet_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
+        return self.initialize_timesheet_for_work_allocation(assignment_id)
+
+    def add_work_entry(
         self,
-        assignment_id: str,
+        work_allocation_id: str,
         *,
         entry_date: date,
         hours: float,
         note: str = "",
     ) -> TimeEntry:
-        require_permission(self._user_session, "task.manage", operation_label="add time entry")
-        assignment, task, resource = self._load_assignment_context(assignment_id)
+        self._require_time_manage_permission("add time entry")
+        work_allocation, work_owner, resource = self._load_work_allocation_context(work_allocation_id)
         if self._time_entry_repo is None:
             raise ValidationError("Time entry repository is not configured.")
         self._ensure_timesheet_period_editable(
-            resource_id=assignment.resource_id,
+            resource_id=work_allocation.resource_id,
             entry_date=entry_date,
             operation_label="add time entry",
         )
         entry = TimeEntry.create(
-            assignment_id=assignment.id,
+            work_allocation_id=work_allocation.id,
+            assignment_id=self._legacy_assignment_id_for_work_allocation(work_allocation),
             entry_date=entry_date,
             hours=self._validate_time_entry_hours(hours),
             note=(note or "").strip(),
             author_user_id=getattr(getattr(self._user_session, "principal", None), "user_id", None),
             author_username=getattr(getattr(self._user_session, "principal", None), "username", None),
-            **self._resolve_work_entry_context(assignment=assignment, resource=resource),
+            **self._resolve_work_entry_context(
+                work_allocation=work_allocation,
+                work_owner=work_owner,
+                resource=resource,
+            ),
         )
         seeded_entry = None
         try:
-            seeded_entry = self._seed_legacy_hours_entry(assignment, task)
+            seeded_entry = self._seed_legacy_hours_entry(work_allocation, work_owner, resource)
             self._time_entry_repo.add(entry)
             self._session.flush()
-            self._sync_assignment_hours_from_entries(assignment.id)
+            self._sync_work_allocation_hours_from_entries(work_allocation.id)
             self._session.commit()
+            project_id = self._resolve_entry_project_id(work_allocation=work_allocation, work_owner=work_owner)
             if seeded_entry is not None:
                 record_audit(
                     self,
                     action="time_entry.bootstrap_legacy_hours",
                     entity_type="time_entry",
                     entity_id=seeded_entry.id,
-                    project_id=task.project_id,
+                    project_id=project_id,
                     details=self._build_time_entry_audit_details(
-                        assignment=assignment,
-                        task=task,
-                        resource_name=resource.name if resource is not None else assignment.resource_id,
+                        work_allocation=work_allocation,
+                        work_owner=work_owner,
+                        resource_name=resource.name if resource is not None else work_allocation.resource_id,
                         entry=seeded_entry,
                         extra={"legacy_hours_migrated": seeded_entry.hours},
                     ),
@@ -104,19 +113,35 @@ class TimesheetEntriesMixin:
                 action="time_entry.add",
                 entity_type="time_entry",
                 entity_id=entry.id,
-                project_id=task.project_id,
+                project_id=project_id,
                 details=self._build_time_entry_audit_details(
-                    assignment=assignment,
-                    task=task,
-                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    work_allocation=work_allocation,
+                    work_owner=work_owner,
+                    resource_name=resource.name if resource is not None else work_allocation.resource_id,
                     entry=entry,
                 ),
             )
         except Exception:
             self._session.rollback()
             raise
-        domain_events.tasks_changed.emit(task.project_id)
+        if project_id:
+            domain_events.tasks_changed.emit(project_id)
         return entry
+
+    def add_time_entry(
+        self,
+        assignment_id: str,
+        *,
+        entry_date: date,
+        hours: float,
+        note: str = "",
+    ) -> TimeEntry:
+        return self.add_work_entry(
+            assignment_id,
+            entry_date=entry_date,
+            hours=hours,
+            note=note,
+        )
 
     def update_time_entry(
         self,
@@ -126,18 +151,18 @@ class TimesheetEntriesMixin:
         hours: float | None = None,
         note: str | None = None,
     ) -> TimeEntry:
-        require_permission(self._user_session, "task.manage", operation_label="update time entry")
+        self._require_time_manage_permission("update time entry")
         entry = self._require_time_entry(entry_id)
-        assignment, task, resource = self._load_assignment_context(entry.assignment_id)
+        work_allocation, work_owner, resource = self._load_work_allocation_context(entry.work_allocation_id)
         self._ensure_timesheet_period_editable(
-            resource_id=assignment.resource_id,
+            resource_id=work_allocation.resource_id,
             entry_date=entry.entry_date,
             operation_label="update time entry",
         )
         target_entry_date = entry_date or entry.entry_date
         if target_entry_date != entry.entry_date:
             self._ensure_timesheet_period_editable(
-                resource_id=assignment.resource_id,
+                resource_id=work_allocation.resource_id,
                 entry_date=target_entry_date,
                 operation_label="move time entry",
             )
@@ -151,58 +176,62 @@ class TimesheetEntriesMixin:
         try:
             self._time_entry_repo.update(entry)  # type: ignore[union-attr]
             self._session.flush()
-            self._sync_assignment_hours_from_entries(entry.assignment_id)
+            self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
             self._session.commit()
+            project_id = self._resolve_entry_project_id(entry=entry, work_allocation=work_allocation, work_owner=work_owner)
             record_audit(
                 self,
                 action="time_entry.update",
                 entity_type="time_entry",
                 entity_id=entry.id,
-                project_id=task.project_id,
+                project_id=project_id,
                 details=self._build_time_entry_audit_details(
-                    assignment=assignment,
-                    task=task,
-                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    work_allocation=work_allocation,
+                    work_owner=work_owner,
+                    resource_name=resource.name if resource is not None else work_allocation.resource_id,
                     entry=entry,
                 ),
             )
         except Exception:
             self._session.rollback()
             raise
-        domain_events.tasks_changed.emit(task.project_id)
+        if project_id:
+            domain_events.tasks_changed.emit(project_id)
         return entry
 
     def delete_time_entry(self, entry_id: str) -> None:
-        require_permission(self._user_session, "task.manage", operation_label="delete time entry")
+        self._require_time_manage_permission("delete time entry")
         entry = self._require_time_entry(entry_id)
-        assignment, task, resource = self._load_assignment_context(entry.assignment_id)
+        work_allocation, work_owner, resource = self._load_work_allocation_context(entry.work_allocation_id)
         self._ensure_timesheet_period_editable(
-            resource_id=assignment.resource_id,
+            resource_id=work_allocation.resource_id,
             entry_date=entry.entry_date,
             operation_label="delete time entry",
         )
         try:
             self._time_entry_repo.delete(entry.id)  # type: ignore[union-attr]
             self._session.flush()
-            self._sync_assignment_hours_from_entries(entry.assignment_id)
+            self._sync_work_allocation_hours_from_entries(entry.work_allocation_id)
             self._session.commit()
+            project_id = self._resolve_entry_project_id(entry=entry, work_allocation=work_allocation, work_owner=work_owner)
             record_audit(
                 self,
                 action="time_entry.delete",
                 entity_type="time_entry",
                 entity_id=entry.id,
-                project_id=task.project_id,
+                project_id=project_id,
                 details=self._build_time_entry_audit_details(
-                    assignment=assignment,
-                    task=task,
-                    resource_name=resource.name if resource is not None else assignment.resource_id,
+                    work_allocation=work_allocation,
+                    work_owner=work_owner,
+                    resource_name=resource.name if resource is not None else work_allocation.resource_id,
                     entry=entry,
                 ),
             )
         except Exception:
             self._session.rollback()
             raise
-        domain_events.tasks_changed.emit(task.project_id)
+        if project_id:
+            domain_events.tasks_changed.emit(project_id)
 
 
 __all__ = ["TimesheetEntriesMixin"]
