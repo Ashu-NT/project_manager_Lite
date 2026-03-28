@@ -12,6 +12,5 @@ grouped by domain:
 - `stock_control/`: stock and movement dialogs/workspaces
 - `shared/`: UI-only helper functions shared across workspaces
 
-Top-level modules such as `ui.modules.inventory_procurement.items_tab` remain as
-compatibility aliases for existing imports and tests. New code should import
-from the domain subpackages directly.
+Import inventory UI code from the domain subpackages directly, or from the
+package exports in `ui.modules.inventory_procurement`.

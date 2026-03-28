@@ -325,17 +325,9 @@ def test_cost_tab_is_coordinator_only():
     assert "class ResourceAssignmentsDialog" not in text
 
 
-def test_cost_components_module_is_facade_only():
-    components_path = ROOT / "ui" / "cost" / "components.py"
-    text = components_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from .models import" in text
-    assert "from .cost_dialogs import" in text
-    assert "from .labor_dialogs import" in text
-    assert "class CostTableModel" not in text
-    assert "class CostEditDialog" not in text
-    assert "class ResourceLaborDialog" not in text
-    assert "class ResourceAssignmentsDialog" not in text
+def test_legacy_project_management_component_facades_are_removed():
+    assert not (ROOT / "ui" / "cost" / "components.py").exists()
+    assert not (ROOT / "ui" / "task" / "components.py").exists()
 
 
 def test_dashboard_tab_is_coordinator_only():
@@ -500,8 +492,8 @@ def test_infra_repositories_module_is_facade_only():
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "from infra.platform.db.mappers import" in text
-    assert "from infra.modules.project_management.db.repositories_project import" in text
-    assert "from infra.modules.project_management.db.repositories_task import" in text
+    assert "from infra.modules.project_management.db.project.repository import" in text
+    assert "from infra.modules.project_management.db.task.repository import" in text
     assert "class SqlAlchemy" not in text
 
 
@@ -519,25 +511,21 @@ def test_infra_mappers_module_is_facade_only():
     assert "def cost_to_orm" not in text
 
 
-def test_infra_repository_wrappers_delegate_to_aggregate_folder():
-    wrappers = [
-        "repositories_project.py",
-        "repositories_task.py",
-        "repositories_resource.py",
-        "repositories_cost_calendar.py",
-        "repositories_baseline.py",
+def test_legacy_infra_repository_wrappers_are_removed():
+    removed = [
+        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_project.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_task.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_resource.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_cost_calendar.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_baseline.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_register.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "repositories_timesheet.py",
+        ROOT / "infra" / "platform" / "db" / "repositories_approval.py",
+        ROOT / "infra" / "platform" / "db" / "repositories_audit.py",
+        ROOT / "infra" / "platform" / "db" / "repositories_auth.py",
     ]
-    expected_imports = {
-        "repositories_project.py": "from infra.modules.project_management.db.project.repository import",
-        "repositories_task.py": "from infra.modules.project_management.db.task.repository import",
-        "repositories_resource.py": "from infra.modules.project_management.db.resource.repository import",
-        "repositories_cost_calendar.py": "from infra.modules.project_management.db.cost_calendar.repository import",
-        "repositories_baseline.py": "from infra.modules.project_management.db.baseline.repository import",
-    }
-    for name in wrappers:
-        text = (ROOT / "infra" / "db" / name).read_text(encoding="utf-8", errors="ignore")
-        assert expected_imports[name] in text
-        assert "Compatibility wrapper" in text
+    for path in removed:
+        assert not path.exists()
 
 
 def test_core_models_module_is_facade_only():
@@ -738,9 +726,7 @@ def test_known_large_modules_have_growth_budgets():
         "ui/modules/project_management/task/dependency_shared.py": 60,
         "ui/modules/project_management/task/assignment_dialogs.py": 270,
         "ui/modules/project_management/task/models.py": 120,
-        "ui/modules/project_management/task/components.py": 80,
         "ui/modules/project_management/cost/tab.py": 220,
-        "ui/modules/project_management/cost/components.py": 80,
         "ui/modules/project_management/cost/models.py": 180,
         "ui/modules/project_management/cost/cost_dialogs.py": 240,
         "ui/modules/project_management/cost/labor_dialogs.py": 320,
@@ -884,12 +870,6 @@ def test_known_large_modules_have_growth_budgets():
         "infra/modules/project_management/db/baseline/__init__.py": 60,
         "infra/modules/project_management/db/baseline/mapper.py": 100,
         "infra/modules/project_management/db/baseline/repository.py": 120,
-        "infra/modules/project_management/db/repositories_project.py": 100,
-        "infra/modules/project_management/db/repositories_task.py": 150,
-        "infra/modules/project_management/db/repositories_timesheet.py": 60,
-        "infra/modules/project_management/db/repositories_resource.py": 60,
-        "infra/modules/project_management/db/repositories_cost_calendar.py": 150,
-        "infra/modules/project_management/db/repositories_baseline.py": 100,
     }
 
     breaches = []

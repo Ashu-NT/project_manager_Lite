@@ -24,7 +24,7 @@ Persistence is split between `infra/platform/db/` for shared platform concerns a
   - `collaboration/`
   - `portfolio/`
   - `register/`
-- compatibility facade wrappers:
+- compatibility facades still retained:
   - `infra/platform/db/repositories.py`
   - `infra/platform/db/mappers.py`
 
@@ -80,8 +80,9 @@ Aggregate repositories implement the abstract interface contracts:
 - cascade-aware deletions
 - specialty operations (dependencies, assignments, baselines, auth bindings)
 
-Facade wrapper modules preserve old import paths while delegating to aggregate
-folder implementations.
+The remaining facade modules are the top-level `repositories.py` and
+`mappers.py` entry points. Aggregate-specific `repositories_*` wrapper files
+have been removed in favor of direct aggregate imports.
 
 ## Concurrency Control
 

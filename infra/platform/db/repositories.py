@@ -40,19 +40,19 @@ from infra.platform.db.mappers import (
     permission_to_orm,
     permission_from_orm,
 )
-from infra.modules.project_management.db.repositories_baseline import SqlAlchemyBaselineRepository
-from infra.modules.project_management.db.repositories_cost_calendar import (
+from infra.modules.project_management.db.baseline.repository import SqlAlchemyBaselineRepository
+from infra.modules.project_management.db.cost_calendar.repository import (
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyCostRepository,
     SqlAlchemyWorkingCalendarRepository,
 )
-from infra.modules.project_management.db.repositories_project import (
+from infra.modules.project_management.db.project.repository import (
     SqlAlchemyProjectRepository,
     SqlAlchemyProjectResourceRepository,
 )
-from infra.modules.project_management.db.repositories_register import SqlAlchemyRegisterEntryRepository
-from infra.modules.project_management.db.repositories_resource import SqlAlchemyResourceRepository
-from infra.modules.project_management.db.repositories_task import (
+from infra.modules.project_management.db.register.repository import SqlAlchemyRegisterEntryRepository
+from infra.modules.project_management.db.resource.repository import SqlAlchemyResourceRepository
+from infra.modules.project_management.db.task.repository import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
@@ -61,7 +61,7 @@ from infra.platform.db.time.repository import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )
-from infra.platform.db.repositories_auth import (
+from infra.platform.db.auth.repository import (
     SqlAlchemyPermissionRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,

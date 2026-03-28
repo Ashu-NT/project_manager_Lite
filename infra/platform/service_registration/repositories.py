@@ -14,11 +14,13 @@ from infra.modules.project_management.db.portfolio import (
     SqlAlchemyPortfolioScoringTemplateRepository,
     SqlAlchemyPortfolioScenarioRepository,
 )
-from infra.modules.project_management.db.repositories_register import SqlAlchemyRegisterEntryRepository
+from infra.modules.project_management.db.register.repository import SqlAlchemyRegisterEntryRepository
 from infra.platform.db.access import (
     SqlAlchemyProjectMembershipRepository,
     SqlAlchemyScopedAccessGrantRepository,
 )
+from infra.platform.db.approval.repository import SqlAlchemyApprovalRepository
+from infra.platform.db.audit.repository import SqlAlchemyAuditLogRepository
 from infra.platform.db.documents import SqlAlchemyDocumentLinkRepository, SqlAlchemyDocumentRepository
 from infra.platform.db.party import SqlAlchemyPartyRepository
 from infra.platform.db.repositories import (
@@ -44,8 +46,6 @@ from infra.platform.db.repositories import (
     SqlAlchemyUserRoleRepository,
     SqlAlchemyWorkingCalendarRepository,
 )
-from infra.platform.db.repositories_approval import SqlAlchemyApprovalRepository
-from infra.platform.db.repositories_audit import SqlAlchemyAuditLogRepository
 
 
 @dataclass(frozen=True)

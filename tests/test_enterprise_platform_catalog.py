@@ -162,7 +162,32 @@ def test_inventory_procurement_procurement_tabs_are_split_by_subpackages():
     assert (root / "requisitions" / "views.py").exists()
     assert (root / "requisitions" / "tab.py").exists()
 
-    purchase_orders_shim = (root / "purchase_orders_tab.py").read_text(encoding="utf-8", errors="ignore")
-    requisitions_shim = (root / "requisitions_tab.py").read_text(encoding="utf-8", errors="ignore")
-    assert "procurement.purchase_orders import PurchaseOrdersTab" in purchase_orders_shim
-    assert "procurement.requisitions import RequisitionsTab" in requisitions_shim
+
+def test_inventory_procurement_removed_dead_top_level_wrappers():
+    root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "inventory_procurement"
+
+    removed = [
+        "data_exchange_tab.py",
+        "document_link_dialogs.py",
+        "header_support.py",
+        "item_dialogs.py",
+        "items_tab.py",
+        "movement_dialogs.py",
+        "movements_tab.py",
+        "procurement_dialogs.py",
+        "procurement_support.py",
+        "purchase_orders_tab.py",
+        "receiving_tab.py",
+        "reference_support.py",
+        "reports_tab.py",
+        "reservation_dialogs.py",
+        "reservations_tab.py",
+        "requisitions_tab.py",
+        "stock_dialogs.py",
+        "stock_tab.py",
+        "storeroom_dialogs.py",
+        "storerooms_tab.py",
+    ]
+
+    for relative_path in removed:
+        assert not (root / relative_path).exists()

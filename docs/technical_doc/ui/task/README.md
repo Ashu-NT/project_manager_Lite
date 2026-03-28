@@ -29,7 +29,6 @@ assignments.
 - collaboration:
   - `collaboration_dialog.py`
   - `mention_text_edit.py`
-- compatibility facade: `components.py`
 
 ## Coordinator (`TaskTab`)
 

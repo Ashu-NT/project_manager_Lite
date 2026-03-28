@@ -9,18 +9,18 @@ from openpyxl import load_workbook
 from core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
 from ui.modules.inventory_procurement.data_exchange.import_dialog import InventoryImportDialog
-from ui.modules.inventory_procurement.data_exchange_tab import InventoryDataExchangeTab
+from ui.modules.inventory_procurement.data_exchange.tab import InventoryDataExchangeTab
 from ui.modules.inventory_procurement.dashboard_tab import InventoryDashboardTab
-from ui.modules.inventory_procurement.item_dialogs import InventoryItemEditDialog
-from ui.modules.inventory_procurement.items_tab import InventoryItemsTab
-from ui.modules.inventory_procurement.movements_tab import MovementsTab
-from ui.modules.inventory_procurement.purchase_orders_tab import PurchaseOrdersTab
-from ui.modules.inventory_procurement.receiving_tab import ReceivingTab
-from ui.modules.inventory_procurement.reservations_tab import ReservationsTab
-from ui.modules.inventory_procurement.requisitions_tab import RequisitionsTab
-from ui.modules.inventory_procurement.reports_tab import InventoryReportsTab
-from ui.modules.inventory_procurement.stock_tab import StockTab
-from ui.modules.inventory_procurement.storeroom_dialogs import StoreroomEditDialog
+from ui.modules.inventory_procurement.inventory.storeroom_dialogs import StoreroomEditDialog
+from ui.modules.inventory_procurement.item_master.item_dialogs import InventoryItemEditDialog
+from ui.modules.inventory_procurement.item_master.items_tab import InventoryItemsTab
+from ui.modules.inventory_procurement.procurement.purchase_orders import PurchaseOrdersTab
+from ui.modules.inventory_procurement.procurement.receiving_tab import ReceivingTab
+from ui.modules.inventory_procurement.procurement.requisitions import RequisitionsTab
+from ui.modules.inventory_procurement.reporting.tab import InventoryReportsTab
+from ui.modules.inventory_procurement.reservation.reservations_tab import ReservationsTab
+from ui.modules.inventory_procurement.stock_control.movements_tab import MovementsTab
+from ui.modules.inventory_procurement.stock_control.stock_tab import StockTab
 from ui.platform.shell.main_window import MainWindow
 from ui.platform.shared.styles.theme import base_stylesheet
 
@@ -557,7 +557,10 @@ def test_inventory_items_tab_can_link_and_unlink_shared_documents_via_ui_actions
         def document_id(self):
             return document.id
 
-    monkeypatch.setattr("ui.modules.inventory_procurement.items_tab.InventoryItemDocumentLinkDialog", _AcceptedDialog)
+    monkeypatch.setattr(
+        "ui.modules.inventory_procurement.item_master.items_tab.InventoryItemDocumentLinkDialog",
+        _AcceptedDialog,
+    )
 
     assert tab.btn_link_document.isEnabled() is True
     assert tab.btn_unlink_document.isEnabled() is True

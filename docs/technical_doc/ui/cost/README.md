@@ -12,7 +12,6 @@ editing, labor summaries, budget KPIs, and project-level filtering.
 - layout helpers: `layout.py`
 - summary logic: `labor_summary.py`
 - models: `models.py`
-- compatibility facade: `components.py`
 
 ## Tab Composition (`CostTab`)
 

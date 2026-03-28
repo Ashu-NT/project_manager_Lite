@@ -23,7 +23,7 @@ This is enough to give the desktop app and future transport adapters one common 
 ## Current Consumers
 
 - `ui/platform/shell/main_window.py`
-- `ui/platform/shell/home.py`
+- `ui/platform/shell/platform/home.py`
 - `ui/platform/admin/modules/tab.py`
 - `ui/platform/admin/organizations/tab.py`
 - `api/http/platform/runtime.py`
