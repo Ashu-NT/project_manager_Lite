@@ -20,10 +20,9 @@ from core.platform.notifications.domain_events import domain_events
 from core.platform.party import Party, PartyService
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
-    dashboard_badge_style,
-    dashboard_meta_chip_style,
 )
 from ui.platform.admin.parties.dialogs import PartyEditDialog
+from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -51,53 +50,21 @@ class PartyAdminTab(QWidget):
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        header = QWidget()
-        header.setObjectName("partyAdminHeaderCard")
-        header.setStyleSheet(
-            f"""
-            QWidget#partyAdminHeaderCard {{
-                background-color: {CFG.COLOR_BG_SURFACE};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
-        )
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
-        header_layout.setSpacing(CFG.SPACING_MD)
-        intro = QVBoxLayout()
-        intro.setSpacing(CFG.SPACING_XS)
-        eyebrow = QLabel("PARTY MASTER")
-        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
-        intro.addWidget(eyebrow)
-        title = QLabel("Parties")
-        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        intro.addWidget(title)
-        subtitle = QLabel(
-            "Manage shared supplier, manufacturer, vendor, contractor, and service-provider identities without duplicating master data across modules."
-        )
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        intro.addWidget(subtitle)
-        header_layout.addLayout(intro, 1)
-        status_layout = QVBoxLayout()
-        status_layout.setSpacing(CFG.SPACING_SM)
-        self.party_context_badge = QLabel("Context: -")
-        self.party_context_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
-        self.party_count_badge = QLabel("0 parties")
-        self.party_count_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.party_active_badge = QLabel("0 active")
-        self.party_active_badge.setStyleSheet(dashboard_meta_chip_style())
         access_label = "Manage Enabled" if self._can_manage_parties else "Read Only"
-        self.party_access_badge = QLabel(access_label)
-        self.party_access_badge.setStyleSheet(dashboard_meta_chip_style())
-        status_layout.addWidget(self.party_context_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.party_count_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.party_active_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.party_access_badge, 0, Qt.AlignRight)
-        status_layout.addStretch(1)
-        header_layout.addLayout(status_layout)
-        layout.addWidget(header)
+        build_admin_header(
+            self,
+            layout,
+            object_name="partyAdminHeaderCard",
+            eyebrow_text="PARTY MASTER",
+            title_text="Parties",
+            subtitle_text="Manage shared supplier, manufacturer, vendor, contractor, and service-provider identities without duplicating master data across modules.",
+            badge_specs=(
+                ("party_context_badge", "Context: -", "accent"),
+                ("party_count_badge", "0 parties", "meta"),
+                ("party_active_badge", "0 active", "meta"),
+                ("party_access_badge", access_label, "meta"),
+            ),
+        )
 
         controls = QWidget()
         controls.setObjectName("partyAdminControlSurface")

@@ -28,11 +28,11 @@ from core.platform.documents import Document, DocumentLink, DocumentService, Doc
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
-    dashboard_badge_style,
     dashboard_meta_chip_style,
 )
 from ui.platform.admin.documents.dialogs import DocumentEditDialog, DocumentLinkEditDialog
 from ui.platform.admin.documents.preview import build_document_preview_state
+from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.admin.documents.viewer_dialogs import DocumentLinksDialog, DocumentPreviewDialog
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
@@ -65,41 +65,20 @@ class DocumentAdminTab(QWidget):
         root.setSpacing(CFG.SPACING_MD)
         root.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        header = self._make_card("documentAdminHeaderCard", alt=False)
-        header_layout = QHBoxLayout(header)
-        intro = QVBoxLayout()
-        eyebrow = QLabel("DOCUMENT LIBRARY")
-        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
-        title = QLabel("Documents")
-        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        subtitle = QLabel(
-            "Browse enterprise documents with preview, metadata, and cross-module links for project, maintenance, QHSE, HR, and inventory workflows."
+        build_admin_header(
+            self,
+            root,
+            object_name="documentAdminHeaderCard",
+            eyebrow_text="DOCUMENT LIBRARY",
+            title_text="Documents",
+            subtitle_text="Browse enterprise documents with preview, metadata, and cross-module links for project, maintenance, QHSE, HR, and inventory workflows.",
+            badge_specs=(
+                ("document_context_badge", "Context: -", "accent"),
+                ("document_count_badge", "0 documents", "meta"),
+                ("document_active_badge", "0 active", "meta"),
+                ("document_access_badge", "Manage Enabled" if self._can_manage_documents else "Read Only", "meta"),
+            ),
         )
-        subtitle.setWordWrap(True)
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        intro.addWidget(eyebrow)
-        intro.addWidget(title)
-        intro.addWidget(subtitle)
-        header_layout.addLayout(intro, 1)
-        badge_col = QVBoxLayout()
-        self.document_context_badge = QLabel("Context: -")
-        self.document_context_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
-        self.document_count_badge = QLabel("0 documents")
-        self.document_count_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.document_active_badge = QLabel("0 active")
-        self.document_active_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.document_access_badge = QLabel("Manage Enabled" if self._can_manage_documents else "Read Only")
-        self.document_access_badge.setStyleSheet(dashboard_meta_chip_style())
-        for badge in (
-            self.document_context_badge,
-            self.document_count_badge,
-            self.document_active_badge,
-            self.document_access_badge,
-        ):
-            badge_col.addWidget(badge, 0, Qt.AlignRight)
-        badge_col.addStretch(1)
-        header_layout.addLayout(badge_col)
-        root.addWidget(header)
 
         controls = self._make_card("documentAdminControlSurface", alt=True)
         controls_layout = QVBoxLayout(controls)

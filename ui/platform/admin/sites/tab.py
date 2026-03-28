@@ -21,10 +21,9 @@ from core.platform.notifications.domain_events import domain_events
 from core.platform.org import SiteService
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
-    dashboard_badge_style,
-    dashboard_meta_chip_style,
 )
 from ui.platform.admin.sites.dialogs import SiteEditDialog
+from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -52,53 +51,21 @@ class SiteAdminTab(QWidget):
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        header = QWidget()
-        header.setObjectName("siteAdminHeaderCard")
-        header.setStyleSheet(
-            f"""
-            QWidget#siteAdminHeaderCard {{
-                background-color: {CFG.COLOR_BG_SURFACE};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
-        )
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
-        header_layout.setSpacing(CFG.SPACING_MD)
-        intro = QVBoxLayout()
-        intro.setSpacing(CFG.SPACING_XS)
-        eyebrow = QLabel("SITE MASTER")
-        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
-        intro.addWidget(eyebrow)
-        title = QLabel("Sites")
-        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        intro.addWidget(title)
-        subtitle = QLabel(
-            "Manage shared site records for organization structure, workforce context, and future module integrations."
-        )
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        intro.addWidget(subtitle)
-        header_layout.addLayout(intro, 1)
-        status_layout = QVBoxLayout()
-        status_layout.setSpacing(CFG.SPACING_SM)
-        self.site_context_badge = QLabel("Context: -")
-        self.site_context_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
-        self.site_count_badge = QLabel("0 sites")
-        self.site_count_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.site_active_badge = QLabel("0 active")
-        self.site_active_badge.setStyleSheet(dashboard_meta_chip_style())
         access_label = "Manage Enabled" if self._can_manage_sites else "Read Only"
-        self.site_access_badge = QLabel(access_label)
-        self.site_access_badge.setStyleSheet(dashboard_meta_chip_style())
-        status_layout.addWidget(self.site_context_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.site_count_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.site_active_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.site_access_badge, 0, Qt.AlignRight)
-        status_layout.addStretch(1)
-        header_layout.addLayout(status_layout)
-        layout.addWidget(header)
+        build_admin_header(
+            self,
+            layout,
+            object_name="siteAdminHeaderCard",
+            eyebrow_text="SITE MASTER",
+            title_text="Sites",
+            subtitle_text="Manage shared site records for organization structure, workforce context, and future module integrations.",
+            badge_specs=(
+                ("site_context_badge", "Context: -", "accent"),
+                ("site_count_badge", "0 sites", "meta"),
+                ("site_active_badge", "0 active", "meta"),
+                ("site_access_badge", access_label, "meta"),
+            ),
+        )
 
         controls = QWidget()
         controls.setObjectName("siteAdminControlSurface")

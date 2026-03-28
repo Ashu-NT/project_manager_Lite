@@ -21,10 +21,9 @@ from core.platform.auth import UserSessionContext
 from core.platform.org import DepartmentService, EmployeeService, SiteService
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
-    dashboard_badge_style,
-    dashboard_meta_chip_style,
 )
 from ui.platform.admin.employees.dialogs import EmployeeEditDialog
+from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -63,54 +62,22 @@ class EmployeeAdminTab(QWidget):
         layout.setSpacing(CFG.SPACING_MD)
         layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD, CFG.MARGIN_MD)
 
-        header = QWidget()
-        header.setObjectName("employeeAdminHeaderCard")
-        header.setStyleSheet(
-            f"""
-            QWidget#employeeAdminHeaderCard {{
-                background-color: {CFG.COLOR_BG_SURFACE};
-                border: 1px solid {CFG.COLOR_BORDER};
-                border-radius: 12px;
-            }}
-            """
-        )
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(CFG.MARGIN_MD, CFG.MARGIN_SM, CFG.MARGIN_MD, CFG.MARGIN_SM)
-        header_layout.setSpacing(CFG.SPACING_MD)
-        intro = QVBoxLayout()
-        intro.setSpacing(CFG.SPACING_XS)
-        eyebrow = QLabel("PEOPLE")
-        eyebrow.setStyleSheet(CFG.DASHBOARD_KPI_TITLE_STYLE)
-        intro.addWidget(eyebrow)
-        title = QLabel("Employee Directory")
-        title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
-        intro.addWidget(title)
-        subtitle = QLabel("Manage internal employees for staffing, planning, and future HR and payroll workflows.")
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        intro.addWidget(subtitle)
-        header_layout.addLayout(intro, 1)
-        status_layout = QVBoxLayout()
-        status_layout.setSpacing(CFG.SPACING_SM)
-        self.employee_scope_badge = QLabel("Internal Workforce")
-        self.employee_scope_badge.setStyleSheet(dashboard_badge_style(CFG.COLOR_ACCENT))
-        self.employee_count_badge = QLabel("0 employees")
-        self.employee_count_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.employee_active_badge = QLabel("0 active")
-        self.employee_active_badge.setStyleSheet(dashboard_meta_chip_style())
-        self.employee_reference_badge = QLabel(self._reference_status_text)
-        self.employee_reference_badge.setStyleSheet(dashboard_meta_chip_style())
         access_label = "Manage Enabled" if self._can_manage_employees else "Read Only"
-        self.employee_access_badge = QLabel(access_label)
-        self.employee_access_badge.setStyleSheet(dashboard_meta_chip_style())
-        status_layout.addWidget(self.employee_scope_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.employee_count_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.employee_active_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.employee_reference_badge, 0, Qt.AlignRight)
-        status_layout.addWidget(self.employee_access_badge, 0, Qt.AlignRight)
-        status_layout.addStretch(1)
-        header_layout.addLayout(status_layout)
-        layout.addWidget(header)
+        build_admin_header(
+            self,
+            layout,
+            object_name="employeeAdminHeaderCard",
+            eyebrow_text="PEOPLE",
+            title_text="Employee Directory",
+            subtitle_text="Manage internal employees for staffing, planning, and future HR and payroll workflows.",
+            badge_specs=(
+                ("employee_scope_badge", "Internal Workforce", "accent"),
+                ("employee_count_badge", "0 employees", "meta"),
+                ("employee_active_badge", "0 active", "meta"),
+                ("employee_reference_badge", self._reference_status_text, "meta"),
+                ("employee_access_badge", access_label, "meta"),
+            ),
+        )
 
         controls = QWidget()
         controls.setObjectName("employeeAdminControlSurface")
