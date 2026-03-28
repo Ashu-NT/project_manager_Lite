@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.inventory_procurement.domain import InventoryItemCategory
+from ui.platform.shared.code_generation import CodeFieldWidget
 
 
 _CATEGORY_TYPES = (
@@ -52,6 +53,11 @@ class InventoryItemCategoryEditDialog(QDialog):
         form = QFormLayout()
         self.category_code_edit = QLineEdit()
         self.name_edit = QLineEdit()
+        self.category_code_field = CodeFieldWidget(
+            prefix="CAT",
+            line_edit=self.category_code_edit,
+            hint_getters=(lambda: self.name_edit.text(),),
+        )
         self.category_type_combo = QComboBox()
         self.category_type_combo.addItems(_CATEGORY_TYPES)
         self.description_edit = QPlainTextEdit()
@@ -61,7 +67,7 @@ class InventoryItemCategoryEditDialog(QDialog):
         self.supports_maintenance_usage_check = QCheckBox("Available for maintenance demand and work planning")
         self.is_active_check = QCheckBox("Active")
 
-        form.addRow("Category Code", self.category_code_edit)
+        form.addRow("Category Code", self.category_code_field)
         form.addRow("Name", self.name_edit)
         form.addRow("Category Type", self.category_type_combo)
         form.addRow("Description", self.description_edit)

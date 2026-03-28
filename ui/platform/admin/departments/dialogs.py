@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.org.domain import Department, Site
+from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -30,8 +31,18 @@ class DepartmentEditDialog(QDialog):
 
         self.department_code_edit = QLineEdit()
         self.name_edit = QLineEdit()
+        self.department_code_field = CodeFieldWidget(
+            prefix="DEPT",
+            line_edit=self.department_code_edit,
+            hint_getters=(lambda: self.name_edit.text(),),
+        )
         self.department_type_edit = QLineEdit()
         self.cost_center_code_edit = QLineEdit()
+        self.cost_center_code_field = CodeFieldWidget(
+            prefix="CC",
+            line_edit=self.cost_center_code_edit,
+            hint_getters=(lambda: self.name_edit.text(),),
+        )
         self.description_edit = QLineEdit()
         for edit in (
             self.department_code_edit,
@@ -86,12 +97,12 @@ class DepartmentEditDialog(QDialog):
         form.setHorizontalSpacing(CFG.SPACING_MD)
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        form.addRow("Department code:", self.department_code_edit)
+        form.addRow("Department code:", self.department_code_field)
         form.addRow("Name:", self.name_edit)
         form.addRow("Site:", self.site_combo)
         form.addRow("Parent department:", self.parent_combo)
         form.addRow("Department type:", self.department_type_edit)
-        form.addRow("Cost center:", self.cost_center_code_edit)
+        form.addRow("Cost center:", self.cost_center_code_field)
         form.addRow("Description:", self.description_edit)
         form.addRow("Notes:", self.notes_edit)
         form.addRow("", self.active_check)

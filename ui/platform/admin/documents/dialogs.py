@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.documents import Document, DocumentStorageKind, DocumentType
+from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 _CONFIDENTIALITY_LEVELS = ["", "PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
@@ -25,6 +26,11 @@ class DocumentEditDialog(QDialog):
 
         self.document_code_edit = QLineEdit()
         self.title_edit = QLineEdit()
+        self.document_code_field = CodeFieldWidget(
+            prefix="DOC",
+            line_edit=self.document_code_edit,
+            hint_getters=(lambda: self.title_edit.text(), lambda: self.file_name_edit.text()),
+        )
         self.storage_uri_edit = QLineEdit()
         self.file_name_edit = QLineEdit()
         self.revision_edit = QLineEdit()
@@ -89,7 +95,7 @@ class DocumentEditDialog(QDialog):
         form.setHorizontalSpacing(CFG.SPACING_MD)
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        form.addRow("Document code:", self.document_code_edit)
+        form.addRow("Document code:", self.document_code_field)
         form.addRow("Title:", self.title_edit)
         form.addRow("Document type:", self.document_type_combo)
         form.addRow("Storage kind:", self.storage_kind_combo)

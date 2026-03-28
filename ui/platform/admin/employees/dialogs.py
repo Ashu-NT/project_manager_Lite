@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.org.domain import Employee, EmploymentType
+from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -83,6 +84,11 @@ class EmployeeEditDialog(QDialog):
 
         self.employee_code_edit = QLineEdit()
         self.full_name_edit = QLineEdit()
+        self.employee_code_field = CodeFieldWidget(
+            prefix="EMP",
+            line_edit=self.employee_code_edit,
+            hint_getters=(lambda: self.full_name_edit.text(),),
+        )
         self.department_combo = QComboBox()
         self.site_name_combo = QComboBox()
         self.title_edit = QLineEdit()
@@ -147,7 +153,7 @@ class EmployeeEditDialog(QDialog):
         form.setHorizontalSpacing(CFG.SPACING_MD)
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        form.addRow("Employee code:", self.employee_code_edit)
+        form.addRow("Employee code:", self.employee_code_field)
         form.addRow("Full name:", self.full_name_edit)
         form.addRow("Department:", self.department_combo)
         form.addRow("Site:", self.site_name_combo)

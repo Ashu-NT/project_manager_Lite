@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.inventory_procurement.domain import StockItem
+from ui.platform.shared.code_generation import CodeFieldWidget
 
 
 _ITEM_STATUSES = ("DRAFT", "ACTIVE", "INACTIVE", "OBSOLETE")
@@ -49,6 +50,11 @@ class InventoryItemEditDialog(QDialog):
         form = QFormLayout()
         self.item_code_edit = QLineEdit()
         self.name_edit = QLineEdit()
+        self.item_code_field = CodeFieldWidget(
+            prefix="ITEM",
+            line_edit=self.item_code_edit,
+            hint_getters=(lambda: self.name_edit.text(),),
+        )
         self.status_combo = QComboBox()
         self.status_combo.addItems(_ITEM_STATUSES)
         self.item_type_edit = QLineEdit()
@@ -74,7 +80,7 @@ class InventoryItemEditDialog(QDialog):
         self.notes_edit = QPlainTextEdit()
         self.notes_edit.setPlaceholderText("Short operational notes, handling remarks, or sourcing context.")
 
-        form.addRow("Item Code", self.item_code_edit)
+        form.addRow("Item Code", self.item_code_field)
         form.addRow("Name", self.name_edit)
         form.addRow("Status", self.status_combo)
         form.addRow("Item Type", self.item_type_edit)

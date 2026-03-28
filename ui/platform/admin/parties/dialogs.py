@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.party import Party, PartyType
+from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -23,6 +24,11 @@ class PartyEditDialog(QDialog):
 
         self.party_code_edit = QLineEdit()
         self.party_name_edit = QLineEdit()
+        self.party_code_field = CodeFieldWidget(
+            prefix="PARTY",
+            line_edit=self.party_code_edit,
+            hint_getters=(lambda: self.party_name_edit.text(),),
+        )
         self.legal_name_edit = QLineEdit()
         self.contact_name_edit = QLineEdit()
         self.country_edit = QLineEdit()
@@ -71,7 +77,7 @@ class PartyEditDialog(QDialog):
         form.setHorizontalSpacing(CFG.SPACING_MD)
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        form.addRow("Party code:", self.party_code_edit)
+        form.addRow("Party code:", self.party_code_field)
         form.addRow("Name:", self.party_name_edit)
         form.addRow("Party type:", self.party_type_combo)
         form.addRow("Legal name:", self.legal_name_edit)

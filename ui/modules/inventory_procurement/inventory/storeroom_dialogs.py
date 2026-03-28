@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.inventory_procurement.domain import Storeroom
+from ui.platform.shared.code_generation import CodeFieldWidget
 
 
 _STOREROOM_STATUSES = ("DRAFT", "ACTIVE", "INACTIVE", "CLOSED")
@@ -48,6 +49,11 @@ class StoreroomEditDialog(QDialog):
         form = QFormLayout()
         self.storeroom_code_edit = QLineEdit()
         self.name_edit = QLineEdit()
+        self.storeroom_code_field = CodeFieldWidget(
+            prefix="STORE",
+            line_edit=self.storeroom_code_edit,
+            hint_getters=(lambda: self.name_edit.text(),),
+        )
         self.site_combo = QComboBox()
         for label, site_id in self._site_options:
             self.site_combo.addItem(label, site_id)
@@ -65,7 +71,7 @@ class StoreroomEditDialog(QDialog):
         self.notes_edit = QPlainTextEdit()
         self.notes_edit.setPlaceholderText("Operational rules, usage notes, or stocking guidance.")
 
-        form.addRow("Storeroom Code", self.storeroom_code_edit)
+        form.addRow("Storeroom Code", self.storeroom_code_field)
         form.addRow("Name", self.name_edit)
         form.addRow("Site", self.site_combo)
         form.addRow("Status", self.status_combo)

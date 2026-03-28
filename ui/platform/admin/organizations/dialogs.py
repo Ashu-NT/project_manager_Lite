@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.org.domain import Organization
 from core.platform.modules.service import EnterpriseModule
+from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -32,6 +33,11 @@ class OrganizationEditDialog(QDialog):
 
         self.organization_code_edit = QLineEdit()
         self.display_name_edit = QLineEdit()
+        self.organization_code_field = CodeFieldWidget(
+            prefix="ORG",
+            line_edit=self.organization_code_edit,
+            hint_getters=(lambda: self.display_name_edit.text(),),
+        )
         self.timezone_edit = QLineEdit()
         self.base_currency_edit = QLineEdit()
         for edit in (
@@ -64,7 +70,7 @@ class OrganizationEditDialog(QDialog):
         form.setHorizontalSpacing(CFG.SPACING_MD)
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        form.addRow("Organization code:", self.organization_code_edit)
+        form.addRow("Organization code:", self.organization_code_field)
         form.addRow("Display name:", self.display_name_edit)
         form.addRow("Timezone:", self.timezone_edit)
         form.addRow("Base currency:", self.base_currency_edit)

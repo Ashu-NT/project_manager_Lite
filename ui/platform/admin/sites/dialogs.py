@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.org.domain import Site
+from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -22,6 +23,11 @@ class SiteEditDialog(QDialog):
 
         self.site_code_edit = QLineEdit()
         self.name_edit = QLineEdit()
+        self.site_code_field = CodeFieldWidget(
+            prefix="SITE",
+            line_edit=self.site_code_edit,
+            hint_getters=(lambda: self.name_edit.text(),),
+        )
         self.city_edit = QLineEdit()
         self.country_edit = QLineEdit()
         self.timezone_edit = QLineEdit()
@@ -73,7 +79,7 @@ class SiteEditDialog(QDialog):
         form.setHorizontalSpacing(CFG.SPACING_MD)
         form.setVerticalSpacing(CFG.SPACING_SM)
         form.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
-        form.addRow("Site code:", self.site_code_edit)
+        form.addRow("Site code:", self.site_code_field)
         form.addRow("Name:", self.name_edit)
         form.addRow("City:", self.city_edit)
         form.addRow("Country:", self.country_edit)
