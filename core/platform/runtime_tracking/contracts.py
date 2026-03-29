@@ -16,7 +16,13 @@ class RuntimeExecutionRepository(ABC):
     def get(self, execution_id: str) -> RuntimeExecution | None: ...
 
     @abstractmethod
-    def list_recent(self, *, limit: int = 200) -> list[RuntimeExecution]: ...
+    def list_recent(
+        self,
+        *,
+        limit: int = 200,
+        module_code: str | None = None,
+        status: str | None = None,
+    ) -> list[RuntimeExecution]: ...
 
 
 __all__ = ["RuntimeExecutionRepository"]

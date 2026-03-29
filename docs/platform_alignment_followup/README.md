@@ -352,7 +352,8 @@ Completion notes:
 - platform-owned shared master data exchange now covers `site` and `party` import/export through `MasterDataExchangeService`
 - inventory now uses the shared runtimes for requisition, purchase-order, and receipt import/export plus stock/procurement report rendering
 - persisted runtime execution tracking now records shared import, export, and report runs across platform and inventory operations
-- remaining follow-up is richer writer/background-job orchestration, maintenance-specific bulk import/export contracts, and async job controls
+- runtime execution tracking now also records cancellation requests, retry lineage, attempt counts, and richer artifact metadata such as output file name, media type, and metadata payloads
+- remaining follow-up is richer writer/background-job orchestration, maintenance-specific bulk import/export contracts, and real async job-worker controls on top of that tracking seam
 
 ### 13. Maintenance Readiness Hardening
 
@@ -393,6 +394,7 @@ Progress notes:
 - shared time now persists neutral `work_allocation_id`, owner/scope snapshots, and platform-level `time.read` / `time.manage` permissions while keeping PM assignment APIs as wrappers
 - inventory now exposes a dedicated maintenance-material contract service for availability, reservation, issue, return, shortage escalation, and linked requisition lookup
 - the `inventory_maintenance_materials_changed` bridge now provides a stable maintenance-facing material refresh event without leaking inventory internals into future maintenance workflows
+- shared runtime execution tracking now has the retry/cancellation/artifact groundwork needed before maintenance workbook imports and report runs start
 
 ## Guardrails
 

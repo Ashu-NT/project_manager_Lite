@@ -239,7 +239,8 @@ Required hardening:
 Current state:
 
 - the platform runtime foundation exists and inventory is already using it
-- the follow-up tracker still lists maintenance-specific bulk contracts plus richer retries/cancellation as pending
+- persisted runtime execution tracking now records retry lineage, cancellation requests, and richer artifact metadata such as output file name, media type, and output metadata across shared import/export/report runs
+- maintenance-specific workbook definitions and maintenance-owned report contracts are still pending
 
 Why this matters:
 
@@ -249,7 +250,7 @@ Why this matters:
 Required hardening:
 
 - define maintenance workbook contracts early instead of inventing them inside module services later
-- add richer async controls, retries, cancellation, and artifact handling before large rollout imports begin
+- keep growing async runtime control from the new retry/cancellation/artifact groundwork toward real queue-worker controls, retries, and cancellation handling for large rollout jobs
 
 #### 7. Shared org-to-maintenance location reference path
 
@@ -273,7 +274,7 @@ Required hardening:
 3. Shared time boundary generalization for labor booking. Done.
 4. Shared document taxonomy and lifecycle hardening. Done.
 5. Explicit inventory-to-maintenance material contracts. Done.
-6. Maintenance-specific import/export/report contracts and async runtime controls.
+6. Maintenance-specific import/export/report contracts and async runtime controls. In progress.
 7. Shared org-to-maintenance location reference path once location records exist.
 
 ### What Does Not Need To Block The First Maintenance Slice

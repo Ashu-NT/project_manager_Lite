@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from core.platform.auth.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
+from core.platform.exporting import ExportArtifact, ExportArtifactDraft, finalize_artifact
 from core.platform.modules.contracts import SupportsModuleEntitlements
 from core.platform.runtime_tracking import RuntimeExecutionService
 
@@ -55,9 +58,13 @@ class ReportRuntime:
         try:
             rendered = definition.render(request)
             if execution is not None:
+                artifact = self._extract_artifact(rendered)
                 self._runtime_execution_service.complete_execution(
                     execution,
-                    output_path=getattr(rendered, "file_path", None),
+                    output_path=getattr(artifact, "file_path", None) if artifact is not None else getattr(rendered, "file_path", None),
+                    output_file_name=getattr(artifact, "file_name", None) if artifact is not None else None,
+                    output_media_type=getattr(artifact, "media_type", None) if artifact is not None else None,
+                    output_metadata=dict(getattr(artifact, "metadata", {}) or {}) if artifact is not None else None,
                 )
             return rendered
         except Exception as exc:
@@ -68,6 +75,12 @@ class ReportRuntime:
     @staticmethod
     def _humanize_key(value: str) -> str:
         return str(value or "").strip().replace("_", " ") or "report"
+
+    @staticmethod
+    def _extract_artifact(rendered: object):
+        if isinstance(rendered, (ExportArtifact, ExportArtifactDraft, str, Path)):
+            return finalize_artifact(rendered)
+        return None
 
 
 __all__ = ["ReportRuntime"]

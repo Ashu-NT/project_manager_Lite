@@ -60,6 +60,9 @@ class ExportRuntime:
                 self._runtime_execution_service.complete_execution(
                     execution,
                     output_path=getattr(artifact, "file_path", None),
+                    output_file_name=getattr(artifact, "file_name", None),
+                    output_media_type=getattr(artifact, "media_type", None),
+                    output_metadata=dict(getattr(artifact, "metadata", {}) or {}),
                 )
             return artifact
         except Exception as exc:

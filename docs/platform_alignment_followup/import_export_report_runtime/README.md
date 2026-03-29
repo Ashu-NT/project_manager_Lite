@@ -39,7 +39,8 @@ This follow-up exists to define the extraction boundary and remaining follow-up 
 - Platform-owned shared master data exchange is now live for `site` and `party` through `MasterDataExchangeService`.
 - Inventory is now a real non-PM adopter of those runtimes for `items`, `storerooms`, `requisitions`, `purchase_orders`, `receipts`, and stock/procurement reporting.
 - Platform-owned runtime execution tracking now records persisted import/export/report execution metadata and outcome counts.
-- Remaining follow-up is richer background-job and writer orchestration, maintenance-specific bulk import/export contracts, and broader async execution controls such as retries and cancellation.
+- Runtime execution tracking now also records cancellation requests, retry lineage, attempt counts, and richer output-artifact metadata such as file name, media type, and metadata payloads.
+- Remaining follow-up is richer background-job and writer orchestration, maintenance-specific bulk import/export contracts, and real worker-side retry/cancellation execution on top of the persisted runtime control seam.
 
 ## Ownership Rule
 
