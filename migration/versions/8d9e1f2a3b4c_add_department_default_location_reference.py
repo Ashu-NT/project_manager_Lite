@@ -35,16 +35,32 @@ def _has_index(table_name: str, index_name: str) -> bool:
     return any(index["name"] == index_name for index in _inspector().get_indexes(table_name))
 
 
+def _has_foreign_key(table_name: str, constraint_name: str) -> bool:
+    if not _has_table(table_name):
+        return False
+    return any(
+        foreign_key.get("name") == constraint_name
+        for foreign_key in _inspector().get_foreign_keys(table_name)
+    )
+
+
 def upgrade() -> None:
     if _has_table("departments") and not _has_column("departments", "default_location_id"):
         with op.batch_alter_table("departments") as batch:
-            batch.add_column(
-                sa.Column(
-                    "default_location_id",
-                    sa.String(),
-                    sa.ForeignKey("maintenance_locations.id", ondelete="SET NULL"),
-                    nullable=True,
-                )
+            batch.add_column(sa.Column("default_location_id", sa.String(), nullable=True))
+
+    if (
+        _has_table("departments")
+        and _has_column("departments", "default_location_id")
+        and not _has_foreign_key("departments", "fk_departments_default_location_id")
+    ):
+        with op.batch_alter_table("departments") as batch:
+            batch.create_foreign_key(
+                "fk_departments_default_location_id",
+                "maintenance_locations",
+                ["default_location_id"],
+                ["id"],
+                ondelete="SET NULL",
             )
 
     if _has_table("departments") and not _has_index("departments", "idx_departments_default_location"):
@@ -62,4 +78,6 @@ def downgrade() -> None:
 
     if _has_table("departments") and _has_column("departments", "default_location_id"):
         with op.batch_alter_table("departments") as batch:
+            if _has_foreign_key("departments", "fk_departments_default_location_id"):
+                batch.drop_constraint("fk_departments_default_location_id", type_="foreignkey")
             batch.drop_column("default_location_id")
