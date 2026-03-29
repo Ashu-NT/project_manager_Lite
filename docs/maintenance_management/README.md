@@ -2,7 +2,7 @@
 
 Status: planning blueprint, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: early core foundation started for module-owned `location` and `system`, but there are still no live maintenance workflows, persistence mappings, or UI surfaces yet
+Implementation state: module-owned `location` and `system` now have core domain, SQLAlchemy persistence, migration coverage, and service-graph wiring, but there are still no live maintenance workflows or UI surfaces yet
 
 ## Purpose
 
@@ -261,7 +261,7 @@ Required hardening:
 Current state:
 
 - ADR-002 already freezes ownership so `maintenance_management` owns `location` and `system`
-- module-owned `location` and `system` core domain, repository contracts, and service foundations now exist under `core/modules/maintenance_management`
+- module-owned `location` and `system` core domain, repository contracts, SQLAlchemy repositories, migration coverage, and service-graph wiring now exist under `core/modules/maintenance_management`, `infra/modules/maintenance_management`, and the platform service-registration layer
 - platform follow-up still notes that `department.default_location_id` is deferred until the location model exists
 
 Why this matters:
@@ -270,7 +270,7 @@ Why this matters:
 
 Required hardening:
 
-- with the maintenance location foundation now started, add a clean reference seam from shared org records into maintenance-owned locations once persistence and service-graph wiring exist
+- with maintenance location persistence and service-graph wiring now in place, the next follow-up is a clean reference seam from shared org records into maintenance-owned locations without pushing ownership back into platform
 
 ### Recommended Pre-Maintenance Hardening Order
 
@@ -280,7 +280,7 @@ Required hardening:
 4. Shared document taxonomy and lifecycle hardening. Done.
 5. Explicit inventory-to-maintenance material contracts. Done.
 6. Maintenance-specific import/export/report contracts and async runtime controls. In progress.
-7. Shared org-to-maintenance location reference path once location records exist.
+7. Shared org-to-maintenance location reference path on top of the new persisted location/system foundation.
 
 ### What Does Not Need To Block The First Maintenance Slice
 
@@ -2148,8 +2148,8 @@ Build first:
 
 Current kickoff status:
 
-- started: module-owned `location` and `system` core domain, repository contracts, and service foundations
-- pending: persistence mappings, service-graph wiring, import handlers, UI surfaces, and the rest of the phase-1 tables
+- started: module-owned `location` and `system` core domain, repository contracts, SQLAlchemy persistence, migration coverage, and service-graph wiring
+- pending: import handlers, UI surfaces, and the rest of the phase-1 tables
 
 Phase 1 UI:
 

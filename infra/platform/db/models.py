@@ -48,6 +48,10 @@ from infra.platform.db.inventory_models import (
     StockTransactionORM,
     StoreroomORM,
 )
+from infra.platform.db.maintenance_models import (
+    MaintenanceLocationORM,
+    MaintenanceSystemORM,
+)
 
 
 class ProjectORM(Base):

@@ -195,6 +195,8 @@ def test_inventory_procurement_removed_dead_top_level_wrappers():
 
 def test_maintenance_management_now_has_core_foundation_packages():
     root = Path(__file__).resolve().parents[1] / "core" / "modules" / "maintenance_management"
+    infra_root = Path(__file__).resolve().parents[1] / "infra" / "modules" / "maintenance_management"
+    bundle_root = Path(__file__).resolve().parents[1] / "infra" / "platform" / "service_registration"
 
     assert (root / "domain.py").exists()
     assert (root / "interfaces.py").exists()
@@ -204,3 +206,7 @@ def test_maintenance_management_now_has_core_foundation_packages():
     assert (root / "services" / "location" / "service.py").exists()
     assert (root / "services" / "system" / "__init__.py").exists()
     assert (root / "services" / "system" / "service.py").exists()
+    assert (infra_root / "db" / "__init__.py").exists()
+    assert (infra_root / "db" / "mapper.py").exists()
+    assert (infra_root / "db" / "repository.py").exists()
+    assert (bundle_root / "maintenance_management_bundle.py").exists()

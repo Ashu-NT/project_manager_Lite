@@ -6,6 +6,10 @@ from infra.platform.service_registration.inventory_procurement_bundle import (
     InventoryProcurementServiceBundle,
     build_inventory_procurement_service_bundle,
 )
+from infra.platform.service_registration.maintenance_management_bundle import (
+    MaintenanceManagementServiceBundle,
+    build_maintenance_management_service_bundle,
+)
 from infra.platform.service_registration.project_management_bundle import (
     ProjectManagementServiceBundle,
     build_project_management_service_bundle,
@@ -18,10 +22,12 @@ from infra.platform.service_registration.repositories import (
 __all__ = [
     "PlatformServiceBundle",
     "InventoryProcurementServiceBundle",
+    "MaintenanceManagementServiceBundle",
     "ProjectManagementServiceBundle",
     "RepositoryBundle",
     "build_platform_service_bundle",
     "build_inventory_procurement_service_bundle",
+    "build_maintenance_management_service_bundle",
     "build_project_management_service_bundle",
     "build_repository_bundle",
 ]

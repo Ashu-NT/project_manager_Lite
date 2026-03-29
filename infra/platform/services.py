@@ -31,6 +31,11 @@ from core.modules.inventory_procurement import (
     ReservationService,
     StockControlService,
 )
+from core.modules.maintenance_management import (
+    MaintenanceLocationService,
+    MaintenanceRuntimeContractCatalogService,
+    MaintenanceSystemService,
+)
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
@@ -50,6 +55,7 @@ from core.modules.project_management.services.work_calendar import WorkCalendarE
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from infra.platform.service_registration import (
     build_inventory_procurement_service_bundle,
+    build_maintenance_management_service_bundle,
     build_platform_service_bundle,
     build_project_management_service_bundle,
     build_repository_bundle,
@@ -84,6 +90,9 @@ class ServiceGraph:
     inventory_reservation_service: ReservationService
     inventory_procurement_service: ProcurementService
     inventory_purchasing_service: PurchasingService
+    maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
+    maintenance_location_service: MaintenanceLocationService
+    maintenance_system_service: MaintenanceSystemService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -135,6 +144,9 @@ class ServiceGraph:
             "inventory_reservation_service": self.inventory_reservation_service,
             "inventory_procurement_service": self.inventory_procurement_service,
             "inventory_purchasing_service": self.inventory_purchasing_service,
+            "maintenance_runtime_contract_catalog_service": self.maintenance_runtime_contract_catalog_service,
+            "maintenance_location_service": self.maintenance_location_service,
+            "maintenance_system_service": self.maintenance_system_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
@@ -164,6 +176,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     repositories = build_repository_bundle(session)
     platform_services = build_platform_service_bundle(session, repositories)
     inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
+    maintenance_management_services = build_maintenance_management_service_bundle(platform_services)
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
@@ -196,6 +209,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_reservation_service=inventory_procurement_services.inventory_reservation_service,
         inventory_procurement_service=inventory_procurement_services.inventory_procurement_service,
         inventory_purchasing_service=inventory_procurement_services.inventory_purchasing_service,
+        maintenance_runtime_contract_catalog_service=maintenance_management_services.maintenance_runtime_contract_catalog_service,
+        maintenance_location_service=maintenance_management_services.maintenance_location_service,
+        maintenance_system_service=maintenance_management_services.maintenance_system_service,
         access_service=platform_services.access_service,
         audit_service=platform_services.audit_service,
         approval_service=platform_services.approval_service,

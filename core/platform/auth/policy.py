@@ -15,6 +15,8 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "employee.manage": "Create and edit employee directory records",
     "inventory.read": "View inventory and procurement workspaces",
     "inventory.manage": "Create and edit inventory and procurement records",
+    "maintenance.read": "View maintenance master data and operational records",
+    "maintenance.manage": "Create and edit maintenance master data and operational records",
     "site.read": "View shared site directory records",
     "department.read": "View shared department directory records",
     "party.read": "View shared supplier, vendor, and contractor directory records",
@@ -132,6 +134,18 @@ _INVENTORY_MANAGER = {
     "approval.request",
 }
 
+_MAINTENANCE_MANAGER = {
+    "maintenance.read",
+    "maintenance.manage",
+    "site.read",
+    "employee.read",
+    "party.read",
+    "report.view",
+    "report.export",
+    "approval.request",
+    "import.manage",
+}
+
 _PAYROLL_MANAGER = {
     "project.read",
     "task.read",
@@ -230,6 +244,8 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "finance": set(_FINANCE_CONTROLLER),
     "finance_controller": set(_FINANCE_CONTROLLER),
     "inventory_manager": set(_INVENTORY_MANAGER),
+    "maintenance_manager": set(_MAINTENANCE_MANAGER),
+    "maintenance_admin": set(_MAINTENANCE_MANAGER),
     "payroll_manager": set(_PAYROLL_MANAGER),
     "portfolio_manager": set(_PORTFOLIO_MANAGER),
     "approver": set(_APPROVER),

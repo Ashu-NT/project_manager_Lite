@@ -20,7 +20,7 @@ from core.platform.auth import AuthService
 from core.platform.auth.session import UserSessionContext
 from core.platform.documents import DocumentIntegrationService, DocumentService
 from core.platform.data_exchange import MasterDataExchangeService
-from core.platform.common.interfaces import OrganizationRepository
+from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from core.platform.org.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
@@ -39,6 +39,7 @@ class PlatformServiceBundle:
     session: Session
     user_session: UserSessionContext
     organization_repo: OrganizationRepository
+    site_repo: SiteRepository
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
@@ -216,6 +217,7 @@ def build_platform_service_bundle(
         session=session,
         user_session=user_session,
         organization_repo=repositories.organization_repo,
+        site_repo=repositories.site_repo,
         platform_runtime_application_service=platform_runtime_application_service,
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,

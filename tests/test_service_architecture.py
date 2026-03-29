@@ -26,6 +26,11 @@ from core.modules.inventory_procurement import (
     ReservationService,
     StockControlService,
 )
+from core.modules.maintenance_management import (
+    MaintenanceLocationService,
+    MaintenanceRuntimeContractCatalogService,
+    MaintenanceSystemService,
+)
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -85,6 +90,9 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.inventory_reservation_service, ReservationService)
     assert isinstance(graph.inventory_procurement_service, ProcurementService)
     assert isinstance(graph.inventory_purchasing_service, PurchasingService)
+    assert isinstance(graph.maintenance_runtime_contract_catalog_service, MaintenanceRuntimeContractCatalogService)
+    assert isinstance(graph.maintenance_location_service, MaintenanceLocationService)
+    assert isinstance(graph.maintenance_system_service, MaintenanceSystemService)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.audit_service, AuditService)
     assert isinstance(graph.collaboration_service, CollaborationService)
@@ -127,6 +135,12 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["inventory_reservation_service"] is graph.inventory_reservation_service
     assert as_dict["inventory_procurement_service"] is graph.inventory_procurement_service
     assert as_dict["inventory_purchasing_service"] is graph.inventory_purchasing_service
+    assert (
+        as_dict["maintenance_runtime_contract_catalog_service"]
+        is graph.maintenance_runtime_contract_catalog_service
+    )
+    assert as_dict["maintenance_location_service"] is graph.maintenance_location_service
+    assert as_dict["maintenance_system_service"] is graph.maintenance_system_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service
@@ -172,6 +186,7 @@ def test_services_module_delegates_to_modular_registration_builders():
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
     assert "build_inventory_procurement_service_bundle(platform_services)" in text
+    assert "build_maintenance_management_service_bundle(platform_services)" in text
     assert "build_project_management_service_bundle(" in text
 
 
@@ -182,4 +197,5 @@ def test_service_registration_package_is_split_by_platform_and_module():
     assert (root / "repositories.py").exists()
     assert (root / "platform_bundle.py").exists()
     assert (root / "inventory_procurement_bundle.py").exists()
+    assert (root / "maintenance_management_bundle.py").exists()
     assert (root / "project_management_bundle.py").exists()
