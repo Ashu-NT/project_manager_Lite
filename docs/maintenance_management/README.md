@@ -240,7 +240,9 @@ Current state:
 
 - the platform runtime foundation exists and inventory is already using it
 - persisted runtime execution tracking now records retry lineage, cancellation requests, and richer artifact metadata such as output file name, media type, and output metadata across shared import/export/report runs
-- maintenance-specific workbook definitions and maintenance-owned report contracts are still pending
+- a dormant maintenance runtime contract scaffold now exists under `core/modules/maintenance_management/importing`, `exporting`, and `reporting`
+- the maintenance workbook contract now separates module-owned sheets such as `Locations`, `Assets`, `PreventivePlans`, and `DocumentLinks` from shared reference sheets owned by `platform` and `inventory_procurement`
+- live maintenance workbook handlers, export builders, and report renderers are still pending
 
 Why this matters:
 
@@ -249,8 +251,9 @@ Why this matters:
 
 Required hardening:
 
-- define maintenance workbook contracts early instead of inventing them inside module services later
+- done: define the canonical maintenance workbook, export-pack, and report-pack contract keys before module services exist
 - keep growing async runtime control from the new retry/cancellation/artifact groundwork toward real queue-worker controls, retries, and cancellation handling for large rollout jobs
+- wire those dormant contract definitions to real maintenance handlers when the first maintenance service slice starts
 
 #### 7. Shared org-to-maintenance location reference path
 

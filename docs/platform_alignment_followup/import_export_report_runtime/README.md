@@ -40,7 +40,8 @@ This follow-up exists to define the extraction boundary and remaining follow-up 
 - Inventory is now a real non-PM adopter of those runtimes for `items`, `storerooms`, `requisitions`, `purchase_orders`, `receipts`, and stock/procurement reporting.
 - Platform-owned runtime execution tracking now records persisted import/export/report execution metadata and outcome counts.
 - Runtime execution tracking now also records cancellation requests, retry lineage, attempt counts, and richer output-artifact metadata such as file name, media type, and metadata payloads.
-- Remaining follow-up is richer background-job and writer orchestration, maintenance-specific bulk import/export contracts, and real worker-side retry/cancellation execution on top of the persisted runtime control seam.
+- Dormant maintenance workbook, export-pack, and report-pack contracts now exist under `core/modules/maintenance_management` so future maintenance handlers can register against the shared runtimes without inventing operation keys ad hoc.
+- Remaining follow-up is richer background-job and writer orchestration, live maintenance handler adoption for those contracts, and real worker-side retry/cancellation execution on top of the persisted runtime control seam.
 
 ## Ownership Rule
 
