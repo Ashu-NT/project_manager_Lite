@@ -400,6 +400,7 @@ Progress notes:
 - the first module-owned maintenance core foundation now exists for `location` and `system`, including SQLAlchemy repositories, migration coverage, and service-graph wiring, which unblocks the later org-to-maintenance location reference seam without pushing location ownership back into platform
 - shared `Department` records can now persist a neutral `default_location_id` reference through a platform-owned resolver port, with the live adapter registered from the maintenance bundle rather than from `core/platform`
 - the first maintenance asset master slice now exists too, with module-owned asset domain, validation service, SQLAlchemy table/repository, migration coverage, and service-graph exposure on top of the persisted location/system foundation
+- maintenance now also has the first asset-component slice, including component hierarchy validation, shared-party references, SQLAlchemy persistence, migration coverage, and service-graph exposure on top of the new asset foundation
 
 ## Guardrails
 

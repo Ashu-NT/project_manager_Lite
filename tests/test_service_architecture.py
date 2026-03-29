@@ -28,6 +28,7 @@ from core.modules.inventory_procurement import (
 )
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
+    MaintenanceAssetComponentService,
     MaintenanceLocationService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
@@ -93,6 +94,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.inventory_purchasing_service, PurchasingService)
     assert isinstance(graph.maintenance_runtime_contract_catalog_service, MaintenanceRuntimeContractCatalogService)
     assert isinstance(graph.maintenance_asset_service, MaintenanceAssetService)
+    assert isinstance(graph.maintenance_asset_component_service, MaintenanceAssetComponentService)
     assert isinstance(graph.maintenance_location_service, MaintenanceLocationService)
     assert isinstance(graph.maintenance_system_service, MaintenanceSystemService)
     assert isinstance(graph.access_service, AccessControlService)
@@ -142,6 +144,7 @@ def test_service_graph_builder_wires_all_services(session):
         is graph.maintenance_runtime_contract_catalog_service
     )
     assert as_dict["maintenance_asset_service"] is graph.maintenance_asset_service
+    assert as_dict["maintenance_asset_component_service"] is graph.maintenance_asset_component_service
     assert as_dict["maintenance_location_service"] is graph.maintenance_location_service
     assert as_dict["maintenance_system_service"] is graph.maintenance_system_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service

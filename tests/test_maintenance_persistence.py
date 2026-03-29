@@ -57,6 +57,16 @@ def test_maintenance_services_persist_locations_systems_and_assets_via_service_g
         requires_shutdown_for_major_work=True,
     )
     reloaded_asset = services["maintenance_asset_service"].find_asset_by_code("PUMP-100")
+    component = services["maintenance_asset_component_service"].create_component(
+        asset_id=asset.id,
+        component_code="seal-100",
+        name="Seal Cartridge 100",
+        component_type="SEAL",
+        supplier_part_number="SEAL-PO-100",
+        expected_life_hours=9000,
+        is_critical_component=True,
+    )
+    reloaded_component = services["maintenance_asset_component_service"].find_component_by_code("SEAL-100")
 
     assert reloaded_location is not None
     assert reloaded_location.id == location.id
@@ -72,6 +82,11 @@ def test_maintenance_services_persist_locations_systems_and_assets_via_service_g
     assert reloaded_asset.location_id == location.id
     assert reloaded_asset.asset_code == "PUMP-100"
     assert reloaded_asset.requires_shutdown_for_major_work is True
+    assert reloaded_component is not None
+    assert reloaded_component.id == component.id
+    assert reloaded_component.asset_id == asset.id
+    assert reloaded_component.component_code == "SEAL-100"
+    assert reloaded_component.is_critical_component is True
 
 
 def test_maintenance_services_use_persistent_versioned_updates(services):
@@ -108,6 +123,17 @@ def test_maintenance_services_use_persistent_versioned_updates(services):
         service_level="TIER-1",
         expected_version=asset.version,
     )
+    component = services["maintenance_asset_component_service"].create_component(
+        asset_id=asset.id,
+        component_code="bearing-upd",
+        name="Bearing Assembly",
+    )
+    updated_component = services["maintenance_asset_component_service"].update_component(
+        component.id,
+        manufacturer_part_number="BRG-442",
+        expected_life_cycles=250000,
+        expected_version=component.version,
+    )
 
     assert updated_location.name == "Workshop Alpha"
     assert updated_location.version == location.version + 1
@@ -115,6 +141,9 @@ def test_maintenance_services_use_persistent_versioned_updates(services):
     assert updated_asset.name == "Updated Asset Alpha"
     assert updated_asset.service_level == "TIER-1"
     assert updated_asset.version == asset.version + 1
+    assert updated_component.manufacturer_part_number == "BRG-442"
+    assert updated_component.expected_life_cycles == 250000
+    assert updated_component.version == component.version + 1
 
 
 def test_maintenance_system_service_rejects_cross_site_persistent_location_reference(services):
@@ -171,3 +200,41 @@ def test_maintenance_asset_service_rejects_cross_site_persistent_system_referenc
         assert exc.code == "MAINTENANCE_ASSET_SITE_MISMATCH"
     else:
         raise AssertionError("Expected maintenance asset site mismatch validation error.")
+
+
+def test_maintenance_component_service_rejects_cross_asset_parent_reference(services):
+    site = services["site_service"].create_site(site_code="MC-A", name="Plant C")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="area-c",
+        name="Area C",
+    )
+    asset_a = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="asset-c1",
+        name="Asset C1",
+    )
+    asset_b = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="asset-c2",
+        name="Asset C2",
+    )
+    parent_component = services["maintenance_asset_component_service"].create_component(
+        asset_id=asset_a.id,
+        component_code="comp-parent",
+        name="Parent Component",
+    )
+
+    try:
+        services["maintenance_asset_component_service"].create_component(
+            asset_id=asset_b.id,
+            component_code="comp-child",
+            name="Child Component",
+            parent_component_id=parent_component.id,
+        )
+    except ValidationError as exc:
+        assert exc.code == "MAINTENANCE_COMPONENT_ASSET_MISMATCH"
+    else:
+        raise AssertionError("Expected maintenance component asset mismatch validation error.")

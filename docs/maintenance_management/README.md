@@ -2,7 +2,7 @@
 
 Status: planning blueprint, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: module-owned `location`, `system`, and `asset` now have core domain, SQLAlchemy persistence, migration coverage, and service-graph wiring, but there are still no live maintenance workflows or UI surfaces yet
+Implementation state: module-owned `location`, `system`, `asset`, and `asset_component` now have core domain, SQLAlchemy persistence, migration coverage, and service-graph wiring, but there are still no live maintenance workflows or UI surfaces yet
 
 ## Purpose
 
@@ -2148,8 +2148,8 @@ Build first:
 
 Current kickoff status:
 
-- started: module-owned `location`, `system`, and `asset` core domain, repository contracts, master-data services, SQLAlchemy persistence, migration coverage, and service-graph wiring
-- pending: import handlers, UI surfaces, and the rest of the phase-1 tables such as `asset_component`, `work_request`, and `work_order`
+- started: module-owned `location`, `system`, `asset`, and `asset_component` core domain, repository contracts, master-data services, SQLAlchemy persistence, migration coverage, and service-graph wiring
+- pending: import handlers, UI surfaces, and the rest of the phase-1 tables such as `work_request` and `work_order`
 
 Phase 1 UI:
 
@@ -2223,16 +2223,16 @@ Build next:
 ### Domain and Data
 
 - started: define enums for maintenance statuses, priorities, criticality, and trigger modes
-- started: create the first phase-1 domain models for `location`, `system`, and `asset`
-- started: add repository interfaces for `location`, `system`, and `asset`
-- started: add SQLAlchemy mappings and migrations for `location`, `system`, and `asset`
+- started: create the first phase-1 domain models for `location`, `system`, `asset`, and `asset_component`
+- started: add repository interfaces for `location`, `system`, `asset`, and `asset_component`
+- started: add SQLAlchemy mappings and migrations for `location`, `system`, `asset`, and `asset_component`
 - define cross-table unique business keys
 - define template revision behavior
 - define task completion gate logic
 
 ### Services
 
-- started: asset master services
+- started: asset and asset-component master services
 - work request services
 - work order lifecycle services
 - document and document-link services

@@ -4,17 +4,20 @@ from datetime import date
 
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
+    MaintenanceAssetComponent,
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
     MaintenanceLocation,
 )
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetRepository,
+    MaintenanceAssetComponentRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
 )
 from core.modules.maintenance_management.services import (
     MaintenanceAssetService,
+    MaintenanceAssetComponentService,
     MaintenanceLocationService,
     MaintenanceSystemService,
 )
@@ -185,6 +188,46 @@ class _AssetRepo(MaintenanceAssetRepository):
             rows = [row for row in rows if row.parent_asset_id == parent_asset_id]
         if asset_category is not None:
             rows = [row for row in rows if row.asset_category == asset_category]
+        return rows
+
+
+class _ComponentRepo(MaintenanceAssetComponentRepository):
+    def __init__(self) -> None:
+        self._rows = {}
+
+    def add(self, component) -> None:
+        self._rows[component.id] = component
+
+    def update(self, component) -> None:
+        self._rows[component.id] = component
+
+    def get(self, component_id: str):
+        return self._rows.get(component_id)
+
+    def get_by_code(self, organization_id: str, component_code: str):
+        for row in self._rows.values():
+            if row.organization_id == organization_id and row.component_code == component_code:
+                return row
+        return None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only=None,
+        asset_id=None,
+        parent_component_id=None,
+        component_type=None,
+    ):
+        rows = [row for row in self._rows.values() if row.organization_id == organization_id]
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == bool(active_only)]
+        if asset_id is not None:
+            rows = [row for row in rows if row.asset_id == asset_id]
+        if parent_component_id is not None:
+            rows = [row for row in rows if row.parent_component_id == parent_component_id]
+        if component_type is not None:
+            rows = [row for row in rows if row.component_type == component_type]
         return rows
 
 
@@ -488,6 +531,121 @@ def test_maintenance_asset_service_rejects_cross_site_system_reference(session) 
         assert exc.code == "MAINTENANCE_ASSET_SITE_MISMATCH"
     else:
         raise AssertionError("Expected maintenance asset site mismatch validation error.")
+
+
+def test_maintenance_asset_component_service_creates_components_and_emits_domain_events(session) -> None:
+    organization = Organization.create("ORG", "Org")
+    site = Site.create(organization.id, "MAIN", "Main Site")
+    location_repo = _LocationRepo()
+    system_repo = _SystemRepo()
+    asset_repo = _AssetRepo()
+    component_repo = _ComponentRepo()
+    supplier = Party.create(
+        organization_id=organization.id,
+        party_code="SUP-COMP",
+        party_name="Component Supplier",
+        party_type=PartyType.SUPPLIER,
+    )
+    location = MaintenanceLocation.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_code="AREA-A",
+        name="Area A",
+    )
+    location_repo.add(location)
+    asset = MaintenanceAsset.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="PUMP-001",
+        name="Process Pump",
+    )
+    asset_repo.add(asset)
+    service = MaintenanceAssetComponentService(
+        session,
+        component_repo,
+        asset_repo=asset_repo,
+        organization_repo=_OrgRepo(organization),
+        party_repo=_PartyRepo([supplier]),
+        user_session=_user_session(),
+    )
+    captured = []
+    domain_events.domain_changed.connect(captured.append)
+
+    component = service.create_component(
+        asset_id=asset.id,
+        component_code="seal-001",
+        name="Seal Cartridge",
+        component_type="SEAL",
+        supplier_party_id=supplier.id,
+        expected_life_hours=12000,
+        is_critical_component=True,
+    )
+
+    assert component.component_code == "SEAL-001"
+    assert component.asset_id == asset.id
+    assert component.component_type == "SEAL"
+    assert component.is_critical_component is True
+    assert service.find_component_by_code("SEAL-001").id == component.id
+    assert service.search_components(search_text="seal")[0].id == component.id
+    assert captured[-1].entity_type == "maintenance_asset_component"
+    assert captured[-1].source_event == "maintenance_asset_components_changed"
+
+
+def test_maintenance_asset_component_service_rejects_parent_from_other_asset(session) -> None:
+    organization = Organization.create("ORG", "Org")
+    site = Site.create(organization.id, "MAIN", "Main Site")
+    location = MaintenanceLocation.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_code="AREA-A",
+        name="Area A",
+    )
+    asset_repo = _AssetRepo()
+    first_asset = MaintenanceAsset.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="ASSET-A",
+        name="Asset A",
+    )
+    second_asset = MaintenanceAsset.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="ASSET-B",
+        name="Asset B",
+    )
+    asset_repo.add(first_asset)
+    asset_repo.add(second_asset)
+    component_repo = _ComponentRepo()
+    parent = MaintenanceAssetComponent.create(
+        organization_id=organization.id,
+        asset_id=first_asset.id,
+        component_code="COMP-A",
+        name="Component A",
+    )
+    component_repo.add(parent)
+    service = MaintenanceAssetComponentService(
+        session,
+        component_repo,
+        asset_repo=asset_repo,
+        organization_repo=_OrgRepo(organization),
+        party_repo=_PartyRepo(),
+        user_session=_user_session(),
+    )
+
+    try:
+        service.create_component(
+            asset_id=second_asset.id,
+            component_code="COMP-B",
+            name="Component B",
+            parent_component_id=parent.id,
+        )
+    except ValidationError as exc:
+        assert exc.code == "MAINTENANCE_COMPONENT_ASSET_MISMATCH"
+    else:
+        raise AssertionError("Expected maintenance component asset mismatch validation error.")
 
 
 def test_maintenance_support_helpers_cover_priority_and_trigger_modes() -> None:

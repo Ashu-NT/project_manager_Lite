@@ -248,8 +248,92 @@ class MaintenanceAsset:
         )
 
 
+@dataclass
+class MaintenanceAssetComponent:
+    id: str
+    organization_id: str
+    asset_id: str
+    component_code: str
+    name: str
+    description: str = ""
+    parent_component_id: str | None = None
+    component_type: str = ""
+    status: MaintenanceLifecycleStatus = MaintenanceLifecycleStatus.ACTIVE
+    manufacturer_party_id: str | None = None
+    supplier_party_id: str | None = None
+    manufacturer_part_number: str = ""
+    supplier_part_number: str = ""
+    model_number: str = ""
+    serial_number: str = ""
+    install_date: date | None = None
+    warranty_end: date | None = None
+    expected_life_hours: int | None = None
+    expected_life_cycles: int | None = None
+    is_critical_component: bool = False
+    is_active: bool = True
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    notes: str = ""
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        asset_id: str,
+        component_code: str,
+        name: str,
+        description: str = "",
+        parent_component_id: str | None = None,
+        component_type: str = "",
+        status: MaintenanceLifecycleStatus = MaintenanceLifecycleStatus.ACTIVE,
+        manufacturer_party_id: str | None = None,
+        supplier_party_id: str | None = None,
+        manufacturer_part_number: str = "",
+        supplier_part_number: str = "",
+        model_number: str = "",
+        serial_number: str = "",
+        install_date: date | None = None,
+        warranty_end: date | None = None,
+        expected_life_hours: int | None = None,
+        expected_life_cycles: int | None = None,
+        is_critical_component: bool = False,
+        is_active: bool = True,
+        notes: str = "",
+    ) -> "MaintenanceAssetComponent":
+        now = datetime.now(timezone.utc)
+        return MaintenanceAssetComponent(
+            id=generate_id(),
+            organization_id=organization_id,
+            asset_id=asset_id,
+            component_code=component_code,
+            name=name,
+            description=description,
+            parent_component_id=parent_component_id,
+            component_type=component_type,
+            status=status,
+            manufacturer_party_id=manufacturer_party_id,
+            supplier_party_id=supplier_party_id,
+            manufacturer_part_number=manufacturer_part_number,
+            supplier_part_number=supplier_part_number,
+            model_number=model_number,
+            serial_number=serial_number,
+            install_date=install_date,
+            warranty_end=warranty_end,
+            expected_life_hours=expected_life_hours,
+            expected_life_cycles=expected_life_cycles,
+            is_critical_component=is_critical_component,
+            is_active=is_active,
+            created_at=now,
+            updated_at=now,
+            notes=notes,
+            version=1,
+        )
+
+
 __all__ = [
     "MaintenanceAsset",
+    "MaintenanceAssetComponent",
     "MaintenanceCriticality",
     "MaintenanceLifecycleStatus",
     "MaintenanceLocation",

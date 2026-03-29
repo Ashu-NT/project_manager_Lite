@@ -3,21 +3,34 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceAsset, MaintenanceLocation, MaintenanceSystem
+from core.modules.maintenance_management.domain import (
+    MaintenanceAsset,
+    MaintenanceAssetComponent,
+    MaintenanceLocation,
+    MaintenanceSystem,
+)
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetRepository,
+    MaintenanceAssetComponentRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
 )
 from infra.modules.maintenance_management.db.mapper import (
     maintenance_asset_from_orm,
+    maintenance_asset_component_from_orm,
+    maintenance_asset_component_to_orm,
     maintenance_asset_to_orm,
     maintenance_location_from_orm,
     maintenance_location_to_orm,
     maintenance_system_from_orm,
     maintenance_system_to_orm,
 )
-from infra.platform.db.maintenance_models import MaintenanceAssetORM, MaintenanceLocationORM, MaintenanceSystemORM
+from infra.platform.db.maintenance_models import (
+    MaintenanceAssetComponentORM,
+    MaintenanceAssetORM,
+    MaintenanceLocationORM,
+    MaintenanceSystemORM,
+)
 from infra.platform.db.optimistic import update_with_version_check
 
 
@@ -255,8 +268,92 @@ class SqlAlchemyMaintenanceAssetRepository(MaintenanceAssetRepository):
         return [maintenance_asset_from_orm(row) for row in rows]
 
 
+class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, component: MaintenanceAssetComponent) -> None:
+        self.session.add(maintenance_asset_component_to_orm(component))
+
+    def update(self, component: MaintenanceAssetComponent) -> None:
+        component.version = update_with_version_check(
+            self.session,
+            MaintenanceAssetComponentORM,
+            component.id,
+            getattr(component, "version", 1),
+            {
+                "asset_id": component.asset_id,
+                "component_code": component.component_code,
+                "name": component.name,
+                "description": component.description or None,
+                "parent_component_id": component.parent_component_id,
+                "component_type": component.component_type or None,
+                "status": component.status,
+                "manufacturer_party_id": component.manufacturer_party_id,
+                "supplier_party_id": component.supplier_party_id,
+                "manufacturer_part_number": component.manufacturer_part_number or None,
+                "supplier_part_number": component.supplier_part_number or None,
+                "model_number": component.model_number or None,
+                "serial_number": component.serial_number or None,
+                "install_date": component.install_date,
+                "warranty_end": component.warranty_end,
+                "expected_life_hours": component.expected_life_hours,
+                "expected_life_cycles": component.expected_life_cycles,
+                "is_critical_component": component.is_critical_component,
+                "is_active": component.is_active,
+                "created_at": component.created_at,
+                "updated_at": component.updated_at,
+                "notes": component.notes or None,
+            },
+            not_found_message="Maintenance asset component not found.",
+            stale_message="Maintenance asset component was updated by another user.",
+        )
+
+    def get(self, component_id: str) -> MaintenanceAssetComponent | None:
+        obj = self.session.get(MaintenanceAssetComponentORM, component_id)
+        return maintenance_asset_component_from_orm(obj) if obj else None
+
+    def get_by_code(
+        self,
+        organization_id: str,
+        component_code: str,
+    ) -> MaintenanceAssetComponent | None:
+        stmt = select(MaintenanceAssetComponentORM).where(
+            MaintenanceAssetComponentORM.organization_id == organization_id,
+            MaintenanceAssetComponentORM.component_code == component_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return maintenance_asset_component_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        asset_id: str | None = None,
+        parent_component_id: str | None = None,
+        component_type: str | None = None,
+    ) -> list[MaintenanceAssetComponent]:
+        stmt = select(MaintenanceAssetComponentORM).where(
+            MaintenanceAssetComponentORM.organization_id == organization_id
+        )
+        if active_only is not None:
+            stmt = stmt.where(MaintenanceAssetComponentORM.is_active == bool(active_only))
+        if asset_id is not None:
+            stmt = stmt.where(MaintenanceAssetComponentORM.asset_id == asset_id)
+        if parent_component_id is not None:
+            stmt = stmt.where(MaintenanceAssetComponentORM.parent_component_id == parent_component_id)
+        if component_type is not None:
+            stmt = stmt.where(MaintenanceAssetComponentORM.component_type == component_type)
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceAssetComponentORM.name.asc(), MaintenanceAssetComponentORM.component_code.asc())
+        ).scalars().all()
+        return [maintenance_asset_component_from_orm(row) for row in rows]
+
+
 __all__ = [
     "SqlAlchemyMaintenanceAssetRepository",
+    "SqlAlchemyMaintenanceAssetComponentRepository",
     "SqlAlchemyMaintenanceLocationRepository",
     "SqlAlchemyMaintenanceSystemRepository",
 ]

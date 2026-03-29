@@ -50,6 +50,7 @@ from infra.platform.db.inventory_models import (
 )
 from infra.platform.db.maintenance_models import (
     MaintenanceAssetORM,
+    MaintenanceAssetComponentORM,
     MaintenanceLocationORM,
     MaintenanceSystemORM,
 )

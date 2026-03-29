@@ -2,6 +2,7 @@
 
 from core.modules.maintenance_management.services import (
     MaintenanceAssetService,
+    MaintenanceAssetComponentService,
     MaintenanceLocationService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
@@ -9,6 +10,7 @@ from core.modules.maintenance_management.services import (
 
 __all__ = [
     "MaintenanceAssetService",
+    "MaintenanceAssetComponentService",
     "MaintenanceLocationService",
     "MaintenanceRuntimeContractCatalogService",
     "MaintenanceSystemService",

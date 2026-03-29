@@ -1,7 +1,17 @@
 from __future__ import annotations
 
-from core.modules.maintenance_management.domain import MaintenanceAsset, MaintenanceLocation, MaintenanceSystem
-from infra.platform.db.maintenance_models import MaintenanceAssetORM, MaintenanceLocationORM, MaintenanceSystemORM
+from core.modules.maintenance_management.domain import (
+    MaintenanceAsset,
+    MaintenanceAssetComponent,
+    MaintenanceLocation,
+    MaintenanceSystem,
+)
+from infra.platform.db.maintenance_models import (
+    MaintenanceAssetComponentORM,
+    MaintenanceAssetORM,
+    MaintenanceLocationORM,
+    MaintenanceSystemORM,
+)
 
 
 def maintenance_location_to_orm(location: MaintenanceLocation) -> MaintenanceLocationORM:
@@ -160,8 +170,70 @@ def maintenance_asset_from_orm(obj: MaintenanceAssetORM) -> MaintenanceAsset:
     )
 
 
+def maintenance_asset_component_to_orm(component: MaintenanceAssetComponent) -> MaintenanceAssetComponentORM:
+    return MaintenanceAssetComponentORM(
+        id=component.id,
+        organization_id=component.organization_id,
+        asset_id=component.asset_id,
+        component_code=component.component_code,
+        name=component.name,
+        description=component.description or None,
+        parent_component_id=component.parent_component_id,
+        component_type=component.component_type or None,
+        status=component.status,
+        manufacturer_party_id=component.manufacturer_party_id,
+        supplier_party_id=component.supplier_party_id,
+        manufacturer_part_number=component.manufacturer_part_number or None,
+        supplier_part_number=component.supplier_part_number or None,
+        model_number=component.model_number or None,
+        serial_number=component.serial_number or None,
+        install_date=component.install_date,
+        warranty_end=component.warranty_end,
+        expected_life_hours=component.expected_life_hours,
+        expected_life_cycles=component.expected_life_cycles,
+        is_critical_component=component.is_critical_component,
+        is_active=component.is_active,
+        created_at=component.created_at,
+        updated_at=component.updated_at,
+        notes=component.notes or None,
+        version=getattr(component, "version", 1),
+    )
+
+
+def maintenance_asset_component_from_orm(obj: MaintenanceAssetComponentORM) -> MaintenanceAssetComponent:
+    return MaintenanceAssetComponent(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        asset_id=obj.asset_id,
+        component_code=obj.component_code,
+        name=obj.name,
+        description=obj.description or "",
+        parent_component_id=obj.parent_component_id,
+        component_type=obj.component_type or "",
+        status=obj.status,
+        manufacturer_party_id=obj.manufacturer_party_id,
+        supplier_party_id=obj.supplier_party_id,
+        manufacturer_part_number=obj.manufacturer_part_number or "",
+        supplier_part_number=obj.supplier_part_number or "",
+        model_number=obj.model_number or "",
+        serial_number=obj.serial_number or "",
+        install_date=obj.install_date,
+        warranty_end=obj.warranty_end,
+        expected_life_hours=obj.expected_life_hours,
+        expected_life_cycles=obj.expected_life_cycles,
+        is_critical_component=obj.is_critical_component,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
+
+
 __all__ = [
     "maintenance_asset_from_orm",
+    "maintenance_asset_component_from_orm",
+    "maintenance_asset_component_to_orm",
     "maintenance_asset_to_orm",
     "maintenance_location_from_orm",
     "maintenance_location_to_orm",

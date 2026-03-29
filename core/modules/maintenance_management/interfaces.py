@@ -3,7 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from core.modules.maintenance_management.domain import MaintenanceAsset, MaintenanceLocation, MaintenanceSystem
+from core.modules.maintenance_management.domain import (
+    MaintenanceAsset,
+    MaintenanceAssetComponent,
+    MaintenanceLocation,
+    MaintenanceSystem,
+)
 
 
 class MaintenanceLocationRepository(ABC):
@@ -94,8 +99,38 @@ class MaintenanceAssetRepository(ABC):
     ) -> List[MaintenanceAsset]: ...
 
 
+class MaintenanceAssetComponentRepository(ABC):
+    @abstractmethod
+    def add(self, component: MaintenanceAssetComponent) -> None: ...
+
+    @abstractmethod
+    def update(self, component: MaintenanceAssetComponent) -> None: ...
+
+    @abstractmethod
+    def get(self, component_id: str) -> Optional[MaintenanceAssetComponent]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        component_code: str,
+    ) -> Optional[MaintenanceAssetComponent]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        asset_id: str | None = None,
+        parent_component_id: str | None = None,
+        component_type: str | None = None,
+    ) -> List[MaintenanceAssetComponent]: ...
+
+
 __all__ = [
     "MaintenanceAssetRepository",
+    "MaintenanceAssetComponentRepository",
     "MaintenanceLocationRepository",
     "MaintenanceSystemRepository",
 ]
