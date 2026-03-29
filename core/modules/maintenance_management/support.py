@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal, InvalidOperation
+
 from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
@@ -25,6 +28,42 @@ def normalize_maintenance_name(value: str, *, label: str) -> str:
 
 def normalize_optional_text(value: str | None) -> str:
     return (value or "").strip()
+
+
+def coerce_optional_date(value: date | str | None, *, label: str) -> date | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, date):
+        return value
+    raw = str(value).strip()
+    try:
+        return date.fromisoformat(raw)
+    except ValueError as exc:
+        raise ValidationError(f"{label} is invalid. Use YYYY-MM-DD.", code=f"{label.upper().replace(' ', '_')}_INVALID") from exc
+
+
+def coerce_optional_non_negative_int(value: int | str | None, *, label: str) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        resolved = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(f"{label} is invalid.", code=f"{label.upper().replace(' ', '_')}_INVALID") from exc
+    if resolved < 0:
+        raise ValidationError(f"{label} cannot be negative.", code=f"{label.upper().replace(' ', '_')}_NEGATIVE")
+    return resolved
+
+
+def coerce_optional_decimal(value: Decimal | int | float | str | None, *, label: str) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    try:
+        resolved = value if isinstance(value, Decimal) else Decimal(str(value).strip())
+    except (InvalidOperation, ValueError) as exc:
+        raise ValidationError(f"{label} is invalid.", code=f"{label.upper().replace(' ', '_')}_INVALID") from exc
+    if resolved < 0:
+        raise ValidationError(f"{label} cannot be negative.", code=f"{label.upper().replace(' ', '_')}_NEGATIVE")
+    return resolved
 
 
 def coerce_criticality(value: MaintenanceCriticality | str | None) -> MaintenanceCriticality:
@@ -76,6 +115,9 @@ def coerce_trigger_mode(value: MaintenanceTriggerMode | str | None) -> Maintenan
 __all__ = [
     "coerce_criticality",
     "coerce_lifecycle_status",
+    "coerce_optional_date",
+    "coerce_optional_decimal",
+    "coerce_optional_non_negative_int",
     "coerce_priority",
     "coerce_trigger_mode",
     "normalize_maintenance_code",

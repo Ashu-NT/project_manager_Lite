@@ -28,6 +28,7 @@ from core.platform.org.access_policy import (
 )
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
+from core.platform.party.interfaces import PartyRepository
 from core.platform.runtime_tracking import RuntimeExecutionService
 from infra.platform.db.repositories import SqlAlchemyModuleEntitlementRepository
 from infra.platform.db.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
@@ -40,6 +41,7 @@ class PlatformServiceBundle:
     user_session: UserSessionContext
     organization_repo: OrganizationRepository
     site_repo: SiteRepository
+    party_repo: PartyRepository
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
@@ -218,6 +220,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         organization_repo=repositories.organization_repo,
         site_repo=repositories.site_repo,
+        party_repo=repositories.party_repo,
         platform_runtime_application_service=platform_runtime_application_service,
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,

@@ -32,6 +32,7 @@ from core.modules.inventory_procurement import (
     StockControlService,
 )
 from core.modules.maintenance_management import (
+    MaintenanceAssetService,
     MaintenanceLocationService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
@@ -91,6 +92,7 @@ class ServiceGraph:
     inventory_procurement_service: ProcurementService
     inventory_purchasing_service: PurchasingService
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
+    maintenance_asset_service: MaintenanceAssetService
     maintenance_location_service: MaintenanceLocationService
     maintenance_system_service: MaintenanceSystemService
     access_service: AccessControlService
@@ -145,6 +147,7 @@ class ServiceGraph:
             "inventory_procurement_service": self.inventory_procurement_service,
             "inventory_purchasing_service": self.inventory_purchasing_service,
             "maintenance_runtime_contract_catalog_service": self.maintenance_runtime_contract_catalog_service,
+            "maintenance_asset_service": self.maintenance_asset_service,
             "maintenance_location_service": self.maintenance_location_service,
             "maintenance_system_service": self.maintenance_system_service,
             "access_service": self.access_service,
@@ -210,6 +213,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_procurement_service=inventory_procurement_services.inventory_procurement_service,
         inventory_purchasing_service=inventory_procurement_services.inventory_purchasing_service,
         maintenance_runtime_contract_catalog_service=maintenance_management_services.maintenance_runtime_contract_catalog_service,
+        maintenance_asset_service=maintenance_management_services.maintenance_asset_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
         maintenance_system_service=maintenance_management_services.maintenance_system_service,
         access_service=platform_services.access_service,
