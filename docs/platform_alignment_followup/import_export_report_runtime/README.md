@@ -41,7 +41,8 @@ This follow-up exists to define the extraction boundary and remaining follow-up 
 - Platform-owned runtime execution tracking now records persisted import/export/report execution metadata and outcome counts.
 - Runtime execution tracking now also records cancellation requests, retry lineage, attempt counts, and richer output-artifact metadata such as file name, media type, and metadata payloads.
 - Dormant maintenance workbook, export-pack, and report-pack contracts now exist under `core/modules/maintenance_management` so future maintenance handlers can register against the shared runtimes without inventing operation keys ad hoc.
-- Remaining follow-up is richer background-job and writer orchestration, live maintenance handler adoption for those contracts, and real worker-side retry/cancellation execution on top of the persisted runtime control seam.
+- A pre-implementation maintenance contract-catalog service can already emit rollout workbook and contract-matrix artifacts directly from that contract catalog.
+- Remaining follow-up is richer background-job and writer orchestration, live maintenance handler adoption for the operational contracts, and real worker-side retry/cancellation execution on top of the persisted runtime control seam.
 
 ## Ownership Rule
 

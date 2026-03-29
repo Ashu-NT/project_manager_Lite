@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from openpyxl import load_workbook
+
 from core.modules.maintenance_management.exporting import (
     MAINTENANCE_EXPORT_CONTRACTS,
     register_maintenance_management_export_definitions,
@@ -17,6 +19,7 @@ from core.modules.maintenance_management.reporting import (
     MAINTENANCE_REPORT_CONTRACTS,
     register_maintenance_management_report_definitions,
 )
+from core.modules.maintenance_management.services import MaintenanceRuntimeContractCatalogService
 from core.platform.exporting import ExportDefinitionRegistry
 from core.platform.importing import (
     ImportDefinitionRegistry,
@@ -156,3 +159,41 @@ def test_maintenance_report_contract_registration_exposes_known_report_keys() ->
     definition = registry.get("maintenance_downtime_pdf")
     assert definition.module_code == "maintenance_management"
     assert definition.supported_formats == ("pdf",)
+
+
+def test_maintenance_runtime_contract_catalog_service_exports_rollout_workbook_and_matrix(tmp_path) -> None:
+    service = MaintenanceRuntimeContractCatalogService()
+
+    workbook_artifact = service.export_rollout_workbook_template(tmp_path / "maintenance-rollout-template.xlsx")
+    matrix_artifact = service.export_runtime_contract_matrix(tmp_path / "maintenance-contract-matrix.csv")
+
+    workbook = load_workbook(workbook_artifact.file_path)
+    matrix_text = matrix_artifact.file_path.read_text(encoding="utf-8")
+
+    assert workbook_artifact.metadata["artifact_kind"] == "maintenance_rollout_workbook_template"
+    assert "Workbook Index" in workbook.sheetnames
+    assert "Locations" in workbook.sheetnames
+    assert workbook["Locations"]["A1"].value == "Maintenance Locations"
+    assert workbook["Locations"]["A7"].value == "location_code"
+    assert matrix_artifact.metadata["artifact_kind"] == "maintenance_runtime_contract_matrix"
+    assert "maintenance_locations" in matrix_text
+    assert "maintenance_asset_register_excel" in matrix_text
+    assert "maintenance_backlog_pdf" in matrix_text
+
+
+def test_maintenance_runtime_contract_catalog_service_builds_report_document() -> None:
+    service = MaintenanceRuntimeContractCatalogService()
+
+    report = service.build_contract_catalog_report()
+
+    assert report.title == "Maintenance Runtime Contract Catalog"
+    assert [section.title for section in report.sections] == [
+        "Summary",
+        "Workbook",
+        "Exports",
+        "Reports",
+    ]
+    summary_metric_block = report.sections[0].blocks[0]
+    workbook_table = report.sections[1].blocks[0]
+    assert summary_metric_block.rows[0].value == len(MAINTENANCE_WORKBOOK_SHEETS)
+    assert workbook_table.rows[0][0] == "Locations"

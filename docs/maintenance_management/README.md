@@ -2,7 +2,7 @@
 
 Status: planning blueprint, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: not yet scaffolded beyond empty module packages
+Implementation state: no live maintenance workflows yet, but runtime contract scaffolding and rollout-template generation are now in place
 
 ## Purpose
 
@@ -242,6 +242,7 @@ Current state:
 - persisted runtime execution tracking now records retry lineage, cancellation requests, and richer artifact metadata such as output file name, media type, and output metadata across shared import/export/report runs
 - a dormant maintenance runtime contract scaffold now exists under `core/modules/maintenance_management/importing`, `exporting`, and `reporting`
 - the maintenance workbook contract now separates module-owned sheets such as `Locations`, `Assets`, `PreventivePlans`, and `DocumentLinks` from shared reference sheets owned by `platform` and `inventory_procurement`
+- a pre-implementation contract-catalog service can now generate a rollout workbook template, contract matrix export, and neutral report catalog directly from that contract scaffold
 - live maintenance workbook handlers, export builders, and report renderers are still pending
 
 Why this matters:
