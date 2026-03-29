@@ -202,14 +202,21 @@ def test_report_tab_subscribes_to_project_changed_for_combo_refresh():
     text = (Path(__file__).resolve().parents[1] / "ui" / "report" / "tab.py").read_text(
         encoding="utf-8", errors="ignore"
     )
-    assert "domain_events.project_changed.connect(self._on_project_changed_event)" in text
+    assert "domain_events.domain_changed.connect(self._on_domain_change)" in text
+    assert 'is_project_management_domain_event(event, "project")' in text
+    assert "self._on_project_changed_event(event.entity_id)" in text
 
 
 def test_dashboard_subscribes_project_changes_to_catalog_refresh():
     text = (Path(__file__).resolve().parents[1] / "ui" / "dashboard" / "tab.py").read_text(
         encoding="utf-8", errors="ignore"
     )
-    assert "domain_events.project_changed.connect(self._on_project_catalog_changed)" in text
+    ops_text = (Path(__file__).resolve().parents[1] / "ui" / "modules" / "project_management" / "dashboard" / "data_ops.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "domain_events.domain_changed.connect(self._on_generic_domain_change)" in text
+    assert 'is_project_management_domain_event(event, "project")' in ops_text
+    assert "self._on_project_catalog_changed(event.entity_id)" in ops_text
 
 
 def test_tabs_subscribe_to_resources_changed_for_refresh():
@@ -219,14 +226,28 @@ def test_tabs_subscribe_to_resources_changed_for_refresh():
     dash_text = (root / "ui" / "dashboard" / "tab.py").read_text(
         encoding="utf-8", errors="ignore"
     )
+    dash_ops_text = (root / "ui" / "modules" / "project_management" / "dashboard" / "data_ops.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
     project_text = (root / "ui" / "project" / "tab.py").read_text(
         encoding="utf-8", errors="ignore"
     )
 
-    assert "domain_events.resources_changed.connect(self._on_resources_changed)" in task_text
-    assert "domain_events.resources_changed.connect(self._on_resources_changed)" in cost_text
-    assert "domain_events.resources_changed.connect(self._on_resources_changed)" in dash_text
-    assert "domain_events.resources_changed.connect(self._on_resources_changed_event)" in project_text
+    assert "domain_events.domain_changed.connect(self._on_domain_change)" in task_text
+    assert 'is_project_management_domain_event(event, "resource")' in task_text
+    assert "self._on_resources_changed(event.entity_id)" in task_text
+
+    assert "domain_events.domain_changed.connect(self._on_domain_change)" in cost_text
+    assert 'is_project_management_domain_event(event, "resource")' in cost_text
+    assert "self._on_resources_changed(event.entity_id)" in cost_text
+
+    assert "domain_events.domain_changed.connect(self._on_generic_domain_change)" in dash_text
+    assert 'is_project_management_domain_event(event, "resource")' in dash_ops_text
+    assert "self._on_resources_changed(event.entity_id)" in dash_ops_text
+
+    assert "domain_events.domain_changed.connect(self._on_domain_change)" in project_text
+    assert 'is_project_management_domain_event(event, "resource")' in project_text
+    assert "self._on_resources_changed_event(event.entity_id)" in project_text
 
 
 def test_governance_tab_subscribes_to_approvals_changed_for_auto_refresh():
@@ -234,7 +255,9 @@ def test_governance_tab_subscribes_to_approvals_changed_for_auto_refresh():
         encoding="utf-8",
         errors="ignore",
     )
-    assert "domain_events.approvals_changed.connect(self._on_approvals_changed)" in text
+    assert "domain_events.domain_changed.connect(self._on_domain_change)" in text
+    assert 'event.category == "platform" and event.entity_type == "approval_request"' in text
+    assert "self.reload_requests()" in text
 
 
 def test_governance_tab_subscribes_to_timesheet_period_events_for_auto_refresh():
@@ -242,7 +265,9 @@ def test_governance_tab_subscribes_to_timesheet_period_events_for_auto_refresh()
         encoding="utf-8",
         errors="ignore",
     )
-    assert "domain_events.timesheet_periods_changed.connect(self._on_timesheet_periods_changed)" in text
+    assert "domain_events.domain_changed.connect(self._on_domain_change)" in text
+    assert 'is_project_management_domain_event(event, "timesheet_period")' in text
+    assert "self._reload_timesheet_queue()" in text
 
 
 def test_audit_tab_subscribes_to_domain_events_for_auto_refresh():
@@ -260,7 +285,12 @@ def test_dashboard_subscribes_to_baseline_changed_for_refresh():
         encoding="utf-8",
         errors="ignore",
     )
-    assert "domain_events.baseline_changed.connect(self._on_baseline_changed)" in text
+    ops_text = (Path(__file__).resolve().parents[1] / "ui" / "modules" / "project_management" / "dashboard" / "data_ops.py").read_text(
+        encoding="utf-8", errors="ignore"
+    )
+    assert "domain_events.domain_changed.connect(self._on_generic_domain_change)" in text
+    assert 'is_project_management_domain_event(event, "project_baseline")' in ops_text
+    assert "self._on_baseline_changed(event.entity_id)" in ops_text
 
 
 def test_enterprise_tabs_subscribe_to_domain_events_for_auto_refresh():
@@ -280,5 +310,6 @@ def test_enterprise_tabs_subscribe_to_domain_events_for_auto_refresh():
     assert "domain_events.project_changed.connect(self._on_domain_change)" in access_text
     assert "domain_events.domain_changed.connect(self._on_domain_change)" in collaboration_text
     assert "should_refresh_collaboration_workspace" in collaboration_text
-    assert "domain_events.portfolio_changed.connect(self._on_domain_change)" in portfolio_text
-    assert "domain_events.project_changed.connect(self._on_domain_change)" in portfolio_text
+    assert "domain_events.domain_changed.connect(self._on_generic_domain_change)" in portfolio_text
+    assert 'is_project_management_domain_event(event, "project", "portfolio_entity")' in portfolio_text
+    assert "self._on_domain_change(event.entity_id)" in portfolio_text
