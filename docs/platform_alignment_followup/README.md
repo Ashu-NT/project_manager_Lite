@@ -397,6 +397,7 @@ Progress notes:
 - shared runtime execution tracking now has the retry/cancellation/artifact groundwork needed before maintenance workbook imports and report runs start
 - dormant maintenance import/export/report contract catalogs now exist under `core/modules/maintenance_management` so the future module has canonical operation keys and workbook sheet ownership before service implementation begins
 - a maintenance contract-catalog service can now emit rollout workbook and contract-matrix artifacts directly from that scaffold without starting live maintenance workflows
+- the first module-owned maintenance core foundation now exists for `location` and `system`, which unblocks the later org-to-maintenance location reference seam without pushing location ownership back into platform
 
 ## Guardrails
 

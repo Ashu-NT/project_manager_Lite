@@ -2,7 +2,7 @@
 
 Status: planning blueprint, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: no live maintenance workflows yet, but runtime contract scaffolding and rollout-template generation are now in place
+Implementation state: early core foundation started for module-owned `location` and `system`, but there are still no live maintenance workflows, persistence mappings, or UI surfaces yet
 
 ## Purpose
 
@@ -261,6 +261,7 @@ Required hardening:
 Current state:
 
 - ADR-002 already freezes ownership so `maintenance_management` owns `location` and `system`
+- module-owned `location` and `system` core domain, repository contracts, and service foundations now exist under `core/modules/maintenance_management`
 - platform follow-up still notes that `department.default_location_id` is deferred until the location model exists
 
 Why this matters:
@@ -269,7 +270,7 @@ Why this matters:
 
 Required hardening:
 
-- once maintenance location exists, add a clean reference seam from shared org records into maintenance-owned locations without moving location ownership back into platform
+- with the maintenance location foundation now started, add a clean reference seam from shared org records into maintenance-owned locations once persistence and service-graph wiring exist
 
 ### Recommended Pre-Maintenance Hardening Order
 
@@ -2145,6 +2146,11 @@ Build first:
 - work request
 - work order
 
+Current kickoff status:
+
+- started: module-owned `location` and `system` core domain, repository contracts, and service foundations
+- pending: persistence mappings, service-graph wiring, import handlers, UI surfaces, and the rest of the phase-1 tables
+
 Phase 1 UI:
 
 - Assets
@@ -2216,9 +2222,9 @@ Build next:
 
 ### Domain and Data
 
-- define enums for maintenance statuses, priorities, criticality, and trigger modes
-- create domain models for all phase-1 tables
-- add repository interfaces
+- started: define enums for maintenance statuses, priorities, criticality, and trigger modes
+- started: create the first phase-1 domain models for `location` and `system`
+- started: add repository interfaces for `location` and `system`
 - add SQLAlchemy mappings and migrations
 - define cross-table unique business keys
 - define template revision behavior

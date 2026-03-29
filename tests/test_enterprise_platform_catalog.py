@@ -191,3 +191,16 @@ def test_inventory_procurement_removed_dead_top_level_wrappers():
 
     for relative_path in removed:
         assert not (root / relative_path).exists()
+
+
+def test_maintenance_management_now_has_core_foundation_packages():
+    root = Path(__file__).resolve().parents[1] / "core" / "modules" / "maintenance_management"
+
+    assert (root / "domain.py").exists()
+    assert (root / "interfaces.py").exists()
+    assert (root / "support.py").exists()
+    assert (root / "services" / "__init__.py").exists()
+    assert (root / "services" / "location" / "__init__.py").exists()
+    assert (root / "services" / "location" / "service.py").exists()
+    assert (root / "services" / "system" / "__init__.py").exists()
+    assert (root / "services" / "system" / "service.py").exists()
