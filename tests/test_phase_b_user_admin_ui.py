@@ -250,6 +250,30 @@ def test_department_admin_tab_runtime_bootstraps_active_org_context(qapp, servic
     assert tab.btn_toggle_active.isEnabled() is False
 
 
+def test_department_admin_tab_shows_default_location_reference(qapp, services):
+    site = services["site_service"].create_site(site_code="DEPT-MNT", name="Department Plant")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="shop-a",
+        name="Shop A",
+    )
+    services["department_service"].create_department(
+        department_code="OPS",
+        name="Operations",
+        site_id=site.id,
+        default_location_id=location.id,
+    )
+
+    tab = DepartmentAdminTab(
+        department_service=services["department_service"],
+        site_service=services["site_service"],
+        user_session=services["user_session"],
+    )
+
+    assert tab.table.rowCount() == 1
+    assert tab.table.item(0, 3).text() == "SHOP-A - Shop A"
+
+
 def test_document_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
     tab = DocumentAdminTab(
         document_service=services["document_service"],

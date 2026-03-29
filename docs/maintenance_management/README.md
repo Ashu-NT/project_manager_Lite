@@ -262,7 +262,7 @@ Current state:
 
 - ADR-002 already freezes ownership so `maintenance_management` owns `location` and `system`
 - module-owned `location` and `system` core domain, repository contracts, SQLAlchemy repositories, migration coverage, and service-graph wiring now exist under `core/modules/maintenance_management`, `infra/modules/maintenance_management`, and the platform service-registration layer
-- platform follow-up still notes that `department.default_location_id` is deferred until the location model exists
+- shared `Department` records can now persist a neutral `default_location_id` reference to maintenance-owned locations through the platform org layer without pushing location ownership back into platform
 
 Why this matters:
 
@@ -270,7 +270,7 @@ Why this matters:
 
 Required hardening:
 
-- with maintenance location persistence and service-graph wiring now in place, the next follow-up is a clean reference seam from shared org records into maintenance-owned locations without pushing ownership back into platform
+- done: the platform org layer now uses a neutral location-reference resolver port, and the maintenance bundle registers the live maintenance-location adapter into `DepartmentService`
 
 ### Recommended Pre-Maintenance Hardening Order
 
@@ -280,7 +280,7 @@ Required hardening:
 4. Shared document taxonomy and lifecycle hardening. Done.
 5. Explicit inventory-to-maintenance material contracts. Done.
 6. Maintenance-specific import/export/report contracts and async runtime controls. In progress.
-7. Shared org-to-maintenance location reference path on top of the new persisted location/system foundation.
+7. Shared org-to-maintenance location reference path on top of the new persisted location/system foundation. Done.
 
 ### What Does Not Need To Block The First Maintenance Slice
 

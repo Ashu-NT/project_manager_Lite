@@ -84,3 +84,52 @@ def test_department_service_updates_department_metadata(services):
     assert [department.name for department in department_service.list_departments(active_only=False)] == [
         "Quality Assurance"
     ]
+
+
+def test_department_service_can_reference_maintenance_default_location(services):
+    department_service = services["department_service"]
+    site = services["site_service"].create_site(site_code="MNT-HQ", name="Maintenance HQ")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="ops-yard",
+        name="Ops Yard",
+    )
+
+    created = department_service.create_department(
+        department_code="MNT",
+        name="Maintenance",
+        site_id=site.id,
+        default_location_id=location.id,
+    )
+    updated = department_service.update_department(
+        created.id,
+        name="Maintenance Team",
+        expected_version=created.version,
+    )
+
+    assert created.default_location_id == location.id
+    assert updated.default_location_id == location.id
+    assert [row.id for row in department_service.list_available_location_references(site_id=site.id)] == [location.id]
+
+
+def test_department_service_rejects_default_location_from_other_site(services):
+    department_service = services["department_service"]
+    site_a = services["site_service"].create_site(site_code="DEPT-A", name="Dept Site A")
+    site_b = services["site_service"].create_site(site_code="DEPT-B", name="Dept Site B")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site_a.id,
+        location_code="remote-yard",
+        name="Remote Yard",
+    )
+
+    try:
+        department_service.create_department(
+            department_code="OPS",
+            name="Operations",
+            site_id=site_b.id,
+            default_location_id=location.id,
+        )
+    except ValidationError as exc:
+        assert exc.code == "DEPARTMENT_LOCATION_SITE_INVALID"
+    else:
+        raise AssertionError("Expected department default-location site validation error.")

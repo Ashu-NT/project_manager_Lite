@@ -17,5 +17,30 @@ class LinkedEmployeeResourceRepository(Protocol):
 
     def update(self, resource: LinkedEmployeeResource) -> None: ...
 
+class LocationReference(Protocol):
+    id: str
+    organization_id: str
+    site_id: str
+    location_code: str
+    name: str
+    is_active: bool
 
-__all__ = ["LinkedEmployeeResource", "LinkedEmployeeResourceRepository"]
+
+class LocationReferenceRepository(Protocol):
+    def get(self, location_id: str) -> LocationReference | None: ...
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        site_id: str | None = None,
+    ) -> list[LocationReference]: ...
+
+
+__all__ = [
+    "LinkedEmployeeResource",
+    "LinkedEmployeeResourceRepository",
+    "LocationReference",
+    "LocationReferenceRepository",
+]

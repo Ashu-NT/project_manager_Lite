@@ -15,6 +15,7 @@ from core.platform.common.interfaces import (
     SiteRepository,
 )
 from core.platform.org.domain import Department, Organization
+from core.platform.org.interfaces import LocationReferenceRepository
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.support import normalize_code, normalize_name
 
@@ -36,6 +37,7 @@ class DepartmentService:
         organization_repo: OrganizationRepository,
         site_repo: SiteRepository | None = None,
         employee_repo: EmployeeRepository | None = None,
+        location_reference_repo: LocationReferenceRepository | None = None,
         user_session=None,
         audit_service=None,
     ):
@@ -44,8 +46,15 @@ class DepartmentService:
         self._organization_repo = organization_repo
         self._site_repo = site_repo
         self._employee_repo = employee_repo
+        self._location_reference_repo = location_reference_repo
         self._user_session = user_session
         self._audit_service = audit_service
+
+    def register_location_reference_repository(
+        self,
+        location_reference_repo: LocationReferenceRepository | None,
+    ) -> None:
+        self._location_reference_repo = location_reference_repo
 
     def list_departments(self, *, active_only: bool | None = None) -> list[Department]:
         self._require_department_read_access("list departments")
@@ -97,6 +106,30 @@ class DepartmentService:
         require_permission(self._user_session, "settings.manage", operation_label="view department context")
         return self._active_organization()
 
+    def list_available_location_references(
+        self,
+        *,
+        site_id: str | None = None,
+        active_only: bool | None = True,
+    ) -> list[object]:
+        require_permission(
+            self._user_session,
+            "settings.manage",
+            operation_label="list department location references",
+        )
+        organization = self._active_organization()
+        if site_id is not None:
+            self._validate_site_id(site_id, organization_id=organization.id)
+        if self._location_reference_repo is None:
+            return []
+        return list(
+            self._location_reference_repo.list_for_organization(
+                organization.id,
+                active_only=active_only,
+                site_id=site_id,
+            )
+        )
+
     def create_department(
         self,
         *,
@@ -105,6 +138,7 @@ class DepartmentService:
         display_name: str | None = None,
         description: str = "",
         site_id: str | None = None,
+        default_location_id: str | None = None,
         parent_department_id: str | None = None,
         department_type: str = "",
         cost_center_code: str = "",
@@ -122,6 +156,11 @@ class DepartmentService:
                 code="DEPARTMENT_CODE_EXISTS",
             )
         normalized_site_id = self._validate_site_id(site_id, organization_id=organization.id)
+        normalized_default_location_id = self._validate_default_location_id(
+            default_location_id,
+            organization_id=organization.id,
+            site_id=normalized_site_id,
+        )
         normalized_parent_id = self._validate_parent_department_id(
             parent_department_id,
             organization_id=organization.id,
@@ -133,6 +172,7 @@ class DepartmentService:
             name=normalized_name,
             description=_normalize_optional_text(description),
             site_id=normalized_site_id,
+            default_location_id=normalized_default_location_id,
             parent_department_id=normalized_parent_id,
             department_type=_normalize_optional_text(department_type),
             cost_center_code=_normalize_optional_text(cost_center_code).upper(),
@@ -162,6 +202,7 @@ class DepartmentService:
                 "department_code": department.department_code,
                 "name": department.name,
                 "site_id": department.site_id or "",
+                "default_location_id": department.default_location_id or "",
                 "department_type": department.department_type,
                 "is_active": str(department.is_active),
             },
@@ -178,6 +219,7 @@ class DepartmentService:
         display_name: str | None = None,
         description: str | None = None,
         site_id: str | None = None,
+        default_location_id: str | None = None,
         parent_department_id: str | None = None,
         department_type: str | None = None,
         cost_center_code: str | None = None,
@@ -209,8 +251,22 @@ class DepartmentService:
             department.name = _resolve_name(name=name, display_name=display_name, label="Department name")
         if description is not None:
             department.description = _normalize_optional_text(description)
+        target_site_id = department.site_id
         if site_id is not None:
-            department.site_id = self._validate_site_id(site_id, organization_id=organization.id)
+            target_site_id = self._validate_site_id(site_id, organization_id=organization.id)
+            department.site_id = target_site_id
+        if default_location_id is not None:
+            department.default_location_id = self._validate_default_location_id(
+                default_location_id,
+                organization_id=organization.id,
+                site_id=target_site_id,
+            )
+        else:
+            department.default_location_id = self._validate_default_location_id(
+                department.default_location_id,
+                organization_id=organization.id,
+                site_id=target_site_id,
+            )
         if parent_department_id is not None:
             department.parent_department_id = self._validate_parent_department_id(
                 parent_department_id,
@@ -250,6 +306,7 @@ class DepartmentService:
                 "department_code": department.department_code,
                 "name": department.name,
                 "site_id": department.site_id or "",
+                "default_location_id": department.default_location_id or "",
                 "department_type": department.department_type,
                 "is_active": str(department.is_active),
             },
@@ -294,6 +351,34 @@ class DepartmentService:
             raise ValidationError(
                 "Department manager employee does not exist.",
                 code="DEPARTMENT_MANAGER_INVALID",
+            )
+        return normalized
+
+    def _validate_default_location_id(
+        self,
+        default_location_id: str | None,
+        *,
+        organization_id: str,
+        site_id: str | None,
+    ) -> str | None:
+        normalized = _normalize_optional_text(default_location_id) or None
+        if normalized is None:
+            return None
+        if self._location_reference_repo is None:
+            raise ValidationError(
+                "Maintenance location references are not available in the current runtime.",
+                code="DEPARTMENT_LOCATION_REFERENCE_UNAVAILABLE",
+            )
+        location = self._location_reference_repo.get(normalized)
+        if location is None or location.organization_id != organization_id:
+            raise ValidationError(
+                "Department default location must belong to the active organization.",
+                code="DEPARTMENT_LOCATION_INVALID",
+            )
+        if site_id is not None and location.site_id != site_id:
+            raise ValidationError(
+                "Department default location must belong to the selected site.",
+                code="DEPARTMENT_LOCATION_SITE_INVALID",
             )
         return normalized
 

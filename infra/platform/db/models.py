@@ -226,6 +226,11 @@ class DepartmentORM(Base):
         ForeignKey("sites.id", ondelete="SET NULL"),
         nullable=True,
     )
+    default_location_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_locations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     parent_department_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("departments.id", ondelete="SET NULL"),
@@ -502,6 +507,7 @@ Index("idx_employees_site", EmployeeORM.site_id)
 Index("idx_departments_organization", DepartmentORM.organization_id)
 Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
 Index("idx_departments_site", DepartmentORM.site_id)
+Index("idx_departments_default_location", DepartmentORM.default_location_id)
 Index("idx_departments_manager", DepartmentORM.manager_employee_id)
 Index("idx_document_structures_organization", DocumentStructureORM.organization_id)
 Index("idx_document_structures_parent", DocumentStructureORM.parent_structure_id)

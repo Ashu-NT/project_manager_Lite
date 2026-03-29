@@ -41,6 +41,7 @@ class DepartmentAdminTab(QWidget):
         self._can_manage_departments = has_permission(self._user_session, "settings.manage")
         self._rows: list[Department] = []
         self._site_lookup: dict[str, str] = {}
+        self._location_lookup: dict[str, str] = {}
         self._setup_ui()
         self.reload_departments()
         domain_events.departments_changed.connect(self._on_departments_changed)
@@ -81,7 +82,7 @@ class DepartmentAdminTab(QWidget):
         )
 
         self.table = build_admin_table(
-            headers=("Code", "Name", "Site", "Type", "Active"),
+            headers=("Code", "Name", "Site", "Default Location", "Type", "Active"),
             resize_modes=(
                 QHeaderView.ResizeToContents,
                 QHeaderView.Stretch,
@@ -114,16 +115,19 @@ class DepartmentAdminTab(QWidget):
             context = self._department_service.get_context_organization()
             self._rows = self._department_service.list_departments()
             self._site_lookup = self._load_site_lookup()
+            self._location_lookup = self._load_location_lookup()
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Departments", str(exc))
             context_label = "-"
             self._rows = []
             self._site_lookup = {}
+            self._location_lookup = {}
         except Exception as exc:
             QMessageBox.critical(self, "Departments", f"Failed to load departments: {exc}")
             context_label = "-"
             self._rows = []
             self._site_lookup = {}
+            self._location_lookup = {}
         else:
             context_label = context.display_name
         self.table.setRowCount(len(self._rows))
@@ -132,12 +136,13 @@ class DepartmentAdminTab(QWidget):
                 department.department_code,
                 department.name,
                 self._site_lookup.get(department.site_id or "", "-"),
+                self._location_lookup.get(department.default_location_id or "", "-"),
                 department.department_type or "-",
                 "Yes" if department.is_active else "No",
             )
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
-                if col == 4:
+                if col == 5:
                     item.setTextAlignment(Qt.AlignCenter)
                 self.table.setItem(row, col, item)
             self.table.item(row, 0).setData(Qt.UserRole, department.id)
@@ -150,6 +155,7 @@ class DepartmentAdminTab(QWidget):
             parent=self,
             sites=self._available_sites(),
             parent_departments=self._rows,
+            location_options=self._available_locations(),
         )
         while True:
             if dlg.exec() != QDialog.Accepted:
@@ -160,6 +166,7 @@ class DepartmentAdminTab(QWidget):
                     name=dlg.name,
                     description=dlg.description,
                     site_id=dlg.site_id,
+                    default_location_id=dlg.default_location_id,
                     parent_department_id=dlg.parent_department_id,
                     department_type=dlg.department_type,
                     cost_center_code=dlg.cost_center_code,
@@ -185,6 +192,7 @@ class DepartmentAdminTab(QWidget):
             department=department,
             sites=self._available_sites(),
             parent_departments=self._rows,
+            location_options=self._available_locations(),
         )
         while True:
             if dlg.exec() != QDialog.Accepted:
@@ -196,6 +204,7 @@ class DepartmentAdminTab(QWidget):
                     name=dlg.name,
                     description=dlg.description,
                     site_id=dlg.site_id,
+                    default_location_id=dlg.default_location_id,
                     parent_department_id=dlg.parent_department_id,
                     department_type=dlg.department_type,
                     cost_center_code=dlg.cost_center_code,
@@ -263,6 +272,18 @@ class DepartmentAdminTab(QWidget):
 
     def _load_site_lookup(self) -> dict[str, str]:
         return {site.id: site.site_code for site in self._available_sites()}
+
+    def _available_locations(self):
+        try:
+            return self._department_service.list_available_location_references(active_only=True)
+        except BusinessRuleError:
+            return []
+
+    def _load_location_lookup(self) -> dict[str, str]:
+        return {
+            row.id: f"{row.location_code} - {row.name}"
+            for row in self._available_locations()
+        }
 
     def _on_departments_changed(self, _department_id: str) -> None:
         self.reload_departments()

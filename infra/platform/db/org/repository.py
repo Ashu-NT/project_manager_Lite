@@ -202,6 +202,7 @@ class SqlAlchemyDepartmentRepository(DepartmentRepository):
                 "name": department.name,
                 "description": department.description or None,
                 "site_id": department.site_id,
+                "default_location_id": department.default_location_id,
                 "parent_department_id": department.parent_department_id,
                 "department_type": department.department_type or None,
                 "cost_center_code": department.cost_center_code or None,

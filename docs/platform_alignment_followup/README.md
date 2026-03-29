@@ -61,7 +61,7 @@ This tracker exists so the next implementation slices stay visible, ordered, and
   - approved/shared time entries still keep site and department snapshot strings
   - PM task-comment attachments still use their existing module-local storage path until the later UI/integration slice migrates them
   - `site.integration_profile_id` is deferred until a shared integration-profile domain exists
-  - `department.default_location_id` is deferred until the shared `location` master is implemented
+  - `department.default_location_id` now stores a neutral reference to maintenance-owned locations without moving location ownership into platform
   - shared document storage/upload transport is still desktop-first and will need a fuller web-facing storage adapter later
 
 ## Execution Order
@@ -398,6 +398,7 @@ Progress notes:
 - dormant maintenance import/export/report contract catalogs now exist under `core/modules/maintenance_management` so the future module has canonical operation keys and workbook sheet ownership before service implementation begins
 - a maintenance contract-catalog service can now emit rollout workbook and contract-matrix artifacts directly from that scaffold without starting live maintenance workflows
 - the first module-owned maintenance core foundation now exists for `location` and `system`, including SQLAlchemy repositories, migration coverage, and service-graph wiring, which unblocks the later org-to-maintenance location reference seam without pushing location ownership back into platform
+- shared `Department` records can now persist a neutral `default_location_id` reference through a platform-owned resolver port, with the live adapter registered from the maintenance bundle rather than from `core/platform`
 
 ## Guardrails
 

@@ -26,6 +26,7 @@ def build_maintenance_management_service_bundle(
 ) -> MaintenanceManagementServiceBundle:
     location_repo = SqlAlchemyMaintenanceLocationRepository(platform_services.session)
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
+    platform_services.department_service.register_location_reference_repository(location_repo)
     maintenance_runtime_contract_catalog_service = MaintenanceRuntimeContractCatalogService()
     maintenance_location_service = MaintenanceLocationService(
         platform_services.session,

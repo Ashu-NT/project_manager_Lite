@@ -25,9 +25,11 @@ class DepartmentEditDialog(QDialog):
         *,
         sites: list[Site] | None = None,
         parent_departments: list[Department] | None = None,
+        location_options: list[object] | None = None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Department" + (" - Edit" if department else " - New"))
+        self._location_options = list(location_options or [])
 
         self.department_code_edit = QLineEdit()
         self.name_edit = QLineEdit()
@@ -71,6 +73,10 @@ class DepartmentEditDialog(QDialog):
                 continue
             self.parent_combo.addItem(f"{row.department_code} - {row.name}", userData=row.id)
 
+        self.default_location_combo = QComboBox()
+        self.default_location_combo.setSizePolicy(CFG.INPUT_POLICY)
+        self.default_location_combo.setFixedHeight(CFG.INPUT_HEIGHT)
+
         self.notes_edit = QTextEdit()
         self.notes_edit.setMinimumHeight(90)
         self.notes_edit.setPlaceholderText("Optional department notes, governance reminders, or scope details.")
@@ -91,6 +97,12 @@ class DepartmentEditDialog(QDialog):
         else:
             self.active_check.setChecked(True)
 
+        self._reload_location_options(
+            site_id=department.site_id if department is not None else self.site_id,
+            selected_location_id=(department.default_location_id if department is not None else None),
+        )
+        self.site_combo.currentIndexChanged.connect(self._on_site_changed)
+
         form = QFormLayout()
         form.setLabelAlignment(CFG.ALIGN_RIGHT | CFG.ALIGN_CENTER)
         form.setFormAlignment(CFG.ALIGN_TOP)
@@ -100,6 +112,7 @@ class DepartmentEditDialog(QDialog):
         form.addRow("Department code:", self.department_code_field)
         form.addRow("Name:", self.name_edit)
         form.addRow("Site:", self.site_combo)
+        form.addRow("Default location:", self.default_location_combo)
         form.addRow("Parent department:", self.parent_combo)
         form.addRow("Department type:", self.department_type_edit)
         form.addRow("Cost center:", self.cost_center_code_field)
@@ -133,6 +146,27 @@ class DepartmentEditDialog(QDialog):
             return
         self.accept()
 
+    def _on_site_changed(self) -> None:
+        current_location_id = self.default_location_id
+        self._reload_location_options(site_id=self.site_id, selected_location_id=current_location_id)
+
+    def _reload_location_options(
+        self,
+        *,
+        site_id: str | None,
+        selected_location_id: str | None,
+    ) -> None:
+        self.default_location_combo.blockSignals(True)
+        self.default_location_combo.clear()
+        self.default_location_combo.addItem("No default location", userData="")
+        for row in self._location_options:
+            if site_id and getattr(row, "site_id", None) != site_id:
+                continue
+            label = f"{getattr(row, 'location_code', '')} - {getattr(row, 'name', '')}".strip(" -")
+            self.default_location_combo.addItem(label or getattr(row, "name", "Location"), userData=row.id)
+        self._select_combo(self.default_location_combo, selected_location_id)
+        self.default_location_combo.blockSignals(False)
+
     @property
     def department_code(self) -> str:
         return self.department_code_edit.text().strip().upper()
@@ -152,6 +186,10 @@ class DepartmentEditDialog(QDialog):
     @property
     def parent_department_id(self) -> str | None:
         return self.parent_combo.currentData()
+
+    @property
+    def default_location_id(self) -> str | None:
+        return self.default_location_combo.currentData()
 
     @property
     def department_type(self) -> str:
