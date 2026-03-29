@@ -221,8 +221,8 @@ Required hardening:
 
 Current state:
 
-- inventory already validates maintenance-facing `source_reference_type` values and item categories carry maintenance-usage flags
-- the inventory roadmap still calls deeper maintenance command/event integration pending
+- inventory now exposes an explicit maintenance-material contract for availability, reservation, issue, return, and procurement escalation through the inventory service graph
+- stable maintenance-facing statuses and the `inventory_maintenance_materials_changed` domain event now exist so maintenance planners can refresh against one contract seam instead of reading inventory internals directly
 
 Why this matters:
 
@@ -231,8 +231,8 @@ Why this matters:
 
 Required hardening:
 
-- define the maintenance-side contract for work-order material demand, reservation, issue, return, and purchasing escalation
-- emit stable domain events and shared statuses that planners can use without reading inventory internals directly
+- done: define the maintenance-side contract for work-order material demand, reservation, issue, return, and purchasing escalation
+- done: emit stable domain events and shared statuses that planners can use without reading inventory internals directly
 
 #### 6. Maintenance-specific import/export/report runtime contracts
 
@@ -272,7 +272,7 @@ Required hardening:
 2. Module-neutral governance queue and approval UX. Done.
 3. Shared time boundary generalization for labor booking. Done.
 4. Shared document taxonomy and lifecycle hardening. Done.
-5. Explicit inventory-to-maintenance material contracts.
+5. Explicit inventory-to-maintenance material contracts. Done.
 6. Maintenance-specific import/export/report contracts and async runtime controls.
 7. Shared org-to-maintenance location reference path once location records exist.
 

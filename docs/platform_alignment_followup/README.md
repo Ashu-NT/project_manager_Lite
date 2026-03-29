@@ -391,7 +391,8 @@ Progress notes:
 - scoped-access policy ownership now keeps `site` platform-owned while module-owned scopes register from the owning service-registration bundle
 - approval review now has a shared platform control workspace, while PM governance keeps PM-only controls such as governance mode and timesheet review
 - shared time now persists neutral `work_allocation_id`, owner/scope snapshots, and platform-level `time.read` / `time.manage` permissions while keeping PM assignment APIs as wrappers
-- approval review now has a module-neutral `Approvals` control workspace, while PM governance keeps PM-only mode and timesheet review concerns
+- inventory now exposes a dedicated maintenance-material contract service for availability, reservation, issue, return, shortage escalation, and linked requisition lookup
+- the `inventory_maintenance_materials_changed` bridge now provides a stable maintenance-facing material refresh event without leaking inventory internals into future maintenance workflows
 
 ## Guardrails
 

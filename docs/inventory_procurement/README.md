@@ -2,9 +2,9 @@
 
 Status: phase-1 implemented and materially hardened
 Implementation state: item category master, item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, UI workspaces, and module-owned inventory import/export/reporting services now exist in the codebase.
-Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts; inventory now also ships CSV import for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, raw CSV export for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, plus stock/procurement reports in CSV and Excel. Receiving now enforces lot, serial, and shelf-life controls, storerooms can require reservation-backed issues and supplier-reference-backed receipts, and maintenance-facing source-reference types are validated consistently across reservations and requisitions.
+Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts; inventory now also ships CSV import for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, raw CSV export for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, plus stock/procurement reports in CSV and Excel. Receiving now enforces lot, serial, and shelf-life controls, storerooms can require reservation-backed issues and supplier-reference-backed receipts, maintenance-facing source-reference types are validated consistently across reservations and requisitions, and inventory now exposes an explicit maintenance-material contract for availability, reservation, issue, return, shortage escalation, and domain-event refresh.
 Inventory also now owns a governed item category master for consumables, spares, equipment, and other stocked classifications, including project-usage and maintenance-usage flags for future cross-module consumption.
-Still pending before a fuller enterprise-complete rollout: deeper maintenance command/event integration, richer warehouse execution such as directed/bin policies and inspection flows, and broader serial/lot lifecycle traceability beyond receipt capture.
+Still pending before a fuller enterprise-complete rollout: richer warehouse execution such as directed/bin policies and inspection flows, broader serial/lot lifecycle traceability beyond receipt capture, and maintenance-module-side adoption of the new inventory material contract once maintenance runtime workflows land.
 
 ## Current Execution Plan
 
@@ -17,9 +17,9 @@ Completed in the current execution block:
 
 Next up:
 
-1. maintenance-facing material demand and reservation integration once the module lands
-2. directed warehouse execution and richer receiving inspection policy
-3. serial and lot traceability beyond receipt capture
+1. directed warehouse execution and richer receiving inspection policy
+2. serial and lot traceability beyond receipt capture
+3. maintenance module-side consumption of the inventory material contract once maintenance runtime workflows land
 
 ## Purpose
 

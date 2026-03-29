@@ -21,6 +21,7 @@ from core.platform.runtime_tracking import RuntimeExecutionService
 from core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,
+    MaintenanceMaterialService,
     InventoryReferenceService,
     InventoryService,
     InventoryReportingService,
@@ -77,6 +78,7 @@ class ServiceGraph:
     inventory_reporting_service: InventoryReportingService
     inventory_item_category_service: ItemCategoryService
     inventory_item_service: ItemMasterService
+    inventory_maintenance_material_service: MaintenanceMaterialService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
     inventory_reservation_service: ReservationService
@@ -127,6 +129,7 @@ class ServiceGraph:
             "inventory_reporting_service": self.inventory_reporting_service,
             "inventory_item_category_service": self.inventory_item_category_service,
             "inventory_item_service": self.inventory_item_service,
+            "inventory_maintenance_material_service": self.inventory_maintenance_material_service,
             "inventory_service": self.inventory_service,
             "inventory_stock_service": self.inventory_stock_service,
             "inventory_reservation_service": self.inventory_reservation_service,
@@ -187,6 +190,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_reporting_service=inventory_procurement_services.inventory_reporting_service,
         inventory_item_category_service=inventory_procurement_services.inventory_item_category_service,
         inventory_item_service=inventory_procurement_services.inventory_item_service,
+        inventory_maintenance_material_service=inventory_procurement_services.inventory_maintenance_material_service,
         inventory_service=inventory_procurement_services.inventory_service,
         inventory_stock_service=inventory_procurement_services.inventory_stock_service,
         inventory_reservation_service=inventory_procurement_services.inventory_reservation_service,

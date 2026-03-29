@@ -15,6 +15,7 @@ from core.platform.modules.runtime import ModuleRuntimeService
 from core.platform.time import TimeService
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
+    MaintenanceMaterialService,
     InventoryReferenceService,
     InventoryReportingService,
     InventoryService,
@@ -78,6 +79,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.inventory_reporting_service, InventoryReportingService)
     assert isinstance(graph.inventory_item_category_service, ItemCategoryService)
     assert isinstance(graph.inventory_item_service, ItemMasterService)
+    assert isinstance(graph.inventory_maintenance_material_service, MaintenanceMaterialService)
     assert isinstance(graph.inventory_service, InventoryService)
     assert isinstance(graph.inventory_stock_service, StockControlService)
     assert isinstance(graph.inventory_reservation_service, ReservationService)
@@ -119,6 +121,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["inventory_reporting_service"] is graph.inventory_reporting_service
     assert as_dict["inventory_item_category_service"] is graph.inventory_item_category_service
     assert as_dict["inventory_item_service"] is graph.inventory_item_service
+    assert as_dict["inventory_maintenance_material_service"] is graph.inventory_maintenance_material_service
     assert as_dict["inventory_service"] is graph.inventory_service
     assert as_dict["inventory_stock_service"] is graph.inventory_stock_service
     assert as_dict["inventory_reservation_service"] is graph.inventory_reservation_service

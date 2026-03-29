@@ -79,9 +79,21 @@ INVENTORY_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
     "maintenance_task",
     "maintenance_work_order",
     "maintenance_request",
+    "maintenance_operation",
+    "maintenance_plan",
+    "maintenance_material_demand",
     "reservation",
     "requisition",
     "purchase_order",
+)
+
+MAINTENANCE_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
+    "maintenance_task",
+    "maintenance_work_order",
+    "maintenance_request",
+    "maintenance_operation",
+    "maintenance_plan",
+    "maintenance_material_demand",
 )
 
 
@@ -250,6 +262,21 @@ def normalize_source_reference_type(value: str | None) -> str:
     return normalized
 
 
+def normalize_maintenance_source_reference_type(value: str | None) -> str:
+    normalized = normalize_optional_text(value).lower()
+    if not normalized:
+        raise ValidationError(
+            "Maintenance source reference type is required.",
+            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_REQUIRED",
+        )
+    if normalized not in MAINTENANCE_SOURCE_REFERENCE_TYPES:
+        raise ValidationError(
+            "Maintenance source reference type is invalid.",
+            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_INVALID",
+        )
+    return normalized
+
+
 def validate_receipt_tracking(
     *,
     item: StockItem,
@@ -334,6 +361,7 @@ __all__ = [
     "ITEM_STATUS_TRANSITIONS",
     "ITEM_CATEGORY_TYPES",
     "INVENTORY_SOURCE_REFERENCE_TYPES",
+    "MAINTENANCE_SOURCE_REFERENCE_TYPES",
     "PURCHASE_ORDER_STATUS_TRANSITIONS",
     "REQUISITION_STATUS_TRANSITIONS",
     "RESERVATION_STATUS_TRANSITIONS",
@@ -346,6 +374,7 @@ __all__ = [
     "normalize_nonnegative_quantity",
     "normalize_positive_quantity",
     "normalize_optional_text",
+    "normalize_maintenance_source_reference_type",
     "normalize_source_reference_type",
     "normalize_status",
     "normalize_uom",

@@ -132,6 +132,7 @@ def test_domain_changed_bridges_inventory_module_events():
         domain_events.inventory_storerooms_changed.emit("storeroom-1")
         domain_events.inventory_balances_changed.emit("balance-1")
         domain_events.inventory_reservations_changed.emit("reservation-1")
+        domain_events.inventory_maintenance_materials_changed.emit("maintenance_work_order:MWO-1")
     finally:
         domain_events.domain_changed.disconnect(_handler)
 
@@ -163,6 +164,13 @@ def test_domain_changed_bridges_inventory_module_events():
             entity_type="stock_reservation",
             entity_id="reservation-1",
             source_event="inventory_reservations_changed",
+        ),
+        DomainChangeEvent(
+            category="module",
+            scope_code="inventory_procurement",
+            entity_type="maintenance_material_contract",
+            entity_id="maintenance_work_order:MWO-1",
+            source_event="inventory_maintenance_materials_changed",
         ),
     ]
 

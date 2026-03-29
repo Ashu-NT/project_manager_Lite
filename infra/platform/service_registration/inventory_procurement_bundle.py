@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from core.platform.access import ScopedRolePolicy
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
+    MaintenanceMaterialService,
     InventoryReferenceService,
     InventoryService,
     InventoryReportingService,
@@ -44,6 +45,7 @@ class InventoryProcurementServiceBundle:
     inventory_reporting_service: InventoryReportingService
     inventory_item_category_service: ItemCategoryService
     inventory_item_service: ItemMasterService
+    inventory_maintenance_material_service: MaintenanceMaterialService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
     inventory_reservation_service: ReservationService
@@ -201,6 +203,14 @@ def build_inventory_procurement_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         runtime_execution_service=platform_services.runtime_execution_service,
     )
+    inventory_maintenance_material_service = MaintenanceMaterialService(
+        item_service=inventory_item_service,
+        item_category_service=inventory_item_category_service,
+        inventory_service=inventory_service,
+        stock_service=inventory_stock_service,
+        reservation_service=inventory_reservation_service,
+        procurement_service=inventory_procurement_service,
+    )
 
     def _storeroom_exists(storeroom_id: str) -> bool:
         storeroom = storeroom_repo.get(storeroom_id)
@@ -219,6 +229,7 @@ def build_inventory_procurement_service_bundle(
         inventory_reporting_service=inventory_reporting_service,
         inventory_item_category_service=inventory_item_category_service,
         inventory_item_service=inventory_item_service,
+        inventory_maintenance_material_service=inventory_maintenance_material_service,
         inventory_service=inventory_service,
         inventory_stock_service=inventory_stock_service,
         inventory_reservation_service=inventory_reservation_service,

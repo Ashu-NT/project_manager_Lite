@@ -104,6 +104,13 @@ class DomainEvents:
             "receipt_header",
             "inventory_receipts_changed",
         ),
+        (
+            "inventory_maintenance_materials_changed",
+            "module",
+            "inventory_procurement",
+            "maintenance_material_contract",
+            "inventory_maintenance_materials_changed",
+        ),
         ("modules_changed", "platform", "platform", "module_runtime", "modules_changed"),
     )    
     
@@ -133,6 +140,7 @@ class DomainEvents:
     inventory_requisitions_changed: Signal[str] = field(default_factory=Signal)  # requisition_id
     inventory_purchase_orders_changed: Signal[str] = field(default_factory=Signal)  # po_id
     inventory_receipts_changed: Signal[str] = field(default_factory=Signal)  # receipt_id
+    inventory_maintenance_materials_changed: Signal[str] = field(default_factory=Signal)  # maintenance reference key
     modules_changed: Signal[str] = field(default_factory=Signal)  # module_code
     shared_master_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
     domain_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
