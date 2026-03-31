@@ -47,12 +47,18 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         *,
         limit: int = 200,
         project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
     ) -> List[ApprovalRequest]:
         stmt = select(ApprovalRequestORM)
         if status is not None:
             stmt = stmt.where(ApprovalRequestORM.status == status.value)
         if project_id is not None:
             stmt = stmt.where(ApprovalRequestORM.project_id == project_id)
+        if entity_type is not None:
+            if isinstance(entity_type, str):
+                stmt = stmt.where(ApprovalRequestORM.entity_type == entity_type)
+            else:
+                stmt = stmt.where(ApprovalRequestORM.entity_type.in_(entity_type))
         stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [approval_from_orm(row) for row in rows]

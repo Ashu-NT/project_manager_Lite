@@ -104,7 +104,7 @@ class GovernanceTab(QWidget):
         title.setStyleSheet(CFG.TITLE_LARGE_STYLE)
         intro.addWidget(title)
         subtitle = QLabel(
-            "Manage PM governance mode, review shared governed changes, and process submitted timesheets."
+            "Manage PM governance mode, review project management governed changes, and process submitted timesheets."
         )
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
@@ -176,6 +176,12 @@ class GovernanceTab(QWidget):
             approval_service=self._approval_service,
             user_session=self._user_session,
             summary_changed=self._update_header_badges,
+            entity_type_filter=[
+                "project_baseline",
+                "task_dependency", 
+                "cost_item",
+                "resource",
+            ],
             parent=self,
         )
         self.table = self.approval_queue.table

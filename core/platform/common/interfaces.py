@@ -280,6 +280,7 @@ class ApprovalRepository(ABC):
         *,
         limit: int = 200,
         project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
     ) -> List[ApprovalRequest]: ...
 
 

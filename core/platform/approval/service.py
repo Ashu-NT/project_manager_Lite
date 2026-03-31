@@ -81,6 +81,7 @@ class ApprovalService:
         *,
         status: ApprovalStatus | str | None = None,
         project_id: str | None = None,
+        entity_type: str | list[str] | None = None,
         limit: int = 200,
     ) -> list[ApprovalRequest]:
         require_any_permission(
@@ -104,6 +105,7 @@ class ApprovalService:
             normalized_status,
             limit=limit,
             project_id=project_id,
+            entity_type=entity_type,
         )
 
     def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:

@@ -41,12 +41,14 @@ class ApprovalQueuePanel(QWidget):
         approval_service: ApprovalService,
         user_session: UserSessionContext | None = None,
         summary_changed: SummaryChangedCallback | None = None,
+        entity_type_filter: str | list[str] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._approval_service = approval_service
         self._user_session = user_session
         self._summary_changed = summary_changed
+        self._entity_type_filter = entity_type_filter
         self._rows: list[ApprovalRequest] = []
         self._can_view_approvals = bool(
             user_session is not None
@@ -138,7 +140,11 @@ class ApprovalQueuePanel(QWidget):
             return
         selected = self.status_combo.currentData()
         try:
-            self._rows = self._approval_service.list_requests(status=selected, limit=500)
+            self._rows = self._approval_service.list_requests(
+                status=selected,
+                limit=500,
+                entity_type=self._entity_type_filter
+            )
         except (BusinessRuleError, NotFoundError, ValueError) as exc:
             QMessageBox.warning(self, "Approvals", str(exc))
             self._rows = []
