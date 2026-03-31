@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from core.platform.access.domain import ScopedAccessGrant
-from core.platform.access.policies import ScopedRolePolicyRegistry
+from core.platform.access.policies import ScopedRolePolicy, ScopedRolePolicyRegistry
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.interfaces import (
