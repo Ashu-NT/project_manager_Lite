@@ -52,6 +52,19 @@ class ApprovalService:
             "approval.request",
             operation_label="request governed change",
         )
+        # Prevent duplicate pending approvals for the same entity
+        existing_pending = self._approval_repo.list_by_status(
+            ApprovalStatus.PENDING,
+            limit=1,
+            entity_type=entity_type,
+            entity_id=entity_id,
+        )
+        if existing_pending:
+            raise BusinessRuleError(
+                f"A pending approval already exists for this {entity_type.replace('_', ' ')}. "
+                f"Request {existing_pending[0].id} is still pending.",
+                code="APPROVAL_DUPLICATE_ENTITY",
+            )
         principal = self._user_session.principal if self._user_session else None
         request = ApprovalRequest.create(
             request_type=request_type.strip().lower(),
@@ -106,6 +119,7 @@ class ApprovalService:
             limit=limit,
             project_id=project_id,
             entity_type=entity_type,
+            entity_id=None,
         )
 
     def list_pending(self, *, project_id: str | None = None, limit: int = 200) -> list[ApprovalRequest]:

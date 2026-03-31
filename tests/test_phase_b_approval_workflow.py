@@ -121,3 +121,24 @@ def test_list_requests_accepts_string_status_value_from_ui(services, monkeypatch
     )
     pending = approvals.list_requests(status="PENDING", project_id="p-2")
     assert any(item.id == req.id for item in pending)
+
+
+def test_duplicate_approval_requests_are_prevented(services, monkeypatch):
+    monkeypatch.setenv("PM_GOVERNANCE_MODE", "off")
+    _login(services, "admin", "ChangeMe123!")
+    approvals = services["approval_service"]
+    req1 = approvals.request_change(
+        request_type="baseline.create",
+        entity_type="project_baseline",
+        entity_id="p-1",
+        project_id="p-1",
+        payload={"project_id": "p-1", "name": "Baseline 1"},
+    )
+    with pytest.raises(BusinessRuleError, match="pending approval already exists"):
+        approvals.request_change(
+            request_type="baseline.create",
+            entity_type="project_baseline",
+            entity_id="p-1",
+            project_id="p-1",
+            payload={"project_id": "p-1", "name": "Baseline 2"},
+        )

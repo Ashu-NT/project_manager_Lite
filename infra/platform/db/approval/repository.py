@@ -48,6 +48,7 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
         limit: int = 200,
         project_id: str | None = None,
         entity_type: str | list[str] | None = None,
+        entity_id: str | None = None,
     ) -> List[ApprovalRequest]:
         stmt = select(ApprovalRequestORM)
         if status is not None:
@@ -59,6 +60,8 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
                 stmt = stmt.where(ApprovalRequestORM.entity_type == entity_type)
             else:
                 stmt = stmt.where(ApprovalRequestORM.entity_type.in_(entity_type))
+        if entity_id is not None:
+            stmt = stmt.where(ApprovalRequestORM.entity_id == entity_id)
         stmt = stmt.order_by(desc(ApprovalRequestORM.requested_at)).limit(max(1, int(limit)))
         rows = self.session.execute(stmt).scalars().all()
         return [approval_from_orm(row) for row in rows]
