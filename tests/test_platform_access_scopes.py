@@ -120,7 +120,12 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
     assert grant.scope_role == "operator"
     assert grant.permission_codes == sorted(resolve_storeroom_scope_permissions("operator"))
     assert access.list_scope_role_choices("storeroom") == ("viewer", "operator", "manager")
-    assert access.list_supported_scope_types() == ("project", "site", "storeroom")
+    assert set(access.list_supported_scope_types()) == {
+        "project",
+        "site",
+        "storeroom",
+        "maintenance",
+    }
 
     listed_scope_grants = access.list_scope_grants("storeroom", storeroom.id)
     listed_user_grants = access.list_user_scope_grants(user.id, scope_type="storeroom")
@@ -167,6 +172,55 @@ def test_access_service_supports_site_scope_grants_and_site_filtering(services):
     visible_sites = services["site_service"].list_sites()
 
     assert [site.id for site in visible_sites] == [site_a.id]
+
+
+def test_maintenance_scoped_access_filters_locations(services):
+    auth = services["auth_service"]
+    access = services["access_service"]
+    site = services["site_service"].create_site(
+        site_code="MNT-SITE",
+        name="Maintenance Scope Site",
+        city="Oslo",
+        currency_code="NOK",
+    )
+    accessible = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="MNT-LOC-ACCESS",
+        name="Accessible Maintenance Location",
+        description="",
+    )
+    blocked = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="MNT-LOC-BLOCKED",
+        name="Blocked Maintenance Location",
+        description="",
+    )
+    user = auth.register_user("maintenance-scope-user", "StrongPass123", role_names=["maintenance_manager"])
+
+    grant = access.assign_scope_grant(
+        scope_type="maintenance",
+        scope_id=accessible.id,
+        user_id=user.id,
+        scope_role="operator",
+    )
+
+    from core.modules.maintenance_management.access.policy import resolve_maintenance_scope_permissions
+
+    assert grant.scope_type == "maintenance"
+    assert grant.scope_id == accessible.id
+    assert grant.scope_role == "operator"
+    assert grant.permission_codes == sorted(resolve_maintenance_scope_permissions("operator"))
+    assert access.list_scope_role_choices("maintenance") == ("viewer", "operator", "manager")
+    assert "maintenance" in access.list_supported_scope_types()
+
+    principal = auth.build_principal(user)
+    assert principal.scoped_access["maintenance"][accessible.id] == frozenset(
+        resolve_maintenance_scope_permissions("operator")
+    )
+
+    login_as(services, "maintenance-scope-user", "StrongPass123")
+    visible_locations = services["maintenance_location_service"].list_locations()
+    assert [location.id for location in visible_locations] == [accessible.id]
 
 
 def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):

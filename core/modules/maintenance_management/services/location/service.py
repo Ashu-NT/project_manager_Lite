@@ -14,6 +14,7 @@ from core.modules.maintenance_management.support import (
     normalize_maintenance_name,
     normalize_optional_text,
 )
+from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
@@ -51,11 +52,18 @@ class MaintenanceLocationService:
         organization = self._active_organization()
         if site_id is not None:
             self._get_site(site_id, organization=organization)
-        return self._location_repo.list_for_organization(
+        rows = self._location_repo.list_for_organization(
             organization.id,
             active_only=active_only,
             site_id=site_id,
             parent_location_id=parent_location_id,
+        )
+        return filter_scope_rows(
+            rows,
+            self._user_session,
+            scope_type="maintenance",
+            permission_code="maintenance.read",
+            scope_id_getter=lambda row: getattr(row, "id", ""),
         )
 
     def search_locations(
@@ -93,6 +101,13 @@ class MaintenanceLocationService:
         location = self._location_repo.get(location_id)
         if location is None or location.organization_id != organization.id:
             raise NotFoundError("Maintenance location not found in the active organization.", code="MAINTENANCE_LOCATION_NOT_FOUND")
+        require_scope_permission(
+            self._user_session,
+            "maintenance",
+            location.id,
+            "maintenance.read",
+            operation_label="view maintenance location",
+        )
         return location
 
     def find_location_by_code(

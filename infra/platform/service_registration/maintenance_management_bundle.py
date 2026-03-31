@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from core.platform.access import ScopedRolePolicy
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
     MaintenanceLocationService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
+)
+from core.modules.maintenance_management.access import (
+    MAINTENANCE_SCOPE_ROLE_CHOICES,
+    normalize_maintenance_scope_role,
+    resolve_maintenance_scope_permissions,
 )
 from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceAssetRepository,
@@ -35,6 +41,22 @@ def build_maintenance_management_service_bundle(
     asset_repo = SqlAlchemyMaintenanceAssetRepository(platform_services.session)
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
     platform_services.department_service.register_location_reference_repository(location_repo)
+    platform_services.access_service.register_scope_policy(
+        ScopedRolePolicy(
+            scope_type="maintenance",
+            role_choices=MAINTENANCE_SCOPE_ROLE_CHOICES,
+            normalize_role=normalize_maintenance_scope_role,
+            resolve_permissions=resolve_maintenance_scope_permissions,
+        )
+    )
+    platform_services.access_service.register_scope_exists_resolver(
+        "maintenance",
+        lambda entity_id: (
+            location_repo.get(entity_id) is not None
+            or system_repo.get(entity_id) is not None
+            or asset_repo.get(entity_id) is not None
+        ),
+    )
     maintenance_runtime_contract_catalog_service = MaintenanceRuntimeContractCatalogService()
     maintenance_asset_service = MaintenanceAssetService(
         platform_services.session,

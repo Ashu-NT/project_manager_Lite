@@ -21,6 +21,7 @@ from core.modules.maintenance_management.support import (
     normalize_maintenance_name,
     normalize_optional_text,
 )
+from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
@@ -88,7 +89,7 @@ class MaintenanceAssetService:
             self._get_system(system_id, organization=organization)
         if parent_asset_id is not None:
             self._get_asset(parent_asset_id, organization=organization)
-        return self._asset_repo.list_for_organization(
+        rows = self._asset_repo.list_for_organization(
             organization.id,
             active_only=active_only,
             site_id=site_id,
@@ -96,6 +97,13 @@ class MaintenanceAssetService:
             system_id=system_id,
             parent_asset_id=parent_asset_id,
             asset_category=normalize_optional_text(asset_category).upper() or None,
+        )
+        return filter_scope_rows(
+            rows,
+            self._user_session,
+            scope_type="maintenance",
+            permission_code="maintenance.read",
+            scope_id_getter=lambda row: getattr(row, "id", ""),
         )
 
     def search_assets(
@@ -144,7 +152,15 @@ class MaintenanceAssetService:
 
     def get_asset(self, asset_id: str) -> MaintenanceAsset:
         self._require_read("view maintenance asset")
-        return self._get_asset(asset_id, organization=self._active_organization())
+        asset = self._get_asset(asset_id, organization=self._active_organization())
+        require_scope_permission(
+            self._user_session,
+            "maintenance",
+            asset.id,
+            "maintenance.read",
+            operation_label="view maintenance asset",
+        )
+        return asset
 
     def find_asset_by_code(
         self,

@@ -18,6 +18,7 @@ from core.modules.maintenance_management.support import (
     normalize_maintenance_name,
     normalize_optional_text,
 )
+from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
@@ -75,13 +76,21 @@ class MaintenanceAssetComponentService:
             self._get_asset(asset_id, organization=organization)
         if parent_component_id is not None:
             self._get_component(parent_component_id, organization=organization)
-        return self._component_repo.list_for_organization(
+        rows = self._component_repo.list_for_organization(
             organization.id,
             active_only=active_only,
             asset_id=asset_id,
             parent_component_id=parent_component_id,
             component_type=normalize_optional_text(component_type).upper() or None,
         )
+        return filter_scope_rows(
+            rows,
+            self._user_session,
+            scope_type="maintenance",
+            permission_code="maintenance.read",
+            scope_id_getter=lambda row: getattr(row, "id", ""),
+        )
+
 
     def search_components(
         self,
@@ -122,7 +131,15 @@ class MaintenanceAssetComponentService:
 
     def get_component(self, component_id: str) -> MaintenanceAssetComponent:
         self._require_read("view maintenance asset component")
-        return self._get_component(component_id, organization=self._active_organization())
+        component = self._get_component(component_id, organization=self._active_organization())
+        require_scope_permission(
+            self._user_session,
+            "maintenance",
+            component.id,
+            "maintenance.read",
+            operation_label="view maintenance asset component",
+        )
+        return component
 
     def find_component_by_code(
         self,
