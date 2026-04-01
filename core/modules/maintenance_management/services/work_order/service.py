@@ -19,7 +19,7 @@ from core.modules.maintenance_management.support import (
     normalize_maintenance_name,
     normalize_optional_text,
 )
-from core.modules.maintenance_management.services.work_order import MaintenanceWorkOrderValidationMixin
+from core.modules.maintenance_management.services.work_order.validation import MaintenanceWorkOrderValidationMixin
 from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission

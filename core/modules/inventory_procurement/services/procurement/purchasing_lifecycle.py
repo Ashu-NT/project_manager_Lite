@@ -164,6 +164,11 @@ class PurchasingLifecycleMixin:
                 "Purchase order must have at least one line before submission.",
                 code="INVENTORY_PURCHASE_ORDER_LINES_REQUIRED",
             )
+
+        site = self._reference_service.get_site(purchase_order.site_id)
+        supplier = self._reference_service.get_party(purchase_order.supplier_party_id)
+        total_amount = sum((line.quantity_ordered or 0.0) * (line.unit_price or 0.0) for line in lines)
+
         request = self._approval_service.request_change(
             request_type="purchase_order.submit",
             entity_type="purchase_order",
@@ -173,9 +178,15 @@ class PurchasingLifecycleMixin:
                 "purchase_order_id": purchase_order.id,
                 "po_number": purchase_order.po_number,
                 "site_id": purchase_order.site_id,
+                "site_name": getattr(site, "name", ""),
                 "supplier_party_id": purchase_order.supplier_party_id,
+                "supplier_name": getattr(supplier, "party_name", ""),
                 "source_requisition_id": purchase_order.source_requisition_id or "",
                 "line_count": len(lines),
+                "total_amount": round(total_amount, 2),
+                "currency_code": purchase_order.currency_code,
+                "order_date": purchase_order.order_date.isoformat() if purchase_order.order_date else "",
+                "expected_delivery_date": purchase_order.expected_delivery_date.isoformat() if purchase_order.expected_delivery_date else "",
             },
             commit=False,
         )

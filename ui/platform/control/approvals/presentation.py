@@ -34,7 +34,25 @@ def approval_context_label(request: ApprovalRequest) -> str:
         return f"Requisition {requisition_number}"
     po_number = str(payload.get("po_number") or "").strip()
     if po_number:
-        return f"PO {po_number}"
+        supplier_name = str(payload.get("supplier_name") or "").strip()
+        site_name = str(payload.get("site_name") or "").strip()
+        line_count = int(payload.get("line_count") or 0)
+        total_amount = payload.get("total_amount")
+        currency_code = str(payload.get("currency_code") or "").strip()
+
+        segments = [f"PO {po_number}"]
+        if supplier_name:
+            segments.append(supplier_name)
+        if site_name:
+            segments.append(site_name)
+        if line_count:
+            line_label = f"{line_count} line{'s' if line_count != 1 else ''}"
+            segments.append(line_label)
+        if total_amount not in (None, ""):
+            amt = f"{currency_code} {total_amount:.2f}" if isinstance(total_amount, (int, float)) else f"{currency_code} {total_amount}"
+            segments.append(amt)
+
+        return " | ".join(segments)
     project_id = str(request.project_id or "").strip()
     if project_id:
         return project_id
@@ -87,9 +105,31 @@ def approval_display_label(request: ApprovalRequest) -> str:
 
     if request.request_type == "purchase_order.submit":
         po_number = str(payload.get("po_number") or "").strip()
+        supplier_name = str(payload.get("supplier_name") or "").strip()
+        site_name = str(payload.get("site_name") or "").strip()
+        line_count = int(payload.get("line_count") or 0)
+        total_amount = payload.get("total_amount")
+        currency_code = str(payload.get("currency_code") or "").strip()
+
+        base = "Submit purchase order"
         if po_number:
-            return f"Submit purchase order {po_number}"
-        return "Submit purchase order"
+            base = f"{base} {po_number}"
+
+        details = []
+        if supplier_name:
+            details.append(f"supplier {supplier_name}")
+        if site_name:
+            details.append(f"site {site_name}")
+        if line_count:
+            details.append(f"{line_count} line{'s' if line_count != 1 else ''}")
+        if total_amount not in (None, ""):
+            label_amount = f"{currency_code} {total_amount:.2f}" if isinstance(total_amount, (int, float)) else f"{currency_code} {total_amount}"
+            details.append(label_amount)
+
+        if details:
+            base = f"{base} ({', '.join(details)})"
+
+        return base
 
     fallback = (request.entity_type or "governed change").replace("_", " ").strip()
     return fallback.title()

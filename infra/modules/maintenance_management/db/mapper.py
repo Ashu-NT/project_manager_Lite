@@ -401,6 +401,3 @@ __all__ = [
     "maintenance_work_request_from_orm",
     "maintenance_work_request_to_orm",
 ]
-    "maintenance_work_request_from_orm",
-    "maintenance_work_request_to_orm",
-]

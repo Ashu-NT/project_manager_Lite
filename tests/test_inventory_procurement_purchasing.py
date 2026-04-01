@@ -92,6 +92,50 @@ def _create_approved_purchase_order(services):
     return site, storeroom, item, supplier, requisition, requisition_line, purchase_order, purchase_order_line
 
 
+def test_purchase_order_submit_enriches_approval_payload(services):
+    site, storeroom, item, supplier = _create_procurement_context(services)
+    procurement = services["inventory_procurement_service"]
+    purchasing = services["inventory_purchasing_service"]
+    approvals = services["approval_service"]
+
+    purchase_order = purchasing.create_purchase_order(
+        site_id=site.id,
+        supplier_party_id=supplier.id,
+        currency_code="EUR",
+        source_requisition_id=None,
+        expected_delivery_date=date(2026, 4, 20),
+    )
+    _purchase_order_line = purchasing.add_purchase_order_line(
+        purchase_order.id,
+        stock_item_id=item.id,
+        destination_storeroom_id=storeroom.id,
+        quantity_ordered=5,
+        unit_price=240.0,
+    )
+    purchase_order = purchasing.submit_purchase_order(purchase_order.id)
+
+    pending = approvals.list_pending()
+    assert len(pending) == 1
+    request = pending[0]
+    assert request.request_type == "purchase_order.submit"
+    assert request.payload["purchase_order_id"] == purchase_order.id
+    assert request.payload["po_number"] == purchase_order.po_number
+    assert request.payload["supplier_name"] == supplier.party_name
+    assert request.payload["site_name"] == site.name
+    assert request.payload["line_count"] == 1
+    assert request.payload["total_amount"] == pytest.approx(1200.0)
+
+    from ui.platform.control.approvals.presentation import approval_display_label, approval_context_label
+
+    display_label = approval_display_label(request)
+    context_label = approval_context_label(request)
+
+    assert "Submit purchase order" in display_label
+    assert supplier.party_name in display_label
+    assert site.name in display_label
+    assert "PO" in context_label
+
+
 def test_purchase_order_approval_updates_requisition_sourcing_and_on_order_balance(services):
     (
         _site,

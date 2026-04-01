@@ -25,6 +25,7 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceWorkOrderRepository,
     SqlAlchemyMaintenanceWorkRequestRepository,
 )
+from infra.platform.db.auth.repository import SqlAlchemyUserRepository
 from infra.platform.service_registration.platform_bundle import PlatformServiceBundle
 
 
@@ -48,6 +49,8 @@ def build_maintenance_management_service_bundle(
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
     work_request_repo = SqlAlchemyMaintenanceWorkRequestRepository(platform_services.session)
     work_order_repo = SqlAlchemyMaintenanceWorkOrderRepository(platform_services.session)
+    user_repo = SqlAlchemyUserRepository(platform_services.session)
+    
     platform_services.department_service.register_location_reference_repository(location_repo)
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
@@ -108,7 +111,7 @@ def build_maintenance_management_service_bundle(
         work_request_repo,
         organization_repo=platform_services.organization_repo,
         site_repo=platform_services.site_repo,
-        user_repo=platform_services.user_repo,
+        user_repo=user_repo,
         asset_repo=asset_repo,
         component_repo=component_repo,
         location_repo=location_repo,
@@ -121,7 +124,7 @@ def build_maintenance_management_service_bundle(
         work_order_repo,
         organization_repo=platform_services.organization_repo,
         site_repo=platform_services.site_repo,
-        user_repo=platform_services.user_repo,
+        user_repo=user_repo,
         asset_repo=asset_repo,
         component_repo=component_repo,
         location_repo=location_repo,
