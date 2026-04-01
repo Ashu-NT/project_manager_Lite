@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
+from core.modules.inventory_procurement.services.inventory.service import InventoryService
+from core.modules.inventory_procurement.services.item_master.service import ItemMasterService
+from core.modules.inventory_procurement.services.procurement.purchasing_service import PurchasingService
+from core.modules.inventory_procurement.services.procurement.service import ProcurementService
+from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -27,6 +32,12 @@ from ui.modules.inventory_procurement.shared.reference_support import (
 
 
 class PurchaseOrdersActionsMixin:
+    _purchasing_service: PurchasingService
+    _item_service: ItemMasterService
+    _reference_service: InventoryReferenceService
+    _procurement_service: ProcurementService
+    _inventory_service: InventoryService
+
     def reload_purchase_orders(self) -> None:
         selected_id = self._selected_purchase_order_id()
         try:

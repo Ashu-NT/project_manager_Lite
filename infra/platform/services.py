@@ -37,6 +37,8 @@ from core.modules.maintenance_management import (
     MaintenanceLocationService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
+    MaintenanceWorkOrderService,
+    MaintenanceWorkRequestService,
 )
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
@@ -97,6 +99,8 @@ class ServiceGraph:
     maintenance_asset_component_service: MaintenanceAssetComponentService
     maintenance_location_service: MaintenanceLocationService
     maintenance_system_service: MaintenanceSystemService
+    maintenance_work_request_service: MaintenanceWorkRequestService
+    maintenance_work_order_service: MaintenanceWorkOrderService
     access_service: AccessControlService
     audit_service: AuditService
     approval_service: ApprovalService
@@ -153,6 +157,8 @@ class ServiceGraph:
             "maintenance_asset_component_service": self.maintenance_asset_component_service,
             "maintenance_location_service": self.maintenance_location_service,
             "maintenance_system_service": self.maintenance_system_service,
+            "maintenance_work_request_service": self.maintenance_work_request_service,
+            "maintenance_work_order_service": self.maintenance_work_order_service,
             "access_service": self.access_service,
             "audit_service": self.audit_service,
             "approval_service": self.approval_service,
@@ -220,6 +226,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_asset_component_service=maintenance_management_services.maintenance_asset_component_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
         maintenance_system_service=maintenance_management_services.maintenance_system_service,
+        maintenance_work_request_service=maintenance_management_services.maintenance_work_request_service,
+        maintenance_work_order_service=maintenance_management_services.maintenance_work_order_service,
         access_service=platform_services.access_service,
         audit_service=platform_services.audit_service,
         approval_service=platform_services.approval_service,

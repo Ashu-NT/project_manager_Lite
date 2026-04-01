@@ -22,6 +22,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
+    MaintenancePriority,
+    MaintenanceWorkOrderStatus,
+    MaintenanceWorkOrderType,
+    MaintenanceWorkRequestSourceType,
+    MaintenanceWorkRequestStatus,
 )
 from infra.platform.db.base import Base
 
@@ -267,6 +272,194 @@ class MaintenanceAssetComponentORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class MaintenanceWorkRequestORM(Base):
+    __tablename__ = "maintenance_work_requests"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "work_request_code", name="ux_maintenance_work_requests_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    site_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sites.id"),
+        nullable=False,
+    )
+    work_request_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_type: Mapped[MaintenanceWorkRequestSourceType] = mapped_column(
+        SAEnum(MaintenanceWorkRequestSourceType),
+        nullable=False,
+    )
+    request_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    asset_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    component_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_asset_components.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    system_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_systems.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    location_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_locations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    priority: Mapped[MaintenancePriority] = mapped_column(
+        SAEnum(MaintenancePriority),
+        nullable=False,
+        default=MaintenancePriority.MEDIUM,
+        server_default=MaintenancePriority.MEDIUM.value,
+    )
+    status: Mapped[MaintenanceWorkRequestStatus] = mapped_column(
+        SAEnum(MaintenanceWorkRequestStatus),
+        nullable=False,
+        default=MaintenanceWorkRequestStatus.NEW,
+        server_default=MaintenanceWorkRequestStatus.NEW.value,
+    )
+    requested_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    requested_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    requested_by_name_snapshot: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+    triaged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    triaged_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    failure_symptom_code: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    safety_risk_level: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    production_impact_level: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceWorkOrderORM(Base):
+    __tablename__ = "maintenance_work_orders"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "work_order_code", name="ux_maintenance_work_orders_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    site_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sites.id"),
+        nullable=False,
+    )
+    work_order_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    work_order_type: Mapped[MaintenanceWorkOrderType] = mapped_column(
+        SAEnum(MaintenanceWorkOrderType),
+        nullable=False,
+    )
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    asset_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    component_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_asset_components.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    system_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_systems.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    location_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_locations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    priority: Mapped[MaintenancePriority] = mapped_column(
+        SAEnum(MaintenancePriority),
+        nullable=False,
+        default=MaintenancePriority.MEDIUM,
+        server_default=MaintenancePriority.MEDIUM.value,
+    )
+    status: Mapped[MaintenanceWorkOrderStatus] = mapped_column(
+        SAEnum(MaintenanceWorkOrderStatus),
+        nullable=False,
+        default=MaintenanceWorkOrderStatus.DRAFT,
+        server_default=MaintenanceWorkOrderStatus.DRAFT.value,
+    )
+    requested_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    planner_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    supervisor_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    assigned_employee_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    planned_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    planned_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    actual_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    actual_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    requires_shutdown: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    permit_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    approval_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    failure_code: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    root_cause_code: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    downtime_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    parts_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2), nullable=True)
+    labor_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2), nullable=True)
+    vendor_party_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("parties.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    is_preventive: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    is_emergency: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    closed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    closed_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 Index("idx_maintenance_locations_org", MaintenanceLocationORM.organization_id)
 Index("idx_maintenance_locations_site", MaintenanceLocationORM.site_id)
 Index("idx_maintenance_locations_parent", MaintenanceLocationORM.parent_location_id)
@@ -290,6 +483,30 @@ Index("idx_maintenance_components_parent", MaintenanceAssetComponentORM.parent_c
 Index("idx_maintenance_components_manufacturer", MaintenanceAssetComponentORM.manufacturer_party_id)
 Index("idx_maintenance_components_supplier", MaintenanceAssetComponentORM.supplier_party_id)
 Index("idx_maintenance_components_active", MaintenanceAssetComponentORM.is_active)
+Index("idx_maintenance_work_requests_org", MaintenanceWorkRequestORM.organization_id)
+Index("idx_maintenance_work_requests_site", MaintenanceWorkRequestORM.site_id)
+Index("idx_maintenance_work_requests_asset", MaintenanceWorkRequestORM.asset_id)
+Index("idx_maintenance_work_requests_component", MaintenanceWorkRequestORM.component_id)
+Index("idx_maintenance_work_requests_system", MaintenanceWorkRequestORM.system_id)
+Index("idx_maintenance_work_requests_location", MaintenanceWorkRequestORM.location_id)
+Index("idx_maintenance_work_requests_status", MaintenanceWorkRequestORM.status)
+Index("idx_maintenance_work_requests_priority", MaintenanceWorkRequestORM.priority)
+Index("idx_maintenance_work_requests_requested_by", MaintenanceWorkRequestORM.requested_by_user_id)
+Index("idx_maintenance_work_requests_triaged_by", MaintenanceWorkRequestORM.triaged_by_user_id)
+Index("idx_maintenance_work_orders_org", MaintenanceWorkOrderORM.organization_id)
+Index("idx_maintenance_work_orders_site", MaintenanceWorkOrderORM.site_id)
+Index("idx_maintenance_work_orders_asset", MaintenanceWorkOrderORM.asset_id)
+Index("idx_maintenance_work_orders_component", MaintenanceWorkOrderORM.component_id)
+Index("idx_maintenance_work_orders_system", MaintenanceWorkOrderORM.system_id)
+Index("idx_maintenance_work_orders_location", MaintenanceWorkOrderORM.location_id)
+Index("idx_maintenance_work_orders_status", MaintenanceWorkOrderORM.status)
+Index("idx_maintenance_work_orders_priority", MaintenanceWorkOrderORM.priority)
+Index("idx_maintenance_work_orders_assigned_employee", MaintenanceWorkOrderORM.assigned_employee_id)
+Index("idx_maintenance_work_orders_planner", MaintenanceWorkOrderORM.planner_user_id)
+Index("idx_maintenance_work_orders_supervisor", MaintenanceWorkOrderORM.supervisor_user_id)
+Index("idx_maintenance_work_orders_type", MaintenanceWorkOrderORM.work_order_type)
+Index("idx_maintenance_work_orders_preventive", MaintenanceWorkOrderORM.is_preventive)
+Index("idx_maintenance_work_orders_emergency", MaintenanceWorkOrderORM.is_emergency)
 
 
 __all__ = [
@@ -297,4 +514,6 @@ __all__ = [
     "MaintenanceAssetComponentORM",
     "MaintenanceLocationORM",
     "MaintenanceSystemORM",
+    "MaintenanceWorkOrderORM",
+    "MaintenanceWorkRequestORM",
 ]

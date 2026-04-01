@@ -8,12 +8,16 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAssetComponent,
     MaintenanceLocation,
     MaintenanceSystem,
+    MaintenanceWorkOrder,
+    MaintenanceWorkRequest,
 )
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetRepository,
     MaintenanceAssetComponentRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
+    MaintenanceWorkOrderRepository,
+    MaintenanceWorkRequestRepository,
 )
 from infra.modules.maintenance_management.db.mapper import (
     maintenance_asset_from_orm,
@@ -24,12 +28,18 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_location_to_orm,
     maintenance_system_from_orm,
     maintenance_system_to_orm,
+    maintenance_work_order_from_orm,
+    maintenance_work_order_to_orm,
+    maintenance_work_request_from_orm,
+    maintenance_work_request_to_orm,
 )
 from infra.platform.db.maintenance_models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
     MaintenanceLocationORM,
     MaintenanceSystemORM,
+    MaintenanceWorkOrderORM,
+    MaintenanceWorkRequestORM,
 )
 from infra.platform.db.optimistic import update_with_version_check
 
@@ -351,9 +361,235 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
         return [maintenance_asset_component_from_orm(row) for row in rows]
 
 
+class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, work_request: MaintenanceWorkRequest) -> None:
+        self.session.add(maintenance_work_request_to_orm(work_request))
+
+    def update(self, work_request: MaintenanceWorkRequest) -> None:
+        work_request.version = update_with_version_check(
+            self.session,
+            MaintenanceWorkRequestORM,
+            work_request.id,
+            getattr(work_request, "version", 1),
+            {
+                "site_id": work_request.site_id,
+                "work_request_code": work_request.work_request_code,
+                "source_type": work_request.source_type,
+                "request_type": work_request.request_type,
+                "asset_id": work_request.asset_id,
+                "component_id": work_request.component_id,
+                "system_id": work_request.system_id,
+                "location_id": work_request.location_id,
+                "title": work_request.title,
+                "description": work_request.description,
+                "priority": work_request.priority,
+                "status": work_request.status,
+                "requested_at": work_request.requested_at,
+                "requested_by_user_id": work_request.requested_by_user_id,
+                "requested_by_name_snapshot": work_request.requested_by_name_snapshot,
+                "triaged_at": work_request.triaged_at,
+                "triaged_by_user_id": work_request.triaged_by_user_id,
+                "failure_symptom_code": work_request.failure_symptom_code,
+                "safety_risk_level": work_request.safety_risk_level,
+                "production_impact_level": work_request.production_impact_level,
+                "notes": work_request.notes,
+                "created_at": work_request.created_at,
+                "updated_at": work_request.updated_at,
+            },
+            not_found_message="Maintenance work request not found.",
+            stale_message="Maintenance work request was updated by another user.",
+        )
+
+    def get(self, work_request_id: str) -> MaintenanceWorkRequest | None:
+        obj = self.session.get(MaintenanceWorkRequestORM, work_request_id)
+        return maintenance_work_request_from_orm(obj) if obj else None
+
+    def get_by_code(
+        self,
+        organization_id: str,
+        work_request_code: str,
+    ) -> MaintenanceWorkRequest | None:
+        stmt = select(MaintenanceWorkRequestORM).where(
+            MaintenanceWorkRequestORM.organization_id == organization_id,
+            MaintenanceWorkRequestORM.work_request_code == work_request_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return maintenance_work_request_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        location_id: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        requested_by_user_id: str | None = None,
+        triaged_by_user_id: str | None = None,
+    ) -> list[MaintenanceWorkRequest]:
+        stmt = select(MaintenanceWorkRequestORM).where(MaintenanceWorkRequestORM.organization_id == organization_id)
+        if site_id is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.site_id == site_id)
+        if asset_id is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.asset_id == asset_id)
+        if component_id is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.component_id == component_id)
+        if system_id is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.system_id == system_id)
+        if location_id is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.location_id == location_id)
+        if status is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.status == status)
+        if priority is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.priority == priority)
+        if requested_by_user_id is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.requested_by_user_id == requested_by_user_id)
+        if triaged_by_user_id is not None:
+            stmt = stmt.where(MaintenanceWorkRequestORM.triaged_by_user_id == triaged_by_user_id)
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceWorkRequestORM.created_at.desc())
+        ).scalars().all()
+        return [maintenance_work_request_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenanceWorkOrderRepository(MaintenanceWorkOrderRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, work_order: MaintenanceWorkOrder) -> None:
+        self.session.add(maintenance_work_order_to_orm(work_order))
+
+    def update(self, work_order: MaintenanceWorkOrder) -> None:
+        work_order.version = update_with_version_check(
+            self.session,
+            MaintenanceWorkOrderORM,
+            work_order.id,
+            getattr(work_order, "version", 1),
+            {
+                "site_id": work_order.site_id,
+                "work_order_code": work_order.work_order_code,
+                "work_order_type": work_order.work_order_type,
+                "source_type": work_order.source_type,
+                "source_id": work_order.source_id,
+                "asset_id": work_order.asset_id,
+                "component_id": work_order.component_id,
+                "system_id": work_order.system_id,
+                "location_id": work_order.location_id,
+                "title": work_order.title,
+                "description": work_order.description,
+                "priority": work_order.priority,
+                "status": work_order.status,
+                "requested_by_user_id": work_order.requested_by_user_id,
+                "planner_user_id": work_order.planner_user_id,
+                "supervisor_user_id": work_order.supervisor_user_id,
+                "assigned_team_id": work_order.assigned_team_id,
+                "assigned_employee_id": work_order.assigned_employee_id,
+                "planned_start": work_order.planned_start,
+                "planned_end": work_order.planned_end,
+                "actual_start": work_order.actual_start,
+                "actual_end": work_order.actual_end,
+                "requires_shutdown": work_order.requires_shutdown,
+                "permit_required": work_order.permit_required,
+                "approval_required": work_order.approval_required,
+                "failure_code": work_order.failure_code,
+                "root_cause_code": work_order.root_cause_code,
+                "downtime_minutes": work_order.downtime_minutes,
+                "parts_cost": work_order.parts_cost,
+                "labor_cost": work_order.labor_cost,
+                "vendor_party_id": work_order.vendor_party_id,
+                "is_preventive": work_order.is_preventive,
+                "is_emergency": work_order.is_emergency,
+                "closed_at": work_order.closed_at,
+                "closed_by_user_id": work_order.closed_by_user_id,
+                "notes": work_order.notes,
+                "created_at": work_order.created_at,
+                "updated_at": work_order.updated_at,
+            },
+            not_found_message="Maintenance work order not found.",
+            stale_message="Maintenance work order was updated by another user.",
+        )
+
+    def get(self, work_order_id: str) -> MaintenanceWorkOrder | None:
+        obj = self.session.get(MaintenanceWorkOrderORM, work_order_id)
+        return maintenance_work_order_from_orm(obj) if obj else None
+
+    def get_by_code(
+        self,
+        organization_id: str,
+        work_order_code: str,
+    ) -> MaintenanceWorkOrder | None:
+        stmt = select(MaintenanceWorkOrderORM).where(
+            MaintenanceWorkOrderORM.organization_id == organization_id,
+            MaintenanceWorkOrderORM.work_order_code == work_order_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return maintenance_work_order_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        location_id: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        assigned_employee_id: str | None = None,
+        assigned_team_id: str | None = None,
+        planner_user_id: str | None = None,
+        supervisor_user_id: str | None = None,
+        work_order_type: str | None = None,
+        is_preventive: bool | None = None,
+        is_emergency: bool | None = None,
+    ) -> list[MaintenanceWorkOrder]:
+        stmt = select(MaintenanceWorkOrderORM).where(MaintenanceWorkOrderORM.organization_id == organization_id)
+        if site_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.site_id == site_id)
+        if asset_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.asset_id == asset_id)
+        if component_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.component_id == component_id)
+        if system_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.system_id == system_id)
+        if location_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.location_id == location_id)
+        if status is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.status == status)
+        if priority is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.priority == priority)
+        if assigned_employee_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.assigned_employee_id == assigned_employee_id)
+        if assigned_team_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.assigned_team_id == assigned_team_id)
+        if planner_user_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.planner_user_id == planner_user_id)
+        if supervisor_user_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.supervisor_user_id == supervisor_user_id)
+        if work_order_type is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.work_order_type == work_order_type)
+        if is_preventive is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.is_preventive == bool(is_preventive))
+        if is_emergency is not None:
+            stmt = stmt.where(MaintenanceWorkOrderORM.is_emergency == bool(is_emergency))
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceWorkOrderORM.created_at.desc())
+        ).scalars().all()
+        return [maintenance_work_order_from_orm(row) for row in rows]
+
+
 __all__ = [
     "SqlAlchemyMaintenanceAssetRepository",
     "SqlAlchemyMaintenanceAssetComponentRepository",
     "SqlAlchemyMaintenanceLocationRepository",
     "SqlAlchemyMaintenanceSystemRepository",
+    "SqlAlchemyMaintenanceWorkOrderRepository",
+    "SqlAlchemyMaintenanceWorkRequestRepository",
 ]

@@ -78,7 +78,7 @@ class TimesheetQueryMixin:
             return []
         normalized_start, normalized_end = self._timesheet_period_bounds(period_start)
         rows: list[TimeEntry] = []
-        for work_allocation in self._work_allocation_repo.list_by_resource(resource_id):
+        for work_allocation in self._work_allocation_repo.list_by_resource(resource_id): # work allocation could be task assignment or project role assignment
             for entry in self._time_entry_repo.list_by_work_allocation(work_allocation.id):
                 if normalized_start <= entry.entry_date <= normalized_end:
                     rows.append(entry)

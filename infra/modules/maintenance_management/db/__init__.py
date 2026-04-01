@@ -3,6 +3,8 @@ from infra.modules.maintenance_management.db.repository import (
     SqlAlchemyMaintenanceAssetComponentRepository,
     SqlAlchemyMaintenanceLocationRepository,
     SqlAlchemyMaintenanceSystemRepository,
+    SqlAlchemyMaintenanceWorkOrderRepository,
+    SqlAlchemyMaintenanceWorkRequestRepository,
 )
 
 __all__ = [
@@ -10,4 +12,6 @@ __all__ = [
     "SqlAlchemyMaintenanceAssetComponentRepository",
     "SqlAlchemyMaintenanceLocationRepository",
     "SqlAlchemyMaintenanceSystemRepository",
+    "SqlAlchemyMaintenanceWorkOrderRepository",
+    "SqlAlchemyMaintenanceWorkRequestRepository",
 ]

@@ -3,6 +3,8 @@ from .component import MaintenanceAssetComponentService
 from .location import MaintenanceLocationService
 from .runtime_catalog import MaintenanceRuntimeContractCatalogService
 from .system import MaintenanceSystemService
+from .work_order import MaintenanceWorkOrderService
+from .work_request import MaintenanceWorkRequestService
 
 __all__ = [
     "MaintenanceAssetService",
@@ -10,4 +12,6 @@ __all__ = [
     "MaintenanceLocationService",
     "MaintenanceRuntimeContractCatalogService",
     "MaintenanceSystemService",
+    "MaintenanceWorkOrderService",
+    "MaintenanceWorkRequestService",
 ]

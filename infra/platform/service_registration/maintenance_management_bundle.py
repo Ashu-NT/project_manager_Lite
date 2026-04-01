@@ -9,6 +9,8 @@ from core.modules.maintenance_management import (
     MaintenanceLocationService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
+    MaintenanceWorkOrderService,
+    MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management.access import (
     MAINTENANCE_SCOPE_ROLE_CHOICES,
@@ -20,6 +22,8 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceAssetComponentRepository,
     SqlAlchemyMaintenanceLocationRepository,
     SqlAlchemyMaintenanceSystemRepository,
+    SqlAlchemyMaintenanceWorkOrderRepository,
+    SqlAlchemyMaintenanceWorkRequestRepository,
 )
 from infra.platform.service_registration.platform_bundle import PlatformServiceBundle
 
@@ -31,6 +35,8 @@ class MaintenanceManagementServiceBundle:
     maintenance_asset_component_service: MaintenanceAssetComponentService
     maintenance_location_service: MaintenanceLocationService
     maintenance_system_service: MaintenanceSystemService
+    maintenance_work_request_service: MaintenanceWorkRequestService
+    maintenance_work_order_service: MaintenanceWorkOrderService
 
 
 def build_maintenance_management_service_bundle(
@@ -40,6 +46,8 @@ def build_maintenance_management_service_bundle(
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
     asset_repo = SqlAlchemyMaintenanceAssetRepository(platform_services.session)
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
+    work_request_repo = SqlAlchemyMaintenanceWorkRequestRepository(platform_services.session)
+    work_order_repo = SqlAlchemyMaintenanceWorkOrderRepository(platform_services.session)
     platform_services.department_service.register_location_reference_repository(location_repo)
     platform_services.access_service.register_scope_policy(
         ScopedRolePolicy(
@@ -95,12 +103,40 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_work_request_service = MaintenanceWorkRequestService(
+        platform_services.session,
+        work_request_repo,
+        organization_repo=platform_services.organization_repo,
+        site_repo=platform_services.site_repo,
+        user_repo=platform_services.user_repo,
+        asset_repo=asset_repo,
+        component_repo=component_repo,
+        location_repo=location_repo,
+        system_repo=system_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_work_order_service = MaintenanceWorkOrderService(
+        platform_services.session,
+        work_order_repo,
+        organization_repo=platform_services.organization_repo,
+        site_repo=platform_services.site_repo,
+        user_repo=platform_services.user_repo,
+        asset_repo=asset_repo,
+        component_repo=component_repo,
+        location_repo=location_repo,
+        system_repo=system_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     return MaintenanceManagementServiceBundle(
         maintenance_runtime_contract_catalog_service=maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_asset_service,
         maintenance_asset_component_service=maintenance_asset_component_service,
         maintenance_location_service=maintenance_location_service,
         maintenance_system_service=maintenance_system_service,
+        maintenance_work_request_service=maintenance_work_request_service,
+        maintenance_work_order_service=maintenance_work_order_service,
     )
 
 

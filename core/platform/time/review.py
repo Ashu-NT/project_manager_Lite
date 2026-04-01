@@ -69,7 +69,7 @@ class TimesheetReviewMixin:
             ("timesheet.approve", "timesheet.lock"),
             operation_label="view timesheet review detail",
         )
-        period = self._require_timesheet_period(period_id)
+        period : TimesheetPeriod = self._require_timesheet_period(period_id)
         entries = self.list_time_entries_for_resource_period(period.resource_id, period_start=period.period_start)
         return TimesheetReviewDetail(
             summary=self._build_review_queue_item(period, entries=entries),

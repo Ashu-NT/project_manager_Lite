@@ -8,6 +8,8 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAssetComponent,
     MaintenanceLocation,
     MaintenanceSystem,
+    MaintenanceWorkOrder,
+    MaintenanceWorkRequest,
 )
 
 
@@ -128,9 +130,84 @@ class MaintenanceAssetComponentRepository(ABC):
     ) -> List[MaintenanceAssetComponent]: ...
 
 
+class MaintenanceWorkRequestRepository(ABC):
+    @abstractmethod
+    def add(self, work_request: MaintenanceWorkRequest) -> None: ...
+
+    @abstractmethod
+    def update(self, work_request: MaintenanceWorkRequest) -> None: ...
+
+    @abstractmethod
+    def get(self, work_request_id: str) -> Optional[MaintenanceWorkRequest]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        work_request_code: str,
+    ) -> Optional[MaintenanceWorkRequest]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        location_id: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        requested_by_user_id: str | None = None,
+        triaged_by_user_id: str | None = None,
+    ) -> List[MaintenanceWorkRequest]: ...
+
+
+class MaintenanceWorkOrderRepository(ABC):
+    @abstractmethod
+    def add(self, work_order: MaintenanceWorkOrder) -> None: ...
+
+    @abstractmethod
+    def update(self, work_order: MaintenanceWorkOrder) -> None: ...
+
+    @abstractmethod
+    def get(self, work_order_id: str) -> Optional[MaintenanceWorkOrder]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        work_order_code: str,
+    ) -> Optional[MaintenanceWorkOrder]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        location_id: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        assigned_employee_id: str | None = None,
+        assigned_team_id: str | None = None,
+        planner_user_id: str | None = None,
+        supervisor_user_id: str | None = None,
+        work_order_type: str | None = None,
+        is_preventive: bool | None = None,
+        is_emergency: bool | None = None,
+    ) -> List[MaintenanceWorkOrder]: ...
+
+
 __all__ = [
     "MaintenanceAssetRepository",
     "MaintenanceAssetComponentRepository",
     "MaintenanceLocationRepository",
     "MaintenanceSystemRepository",
+    "MaintenanceWorkOrderRepository",
+    "MaintenanceWorkRequestRepository",
 ]
