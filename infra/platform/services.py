@@ -34,6 +34,7 @@ from core.modules.inventory_procurement import (
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
@@ -102,6 +103,7 @@ class ServiceGraph:
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
     maintenance_asset_service: MaintenanceAssetService
     maintenance_asset_component_service: MaintenanceAssetComponentService
+    maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
     maintenance_sensor_service: MaintenanceSensorService
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
@@ -165,6 +167,7 @@ class ServiceGraph:
             "maintenance_runtime_contract_catalog_service": self.maintenance_runtime_contract_catalog_service,
             "maintenance_asset_service": self.maintenance_asset_service,
             "maintenance_asset_component_service": self.maintenance_asset_component_service,
+            "maintenance_integration_source_service": self.maintenance_integration_source_service,
             "maintenance_location_service": self.maintenance_location_service,
             "maintenance_sensor_service": self.maintenance_sensor_service,
             "maintenance_sensor_reading_service": self.maintenance_sensor_reading_service,
@@ -242,6 +245,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_runtime_contract_catalog_service=maintenance_management_services.maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_management_services.maintenance_asset_service,
         maintenance_asset_component_service=maintenance_management_services.maintenance_asset_component_service,
+        maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
         maintenance_sensor_service=maintenance_management_services.maintenance_sensor_service,
         maintenance_sensor_reading_service=maintenance_management_services.maintenance_sensor_reading_service,

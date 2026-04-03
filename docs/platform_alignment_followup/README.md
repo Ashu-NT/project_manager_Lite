@@ -406,6 +406,7 @@ Progress notes:
 - maintenance now also has the first `work_order_task_step` execution slice, including step-level completion rules, confirmation/measurement capture, persistence, migration coverage, service-graph exposure, and regression tests before material-demand planning starts
 - maintenance now also has the first `work_order_material_requirement` slice, including demand-side material records, availability refresh against the inventory contract, requisition escalation linkage, persistence, migration coverage, and service-graph exposure
 - maintenance now also has the first `sensor` and `sensor_reading` slices, including anchored sensor master data, time-series reading capture, current-value snapshot refresh, persistence, migration coverage, and service-graph exposure
+- maintenance now also has the first `integration_source` slice, including sync-endpoint master data, last-success/last-failure tracking, persistence, migration coverage, and service-graph exposure
 
 ## Guardrails
 

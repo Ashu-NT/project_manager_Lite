@@ -592,3 +592,32 @@ def test_maintenance_sensors_and_readings_persist_via_service_graph(services):
     assert reloaded_sensor.last_read_at == reading.reading_timestamp.replace(tzinfo=None)
     assert listed_readings[0].id == reading.id
     assert listed_readings[0].source_batch_id == "SYNC-100"
+
+
+def test_maintenance_integration_sources_persist_via_service_graph(services):
+    source = services["maintenance_integration_source_service"].create_source(
+        integration_code="erp-bridge-1",
+        name="ERP Bridge 1",
+        integration_type="ERP_BRIDGE",
+        endpoint_or_path="https://erp.example.test/api/maintenance",
+        authentication_mode="OAUTH2",
+        schedule_expression="0 */4 * * *",
+    )
+    failed = services["maintenance_integration_source_service"].record_sync_failure(
+        source.id,
+        error_message="Unauthorized",
+        expected_version=source.version,
+    )
+    recovered = services["maintenance_integration_source_service"].record_sync_success(
+        source.id,
+        expected_version=failed.version,
+    )
+    reloaded = services["maintenance_integration_source_service"].find_source_by_code("ERP-BRIDGE-1")
+    listed = services["maintenance_integration_source_service"].list_sources(integration_type="ERP_BRIDGE")
+
+    assert reloaded is not None
+    assert reloaded.id == source.id
+    assert reloaded.last_successful_sync_at is not None
+    assert reloaded.last_error_message == ""
+    assert recovered.version == failed.version + 1
+    assert [row.id for row in listed] == [source.id]

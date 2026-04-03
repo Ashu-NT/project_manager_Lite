@@ -1,6 +1,7 @@
 from infra.modules.maintenance_management.db.repository import (
     SqlAlchemyMaintenanceAssetRepository,
     SqlAlchemyMaintenanceAssetComponentRepository,
+    SqlAlchemyMaintenanceIntegrationSourceRepository,
     SqlAlchemyMaintenanceLocationRepository,
     SqlAlchemyMaintenanceSensorReadingRepository,
     SqlAlchemyMaintenanceSensorRepository,
@@ -15,6 +16,7 @@ from infra.modules.maintenance_management.db.repository import (
 __all__ = [
     "SqlAlchemyMaintenanceAssetRepository",
     "SqlAlchemyMaintenanceAssetComponentRepository",
+    "SqlAlchemyMaintenanceIntegrationSourceRepository",
     "SqlAlchemyMaintenanceLocationRepository",
     "SqlAlchemyMaintenanceSensorReadingRepository",
     "SqlAlchemyMaintenanceSensorRepository",

@@ -3,6 +3,7 @@ from __future__ import annotations
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
+    MaintenanceIntegrationSource,
     MaintenanceLocation,
     MaintenanceSensor,
     MaintenanceSensorReading,
@@ -16,6 +17,7 @@ from core.modules.maintenance_management.domain import (
 from infra.platform.db.maintenance_models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
+    MaintenanceIntegrationSourceORM,
     MaintenanceLocationORM,
     MaintenanceSensorORM,
     MaintenanceSensorReadingORM,
@@ -330,6 +332,50 @@ def maintenance_sensor_reading_from_orm(obj: MaintenanceSensorReadingORM) -> Mai
         received_at=obj.received_at,
         raw_payload_ref=obj.raw_payload_ref or "",
         created_at=obj.created_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_integration_source_to_orm(
+    integration_source: MaintenanceIntegrationSource,
+) -> MaintenanceIntegrationSourceORM:
+    return MaintenanceIntegrationSourceORM(
+        id=integration_source.id,
+        organization_id=integration_source.organization_id,
+        integration_code=integration_source.integration_code,
+        name=integration_source.name,
+        integration_type=integration_source.integration_type,
+        endpoint_or_path=integration_source.endpoint_or_path or None,
+        authentication_mode=integration_source.authentication_mode or None,
+        schedule_expression=integration_source.schedule_expression or None,
+        last_successful_sync_at=integration_source.last_successful_sync_at,
+        last_failed_sync_at=integration_source.last_failed_sync_at,
+        last_error_message=integration_source.last_error_message or None,
+        is_active=integration_source.is_active,
+        notes=integration_source.notes or None,
+        created_at=integration_source.created_at,
+        updated_at=integration_source.updated_at,
+        version=getattr(integration_source, "version", 1),
+    )
+
+
+def maintenance_integration_source_from_orm(obj: MaintenanceIntegrationSourceORM) -> MaintenanceIntegrationSource:
+    return MaintenanceIntegrationSource(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        integration_code=obj.integration_code,
+        name=obj.name,
+        integration_type=obj.integration_type,
+        endpoint_or_path=obj.endpoint_or_path or "",
+        authentication_mode=obj.authentication_mode or "",
+        schedule_expression=obj.schedule_expression or "",
+        last_successful_sync_at=obj.last_successful_sync_at,
+        last_failed_sync_at=obj.last_failed_sync_at,
+        last_error_message=obj.last_error_message or "",
+        is_active=obj.is_active,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
         version=getattr(obj, "version", 1),
     )
 

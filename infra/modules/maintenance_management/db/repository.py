@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
+    MaintenanceIntegrationSource,
     MaintenanceLocation,
     MaintenanceSensor,
     MaintenanceSensorReading,
@@ -19,6 +20,7 @@ from core.modules.maintenance_management.domain import (
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetRepository,
     MaintenanceAssetComponentRepository,
+    MaintenanceIntegrationSourceRepository,
     MaintenanceLocationRepository,
     MaintenanceSensorReadingRepository,
     MaintenanceSensorRepository,
@@ -34,6 +36,8 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_asset_component_from_orm,
     maintenance_asset_component_to_orm,
     maintenance_asset_to_orm,
+    maintenance_integration_source_from_orm,
+    maintenance_integration_source_to_orm,
     maintenance_location_from_orm,
     maintenance_location_to_orm,
     maintenance_sensor_from_orm,
@@ -56,6 +60,7 @@ from infra.modules.maintenance_management.db.mapper import (
 from infra.platform.db.maintenance_models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
+    MaintenanceIntegrationSourceORM,
     MaintenanceLocationORM,
     MaintenanceSensorORM,
     MaintenanceSensorReadingORM,
@@ -511,6 +516,77 @@ class SqlAlchemyMaintenanceSensorReadingRepository(MaintenanceSensorReadingRepos
             stmt.order_by(MaintenanceSensorReadingORM.reading_timestamp.desc())
         ).scalars().all()
         return [maintenance_sensor_reading_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenanceIntegrationSourceRepository(MaintenanceIntegrationSourceRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, integration_source: MaintenanceIntegrationSource) -> None:
+        self.session.add(maintenance_integration_source_to_orm(integration_source))
+
+    def update(self, integration_source: MaintenanceIntegrationSource) -> None:
+        integration_source.version = update_with_version_check(
+            self.session,
+            MaintenanceIntegrationSourceORM,
+            integration_source.id,
+            getattr(integration_source, "version", 1),
+            {
+                "integration_code": integration_source.integration_code,
+                "name": integration_source.name,
+                "integration_type": integration_source.integration_type,
+                "endpoint_or_path": integration_source.endpoint_or_path or None,
+                "authentication_mode": integration_source.authentication_mode or None,
+                "schedule_expression": integration_source.schedule_expression or None,
+                "last_successful_sync_at": integration_source.last_successful_sync_at,
+                "last_failed_sync_at": integration_source.last_failed_sync_at,
+                "last_error_message": integration_source.last_error_message or None,
+                "is_active": integration_source.is_active,
+                "notes": integration_source.notes or None,
+                "created_at": integration_source.created_at,
+                "updated_at": integration_source.updated_at,
+            },
+            not_found_message="Maintenance integration source not found.",
+            stale_message="Maintenance integration source was updated by another user.",
+        )
+
+    def get(self, integration_source_id: str) -> MaintenanceIntegrationSource | None:
+        obj = self.session.get(MaintenanceIntegrationSourceORM, integration_source_id)
+        return maintenance_integration_source_from_orm(obj) if obj else None
+
+    def get_by_code(
+        self,
+        organization_id: str,
+        integration_code: str,
+    ) -> MaintenanceIntegrationSource | None:
+        stmt = select(MaintenanceIntegrationSourceORM).where(
+            MaintenanceIntegrationSourceORM.organization_id == organization_id,
+            MaintenanceIntegrationSourceORM.integration_code == integration_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return maintenance_integration_source_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        integration_type: str | None = None,
+    ) -> list[MaintenanceIntegrationSource]:
+        stmt = select(MaintenanceIntegrationSourceORM).where(
+            MaintenanceIntegrationSourceORM.organization_id == organization_id
+        )
+        if active_only is not None:
+            stmt = stmt.where(MaintenanceIntegrationSourceORM.is_active == bool(active_only))
+        if integration_type is not None:
+            stmt = stmt.where(MaintenanceIntegrationSourceORM.integration_type == integration_type)
+        rows = self.session.execute(
+            stmt.order_by(
+                MaintenanceIntegrationSourceORM.name.asc(),
+                MaintenanceIntegrationSourceORM.integration_code.asc(),
+            )
+        ).scalars().all()
+        return [maintenance_integration_source_from_orm(row) for row in rows]
 
 
 class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepository):

@@ -367,6 +367,34 @@ class MaintenanceSensorReadingORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class MaintenanceIntegrationSourceORM(Base):
+    __tablename__ = "maintenance_integration_sources"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "integration_code", name="ux_maintenance_integration_sources_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    integration_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    integration_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    endpoint_or_path: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    authentication_mode: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    schedule_expression: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    last_successful_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_failed_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 class MaintenanceWorkRequestORM(Base):
     __tablename__ = "maintenance_work_requests"
     __table_args__ = (
