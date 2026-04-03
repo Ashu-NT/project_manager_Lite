@@ -24,6 +24,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
     MaintenancePriority,
+    MaintenanceSensorQualityState,
     MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderStatus,
     MaintenanceWorkOrderTaskStatus,
@@ -273,6 +274,96 @@ class MaintenanceAssetComponentORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceSensorORM(Base):
+    __tablename__ = "maintenance_sensors"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "sensor_code", name="ux_maintenance_sensors_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    site_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sites.id"),
+        nullable=False,
+    )
+    sensor_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    sensor_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    sensor_tag: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    sensor_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    asset_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    component_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_asset_components.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    system_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_systems.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    source_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source_key: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    unit: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    current_value: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 6), nullable=True)
+    last_read_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_quality_state: Mapped[MaintenanceSensorQualityState] = mapped_column(
+        SAEnum(MaintenanceSensorQualityState),
+        nullable=False,
+        default=MaintenanceSensorQualityState.VALID,
+        server_default=MaintenanceSensorQualityState.VALID.value,
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceSensorReadingORM(Base):
+    __tablename__ = "maintenance_sensor_readings"
+    __table_args__ = (
+        Index("ix_maintenance_sensor_readings_sensor_timestamp", "sensor_id", "reading_timestamp"),
+        Index("ix_maintenance_sensor_readings_org_batch", "organization_id", "source_batch_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sensor_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_sensors.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reading_value: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False)
+    reading_unit: Mapped[str] = mapped_column(String(32), nullable=False)
+    reading_timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    quality_state: Mapped[MaintenanceSensorQualityState] = mapped_column(
+        SAEnum(MaintenanceSensorQualityState),
+        nullable=False,
+        default=MaintenanceSensorQualityState.VALID,
+        server_default=MaintenanceSensorQualityState.VALID.value,
+    )
+    source_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source_batch_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    received_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    raw_payload_ref: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

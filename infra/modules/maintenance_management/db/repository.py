@@ -7,6 +7,8 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceLocation,
+    MaintenanceSensor,
+    MaintenanceSensorReading,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
@@ -18,6 +20,8 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetRepository,
     MaintenanceAssetComponentRepository,
     MaintenanceLocationRepository,
+    MaintenanceSensorReadingRepository,
+    MaintenanceSensorRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderRepository,
@@ -32,6 +36,10 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_asset_to_orm,
     maintenance_location_from_orm,
     maintenance_location_to_orm,
+    maintenance_sensor_from_orm,
+    maintenance_sensor_reading_from_orm,
+    maintenance_sensor_reading_to_orm,
+    maintenance_sensor_to_orm,
     maintenance_work_order_material_requirement_from_orm,
     maintenance_work_order_material_requirement_to_orm,
     maintenance_system_from_orm,
@@ -49,6 +57,8 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
     MaintenanceLocationORM,
+    MaintenanceSensorORM,
+    MaintenanceSensorReadingORM,
     MaintenanceSystemORM,
     MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceWorkOrderORM,
@@ -374,6 +384,133 @@ class SqlAlchemyMaintenanceAssetComponentRepository(MaintenanceAssetComponentRep
             stmt.order_by(MaintenanceAssetComponentORM.name.asc(), MaintenanceAssetComponentORM.component_code.asc())
         ).scalars().all()
         return [maintenance_asset_component_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenanceSensorRepository(MaintenanceSensorRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, sensor: MaintenanceSensor) -> None:
+        self.session.add(maintenance_sensor_to_orm(sensor))
+
+    def update(self, sensor: MaintenanceSensor) -> None:
+        sensor.version = update_with_version_check(
+            self.session,
+            MaintenanceSensorORM,
+            sensor.id,
+            getattr(sensor, "version", 1),
+            {
+                "site_id": sensor.site_id,
+                "sensor_code": sensor.sensor_code,
+                "sensor_name": sensor.sensor_name,
+                "sensor_tag": sensor.sensor_tag or None,
+                "sensor_type": sensor.sensor_type or None,
+                "asset_id": sensor.asset_id,
+                "component_id": sensor.component_id,
+                "system_id": sensor.system_id,
+                "source_type": sensor.source_type or None,
+                "source_name": sensor.source_name or None,
+                "source_key": sensor.source_key or None,
+                "unit": sensor.unit or None,
+                "current_value": sensor.current_value,
+                "last_read_at": sensor.last_read_at,
+                "last_quality_state": sensor.last_quality_state,
+                "is_active": sensor.is_active,
+                "notes": sensor.notes or None,
+                "created_at": sensor.created_at,
+                "updated_at": sensor.updated_at,
+            },
+            not_found_message="Maintenance sensor not found.",
+            stale_message="Maintenance sensor was updated by another user.",
+        )
+
+    def get(self, sensor_id: str) -> MaintenanceSensor | None:
+        obj = self.session.get(MaintenanceSensorORM, sensor_id)
+        return maintenance_sensor_from_orm(obj) if obj else None
+
+    def get_by_code(
+        self,
+        organization_id: str,
+        sensor_code: str,
+    ) -> MaintenanceSensor | None:
+        stmt = select(MaintenanceSensorORM).where(
+            MaintenanceSensorORM.organization_id == organization_id,
+            MaintenanceSensorORM.sensor_code == sensor_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return maintenance_sensor_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        sensor_type: str | None = None,
+        source_type: str | None = None,
+    ) -> list[MaintenanceSensor]:
+        stmt = select(MaintenanceSensorORM).where(MaintenanceSensorORM.organization_id == organization_id)
+        if active_only is not None:
+            stmt = stmt.where(MaintenanceSensorORM.is_active == bool(active_only))
+        if site_id is not None:
+            stmt = stmt.where(MaintenanceSensorORM.site_id == site_id)
+        if asset_id is not None:
+            stmt = stmt.where(MaintenanceSensorORM.asset_id == asset_id)
+        if component_id is not None:
+            stmt = stmt.where(MaintenanceSensorORM.component_id == component_id)
+        if system_id is not None:
+            stmt = stmt.where(MaintenanceSensorORM.system_id == system_id)
+        if sensor_type is not None:
+            stmt = stmt.where(MaintenanceSensorORM.sensor_type == sensor_type)
+        if source_type is not None:
+            stmt = stmt.where(MaintenanceSensorORM.source_type == source_type)
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceSensorORM.sensor_name.asc(), MaintenanceSensorORM.sensor_code.asc())
+        ).scalars().all()
+        return [maintenance_sensor_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenanceSensorReadingRepository(MaintenanceSensorReadingRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, sensor_reading: MaintenanceSensorReading) -> None:
+        self.session.add(maintenance_sensor_reading_to_orm(sensor_reading))
+
+    def get(self, sensor_reading_id: str) -> MaintenanceSensorReading | None:
+        obj = self.session.get(MaintenanceSensorReadingORM, sensor_reading_id)
+        return maintenance_sensor_reading_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        sensor_id: str | None = None,
+        quality_state: str | None = None,
+        source_batch_id: str | None = None,
+        reading_from=None,
+        reading_to=None,
+    ) -> list[MaintenanceSensorReading]:
+        stmt = select(MaintenanceSensorReadingORM).where(
+            MaintenanceSensorReadingORM.organization_id == organization_id
+        )
+        if sensor_id is not None:
+            stmt = stmt.where(MaintenanceSensorReadingORM.sensor_id == sensor_id)
+        if quality_state is not None:
+            stmt = stmt.where(MaintenanceSensorReadingORM.quality_state == quality_state)
+        if source_batch_id is not None:
+            stmt = stmt.where(MaintenanceSensorReadingORM.source_batch_id == source_batch_id)
+        if reading_from is not None:
+            stmt = stmt.where(MaintenanceSensorReadingORM.reading_timestamp >= reading_from)
+        if reading_to is not None:
+            stmt = stmt.where(MaintenanceSensorReadingORM.reading_timestamp <= reading_to)
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceSensorReadingORM.reading_timestamp.desc())
+        ).scalars().all()
+        return [maintenance_sensor_reading_from_orm(row) for row in rows]
 
 
 class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepository):

@@ -2148,8 +2148,8 @@ Build first:
 
 Current kickoff status:
 
-- started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, and `work_order_material_requirement` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
-- pending: import handlers, UI surfaces, and the next planning slices such as `sensor_reading` and the later preventive-maintenance template stack
+- started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, and `sensor_reading` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
+- pending: import handlers, UI surfaces, and the later preventive-maintenance template stack
 
 Phase 1 UI:
 
@@ -2196,8 +2196,6 @@ Phase 3 UI:
 
 Build next:
 
-- sensor
-- sensor reading
 - integration source
 - sensor source mapping
 - sensor exception handling

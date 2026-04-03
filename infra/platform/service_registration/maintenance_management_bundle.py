@@ -9,6 +9,8 @@ from core.modules.maintenance_management import (
     MaintenanceLocationService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
+    MaintenanceSensorReadingService,
+    MaintenanceSensorService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
@@ -24,6 +26,8 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceAssetRepository,
     SqlAlchemyMaintenanceAssetComponentRepository,
     SqlAlchemyMaintenanceLocationRepository,
+    SqlAlchemyMaintenanceSensorReadingRepository,
+    SqlAlchemyMaintenanceSensorRepository,
     SqlAlchemyMaintenanceSystemRepository,
     SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository,
     SqlAlchemyMaintenanceWorkOrderRepository,
@@ -42,6 +46,8 @@ class MaintenanceManagementServiceBundle:
     maintenance_asset_service: MaintenanceAssetService
     maintenance_asset_component_service: MaintenanceAssetComponentService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_sensor_service: MaintenanceSensorService
+    maintenance_sensor_reading_service: MaintenanceSensorReadingService
     maintenance_system_service: MaintenanceSystemService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
@@ -58,6 +64,8 @@ def build_maintenance_management_service_bundle(
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
     asset_repo = SqlAlchemyMaintenanceAssetRepository(platform_services.session)
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
+    sensor_repo = SqlAlchemyMaintenanceSensorRepository(platform_services.session)
+    sensor_reading_repo = SqlAlchemyMaintenanceSensorReadingRepository(platform_services.session)
     work_request_repo = SqlAlchemyMaintenanceWorkRequestRepository(platform_services.session)
     work_order_repo = SqlAlchemyMaintenanceWorkOrderRepository(platform_services.session)
     work_order_material_requirement_repo = SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(platform_services.session)
@@ -108,6 +116,26 @@ def build_maintenance_management_service_bundle(
         location_repo,
         organization_repo=platform_services.organization_repo,
         site_repo=platform_services.site_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_sensor_service = MaintenanceSensorService(
+        platform_services.session,
+        sensor_repo,
+        organization_repo=platform_services.organization_repo,
+        site_repo=platform_services.site_repo,
+        asset_repo=asset_repo,
+        component_repo=component_repo,
+        system_repo=system_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_sensor_reading_service = MaintenanceSensorReadingService(
+        platform_services.session,
+        sensor_reading_repo,
+        organization_repo=platform_services.organization_repo,
+        sensor_repo=sensor_repo,
+        component_repo=component_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -181,6 +209,8 @@ def build_maintenance_management_service_bundle(
         maintenance_asset_service=maintenance_asset_service,
         maintenance_asset_component_service=maintenance_asset_component_service,
         maintenance_location_service=maintenance_location_service,
+        maintenance_sensor_service=maintenance_sensor_service,
+        maintenance_sensor_reading_service=maintenance_sensor_reading_service,
         maintenance_system_service=maintenance_system_service,
         maintenance_work_request_service=maintenance_work_request_service,
         maintenance_work_order_service=maintenance_work_order_service,

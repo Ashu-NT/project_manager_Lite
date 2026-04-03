@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from core.modules.maintenance_management.domain import (
@@ -8,6 +8,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
     MaintenancePriority,
+    MaintenanceSensorQualityState,
     MaintenanceTriggerMode,
     MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderTaskStepStatus,
@@ -50,6 +51,25 @@ def coerce_optional_date(value: date | str | None, *, label: str) -> date | None
         raise ValidationError(f"{label} is invalid. Use YYYY-MM-DD.", code=f"{label.upper().replace(' ', '_')}_INVALID") from exc
 
 
+def coerce_optional_datetime(value: datetime | str | None, *, label: str) -> datetime | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        resolved = value
+    else:
+        raw = str(value).strip()
+        try:
+            resolved = datetime.fromisoformat(raw)
+        except ValueError as exc:
+            raise ValidationError(
+                f"{label} is invalid. Use ISO datetime format.",
+                code=f"{label.upper().replace(' ', '_')}_INVALID",
+            ) from exc
+    if resolved.tzinfo is None:
+        return resolved.replace(tzinfo=timezone.utc)
+    return resolved.astimezone(timezone.utc)
+
+
 def coerce_optional_non_negative_int(value: int | str | None, *, label: str) -> int | None:
     if value in (None, ""):
         return None
@@ -72,6 +92,21 @@ def coerce_optional_decimal(value: Decimal | int | float | str | None, *, label:
     if resolved < 0:
         raise ValidationError(f"{label} cannot be negative.", code=f"{label.upper().replace(' ', '_')}_NEGATIVE")
     return resolved
+
+
+def coerce_decimal_value(value: Decimal | int | float | str, *, label: str) -> Decimal:
+    if value in (None, ""):
+        raise ValidationError(f"{label} is required.", code=f"{label.upper().replace(' ', '_')}_REQUIRED")
+    try:
+        return value if isinstance(value, Decimal) else Decimal(str(value).strip())
+    except (InvalidOperation, ValueError) as exc:
+        raise ValidationError(f"{label} is invalid.", code=f"{label.upper().replace(' ', '_')}_INVALID") from exc
+
+
+def coerce_optional_decimal_value(value: Decimal | int | float | str | None, *, label: str) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    return coerce_decimal_value(value, label=label)
 
 
 def coerce_criticality(value: MaintenanceCriticality | str | None) -> MaintenanceCriticality:
@@ -238,14 +273,33 @@ def coerce_material_procurement_status(
         ) from exc
 
 
+def coerce_sensor_quality_state(
+    value: MaintenanceSensorQualityState | str | None,
+) -> MaintenanceSensorQualityState:
+    if isinstance(value, MaintenanceSensorQualityState):
+        return value
+    raw = str(value or MaintenanceSensorQualityState.VALID.value).strip().upper()
+    try:
+        return MaintenanceSensorQualityState(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance sensor quality state is invalid.",
+            code="MAINTENANCE_SENSOR_QUALITY_STATE_INVALID",
+        ) from exc
+
+
 __all__ = [
     "coerce_criticality",
+    "coerce_decimal_value",
     "coerce_material_procurement_status",
     "coerce_lifecycle_status",
     "coerce_optional_date",
     "coerce_optional_decimal",
+    "coerce_optional_decimal_value",
+    "coerce_optional_datetime",
     "coerce_optional_non_negative_int",
     "coerce_priority",
+    "coerce_sensor_quality_state",
     "coerce_task_completion_rule",
     "coerce_work_order_task_step_status",
     "coerce_trigger_mode",

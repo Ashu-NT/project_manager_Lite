@@ -6,7 +6,10 @@ from typing import List, Optional
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
+    MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenanceSensor,
+    MaintenanceSensorReading,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
@@ -131,6 +134,85 @@ class MaintenanceAssetComponentRepository(ABC):
         parent_component_id: str | None = None,
         component_type: str | None = None,
     ) -> List[MaintenanceAssetComponent]: ...
+
+
+class MaintenanceSensorRepository(ABC):
+    @abstractmethod
+    def add(self, sensor: MaintenanceSensor) -> None: ...
+
+    @abstractmethod
+    def update(self, sensor: MaintenanceSensor) -> None: ...
+
+    @abstractmethod
+    def get(self, sensor_id: str) -> Optional[MaintenanceSensor]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        sensor_code: str,
+    ) -> Optional[MaintenanceSensor]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        sensor_type: str | None = None,
+        source_type: str | None = None,
+    ) -> List[MaintenanceSensor]: ...
+
+
+class MaintenanceSensorReadingRepository(ABC):
+    @abstractmethod
+    def add(self, sensor_reading: MaintenanceSensorReading) -> None: ...
+
+    @abstractmethod
+    def get(self, sensor_reading_id: str) -> Optional[MaintenanceSensorReading]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        sensor_id: str | None = None,
+        quality_state: str | None = None,
+        source_batch_id: str | None = None,
+        reading_from=None,
+        reading_to=None,
+    ) -> List[MaintenanceSensorReading]: ...
+
+
+class MaintenanceIntegrationSourceRepository(ABC):
+    @abstractmethod
+    def add(self, integration_source: MaintenanceIntegrationSource) -> None: ...
+
+    @abstractmethod
+    def update(self, integration_source: MaintenanceIntegrationSource) -> None: ...
+
+    @abstractmethod
+    def get(self, integration_source_id: str) -> Optional[MaintenanceIntegrationSource]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        integration_code: str,
+    ) -> Optional[MaintenanceIntegrationSource]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        integration_type: str | None = None,
+    ) -> List[MaintenanceIntegrationSource]: ...
 
 
 class MaintenanceWorkRequestRepository(ABC):

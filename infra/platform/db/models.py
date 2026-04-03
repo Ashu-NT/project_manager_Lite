@@ -52,6 +52,8 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetORM,
     MaintenanceAssetComponentORM,
     MaintenanceLocationORM,
+    MaintenanceSensorORM,
+    MaintenanceSensorReadingORM,
     MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceSystemORM,
     MaintenanceWorkOrderORM,

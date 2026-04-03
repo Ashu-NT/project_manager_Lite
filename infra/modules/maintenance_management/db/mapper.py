@@ -4,6 +4,8 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceLocation,
+    MaintenanceSensor,
+    MaintenanceSensorReading,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
@@ -15,6 +17,8 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
     MaintenanceLocationORM,
+    MaintenanceSensorORM,
+    MaintenanceSensorReadingORM,
     MaintenanceSystemORM,
     MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceWorkOrderORM,
@@ -236,6 +240,96 @@ def maintenance_asset_component_from_orm(obj: MaintenanceAssetComponentORM) -> M
         created_at=obj.created_at,
         updated_at=obj.updated_at,
         notes=obj.notes or "",
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_to_orm(sensor: MaintenanceSensor) -> MaintenanceSensorORM:
+    return MaintenanceSensorORM(
+        id=sensor.id,
+        organization_id=sensor.organization_id,
+        site_id=sensor.site_id,
+        sensor_code=sensor.sensor_code,
+        sensor_name=sensor.sensor_name,
+        sensor_tag=sensor.sensor_tag or None,
+        sensor_type=sensor.sensor_type or None,
+        asset_id=sensor.asset_id,
+        component_id=sensor.component_id,
+        system_id=sensor.system_id,
+        source_type=sensor.source_type or None,
+        source_name=sensor.source_name or None,
+        source_key=sensor.source_key or None,
+        unit=sensor.unit or None,
+        current_value=sensor.current_value,
+        last_read_at=sensor.last_read_at,
+        last_quality_state=sensor.last_quality_state,
+        is_active=sensor.is_active,
+        notes=sensor.notes or None,
+        created_at=sensor.created_at,
+        updated_at=sensor.updated_at,
+        version=getattr(sensor, "version", 1),
+    )
+
+
+def maintenance_sensor_from_orm(obj: MaintenanceSensorORM) -> MaintenanceSensor:
+    return MaintenanceSensor(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        site_id=obj.site_id,
+        sensor_code=obj.sensor_code,
+        sensor_name=obj.sensor_name,
+        sensor_tag=obj.sensor_tag or "",
+        sensor_type=obj.sensor_type or "",
+        asset_id=obj.asset_id,
+        component_id=obj.component_id,
+        system_id=obj.system_id,
+        source_type=obj.source_type or "",
+        source_name=obj.source_name or "",
+        source_key=obj.source_key or "",
+        unit=obj.unit or "",
+        current_value=obj.current_value,
+        last_read_at=obj.last_read_at,
+        last_quality_state=obj.last_quality_state,
+        is_active=obj.is_active,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_reading_to_orm(sensor_reading: MaintenanceSensorReading) -> MaintenanceSensorReadingORM:
+    return MaintenanceSensorReadingORM(
+        id=sensor_reading.id,
+        organization_id=sensor_reading.organization_id,
+        sensor_id=sensor_reading.sensor_id,
+        reading_value=sensor_reading.reading_value,
+        reading_unit=sensor_reading.reading_unit,
+        reading_timestamp=sensor_reading.reading_timestamp,
+        quality_state=sensor_reading.quality_state,
+        source_name=sensor_reading.source_name or None,
+        source_batch_id=sensor_reading.source_batch_id or None,
+        received_at=sensor_reading.received_at,
+        raw_payload_ref=sensor_reading.raw_payload_ref or None,
+        created_at=sensor_reading.created_at,
+        version=getattr(sensor_reading, "version", 1),
+    )
+
+
+def maintenance_sensor_reading_from_orm(obj: MaintenanceSensorReadingORM) -> MaintenanceSensorReading:
+    return MaintenanceSensorReading(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        sensor_id=obj.sensor_id,
+        reading_value=obj.reading_value,
+        reading_unit=obj.reading_unit,
+        reading_timestamp=obj.reading_timestamp,
+        quality_state=obj.quality_state,
+        source_name=obj.source_name or "",
+        source_batch_id=obj.source_batch_id or "",
+        received_at=obj.received_at,
+        raw_payload_ref=obj.raw_payload_ref or "",
+        created_at=obj.created_at,
         version=getattr(obj, "version", 1),
     )
 

@@ -550,3 +550,45 @@ def test_maintenance_material_requirements_persist_and_escalate_via_service_grap
     assert escalation.requisition.id == reloaded.linked_requisition_id
     assert reloaded.procurement_status.value == "REQUISITIONED"
     assert [row.id for row in listed] == [requirement.id]
+
+
+def test_maintenance_sensors_and_readings_persist_via_service_graph(services):
+    site = services["site_service"].create_site(site_code="MNT-SNS", name="Sensor Plant")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="sns-area",
+        name="Sensor Area",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="sns-asset",
+        name="Sensor Asset",
+    )
+
+    sensor = services["maintenance_sensor_service"].create_sensor(
+        site_id=site.id,
+        sensor_code="hours-100",
+        sensor_name="Running Hours 100",
+        asset_id=asset.id,
+        sensor_type="RUNNING_HOURS",
+        source_type="IOT_GATEWAY",
+        unit="H",
+    )
+    reading = services["maintenance_sensor_reading_service"].record_reading(
+        sensor_id=sensor.id,
+        reading_value="145.75",
+        reading_unit="H",
+        source_name="Gateway A",
+        source_batch_id="SYNC-100",
+    )
+
+    reloaded_sensor = services["maintenance_sensor_service"].find_sensor_by_code("HOURS-100")
+    listed_readings = services["maintenance_sensor_reading_service"].list_readings(sensor_id=sensor.id)
+
+    assert reloaded_sensor is not None
+    assert reloaded_sensor.id == sensor.id
+    assert reloaded_sensor.current_value == reading.reading_value
+    assert reloaded_sensor.last_read_at == reading.reading_timestamp.replace(tzinfo=None)
+    assert listed_readings[0].id == reading.id
+    assert listed_readings[0].source_batch_id == "SYNC-100"
