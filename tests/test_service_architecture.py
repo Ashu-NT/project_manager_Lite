@@ -32,6 +32,9 @@ from core.modules.maintenance_management import (
     MaintenanceLocationService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
+    MaintenanceWorkOrderService,
+    MaintenanceWorkOrderTaskService,
+    MaintenanceWorkRequestService,
 )
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
@@ -97,6 +100,9 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_asset_component_service, MaintenanceAssetComponentService)
     assert isinstance(graph.maintenance_location_service, MaintenanceLocationService)
     assert isinstance(graph.maintenance_system_service, MaintenanceSystemService)
+    assert isinstance(graph.maintenance_work_request_service, MaintenanceWorkRequestService)
+    assert isinstance(graph.maintenance_work_order_service, MaintenanceWorkOrderService)
+    assert isinstance(graph.maintenance_work_order_task_service, MaintenanceWorkOrderTaskService)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.audit_service, AuditService)
     assert isinstance(graph.collaboration_service, CollaborationService)
@@ -147,6 +153,9 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["maintenance_asset_component_service"] is graph.maintenance_asset_component_service
     assert as_dict["maintenance_location_service"] is graph.maintenance_location_service
     assert as_dict["maintenance_system_service"] is graph.maintenance_system_service
+    assert as_dict["maintenance_work_request_service"] is graph.maintenance_work_request_service
+    assert as_dict["maintenance_work_order_service"] is graph.maintenance_work_order_service
+    assert as_dict["maintenance_work_order_task_service"] is graph.maintenance_work_order_task_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service

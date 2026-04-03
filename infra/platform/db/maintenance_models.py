@@ -23,7 +23,9 @@ from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
     MaintenancePriority,
+    MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderStatus,
+    MaintenanceWorkOrderTaskStatus,
     MaintenanceWorkOrderType,
     MaintenanceWorkRequestSourceType,
     MaintenanceWorkRequestStatus,
@@ -424,6 +426,7 @@ class MaintenanceWorkOrderORM(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
+    assigned_team_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     assigned_employee_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("employees.id", ondelete="SET NULL"),
@@ -453,6 +456,62 @@ class MaintenanceWorkOrderORM(Base):
         String,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+    )
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceWorkOrderTaskORM(Base):
+    __tablename__ = "maintenance_work_order_tasks"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "work_order_id",
+            "sequence_no",
+            name="ux_maintenance_work_order_tasks_work_order_sequence",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    work_order_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_work_orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    task_template_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    task_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    assigned_employee_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    assigned_team_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    actual_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    required_skill: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
+    status: Mapped[MaintenanceWorkOrderTaskStatus] = mapped_column(
+        SAEnum(MaintenanceWorkOrderTaskStatus),
+        nullable=False,
+        default=MaintenanceWorkOrderTaskStatus.NOT_STARTED,
+        server_default=MaintenanceWorkOrderTaskStatus.NOT_STARTED.value,
+    )
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    sequence_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    completion_rule: Mapped[MaintenanceTaskCompletionRule] = mapped_column(
+        SAEnum(MaintenanceTaskCompletionRule),
+        nullable=False,
+        default=MaintenanceTaskCompletionRule.NO_STEPS_REQUIRED,
+        server_default=MaintenanceTaskCompletionRule.NO_STEPS_REQUIRED.value,
     )
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -501,12 +560,18 @@ Index("idx_maintenance_work_orders_system", MaintenanceWorkOrderORM.system_id)
 Index("idx_maintenance_work_orders_location", MaintenanceWorkOrderORM.location_id)
 Index("idx_maintenance_work_orders_status", MaintenanceWorkOrderORM.status)
 Index("idx_maintenance_work_orders_priority", MaintenanceWorkOrderORM.priority)
+Index("idx_maintenance_work_orders_assigned_team", MaintenanceWorkOrderORM.assigned_team_id)
 Index("idx_maintenance_work_orders_assigned_employee", MaintenanceWorkOrderORM.assigned_employee_id)
 Index("idx_maintenance_work_orders_planner", MaintenanceWorkOrderORM.planner_user_id)
 Index("idx_maintenance_work_orders_supervisor", MaintenanceWorkOrderORM.supervisor_user_id)
 Index("idx_maintenance_work_orders_type", MaintenanceWorkOrderORM.work_order_type)
 Index("idx_maintenance_work_orders_preventive", MaintenanceWorkOrderORM.is_preventive)
 Index("idx_maintenance_work_orders_emergency", MaintenanceWorkOrderORM.is_emergency)
+Index("idx_maintenance_work_order_tasks_org", MaintenanceWorkOrderTaskORM.organization_id)
+Index("idx_maintenance_work_order_tasks_work_order", MaintenanceWorkOrderTaskORM.work_order_id)
+Index("idx_maintenance_work_order_tasks_status", MaintenanceWorkOrderTaskORM.status)
+Index("idx_maintenance_work_order_tasks_assigned_employee", MaintenanceWorkOrderTaskORM.assigned_employee_id)
+Index("idx_maintenance_work_order_tasks_assigned_team", MaintenanceWorkOrderTaskORM.assigned_team_id)
 
 
 __all__ = [
@@ -515,5 +580,6 @@ __all__ = [
     "MaintenanceLocationORM",
     "MaintenanceSystemORM",
     "MaintenanceWorkOrderORM",
+    "MaintenanceWorkOrderTaskORM",
     "MaintenanceWorkRequestORM",
 ]

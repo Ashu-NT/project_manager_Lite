@@ -15,6 +15,8 @@ from core.modules.maintenance_management.interfaces import (
 )
 from core.modules.maintenance_management.support import (
     coerce_priority,
+    coerce_work_request_source_type,
+    coerce_work_request_status,
     normalize_maintenance_code,
     normalize_maintenance_name,
     normalize_optional_text,
@@ -99,7 +101,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
             self._user_session,
             scope_type="maintenance",
             permission_code="maintenance.read",
-            scope_id_getter=lambda row: getattr(row, "id", ""),
+            scope_id_getter=self._scope_anchor_for,
         )
 
     def search_work_requests(
@@ -146,13 +148,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         work_request = self._work_request_repo.get(work_request_id)
         if work_request is None or work_request.organization_id != organization.id:
             raise NotFoundError("Maintenance work request not found in the active organization.", code="MAINTENANCE_WORK_REQUEST_NOT_FOUND")
-        require_scope_permission(
-            self._user_session,
-            "maintenance",
-            work_request.id,
-            "maintenance.read",
-            operation_label="view maintenance work request",
-        )
+        self._require_scope_read(self._scope_anchor_for(work_request), operation_label="view maintenance work request")
         return work_request
 
     def find_work_request_by_code(
@@ -190,24 +186,24 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         organization = self._active_organization()
         site = self._get_site(site_id, organization=organization)
         normalized_code = normalize_maintenance_code(work_request_code, label="Work request code")
+        normalized_source_type = coerce_work_request_source_type(source_type)
+        normalized_request_type = normalize_maintenance_name(request_type, label="Request type").upper()
         if self._work_request_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Work request code already exists in the active organization.", code="MAINTENANCE_WORK_REQUEST_CODE_EXISTS")
 
-        # Validate related entities
-        if asset_id is not None:
-            self._get_asset(asset_id, organization=organization)
-        if component_id is not None:
-            self._get_component(component_id, organization=organization)
-        if system_id is not None:
-            self._get_system(system_id, organization=organization)
-        if location_id is not None:
-            self._get_location(location_id, organization=organization)
+        asset_id, component_id, system_id, location_id = self._resolve_context_references(
+            organization=organization,
+            site=site,
+            asset_id=asset_id,
+            component_id=component_id,
+            system_id=system_id,
+            location_id=location_id,
+        )
 
-        # Get current user for requested_by
-        requested_by_user_id = None
+        requested_by_user_id = self._current_user_id()
         requested_by_name_snapshot = ""
-        if self._user_session and self._user_session.user_id:
-            user = self._user_repo.get(self._user_session.user_id)
+        if requested_by_user_id:
+            user = self._user_repo.get(requested_by_user_id)
             if user:
                 requested_by_user_id = user.id
                 requested_by_name_snapshot = user.display_name or user.username or ""
@@ -216,8 +212,8 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
             organization_id=organization.id,
             site_id=site.id,
             work_request_code=normalized_code,
-            source_type=source_type,
-            request_type=request_type,
+            source_type=normalized_source_type,
+            request_type=normalized_request_type,
             asset_id=asset_id,
             component_id=component_id,
             system_id=system_id,
@@ -276,15 +272,16 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         # Validate status transition
         if status is not None:
             from core.modules.maintenance_management.domain import MaintenanceWorkRequestStatus
-            new_status = MaintenanceWorkRequestStatus(status)
+            new_status = coerce_work_request_status(status)
             self._validate_work_request_status_transition(work_request.status, new_status)
             work_request.status = new_status
 
             # Set triaged timestamp if moving to triaged
             if new_status == MaintenanceWorkRequestStatus.TRIAGED and work_request.triaged_at is None:
                 work_request.triaged_at = datetime.now(timezone.utc)
-                if self._user_session and self._user_session.user_id:
-                    work_request.triaged_by_user_id = self._user_session.user_id
+                current_user_id = self._current_user_id()
+                if current_user_id:
+                    work_request.triaged_by_user_id = current_user_id
 
         if work_request_code is not None:
             normalized_code = normalize_maintenance_code(work_request_code, label="Work request code")
@@ -294,25 +291,22 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
             work_request.work_request_code = normalized_code
 
         if request_type is not None:
-            work_request.request_type = request_type
+            work_request.request_type = normalize_maintenance_name(request_type, label="Request type").upper()
 
-        # Validate and update related entities
-        if asset_id is not None:
-            if asset_id:
-                self._get_asset(asset_id, organization=self._active_organization())
-            work_request.asset_id = asset_id
-        if component_id is not None:
-            if component_id:
-                self._get_component(component_id, organization=self._active_organization())
-            work_request.component_id = component_id
-        if system_id is not None:
-            if system_id:
-                self._get_system(system_id, organization=self._active_organization())
-            work_request.system_id = system_id
-        if location_id is not None:
-            if location_id:
-                self._get_location(location_id, organization=self._active_organization())
-            work_request.location_id = location_id
+        organization = self._active_organization()
+        site = self._get_site(work_request.site_id, organization=organization)
+        resolved_asset_id, resolved_component_id, resolved_system_id, resolved_location_id = self._resolve_context_references(
+            organization=organization,
+            site=site,
+            asset_id=asset_id if asset_id is not None else work_request.asset_id,
+            component_id=component_id if component_id is not None else work_request.component_id,
+            system_id=system_id if system_id is not None else work_request.system_id,
+            location_id=location_id if location_id is not None else work_request.location_id,
+        )
+        work_request.asset_id = resolved_asset_id
+        work_request.component_id = resolved_component_id
+        work_request.system_id = resolved_system_id
+        work_request.location_id = resolved_location_id
 
         if title is not None:
             work_request.title = normalize_optional_text(title)
@@ -343,25 +337,29 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         self._record_change("maintenance_work_request.update", work_request)
         return work_request
 
-    def _get_asset(self, asset_id: str, *, organization: Organization) -> None:
+    def _get_asset(self, asset_id: str, *, organization: Organization):
         asset = self._asset_repo.get(asset_id)
         if asset is None or asset.organization_id != organization.id:
             raise NotFoundError("Maintenance asset not found in the active organization.", code="MAINTENANCE_ASSET_NOT_FOUND")
+        return asset
 
-    def _get_component(self, component_id: str, *, organization: Organization) -> None:
+    def _get_component(self, component_id: str, *, organization: Organization):
         component = self._component_repo.get(component_id)
         if component is None or component.organization_id != organization.id:
             raise NotFoundError("Maintenance asset component not found in the active organization.", code="MAINTENANCE_COMPONENT_NOT_FOUND")
+        return component
 
-    def _get_system(self, system_id: str, *, organization: Organization) -> None:
+    def _get_system(self, system_id: str, *, organization: Organization):
         system = self._system_repo.get(system_id)
         if system is None or system.organization_id != organization.id:
             raise NotFoundError("Maintenance system not found in the active organization.", code="MAINTENANCE_SYSTEM_NOT_FOUND")
+        return system
 
-    def _get_location(self, location_id: str, *, organization: Organization) -> None:
+    def _get_location(self, location_id: str, *, organization: Organization):
         location = self._location_repo.get(location_id)
         if location is None or location.organization_id != organization.id:
             raise NotFoundError("Maintenance location not found in the active organization.", code="MAINTENANCE_LOCATION_NOT_FOUND")
+        return location
 
     def _active_organization(self) -> Organization:
         organization = self._organization_repo.get_active()
@@ -385,7 +383,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
                 "organization_id": work_request.organization_id,
                 "site_id": work_request.site_id,
                 "work_request_code": work_request.work_request_code,
-                "source_type": work_request.source_type,
+                "source_type": work_request.source_type.value,
                 "request_type": work_request.request_type,
                 "status": work_request.status.value,
                 "priority": work_request.priority.value,
@@ -406,6 +404,86 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
 
     def _require_manage(self, operation_label: str) -> None:
         require_permission(self._user_session, "maintenance.manage", operation_label=operation_label)
+
+    def _current_user_id(self) -> str | None:
+        principal = getattr(self._user_session, "principal", None)
+        return getattr(principal, "user_id", None) if principal is not None else None
+
+    def _scope_anchor_for(self, work_request: MaintenanceWorkRequest) -> str:
+        if work_request.asset_id:
+            return work_request.asset_id
+        if work_request.component_id:
+            component = self._component_repo.get(work_request.component_id)
+            if component is not None and component.asset_id:
+                return component.asset_id
+        if work_request.system_id:
+            return work_request.system_id
+        if work_request.location_id:
+            return work_request.location_id
+        return ""
+
+    def _require_scope_read(self, scope_id: str, *, operation_label: str) -> None:
+        if scope_id:
+            require_scope_permission(
+                self._user_session,
+                "maintenance",
+                scope_id,
+                "maintenance.read",
+                operation_label=operation_label,
+            )
+            return
+        if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
+            raise BusinessRuleError(
+                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
+                code="PERMISSION_DENIED",
+            )
+
+    def _resolve_context_references(
+        self,
+        *,
+        organization: Organization,
+        site: Site,
+        asset_id: str | None,
+        component_id: str | None,
+        system_id: str | None,
+        location_id: str | None,
+    ) -> tuple[str | None, str | None, str | None, str | None]:
+        asset = self._get_asset(asset_id, organization=organization) if asset_id else None
+        component = self._get_component(component_id, organization=organization) if component_id else None
+        system = self._get_system(system_id, organization=organization) if system_id else None
+        location = self._get_location(location_id, organization=organization) if location_id else None
+
+        if asset is not None and asset.site_id != site.id:
+            raise ValidationError(
+                "Maintenance work request asset must belong to the selected site.",
+                code="MAINTENANCE_WORK_REQUEST_SITE_MISMATCH",
+            )
+        if component is not None:
+            component_asset = self._get_asset(component.asset_id, organization=organization)
+            if component_asset.site_id != site.id:
+                raise ValidationError(
+                    "Maintenance work request component must belong to the selected site.",
+                    code="MAINTENANCE_WORK_REQUEST_SITE_MISMATCH",
+                )
+            if asset is not None and component.asset_id != asset.id:
+                raise ValidationError(
+                    "Maintenance work request component must belong to the selected asset.",
+                    code="MAINTENANCE_WORK_REQUEST_COMPONENT_ASSET_MISMATCH",
+                )
+            if asset is None:
+                asset = component_asset
+                asset_id = component_asset.id
+        if system is not None and system.site_id != site.id:
+            raise ValidationError(
+                "Maintenance work request system must belong to the selected site.",
+                code="MAINTENANCE_WORK_REQUEST_SITE_MISMATCH",
+            )
+        if location is not None and location.site_id != site.id:
+            raise ValidationError(
+                "Maintenance work request location must belong to the selected site.",
+                code="MAINTENANCE_WORK_REQUEST_SITE_MISMATCH",
+            )
+        return asset_id, component_id, system_id, location_id
 
 
 __all__ = ["MaintenanceWorkRequestService"]

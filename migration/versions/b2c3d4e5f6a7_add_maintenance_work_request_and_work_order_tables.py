@@ -213,12 +213,6 @@ def upgrade() -> None:
                 ondelete="SET NULL",
             ),
             sa.ForeignKeyConstraint(
-                ["assigned_team_id"],
-                ["teams.id"],
-                name="fk_maintenance_work_orders_assigned_team_id",
-                ondelete="SET NULL",
-            ),
-            sa.ForeignKeyConstraint(
                 ["assigned_employee_id"],
                 ["employees.id"],
                 name="fk_maintenance_work_orders_assigned_employee_id",

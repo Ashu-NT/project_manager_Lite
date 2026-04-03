@@ -6,6 +6,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceLocation,
     MaintenanceSystem,
     MaintenanceWorkOrder,
+    MaintenanceWorkOrderTask,
     MaintenanceWorkRequest,
 )
 from infra.platform.db.maintenance_models import (
@@ -14,6 +15,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceLocationORM,
     MaintenanceSystemORM,
     MaintenanceWorkOrderORM,
+    MaintenanceWorkOrderTaskORM,
     MaintenanceWorkRequestORM,
 )
 
@@ -316,6 +318,7 @@ def maintenance_work_order_to_orm(work_order: MaintenanceWorkOrder) -> Maintenan
         requested_by_user_id=work_order.requested_by_user_id,
         planner_user_id=work_order.planner_user_id,
         supervisor_user_id=work_order.supervisor_user_id,
+        assigned_team_id=work_order.assigned_team_id,
         assigned_employee_id=work_order.assigned_employee_id,
         planned_start=work_order.planned_start,
         planned_end=work_order.planned_end,
@@ -387,6 +390,58 @@ def maintenance_work_order_from_orm(obj: MaintenanceWorkOrderORM) -> Maintenance
     )
 
 
+def maintenance_work_order_task_to_orm(work_order_task: MaintenanceWorkOrderTask) -> MaintenanceWorkOrderTaskORM:
+    return MaintenanceWorkOrderTaskORM(
+        id=work_order_task.id,
+        organization_id=work_order_task.organization_id,
+        work_order_id=work_order_task.work_order_id,
+        task_template_id=work_order_task.task_template_id,
+        task_name=work_order_task.task_name,
+        description=work_order_task.description,
+        assigned_employee_id=work_order_task.assigned_employee_id,
+        assigned_team_id=work_order_task.assigned_team_id,
+        estimated_minutes=work_order_task.estimated_minutes,
+        actual_minutes=work_order_task.actual_minutes,
+        required_skill=work_order_task.required_skill,
+        status=work_order_task.status,
+        started_at=work_order_task.started_at,
+        completed_at=work_order_task.completed_at,
+        sequence_no=work_order_task.sequence_no,
+        is_mandatory=work_order_task.is_mandatory,
+        completion_rule=work_order_task.completion_rule,
+        notes=work_order_task.notes,
+        created_at=work_order_task.created_at,
+        updated_at=work_order_task.updated_at,
+        version=getattr(work_order_task, "version", 1),
+    )
+
+
+def maintenance_work_order_task_from_orm(obj: MaintenanceWorkOrderTaskORM) -> MaintenanceWorkOrderTask:
+    return MaintenanceWorkOrderTask(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        work_order_id=obj.work_order_id,
+        task_template_id=obj.task_template_id,
+        task_name=obj.task_name,
+        description=obj.description,
+        assigned_employee_id=obj.assigned_employee_id,
+        assigned_team_id=obj.assigned_team_id,
+        estimated_minutes=obj.estimated_minutes,
+        actual_minutes=obj.actual_minutes,
+        required_skill=obj.required_skill,
+        status=obj.status,
+        started_at=obj.started_at,
+        completed_at=obj.completed_at,
+        sequence_no=obj.sequence_no,
+        is_mandatory=obj.is_mandatory,
+        completion_rule=obj.completion_rule,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
 __all__ = [
     "maintenance_asset_from_orm",
     "maintenance_asset_component_from_orm",
@@ -397,6 +452,8 @@ __all__ = [
     "maintenance_system_from_orm",
     "maintenance_system_to_orm",
     "maintenance_work_order_from_orm",
+    "maintenance_work_order_task_from_orm",
+    "maintenance_work_order_task_to_orm",
     "maintenance_work_order_to_orm",
     "maintenance_work_request_from_orm",
     "maintenance_work_request_to_orm",

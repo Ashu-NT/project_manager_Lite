@@ -53,6 +53,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetComponentORM,
     MaintenanceLocationORM,
     MaintenanceSystemORM,
+    MaintenanceWorkOrderTaskORM,
 )
 
 

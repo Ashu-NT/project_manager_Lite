@@ -12,11 +12,13 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
+    MaintenanceWorkRequestRepository,
 )
 from core.modules.maintenance_management.support import (
     coerce_priority,
+    coerce_work_order_status,
+    coerce_work_order_type,
     normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from core.modules.maintenance_management.services.work_order.validation import MaintenanceWorkOrderValidationMixin
@@ -42,6 +44,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         component_repo: MaintenanceAssetComponentRepository,
         location_repo: MaintenanceLocationRepository,
         system_repo: MaintenanceSystemRepository,
+        work_request_repo: MaintenanceWorkRequestRepository,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -54,6 +57,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._component_repo = component_repo
         self._location_repo = location_repo
         self._system_repo = system_repo
+        self._work_request_repo = work_request_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -105,7 +109,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             self._user_session,
             scope_type="maintenance",
             permission_code="maintenance.read",
-            scope_id_getter=lambda row: getattr(row, "id", ""),
+            scope_id_getter=self._scope_anchor_for,
         )
 
     def search_work_orders(
@@ -152,13 +156,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         work_order = self._work_order_repo.get(work_order_id)
         if work_order is None or work_order.organization_id != organization.id:
             raise NotFoundError("Maintenance work order not found in the active organization.", code="MAINTENANCE_WORK_ORDER_NOT_FOUND")
-        require_scope_permission(
-            self._user_session,
-            "maintenance",
-            work_order.id,
-            "maintenance.read",
-            operation_label="view maintenance work order",
-        )
+        self._require_scope_read(self._scope_anchor_for(work_order), operation_label="view maintenance work order")
         return work_order
 
     def find_work_order_by_code(
@@ -188,6 +186,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         title: str = "",
         description: str = "",
         priority=None,
+        assigned_team_id: str | None = None,
         requires_shutdown: bool = False,
         permit_required: bool = False,
         approval_required: bool = False,
@@ -200,30 +199,51 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         organization = self._active_organization()
         site = self._get_site(site_id, organization=organization)
         normalized_code = normalize_maintenance_code(work_order_code, label="Work order code")
+        normalized_work_order_type = coerce_work_order_type(work_order_type)
+        normalized_source_type = normalize_maintenance_code(source_type, label="Source type")
         if self._work_order_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Work order code already exists in the active organization.", code="MAINTENANCE_WORK_ORDER_CODE_EXISTS")
 
-        # Validate related entities
-        if asset_id is not None:
-            self._get_asset(asset_id, organization=organization)
-        if component_id is not None:
-            self._get_component(component_id, organization=organization)
-        if system_id is not None:
-            self._get_system(system_id, organization=organization)
-        if location_id is not None:
-            self._get_location(location_id, organization=organization)
+        if normalized_source_type == "WORK_REQUEST":
+            if not source_id:
+                raise ValidationError(
+                    "Source id is required when creating a work order from a work request.",
+                    code="MAINTENANCE_WORK_ORDER_SOURCE_REQUIRED",
+                )
+            source_request = self._get_work_request(source_id, organization=organization)
+            if source_request.site_id != site.id:
+                raise ValidationError(
+                    "Maintenance work order source must belong to the selected site.",
+                    code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
+                )
+            asset_id = asset_id if asset_id is not None else source_request.asset_id
+            component_id = component_id if component_id is not None else source_request.component_id
+            system_id = system_id if system_id is not None else source_request.system_id
+            location_id = location_id if location_id is not None else source_request.location_id
+            if not title:
+                title = source_request.title
+            if not description:
+                description = source_request.description
+            if priority is None:
+                priority = source_request.priority
 
-        # Get current user for requested_by
-        requested_by_user_id = None
-        if self._user_session and self._user_session.user_id:
-            requested_by_user_id = self._user_session.user_id
+        asset_id, component_id, system_id, location_id = self._resolve_context_references(
+            organization=organization,
+            site=site,
+            asset_id=asset_id,
+            component_id=component_id,
+            system_id=system_id,
+            location_id=location_id,
+        )
+
+        requested_by_user_id = self._current_user_id()
 
         work_order = MaintenanceWorkOrder.create(
             organization_id=organization.id,
             site_id=site.id,
             work_order_code=normalized_code,
-            work_order_type=work_order_type,
-            source_type=source_type,
+            work_order_type=normalized_work_order_type,
+            source_type=normalized_source_type,
             source_id=source_id,
             asset_id=asset_id,
             component_id=component_id,
@@ -233,6 +253,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             description=normalize_optional_text(description),
             priority=coerce_priority(priority),
             requested_by_user_id=requested_by_user_id,
+            assigned_team_id=assigned_team_id,
             requires_shutdown=bool(requires_shutdown),
             permit_required=bool(permit_required),
             approval_required=bool(approval_required),
@@ -270,6 +291,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         status=None,
         planner_user_id: str | None = None,
         supervisor_user_id: str | None = None,
+        assigned_team_id: str | None = None,
         assigned_employee_id: str | None = None,
         planned_start=None,
         planned_end=None,
@@ -299,7 +321,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         # Validate status transition
         if status is not None:
             from core.modules.maintenance_management.domain import MaintenanceWorkOrderStatus
-            new_status = MaintenanceWorkOrderStatus(status)
+            new_status = coerce_work_order_status(status)
             self._validate_work_order_status_transition(work_order.status, new_status)
             work_order.status = new_status
 
@@ -311,8 +333,9 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 work_order.actual_end = now
             elif new_status == MaintenanceWorkOrderStatus.CLOSED and work_order.closed_at is None:
                 work_order.closed_at = now
-                if self._user_session and self._user_session.user_id:
-                    work_order.closed_by_user_id = self._user_session.user_id
+                current_user_id = self._current_user_id()
+                if current_user_id:
+                    work_order.closed_by_user_id = current_user_id
 
         if work_order_code is not None:
             normalized_code = normalize_maintenance_code(work_order_code, label="Work order code")
@@ -322,27 +345,26 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             work_order.work_order_code = normalized_code
 
         if work_order_type is not None:
-            work_order.work_order_type = work_order_type
+            work_order.work_order_type = coerce_work_order_type(work_order_type)
         if source_id is not None:
+            if work_order.source_type == "WORK_REQUEST":
+                self._get_work_request(source_id, organization=self._active_organization())
             work_order.source_id = source_id
 
-        # Validate and update related entities
-        if asset_id is not None:
-            if asset_id:
-                self._get_asset(asset_id, organization=self._active_organization())
-            work_order.asset_id = asset_id
-        if component_id is not None:
-            if component_id:
-                self._get_component(component_id, organization=self._active_organization())
-            work_order.component_id = component_id
-        if system_id is not None:
-            if system_id:
-                self._get_system(system_id, organization=self._active_organization())
-            work_order.system_id = system_id
-        if location_id is not None:
-            if location_id:
-                self._get_location(location_id, organization=self._active_organization())
-            work_order.location_id = location_id
+        organization = self._active_organization()
+        site = self._get_site(work_order.site_id, organization=organization)
+        resolved_asset_id, resolved_component_id, resolved_system_id, resolved_location_id = self._resolve_context_references(
+            organization=organization,
+            site=site,
+            asset_id=asset_id if asset_id is not None else work_order.asset_id,
+            component_id=component_id if component_id is not None else work_order.component_id,
+            system_id=system_id if system_id is not None else work_order.system_id,
+            location_id=location_id if location_id is not None else work_order.location_id,
+        )
+        work_order.asset_id = resolved_asset_id
+        work_order.component_id = resolved_component_id
+        work_order.system_id = resolved_system_id
+        work_order.location_id = resolved_location_id
 
         if title is not None:
             work_order.title = normalize_optional_text(title)
@@ -354,6 +376,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             work_order.planner_user_id = planner_user_id
         if supervisor_user_id is not None:
             work_order.supervisor_user_id = supervisor_user_id
+        if assigned_team_id is not None:
+            work_order.assigned_team_id = assigned_team_id
         if assigned_employee_id is not None:
             work_order.assigned_employee_id = assigned_employee_id
         if planned_start is not None:
@@ -399,25 +423,38 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._record_change("maintenance_work_order.update", work_order)
         return work_order
 
-    def _get_asset(self, asset_id: str, *, organization: Organization) -> None:
+    def _get_asset(self, asset_id: str, *, organization: Organization):
         asset = self._asset_repo.get(asset_id)
         if asset is None or asset.organization_id != organization.id:
             raise NotFoundError("Maintenance asset not found in the active organization.", code="MAINTENANCE_ASSET_NOT_FOUND")
+        return asset
 
-    def _get_component(self, component_id: str, *, organization: Organization) -> None:
+    def _get_component(self, component_id: str, *, organization: Organization):
         component = self._component_repo.get(component_id)
         if component is None or component.organization_id != organization.id:
             raise NotFoundError("Maintenance asset component not found in the active organization.", code="MAINTENANCE_COMPONENT_NOT_FOUND")
+        return component
 
-    def _get_system(self, system_id: str, *, organization: Organization) -> None:
+    def _get_system(self, system_id: str, *, organization: Organization):
         system = self._system_repo.get(system_id)
         if system is None or system.organization_id != organization.id:
             raise NotFoundError("Maintenance system not found in the active organization.", code="MAINTENANCE_SYSTEM_NOT_FOUND")
+        return system
 
-    def _get_location(self, location_id: str, *, organization: Organization) -> None:
+    def _get_location(self, location_id: str, *, organization: Organization):
         location = self._location_repo.get(location_id)
         if location is None or location.organization_id != organization.id:
             raise NotFoundError("Maintenance location not found in the active organization.", code="MAINTENANCE_LOCATION_NOT_FOUND")
+        return location
+
+    def _get_work_request(self, work_request_id: str, *, organization: Organization):
+        work_request = self._work_request_repo.get(work_request_id)
+        if work_request is None or work_request.organization_id != organization.id:
+            raise NotFoundError(
+                "Maintenance work request not found in the active organization.",
+                code="MAINTENANCE_WORK_REQUEST_NOT_FOUND",
+            )
+        return work_request
 
     def _active_organization(self) -> Organization:
         organization = self._organization_repo.get_active()
@@ -441,7 +478,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 "organization_id": work_order.organization_id,
                 "site_id": work_order.site_id,
                 "work_order_code": work_order.work_order_code,
-                "work_order_type": work_order.work_order_type,
+                "work_order_type": work_order.work_order_type.value,
                 "source_type": work_order.source_type,
                 "status": work_order.status.value,
                 "priority": work_order.priority.value,
@@ -462,6 +499,86 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
 
     def _require_manage(self, operation_label: str) -> None:
         require_permission(self._user_session, "maintenance.manage", operation_label=operation_label)
+
+    def _current_user_id(self) -> str | None:
+        principal = getattr(self._user_session, "principal", None)
+        return getattr(principal, "user_id", None) if principal is not None else None
+
+    def _scope_anchor_for(self, work_order: MaintenanceWorkOrder) -> str:
+        if work_order.asset_id:
+            return work_order.asset_id
+        if work_order.component_id:
+            component = self._component_repo.get(work_order.component_id)
+            if component is not None and component.asset_id:
+                return component.asset_id
+        if work_order.system_id:
+            return work_order.system_id
+        if work_order.location_id:
+            return work_order.location_id
+        return ""
+
+    def _require_scope_read(self, scope_id: str, *, operation_label: str) -> None:
+        if scope_id:
+            require_scope_permission(
+                self._user_session,
+                "maintenance",
+                scope_id,
+                "maintenance.read",
+                operation_label=operation_label,
+            )
+            return
+        if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
+            raise BusinessRuleError(
+                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
+                code="PERMISSION_DENIED",
+            )
+
+    def _resolve_context_references(
+        self,
+        *,
+        organization: Organization,
+        site: Site,
+        asset_id: str | None,
+        component_id: str | None,
+        system_id: str | None,
+        location_id: str | None,
+    ) -> tuple[str | None, str | None, str | None, str | None]:
+        asset = self._get_asset(asset_id, organization=organization) if asset_id else None
+        component = self._get_component(component_id, organization=organization) if component_id else None
+        system = self._get_system(system_id, organization=organization) if system_id else None
+        location = self._get_location(location_id, organization=organization) if location_id else None
+
+        if asset is not None and asset.site_id != site.id:
+            raise ValidationError(
+                "Maintenance work order asset must belong to the selected site.",
+                code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
+            )
+        if component is not None:
+            component_asset = self._get_asset(component.asset_id, organization=organization)
+            if component_asset.site_id != site.id:
+                raise ValidationError(
+                    "Maintenance work order component must belong to the selected site.",
+                    code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
+                )
+            if asset is not None and component.asset_id != asset.id:
+                raise ValidationError(
+                    "Maintenance work order component must belong to the selected asset.",
+                    code="MAINTENANCE_WORK_ORDER_COMPONENT_ASSET_MISMATCH",
+                )
+            if asset is None:
+                asset = component_asset
+                asset_id = component_asset.id
+        if system is not None and system.site_id != site.id:
+            raise ValidationError(
+                "Maintenance work order system must belong to the selected site.",
+                code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
+            )
+        if location is not None and location.site_id != site.id:
+            raise ValidationError(
+                "Maintenance work order location must belong to the selected site.",
+                code="MAINTENANCE_WORK_ORDER_SITE_MISMATCH",
+            )
+        return asset_id, component_id, system_id, location_id
 
 
 __all__ = ["MaintenanceWorkOrderService"]

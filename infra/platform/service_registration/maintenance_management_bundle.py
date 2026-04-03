@@ -10,6 +10,7 @@ from core.modules.maintenance_management import (
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
+    MaintenanceWorkOrderTaskService,
     MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management.access import (
@@ -23,6 +24,7 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceLocationRepository,
     SqlAlchemyMaintenanceSystemRepository,
     SqlAlchemyMaintenanceWorkOrderRepository,
+    SqlAlchemyMaintenanceWorkOrderTaskRepository,
     SqlAlchemyMaintenanceWorkRequestRepository,
 )
 from infra.platform.db.auth.repository import SqlAlchemyUserRepository
@@ -38,6 +40,7 @@ class MaintenanceManagementServiceBundle:
     maintenance_system_service: MaintenanceSystemService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
+    maintenance_work_order_task_service: MaintenanceWorkOrderTaskService
 
 
 def build_maintenance_management_service_bundle(
@@ -49,6 +52,7 @@ def build_maintenance_management_service_bundle(
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
     work_request_repo = SqlAlchemyMaintenanceWorkRequestRepository(platform_services.session)
     work_order_repo = SqlAlchemyMaintenanceWorkOrderRepository(platform_services.session)
+    work_order_task_repo = SqlAlchemyMaintenanceWorkOrderTaskRepository(platform_services.session)
     user_repo = SqlAlchemyUserRepository(platform_services.session)
     
     platform_services.department_service.register_location_reference_repository(location_repo)
@@ -129,6 +133,15 @@ def build_maintenance_management_service_bundle(
         component_repo=component_repo,
         location_repo=location_repo,
         system_repo=system_repo,
+        work_request_repo=work_request_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_work_order_task_service = MaintenanceWorkOrderTaskService(
+        platform_services.session,
+        work_order_task_repo,
+        organization_repo=platform_services.organization_repo,
+        work_order_repo=work_order_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -140,6 +153,7 @@ def build_maintenance_management_service_bundle(
         maintenance_system_service=maintenance_system_service,
         maintenance_work_request_service=maintenance_work_request_service,
         maintenance_work_order_service=maintenance_work_order_service,
+        maintenance_work_order_task_service=maintenance_work_order_task_service,
     )
 
 

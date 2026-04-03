@@ -7,6 +7,7 @@ from core.modules.maintenance_management.services import (
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
+    MaintenanceWorkOrderTaskService,
     MaintenanceWorkRequestService,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "MaintenanceRuntimeContractCatalogService",
     "MaintenanceSystemService",
     "MaintenanceWorkOrderService",
+    "MaintenanceWorkOrderTaskService",
     "MaintenanceWorkRequestService",
 ]

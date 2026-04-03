@@ -88,7 +88,7 @@ class MaintenanceAssetComponentService:
             self._user_session,
             scope_type="maintenance",
             permission_code="maintenance.read",
-            scope_id_getter=lambda row: getattr(row, "id", ""),
+            scope_id_getter=lambda row: getattr(row, "asset_id", "") or getattr(row, "id", ""),
         )
 
 
@@ -135,7 +135,7 @@ class MaintenanceAssetComponentService:
         require_scope_permission(
             self._user_session,
             "maintenance",
-            component.id,
+            component.asset_id or component.id,
             "maintenance.read",
             operation_label="view maintenance asset component",
         )

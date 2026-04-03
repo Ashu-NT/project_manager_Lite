@@ -77,6 +77,19 @@ class MaintenanceWorkOrderStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
+class MaintenanceWorkOrderTaskStatus(str, Enum):
+    NOT_STARTED = "NOT_STARTED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    BLOCKED = "BLOCKED"
+    SKIPPED = "SKIPPED"
+
+
+class MaintenanceTaskCompletionRule(str, Enum):
+    NO_STEPS_REQUIRED = "NO_STEPS_REQUIRED"
+    ALL_STEPS_REQUIRED = "ALL_STEPS_REQUIRED"
+
+
 @dataclass
 class MaintenanceLocation:
     id: str
@@ -473,6 +486,7 @@ class MaintenanceWorkOrder:
     requested_by_user_id: str | None = None
     planner_user_id: str | None = None
     supervisor_user_id: str | None = None
+    assigned_team_id: str | None = None
     assigned_employee_id: str | None = None
     planned_start: datetime | None = None
     planned_end: datetime | None = None
@@ -515,6 +529,7 @@ class MaintenanceWorkOrder:
         requested_by_user_id: str | None = None,
         planner_user_id: str | None = None,
         supervisor_user_id: str | None = None,
+        assigned_team_id: str | None = None,
         assigned_employee_id: str | None = None,
         planned_start: datetime | None = None,
         planned_end: datetime | None = None,
@@ -546,6 +561,7 @@ class MaintenanceWorkOrder:
             requested_by_user_id=requested_by_user_id,
             planner_user_id=planner_user_id,
             supervisor_user_id=supervisor_user_id,
+            assigned_team_id=assigned_team_id,
             assigned_employee_id=assigned_employee_id,
             planned_start=planned_start,
             planned_end=planned_end,
@@ -555,6 +571,74 @@ class MaintenanceWorkOrder:
             vendor_party_id=vendor_party_id,
             is_preventive=is_preventive,
             is_emergency=is_emergency,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
+@dataclass
+class MaintenanceWorkOrderTask:
+    id: str
+    organization_id: str
+    work_order_id: str
+    task_template_id: str | None = None
+    task_name: str = ""
+    description: str = ""
+    assigned_employee_id: str | None = None
+    assigned_team_id: str | None = None
+    estimated_minutes: int | None = None
+    actual_minutes: int | None = None
+    required_skill: str = ""
+    status: MaintenanceWorkOrderTaskStatus = MaintenanceWorkOrderTaskStatus.NOT_STARTED
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    sequence_no: int = 1
+    is_mandatory: bool = True
+    completion_rule: MaintenanceTaskCompletionRule = MaintenanceTaskCompletionRule.NO_STEPS_REQUIRED
+    notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        work_order_id: str,
+        task_template_id: str | None = None,
+        task_name: str,
+        description: str = "",
+        assigned_employee_id: str | None = None,
+        assigned_team_id: str | None = None,
+        estimated_minutes: int | None = None,
+        actual_minutes: int | None = None,
+        required_skill: str = "",
+        sequence_no: int = 1,
+        is_mandatory: bool = True,
+        completion_rule: MaintenanceTaskCompletionRule = MaintenanceTaskCompletionRule.NO_STEPS_REQUIRED,
+        notes: str = "",
+    ) -> "MaintenanceWorkOrderTask":
+        now = datetime.now(timezone.utc)
+        return MaintenanceWorkOrderTask(
+            id=generate_id(),
+            organization_id=organization_id,
+            work_order_id=work_order_id,
+            task_template_id=task_template_id,
+            task_name=task_name,
+            description=description,
+            assigned_employee_id=assigned_employee_id,
+            assigned_team_id=assigned_team_id,
+            estimated_minutes=estimated_minutes,
+            actual_minutes=actual_minutes,
+            required_skill=required_skill,
+            status=MaintenanceWorkOrderTaskStatus.NOT_STARTED,
+            started_at=None,
+            completed_at=None,
+            sequence_no=sequence_no,
+            is_mandatory=is_mandatory,
+            completion_rule=completion_rule,
             notes=notes,
             created_at=now,
             updated_at=now,
@@ -572,8 +656,11 @@ __all__ = [
     "MaintenanceSystem",
     "MaintenanceTriggerMode",
     "MaintenanceWorkOrder",
+    "MaintenanceWorkOrderTask",
+    "MaintenanceWorkOrderTaskStatus",
     "MaintenanceWorkOrderStatus",
     "MaintenanceWorkOrderType",
+    "MaintenanceTaskCompletionRule",
     "MaintenanceWorkRequest",
     "MaintenanceWorkRequestSourceType",
     "MaintenanceWorkRequestStatus",

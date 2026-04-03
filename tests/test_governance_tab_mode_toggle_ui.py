@@ -20,7 +20,7 @@ def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
         request_type="baseline.create",
         entity_type="baseline",
         entity_id="baseline-1",
-        project_id=project.id,
+        project_id=None,
         payload={"name": "March Baseline"},
     )
 

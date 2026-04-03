@@ -8,23 +8,33 @@ from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
     MaintenanceLocation,
+    MaintenanceWorkOrder,
+    MaintenanceWorkOrderTask,
+    MaintenanceWorkRequest,
 )
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetRepository,
     MaintenanceAssetComponentRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
+    MaintenanceWorkOrderRepository,
+    MaintenanceWorkOrderTaskRepository,
+    MaintenanceWorkRequestRepository,
 )
 from core.modules.maintenance_management.services import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
     MaintenanceLocationService,
     MaintenanceSystemService,
+    MaintenanceWorkOrderService,
+    MaintenanceWorkOrderTaskService,
+    MaintenanceWorkRequestService,
 )
+from core.platform.auth.domain import UserAccount
 from core.modules.maintenance_management.support import coerce_priority, coerce_trigger_mode
 from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository
+from core.platform.common.interfaces import OrganizationRepository, SiteRepository, UserRepository
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.domain import Organization, Site
 from core.platform.party.domain import Party, PartyType
@@ -255,6 +265,198 @@ class _PartyRepo(PartyRepository):
         if active_only is None:
             return rows
         return [row for row in rows if row.is_active == bool(active_only)]
+
+
+class _UserRepo(UserRepository):
+    def __init__(self, users: list[UserAccount] | None = None) -> None:
+        self._rows = {user.id: user for user in users or []}
+
+    def add(self, user: UserAccount) -> None:
+        self._rows[user.id] = user
+
+    def update(self, user: UserAccount) -> None:
+        self._rows[user.id] = user
+
+    def get(self, user_id: str):
+        return self._rows.get(user_id)
+
+    def get_by_username(self, username: str):
+        normalized = (username or "").strip().lower()
+        for row in self._rows.values():
+            if row.username == normalized:
+                return row
+        return None
+
+    def get_by_federated_identity(self, identity_provider: str, federated_subject: str):
+        for row in self._rows.values():
+            if row.identity_provider == identity_provider and row.federated_subject == federated_subject:
+                return row
+        return None
+
+    def list_all(self):
+        return list(self._rows.values())
+
+
+class _WorkRequestRepo(MaintenanceWorkRequestRepository):
+    def __init__(self) -> None:
+        self._rows: dict[str, MaintenanceWorkRequest] = {}
+
+    def add(self, work_request: MaintenanceWorkRequest) -> None:
+        self._rows[work_request.id] = work_request
+
+    def update(self, work_request: MaintenanceWorkRequest) -> None:
+        work_request.version += 1
+        self._rows[work_request.id] = work_request
+
+    def get(self, work_request_id: str):
+        return self._rows.get(work_request_id)
+
+    def get_by_code(self, organization_id: str, work_request_code: str):
+        for row in self._rows.values():
+            if row.organization_id == organization_id and row.work_request_code == work_request_code:
+                return row
+        return None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        site_id=None,
+        asset_id=None,
+        component_id=None,
+        system_id=None,
+        location_id=None,
+        status=None,
+        priority=None,
+        requested_by_user_id=None,
+        triaged_by_user_id=None,
+    ):
+        rows = [row for row in self._rows.values() if row.organization_id == organization_id]
+        if site_id is not None:
+            rows = [row for row in rows if row.site_id == site_id]
+        if asset_id is not None:
+            rows = [row for row in rows if row.asset_id == asset_id]
+        if component_id is not None:
+            rows = [row for row in rows if row.component_id == component_id]
+        if system_id is not None:
+            rows = [row for row in rows if row.system_id == system_id]
+        if location_id is not None:
+            rows = [row for row in rows if row.location_id == location_id]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
+        if priority is not None:
+            rows = [row for row in rows if row.priority == priority]
+        if requested_by_user_id is not None:
+            rows = [row for row in rows if row.requested_by_user_id == requested_by_user_id]
+        if triaged_by_user_id is not None:
+            rows = [row for row in rows if row.triaged_by_user_id == triaged_by_user_id]
+        return rows
+
+
+class _WorkOrderRepo(MaintenanceWorkOrderRepository):
+    def __init__(self) -> None:
+        self._rows: dict[str, MaintenanceWorkOrder] = {}
+
+    def add(self, work_order: MaintenanceWorkOrder) -> None:
+        self._rows[work_order.id] = work_order
+
+    def update(self, work_order: MaintenanceWorkOrder) -> None:
+        work_order.version += 1
+        self._rows[work_order.id] = work_order
+
+    def get(self, work_order_id: str):
+        return self._rows.get(work_order_id)
+
+    def get_by_code(self, organization_id: str, work_order_code: str):
+        for row in self._rows.values():
+            if row.organization_id == organization_id and row.work_order_code == work_order_code:
+                return row
+        return None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        site_id=None,
+        asset_id=None,
+        component_id=None,
+        system_id=None,
+        location_id=None,
+        status=None,
+        priority=None,
+        assigned_employee_id=None,
+        assigned_team_id=None,
+        planner_user_id=None,
+        supervisor_user_id=None,
+        work_order_type=None,
+        is_preventive=None,
+        is_emergency=None,
+    ):
+        rows = [row for row in self._rows.values() if row.organization_id == organization_id]
+        if site_id is not None:
+            rows = [row for row in rows if row.site_id == site_id]
+        if asset_id is not None:
+            rows = [row for row in rows if row.asset_id == asset_id]
+        if component_id is not None:
+            rows = [row for row in rows if row.component_id == component_id]
+        if system_id is not None:
+            rows = [row for row in rows if row.system_id == system_id]
+        if location_id is not None:
+            rows = [row for row in rows if row.location_id == location_id]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
+        if priority is not None:
+            rows = [row for row in rows if row.priority == priority]
+        if assigned_employee_id is not None:
+            rows = [row for row in rows if row.assigned_employee_id == assigned_employee_id]
+        if assigned_team_id is not None:
+            rows = [row for row in rows if row.assigned_team_id == assigned_team_id]
+        if planner_user_id is not None:
+            rows = [row for row in rows if row.planner_user_id == planner_user_id]
+        if supervisor_user_id is not None:
+            rows = [row for row in rows if row.supervisor_user_id == supervisor_user_id]
+        if work_order_type is not None:
+            rows = [row for row in rows if row.work_order_type == work_order_type]
+        if is_preventive is not None:
+            rows = [row for row in rows if row.is_preventive == bool(is_preventive)]
+        if is_emergency is not None:
+            rows = [row for row in rows if row.is_emergency == bool(is_emergency)]
+        return rows
+
+
+class _WorkOrderTaskRepo(MaintenanceWorkOrderTaskRepository):
+    def __init__(self) -> None:
+        self._rows: dict[str, MaintenanceWorkOrderTask] = {}
+
+    def add(self, work_order_task: MaintenanceWorkOrderTask) -> None:
+        self._rows[work_order_task.id] = work_order_task
+
+    def update(self, work_order_task: MaintenanceWorkOrderTask) -> None:
+        work_order_task.version += 1
+        self._rows[work_order_task.id] = work_order_task
+
+    def get(self, work_order_task_id: str):
+        return self._rows.get(work_order_task_id)
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        work_order_id=None,
+        status=None,
+        assigned_employee_id=None,
+        assigned_team_id=None,
+    ):
+        rows = [row for row in self._rows.values() if row.organization_id == organization_id]
+        if work_order_id is not None:
+            rows = [row for row in rows if row.work_order_id == work_order_id]
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
+        if assigned_employee_id is not None:
+            rows = [row for row in rows if row.assigned_employee_id == assigned_employee_id]
+        if assigned_team_id is not None:
+            rows = [row for row in rows if row.assigned_team_id == assigned_team_id]
+        return rows
 
 
 def _user_session() -> UserSessionContext:
@@ -646,6 +848,206 @@ def test_maintenance_asset_component_service_rejects_parent_from_other_asset(ses
         assert exc.code == "MAINTENANCE_COMPONENT_ASSET_MISMATCH"
     else:
         raise AssertionError("Expected maintenance component asset mismatch validation error.")
+
+
+def test_maintenance_work_request_service_creates_and_triages_requests(session) -> None:
+    organization = Organization.create("ORG", "Org")
+    site = Site.create(organization.id, "MAIN", "Main Site")
+    location = MaintenanceLocation.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_code="AREA-REQ",
+        name="Request Area",
+    )
+    asset = MaintenanceAsset.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="ASSET-REQ",
+        name="Request Asset",
+    )
+    current_user = UserAccount.create("maintenance.admin", "hash", display_name="Maintenance Admin")
+    current_user.id = "u1"
+    work_request_repo = _WorkRequestRepo()
+    service = MaintenanceWorkRequestService(
+        session,
+        work_request_repo,
+        organization_repo=_OrgRepo(organization),
+        site_repo=_SiteRepo([site]),
+        user_repo=_UserRepo([current_user]),
+        asset_repo=_AssetRepo(),
+        component_repo=_ComponentRepo(),
+        location_repo=_LocationRepo(),
+        system_repo=_SystemRepo(),
+        user_session=_user_session(),
+    )
+    service._asset_repo.add(asset)
+    service._location_repo.add(location)
+    captured = []
+    domain_events.domain_changed.connect(captured.append)
+
+    request = service.create_work_request(
+        site_id=site.id,
+        work_request_code="wr-001",
+        source_type="manual",
+        request_type="breakdown",
+        asset_id=asset.id,
+        location_id=location.id,
+        title="Pump leaking",
+        priority="high",
+    )
+    triaged = service.update_work_request(
+        request.id,
+        status="TRIAGED",
+        expected_version=request.version,
+    )
+
+    assert request.work_request_code == "WR-001"
+    assert request.source_type.value == "MANUAL"
+    assert request.request_type == "BREAKDOWN"
+    assert request.requested_by_user_id == "u1"
+    assert request.requested_by_name_snapshot == "Maintenance Admin"
+    assert triaged.status.value == "TRIAGED"
+    assert triaged.triaged_by_user_id == "u1"
+    assert triaged.triaged_at is not None
+    assert captured[-1].entity_type == "maintenance_work_request"
+    assert captured[-1].source_event == "maintenance_work_requests_changed"
+
+
+def test_maintenance_work_order_service_creates_from_request_and_tracks_status(session) -> None:
+    organization = Organization.create("ORG", "Org")
+    site = Site.create(organization.id, "MAIN", "Main Site")
+    location = MaintenanceLocation.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_code="AREA-WO",
+        name="Order Area",
+    )
+    asset = MaintenanceAsset.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="ASSET-WO",
+        name="Work Order Asset",
+    )
+    work_request = MaintenanceWorkRequest.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        work_request_code="WR-WO-001",
+        source_type="MANUAL",
+        request_type="BREAKDOWN",
+        asset_id=asset.id,
+        location_id=location.id,
+        title="Repair pump",
+        description="Repair leaking pump",
+        priority="HIGH",
+    )
+    asset_repo = _AssetRepo()
+    asset_repo.add(asset)
+    location_repo = _LocationRepo()
+    location_repo.add(location)
+    work_request_repo = _WorkRequestRepo()
+    work_request_repo.add(work_request)
+    service = MaintenanceWorkOrderService(
+        session,
+        _WorkOrderRepo(),
+        organization_repo=_OrgRepo(organization),
+        site_repo=_SiteRepo([site]),
+        user_repo=_UserRepo(),
+        asset_repo=asset_repo,
+        component_repo=_ComponentRepo(),
+        location_repo=location_repo,
+        system_repo=_SystemRepo(),
+        work_request_repo=work_request_repo,
+        user_session=_user_session(),
+    )
+    captured = []
+    domain_events.domain_changed.connect(captured.append)
+
+    work_order = service.create_work_order(
+        site_id=site.id,
+        work_order_code="wo-001",
+        work_order_type="corrective",
+        source_type="work_request",
+        source_id=work_request.id,
+        assigned_team_id="TEAM-A",
+    )
+    planned = service.update_work_order(work_order.id, status="PLANNED", expected_version=work_order.version)
+    released = service.update_work_order(work_order.id, status="RELEASED", expected_version=planned.version)
+    started = service.update_work_order(work_order.id, status="IN_PROGRESS", expected_version=released.version)
+    completed = service.update_work_order(work_order.id, status="COMPLETED", expected_version=started.version)
+    closed = service.update_work_order(work_order.id, status="CLOSED", expected_version=completed.version)
+
+    assert work_order.work_order_code == "WO-001"
+    assert work_order.work_order_type.value == "CORRECTIVE"
+    assert work_order.asset_id == asset.id
+    assert work_order.location_id == location.id
+    assert work_order.title == "Repair pump"
+    assert work_order.assigned_team_id == "TEAM-A"
+    assert started.actual_start is not None
+    assert completed.actual_end is not None
+    assert closed.closed_at is not None
+    assert closed.closed_by_user_id == "u1"
+    assert captured[-1].entity_type == "maintenance_work_order"
+    assert captured[-1].source_event == "maintenance_work_orders_changed"
+
+
+def test_maintenance_work_order_task_service_creates_and_progresses_tasks(session) -> None:
+    organization = Organization.create("ORG", "Org")
+    site = Site.create(organization.id, "MAIN", "Main Site")
+    location = MaintenanceLocation.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_code="AREA-TASK",
+        name="Task Area",
+    )
+    asset = MaintenanceAsset.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="ASSET-TASK",
+        name="Task Asset",
+    )
+    work_order = MaintenanceWorkOrder.create(
+        organization_id=organization.id,
+        site_id=site.id,
+        work_order_code="WO-TASK-001",
+        work_order_type="CORRECTIVE",
+        source_type="MANUAL",
+        asset_id=asset.id,
+        location_id=location.id,
+        title="Repair fan",
+    )
+    work_order_repo = _WorkOrderRepo()
+    work_order_repo.add(work_order)
+    service = MaintenanceWorkOrderTaskService(
+        session,
+        _WorkOrderTaskRepo(),
+        organization_repo=_OrgRepo(organization),
+        work_order_repo=work_order_repo,
+        user_session=_user_session(),
+    )
+    captured = []
+    domain_events.domain_changed.connect(captured.append)
+
+    task = service.create_task(
+        work_order_id=work_order.id,
+        task_name="Isolate power",
+        assigned_team_id="TEAM-LOCKOUT",
+        estimated_minutes=30,
+    )
+    created_status = task.status.value
+    started = service.update_task(task.id, status="IN_PROGRESS", expected_version=task.version)
+    completed = service.update_task(started.id, status="COMPLETED", actual_minutes=28, expected_version=started.version)
+
+    assert task.sequence_no == 1
+    assert created_status == "NOT_STARTED"
+    assert task.assigned_team_id == "TEAM-LOCKOUT"
+    assert started.started_at is not None
+    assert completed.completed_at is not None
+    assert completed.actual_minutes == 28
+    assert captured[-1].entity_type == "maintenance_work_order_task"
+    assert captured[-1].source_event == "maintenance_work_order_tasks_changed"
 
 
 def test_maintenance_support_helpers_cover_priority_and_trigger_modes() -> None:
