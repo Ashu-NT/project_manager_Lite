@@ -403,6 +403,7 @@ Progress notes:
 - maintenance now also has the first asset-component slice, including component hierarchy validation, shared-party references, SQLAlchemy persistence, migration coverage, and service-graph exposure on top of the new asset foundation
 - maintenance now also has the first work-request and work-order slices, including lifecycle validation, source-request linkage, persistence coverage, service-graph exposure, and regression tests for real create/update flows before phase-1 execution tables continue
 - maintenance now also has the first `work_order_task` execution slice, including technician-facing task rows, status transitions, persistence, migration coverage, service-graph exposure, and regression tests ahead of the later `work_order_task_step` slice
+- maintenance now also has the first `work_order_task_step` execution slice, including step-level completion rules, confirmation/measurement capture, persistence, migration coverage, service-graph exposure, and regression tests before material-demand planning starts
 
 ## Guardrails
 

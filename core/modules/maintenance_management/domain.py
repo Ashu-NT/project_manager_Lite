@@ -90,6 +90,14 @@ class MaintenanceTaskCompletionRule(str, Enum):
     ALL_STEPS_REQUIRED = "ALL_STEPS_REQUIRED"
 
 
+class MaintenanceWorkOrderTaskStepStatus(str, Enum):
+    NOT_STARTED = "NOT_STARTED"
+    IN_PROGRESS = "IN_PROGRESS"
+    DONE = "DONE"
+    SKIPPED = "SKIPPED"
+    FAILED = "FAILED"
+
+
 @dataclass
 class MaintenanceLocation:
     id: str
@@ -646,6 +654,78 @@ class MaintenanceWorkOrderTask:
         )
 
 
+@dataclass
+class MaintenanceWorkOrderTaskStep:
+    id: str
+    organization_id: str
+    work_order_task_id: str
+    source_step_template_id: str | None = None
+    step_number: int = 1
+    instruction: str = ""
+    expected_result: str = ""
+    hint_level: str = ""
+    hint_text: str = ""
+    status: MaintenanceWorkOrderTaskStepStatus = MaintenanceWorkOrderTaskStepStatus.NOT_STARTED
+    requires_confirmation: bool = False
+    requires_measurement: bool = False
+    requires_photo: bool = False
+    measurement_value: str = ""
+    measurement_unit: str = ""
+    completed_by_user_id: str | None = None
+    completed_at: datetime | None = None
+    confirmed_by_user_id: str | None = None
+    confirmed_at: datetime | None = None
+    notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        work_order_task_id: str,
+        source_step_template_id: str | None = None,
+        step_number: int = 1,
+        instruction: str,
+        expected_result: str = "",
+        hint_level: str = "",
+        hint_text: str = "",
+        requires_confirmation: bool = False,
+        requires_measurement: bool = False,
+        requires_photo: bool = False,
+        measurement_value: str = "",
+        measurement_unit: str = "",
+        notes: str = "",
+    ) -> "MaintenanceWorkOrderTaskStep":
+        now = datetime.now(timezone.utc)
+        return MaintenanceWorkOrderTaskStep(
+            id=generate_id(),
+            organization_id=organization_id,
+            work_order_task_id=work_order_task_id,
+            source_step_template_id=source_step_template_id,
+            step_number=step_number,
+            instruction=instruction,
+            expected_result=expected_result,
+            hint_level=hint_level,
+            hint_text=hint_text,
+            status=MaintenanceWorkOrderTaskStepStatus.NOT_STARTED,
+            requires_confirmation=requires_confirmation,
+            requires_measurement=requires_measurement,
+            requires_photo=requires_photo,
+            measurement_value=measurement_value,
+            measurement_unit=measurement_unit,
+            completed_by_user_id=None,
+            completed_at=None,
+            confirmed_by_user_id=None,
+            confirmed_at=None,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
 __all__ = [
     "MaintenanceAsset",
     "MaintenanceAssetComponent",
@@ -657,6 +737,8 @@ __all__ = [
     "MaintenanceTriggerMode",
     "MaintenanceWorkOrder",
     "MaintenanceWorkOrderTask",
+    "MaintenanceWorkOrderTaskStep",
+    "MaintenanceWorkOrderTaskStepStatus",
     "MaintenanceWorkOrderTaskStatus",
     "MaintenanceWorkOrderStatus",
     "MaintenanceWorkOrderType",

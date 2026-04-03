@@ -216,6 +216,8 @@ def test_maintenance_management_now_has_core_foundation_packages():
     assert (root / "services" / "work_order" / "service.py").exists()
     assert (root / "services" / "work_order_task" / "__init__.py").exists()
     assert (root / "services" / "work_order_task" / "service.py").exists()
+    assert (root / "services" / "work_order_task_step" / "__init__.py").exists()
+    assert (root / "services" / "work_order_task_step" / "service.py").exists()
     assert (infra_root / "db" / "__init__.py").exists()
     assert (infra_root / "db" / "mapper.py").exists()
     assert (infra_root / "db" / "repository.py").exists()

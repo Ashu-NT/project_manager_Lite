@@ -9,6 +9,7 @@ from core.modules.maintenance_management.domain import (
     MaintenancePriority,
     MaintenanceTriggerMode,
     MaintenanceTaskCompletionRule,
+    MaintenanceWorkOrderTaskStepStatus,
     MaintenanceWorkOrderStatus,
     MaintenanceWorkOrderTaskStatus,
     MaintenanceWorkOrderType,
@@ -206,6 +207,21 @@ def coerce_task_completion_rule(
         ) from exc
 
 
+def coerce_work_order_task_step_status(
+    value: MaintenanceWorkOrderTaskStepStatus | str | None,
+) -> MaintenanceWorkOrderTaskStepStatus:
+    if isinstance(value, MaintenanceWorkOrderTaskStepStatus):
+        return value
+    raw = str(value or MaintenanceWorkOrderTaskStepStatus.NOT_STARTED.value).strip().upper()
+    try:
+        return MaintenanceWorkOrderTaskStepStatus(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance work order task step status is invalid.",
+            code="MAINTENANCE_WORK_ORDER_TASK_STEP_STATUS_INVALID",
+        ) from exc
+
+
 __all__ = [
     "coerce_criticality",
     "coerce_lifecycle_status",
@@ -214,6 +230,7 @@ __all__ = [
     "coerce_optional_non_negative_int",
     "coerce_priority",
     "coerce_task_completion_rule",
+    "coerce_work_order_task_step_status",
     "coerce_trigger_mode",
     "coerce_work_order_status",
     "coerce_work_order_task_status",

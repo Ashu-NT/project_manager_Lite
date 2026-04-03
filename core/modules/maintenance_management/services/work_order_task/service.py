@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.modules.maintenance_management.domain import (
+    MaintenanceTaskCompletionRule,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,
     MaintenanceWorkOrderTask,
@@ -14,10 +15,12 @@ from core.modules.maintenance_management.domain import (
 from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
+    MaintenanceWorkOrderTaskStepRepository,
 )
 from core.modules.maintenance_management.services.work_order_task.validation import (
     MaintenanceWorkOrderTaskValidationMixin,
 )
+from core.modules.maintenance_management.services.work_order_task_step import task_steps_satisfy_completion_rule
 from core.modules.maintenance_management.support import (
     coerce_optional_non_negative_int,
     coerce_task_completion_rule,
@@ -42,6 +45,7 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
         *,
         organization_repo: OrganizationRepository,
         work_order_repo: MaintenanceWorkOrderRepository,
+        work_order_task_step_repo: MaintenanceWorkOrderTaskStepRepository | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -49,6 +53,7 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
         self._work_order_task_repo = work_order_task_repo
         self._organization_repo = organization_repo
         self._work_order_repo = work_order_repo
+        self._work_order_task_step_repo = work_order_task_step_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -220,6 +225,8 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
         if status is not None:
             new_status = coerce_work_order_task_status(status)
             self._validate_work_order_task_status_transition(task.status, new_status)
+            if new_status == MaintenanceWorkOrderTaskStatus.COMPLETED:
+                self._validate_task_completion(task)
             task.status = new_status
             now = datetime.now(timezone.utc)
             if new_status == MaintenanceWorkOrderTaskStatus.IN_PROGRESS and task.started_at is None:
@@ -283,6 +290,25 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
             raise BusinessRuleError(
                 "Tasks cannot be changed once the work order is cancelled or closed.",
                 code="MAINTENANCE_WORK_ORDER_NOT_MUTABLE",
+            )
+
+    def _validate_task_completion(self, task: MaintenanceWorkOrderTask) -> None:
+        step_repo = self._work_order_task_step_repo
+        if task.completion_rule == MaintenanceTaskCompletionRule.NO_STEPS_REQUIRED:
+            return
+        if step_repo is None:
+            raise ValidationError(
+                "Work order task step repository is required for step-based completion checks.",
+                code="MAINTENANCE_WORK_ORDER_TASK_STEPS_REQUIRED",
+            )
+        steps = step_repo.list_for_organization(
+            task.organization_id,
+            work_order_task_id=task.id,
+        )
+        if not task_steps_satisfy_completion_rule(task, steps):
+            raise ValidationError(
+                "All required steps must be completed before the task can be completed.",
+                code="MAINTENANCE_WORK_ORDER_TASK_STEPS_INCOMPLETE",
             )
 
     def _scope_anchor_for(self, task: MaintenanceWorkOrderTask) -> str:

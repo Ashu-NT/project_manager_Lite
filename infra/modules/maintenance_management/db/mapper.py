@@ -7,6 +7,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceSystem,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderTask,
+    MaintenanceWorkOrderTaskStep,
     MaintenanceWorkRequest,
 )
 from infra.platform.db.maintenance_models import (
@@ -16,6 +17,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceSystemORM,
     MaintenanceWorkOrderORM,
     MaintenanceWorkOrderTaskORM,
+    MaintenanceWorkOrderTaskStepORM,
     MaintenanceWorkRequestORM,
 )
 
@@ -442,6 +444,66 @@ def maintenance_work_order_task_from_orm(obj: MaintenanceWorkOrderTaskORM) -> Ma
     )
 
 
+def maintenance_work_order_task_step_to_orm(
+    work_order_task_step: MaintenanceWorkOrderTaskStep,
+) -> MaintenanceWorkOrderTaskStepORM:
+    return MaintenanceWorkOrderTaskStepORM(
+        id=work_order_task_step.id,
+        organization_id=work_order_task_step.organization_id,
+        work_order_task_id=work_order_task_step.work_order_task_id,
+        source_step_template_id=work_order_task_step.source_step_template_id,
+        step_number=work_order_task_step.step_number,
+        instruction=work_order_task_step.instruction,
+        expected_result=work_order_task_step.expected_result,
+        hint_level=work_order_task_step.hint_level,
+        hint_text=work_order_task_step.hint_text,
+        status=work_order_task_step.status,
+        requires_confirmation=work_order_task_step.requires_confirmation,
+        requires_measurement=work_order_task_step.requires_measurement,
+        requires_photo=work_order_task_step.requires_photo,
+        measurement_value=work_order_task_step.measurement_value,
+        measurement_unit=work_order_task_step.measurement_unit,
+        completed_by_user_id=work_order_task_step.completed_by_user_id,
+        completed_at=work_order_task_step.completed_at,
+        confirmed_by_user_id=work_order_task_step.confirmed_by_user_id,
+        confirmed_at=work_order_task_step.confirmed_at,
+        notes=work_order_task_step.notes,
+        created_at=work_order_task_step.created_at,
+        updated_at=work_order_task_step.updated_at,
+        version=getattr(work_order_task_step, "version", 1),
+    )
+
+
+def maintenance_work_order_task_step_from_orm(
+    obj: MaintenanceWorkOrderTaskStepORM,
+) -> MaintenanceWorkOrderTaskStep:
+    return MaintenanceWorkOrderTaskStep(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        work_order_task_id=obj.work_order_task_id,
+        source_step_template_id=obj.source_step_template_id,
+        step_number=obj.step_number,
+        instruction=obj.instruction,
+        expected_result=obj.expected_result,
+        hint_level=obj.hint_level,
+        hint_text=obj.hint_text,
+        status=obj.status,
+        requires_confirmation=obj.requires_confirmation,
+        requires_measurement=obj.requires_measurement,
+        requires_photo=obj.requires_photo,
+        measurement_value=obj.measurement_value,
+        measurement_unit=obj.measurement_unit,
+        completed_by_user_id=obj.completed_by_user_id,
+        completed_at=obj.completed_at,
+        confirmed_by_user_id=obj.confirmed_by_user_id,
+        confirmed_at=obj.confirmed_at,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
 __all__ = [
     "maintenance_asset_from_orm",
     "maintenance_asset_component_from_orm",
@@ -453,6 +515,8 @@ __all__ = [
     "maintenance_system_to_orm",
     "maintenance_work_order_from_orm",
     "maintenance_work_order_task_from_orm",
+    "maintenance_work_order_task_step_from_orm",
+    "maintenance_work_order_task_step_to_orm",
     "maintenance_work_order_task_to_orm",
     "maintenance_work_order_to_orm",
     "maintenance_work_request_from_orm",

@@ -404,3 +404,73 @@ def test_maintenance_work_order_tasks_persist_via_service_graph(services):
     assert completed_task.completed_at is not None
     assert [row.sequence_no for row in listed_tasks] == [1, 2]
     assert listed_tasks[0].id == first_task.id
+
+
+def test_maintenance_work_order_task_steps_persist_via_service_graph(services):
+    site = services["site_service"].create_site(site_code="MNT-WOSTEP", name="Maintenance Step Plant")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="step-area",
+        name="Step Area",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="step-asset",
+        name="Step Asset",
+    )
+    work_order = services["maintenance_work_order_service"].create_work_order(
+        site_id=site.id,
+        work_order_code="wo-step-100",
+        work_order_type="corrective",
+        source_type="manual",
+        asset_id=asset.id,
+        location_id=location.id,
+        title="Restore pump alignment",
+    )
+    task = services["maintenance_work_order_task_service"].create_task(
+        work_order_id=work_order.id,
+        task_name="Set final alignment",
+        completion_rule="all_steps_required",
+    )
+
+    confirm_step = services["maintenance_work_order_task_step_service"].create_step(
+        work_order_task_id=task.id,
+        instruction="Confirm coupling seating",
+        requires_confirmation=True,
+    )
+    measure_step = services["maintenance_work_order_task_step_service"].create_step(
+        work_order_task_id=task.id,
+        instruction="Capture final vibration",
+        requires_measurement=True,
+        measurement_unit="MM/S",
+    )
+
+    done_confirm_step = services["maintenance_work_order_task_step_service"].update_step(
+        confirm_step.id,
+        status="DONE",
+        expected_version=confirm_step.version,
+    )
+    confirmed_step = services["maintenance_work_order_task_step_service"].update_step(
+        confirm_step.id,
+        confirm_completion=True,
+        expected_version=done_confirm_step.version,
+    )
+    done_measure_step = services["maintenance_work_order_task_step_service"].update_step(
+        measure_step.id,
+        measurement_value="2.3",
+        status="DONE",
+        expected_version=measure_step.version,
+    )
+    completed_task = services["maintenance_work_order_task_service"].update_task(
+        task.id,
+        status="COMPLETED",
+        expected_version=task.version,
+    )
+    listed_steps = services["maintenance_work_order_task_step_service"].list_steps(work_order_task_id=task.id)
+
+    assert confirmed_step.confirmed_at is not None
+    assert confirmed_step.confirmed_by_user_id == services["user_session"].principal.user_id
+    assert done_measure_step.measurement_value == "2.3"
+    assert completed_task.status.value == "COMPLETED"
+    assert [row.step_number for row in listed_steps] == [1, 2]

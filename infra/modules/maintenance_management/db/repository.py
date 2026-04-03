@@ -10,6 +10,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceSystem,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderTask,
+    MaintenanceWorkOrderTaskStep,
     MaintenanceWorkRequest,
 )
 from core.modules.maintenance_management.interfaces import (
@@ -19,6 +20,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
+    MaintenanceWorkOrderTaskStepRepository,
     MaintenanceWorkRequestRepository,
 )
 from infra.modules.maintenance_management.db.mapper import (
@@ -32,6 +34,8 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_system_to_orm,
     maintenance_work_order_from_orm,
     maintenance_work_order_task_from_orm,
+    maintenance_work_order_task_step_from_orm,
+    maintenance_work_order_task_step_to_orm,
     maintenance_work_order_task_to_orm,
     maintenance_work_order_to_orm,
     maintenance_work_request_from_orm,
@@ -44,6 +48,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceSystemORM,
     MaintenanceWorkOrderORM,
     MaintenanceWorkOrderTaskORM,
+    MaintenanceWorkOrderTaskStepORM,
     MaintenanceWorkRequestORM,
 )
 from infra.platform.db.optimistic import update_with_version_check
@@ -655,6 +660,67 @@ class SqlAlchemyMaintenanceWorkOrderTaskRepository(MaintenanceWorkOrderTaskRepos
         return [maintenance_work_order_task_from_orm(row) for row in rows]
 
 
+class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(MaintenanceWorkOrderTaskStepRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, work_order_task_step: MaintenanceWorkOrderTaskStep) -> None:
+        self.session.add(maintenance_work_order_task_step_to_orm(work_order_task_step))
+
+    def update(self, work_order_task_step: MaintenanceWorkOrderTaskStep) -> None:
+        work_order_task_step.version = update_with_version_check(
+            self.session,
+            MaintenanceWorkOrderTaskStepORM,
+            work_order_task_step.id,
+            getattr(work_order_task_step, "version", 1),
+            {
+                "work_order_task_id": work_order_task_step.work_order_task_id,
+                "source_step_template_id": work_order_task_step.source_step_template_id,
+                "step_number": work_order_task_step.step_number,
+                "instruction": work_order_task_step.instruction,
+                "expected_result": work_order_task_step.expected_result,
+                "hint_level": work_order_task_step.hint_level,
+                "hint_text": work_order_task_step.hint_text,
+                "status": work_order_task_step.status,
+                "requires_confirmation": work_order_task_step.requires_confirmation,
+                "requires_measurement": work_order_task_step.requires_measurement,
+                "requires_photo": work_order_task_step.requires_photo,
+                "measurement_value": work_order_task_step.measurement_value,
+                "measurement_unit": work_order_task_step.measurement_unit,
+                "completed_by_user_id": work_order_task_step.completed_by_user_id,
+                "completed_at": work_order_task_step.completed_at,
+                "confirmed_by_user_id": work_order_task_step.confirmed_by_user_id,
+                "confirmed_at": work_order_task_step.confirmed_at,
+                "notes": work_order_task_step.notes,
+                "created_at": work_order_task_step.created_at,
+                "updated_at": work_order_task_step.updated_at,
+            },
+            not_found_message="Maintenance work order task step not found.",
+            stale_message="Maintenance work order task step was updated by another user.",
+        )
+
+    def get(self, work_order_task_step_id: str) -> MaintenanceWorkOrderTaskStep | None:
+        obj = self.session.get(MaintenanceWorkOrderTaskStepORM, work_order_task_step_id)
+        return maintenance_work_order_task_step_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        work_order_task_id: str | None = None,
+        status: str | None = None,
+    ) -> list[MaintenanceWorkOrderTaskStep]:
+        stmt = select(MaintenanceWorkOrderTaskStepORM).where(MaintenanceWorkOrderTaskStepORM.organization_id == organization_id)
+        if work_order_task_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderTaskStepORM.work_order_task_id == work_order_task_id)
+        if status is not None:
+            stmt = stmt.where(MaintenanceWorkOrderTaskStepORM.status == status)
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceWorkOrderTaskStepORM.step_number.asc(), MaintenanceWorkOrderTaskStepORM.created_at.asc())
+        ).scalars().all()
+        return [maintenance_work_order_task_step_from_orm(row) for row in rows]
+
+
 __all__ = [
     "SqlAlchemyMaintenanceAssetRepository",
     "SqlAlchemyMaintenanceAssetComponentRepository",
@@ -662,5 +728,6 @@ __all__ = [
     "SqlAlchemyMaintenanceSystemRepository",
     "SqlAlchemyMaintenanceWorkOrderRepository",
     "SqlAlchemyMaintenanceWorkOrderTaskRepository",
+    "SqlAlchemyMaintenanceWorkOrderTaskStepRepository",
     "SqlAlchemyMaintenanceWorkRequestRepository",
 ]

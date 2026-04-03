@@ -5,6 +5,7 @@ from .runtime_catalog import MaintenanceRuntimeContractCatalogService
 from .system import MaintenanceSystemService
 from .work_order import MaintenanceWorkOrderService
 from .work_order_task import MaintenanceWorkOrderTaskService
+from .work_order_task_step import MaintenanceWorkOrderTaskStepService
 from .work_request import MaintenanceWorkRequestService
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "MaintenanceSystemService",
     "MaintenanceWorkOrderService",
     "MaintenanceWorkOrderTaskService",
+    "MaintenanceWorkOrderTaskStepService",
     "MaintenanceWorkRequestService",
 ]

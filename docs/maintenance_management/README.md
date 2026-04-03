@@ -2148,8 +2148,8 @@ Build first:
 
 Current kickoff status:
 
-- started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, and `work_order_task` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
-- pending: import handlers, UI surfaces, and the rest of the phase-1 execution tables such as `work_order_task_step`
+- started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, and `work_order_task_step` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
+- pending: import handlers, UI surfaces, and the next phase-1 execution tables such as `work_order_material_requirement`
 
 Phase 1 UI:
 
