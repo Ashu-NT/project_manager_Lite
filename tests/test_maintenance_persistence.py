@@ -474,3 +474,79 @@ def test_maintenance_work_order_task_steps_persist_via_service_graph(services):
     assert done_measure_step.measurement_value == "2.3"
     assert completed_task.status.value == "COMPLETED"
     assert [row.step_number for row in listed_steps] == [1, 2]
+
+
+def test_maintenance_material_requirements_persist_and_escalate_via_service_graph(services):
+    site = services["site_service"].create_site(
+        site_code="MNT-MAT",
+        name="Maintenance Material Plant",
+        currency_code="EUR",
+    )
+    category = services["inventory_item_category_service"].create_category(
+        category_code="MNT-SPARE",
+        name="Maintenance Spare",
+        category_type="SPARE",
+        supports_maintenance_usage=True,
+    )
+    storeroom = services["inventory_service"].create_storeroom(
+        storeroom_code="MNT-STR",
+        name="Maintenance Storeroom",
+        site_id=site.id,
+        status="ACTIVE",
+    )
+    item = services["inventory_item_service"].create_item(
+        item_code="MNT-ITEM-100",
+        name="Mechanical Seal Kit",
+        status="ACTIVE",
+        stock_uom="EA",
+        category_code=category.category_code,
+        is_stocked=False,
+        is_purchase_allowed=True,
+    )
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="mat-area",
+        name="Material Area",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="mat-asset",
+        name="Material Asset",
+    )
+    work_order = services["maintenance_work_order_service"].create_work_order(
+        site_id=site.id,
+        work_order_code="wo-mat-100",
+        work_order_type="corrective",
+        source_type="manual",
+        asset_id=asset.id,
+        location_id=location.id,
+        title="Replace seal assembly",
+    )
+
+    requirement = services["maintenance_work_order_material_requirement_service"].create_requirement(
+        work_order_id=work_order.id,
+        stock_item_id=item.id,
+        preferred_storeroom_id=storeroom.id,
+        required_qty="3",
+        notes="Seal kit demand",
+    )
+    refreshed = services["maintenance_work_order_material_requirement_service"].refresh_requirement_availability(
+        requirement.id,
+        expected_version=requirement.version,
+    )
+    escalation = services["maintenance_work_order_material_requirement_service"].escalate_requirement_shortage(
+        requirement.id,
+        expected_version=refreshed.version,
+        notes="Escalate seal kit shortage",
+    )
+    reloaded = services["maintenance_work_order_material_requirement_service"].get_requirement(requirement.id)
+    listed = services["maintenance_work_order_material_requirement_service"].list_requirements(
+        work_order_id=work_order.id
+    )
+
+    assert refreshed.last_availability_status == "DIRECT_PROCUREMENT_ONLY"
+    assert refreshed.procurement_status.value == "SHORTAGE_IDENTIFIED"
+    assert escalation.requisition.id == reloaded.linked_requisition_id
+    assert reloaded.procurement_status.value == "REQUISITIONED"
+    assert [row.id for row in listed] == [requirement.id]

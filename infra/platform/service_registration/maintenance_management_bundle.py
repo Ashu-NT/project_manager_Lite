@@ -7,6 +7,7 @@ from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
     MaintenanceLocationService,
+    MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
@@ -24,12 +25,14 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceAssetComponentRepository,
     SqlAlchemyMaintenanceLocationRepository,
     SqlAlchemyMaintenanceSystemRepository,
+    SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository,
     SqlAlchemyMaintenanceWorkOrderRepository,
     SqlAlchemyMaintenanceWorkOrderTaskRepository,
     SqlAlchemyMaintenanceWorkOrderTaskStepRepository,
     SqlAlchemyMaintenanceWorkRequestRepository,
 )
 from infra.platform.db.auth.repository import SqlAlchemyUserRepository
+from infra.platform.service_registration.inventory_procurement_bundle import InventoryProcurementServiceBundle
 from infra.platform.service_registration.platform_bundle import PlatformServiceBundle
 
 
@@ -42,12 +45,14 @@ class MaintenanceManagementServiceBundle:
     maintenance_system_service: MaintenanceSystemService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
+    maintenance_work_order_material_requirement_service: MaintenanceWorkOrderMaterialRequirementService
     maintenance_work_order_task_service: MaintenanceWorkOrderTaskService
     maintenance_work_order_task_step_service: MaintenanceWorkOrderTaskStepService
 
 
 def build_maintenance_management_service_bundle(
     platform_services: PlatformServiceBundle,
+    inventory_services: InventoryProcurementServiceBundle,
 ) -> MaintenanceManagementServiceBundle:
     location_repo = SqlAlchemyMaintenanceLocationRepository(platform_services.session)
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
@@ -55,6 +60,7 @@ def build_maintenance_management_service_bundle(
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
     work_request_repo = SqlAlchemyMaintenanceWorkRequestRepository(platform_services.session)
     work_order_repo = SqlAlchemyMaintenanceWorkOrderRepository(platform_services.session)
+    work_order_material_requirement_repo = SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(platform_services.session)
     work_order_task_repo = SqlAlchemyMaintenanceWorkOrderTaskRepository(platform_services.session)
     work_order_task_step_repo = SqlAlchemyMaintenanceWorkOrderTaskStepRepository(platform_services.session)
     user_repo = SqlAlchemyUserRepository(platform_services.session)
@@ -141,6 +147,17 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_work_order_material_requirement_service = MaintenanceWorkOrderMaterialRequirementService(
+        platform_services.session,
+        work_order_material_requirement_repo,
+        organization_repo=platform_services.organization_repo,
+        work_order_repo=work_order_repo,
+        item_service=inventory_services.inventory_item_service,
+        inventory_service=inventory_services.inventory_service,
+        maintenance_material_service=inventory_services.inventory_maintenance_material_service,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     maintenance_work_order_task_service = MaintenanceWorkOrderTaskService(
         platform_services.session,
         work_order_task_repo,
@@ -167,6 +184,7 @@ def build_maintenance_management_service_bundle(
         maintenance_system_service=maintenance_system_service,
         maintenance_work_request_service=maintenance_work_request_service,
         maintenance_work_order_service=maintenance_work_order_service,
+        maintenance_work_order_material_requirement_service=maintenance_work_order_material_requirement_service,
         maintenance_work_order_task_service=maintenance_work_order_task_service,
         maintenance_work_order_task_step_service=maintenance_work_order_task_step_service,
     )

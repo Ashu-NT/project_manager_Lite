@@ -35,6 +35,7 @@ from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
     MaintenanceLocationService,
+    MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
@@ -103,6 +104,7 @@ class ServiceGraph:
     maintenance_system_service: MaintenanceSystemService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
+    maintenance_work_order_material_requirement_service: MaintenanceWorkOrderMaterialRequirementService
     maintenance_work_order_task_service: MaintenanceWorkOrderTaskService
     maintenance_work_order_task_step_service: MaintenanceWorkOrderTaskStepService
     access_service: AccessControlService
@@ -163,6 +165,7 @@ class ServiceGraph:
             "maintenance_system_service": self.maintenance_system_service,
             "maintenance_work_request_service": self.maintenance_work_request_service,
             "maintenance_work_order_service": self.maintenance_work_order_service,
+            "maintenance_work_order_material_requirement_service": self.maintenance_work_order_material_requirement_service,
             "maintenance_work_order_task_service": self.maintenance_work_order_task_service,
             "maintenance_work_order_task_step_service": self.maintenance_work_order_task_step_service,
             "access_service": self.access_service,
@@ -194,7 +197,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
     repositories = build_repository_bundle(session)
     platform_services = build_platform_service_bundle(session, repositories)
     inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
-    maintenance_management_services = build_maintenance_management_service_bundle(platform_services)
+    maintenance_management_services = build_maintenance_management_service_bundle(
+        platform_services,
+        inventory_procurement_services,
+    )
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
@@ -234,6 +240,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_system_service=maintenance_management_services.maintenance_system_service,
         maintenance_work_request_service=maintenance_management_services.maintenance_work_request_service,
         maintenance_work_order_service=maintenance_management_services.maintenance_work_order_service,
+        maintenance_work_order_material_requirement_service=maintenance_management_services.maintenance_work_order_material_requirement_service,
         maintenance_work_order_task_service=maintenance_management_services.maintenance_work_order_task_service,
         maintenance_work_order_task_step_service=maintenance_management_services.maintenance_work_order_task_step_service,
         access_service=platform_services.access_service,

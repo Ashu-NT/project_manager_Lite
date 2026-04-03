@@ -105,10 +105,7 @@ class InventoryService:
 
     def get_storeroom(self, storeroom_id: str) -> Storeroom:
         self._require_read("view storeroom")
-        organization = self._active_organization()
-        storeroom = self._storeroom_repo.get(storeroom_id)
-        if storeroom is None or storeroom.organization_id != organization.id:
-            raise NotFoundError("Storeroom not found in the active organization.", code="INVENTORY_STOREROOM_NOT_FOUND")
+        storeroom = self.get_storeroom_for_internal_use(storeroom_id)
         require_scope_permission(
             self._user_session,
             "storeroom",
@@ -116,6 +113,13 @@ class InventoryService:
             "inventory.read",
             operation_label="view storeroom",
         )
+        return storeroom
+
+    def get_storeroom_for_internal_use(self, storeroom_id: str) -> Storeroom:
+        organization = self._active_organization()
+        storeroom = self._storeroom_repo.get(storeroom_id)
+        if storeroom is None or storeroom.organization_id != organization.id:
+            raise NotFoundError("Storeroom not found in the active organization.", code="INVENTORY_STOREROOM_NOT_FOUND")
         return storeroom
 
     def find_storeroom_by_code(self, storeroom_code: str) -> Storeroom | None:

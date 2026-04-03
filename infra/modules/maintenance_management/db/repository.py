@@ -7,6 +7,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceLocation,
+    MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderTask,
@@ -18,6 +19,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetComponentRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
+    MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
     MaintenanceWorkOrderTaskStepRepository,
@@ -30,6 +32,8 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_asset_to_orm,
     maintenance_location_from_orm,
     maintenance_location_to_orm,
+    maintenance_work_order_material_requirement_from_orm,
+    maintenance_work_order_material_requirement_to_orm,
     maintenance_system_from_orm,
     maintenance_system_to_orm,
     maintenance_work_order_from_orm,
@@ -46,6 +50,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetORM,
     MaintenanceLocationORM,
     MaintenanceSystemORM,
+    MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceWorkOrderORM,
     MaintenanceWorkOrderTaskORM,
     MaintenanceWorkOrderTaskStepORM,
@@ -721,11 +726,80 @@ class SqlAlchemyMaintenanceWorkOrderTaskStepRepository(MaintenanceWorkOrderTaskS
         return [maintenance_work_order_task_step_from_orm(row) for row in rows]
 
 
+class SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(
+    MaintenanceWorkOrderMaterialRequirementRepository
+):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, material_requirement: MaintenanceWorkOrderMaterialRequirement) -> None:
+        self.session.add(maintenance_work_order_material_requirement_to_orm(material_requirement))
+
+    def update(self, material_requirement: MaintenanceWorkOrderMaterialRequirement) -> None:
+        material_requirement.version = update_with_version_check(
+            self.session,
+            MaintenanceWorkOrderMaterialRequirementORM,
+            material_requirement.id,
+            getattr(material_requirement, "version", 1),
+            {
+                "work_order_id": material_requirement.work_order_id,
+                "stock_item_id": material_requirement.stock_item_id,
+                "description": material_requirement.description,
+                "required_qty": material_requirement.required_qty,
+                "issued_qty": material_requirement.issued_qty,
+                "required_uom": material_requirement.required_uom,
+                "is_stock_item": material_requirement.is_stock_item,
+                "preferred_storeroom_id": material_requirement.preferred_storeroom_id,
+                "procurement_status": material_requirement.procurement_status,
+                "last_availability_status": material_requirement.last_availability_status,
+                "last_missing_qty": material_requirement.last_missing_qty,
+                "linked_requisition_id": material_requirement.linked_requisition_id,
+                "notes": material_requirement.notes,
+                "created_at": material_requirement.created_at,
+                "updated_at": material_requirement.updated_at,
+            },
+            not_found_message="Maintenance material requirement not found.",
+            stale_message="Maintenance material requirement was updated by another user.",
+        )
+
+    def get(self, material_requirement_id: str) -> MaintenanceWorkOrderMaterialRequirement | None:
+        obj = self.session.get(MaintenanceWorkOrderMaterialRequirementORM, material_requirement_id)
+        return maintenance_work_order_material_requirement_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        work_order_id: str | None = None,
+        procurement_status: str | None = None,
+        preferred_storeroom_id: str | None = None,
+        stock_item_id: str | None = None,
+    ) -> list[MaintenanceWorkOrderMaterialRequirement]:
+        stmt = select(MaintenanceWorkOrderMaterialRequirementORM).where(
+            MaintenanceWorkOrderMaterialRequirementORM.organization_id == organization_id
+        )
+        if work_order_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderMaterialRequirementORM.work_order_id == work_order_id)
+        if procurement_status is not None:
+            stmt = stmt.where(MaintenanceWorkOrderMaterialRequirementORM.procurement_status == procurement_status)
+        if preferred_storeroom_id is not None:
+            stmt = stmt.where(
+                MaintenanceWorkOrderMaterialRequirementORM.preferred_storeroom_id == preferred_storeroom_id
+            )
+        if stock_item_id is not None:
+            stmt = stmt.where(MaintenanceWorkOrderMaterialRequirementORM.stock_item_id == stock_item_id)
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceWorkOrderMaterialRequirementORM.created_at.asc())
+        ).scalars().all()
+        return [maintenance_work_order_material_requirement_from_orm(row) for row in rows]
+
+
 __all__ = [
     "SqlAlchemyMaintenanceAssetRepository",
     "SqlAlchemyMaintenanceAssetComponentRepository",
     "SqlAlchemyMaintenanceLocationRepository",
     "SqlAlchemyMaintenanceSystemRepository",
+    "SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository",
     "SqlAlchemyMaintenanceWorkOrderRepository",
     "SqlAlchemyMaintenanceWorkOrderTaskRepository",
     "SqlAlchemyMaintenanceWorkOrderTaskStepRepository",

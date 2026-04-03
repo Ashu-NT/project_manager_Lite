@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
+    MaintenanceMaterialProcurementStatus,
     MaintenancePriority,
     MaintenanceTriggerMode,
     MaintenanceTaskCompletionRule,
@@ -222,8 +223,24 @@ def coerce_work_order_task_step_status(
         ) from exc
 
 
+def coerce_material_procurement_status(
+    value: MaintenanceMaterialProcurementStatus | str | None,
+) -> MaintenanceMaterialProcurementStatus:
+    if isinstance(value, MaintenanceMaterialProcurementStatus):
+        return value
+    raw = str(value or MaintenanceMaterialProcurementStatus.PLANNED.value).strip().upper()
+    try:
+        return MaintenanceMaterialProcurementStatus(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance material procurement status is invalid.",
+            code="MAINTENANCE_MATERIAL_PROCUREMENT_STATUS_INVALID",
+        ) from exc
+
+
 __all__ = [
     "coerce_criticality",
+    "coerce_material_procurement_status",
     "coerce_lifecycle_status",
     "coerce_optional_date",
     "coerce_optional_decimal",

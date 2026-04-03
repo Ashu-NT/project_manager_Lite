@@ -4,6 +4,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceLocation,
+    MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderTask,
@@ -15,6 +16,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetORM,
     MaintenanceLocationORM,
     MaintenanceSystemORM,
+    MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceWorkOrderORM,
     MaintenanceWorkOrderTaskORM,
     MaintenanceWorkOrderTaskStepORM,
@@ -504,6 +506,56 @@ def maintenance_work_order_task_step_from_orm(
     )
 
 
+def maintenance_work_order_material_requirement_to_orm(
+    material_requirement: MaintenanceWorkOrderMaterialRequirement,
+) -> MaintenanceWorkOrderMaterialRequirementORM:
+    return MaintenanceWorkOrderMaterialRequirementORM(
+        id=material_requirement.id,
+        organization_id=material_requirement.organization_id,
+        work_order_id=material_requirement.work_order_id,
+        stock_item_id=material_requirement.stock_item_id,
+        description=material_requirement.description,
+        required_qty=material_requirement.required_qty,
+        issued_qty=material_requirement.issued_qty,
+        required_uom=material_requirement.required_uom,
+        is_stock_item=material_requirement.is_stock_item,
+        preferred_storeroom_id=material_requirement.preferred_storeroom_id,
+        procurement_status=material_requirement.procurement_status,
+        last_availability_status=material_requirement.last_availability_status,
+        last_missing_qty=material_requirement.last_missing_qty,
+        linked_requisition_id=material_requirement.linked_requisition_id,
+        notes=material_requirement.notes,
+        created_at=material_requirement.created_at,
+        updated_at=material_requirement.updated_at,
+        version=getattr(material_requirement, "version", 1),
+    )
+
+
+def maintenance_work_order_material_requirement_from_orm(
+    obj: MaintenanceWorkOrderMaterialRequirementORM,
+) -> MaintenanceWorkOrderMaterialRequirement:
+    return MaintenanceWorkOrderMaterialRequirement(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        work_order_id=obj.work_order_id,
+        stock_item_id=obj.stock_item_id,
+        description=obj.description,
+        required_qty=obj.required_qty,
+        issued_qty=obj.issued_qty,
+        required_uom=obj.required_uom,
+        is_stock_item=obj.is_stock_item,
+        preferred_storeroom_id=obj.preferred_storeroom_id,
+        procurement_status=obj.procurement_status,
+        last_availability_status=obj.last_availability_status,
+        last_missing_qty=obj.last_missing_qty,
+        linked_requisition_id=obj.linked_requisition_id,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
 __all__ = [
     "maintenance_asset_from_orm",
     "maintenance_asset_component_from_orm",
@@ -511,6 +563,8 @@ __all__ = [
     "maintenance_asset_to_orm",
     "maintenance_location_from_orm",
     "maintenance_location_to_orm",
+    "maintenance_work_order_material_requirement_from_orm",
+    "maintenance_work_order_material_requirement_to_orm",
     "maintenance_system_from_orm",
     "maintenance_system_to_orm",
     "maintenance_work_order_from_orm",

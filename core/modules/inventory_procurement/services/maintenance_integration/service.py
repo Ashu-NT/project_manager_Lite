@@ -248,8 +248,8 @@ class MaintenanceMaterialService:
                 "Maintenance material is already fully available from stock.",
                 code="INVENTORY_MAINTENANCE_SHORTAGE_NOT_FOUND",
             )
-        item = self._item_service.get_item(availability.stock_item_id)
-        storeroom = self._inventory_service.get_storeroom(availability.storeroom_id)
+        item = self._item_service.get_item_for_internal_use(availability.stock_item_id)
+        storeroom = self._inventory_service.get_storeroom_for_internal_use(availability.storeroom_id)
         if not item.is_purchase_allowed:
             raise ValidationError(
                 "Selected maintenance material cannot be escalated to procurement.",
@@ -348,8 +348,8 @@ class MaintenanceMaterialService:
         source_reference_type: str,
         source_reference_id: str,
     ):
-        item = self._item_service.get_item(stock_item_id)
-        storeroom = self._inventory_service.get_storeroom(storeroom_id)
+        item = self._item_service.get_item_for_internal_use(stock_item_id)
+        storeroom = self._inventory_service.get_storeroom_for_internal_use(storeroom_id)
         normalized_source_type = normalize_maintenance_source_reference_type(source_reference_type)
         normalized_source_id = self._require_source_reference_id(source_reference_id)
         normalized_qty = normalize_positive_quantity(quantity, label="Maintenance material quantity")

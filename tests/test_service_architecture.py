@@ -30,6 +30,7 @@ from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
     MaintenanceLocationService,
+    MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
@@ -103,6 +104,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_system_service, MaintenanceSystemService)
     assert isinstance(graph.maintenance_work_request_service, MaintenanceWorkRequestService)
     assert isinstance(graph.maintenance_work_order_service, MaintenanceWorkOrderService)
+    assert isinstance(graph.maintenance_work_order_material_requirement_service, MaintenanceWorkOrderMaterialRequirementService)
     assert isinstance(graph.maintenance_work_order_task_service, MaintenanceWorkOrderTaskService)
     assert isinstance(graph.maintenance_work_order_task_step_service, MaintenanceWorkOrderTaskStepService)
     assert isinstance(graph.access_service, AccessControlService)
@@ -157,6 +159,10 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["maintenance_system_service"] is graph.maintenance_system_service
     assert as_dict["maintenance_work_request_service"] is graph.maintenance_work_request_service
     assert as_dict["maintenance_work_order_service"] is graph.maintenance_work_order_service
+    assert (
+        as_dict["maintenance_work_order_material_requirement_service"]
+        is graph.maintenance_work_order_material_requirement_service
+    )
     assert as_dict["maintenance_work_order_task_service"] is graph.maintenance_work_order_task_service
     assert as_dict["maintenance_work_order_task_step_service"] is graph.maintenance_work_order_task_step_service
     assert as_dict["module_runtime_service"] is graph.module_runtime_service
@@ -204,7 +210,7 @@ def test_services_module_delegates_to_modular_registration_builders():
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
     assert "build_inventory_procurement_service_bundle(platform_services)" in text
-    assert "build_maintenance_management_service_bundle(platform_services)" in text
+    assert "build_maintenance_management_service_bundle(" in text
     assert "build_project_management_service_bundle(" in text
 
 

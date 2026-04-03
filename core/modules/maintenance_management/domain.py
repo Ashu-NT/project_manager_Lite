@@ -98,6 +98,16 @@ class MaintenanceWorkOrderTaskStepStatus(str, Enum):
     FAILED = "FAILED"
 
 
+class MaintenanceMaterialProcurementStatus(str, Enum):
+    PLANNED = "PLANNED"
+    AVAILABLE_FROM_STOCK = "AVAILABLE_FROM_STOCK"
+    SHORTAGE_IDENTIFIED = "SHORTAGE_IDENTIFIED"
+    REQUISITIONED = "REQUISITIONED"
+    PARTIALLY_ISSUED = "PARTIALLY_ISSUED"
+    FULLY_ISSUED = "FULLY_ISSUED"
+    NON_STOCK = "NON_STOCK"
+
+
 @dataclass
 class MaintenanceLocation:
     id: str
@@ -726,16 +736,85 @@ class MaintenanceWorkOrderTaskStep:
         )
 
 
+@dataclass
+class MaintenanceWorkOrderMaterialRequirement:
+    id: str
+    organization_id: str
+    work_order_id: str
+    stock_item_id: str | None = None
+    description: str = ""
+    required_qty: Decimal = Decimal("0")
+    issued_qty: Decimal = Decimal("0")
+    required_uom: str = ""
+    is_stock_item: bool = True
+    preferred_storeroom_id: str | None = None
+    procurement_status: MaintenanceMaterialProcurementStatus = MaintenanceMaterialProcurementStatus.PLANNED
+    last_availability_status: str = ""
+    last_missing_qty: Decimal | None = None
+    linked_requisition_id: str | None = None
+    notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        work_order_id: str,
+        stock_item_id: str | None = None,
+        description: str = "",
+        required_qty: Decimal,
+        issued_qty: Decimal = Decimal("0"),
+        required_uom: str = "",
+        is_stock_item: bool = True,
+        preferred_storeroom_id: str | None = None,
+        procurement_status: MaintenanceMaterialProcurementStatus | None = None,
+        last_availability_status: str = "",
+        last_missing_qty: Decimal | None = None,
+        linked_requisition_id: str | None = None,
+        notes: str = "",
+    ) -> "MaintenanceWorkOrderMaterialRequirement":
+        now = datetime.now(timezone.utc)
+        resolved_status = procurement_status or (
+            MaintenanceMaterialProcurementStatus.PLANNED
+            if is_stock_item
+            else MaintenanceMaterialProcurementStatus.NON_STOCK
+        )
+        return MaintenanceWorkOrderMaterialRequirement(
+            id=generate_id(),
+            organization_id=organization_id,
+            work_order_id=work_order_id,
+            stock_item_id=stock_item_id,
+            description=description,
+            required_qty=required_qty,
+            issued_qty=issued_qty,
+            required_uom=required_uom,
+            is_stock_item=is_stock_item,
+            preferred_storeroom_id=preferred_storeroom_id,
+            procurement_status=resolved_status,
+            last_availability_status=last_availability_status,
+            last_missing_qty=last_missing_qty,
+            linked_requisition_id=linked_requisition_id,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
 __all__ = [
     "MaintenanceAsset",
     "MaintenanceAssetComponent",
     "MaintenanceCriticality",
     "MaintenanceLifecycleStatus",
     "MaintenanceLocation",
+    "MaintenanceMaterialProcurementStatus",
     "MaintenancePriority",
     "MaintenanceSystem",
     "MaintenanceTriggerMode",
     "MaintenanceWorkOrder",
+    "MaintenanceWorkOrderMaterialRequirement",
     "MaintenanceWorkOrderTask",
     "MaintenanceWorkOrderTaskStep",
     "MaintenanceWorkOrderTaskStepStatus",

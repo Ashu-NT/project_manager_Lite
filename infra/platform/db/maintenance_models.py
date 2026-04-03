@@ -22,6 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
+    MaintenanceMaterialProcurementStatus,
     MaintenancePriority,
     MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderStatus,
@@ -577,6 +578,54 @@ class MaintenanceWorkOrderTaskStepORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class MaintenanceWorkOrderMaterialRequirementORM(Base):
+    __tablename__ = "maintenance_work_order_material_requirements"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    work_order_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_work_orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    stock_item_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("inventory_stock_items.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    required_qty: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=0, server_default="0")
+    issued_qty: Mapped[Decimal] = mapped_column(Numeric(18, 6), nullable=False, default=0, server_default="0")
+    required_uom: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
+    is_stock_item: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    preferred_storeroom_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("inventory_storerooms.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    procurement_status: Mapped[MaintenanceMaterialProcurementStatus] = mapped_column(
+        SAEnum(MaintenanceMaterialProcurementStatus),
+        nullable=False,
+        default=MaintenanceMaterialProcurementStatus.PLANNED,
+        server_default=MaintenanceMaterialProcurementStatus.PLANNED.value,
+    )
+    last_availability_status: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    last_missing_qty: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 6), nullable=True)
+    linked_requisition_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("inventory_purchase_requisitions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 Index("idx_maintenance_locations_org", MaintenanceLocationORM.organization_id)
 Index("idx_maintenance_locations_site", MaintenanceLocationORM.site_id)
 Index("idx_maintenance_locations_parent", MaintenanceLocationORM.parent_location_id)
@@ -635,6 +684,21 @@ Index("idx_maintenance_work_order_task_steps_task", MaintenanceWorkOrderTaskStep
 Index("idx_maintenance_work_order_task_steps_status", MaintenanceWorkOrderTaskStepORM.status)
 Index("idx_maintenance_work_order_task_steps_completed_by", MaintenanceWorkOrderTaskStepORM.completed_by_user_id)
 Index("idx_maintenance_work_order_task_steps_confirmed_by", MaintenanceWorkOrderTaskStepORM.confirmed_by_user_id)
+Index("idx_maintenance_material_requirements_org", MaintenanceWorkOrderMaterialRequirementORM.organization_id)
+Index("idx_maintenance_material_requirements_work_order", MaintenanceWorkOrderMaterialRequirementORM.work_order_id)
+Index("idx_maintenance_material_requirements_stock_item", MaintenanceWorkOrderMaterialRequirementORM.stock_item_id)
+Index(
+    "idx_maintenance_material_requirements_storeroom",
+    MaintenanceWorkOrderMaterialRequirementORM.preferred_storeroom_id,
+)
+Index(
+    "idx_maintenance_material_requirements_status",
+    MaintenanceWorkOrderMaterialRequirementORM.procurement_status,
+)
+Index(
+    "idx_maintenance_material_requirements_requisition",
+    MaintenanceWorkOrderMaterialRequirementORM.linked_requisition_id,
+)
 
 
 __all__ = [
@@ -643,6 +707,7 @@ __all__ = [
     "MaintenanceLocationORM",
     "MaintenanceSystemORM",
     "MaintenanceWorkOrderORM",
+    "MaintenanceWorkOrderMaterialRequirementORM",
     "MaintenanceWorkOrderTaskORM",
     "MaintenanceWorkOrderTaskStepORM",
     "MaintenanceWorkRequestORM",

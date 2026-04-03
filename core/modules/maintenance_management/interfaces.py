@@ -7,6 +7,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceLocation,
+    MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderTask,
@@ -247,12 +248,35 @@ class MaintenanceWorkOrderTaskStepRepository(ABC):
     ) -> List[MaintenanceWorkOrderTaskStep]: ...
 
 
+class MaintenanceWorkOrderMaterialRequirementRepository(ABC):
+    @abstractmethod
+    def add(self, material_requirement: MaintenanceWorkOrderMaterialRequirement) -> None: ...
+
+    @abstractmethod
+    def update(self, material_requirement: MaintenanceWorkOrderMaterialRequirement) -> None: ...
+
+    @abstractmethod
+    def get(self, material_requirement_id: str) -> Optional[MaintenanceWorkOrderMaterialRequirement]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        work_order_id: str | None = None,
+        procurement_status: str | None = None,
+        preferred_storeroom_id: str | None = None,
+        stock_item_id: str | None = None,
+    ) -> List[MaintenanceWorkOrderMaterialRequirement]: ...
+
+
 __all__ = [
     "MaintenanceAssetRepository",
     "MaintenanceAssetComponentRepository",
     "MaintenanceLocationRepository",
     "MaintenanceSystemRepository",
     "MaintenanceWorkOrderRepository",
+    "MaintenanceWorkOrderMaterialRequirementRepository",
     "MaintenanceWorkOrderTaskRepository",
     "MaintenanceWorkOrderTaskStepRepository",
     "MaintenanceWorkRequestRepository",
