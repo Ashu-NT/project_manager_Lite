@@ -414,6 +414,7 @@ Progress notes:
 - maintenance is now cataloged as an available-but-disabled module by default, and the shell can expose the first `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability` workspaces when the module is licensed and enabled
 - maintenance now also has the first preventive-library foundation for `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, including lifecycle validation, SQLAlchemy persistence, migration coverage, service-graph exposure, and focused regression tests before the due-generation engine starts
 - maintenance now also has the first preventive due-generation engine, including calendar/sensor/hybrid evaluation, task-level trigger overrides with persisted runtime state, work-request/work-order generation, and template-to-execution task/step copying through the existing work-order runtime
+- the maintenance `Planner` workspace now folds preventive due, due-soon, and blocked review into the same planning surface as backlog, material-risk, and recurring-failure review
 
 ## Guardrails
 

@@ -177,6 +177,8 @@ def build_maintenance_management_workspace_definitions(
                 work_request_service=services["maintenance_work_request_service"],
                 work_order_service=services["maintenance_work_order_service"],
                 material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+                preventive_plan_service=services["maintenance_preventive_plan_service"],
+                preventive_generation_service=services["maintenance_preventive_generation_service"],
                 reliability_service=services["maintenance_reliability_service"],
                 sensor_exception_service=services["maintenance_sensor_exception_service"],
                 site_service=services["site_service"],

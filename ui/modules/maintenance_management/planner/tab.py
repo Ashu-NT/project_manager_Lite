@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -16,6 +19,8 @@ from PySide6.QtWidgets import (
 from application.platform import PlatformRuntimeApplicationService
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
+    MaintenancePreventiveGenerationService,
+    MaintenancePreventivePlanService,
     MaintenanceReliabilityService,
     MaintenanceSensorExceptionService,
     MaintenanceSystemService,
@@ -49,6 +54,23 @@ _BACKLOG_WORK_ORDER_STATUS = "__BACKLOG__"
 _CLOSED_ORDER_STATUSES = {"COMPLETED", "VERIFIED", "CLOSED", "CANCELLED"}
 _OPEN_REQUEST_STATUSES = {"NEW", "TRIAGED", "APPROVED", "DEFERRED"}
 _MATERIAL_RISK_STATUSES = {"PLANNED", "SHORTAGE_IDENTIFIED", "REQUISITIONED", "PARTIALLY_ISSUED", "NON_STOCK"}
+_PREVENTIVE_DUE_SOON_WINDOW = timedelta(days=30)
+
+
+@dataclass(frozen=True)
+class _PlannerPreventiveRow:
+    plan_id: str
+    plan_code: str
+    plan_name: str
+    anchor_label: str
+    due_state: str
+    due_reason: str
+    generation_target: str
+    trigger_label: str
+    next_due_at: datetime | None
+    next_due_counter: int | None
+    next_due_label: str
+    is_due_soon: bool
 
 
 class MaintenancePlannerTab(QWidget):
@@ -58,6 +80,8 @@ class MaintenancePlannerTab(QWidget):
         work_request_service: MaintenanceWorkRequestService,
         work_order_service: MaintenanceWorkOrderService,
         material_requirement_service: MaintenanceWorkOrderMaterialRequirementService,
+        preventive_plan_service: MaintenancePreventivePlanService,
+        preventive_generation_service: MaintenancePreventiveGenerationService,
         reliability_service: MaintenanceReliabilityService,
         sensor_exception_service: MaintenanceSensorExceptionService,
         site_service: SiteService,
@@ -71,6 +95,8 @@ class MaintenancePlannerTab(QWidget):
         self._work_request_service = work_request_service
         self._work_order_service = work_order_service
         self._material_requirement_service = material_requirement_service
+        self._preventive_plan_service = preventive_plan_service
+        self._preventive_generation_service = preventive_generation_service
         self._reliability_service = reliability_service
         self._sensor_exception_service = sensor_exception_service
         self._site_service = site_service
@@ -84,6 +110,7 @@ class MaintenancePlannerTab(QWidget):
         self._request_rows = []
         self._work_order_rows = []
         self._material_risk_rows = []
+        self._preventive_rows: list[_PlannerPreventiveRow] = []
         self._recurring_rows = []
         self._setup_ui()
         self.reload_data()
@@ -98,14 +125,15 @@ class MaintenancePlannerTab(QWidget):
 
         self.context_badge = make_accent_badge("Context: -")
         self.backlog_badge = make_meta_badge("0 backlog orders")
+        self.preventive_badge = make_meta_badge("0 preventive reviews")
         self.material_badge = make_meta_badge("0 material risks")
         build_maintenance_header(
             root=root,
             object_name="maintenancePlannerHeaderCard",
             eyebrow_text="PLANNER WORKBENCH",
             title_text="Planner",
-            subtitle_text="Coordinate intake, backlog, material readiness, and recurring failure priorities from one maintenance planning surface.",
-            badges=(self.context_badge, self.backlog_badge, self.material_badge),
+            subtitle_text="Coordinate intake, backlog, preventive readiness, material planning, and recurring failure priorities from one maintenance planning surface.",
+            badges=(self.context_badge, self.backlog_badge, self.preventive_badge, self.material_badge),
         )
 
         controls, controls_layout = build_admin_surface_card(
@@ -179,9 +207,10 @@ class MaintenancePlannerTab(QWidget):
         summary_row.setSpacing(CFG.SPACING_MD)
         self.request_card = KpiCard("Open Requests", "-", "Intake still needing planner attention", CFG.COLOR_ACCENT)
         self.backlog_card = KpiCard("Backlog Orders", "-", "Orders still in planning or execution queues", CFG.COLOR_WARNING)
+        self.preventive_card = KpiCard("Preventive Review", "-", "Due, due-soon, and blocked preventive plans", CFG.COLOR_ACCENT)
         self.material_card = KpiCard("Material Risks", "-", "Requirements not yet fully ready", CFG.COLOR_SUCCESS)
         self.recurring_card = KpiCard("Recurring Patterns", "-", "Failure patterns to review while planning", CFG.COLOR_ACCENT)
-        for card in (self.request_card, self.backlog_card, self.material_card, self.recurring_card):
+        for card in (self.request_card, self.backlog_card, self.preventive_card, self.material_card, self.recurring_card):
             summary_row.addWidget(card, 1)
         root.addLayout(summary_row)
 
@@ -194,6 +223,7 @@ class MaintenancePlannerTab(QWidget):
         lower_row = QHBoxLayout()
         lower_row.setSpacing(CFG.SPACING_MD)
         lower_row.addWidget(self._build_material_panel(), 1)
+        lower_row.addWidget(self._build_preventive_panel(), 1)
         lower_row.addWidget(self._build_recurring_panel(), 1)
         root.addLayout(lower_row, 1)
 
@@ -313,6 +343,31 @@ class MaintenancePlannerTab(QWidget):
         layout.addWidget(self.recurring_table)
         return panel
 
+    def _build_preventive_panel(self) -> QWidget:
+        panel, layout = build_admin_surface_card(
+            object_name="maintenancePlannerPreventiveSurface",
+            alt=False,
+        )
+        title = QLabel("Preventive Readiness")
+        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        subtitle = QLabel("Due, near-due, and blocked preventive plans that planners should fold into the active schedule.")
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        self.preventive_table = build_admin_table(
+            headers=("Plan", "Trigger", "Due State", "Next Due", "Target"),
+            resize_modes=(
+                self._stretch(),
+                self._stretch(),
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+            ),
+        )
+        layout.addWidget(self.preventive_table)
+        return panel
+
     def reload_data(self) -> None:
         selected_site_id = selected_combo_value(self.site_combo)
         selected_asset_id = selected_combo_value(self.asset_combo)
@@ -370,6 +425,14 @@ class MaintenancePlannerTab(QWidget):
                 system_id=system_id,
             )
             requirement_rows = self._material_requirement_service.list_requirements()
+            preventive_plans = self._preventive_plan_service.search_preventive_plans(
+                search_text=self.search_edit.text(),
+                active_only=None,
+                site_id=site_id,
+                asset_id=asset_id,
+                system_id=system_id,
+            )
+            preventive_candidates = self._preventive_generation_service.list_due_candidates(site_id=site_id)
             try:
                 recurring_rows = self._reliability_service.list_recurring_failure_patterns(
                     site_id=site_id,
@@ -405,6 +468,14 @@ class MaintenancePlannerTab(QWidget):
             work_order_rows = [row for row in work_order_rows if search_text in self._work_order_search_blob(row)]
 
         work_order_by_id = {row.id: row for row in work_order_rows}
+        preventive_candidate_by_id = {row.plan_id: row for row in preventive_candidates}
+        self._preventive_rows = sorted(
+            (
+                self._build_preventive_row(row, preventive_candidate_by_id.get(row.id))
+                for row in preventive_plans
+            ),
+            key=self._preventive_sort_key,
+        )
         self._material_risk_rows = [
             row
             for row in requirement_rows
@@ -422,10 +493,12 @@ class MaintenancePlannerTab(QWidget):
 
         self.request_card.set_value(str(len(self._request_rows)))
         self.backlog_card.set_value(str(len(self._work_order_rows)))
+        self.preventive_card.set_value(str(len(self._preventive_rows)))
         self.material_card.set_value(str(len(self._material_risk_rows)))
         self.recurring_card.set_value(str(len(self._recurring_rows)))
         self.context_badge.setText(f"Context: {self._context_label()}")
         self.backlog_badge.setText(f"{len(self._work_order_rows)} backlog orders")
+        self.preventive_badge.setText(f"{len(self._preventive_rows)} preventive reviews")
         self.material_badge.setText(f"{len(self._material_risk_rows)} material risks")
         self.filter_summary.setText(
             "Filters: "
@@ -436,6 +509,7 @@ class MaintenancePlannerTab(QWidget):
         self._populate_request_table()
         self._populate_work_order_table()
         self._populate_material_table(work_order_by_id)
+        self._populate_preventive_table()
         self._populate_recurring_table(exception_count_by_anchor)
 
     def _populate_request_table(self) -> None:
@@ -491,6 +565,19 @@ class MaintenancePlannerTab(QWidget):
             for column, value in enumerate(values):
                 self.recurring_table.setItem(row_index, column, QTableWidgetItem(value))
 
+    def _populate_preventive_table(self) -> None:
+        self.preventive_table.setRowCount(len(self._preventive_rows))
+        for row_index, row in enumerate(self._preventive_rows):
+            values = (
+                f"{row.plan_code} - {row.plan_name}",
+                row.trigger_label,
+                self._planner_due_state_label(row),
+                row.next_due_label,
+                row.generation_target.replace("_", " ").title(),
+            )
+            for column, value in enumerate(values):
+                self.preventive_table.setItem(row_index, column, QTableWidgetItem(value))
+
     def _anchor_label(self, asset_id: str | None, system_id: str | None, location_id: str | None, site_id: str) -> str:
         if asset_id:
             return self._asset_labels.get(asset_id, asset_id)
@@ -499,6 +586,85 @@ class MaintenancePlannerTab(QWidget):
         if location_id:
             return location_id
         return self._site_labels.get(site_id, site_id)
+
+    def _build_preventive_row(self, plan, candidate) -> _PlannerPreventiveRow:
+        due_state = "NOT_DUE"
+        due_reason = "Preventive plan is not currently due."
+        generation_target = "WORK_ORDER" if plan.auto_generate_work_order else "WORK_REQUEST"
+        if not plan.is_active or plan.status.value != "ACTIVE":
+            due_state = "INACTIVE"
+            due_reason = "Preventive plan is not active for due generation."
+        elif candidate is not None:
+            due_state = candidate.due_state
+            due_reason = candidate.due_reason
+            generation_target = candidate.generation_target
+
+        next_due_at = self._ensure_utc_datetime(plan.next_due_at)
+        is_due_soon = (
+            due_state == "NOT_DUE"
+            and next_due_at is not None
+            and datetime.now(timezone.utc) <= next_due_at <= datetime.now(timezone.utc) + _PREVENTIVE_DUE_SOON_WINDOW
+        )
+        next_due_label = "-"
+        if next_due_at is not None:
+            next_due_label = format_timestamp(next_due_at)
+        elif plan.next_due_counter is not None:
+            next_due_label = str(plan.next_due_counter)
+        elif due_state == "BLOCKED":
+            next_due_label = "Review exception"
+        return _PlannerPreventiveRow(
+            plan_id=plan.id,
+            plan_code=plan.plan_code,
+            plan_name=plan.name,
+            anchor_label=self._anchor_label(plan.asset_id, plan.system_id, None, plan.site_id),
+            due_state=due_state,
+            due_reason=due_reason,
+            generation_target=generation_target,
+            trigger_label=self._planner_trigger_label(plan),
+            next_due_at=next_due_at,
+            next_due_counter=plan.next_due_counter,
+            next_due_label=next_due_label,
+            is_due_soon=is_due_soon,
+        )
+
+    @staticmethod
+    def _ensure_utc_datetime(value:datetime):
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def _planner_trigger_label(self, plan) -> str:
+        if plan.trigger_mode.value == "CALENDAR":
+            if plan.calendar_frequency_unit is None or plan.calendar_frequency_value in (None, 0):
+                return "Calendar"
+            return f"Every {plan.calendar_frequency_value} {plan.calendar_frequency_unit.value.replace('_', ' ').lower()}"
+        if plan.trigger_mode.value == "SENSOR":
+            return "Sensor threshold"
+        return "Hybrid"
+
+    @staticmethod
+    def _planner_due_state_label(row: _PlannerPreventiveRow) -> str:
+        if row.is_due_soon:
+            return "Due Soon"
+        return row.due_state.replace("_", " ").title()
+
+    @staticmethod
+    def _preventive_sort_key(row: _PlannerPreventiveRow) -> tuple[int, datetime, int, str]:
+        if row.due_state == "DUE":
+            priority = 0
+        elif row.due_state == "BLOCKED":
+            priority = 1
+        elif row.is_due_soon:
+            priority = 2
+        elif row.due_state == "NOT_DUE":
+            priority = 3
+        else:
+            priority = 4
+        next_due_at = row.next_due_at or datetime.max.replace(tzinfo=timezone.utc)
+        next_due_counter = row.next_due_counter if row.next_due_counter is not None else 999999999
+        return (priority, next_due_at, next_due_counter, row.plan_code)
 
     @staticmethod
     def _request_search_blob(row) -> str:

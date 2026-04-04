@@ -590,6 +590,8 @@ def test_maintenance_planner_tab_surfaces_backlog_material_and_recurring_queues(
         work_request_service=services["maintenance_work_request_service"],
         work_order_service=services["maintenance_work_order_service"],
         material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+        preventive_plan_service=services["maintenance_preventive_plan_service"],
+        preventive_generation_service=services["maintenance_preventive_generation_service"],
         reliability_service=services["maintenance_reliability_service"],
         sensor_exception_service=services["maintenance_sensor_exception_service"],
         site_service=services["site_service"],
@@ -611,11 +613,20 @@ def test_maintenance_planner_tab_surfaces_backlog_material_and_recurring_queues(
     assert tab.context_badge.text() == "Context: Default Organization"
     assert tab.request_table.rowCount() >= 1
     assert tab.work_order_table.rowCount() >= 1
+    assert tab.preventive_table.rowCount() >= 1
     assert tab.material_table.rowCount() >= 1
     assert tab.recurring_table.rowCount() >= 1
     assert tab.backlog_card._lbl_value.text() != "0"
+    assert tab.preventive_card._lbl_value.text() != "0"
     assert tab.material_card._lbl_value.text() != "0"
     assert "WO-UI-OPEN" in tab.work_order_table.item(0, 0).text()
+    due_row = _find_row_by_contains(tab.preventive_table, 0, "PM-UI-DUE")
+    blocked_row = _find_row_by_contains(tab.preventive_table, 0, "PM-UI-BLOCKED")
+    assert due_row >= 0
+    assert blocked_row >= 0
+    assert due_row < blocked_row
+    assert tab.preventive_table.item(due_row, 2).text() == "Due"
+    assert tab.preventive_table.item(blocked_row, 2).text() == "Blocked"
 
 
 def test_maintenance_preventive_tab_surfaces_due_blocked_and_inactive_plan_states(qapp, services):
