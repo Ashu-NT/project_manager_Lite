@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from core.modules.maintenance_management.domain import MaintenanceWorkOrder, MaintenanceWorkOrderStatus
+from core.modules.maintenance_management.domain import (
+    MaintenanceSensorException,
+    MaintenanceWorkOrder,
+    MaintenanceWorkOrderStatus,
+)
 from core.modules.maintenance_management.reporting import (
     MaintenanceRecurringFailurePattern,
     MaintenanceReliabilityDashboard,
@@ -337,6 +341,108 @@ def build_pm_compliance_report_document(
     )
 
 
+def build_recurring_failure_report_document(
+    *,
+    dashboard: MaintenanceReliabilityDashboard,
+    recurring_patterns: list[MaintenanceRecurringFailurePattern],
+    days: int,
+    recurring_threshold: int,
+) -> ReportDocument:
+    patterns_with_open_work = sum(1 for row in recurring_patterns if row.open_work_orders)
+    return ReportDocument(
+        title="Recurring Failure Review",
+        sections=(
+            ReportSection(
+                title="Summary",
+                blocks=(
+                    MetricBlock(
+                        title="Recurring Failure KPIs",
+                        rows=(
+                            MetricRow("Window", f"{days} days"),
+                            MetricRow("Recurring threshold", f"{recurring_threshold}+ occurrences"),
+                            MetricRow("Recurring patterns", len(recurring_patterns)),
+                            MetricRow("Patterns with open work", patterns_with_open_work),
+                        ),
+                    ),
+                    MetricBlock(
+                        title="Reliability Snapshot",
+                        rows=tuple(MetricRow(metric.label, metric.value) for metric in dashboard.summary),
+                    ),
+                ),
+            ),
+            ReportSection(
+                title="Failure Review",
+                blocks=(
+                    _root_cause_table("Leading Root Causes", dashboard.top_root_causes),
+                    _recurring_failure_table("Recurring Failure Review", recurring_patterns),
+                ),
+            ),
+        ),
+    )
+
+
+def build_exception_review_report_document(
+    *,
+    exceptions: list[MaintenanceSensorException],
+    exception_rows: list[tuple],
+    recurring_patterns: list[MaintenanceRecurringFailurePattern],
+    days: int,
+) -> ReportDocument:
+    type_counts: dict[str, int] = {}
+    for row in exceptions:
+        key = row.exception_type.value.replace("_", " ").title()
+        type_counts[key] = type_counts.get(key, 0) + 1
+    affected_sensors = len({row.sensor_id for row in exceptions if row.sensor_id})
+    return ReportDocument(
+        title="Maintenance Exception Review",
+        sections=(
+            ReportSection(
+                title="Summary",
+                blocks=(
+                    MetricBlock(
+                        title="Exception Queue KPIs",
+                        rows=(
+                            MetricRow("Window", f"{days} day operating review"),
+                            MetricRow("Open exceptions", len(exceptions)),
+                            MetricRow("Affected sensors", affected_sensors),
+                            MetricRow("External sync failures", type_counts.get("External Sync Failure", 0)),
+                            MetricRow("Stale readings", type_counts.get("Stale Reading", 0)),
+                            MetricRow("Unit mismatches", type_counts.get("Unit Mismatch", 0)),
+                        ),
+                    ),
+                ),
+            ),
+            ReportSection(
+                title="Open Exceptions",
+                blocks=(
+                    TableBlock(
+                        title="Open Sensor Exceptions",
+                        columns=(
+                            "Detected",
+                            "Status",
+                            "Type",
+                            "Sensor",
+                            "Integration Source",
+                            "Source Batch",
+                            "Message",
+                            "Notes",
+                            "Acknowledged",
+                            "Resolved",
+                        ),
+                        rows=tuple(exception_rows),
+                    ),
+                ),
+            ),
+            ReportSection(
+                title="Related Reliability Signals",
+                blocks=(
+                    _recurring_failure_table("Recurring Failure Signals", recurring_patterns),
+                ),
+            ),
+        ),
+    )
+
+
 def _root_cause_table(title: str, rows: tuple[MaintenanceRootCauseInsight, ...] | list[MaintenanceRootCauseInsight]) -> TableBlock:
     return TableBlock(
         title=title,
@@ -432,9 +538,11 @@ def _to_utc(value):
 
 
 __all__ = [
+    "build_exception_review_report_document",
     "MaintenanceReportLookups",
     "build_backlog_report_document",
     "build_downtime_report_document",
     "build_execution_overview_report_document",
     "build_pm_compliance_report_document",
+    "build_recurring_failure_report_document",
 ]

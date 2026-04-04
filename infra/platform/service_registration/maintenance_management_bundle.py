@@ -258,6 +258,16 @@ def build_maintenance_management_service_bundle(
         downtime_event_repo=downtime_event_repo,
         user_session=platform_services.user_session,
     )
+    maintenance_sensor_exception_service = MaintenanceSensorExceptionService(
+        platform_services.session,
+        sensor_exception_repo,
+        organization_repo=platform_services.organization_repo,
+        sensor_repo=sensor_repo,
+        integration_source_repo=integration_source_repo,
+        sensor_source_mapping_repo=sensor_source_mapping_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     maintenance_reporting_service = MaintenanceReportingService(
         organization_repo=platform_services.organization_repo,
         site_repo=platform_services.site_repo,
@@ -268,20 +278,13 @@ def build_maintenance_management_service_bundle(
         work_order_repo=work_order_repo,
         failure_code_repo=failure_code_repo,
         downtime_event_repo=downtime_event_repo,
+        sensor_repo=sensor_repo,
+        integration_source_repo=integration_source_repo,
         reliability_service=maintenance_reliability_service,
+        sensor_exception_service=maintenance_sensor_exception_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         runtime_execution_service=platform_services.runtime_execution_service,
-    )
-    maintenance_sensor_exception_service = MaintenanceSensorExceptionService(
-        platform_services.session,
-        sensor_exception_repo,
-        organization_repo=platform_services.organization_repo,
-        sensor_repo=sensor_repo,
-        integration_source_repo=integration_source_repo,
-        sensor_source_mapping_repo=sensor_source_mapping_repo,
-        user_session=platform_services.user_session,
-        audit_service=platform_services.audit_service,
     )
     maintenance_integration_source_service = MaintenanceIntegrationSourceService(
         platform_services.session,

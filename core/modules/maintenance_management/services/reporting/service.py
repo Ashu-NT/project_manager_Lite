@@ -10,7 +10,9 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetRepository,
     MaintenanceDowntimeEventRepository,
     MaintenanceFailureCodeRepository,
+    MaintenanceIntegrationSourceRepository,
     MaintenanceLocationRepository,
+    MaintenanceSensorRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
 )
@@ -26,8 +28,10 @@ from .documents import (
     MaintenanceReportLookups,
     build_backlog_report_document,
     build_downtime_report_document,
+    build_exception_review_report_document,
     build_execution_overview_report_document,
     build_pm_compliance_report_document,
+    build_recurring_failure_report_document,
 )
 from .renderers import render_report_document_excel, render_report_document_pdf
 
@@ -57,7 +61,10 @@ class MaintenanceReportingService:
         work_order_repo: MaintenanceWorkOrderRepository,
         failure_code_repo: MaintenanceFailureCodeRepository,
         downtime_event_repo: MaintenanceDowntimeEventRepository,
+        sensor_repo: MaintenanceSensorRepository,
+        integration_source_repo: MaintenanceIntegrationSourceRepository,
         reliability_service: MaintenanceReliabilityService,
+        sensor_exception_service=None,
         user_session=None,
         module_catalog_service=None,
         runtime_execution_service=None,
@@ -73,7 +80,10 @@ class MaintenanceReportingService:
         self._work_order_repo = work_order_repo
         self._failure_code_repo = failure_code_repo
         self._downtime_event_repo = downtime_event_repo
+        self._sensor_repo = sensor_repo
+        self._integration_source_repo = integration_source_repo
         self._reliability_service = reliability_service
+        self._sensor_exception_service = sensor_exception_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
@@ -89,6 +99,8 @@ class MaintenanceReportingService:
                 "maintenance_downtime_pdf": self._render_downtime_pdf,
                 "maintenance_execution_overview_excel": self._render_execution_overview_excel,
                 "maintenance_execution_overview_pdf": self._render_execution_overview_pdf,
+                "maintenance_recurring_failures_excel": self._render_recurring_failures_excel,
+                "maintenance_exception_review_excel": self._render_exception_review_excel,
             },
         )
         self._report_runtime = report_runtime or ReportRuntime(
@@ -121,6 +133,12 @@ class MaintenanceReportingService:
 
     def generate_execution_overview_pdf(self, output_path: str | Path, **filters):
         return self._render("maintenance_execution_overview_pdf", output_path=output_path, **filters)
+
+    def generate_recurring_failures_excel(self, output_path: str | Path, **filters):
+        return self._render("maintenance_recurring_failures_excel", output_path=output_path, **filters)
+
+    def generate_exception_review_excel(self, output_path: str | Path, **filters):
+        return self._render("maintenance_exception_review_excel", output_path=output_path, **filters)
 
     def _render(self, report_key: str, *, output_path: str | Path, **filters):
         return self._report_runtime.render(
@@ -197,6 +215,26 @@ class MaintenanceReportingService:
         output = ensure_output_path(request.output_path)
         rendered = render_report_document_pdf(document, output)
         return finalize_artifact(rendered, media_type="application/pdf")
+
+    def _render_recurring_failures_excel(self, request: object):
+        assert isinstance(request, MaintenanceReportRequest)
+        document = self._build_recurring_failures_document(request)
+        output = ensure_output_path(request.output_path)
+        rendered = render_report_document_excel(document, output)
+        return finalize_artifact(
+            rendered,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    def _render_exception_review_excel(self, request: object):
+        assert isinstance(request, MaintenanceReportRequest)
+        document = self._build_exception_review_document(request)
+        output = ensure_output_path(request.output_path)
+        rendered = render_report_document_excel(document, output)
+        return finalize_artifact(
+            rendered,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
     def _build_backlog_document(self, request: MaintenanceReportRequest):
         dashboard = self._reliability_service.build_reliability_dashboard(
@@ -288,6 +326,82 @@ class MaintenanceReportingService:
         return build_pm_compliance_report_document(
             preventive_rows=rows,
             lookups=self._lookups(organization_id),
+            days=request.days,
+        )
+
+    def _build_recurring_failures_document(self, request: MaintenanceReportRequest):
+        dashboard = self._reliability_service.build_reliability_dashboard(
+            site_id=request.site_id,
+            asset_id=request.asset_id,
+            system_id=request.system_id,
+            location_id=request.location_id,
+            days=request.days,
+            recurring_threshold=request.recurring_threshold,
+            limit=request.limit,
+        )
+        recurring = self._reliability_service.list_recurring_failure_patterns(
+            site_id=request.site_id,
+            asset_id=request.asset_id,
+            system_id=request.system_id,
+            location_id=request.location_id,
+            days=request.days,
+            min_occurrences=request.recurring_threshold,
+            limit=request.limit,
+        )
+        return build_recurring_failure_report_document(
+            dashboard=dashboard,
+            recurring_patterns=recurring,
+            days=request.days,
+            recurring_threshold=request.recurring_threshold,
+        )
+
+    def _build_exception_review_document(self, request: MaintenanceReportRequest):
+        exceptions = self._list_open_sensor_exceptions(request=request)
+        recurring = self._reliability_service.list_recurring_failure_patterns(
+            site_id=request.site_id,
+            asset_id=request.asset_id,
+            system_id=request.system_id,
+            location_id=request.location_id,
+            days=request.days,
+            min_occurrences=request.recurring_threshold,
+            limit=request.limit,
+        )
+        exception_rows = []
+        for row in exceptions:
+            sensor = self._sensor_repo.get(row.sensor_id) if row.sensor_id else None
+            integration_source = (
+                self._integration_source_repo.get(row.integration_source_id)
+                if row.integration_source_id
+                else None
+            )
+            sensor_label = (
+                f"{sensor.sensor_code} - {sensor.sensor_name}"
+                if sensor is not None
+                else row.sensor_id or "-"
+            )
+            source_label = (
+                f"{integration_source.integration_code} - {integration_source.name}"
+                if integration_source is not None
+                else row.integration_source_id or "-"
+            )
+            exception_rows.append(
+                (
+                    _timestamp(row.detected_at),
+                    row.status.value.replace("_", " ").title(),
+                    row.exception_type.value.replace("_", " ").title(),
+                    sensor_label,
+                    source_label,
+                    row.source_batch_id or "-",
+                    row.message,
+                    row.notes or "-",
+                    _timestamp(row.acknowledged_at),
+                    _timestamp(row.resolved_at),
+                )
+            )
+        return build_exception_review_report_document(
+            exceptions=exceptions,
+            exception_rows=exception_rows,
+            recurring_patterns=recurring,
             days=request.days,
         )
 
@@ -398,6 +512,33 @@ class MaintenanceReportingService:
             elif not any(value is not None for value in (request.site_id, request.location_id)):
                 filtered.append(row)
         return filtered
+
+    def _list_open_sensor_exceptions(
+        self,
+        *,
+        request: MaintenanceReportRequest,
+    ):
+        if self._sensor_exception_service is None:
+            return []
+        rows = list(self._sensor_exception_service.list_exceptions(status="OPEN"))
+        filtered = []
+        for row in rows:
+            sensor = self._sensor_repo.get(row.sensor_id) if row.sensor_id else None
+            if request.site_id is not None:
+                if sensor is None or sensor.site_id != request.site_id:
+                    continue
+            if request.asset_id is not None:
+                if sensor is None or sensor.asset_id != request.asset_id:
+                    continue
+            if request.system_id is not None:
+                if sensor is None or sensor.system_id != request.system_id:
+                    continue
+            if request.location_id is not None:
+                if sensor is None or sensor.location_id != request.location_id:
+                    continue
+            filtered.append(row)
+        filtered.sort(key=lambda row: _to_utc(row.detected_at) or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        return filtered[: request.limit]
 
     def _scope_anchor_for_work_order(self, work_order: MaintenanceWorkOrder) -> str:
         if work_order.asset_id:

@@ -1051,6 +1051,8 @@ def test_maintenance_reliability_tab_exports_report_packs(qapp, services, tmp_pa
     qapp.processEvents()
 
     backlog_path = tab.export_backlog_excel(tmp_path / "maintenance-ui-backlog.xlsx")
+    recurring_path = tab.export_recurring_excel(tmp_path / "maintenance-ui-recurring.xlsx")
+    exception_path = tab.export_exception_excel(tmp_path / "maintenance-ui-exceptions.xlsx")
     downtime_path = tab.export_downtime_pdf(tmp_path / "maintenance-ui-downtime.pdf")
 
     assert tab.export_badge.text() == "Export Enabled"
@@ -1058,11 +1060,19 @@ def test_maintenance_reliability_tab_exports_report_packs(qapp, services, tmp_pa
     assert tab.root_cause_table.rowCount() >= 1
     assert tab.recurring_table.rowCount() >= 1
     assert backlog_path is not None
+    assert recurring_path is not None
+    assert exception_path is not None
     assert downtime_path is not None
     assert Path(backlog_path).exists()
+    assert Path(recurring_path).exists()
+    assert Path(exception_path).exists()
     assert Path(downtime_path).exists()
     workbook = load_workbook(backlog_path)
+    recurring_workbook = load_workbook(recurring_path)
+    exception_workbook = load_workbook(exception_path)
     assert {"Summary", "Open Work Orders", "Top Root Causes", "Recurring Failure Patterns"} <= set(workbook.sheetnames)
+    assert {"Summary", "Leading Root Causes", "Recurring Failure Review"} <= set(recurring_workbook.sheetnames)
+    assert {"Summary", "Open Sensor Exceptions", "Recurring Failure Signals"} <= set(exception_workbook.sheetnames)
 
 
 def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(

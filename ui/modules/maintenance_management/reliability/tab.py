@@ -108,6 +108,8 @@ class MaintenanceReliabilityTab(QWidget):
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_backlog_excel = QPushButton("Backlog Excel")
         self.btn_pm_excel = QPushButton("PM Excel")
+        self.btn_recurring_excel = QPushButton("Recurring Excel")
+        self.btn_exception_excel = QPushButton("Exceptions Excel")
         self.btn_downtime_pdf = QPushButton("Downtime PDF")
         self.btn_execution_pdf = QPushButton("Execution PDF")
         self.btn_filters = make_filter_toggle_button(self)
@@ -115,6 +117,8 @@ class MaintenanceReliabilityTab(QWidget):
             (self.btn_refresh, "secondary"),
             (self.btn_backlog_excel, "secondary"),
             (self.btn_pm_excel, "secondary"),
+            (self.btn_recurring_excel, "secondary"),
+            (self.btn_exception_excel, "secondary"),
             (self.btn_downtime_pdf, "secondary"),
             (self.btn_execution_pdf, "primary"),
             (self.btn_filters, "secondary"),
@@ -212,6 +216,12 @@ class MaintenanceReliabilityTab(QWidget):
         self.btn_pm_excel.clicked.connect(
             make_guarded_slot(self, title="Maintenance Reliability", callback=self.export_pm_excel)
         )
+        self.btn_recurring_excel.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Reliability", callback=self.export_recurring_excel)
+        )
+        self.btn_exception_excel.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Reliability", callback=self.export_exception_excel)
+        )
         self.btn_downtime_pdf.clicked.connect(
             make_guarded_slot(self, title="Maintenance Reliability", callback=self.export_downtime_pdf)
         )
@@ -222,6 +232,8 @@ class MaintenanceReliabilityTab(QWidget):
         for button in (
             self.btn_backlog_excel,
             self.btn_pm_excel,
+            self.btn_recurring_excel,
+            self.btn_exception_excel,
             self.btn_downtime_pdf,
             self.btn_execution_pdf,
         ):
@@ -454,6 +466,24 @@ class MaintenanceReliabilityTab(QWidget):
             title="Export maintenance execution PDF",
             suggested_name="maintenance-execution-overview.pdf",
             file_filter="PDF files (*.pdf);;All files (*.*)",
+            output_path=output_path,
+        )
+
+    def export_recurring_excel(self, output_path: str | Path | None = None):
+        return self._export(
+            callback=self._reporting_service.generate_recurring_failures_excel,
+            title="Export recurring failures Excel",
+            suggested_name="maintenance-recurring-failures.xlsx",
+            file_filter="Excel files (*.xlsx);;All files (*.*)",
+            output_path=output_path,
+        )
+
+    def export_exception_excel(self, output_path: str | Path | None = None):
+        return self._export(
+            callback=self._reporting_service.generate_exception_review_excel,
+            title="Export maintenance exception review Excel",
+            suggested_name="maintenance-exception-review.xlsx",
+            file_filter="Excel files (*.xlsx);;All files (*.*)",
             output_path=output_path,
         )
 

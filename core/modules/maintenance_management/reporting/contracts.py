@@ -64,6 +64,18 @@ MAINTENANCE_REPORT_CONTRACTS: tuple[MaintenanceReportContract, ...] = (
         description="Execution summary report for shift and weekly governance reviews.",
         supported_formats=("pdf",),
     ),
+    MaintenanceReportContract(
+        report_key="maintenance_recurring_failures_excel",
+        label="Recurring Failures Excel",
+        description="Recurring-failure workbook for reliability-engineer review and follow-up actions.",
+        supported_formats=("excel",),
+    ),
+    MaintenanceReportContract(
+        report_key="maintenance_exception_review_excel",
+        label="Exception Review Excel",
+        description="Open sensor and integration exception workbook for reliability exception review.",
+        supported_formats=("excel",),
+    ),
 )
 
 
