@@ -2,7 +2,7 @@
 
 ProjectManagerLite is a desktop-first enterprise operations platform built with Python + PySide6.
 The current default-enabled production business capability is the `Project Management` module, supported by shared platform features such as admin, access, audit, organizations, employees, module licensing, approvals, documents, and notifications.
-The codebase also now includes an implemented first-phase `Inventory & Procurement` module that can be licensed and enabled at runtime.
+The codebase also now includes an implemented first-phase `Inventory & Procurement` module and an early `Maintenance Management` module foundation that can be licensed and enabled at runtime.
 
 The staged migration plan toward a broader modular enterprise platform is tracked in `docs/ENTERPRISE_PLATFORM_EXECUTION_PLAN.md`.
 
@@ -12,6 +12,7 @@ Delivered in the current codebase:
 
 - `Project Management` as the active production module for planning, execution, control, dashboarding, reporting, collaboration, and timesheets
 - `Inventory & Procurement` phase 1 as an available module for item master, storerooms, stock balances and transactions, reservations, requisitions, purchase orders, receiving, and shared document/approval integration
+- `Maintenance Management` as an available early-phase module with persisted master/work execution foundations, reliability analytics/reporting, and first shell workspaces for `Maintenance Dashboard` and `Reliability`
 - grouped enterprise shell and platform admin workspaces
 - organization and employee management
 - persistent module licensing with organization-scoped entitlements
@@ -22,7 +23,8 @@ Delivered in the current codebase:
 Pending major work:
 
 - deeper hardening for `Inventory & Procurement`, especially maintenance-facing integration workflows, broader serial/lot lifecycle traceability, and richer warehouse execution policies beyond the delivered document-import and receiving hardening
-- `Maintenance Management`, `QHSE`, and `HR Management` business modules
+- deeper `Maintenance Management` buildout, especially requests, work orders, asset/detail runtimes, preventive templates, planner flows, and technician execution UX
+- `QHSE` and `HR Management` business modules
 - deeper enterprise identity controls such as hosted SSO rollout, richer contextual policy evaluation, broader scope adoption, and stronger security operations on top of the delivered federation/MFA/per-session groundwork
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment
 
@@ -30,7 +32,7 @@ The PM-specific enterprise roadmap is tracked in `docs/ENTERPRISE_PM_ROADMAP.md`
 
 ## Next Priority
 
-The next priority is to harden the implemented `Inventory & Procurement` phase into a fuller enterprise-ready rollout, then wire `Maintenance Management` to consume it by reference.
+The next priority is to keep hardening the implemented `Inventory & Procurement` phase while continuing `Maintenance Management` phase-1 runtime buildout on top of it by reference.
 
 The maintenance blueprint is already available and is now benchmarked against current CMMS/EAM patterns in `docs/maintenance_management/README.md`.
 The inventory blueprint is now tracked in `docs/inventory_procurement/README.md`.
@@ -65,7 +67,7 @@ The next implementation slice should now focus on:
 
 The concrete tracker for that work is now `docs/platform_alignment_followup/auth_access_scaling/README.md`.
 
-After that, the next priority should be the `Maintenance Management` skeleton, then deeper shared master data for formal site/department directories, and then the `QHSE` module skeleton.
+After that, the next priority should be deeper `Maintenance Management` workflow coverage, then the `QHSE` module skeleton.
 
 This does not mean Project Management will never grow again. It means the current PM enterprise roadmap has been delivered, and the next enterprise module investment should establish inventory and procurement as a reusable business capability before Maintenance depends on it.
 
@@ -166,7 +168,7 @@ python main_qt.py
 python main_qt.py
 ```
 
-Business module visibility is driven by module entitlements at runtime. `Project Management` is enabled by default; planned modules stay out of the shell until they are licensed and enabled.
+Business module visibility is driven by module entitlements at runtime. `Project Management` is enabled by default; available modules stay out of the shell until they are licensed and enabled, while planned modules remain non-provisionable.
 
 ### CLI mode (optional)
 

@@ -12,7 +12,8 @@
 - `core/modules/maintenance_management/`
 - `core/modules/qhse/`
 - `core/modules/hr_management/`
-  - planned or placeholder module roots
+  - `inventory_procurement` and `maintenance_management` now have real module-owned services
+  - `qhse` and `hr_management` remain planned or placeholder module roots
 
 Legacy compatibility package roots such as `core/modules/payroll/` are still preserved where helpful during the rename transition.
 

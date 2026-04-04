@@ -98,6 +98,7 @@ DEFAULT_ENTERPRISE_MODULES: tuple[EnterpriseModule, ...] = (
         code="maintenance_management",
         label="Maintenance Management",
         description="Assets, work orders, preventive maintenance, and downtime control.",
+        stage="available",
         primary_capabilities=("assets", "work_orders", "maintenance_plans", "downtime"),
     ),
     EnterpriseModule(

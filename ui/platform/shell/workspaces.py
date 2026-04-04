@@ -12,6 +12,9 @@ from ui.platform.shell.common import (
 from ui.platform.shell.inventory_procurement import (
     build_inventory_procurement_workspace_definitions,
 )
+from ui.platform.shell.maintenance_management import (
+    build_maintenance_management_workspace_definitions,
+)
 from ui.platform.shell.platform import (
     build_platform_administration_workspace_definitions,
     build_platform_home_workspace_definitions,
@@ -44,6 +47,7 @@ def _build_workspace_definitions_from_context(
     definitions.extend(build_platform_home_workspace_definitions(context))
     definitions.extend(build_project_management_workspace_definitions(context))
     definitions.extend(build_inventory_procurement_workspace_definitions(context))
+    definitions.extend(build_maintenance_management_workspace_definitions(context))
     definitions.extend(build_platform_administration_workspace_definitions(context))
     return definitions
 

@@ -1,8 +1,8 @@
 # Maintenance Management Module Blueprint
 
-Status: planning blueprint, benchmark refresh completed on 2026-03-28  
+Status: active blueprint and phased implementation tracker, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has backend foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, a first `reliability analytics` service for KPI snapshots, root-cause helpers, and recurring-failure detection, plus rendered report-pack outputs for backlog, PM compliance, downtime, and execution overview, all with domain/service/persistence wiring and regression coverage, while UI surfaces, preventive templates, and reliability workbenches are still pending
+Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, plus reliability analytics/report-pack services and first shell/UI workspaces for `Maintenance Dashboard` and `Reliability`; broader queue/workbench UI, preventive templates, and planner/execution flows are still pending
 
 ## Purpose
 
@@ -124,9 +124,10 @@ stronger enterprise starting point:
 
 ## Pre-Implementation Hardening Needed In Existing Platform And Modules
 
-Before `maintenance_management` implementation starts, the current repo should
-finish a small but important hardening block so Maintenance can plug into the
-shared platform cleanly instead of adding another round of compatibility debt.
+Before the broader `maintenance_management` rollout continues, the current repo
+should finish a small but important hardening block so Maintenance can keep
+plugging into the shared platform cleanly instead of adding another round of
+compatibility debt.
 
 ### Ready Enough Today
 
@@ -2149,10 +2150,13 @@ Build first:
 Current kickoff status:
 
 - started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
-- pending: import handlers, UI surfaces, and the later preventive-maintenance template stack
+- started: first shell/UI surfaces for `Maintenance Dashboard` and `Reliability`, backed by the live reliability analytics/reporting seam
+- pending: asset, request, work-order, document, planner, and technician execution runtimes, plus the later preventive-maintenance template stack
 
 Phase 1 UI:
 
+- Maintenance Dashboard
+- Reliability
 - Assets
 - Requests
 - Work Orders
@@ -2210,7 +2214,7 @@ Phase 4 UI:
 
 Build next:
 
-- reliability dashboard and reliability-engineer workbench UI
+- reliability dashboard and reliability-engineer workbench UI. Started.
 - planner-facing recurring-failure and root-cause review queues
 - deeper rendered reliability packs such as recurring-failure and exception-review workbooks once preventive and exception UI flows exist
 
@@ -2238,7 +2242,7 @@ Build next:
 
 ### UI
 
-- workspace registration and module licensing
+- started: workspace registration, module licensing, `Maintenance Dashboard`, and `Reliability` workbench surfaces
 - asset list/detail runtime
 - work request queue
 - work order queue and detail runtime

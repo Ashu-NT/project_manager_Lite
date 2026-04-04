@@ -24,11 +24,13 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
     assert catalog.is_enabled("maintenance_management") is False
     assert catalog.is_enabled("qhse") is False
     assert catalog.is_enabled("hr_management") is False
-    assert [module.code for module in catalog.list_available_modules()] == ["inventory_procurement"]
+    assert [module.code for module in catalog.list_available_modules()] == [
+        "inventory_procurement",
+        "maintenance_management",
+    ]
     assert [module.code for module in catalog.list_enabled_modules()] == ["project_management"]
     assert [module.code for module in catalog.list_licensed_modules()] == ["project_management"]
     assert {module.code for module in catalog.list_planned_modules()} == {
-        "maintenance_management",
         "qhse",
         "hr_management",
     }
@@ -133,6 +135,8 @@ def test_shell_workspace_builders_are_split_by_module_packages():
     root = Path(__file__).resolve().parents[1] / "ui" / "platform" / "shell"
 
     assert (root / "common.py").exists()
+    assert (root / "maintenance_management" / "__init__.py").exists()
+    assert (root / "maintenance_management" / "workspaces.py").exists()
     assert (root / "platform" / "__init__.py").exists()
     assert (root / "platform" / "home.py").exists()
     assert (root / "platform" / "workspaces.py").exists()
@@ -145,6 +149,7 @@ def test_shell_workspace_builders_are_split_by_module_packages():
     assert "build_platform_home_workspace_definitions" in coordinator
     assert "build_project_management_workspace_definitions" in coordinator
     assert "build_inventory_procurement_workspace_definitions" in coordinator
+    assert "build_maintenance_management_workspace_definitions" in coordinator
     assert "build_platform_administration_workspace_definitions" in coordinator
 
 
@@ -197,6 +202,7 @@ def test_maintenance_management_now_has_core_foundation_packages():
     root = Path(__file__).resolve().parents[1] / "core" / "modules" / "maintenance_management"
     infra_root = Path(__file__).resolve().parents[1] / "infra" / "modules" / "maintenance_management"
     bundle_root = Path(__file__).resolve().parents[1] / "infra" / "platform" / "service_registration"
+    ui_root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "maintenance_management"
 
     assert (root / "domain.py").exists()
     assert (root / "interfaces.py").exists()
@@ -242,3 +248,9 @@ def test_maintenance_management_now_has_core_foundation_packages():
     assert (infra_root / "db" / "mapper.py").exists()
     assert (infra_root / "db" / "repository.py").exists()
     assert (bundle_root / "maintenance_management_bundle.py").exists()
+    assert (ui_root / "__init__.py").exists()
+    assert (ui_root / "shared.py").exists()
+    assert (ui_root / "dashboard" / "__init__.py").exists()
+    assert (ui_root / "dashboard" / "tab.py").exists()
+    assert (ui_root / "reliability" / "__init__.py").exists()
+    assert (ui_root / "reliability" / "tab.py").exists()

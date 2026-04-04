@@ -13,6 +13,8 @@ PLATFORM_MODULE_CODE = "platform"
 PLATFORM_MODULE_LABEL = "Platform"
 INVENTORY_PROCUREMENT_MODULE_CODE = "inventory_procurement"
 INVENTORY_PROCUREMENT_MODULE_LABEL = "Inventory & Procurement"
+MAINTENANCE_MANAGEMENT_MODULE_CODE = "maintenance_management"
+MAINTENANCE_MANAGEMENT_MODULE_LABEL = "Maintenance Management"
 PROJECT_MANAGEMENT_MODULE_CODE = "project_management"
 PROJECT_MANAGEMENT_MODULE_LABEL = "Project Management"
 
@@ -37,6 +39,7 @@ class ShellWorkspaceContext:
     platform_runtime_application_service: object | None
     project_management_enabled: bool
     inventory_procurement_enabled: bool
+    maintenance_management_enabled: bool
     access_scope_type_choices: tuple[tuple[str, str], ...]
     access_scope_option_loaders: dict[str, ScopeOptionsLoader]
     access_scope_disabled_hints: dict[str, str]
@@ -64,6 +67,11 @@ def build_shell_workspace_context(
         platform_runtime_application_service is not None
         and hasattr(platform_runtime_application_service, "is_enabled")
         and not platform_runtime_application_service.is_enabled(INVENTORY_PROCUREMENT_MODULE_CODE)
+    )
+    maintenance_management_enabled = not bool(
+        platform_runtime_application_service is not None
+        and hasattr(platform_runtime_application_service, "is_enabled")
+        and not platform_runtime_application_service.is_enabled(MAINTENANCE_MANAGEMENT_MODULE_CODE)
     )
 
     access_scope_type_choices: list[tuple[str, str]] = [("Project", "project")]
@@ -96,6 +104,7 @@ def build_shell_workspace_context(
         platform_runtime_application_service=platform_runtime_application_service,
         project_management_enabled=project_management_enabled,
         inventory_procurement_enabled=inventory_procurement_enabled,
+        maintenance_management_enabled=maintenance_management_enabled,
         access_scope_type_choices=tuple(access_scope_type_choices),
         access_scope_option_loaders=access_scope_option_loaders,
         access_scope_disabled_hints=access_scope_disabled_hints,
@@ -116,6 +125,8 @@ def has_any_permission(
 __all__ = [
     "INVENTORY_PROCUREMENT_MODULE_CODE",
     "INVENTORY_PROCUREMENT_MODULE_LABEL",
+    "MAINTENANCE_MANAGEMENT_MODULE_CODE",
+    "MAINTENANCE_MANAGEMENT_MODULE_LABEL",
     "PLATFORM_MODULE_CODE",
     "PLATFORM_MODULE_LABEL",
     "PROJECT_MANAGEMENT_MODULE_CODE",

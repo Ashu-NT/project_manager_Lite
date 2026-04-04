@@ -40,8 +40,10 @@ This avoids mega-tabs and improves local maintainability.
   - collaboration
   - portfolio
   - timesheet
+- `ui/modules/inventory_procurement/`: available module workspaces for inventory, procurement, data exchange, and reporting
+- `ui/modules/maintenance_management/`: early maintenance workspaces for dashboard and reliability
 
-Placeholder package roots also exist for `inventory_procurement`, `maintenance_management`, `qhse`, and `hr_management`.
+Placeholder package roots still exist for `qhse` and `hr_management`.
 
 Legacy compatibility package roots such as `ui/modules/payroll/` remain available during the rename transition.
 
