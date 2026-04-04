@@ -10,6 +10,7 @@ from ui.modules.maintenance_management.reliability import MaintenanceReliability
 from ui.modules.maintenance_management.requests import MaintenanceRequestsTab
 from ui.modules.maintenance_management.sensors import MaintenanceSensorsTab
 from ui.modules.maintenance_management.systems import MaintenanceSystemsTab
+from ui.modules.maintenance_management.task_templates import MaintenanceTaskTemplatesTab
 from ui.modules.maintenance_management.work_orders import MaintenanceWorkOrdersTab
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "MaintenanceRequestsTab",
     "MaintenanceSensorsTab",
     "MaintenanceSystemsTab",
+    "MaintenanceTaskTemplatesTab",
     "MaintenanceWorkOrdersTab",
 ]

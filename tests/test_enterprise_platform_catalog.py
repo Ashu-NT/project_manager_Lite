@@ -168,6 +168,17 @@ def test_inventory_procurement_procurement_tabs_are_split_by_subpackages():
     assert (root / "requisitions" / "tab.py").exists()
 
 
+def test_maintenance_management_library_tabs_are_split_by_subpackages():
+    root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "maintenance_management"
+
+    assert (root / "locations" / "__init__.py").exists()
+    assert (root / "systems" / "__init__.py").exists()
+    assert (root / "task_templates" / "__init__.py").exists()
+    assert (root / "task_templates" / "edit_dialogs.py").exists()
+    assert (root / "task_templates" / "detail_dialog.py").exists()
+    assert (root / "task_templates" / "tab.py").exists()
+
+
 def test_inventory_procurement_removed_dead_top_level_wrappers():
     root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "inventory_procurement"
 
