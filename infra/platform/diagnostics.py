@@ -103,7 +103,9 @@ def build_diagnostics_bundle(
 
         if include_db_copy:
             if db_path.exists() and db_path.is_file():
-                shutil.copy2(db_path, temp_dir / db_path.name)
+                # SECURITY: Database contains sensitive data (passwords, session tokens, etc.)
+                # Only include DB copy if explicitly requested and user has admin privileges
+                warnings.append("Database copy excluded from diagnostics bundle for security reasons.")
             else:
                 warnings.append("Database file not found; skipped DB snapshot.")
 

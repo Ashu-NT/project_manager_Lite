@@ -39,6 +39,10 @@ from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService
+from ui.modules.maintenance_management.preventive.dialogs import (
+    MaintenancePreventivePlanDetailContext,
+    MaintenancePreventivePlanDetailDialog,
+)
 from ui.modules.maintenance_management.shared import (
     build_maintenance_header,
     format_timestamp,
@@ -109,6 +113,7 @@ class MaintenancePreventivePlansTab(QWidget):
         self._sensor_labels: dict[str, str] = {}
         self._task_template_labels: dict[str, str] = {}
         self._visible_rows: list[_PreventivePlanRow] = []
+        self._detail_dialog: MaintenancePreventivePlanDetailDialog | None = None
         self._setup_ui()
         self.reload_data()
         domain_events.domain_changed.connect(self._on_domain_change)
@@ -205,11 +210,7 @@ class MaintenancePreventivePlansTab(QWidget):
             summary_row.addWidget(card, 1)
         root.addLayout(summary_row)
 
-        content_row = QHBoxLayout()
-        content_row.setSpacing(CFG.SPACING_MD)
-        content_row.addWidget(self._build_plan_panel(), 3)
-        content_row.addWidget(self._build_detail_panel(), 2)
-        root.addLayout(content_row, 1)
+        root.addWidget(self._build_plan_panel(), 1)
 
         self.site_combo.currentIndexChanged.connect(
             make_guarded_slot(self, title="Preventive Plans", callback=self.reload_data)
@@ -236,6 +237,9 @@ class MaintenancePreventivePlansTab(QWidget):
         self.plan_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Preventive Plans", callback=self._on_plan_selection_changed)
         )
+        self.btn_open_detail.clicked.connect(
+            make_guarded_slot(self, title="Preventive Plans", callback=self._open_detail_dialog)
+        )
 
     def _build_plan_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
@@ -249,6 +253,19 @@ class MaintenancePreventivePlansTab(QWidget):
         subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        action_row = QHBoxLayout()
+        action_row.setSpacing(CFG.SPACING_SM)
+        self.selection_summary = QLabel(
+            "Select a preventive plan, then click Open Detail to inspect trigger state and task library."
+        )
+        self.selection_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.selection_summary.setWordWrap(True)
+        action_row.addWidget(self.selection_summary, 1)
+        self.btn_open_detail = QPushButton("Open Detail")
+        self.btn_open_detail.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_open_detail.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_open_detail)
+        layout.addLayout(action_row)
         self.plan_table = build_admin_table(
             headers=("Plan", "Anchor", "Status", "Trigger", "Due State", "Next Due"),
             resize_modes=(
@@ -261,44 +278,6 @@ class MaintenancePreventivePlansTab(QWidget):
             ),
         )
         layout.addWidget(self.plan_table)
-        return panel
-
-    def _build_detail_panel(self) -> QWidget:
-        panel, layout = build_admin_surface_card(
-            object_name="maintenancePreventiveDetailSurface",
-            alt=False,
-        )
-        title = QLabel("Selected Preventive Plan")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        subtitle = QLabel("Review generation target, trigger state, next due values, and task-library assignments.")
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-
-        self.detail_title = QLabel("No preventive plan selected")
-        self.detail_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
-        layout.addWidget(self.detail_title)
-        self.detail_summary = QLabel("Select a preventive plan to inspect its trigger state and task library.")
-        self.detail_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        self.detail_summary.setWordWrap(True)
-        layout.addWidget(self.detail_summary)
-
-        task_title = QLabel("Plan Tasks")
-        task_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(task_title)
-        self.task_table = build_admin_table(
-            headers=("Sequence", "Task Template", "Trigger Scope", "Trigger Rule", "Due State", "Minutes"),
-            resize_modes=(
-                self._resize_to_contents(),
-                self._stretch(),
-                self._resize_to_contents(),
-                self._stretch(),
-                self._resize_to_contents(),
-                self._resize_to_contents(),
-            ),
-        )
-        layout.addWidget(self.task_table)
         return panel
 
     def reload_data(self) -> None:
@@ -389,7 +368,7 @@ class MaintenancePreventivePlansTab(QWidget):
     def _populate_plan_table(self, *, selected_plan_id: str | None) -> None:
         self.plan_table.blockSignals(True)
         self.plan_table.setRowCount(len(self._visible_rows))
-        selected_row = 0 if self._visible_rows else -1
+        selected_row = -1
         for row_index, view in enumerate(self._visible_rows):
             plan = view.plan
             values = (
@@ -410,65 +389,9 @@ class MaintenancePreventivePlansTab(QWidget):
         self.plan_table.blockSignals(False)
         if selected_row >= 0:
             self.plan_table.selectRow(selected_row)
-            self._refresh_plan_details(self._visible_rows[selected_row])
             return
-        self._clear_plan_details()
-
-    def _refresh_plan_details(self, view: _PreventivePlanRow) -> None:
-        plan = view.plan
-        try:
-            plan_tasks = sorted(
-                self._preventive_plan_task_service.list_plan_tasks(plan_id=plan.id),
-                key=lambda row: row.sequence_no,
-            )
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Preventive Plans", str(exc))
-            return
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Preventive Plans", f"Failed to load preventive-plan detail: {exc}")
-            return
-
-        self.detail_title.setText(f"{plan.plan_code} - {plan.name}")
-        self.detail_summary.setText(
-            "\n".join(
-                [
-                    f"Anchor: {self._anchor_label(plan)}",
-                    f"Type: {plan.plan_type.value.replace('_', ' ').title()} | Status: {plan.status.value.title()} | Priority: {plan.priority.value.title()}",
-                    f"Trigger: {self._trigger_summary(plan)} | Target: {'Work Order' if plan.auto_generate_work_order else 'Work Request'}",
-                    f"Due state: {self._due_state_label(view)} | Reason: {view.due_reason or '-'}",
-                    f"Last generated: {format_timestamp(plan.last_generated_at)} | Last completed: {format_timestamp(plan.last_completed_at)}",
-                    f"Next due at: {format_timestamp(plan.next_due_at)} | Next counter: {plan.next_due_counter if plan.next_due_counter is not None else '-'}",
-                    f"Controls: {'Shutdown required' if plan.requires_shutdown else 'No shutdown'} | {'Approval required' if plan.approval_required else 'No approval'}",
-                    f"Notes: {plan.notes or '-'}",
-                ]
-            )
-        )
-        self._populate_task_table(view, plan_tasks)
-
-    def _populate_task_table(
-        self,
-        view: _PreventivePlanRow,
-        plan_tasks: list[MaintenancePreventivePlanTask],
-    ) -> None:
-        self.task_table.setRowCount(len(plan_tasks))
-        selected_ids = set(view.selected_plan_task_ids)
-        blocked_ids = set(view.blocked_plan_task_ids)
-        for row_index, plan_task in enumerate(plan_tasks):
-            values = (
-                str(plan_task.sequence_no),
-                self._task_template_labels.get(plan_task.task_template_id, plan_task.task_template_id),
-                "Inherit plan" if plan_task.trigger_scope == MaintenancePlanTaskTriggerScope.INHERIT_PLAN else "Task override",
-                self._plan_task_trigger_summary(plan_task),
-                self._plan_task_due_state(plan_task, view, selected_ids=selected_ids, blocked_ids=blocked_ids),
-                str(plan_task.estimated_minutes_override or "-"),
-            )
-            for column, value in enumerate(values):
-                self.task_table.setItem(row_index, column, QTableWidgetItem(value))
-
-    def _clear_plan_details(self) -> None:
-        self.detail_title.setText("No preventive plan selected")
-        self.detail_summary.setText("Select a preventive plan to inspect its trigger state and task library.")
-        self.task_table.setRowCount(0)
+        self.plan_table.clearSelection()
+        self._sync_selection_actions()
 
     def _build_plan_row(self, plan: MaintenancePreventivePlan, candidate) -> _PreventivePlanRow:
         now = datetime.now(timezone.utc)
@@ -535,43 +458,6 @@ class MaintenancePreventivePlansTab(QWidget):
             f"{self._sensor_rule_label(plan.sensor_id, plan.sensor_threshold, plan.sensor_direction)}"
         )
 
-    def _plan_task_trigger_summary(self, plan_task: MaintenancePreventivePlanTask) -> str:
-        if plan_task.trigger_scope == MaintenancePlanTaskTriggerScope.INHERIT_PLAN:
-            return "Uses plan trigger"
-        if plan_task.trigger_mode_override == MaintenanceTriggerMode.CALENDAR:
-            return self._calendar_rule_label(
-                plan_task.calendar_frequency_unit_override,
-                plan_task.calendar_frequency_value_override,
-            )
-        if plan_task.trigger_mode_override == MaintenanceTriggerMode.SENSOR:
-            return self._sensor_rule_label(
-                plan_task.sensor_id_override,
-                plan_task.sensor_threshold_override,
-                plan_task.sensor_direction_override,
-            )
-        return (
-            f"{self._calendar_rule_label(plan_task.calendar_frequency_unit_override, plan_task.calendar_frequency_value_override)} + "
-            f"{self._sensor_rule_label(plan_task.sensor_id_override, plan_task.sensor_threshold_override, plan_task.sensor_direction_override)}"
-        )
-
-    def _plan_task_due_state(
-        self,
-        plan_task: MaintenancePreventivePlanTask,
-        view: _PreventivePlanRow,
-        *,
-        selected_ids: set[str],
-        blocked_ids: set[str],
-    ) -> str:
-        if view.due_state == _DUE_STATE_INACTIVE:
-            return "Inactive"
-        if plan_task.id in selected_ids:
-            return "Due"
-        if plan_task.id in blocked_ids:
-            return "Blocked"
-        if plan_task.trigger_scope == MaintenancePlanTaskTriggerScope.INHERIT_PLAN:
-            return "Plan state"
-        return "Idle"
-
     def _next_due_label(self, view: _PreventivePlanRow) -> str:
         if view.due_state == _DUE_STATE_BLOCKED:
             return "Review exception"
@@ -617,15 +503,56 @@ class MaintenancePreventivePlansTab(QWidget):
         )
 
     def _on_plan_selection_changed(self) -> None:
+        self._sync_selection_actions()
+
+    def _selected_view(self) -> _PreventivePlanRow | None:
         plan_id = self._selected_plan_id()
         if not plan_id:
-            self._clear_plan_details()
+            return None
+        return next((view for view in self._visible_rows if view.plan.id == plan_id), None)
+
+    def _sync_selection_actions(self) -> None:
+        view = self._selected_view()
+        if view is None:
+            self.selection_summary.setText(
+                "Select a preventive plan, then click Open Detail to inspect trigger state and task library."
+            )
+            self.btn_open_detail.setEnabled(False)
             return
-        for view in self._visible_rows:
-            if view.plan.id == plan_id:
-                self._refresh_plan_details(view)
-                return
-        self._clear_plan_details()
+        self.selection_summary.setText(
+            f"Selected: {view.plan.plan_code} | Due state: {self._due_state_label(view)} | Trigger: {view.plan.trigger_mode.value.title()}"
+        )
+        self.btn_open_detail.setEnabled(True)
+
+    def _open_detail_dialog(self) -> None:
+        view = self._selected_view()
+        if view is None:
+            QMessageBox.information(self, "Preventive Plans", "Select a preventive plan to open its detail view.")
+            return
+        dialog = MaintenancePreventivePlanDetailDialog(
+            preventive_plan_service=self._preventive_plan_service,
+            preventive_plan_task_service=self._preventive_plan_task_service,
+            asset_labels=self._asset_labels,
+            system_labels=self._system_labels,
+            sensor_labels=self._sensor_labels,
+            task_template_labels=self._task_template_labels,
+            parent=self,
+        )
+        dialog.load_plan(
+            view.plan.id,
+            context=MaintenancePreventivePlanDetailContext(
+                due_state=view.due_state,
+                due_reason=view.due_reason,
+                generation_target=view.generation_target,
+                selected_plan_task_ids=view.selected_plan_task_ids,
+                blocked_plan_task_ids=view.blocked_plan_task_ids,
+                is_due_soon=view.is_due_soon,
+            ),
+        )
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        self._detail_dialog = dialog
 
     def _on_domain_change(self, event: DomainChangeEvent) -> None:
         if getattr(event, "scope_code", "") == "maintenance_management":

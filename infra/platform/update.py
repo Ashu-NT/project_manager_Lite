@@ -57,11 +57,19 @@ def _read_manifest_text(source: str) -> str:
         raise ValueError("Manifest source is not configured.")
 
     parsed = urlparse(raw)
+    # SECURITY: Only allow HTTP/HTTPS and file:// schemes, prevent SSRF
+    if parsed.scheme not in ("http", "https", "file"):
+        raise ValueError(f"Unsupported manifest source scheme: {parsed.scheme}")
+
     if parsed.scheme in {"http", "https"}:
         with urlopen(raw, timeout=10) as response:  # noqa: S310
             return response.read().decode("utf-8")
     if parsed.scheme == "file":
         path = Path(parsed.path)
+        # SECURITY: Prevent directory traversal for file:// URLs
+        resolved_path = path.resolve()
+        if not str(resolved_path).startswith(str(path.parent.resolve())):
+            raise ValueError(f"Invalid file path in manifest source: {raw}")
         return path.read_text(encoding="utf-8")
 
     path = Path(raw)

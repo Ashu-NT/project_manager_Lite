@@ -25,6 +25,7 @@ from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService
+from ui.modules.maintenance_management.assets.dialogs import MaintenanceAssetDetailDialog
 from ui.modules.maintenance_management.shared import (
     build_maintenance_header,
     make_accent_badge,
@@ -65,6 +66,7 @@ class MaintenanceAssetsTab(QWidget):
         self._site_labels: dict[str, str] = {}
         self._location_labels: dict[str, str] = {}
         self._system_labels: dict[str, str] = {}
+        self._detail_dialog: MaintenanceAssetDetailDialog | None = None
         self._setup_ui()
         self.reload_data()
         domain_events.domain_changed.connect(self._on_domain_change)
@@ -152,11 +154,7 @@ class MaintenanceAssetsTab(QWidget):
             summary_row.addWidget(card, 1)
         root.addLayout(summary_row)
 
-        content_row = QHBoxLayout()
-        content_row.setSpacing(CFG.SPACING_MD)
-        content_row.addWidget(self._build_assets_panel(), 3)
-        content_row.addWidget(self._build_details_panel(), 2)
-        root.addLayout(content_row, 1)
+        root.addWidget(self._build_assets_panel(), 1)
 
         self.site_combo.currentIndexChanged.connect(self._on_site_changed)
         self.location_combo.currentIndexChanged.connect(
@@ -181,6 +179,9 @@ class MaintenanceAssetsTab(QWidget):
         self.asset_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Assets", callback=self._on_asset_selection_changed)
         )
+        self.btn_open_detail.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Assets", callback=self._open_detail_dialog)
+        )
 
     def _build_assets_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
@@ -194,6 +195,19 @@ class MaintenanceAssetsTab(QWidget):
         subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        action_row = QHBoxLayout()
+        action_row.setSpacing(CFG.SPACING_SM)
+        self.selection_summary = QLabel(
+            "Select an asset, then click Open Detail to inspect hierarchy, lifecycle, and components."
+        )
+        self.selection_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.selection_summary.setWordWrap(True)
+        action_row.addWidget(self.selection_summary, 1)
+        self.btn_open_detail = QPushButton("Open Detail")
+        self.btn_open_detail.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_open_detail.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_open_detail)
+        layout.addLayout(action_row)
         self.asset_table = build_admin_table(
             headers=("Asset", "Site", "Location", "System", "Category", "Status", "Criticality"),
             resize_modes=(
@@ -207,40 +221,6 @@ class MaintenanceAssetsTab(QWidget):
             ),
         )
         layout.addWidget(self.asset_table)
-        return panel
-
-    def _build_details_panel(self) -> QWidget:
-        panel, layout = build_admin_surface_card(
-            object_name="maintenanceAssetDetailSurface",
-            alt=False,
-        )
-        title = QLabel("Selected Asset")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        subtitle = QLabel("Metadata, hierarchy context, and linked components for the current asset.")
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        self.detail_title = QLabel("No asset selected")
-        self.detail_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
-        layout.addWidget(self.detail_title)
-        self.detail_summary = QLabel("Select an asset to inspect lifecycle, hierarchy, and equipment context.")
-        self.detail_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        self.detail_summary.setWordWrap(True)
-        layout.addWidget(self.detail_summary)
-        component_title = QLabel("Components")
-        component_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(component_title)
-        self.component_table = build_admin_table(
-            headers=("Component", "Type", "Status", "Critical"),
-            resize_modes=(
-                self._stretch(),
-                self._stretch(),
-                self._resize_to_contents(),
-                self._resize_to_contents(),
-            ),
-        )
-        layout.addWidget(self.component_table)
         return panel
 
     def reload_data(self) -> None:
@@ -345,7 +325,7 @@ class MaintenanceAssetsTab(QWidget):
     def _populate_asset_table(self, rows, *, selected_asset_id: str | None) -> None:
         self.asset_table.blockSignals(True)
         self.asset_table.setRowCount(len(rows))
-        selected_row = 0 if rows else -1
+        selected_row = -1
         for row_index, asset in enumerate(rows):
             values = (
                 f"{asset.asset_code} - {asset.name}",
@@ -366,9 +346,9 @@ class MaintenanceAssetsTab(QWidget):
         self.asset_table.blockSignals(False)
         if selected_row >= 0:
             self.asset_table.selectRow(selected_row)
-            self._refresh_asset_details(rows[selected_row].id)
             return
-        self._clear_asset_details()
+        self.asset_table.clearSelection()
+        self._sync_selection_actions()
 
     def _on_site_changed(self) -> None:
         self.reload_data()
@@ -381,54 +361,48 @@ class MaintenanceAssetsTab(QWidget):
         )
 
     def _on_asset_selection_changed(self) -> None:
+        self._sync_selection_actions()
+
+    def _selected_asset(self):
         asset_id = self._selected_asset_id()
-        if asset_id:
-            self._refresh_asset_details(asset_id)
-            return
-        self._clear_asset_details()
-
-    def _refresh_asset_details(self, asset_id: str) -> None:
+        if not asset_id:
+            return None
         try:
-            asset = self._asset_service.get_asset(asset_id)
-            components = self._component_service.list_components(active_only=None, asset_id=asset.id)
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Maintenance Assets", str(exc))
-            return
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Maintenance Assets", f"Failed to load maintenance asset details: {exc}")
-            return
+            return self._asset_service.get_asset(asset_id)
+        except Exception:  # noqa: BLE001
+            return None
 
-        self.detail_title.setText(f"{asset.asset_code} - {asset.name}")
-        self.detail_summary.setText(
-            "\n".join(
-                [
-                    f"Site: {self._site_labels.get(asset.site_id, asset.site_id)}",
-                    f"Location: {self._location_labels.get(asset.location_id, asset.location_id)}",
-                    f"System: {self._system_labels.get(asset.system_id or '', asset.system_id or '-')}",
-                    f"Lifecycle: {asset.status.value.title()} | Criticality: {asset.criticality.value.title()}",
-                    f"Category: {asset.asset_category or '-'} | Type: {asset.asset_type or '-'}",
-                    f"Model / Serial: {asset.model_number or '-'} / {asset.serial_number or '-'}",
-                    f"Strategy: {asset.maintenance_strategy or '-'} | Service level: {asset.service_level or '-'}",
-                    f"Shutdown required: {'Yes' if asset.requires_shutdown_for_major_work else 'No'}",
-                    f"Notes: {asset.notes or '-'}",
-                ]
+    def _sync_selection_actions(self) -> None:
+        asset = self._selected_asset()
+        if asset is None:
+            self.selection_summary.setText(
+                "Select an asset, then click Open Detail to inspect hierarchy, lifecycle, and components."
             )
+            self.btn_open_detail.setEnabled(False)
+            return
+        self.selection_summary.setText(
+            f"Selected: {asset.asset_code} | Status: {asset.status.value.title()} | Criticality: {asset.criticality.value.title()}"
         )
-        self.component_table.setRowCount(len(components))
-        for row_index, component in enumerate(components):
-            values = (
-                f"{component.component_code} - {component.name}",
-                component.component_type or "-",
-                component.status.value.title(),
-                "Yes" if component.is_critical_component else "No",
-            )
-            for column, value in enumerate(values):
-                self.component_table.setItem(row_index, column, QTableWidgetItem(value))
+        self.btn_open_detail.setEnabled(True)
 
-    def _clear_asset_details(self) -> None:
-        self.detail_title.setText("No asset selected")
-        self.detail_summary.setText("Select an asset to inspect lifecycle, hierarchy, and equipment context.")
-        self.component_table.setRowCount(0)
+    def _open_detail_dialog(self) -> None:
+        asset_id = self._selected_asset_id()
+        if not asset_id:
+            QMessageBox.information(self, "Maintenance Assets", "Select an asset to open its detail view.")
+            return
+        dialog = MaintenanceAssetDetailDialog(
+            asset_service=self._asset_service,
+            component_service=self._component_service,
+            site_labels=self._site_labels,
+            location_labels=self._location_labels,
+            system_labels=self._system_labels,
+            parent=self,
+        )
+        dialog.load_asset(asset_id)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        self._detail_dialog = dialog
 
     def _selected_asset_id(self) -> str | None:
         row = self.asset_table.currentRow()

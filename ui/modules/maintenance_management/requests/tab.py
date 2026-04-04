@@ -27,6 +27,7 @@ from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService
+from ui.modules.maintenance_management.requests.dialogs import MaintenanceRequestDetailDialog
 from ui.modules.maintenance_management.shared import (
     build_maintenance_header,
     format_timestamp,
@@ -71,6 +72,7 @@ class MaintenanceRequestsTab(QWidget):
         self._asset_labels: dict[str, str] = {}
         self._location_labels: dict[str, str] = {}
         self._system_labels: dict[str, str] = {}
+        self._detail_dialog: MaintenanceRequestDetailDialog | None = None
         self._setup_ui()
         self.reload_data()
         domain_events.domain_changed.connect(self._on_domain_change)
@@ -150,11 +152,7 @@ class MaintenanceRequestsTab(QWidget):
             summary_row.addWidget(card, 1)
         root.addLayout(summary_row)
 
-        content_row = QHBoxLayout()
-        content_row.setSpacing(CFG.SPACING_MD)
-        content_row.addWidget(self._build_queue_panel(), 3)
-        content_row.addWidget(self._build_detail_panel(), 2)
-        root.addLayout(content_row, 1)
+        root.addWidget(self._build_queue_panel(), 1)
 
         self.site_combo.currentIndexChanged.connect(self._on_site_changed)
         self.status_combo.currentIndexChanged.connect(
@@ -173,6 +171,9 @@ class MaintenanceRequestsTab(QWidget):
         self.request_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Requests", callback=self._on_request_selection_changed)
         )
+        self.btn_open_detail.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Requests", callback=self._open_detail_dialog)
+        )
 
     def _build_queue_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
@@ -186,6 +187,19 @@ class MaintenanceRequestsTab(QWidget):
         subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        action_row = QHBoxLayout()
+        action_row.setSpacing(CFG.SPACING_SM)
+        self.selection_summary = QLabel(
+            "Select a request, then click Open Detail to inspect intake, impact, and linked work orders."
+        )
+        self.selection_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.selection_summary.setWordWrap(True)
+        action_row.addWidget(self.selection_summary, 1)
+        self.btn_open_detail = QPushButton("Open Detail")
+        self.btn_open_detail.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_open_detail.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_open_detail)
+        layout.addLayout(action_row)
         self.request_table = build_admin_table(
             headers=("Request", "Type", "Status", "Priority", "Requested By", "Requested"),
             resize_modes=(
@@ -198,40 +212,6 @@ class MaintenanceRequestsTab(QWidget):
             ),
         )
         layout.addWidget(self.request_table)
-        return panel
-
-    def _build_detail_panel(self) -> QWidget:
-        panel, layout = build_admin_surface_card(
-            object_name="maintenanceRequestDetailSurface",
-            alt=False,
-        )
-        title = QLabel("Selected Request")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        subtitle = QLabel("Request context, operational impact, and linked work-order conversion.")
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        self.detail_title = QLabel("No request selected")
-        self.detail_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
-        layout.addWidget(self.detail_title)
-        self.detail_summary = QLabel("Select a request to inspect maintenance intake context and follow-on work.")
-        self.detail_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        self.detail_summary.setWordWrap(True)
-        layout.addWidget(self.detail_summary)
-        related_title = QLabel("Linked Work Orders")
-        related_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(related_title)
-        self.linked_orders_table = build_admin_table(
-            headers=("Work Order", "Status", "Priority", "Type"),
-            resize_modes=(
-                self._stretch(),
-                self._resize_to_contents(),
-                self._resize_to_contents(),
-                self._resize_to_contents(),
-            ),
-        )
-        layout.addWidget(self.linked_orders_table)
         return panel
 
     def reload_data(self) -> None:
@@ -300,7 +280,7 @@ class MaintenanceRequestsTab(QWidget):
     def _populate_request_table(self, rows, *, selected_request_id: str | None) -> None:
         self.request_table.blockSignals(True)
         self.request_table.setRowCount(len(rows))
-        selected_row = 0 if rows else -1
+        selected_row = -1
         for row_index, request in enumerate(rows):
             values = (
                 f"{request.work_request_code} - {request.title or request.request_type.title()}",
@@ -320,66 +300,57 @@ class MaintenanceRequestsTab(QWidget):
         self.request_table.blockSignals(False)
         if selected_row >= 0:
             self.request_table.selectRow(selected_row)
-            self._refresh_request_details(rows[selected_row].id)
             return
-        self._clear_request_details()
+        self.request_table.clearSelection()
+        self._sync_selection_actions()
 
     def _on_site_changed(self) -> None:
         self.reload_data()
 
     def _on_request_selection_changed(self) -> None:
+        self._sync_selection_actions()
+
+    def _selected_request(self):
         request_id = self._selected_request_id()
-        if request_id:
-            self._refresh_request_details(request_id)
-            return
-        self._clear_request_details()
-
-    def _refresh_request_details(self, request_id: str) -> None:
+        if not request_id:
+            return None
         try:
-            request = self._work_request_service.get_work_request(request_id)
-            related_orders = [
-                row
-                for row in self._work_order_service.list_work_orders(site_id=request.site_id)
-                if row.source_type == "WORK_REQUEST" and row.source_id == request.id
-            ]
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Maintenance Requests", str(exc))
-            return
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Maintenance Requests", f"Failed to load request details: {exc}")
-            return
+            return self._work_request_service.get_work_request(request_id)
+        except Exception:  # noqa: BLE001
+            return None
 
-        self.detail_title.setText(f"{request.work_request_code} - {request.title or request.request_type.title()}")
-        self.detail_summary.setText(
-            "\n".join(
-                [
-                    f"Type: {request.request_type.title()} | Status: {request.status.value.title()} | Priority: {request.priority.value.title()}",
-                    f"Site: {self._site_labels.get(request.site_id, request.site_id)}",
-                    f"Asset: {self._label_for(self._asset_labels, request.asset_id)} | System: {self._label_for(self._system_labels, request.system_id)}",
-                    f"Location: {self._label_for(self._location_labels, request.location_id)} | Component: {request.component_id or '-'}",
-                    f"Failure symptom: {request.failure_symptom_code or '-'}",
-                    f"Safety risk: {request.safety_risk_level or '-'} | Production impact: {request.production_impact_level or '-'}",
-                    f"Requested by: {request.requested_by_name_snapshot or '-'} | Triaged: {format_timestamp(request.triaged_at)}",
-                    f"Description: {request.description or '-'}",
-                    f"Notes: {request.notes or '-'}",
-                ]
+    def _sync_selection_actions(self) -> None:
+        request = self._selected_request()
+        if request is None:
+            self.selection_summary.setText(
+                "Select a request, then click Open Detail to inspect intake, impact, and linked work orders."
             )
+            self.btn_open_detail.setEnabled(False)
+            return
+        self.selection_summary.setText(
+            f"Selected: {request.work_request_code} | Status: {request.status.value.title()} | Priority: {request.priority.value.title()}"
         )
-        self.linked_orders_table.setRowCount(len(related_orders))
-        for row_index, order in enumerate(related_orders):
-            values = (
-                f"{order.work_order_code} - {order.title or order.work_order_type.value.title()}",
-                order.status.value.title(),
-                order.priority.value.title(),
-                order.work_order_type.value.title(),
-            )
-            for column, value in enumerate(values):
-                self.linked_orders_table.setItem(row_index, column, QTableWidgetItem(value))
+        self.btn_open_detail.setEnabled(True)
 
-    def _clear_request_details(self) -> None:
-        self.detail_title.setText("No request selected")
-        self.detail_summary.setText("Select a request to inspect maintenance intake context and follow-on work.")
-        self.linked_orders_table.setRowCount(0)
+    def _open_detail_dialog(self) -> None:
+        request_id = self._selected_request_id()
+        if not request_id:
+            QMessageBox.information(self, "Maintenance Requests", "Select a request to open its detail view.")
+            return
+        dialog = MaintenanceRequestDetailDialog(
+            work_request_service=self._work_request_service,
+            work_order_service=self._work_order_service,
+            site_labels=self._site_labels,
+            asset_labels=self._asset_labels,
+            location_labels=self._location_labels,
+            system_labels=self._system_labels,
+            parent=self,
+        )
+        dialog.load_request(request_id)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        self._detail_dialog = dialog
 
     def _selected_request_id(self) -> str | None:
         row = self.request_table.currentRow()
@@ -390,12 +361,6 @@ class MaintenanceRequestsTab(QWidget):
             return None
         value = item.data(Qt.UserRole)
         return str(value) if value else None
-
-    @staticmethod
-    def _label_for(labels: dict[str, str], value: str | None) -> str:
-        if not value:
-            return "-"
-        return labels.get(value, value)
 
     def _toggle_filters(self) -> None:
         set_filter_panel_visible(

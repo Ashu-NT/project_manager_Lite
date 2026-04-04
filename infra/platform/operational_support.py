@@ -124,6 +124,9 @@ def redact_value(value: Any, *, _depth: int = 0, _max_depth: int = 8) -> Any:
 class TraceIdLogFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.trace_id = current_trace_id() or "-"
+        # Redact sensitive data from log messages
+        if hasattr(record, 'msg') and record.msg:
+            record.msg = redact_text(str(record.msg))
         return True
 
 

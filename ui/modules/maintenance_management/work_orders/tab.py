@@ -28,6 +28,7 @@ from core.modules.maintenance_management import (
 )
 from core.modules.maintenance_management.domain import (
     MaintenancePriority,
+    MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,
     MaintenanceWorkOrderType,
 )
@@ -322,11 +323,11 @@ class MaintenanceWorkOrdersTab(QWidget):
             return
 
         if responsibility_filter == _RESPONSIBILITY_EMPLOYEE:
-            rows = [row for row in rows if row.assigned_employee_id]
+            rows: list[MaintenanceWorkOrder] = [row for row in rows if row.assigned_employee_id]
         elif responsibility_filter == _RESPONSIBILITY_TEAM:
-            rows = [row for row in rows if row.assigned_team_id]
+            rows: list[MaintenanceWorkOrder] = [row for row in rows if row.assigned_team_id]
         elif responsibility_filter == _RESPONSIBILITY_UNASSIGNED:
-            rows = [row for row in rows if not row.assigned_employee_id and not row.assigned_team_id]
+            rows: list[MaintenanceWorkOrder] = [row for row in rows if not row.assigned_employee_id and not row.assigned_team_id]
 
         self.total_card.set_value(str(len(rows)))
         self.active_card.set_value(str(sum(1 for row in rows if row.status in _ACTIVE_WORK_ORDER_STATUSES)))
@@ -362,7 +363,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         )
         self._populate_work_order_table(rows, selected_work_order_id=selected_work_order_id)
 
-    def _populate_work_order_table(self, rows, *, selected_work_order_id: str | None) -> None:
+    def _populate_work_order_table(self, rows: list[MaintenanceWorkOrder], *, selected_work_order_id: str | None) -> None:
         self.work_order_table.blockSignals(True)
         self.work_order_table.setRowCount(len(rows))
         selected_row = -1

@@ -450,10 +450,20 @@ def test_maintenance_assets_tab_lists_assets_and_components(qapp, services):
 
     assert tab.context_badge.text() == "Context: Default Organization"
     assert tab.asset_table.rowCount() >= 1
-    assert "Pump 101" in tab.asset_table.item(0, 0).text()
-    assert tab.detail_title.text() == "PUMP-101 - Pump 101"
-    assert tab.component_table.rowCount() >= 1
-    assert "Mechanical Seal" in tab.component_table.item(0, 0).text()
+    assert "Open Detail" in tab.selection_summary.text()
+    row = _find_row_by_contains(tab.asset_table, 0, "PUMP-101")
+    assert row >= 0
+    tab.asset_table.selectRow(row)
+    qapp.processEvents()
+    assert "PUMP-101" in tab.selection_summary.text()
+    assert tab.btn_open_detail.isEnabled()
+    tab.btn_open_detail.click()
+    qapp.processEvents()
+    dialog = tab._detail_dialog
+    assert dialog is not None
+    assert dialog.title_label.text() == "PUMP-101 - Pump 101"
+    assert dialog.component_table.rowCount() >= 1
+    assert "Mechanical Seal" in dialog.component_table.item(0, 0).text()
 
 
 def test_maintenance_requests_tab_lists_queue_and_linked_orders(qapp, services):
@@ -478,13 +488,20 @@ def test_maintenance_requests_tab_lists_queue_and_linked_orders(qapp, services):
     assert tab.context_badge.text() == "Context: Default Organization"
     assert tab.request_table.rowCount() >= 4
     assert tab.total_card._lbl_value.text() == str(tab.request_table.rowCount())
+    assert "Open Detail" in tab.selection_summary.text()
     row = _find_row_by_contains(tab.request_table, 0, "WR-UI-OPEN")
     assert row >= 0
     tab.request_table.selectRow(row)
     qapp.processEvents()
-    assert "Open seal leak" in tab.detail_title.text()
-    assert tab.linked_orders_table.rowCount() >= 1
-    assert "WO-UI-OPEN" in tab.linked_orders_table.item(0, 0).text()
+    assert "WR-UI-OPEN" in tab.selection_summary.text()
+    assert tab.btn_open_detail.isEnabled()
+    tab.btn_open_detail.click()
+    qapp.processEvents()
+    dialog = tab._detail_dialog
+    assert dialog is not None
+    assert "Open seal leak" in dialog.title_label.text()
+    assert dialog.linked_orders_table.rowCount() >= 1
+    assert "WO-UI-OPEN" in dialog.linked_orders_table.item(0, 0).text()
 
 
 def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, services):
@@ -793,15 +810,22 @@ def test_maintenance_preventive_tab_surfaces_due_blocked_and_inactive_plan_state
     assert tab.due_now_card._lbl_value.text() != "0"
     assert tab.due_soon_card._lbl_value.text() != "0"
     assert tab.blocked_card._lbl_value.text() != "0"
+    assert "Open Detail" in tab.selection_summary.text()
 
     row = _find_row_by_contains(tab.plan_table, 0, "PM-UI-DUE")
     assert row >= 0
     tab.plan_table.selectRow(row)
     qapp.processEvents()
-    assert "Due seal inspection" in tab.detail_title.text()
-    assert "Due state: Due" in tab.detail_summary.text()
-    assert tab.task_table.rowCount() >= 1
-    assert "PM-SEAL-CHECK" in tab.task_table.item(0, 1).text()
+    assert "PM-UI-DUE" in tab.selection_summary.text()
+    assert tab.btn_open_detail.isEnabled()
+    tab.btn_open_detail.click()
+    qapp.processEvents()
+    dialog = tab._detail_dialog
+    assert dialog is not None
+    assert "Due seal inspection" in dialog.title_label.text()
+    assert "Due state: Due" in dialog.overview_summary.text()
+    assert dialog.task_table.rowCount() >= 1
+    assert "PM-SEAL-CHECK" in dialog.task_table.item(0, 1).text()
 
     _select_combo_value(tab.due_state_combo, "BLOCKED")
     qapp.processEvents()

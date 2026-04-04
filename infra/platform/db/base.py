@@ -15,6 +15,10 @@ Base = declarative_base()
 def get_db_url() -> str:
     env_url = (os.getenv("PM_DB_URL") or "").strip()
     if env_url:
+        # SECURITY: Validate database URL to prevent injection attacks
+        parsed = urlparse(env_url)
+        if parsed.scheme not in ("sqlite", "postgresql", "mysql", "oracle", "mssql"):
+            raise ValueError(f"Unsupported database scheme: {parsed.scheme}")
         logger.info("Using database URL from PM_DB_URL.")
         return env_url
 

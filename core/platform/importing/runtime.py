@@ -192,6 +192,11 @@ class CsvImportRuntime:
     @staticmethod
     def _load_csv_source(file_path: str | Path) -> tuple[list[str], list[tuple[int, dict[str, str]]]]:
         path = Path(file_path)
+        # SECURITY: Validate file path to prevent directory traversal
+        resolved_path = path.resolve()
+        if not str(resolved_path).startswith(str(Path(file_path).parent.resolve())):
+            raise ValueError(f"Invalid file path: {file_path}")
+
         rows: list[tuple[int, dict[str, str]]] = []
         with path.open("r", encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)

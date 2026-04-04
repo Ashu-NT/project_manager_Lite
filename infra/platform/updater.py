@@ -20,7 +20,9 @@ def _safe_installer_name(url: str) -> str:
     name = Path(parsed.path).name.strip() or "Setup_ProjectManagerLite_update.exe"
     if not name.lower().endswith(".exe"):
         name = f"{name}.exe"
-    return name
+    # SECURITY: Sanitize filename to prevent path traversal
+    safe_name = "".join(ch for ch in name if ch.isalnum() or ch in "._-")
+    return safe_name or "Setup_ProjectManagerLite_update.exe"
 
 
 def sha256_file(path: Path) -> str:
@@ -53,6 +55,11 @@ def download_update_installer(
     source = (url or "").strip()
     if not source:
         raise ValueError("Update URL is required.")
+
+    # SECURITY: Only allow HTTP/HTTPS URLs for downloads
+    parsed = urlparse(source)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsupported download URL scheme: {parsed.scheme}")
 
     download_dir.mkdir(parents=True, exist_ok=True)
     target = download_dir / _safe_installer_name(source)
