@@ -531,6 +531,7 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
         work_order_task_service=services["maintenance_work_order_task_service"],
         work_order_task_step_service=services["maintenance_work_order_task_step_service"],
         material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+        labor_service=services["maintenance_labor_service"],
         document_service=services["maintenance_document_service"],
         work_request_service=services["maintenance_work_request_service"],
         site_service=services["site_service"],
@@ -558,7 +559,7 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     dialog = tab._detail_dialog
     assert dialog is not None
     assert "Open seal leak" in dialog.title_label.text()
-    assert _top_level_labels(dialog.workbench.tree) == ["Overview", "Tasks", "Task Steps", "Materials", "Evidence"]
+    assert _top_level_labels(dialog.workbench.tree) == ["Overview", "Tasks", "Task Steps", "Labor", "Materials", "Evidence"]
     assert dialog.task_table.rowCount() >= 1
     assert "Inspect seal housing" in dialog.task_table.item(0, 0).text()
     assert "Employee" in dialog.task_table.item(0, 1).text()
@@ -593,12 +594,22 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     dialog.btn_confirm_step.click()
     qapp.processEvents()
     assert "Confirmed" in dialog.step_table.item(0, 3).text()
+    dialog.workbench.set_current_section("labor")
+    qapp.processEvents()
+    dialog.labor_hours_spin.setValue(2.5)
+    dialog.labor_note_edit.setText("Seal inspection labor")
+    dialog.btn_add_labor.click()
+    qapp.processEvents()
+    assert dialog.labor_table.rowCount() >= 1
+    assert dialog.labor_table.item(0, 1).text() == "2.50"
+    assert "Seal inspection labor" in dialog.labor_table.item(0, 3).text()
     dialog.workbench.set_current_section("tasks")
     qapp.processEvents()
     assert dialog.btn_complete_task.isEnabled()
     dialog.btn_complete_task.click()
     qapp.processEvents()
     assert dialog.task_table.item(0, 2).text() == "Completed"
+    assert "150" in dialog.task_table.item(0, 4).text()
     _select_combo_value(tab.responsibility_combo, "__EMPLOYEE__")
     qapp.processEvents()
     assert tab.work_order_table.rowCount() >= 1

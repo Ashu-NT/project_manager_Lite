@@ -4,6 +4,7 @@ from .documents import MaintenanceDocumentService
 from .downtime_event import MaintenanceDowntimeEventService
 from .failure_code import MaintenanceFailureCodeService
 from .integration_source import MaintenanceIntegrationSourceService
+from .labor import MaintenanceLaborService
 from .location import MaintenanceLocationService
 from .material_requirement import MaintenanceWorkOrderMaterialRequirementService
 from .preventive import MaintenancePreventiveGenerationService
@@ -31,6 +32,7 @@ __all__ = [
     "MaintenanceDowntimeEventService",
     "MaintenanceFailureCodeService",
     "MaintenanceIntegrationSourceService",
+    "MaintenanceLaborService",
     "MaintenanceLocationService",
     "MaintenancePreventiveGenerationService",
     "MaintenancePreventivePlanService",

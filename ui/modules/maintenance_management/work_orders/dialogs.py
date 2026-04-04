@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDate, Qt
 from PySide6.QtWidgets import (
+    QDateEdit,
     QDialog,
+    QDoubleSpinBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -15,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from core.modules.maintenance_management import (
     MaintenanceDocumentService,
+    MaintenanceLaborService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
@@ -26,6 +29,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrderTaskStatus,
     MaintenanceWorkOrderTaskStepStatus,
 )
+from core.platform.time.domain import TimeEntry
 from ui.modules.maintenance_management.shared import (
     MaintenanceWorkbenchNavigator,
     MaintenanceWorkbenchSection,
@@ -50,6 +54,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         work_order_task_service: MaintenanceWorkOrderTaskService,
         work_order_task_step_service: MaintenanceWorkOrderTaskStepService,
         material_requirement_service: MaintenanceWorkOrderMaterialRequirementService,
+        labor_service: MaintenanceLaborService | None = None,
         document_service: MaintenanceDocumentService | None = None,
         work_request_service: MaintenanceWorkRequestService | None = None,
         site_labels: dict[str, str],
@@ -63,6 +68,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self._work_order_task_service = work_order_task_service
         self._work_order_task_step_service = work_order_task_step_service
         self._material_requirement_service = material_requirement_service
+        self._labor_service = labor_service
         self._document_service = document_service
         self._work_request_service = work_request_service
         self._site_labels = site_labels
@@ -73,6 +79,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self._detail_tasks_by_id: dict[str, object] = {}
         self._detail_steps_by_id: dict[str, object] = {}
         self._step_ids_by_task_id: dict[str, list[str]] = {}
+        self._detail_labor_entries_by_task_id: dict[str, list[TimeEntry]] = {}
         self._detail_documents_by_id: dict[str, object] = {}
 
         self.setWindowTitle("Work Order Detail")
@@ -91,6 +98,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self.overview_widget, self.overview_summary = self._build_overview_widget()
         self.tasks_widget = self._build_tasks_widget()
         self.steps_widget = self._build_steps_widget()
+        self.labor_widget = self._build_labor_widget()
         self.materials_widget = self._build_materials_widget()
         self.evidence_widget = self._build_evidence_widget()
         self.workbench.set_sections(
@@ -109,6 +117,11 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
                     key="steps",
                     label="Task Steps",
                     widget=self.steps_widget,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="labor",
+                    label="Labor",
+                    widget=self.labor_widget,
                 ),
                 MaintenanceWorkbenchSection(
                     key="materials",
@@ -146,11 +159,15 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self.btn_confirm_step.clicked.connect(
             make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_confirm_step)
         )
+        self.btn_add_labor.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_add_labor_entry)
+        )
         self.btn_preview_evidence.clicked.connect(
             make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._show_evidence_preview)
         )
         self._sync_task_actions()
         self._sync_step_actions()
+        self._sync_labor_actions()
         self._sync_evidence_actions()
 
     def _build_overview_widget(self) -> tuple[QWidget, QLabel]:
@@ -246,6 +263,59 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         layout.addLayout(action_row)
         return widget
 
+    def _build_labor_widget(self) -> QWidget:
+        widget, layout = build_admin_surface_card(
+            object_name="maintenanceWorkOrderDialogLaborSurface",
+            alt=False,
+        )
+        title = QLabel("Labor")
+        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        subtitle = QLabel("Book technician labor against the selected task through the shared time-entry boundary.")
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        self.labor_summary = QLabel("Select a task to review or book labor.")
+        self.labor_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.labor_summary.setWordWrap(True)
+        layout.addWidget(self.labor_summary)
+        self.labor_table = build_admin_table(
+            headers=("Date", "Hours", "Author", "Note"),
+            resize_modes=(
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+                self._stretch(),
+            ),
+        )
+        layout.addWidget(self.labor_table)
+        action_row = QHBoxLayout()
+        action_row.setSpacing(CFG.SPACING_SM)
+        action_row.addWidget(QLabel("Date"))
+        self.labor_date_edit = QDateEdit()
+        self.labor_date_edit.setCalendarPopup(True)
+        self.labor_date_edit.setDate(QDate.currentDate())
+        self.labor_date_edit.setFixedHeight(CFG.INPUT_HEIGHT)
+        action_row.addWidget(self.labor_date_edit)
+        action_row.addWidget(QLabel("Hours"))
+        self.labor_hours_spin = QDoubleSpinBox()
+        self.labor_hours_spin.setDecimals(2)
+        self.labor_hours_spin.setRange(0.25, 24.0)
+        self.labor_hours_spin.setSingleStep(0.25)
+        self.labor_hours_spin.setValue(1.0)
+        self.labor_hours_spin.setFixedHeight(CFG.INPUT_HEIGHT)
+        action_row.addWidget(self.labor_hours_spin)
+        action_row.addWidget(QLabel("Note"))
+        self.labor_note_edit = QLineEdit()
+        self.labor_note_edit.setPlaceholderText("Describe the work completed")
+        action_row.addWidget(self.labor_note_edit, 1)
+        self.btn_add_labor = QPushButton("Add Labor Entry")
+        self.btn_add_labor.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_add_labor.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_add_labor)
+        layout.addLayout(action_row)
+        return widget
+
     def _build_materials_widget(self) -> QWidget:
         widget, layout = build_admin_surface_card(
             object_name="maintenanceWorkOrderDialogMaterialsSurface",
@@ -336,12 +406,17 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self._detail_tasks_by_id = {task.id: task for task in tasks}
         self._detail_steps_by_id = {}
         self._step_ids_by_task_id = {}
+        self._detail_labor_entries_by_task_id = {}
         for task in tasks:
             step_ids: list[str] = []
             for step in step_rows_by_task_id.get(task.id, []):
                 self._detail_steps_by_id[step.id] = step
                 step_ids.append(step.id)
             self._step_ids_by_task_id[task.id] = step_ids
+            if self._labor_service is not None:
+                self._detail_labor_entries_by_task_id[task.id] = self._labor_service.list_task_labor_entries(task.id)
+            else:
+                self._detail_labor_entries_by_task_id[task.id] = []
         self._detail_documents_by_id = {document.id: document for document in documents}
 
         self.title_label.setText(
@@ -369,6 +444,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         selected_task = self._selected_task()
         effective_task_id = selected_task.id if selected_task is not None else selected_task_id
         self._populate_step_table(selected_task_id=effective_task_id, selected_step_id=selected_step_id)
+        self._populate_labor_table(selected_task_id=effective_task_id)
         self._populate_material_table(materials)
         self._populate_evidence_table(documents)
         self.workbench.set_current_section("overview")
@@ -447,6 +523,33 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             )
             for column, value in enumerate(values):
                 self.material_table.setItem(row_index, column, QTableWidgetItem(value))
+
+    def _populate_labor_table(self, *, selected_task_id: str | None) -> None:
+        task = self._detail_tasks_by_id.get(selected_task_id or "")
+        entries = list(self._detail_labor_entries_by_task_id.get(selected_task_id or "", []))
+        self.labor_table.setRowCount(len(entries))
+        for row_index, entry in enumerate(entries):
+            values = (
+                entry.entry_date.isoformat(),
+                f"{entry.hours:.2f}",
+                entry.author_username or entry.author_user_id or "system",
+                entry.note or "-",
+            )
+            for column, value in enumerate(values):
+                self.labor_table.setItem(row_index, column, QTableWidgetItem(value))
+        if task is None:
+            self.labor_summary.setText("Select a task to review or book labor.")
+        elif not (task.assigned_employee_id or "").strip():
+            self.labor_summary.setText(
+                f"Task {task.sequence_no} has no assigned employee yet. Assign one before booking labor."
+            )
+        else:
+            total_hours = sum(float(entry.hours or 0.0) for entry in entries)
+            self.labor_summary.setText(
+                f"Task {task.sequence_no} is assigned to {self._format_assignment(task.assigned_employee_id, task.assigned_team_id)}. "
+                f"{len(entries)} entry(s) logged, {total_hours:.2f} hour(s) total."
+            )
+        self._sync_labor_actions()
 
     def _populate_evidence_table(self, documents) -> None:
         self.evidence_table.blockSignals(True)
@@ -600,11 +703,21 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
     def _sync_evidence_actions(self) -> None:
         self.btn_preview_evidence.setEnabled(self._selected_evidence_document() is not None)
 
+    def _sync_labor_actions(self) -> None:
+        task = self._selected_task()
+        can_book = (
+            self._labor_service is not None
+            and task is not None
+            and bool((task.assigned_employee_id or "").strip())
+        )
+        self.btn_add_labor.setEnabled(can_book)
+
     def _on_task_selection_changed(self) -> None:
         self._populate_step_table(
             selected_task_id=self._selected_task_id(),
             selected_step_id=None,
         )
+        self._populate_labor_table(selected_task_id=self._selected_task_id())
         self._sync_task_actions()
 
     def _on_step_selection_changed(self) -> None:
@@ -675,6 +788,22 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         )
         self._refresh_after_action(selected_task_id=task.id, selected_step_id=updated.id)
         self.workbench.set_current_section("steps")
+
+    def _on_add_labor_entry(self) -> None:
+        task = self._selected_task()
+        if task is None or self._labor_service is None:
+            QMessageBox.information(self, "Maintenance Work Order Detail", "Select a task to add labor.")
+            return
+        entry = self._labor_service.add_task_labor_entry(
+            work_order_task_id=task.id,
+            entry_date=self.labor_date_edit.date().toPython(),
+            hours=float(self.labor_hours_spin.value()),
+            note=self.labor_note_edit.text().strip(),
+        )
+        self.labor_note_edit.clear()
+        self._refresh_after_action(selected_task_id=task.id, selected_step_id=self._selected_step_id())
+        self.workbench.set_current_section("labor")
+        self.labor_date_edit.setDate(QDate(entry.entry_date.year, entry.entry_date.month, entry.entry_date.day))
 
     def _show_evidence_preview(self) -> None:
         document = self._selected_evidence_document()

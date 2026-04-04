@@ -137,6 +137,8 @@ _INVENTORY_MANAGER = {
 _MAINTENANCE_MANAGER = {
     "maintenance.read",
     "maintenance.manage",
+    "time.read",
+    "time.manage",
     "site.read",
     "employee.read",
     "party.read",

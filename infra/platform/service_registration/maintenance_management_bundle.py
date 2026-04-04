@@ -10,6 +10,7 @@ from core.modules.maintenance_management import (
     MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
+    MaintenanceLaborService,
     MaintenanceLocationService,
     MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
@@ -29,6 +30,11 @@ from core.modules.maintenance_management import (
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
     MaintenanceWorkRequestService,
+)
+from core.modules.maintenance_management.services.labor.adapters import (
+    MaintenanceEmployeeWorkResourceRepository,
+    MaintenanceTaskWorkAllocationRepository,
+    MaintenanceTaskWorkOwnerRepository,
 )
 from infra.platform.db.documents import (
     SqlAlchemyDocumentLinkRepository,
@@ -63,6 +69,11 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceWorkRequestRepository,
 )
 from infra.platform.db.auth.repository import SqlAlchemyUserRepository
+from infra.platform.db.org.repository import SqlAlchemyEmployeeRepository
+from infra.platform.db.time import (
+    SqlAlchemyTimeEntryRepository,
+    SqlAlchemyTimesheetPeriodRepository,
+)
 from infra.platform.service_registration.inventory_procurement_bundle import InventoryProcurementServiceBundle
 from infra.platform.service_registration.platform_bundle import PlatformServiceBundle
 
@@ -76,6 +87,7 @@ class MaintenanceManagementServiceBundle:
     maintenance_downtime_event_service: MaintenanceDowntimeEventService
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
+    maintenance_labor_service: MaintenanceLaborService
     maintenance_location_service: MaintenanceLocationService
     maintenance_preventive_generation_service: MaintenancePreventiveGenerationService
     maintenance_preventive_plan_service: MaintenancePreventivePlanService
@@ -124,6 +136,9 @@ def build_maintenance_management_service_bundle(
     document_link_repo = SqlAlchemyDocumentLinkRepository(platform_services.session)
     document_structure_repo = SqlAlchemyDocumentStructureRepository(platform_services.session)
     user_repo = SqlAlchemyUserRepository(platform_services.session)
+    employee_repo = SqlAlchemyEmployeeRepository(platform_services.session)
+    time_entry_repo = SqlAlchemyTimeEntryRepository(platform_services.session)
+    timesheet_period_repo = SqlAlchemyTimesheetPeriodRepository(platform_services.session)
     
     platform_services.department_service.register_location_reference_repository(location_repo)
     platform_services.access_service.register_scope_policy(
@@ -143,6 +158,18 @@ def build_maintenance_management_service_bundle(
         ),
     )
     maintenance_runtime_contract_catalog_service = MaintenanceRuntimeContractCatalogService()
+    maintenance_task_time_allocation_repo = MaintenanceTaskWorkAllocationRepository(
+        organization_repo=platform_services.organization_repo,
+        work_order_task_repo=work_order_task_repo,
+        work_order_repo=work_order_repo,
+    )
+    maintenance_task_time_owner_repo = MaintenanceTaskWorkOwnerRepository(
+        work_order_task_repo=work_order_task_repo,
+        work_order_repo=work_order_repo,
+    )
+    maintenance_task_time_resource_repo = MaintenanceEmployeeWorkResourceRepository(
+        employee_repo=employee_repo,
+    )
     maintenance_asset_service = MaintenanceAssetService(
         platform_services.session,
         asset_repo,
@@ -384,6 +411,19 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_labor_service = MaintenanceLaborService(
+        platform_services.session,
+        maintenance_task_time_allocation_repo,
+        maintenance_task_time_owner_repo,
+        maintenance_task_time_resource_repo,
+        employee_repo,
+        time_entry_repo,
+        timesheet_period_repo,
+        work_order_task_service=maintenance_work_order_task_service,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
     maintenance_preventive_generation_service = MaintenancePreventiveGenerationService(
         platform_services.session,
         organization_repo=platform_services.organization_repo,
@@ -408,6 +448,7 @@ def build_maintenance_management_service_bundle(
         maintenance_downtime_event_service=maintenance_downtime_event_service,
         maintenance_failure_code_service=maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_integration_source_service,
+        maintenance_labor_service=maintenance_labor_service,
         maintenance_location_service=maintenance_location_service,
         maintenance_preventive_generation_service=maintenance_preventive_generation_service,
         maintenance_preventive_plan_service=maintenance_preventive_plan_service,

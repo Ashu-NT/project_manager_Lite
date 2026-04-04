@@ -38,6 +38,7 @@ from core.modules.maintenance_management import (
     MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
+    MaintenanceLaborService,
     MaintenanceLocationService,
     MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
@@ -119,6 +120,7 @@ class ServiceGraph:
     maintenance_downtime_event_service: MaintenanceDowntimeEventService
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
+    maintenance_labor_service: MaintenanceLaborService
     maintenance_location_service: MaintenanceLocationService
     maintenance_preventive_generation_service: MaintenancePreventiveGenerationService
     maintenance_preventive_plan_service: MaintenancePreventivePlanService
@@ -195,6 +197,7 @@ class ServiceGraph:
             "maintenance_downtime_event_service": self.maintenance_downtime_event_service,
             "maintenance_failure_code_service": self.maintenance_failure_code_service,
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
+            "maintenance_labor_service": self.maintenance_labor_service,
             "maintenance_location_service": self.maintenance_location_service,
             "maintenance_preventive_generation_service": self.maintenance_preventive_generation_service,
             "maintenance_preventive_plan_service": self.maintenance_preventive_plan_service,
@@ -285,6 +288,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_downtime_event_service=maintenance_management_services.maintenance_downtime_event_service,
         maintenance_failure_code_service=maintenance_management_services.maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
+        maintenance_labor_service=maintenance_management_services.maintenance_labor_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
         maintenance_preventive_generation_service=maintenance_management_services.maintenance_preventive_generation_service,
         maintenance_preventive_plan_service=maintenance_management_services.maintenance_preventive_plan_service,

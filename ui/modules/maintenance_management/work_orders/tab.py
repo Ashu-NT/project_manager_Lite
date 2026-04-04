@@ -18,6 +18,7 @@ from application.platform import PlatformRuntimeApplicationService
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceDocumentService,
+    MaintenanceLaborService,
     MaintenanceLocationService,
     MaintenanceSystemService,
     MaintenanceWorkOrderMaterialRequirementService,
@@ -82,6 +83,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         work_order_task_service: MaintenanceWorkOrderTaskService,
         work_order_task_step_service: MaintenanceWorkOrderTaskStepService,
         material_requirement_service: MaintenanceWorkOrderMaterialRequirementService,
+        labor_service: MaintenanceLaborService | None = None,
         document_service: MaintenanceDocumentService | None = None,
         site_service: SiteService,
         asset_service: MaintenanceAssetService,
@@ -97,6 +99,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         self._work_order_task_service = work_order_task_service
         self._work_order_task_step_service = work_order_task_step_service
         self._material_requirement_service = material_requirement_service
+        self._labor_service = labor_service
         self._document_service = document_service
         self._site_service = site_service
         self._asset_service = asset_service
@@ -432,6 +435,7 @@ class MaintenanceWorkOrdersTab(QWidget):
             work_order_task_service=self._work_order_task_service,
             work_order_task_step_service=self._work_order_task_step_service,
             material_requirement_service=self._material_requirement_service,
+            labor_service=self._labor_service,
             document_service=self._document_service,
             work_request_service=self._work_request_service,
             site_labels=self._site_labels,
