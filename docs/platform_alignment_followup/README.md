@@ -415,7 +415,7 @@ Progress notes:
 - maintenance now also has the first preventive-library foundation for `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, including lifecycle validation, SQLAlchemy persistence, migration coverage, service-graph exposure, and focused regression tests before the due-generation engine starts
 - maintenance now also has the first preventive due-generation engine, including calendar/sensor/hybrid evaluation, task-level trigger overrides with persisted runtime state, work-request/work-order generation, and template-to-execution task/step copying through the existing work-order runtime
 - the maintenance `Planner` workspace now folds preventive due, due-soon, and blocked review into the same planning surface as backlog, material-risk, and recurring-failure review
-- the maintenance `Work Orders` workspace now includes first technician-facing assigned-work filtering, live step start/done/confirm and task completion actions, shared-time-backed labor booking against work-order tasks, and linked execution-evidence visibility on top of the persisted work-order task and step foundations
+- the maintenance `Work Orders` workspace now includes first technician-facing assigned-work filtering, a compact execution section for faster confirmation, live step start/done/confirm and task completion actions, shared-time-backed labor booking against work-order tasks, and richer execution-evidence capture/link/unlink/preview flows on top of the persisted work-order task and step foundations
 
 ## Guardrails
 

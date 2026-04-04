@@ -95,3 +95,44 @@ def test_maintenance_document_service_lists_entity_choices(services):
     assert (asset.id, "ASSET-DOC - Document Asset") in asset_choices
     assert any(choice_id == request.id and "WR-DOC" in label for choice_id, label in request_choices)
     assert any(choice_id == work_order.id and "WO-DOC" in label for choice_id, label in work_order_choices)
+
+
+def test_maintenance_document_service_lists_structures_and_registers_work_order_attachments(services):
+    _site, _asset, _request, work_order, _document = _create_document_context(services)
+    structure = services["document_service"].create_document_structure(
+        structure_code="MNT_EVIDENCE",
+        name="Maintenance Evidence",
+        object_scope="WORK_ORDER",
+        default_document_type="GENERAL",
+    )
+    service = services["maintenance_document_service"]
+
+    structures = service.list_document_structures(active_only=True)
+    assert any(row.id == structure.id for row in structures)
+
+    created = service.register_entity_attachments(
+        entity_type="work_order",
+        entity_id=work_order.id,
+        attachments=["C:/evidence/seal-inspection-photo.pdf"],
+        document_type="GENERAL",
+        document_structure_id=structure.id,
+        business_version_label="REV-A",
+        link_role="evidence",
+        notes="Captured during seal inspection",
+    )
+
+    assert len(created) == 1
+    assert created[0].file_name == "seal-inspection-photo.pdf"
+    assert created[0].notes == "Captured during seal inspection"
+
+    records = service.list_document_records_for_entity(
+        entity_type="work_order",
+        entity_id=work_order.id,
+        active_only=None,
+    )
+    assert len(records) == 1
+    assert records[0].document.id == created[0].id
+    assert records[0].link_role == "evidence"
+    assert records[0].structure is not None
+    assert records[0].structure.id == structure.id
+    assert "WO-DOC" in records[0].entity_label

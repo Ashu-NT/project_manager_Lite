@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from openpyxl import load_workbook
+from PySide6.QtWidgets import QDialog
 
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.maintenance_management import (
@@ -559,7 +560,7 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     dialog = tab._detail_dialog
     assert dialog is not None
     assert "Open seal leak" in dialog.title_label.text()
-    assert _top_level_labels(dialog.workbench.tree) == ["Overview", "Tasks", "Task Steps", "Labor", "Materials", "Evidence"]
+    assert _top_level_labels(dialog.workbench.tree) == ["Overview", "Execution", "Tasks", "Task Steps", "Labor", "Materials", "Evidence"]
     assert dialog.task_table.rowCount() >= 1
     assert "Inspect seal housing" in dialog.task_table.item(0, 0).text()
     assert "Employee" in dialog.task_table.item(0, 1).text()
@@ -567,31 +568,43 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     assert "Verify isolation" in dialog.step_table.item(0, 0).text()
     assert dialog.material_table.rowCount() >= 1
     assert "Seal kit" in dialog.material_table.item(0, 0).text()
+    dialog.workbench.set_current_section("execution")
+    qapp.processEvents()
+    assert dialog.workbench.current_section_label.text() == "Execution"
+    assert "Current focus" in dialog.execution_focus_summary.text()
+    assert dialog.btn_start_quick_step.isEnabled()
+    assert dialog.btn_done_quick_step.isEnabled()
+    assert not dialog.btn_confirm_quick_step.isEnabled()
+    dialog.btn_open_evidence.click()
+    qapp.processEvents()
+    assert dialog.workbench.current_section_key() == "evidence"
     dialog.workbench.set_current_section("evidence")
     qapp.processEvents()
     assert dialog.evidence_table.rowCount() >= 1
     assert "DOC-UI-WO" in dialog.evidence_table.item(0, 0).text()
     assert dialog.btn_preview_evidence.isEnabled()
-    dialog.workbench.set_current_section("steps")
+    dialog.workbench.set_current_section("execution")
     qapp.processEvents()
     dialog.task_table.selectRow(0)
     dialog.step_table.selectRow(0)
     qapp.processEvents()
-    assert dialog.btn_start_step.isEnabled()
-    assert dialog.btn_done_step.isEnabled()
-    assert not dialog.btn_confirm_step.isEnabled()
-    assert not dialog.btn_complete_task.isEnabled()
-    dialog.btn_start_step.click()
+    assert dialog.btn_start_quick_step.isEnabled()
+    assert dialog.btn_done_quick_step.isEnabled()
+    assert not dialog.btn_confirm_quick_step.isEnabled()
+    assert not dialog.btn_complete_quick_task.isEnabled()
+    dialog.btn_start_quick_step.click()
     qapp.processEvents()
+    assert dialog.workbench.current_section_key() == "execution"
     assert dialog.task_table.item(0, 2).text() == "In Progress"
     assert dialog.step_table.item(0, 1).text() == "In Progress"
-    dialog.step_measurement_edit.setText("81.5")
-    dialog.btn_done_step.click()
+    dialog.execution_measurement_edit.setText("81.5")
+    assert dialog.step_measurement_edit.text() == "81.5"
+    dialog.btn_done_quick_step.click()
     qapp.processEvents()
     assert dialog.step_table.item(0, 1).text() == "Done"
     assert "Measurement 81.5 C" in dialog.step_table.item(0, 3).text()
-    assert dialog.btn_confirm_step.isEnabled()
-    dialog.btn_confirm_step.click()
+    assert dialog.btn_confirm_quick_step.isEnabled()
+    dialog.btn_confirm_quick_step.click()
     qapp.processEvents()
     assert "Confirmed" in dialog.step_table.item(0, 3).text()
     dialog.workbench.set_current_section("labor")
@@ -603,17 +616,161 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     assert dialog.labor_table.rowCount() >= 1
     assert dialog.labor_table.item(0, 1).text() == "2.50"
     assert "Seal inspection labor" in dialog.labor_table.item(0, 3).text()
-    dialog.workbench.set_current_section("tasks")
+    dialog.workbench.set_current_section("execution")
     qapp.processEvents()
-    assert dialog.btn_complete_task.isEnabled()
-    dialog.btn_complete_task.click()
+    assert dialog.btn_complete_quick_task.isEnabled()
+    dialog.btn_complete_quick_task.click()
     qapp.processEvents()
+    assert dialog.workbench.current_section_key() == "execution"
     assert dialog.task_table.item(0, 2).text() == "Completed"
     assert "150" in dialog.task_table.item(0, 4).text()
     _select_combo_value(tab.responsibility_combo, "__EMPLOYEE__")
     qapp.processEvents()
     assert tab.work_order_table.rowCount() >= 1
     assert "WO-UI-OPEN" in tab.work_order_table.item(0, 0).text()
+
+
+def test_maintenance_work_order_detail_supports_evidence_capture_link_preview_and_unlink(
+    qapp,
+    services,
+    monkeypatch,
+):
+    _enable_maintenance_module(services)
+    _mute_message_boxes(monkeypatch)
+    site, _location, _system, _asset, _symptom = _create_maintenance_context(services)
+    open_order = next(
+        row
+        for row in services["maintenance_work_order_service"].search_work_orders(search_text="WO-UI-OPEN")
+        if row.work_order_code == "WO-UI-OPEN"
+    )
+    structure = services["document_service"].create_document_structure(
+        structure_code="WO_EVIDENCE",
+        name="Work Order Evidence",
+        object_scope="WORK_ORDER",
+        default_document_type="GENERAL",
+    )
+    reusable_document = services["document_service"].create_document(
+        document_code="DOC-UI-LINK",
+        title="Reusable Execution Checklist",
+        document_type="GENERAL",
+        document_structure_id=structure.id,
+        storage_kind="FILE_PATH",
+        storage_uri="C:/docs/reusable-execution-checklist.pdf",
+    )
+
+    class FakeCaptureDialog:
+        def __init__(self, *args, **kwargs):
+            self.attachments = ["C:/evidence/seal-inspection-photo.pdf"]
+            self.document_type = "GENERAL"
+            self.document_structure_id = structure.id
+            self.business_version_label = "REV-A"
+            self.source_system = "maintenance_execution"
+            self.link_role = "evidence"
+            self.notes = "Captured during execution"
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    class FakeLinkDialog:
+        def __init__(self, *args, **kwargs):
+            self.document_id = reusable_document.id
+            self.link_role = "reference"
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    preview_calls: list[str] = []
+    link_counts: list[int] = []
+
+    class FakePreviewDialog:
+        def __init__(self, *, document, parent=None):
+            self._document = document
+
+        def exec(self):
+            preview_calls.append(self._document.document_code)
+            return QDialog.DialogCode.Accepted
+
+    class FakeLinksDialog:
+        def __init__(self, *, document, links, parent=None):
+            self._document = document
+            self._links = links
+
+        def exec(self):
+            link_counts.append(len(self._links))
+            return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.work_orders.dialogs.MaintenanceWorkOrderEvidenceCaptureDialog",
+        FakeCaptureDialog,
+    )
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.work_orders.dialogs.MaintenanceWorkOrderEvidenceLinkDialog",
+        FakeLinkDialog,
+    )
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.work_orders.dialogs.DocumentPreviewDialog",
+        FakePreviewDialog,
+    )
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.work_orders.dialogs.DocumentLinksDialog",
+        FakeLinksDialog,
+    )
+
+    tab = MaintenanceWorkOrdersTab(
+        work_order_service=services["maintenance_work_order_service"],
+        work_order_task_service=services["maintenance_work_order_task_service"],
+        work_order_task_step_service=services["maintenance_work_order_task_step_service"],
+        material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+        labor_service=services["maintenance_labor_service"],
+        document_service=services["maintenance_document_service"],
+        work_request_service=services["maintenance_work_request_service"],
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        location_service=services["maintenance_location_service"],
+        system_service=services["maintenance_system_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+    row = _find_row_by_contains(tab.work_order_table, 0, "WO-UI-OPEN")
+    assert row >= 0
+    tab.work_order_table.selectRow(row)
+    qapp.processEvents()
+    tab.btn_open_detail.click()
+    qapp.processEvents()
+    dialog = tab._detail_dialog
+    assert dialog is not None
+
+    dialog.workbench.set_current_section("evidence")
+    qapp.processEvents()
+    initial_count = dialog.evidence_table.rowCount()
+    dialog.btn_capture_evidence.click()
+    qapp.processEvents()
+    assert dialog.workbench.current_section_key() == "evidence"
+    assert dialog.evidence_table.rowCount() == initial_count + 1
+    assert any(
+        "WO_EVIDENCE" in dialog.evidence_table.item(row_index, 3).text()
+        for row_index in range(dialog.evidence_table.rowCount())
+    )
+
+    dialog.btn_link_evidence.click()
+    qapp.processEvents()
+    linked_row = _find_row_by_contains(dialog.evidence_table, 0, "DOC-UI-LINK")
+    assert linked_row >= 0
+    dialog.evidence_table.selectRow(linked_row)
+    qapp.processEvents()
+    dialog.btn_preview_evidence.click()
+    dialog.btn_view_evidence_links.click()
+    qapp.processEvents()
+    assert preview_calls == ["DOC-UI-LINK"]
+    assert link_counts and link_counts[-1] >= 1
+
+    before_unlink = dialog.evidence_table.rowCount()
+    dialog.btn_unlink_evidence.click()
+    qapp.processEvents()
+    assert dialog.evidence_table.rowCount() == before_unlink - 1
+    assert _find_row_by_contains(dialog.evidence_table, 0, "DOC-UI-LINK") == -1
 
 
 def test_maintenance_documents_tab_lists_linked_documents(qapp, services):

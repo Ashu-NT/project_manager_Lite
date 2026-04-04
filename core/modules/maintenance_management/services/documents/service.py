@@ -168,6 +168,65 @@ class MaintenanceDocumentService:
             active_only=active_only,
         )
 
+    def list_document_records_for_entity(
+        self,
+        *,
+        entity_type: str,
+        entity_id: str,
+        active_only: bool | None = None,
+    ) -> list[MaintenanceDocumentRecord]:
+        context = self._require_entity_context(
+            entity_type,
+            entity_id,
+            operation_label="view maintenance documents",
+        )
+        self._require_scope_read(context.scope_anchor_id, operation_label="view maintenance documents")
+        organization = self._active_organization()
+        site_labels = self._site_labels()
+        structures = self._structures_by_id(organization)
+        rows: list[MaintenanceDocumentRecord] = []
+        for link in self._link_repo.list_for_entity(
+            organization.id,
+            _MAINTENANCE_MODULE_CODE,
+            context.entity_type,
+            context.entity_id,
+        ):
+            document = self._document_repo.get(link.document_id)
+            if document is None or document.organization_id != organization.id:
+                continue
+            if active_only is not None and document.is_active != bool(active_only):
+                continue
+            rows.append(
+                MaintenanceDocumentRecord(
+                    link_id=link.id,
+                    document=document,
+                    structure=structures.get(document.document_structure_id or ""),
+                    entity_type=context.entity_type,
+                    entity_id=context.entity_id,
+                    entity_label=context.entity_label,
+                    site_id=context.site_id,
+                    site_label=site_labels.get(context.site_id or "", context.site_id or "-"),
+                    link_role=link.link_role or "",
+                    scope_anchor_id=context.scope_anchor_id,
+                )
+            )
+        return rows
+
+    def list_document_structures(
+        self,
+        *,
+        active_only: bool | None = True,
+        object_scope: str | None = None,
+    ) -> list[DocumentStructure]:
+        self._require_read("list maintenance document structures")
+        organization = self._active_organization()
+        normalized_scope = str(object_scope or "").strip().upper() or None
+        return self._structure_repo.list_for_organization(
+            organization.id,
+            active_only=active_only,
+            object_scope=normalized_scope,
+        )
+
     def list_links_for_document(self, document_id: str) -> list[DocumentLink]:
         self._require_read("view maintenance document links")
         organization = self._active_organization()
@@ -283,6 +342,40 @@ class MaintenanceDocumentService:
             entity_id=context.entity_id,
             document_id=document_id,
             link_role=link_role,
+        )
+
+    def register_entity_attachments(
+        self,
+        *,
+        entity_type: str,
+        entity_id: str,
+        attachments: list[str] | None,
+        document_type=None,
+        document_structure_id: str | None = None,
+        business_version_label: str = "",
+        source_system: str = "maintenance",
+        link_role: str = "evidence",
+        notes: str = "",
+    ) -> list[Document]:
+        context = self._require_entity_context(
+            entity_type,
+            entity_id,
+            operation_label="capture maintenance evidence",
+        )
+        self._require_scope_manage(context.scope_anchor_id, operation_label="capture maintenance evidence")
+        return self._document_integration_service.register_entity_attachments(
+            required_permission="maintenance.manage",
+            operation_label="capture maintenance evidence",
+            module_code=_MAINTENANCE_MODULE_CODE,
+            entity_type=context.entity_type,
+            entity_id=context.entity_id,
+            attachments=attachments,
+            document_type=document_type,
+            document_structure_id=document_structure_id,
+            business_version_label=business_version_label,
+            source_system=source_system,
+            link_role=link_role,
+            notes=notes,
         )
 
     def unlink_document_link(self, link_id: str) -> None:

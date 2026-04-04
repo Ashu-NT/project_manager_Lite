@@ -73,6 +73,7 @@ class DocumentIntegrationService:
         source_system: str = "",
         link_role: str = "attachment",
         uploaded_by_user_id: str | None = None,
+        notes: str = "",
     ) -> list[Document]:
         require_permission(self._user_session, required_permission, operation_label=operation_label)
         tokens = [normalize_optional_text(item) for item in (attachments or []) if normalize_optional_text(item)]
@@ -115,6 +116,7 @@ class DocumentIntegrationService:
                     uploaded_at=datetime.now(timezone.utc),
                     uploaded_by_user_id=uploader,
                     business_version_label=normalize_optional_text(business_version_label or revision),
+                    notes=normalize_optional_text(notes),
                 )
                 self._document_repo.add(document)
                 self._session.flush()

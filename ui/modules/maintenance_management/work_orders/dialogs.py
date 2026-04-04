@@ -35,8 +35,12 @@ from ui.modules.maintenance_management.shared import (
     MaintenanceWorkbenchSection,
     format_timestamp,
 )
+from ui.modules.maintenance_management.work_orders.evidence_dialogs import (
+    MaintenanceWorkOrderEvidenceCaptureDialog,
+    MaintenanceWorkOrderEvidenceLinkDialog,
+)
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
-from ui.platform.admin.documents.viewer_dialogs import DocumentPreviewDialog
+from ui.platform.admin.documents.viewer_dialogs import DocumentLinksDialog, DocumentPreviewDialog
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
 from ui.platform.shared.guards import make_guarded_slot
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
@@ -80,7 +84,8 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self._detail_steps_by_id: dict[str, object] = {}
         self._step_ids_by_task_id: dict[str, list[str]] = {}
         self._detail_labor_entries_by_task_id: dict[str, list[TimeEntry]] = {}
-        self._detail_documents_by_id: dict[str, object] = {}
+        self._detail_evidence_records_by_link_id: dict[str, object] = {}
+        self._syncing_measurement_edits = False
 
         self.setWindowTitle("Work Order Detail")
         self.resize(1120, 760)
@@ -96,6 +101,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
 
         self.workbench = MaintenanceWorkbenchNavigator(object_name="maintenanceWorkOrderDetailWorkbench", parent=self)
         self.overview_widget, self.overview_summary = self._build_overview_widget()
+        self.execution_widget = self._build_execution_widget()
         self.tasks_widget = self._build_tasks_widget()
         self.steps_widget = self._build_steps_widget()
         self.labor_widget = self._build_labor_widget()
@@ -107,6 +113,11 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
                     key="overview",
                     label="Overview",
                     widget=self.overview_widget,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="execution",
+                    label="Execution",
+                    widget=self.execution_widget,
                 ),
                 MaintenanceWorkbenchSection(
                     key="tasks",
@@ -144,6 +155,12 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self.step_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_step_selection_changed)
         )
+        self.step_measurement_edit.textChanged.connect(
+            lambda text: self._mirror_measurement_text(self.step_measurement_edit, self.execution_measurement_edit, text)
+        )
+        self.execution_measurement_edit.textChanged.connect(
+            lambda text: self._mirror_measurement_text(self.execution_measurement_edit, self.step_measurement_edit, text)
+        )
         self.evidence_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._sync_evidence_actions)
         )
@@ -159,11 +176,42 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self.btn_confirm_step.clicked.connect(
             make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_confirm_step)
         )
+        self.btn_start_quick_step.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_start_step)
+        )
+        self.btn_done_quick_step.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_done_step)
+        )
+        self.btn_confirm_quick_step.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_confirm_step)
+        )
+        self.btn_complete_quick_task.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_complete_task)
+        )
+        self.btn_open_evidence.clicked.connect(
+            make_guarded_slot(
+                self,
+                title="Maintenance Work Order Detail",
+                callback=lambda: self.workbench.set_current_section("evidence"),
+            )
+        )
         self.btn_add_labor.clicked.connect(
             make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._on_add_labor_entry)
         )
         self.btn_preview_evidence.clicked.connect(
             make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._show_evidence_preview)
+        )
+        self.btn_capture_evidence.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._capture_evidence)
+        )
+        self.btn_link_evidence.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._link_existing_evidence)
+        )
+        self.btn_unlink_evidence.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._unlink_evidence)
+        )
+        self.btn_view_evidence_links.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Order Detail", callback=self._show_evidence_links)
         )
         self._sync_task_actions()
         self._sync_step_actions()
@@ -183,6 +231,55 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         layout.addWidget(title)
         layout.addWidget(summary)
         return widget, summary
+
+    def _build_execution_widget(self) -> QWidget:
+        widget, layout = build_admin_surface_card(
+            object_name="maintenanceWorkOrderDialogExecutionSurface",
+            alt=False,
+        )
+        title = QLabel("Execution")
+        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        subtitle = QLabel(
+            "Run the next technician confirmation action from this compact surface instead of working only through the full task and step grids."
+        )
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        self.execution_focus_summary = QLabel("Select a task and step to start guided execution.")
+        self.execution_focus_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.execution_focus_summary.setWordWrap(True)
+        layout.addWidget(self.execution_focus_summary)
+        self.execution_gate_summary = QLabel("No execution focus selected.")
+        self.execution_gate_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+        self.execution_gate_summary.setWordWrap(True)
+        layout.addWidget(self.execution_gate_summary)
+        measurement_row = QHBoxLayout()
+        measurement_row.setSpacing(CFG.SPACING_SM)
+        measurement_row.addWidget(QLabel("Measurement"))
+        self.execution_measurement_edit = QLineEdit()
+        self.execution_measurement_edit.setPlaceholderText("Enter measurement if the selected step requires one")
+        measurement_row.addWidget(self.execution_measurement_edit, 1)
+        layout.addLayout(measurement_row)
+        action_row = QHBoxLayout()
+        action_row.setSpacing(CFG.SPACING_SM)
+        self.btn_start_quick_step = QPushButton("Start Current Step")
+        self.btn_done_quick_step = QPushButton("Mark Step Done")
+        self.btn_confirm_quick_step = QPushButton("Confirm Step")
+        self.btn_complete_quick_task = QPushButton("Complete Task")
+        self.btn_open_evidence = QPushButton("Open Evidence")
+        for button in (
+            self.btn_start_quick_step,
+            self.btn_done_quick_step,
+            self.btn_confirm_quick_step,
+            self.btn_complete_quick_task,
+            self.btn_open_evidence,
+        ):
+            button.setFixedHeight(CFG.BUTTON_HEIGHT + 4)
+            button.setStyleSheet(dashboard_action_button_style("secondary"))
+            action_row.addWidget(button)
+        layout.addLayout(action_row)
+        return widget
 
     def _build_tasks_widget(self) -> QWidget:
         widget, layout = build_admin_surface_card(
@@ -354,9 +451,10 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         layout.addWidget(title)
         layout.addWidget(subtitle)
         self.evidence_table = build_admin_table(
-            headers=("Document", "Type", "Structure", "Uploaded"),
+            headers=("Document", "Role", "Type", "Structure", "Uploaded"),
             resize_modes=(
                 self._stretch(),
+                self._resize_to_contents(),
                 self._resize_to_contents(),
                 self._resize_to_contents(),
                 self._resize_to_contents(),
@@ -364,10 +462,25 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         )
         layout.addWidget(self.evidence_table)
         action_row = QHBoxLayout()
+        self.btn_capture_evidence = QPushButton("Capture Evidence")
+        self.btn_link_evidence = QPushButton("Link Existing")
+        self.btn_unlink_evidence = QPushButton("Unlink")
         action_row.addStretch(1)
+        self.btn_view_evidence_links = QPushButton("View Linked Records")
         self.btn_preview_evidence = QPushButton("Preview Evidence")
-        self.btn_preview_evidence.setFixedHeight(CFG.BUTTON_HEIGHT)
-        self.btn_preview_evidence.setStyleSheet(dashboard_action_button_style("secondary"))
+        for button in (
+            self.btn_capture_evidence,
+            self.btn_link_evidence,
+            self.btn_unlink_evidence,
+            self.btn_view_evidence_links,
+            self.btn_preview_evidence,
+        ):
+            button.setFixedHeight(CFG.BUTTON_HEIGHT)
+            button.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_capture_evidence)
+        action_row.addWidget(self.btn_link_evidence)
+        action_row.addWidget(self.btn_unlink_evidence)
+        action_row.addWidget(self.btn_view_evidence_links)
         action_row.addWidget(self.btn_preview_evidence)
         layout.addLayout(action_row)
         return widget
@@ -393,8 +506,8 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             for task in tasks
         }
         materials = self._material_requirement_service.list_requirements(work_order_id=work_order.id)
-        documents = (
-            self._document_service.list_documents_for_entity(
+        evidence_rows = (
+            self._document_service.list_document_records_for_entity(
                 entity_type="work_order",
                 entity_id=work_order.id,
                 active_only=None,
@@ -417,7 +530,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
                 self._detail_labor_entries_by_task_id[task.id] = self._labor_service.list_task_labor_entries(task.id)
             else:
                 self._detail_labor_entries_by_task_id[task.id] = []
-        self._detail_documents_by_id = {document.id: document for document in documents}
+        self._detail_evidence_records_by_link_id = {row.link_id: row for row in evidence_rows}
 
         self.title_label.setText(
             f"{work_order.work_order_code} - {work_order.title or work_order.work_order_type.value.replace('_', ' ').title()}"
@@ -435,7 +548,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
                     f"Actual window: {self._format_timestamp_pair(work_order.actual_start, work_order.actual_end)}",
                     f"Failure / Root cause: {work_order.failure_code or '-'} / {work_order.root_cause_code or '-'}",
                     f"Downtime: {work_order.downtime_minutes or 0} min",
-                    f"Evidence: {len(documents)} linked document(s)",
+                    f"Evidence: {len(evidence_rows)} linked document(s)",
                     f"Notes: {work_order.notes or '-'}",
                 ]
             )
@@ -446,7 +559,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self._populate_step_table(selected_task_id=effective_task_id, selected_step_id=selected_step_id)
         self._populate_labor_table(selected_task_id=effective_task_id)
         self._populate_material_table(materials)
-        self._populate_evidence_table(documents)
+        self._populate_evidence_table(evidence_rows)
         self.workbench.set_current_section("overview")
 
     def _populate_task_table(self, tasks, *, step_rows_by_task_id, selected_task_id: str | None) -> None:
@@ -551,22 +664,29 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             )
         self._sync_labor_actions()
 
-    def _populate_evidence_table(self, documents) -> None:
+    def _populate_evidence_table(self, evidence_rows) -> None:
         self.evidence_table.blockSignals(True)
-        self.evidence_table.setRowCount(len(documents))
-        for row_index, document in enumerate(documents):
+        self.evidence_table.setRowCount(len(evidence_rows))
+        for row_index, row in enumerate(evidence_rows):
+            document = row.document
+            structure_label = (
+                f"{row.structure.structure_code} - {row.structure.name}"
+                if row.structure is not None
+                else "-"
+            )
             values = (
                 f"{document.document_code} - {document.title}",
+                row.link_role or "-",
                 document.document_type.value.replace("_", " ").title(),
-                document.document_structure_id or "-",
+                structure_label,
                 format_timestamp(document.uploaded_at),
             )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 if column == 0:
-                    item.setData(Qt.UserRole, document.id)
+                    item.setData(Qt.UserRole, row.link_id)
                 self.evidence_table.setItem(row_index, column, item)
-        if documents:
+        if evidence_rows:
             self.evidence_table.selectRow(0)
         else:
             self.evidence_table.clearSelection()
@@ -601,7 +721,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         step_id = self._selected_step_id()
         return self._detail_steps_by_id.get(step_id or "")
 
-    def _selected_evidence_document(self):
+    def _selected_evidence_record(self):
         row = self.evidence_table.currentRow()
         if row < 0:
             return None
@@ -611,7 +731,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         value = item.data(Qt.UserRole)
         if not value:
             return None
-        return self._detail_documents_by_id.get(str(value))
+        return self._detail_evidence_records_by_link_id.get(str(value))
 
     def _steps_for_selected_task(self, task_id: str | None):
         if not task_id:
@@ -645,29 +765,50 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
                 return False
         return True
 
+    def _mirror_measurement_text(self, source: QLineEdit, target: QLineEdit, text: str) -> None:
+        if self._syncing_measurement_edits:
+            return
+        self._syncing_measurement_edits = True
+        try:
+            if target.text() != text:
+                target.setText(text)
+            if target.placeholderText() != source.placeholderText():
+                target.setPlaceholderText(source.placeholderText())
+        finally:
+            self._syncing_measurement_edits = False
+
     def _sync_step_measurement_editor(self, step) -> None:
+        editors = (self.step_measurement_edit, self.execution_measurement_edit)
         if step is None:
-            self.step_measurement_edit.clear()
-            self.step_measurement_edit.setPlaceholderText("Enter measurement if the selected step requires one")
+            for editor in editors:
+                editor.clear()
+                editor.setPlaceholderText("Enter measurement if the selected step requires one")
             return
         if step.requires_measurement or step.measurement_value:
             unit = f" ({step.measurement_unit})" if step.measurement_unit else ""
-            self.step_measurement_edit.setPlaceholderText(f"Measurement{unit}")
-            self.step_measurement_edit.setText(step.measurement_value or "")
+            for editor in editors:
+                editor.setPlaceholderText(f"Measurement{unit}")
+                editor.setText(step.measurement_value or "")
             return
-        self.step_measurement_edit.clear()
-        self.step_measurement_edit.setPlaceholderText("Selected step does not require a measurement")
+        for editor in editors:
+            editor.clear()
+            editor.setPlaceholderText("Selected step does not require a measurement")
 
     def _sync_task_actions(self) -> None:
         task = self._selected_task()
         if task is None:
             self.task_summary.setText("No task selected.")
             self.btn_complete_task.setEnabled(False)
+            self.btn_complete_quick_task.setEnabled(False)
+            self._sync_execution_actions()
             return
         self.task_summary.setText(
             f"Selected task {task.sequence_no} is {task.status.value.replace('_', ' ').title()} and assigned to {self._format_assignment(task.assigned_employee_id, task.assigned_team_id)}."
         )
-        self.btn_complete_task.setEnabled(self._task_can_complete(task))
+        can_complete = self._task_can_complete(task)
+        self.btn_complete_task.setEnabled(can_complete)
+        self.btn_complete_quick_task.setEnabled(can_complete)
+        self._sync_execution_actions()
 
     def _sync_step_actions(self) -> None:
         task = self._selected_task()
@@ -677,31 +818,82 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             self.btn_start_step.setEnabled(False)
             self.btn_done_step.setEnabled(False)
             self.btn_confirm_step.setEnabled(False)
+            self.btn_start_quick_step.setEnabled(False)
+            self.btn_done_quick_step.setEnabled(False)
+            self.btn_confirm_quick_step.setEnabled(False)
+            self._sync_execution_actions()
             return
-        self.btn_start_step.setEnabled(
-            step.status in {
-                MaintenanceWorkOrderTaskStepStatus.NOT_STARTED,
-                MaintenanceWorkOrderTaskStepStatus.FAILED,
-            }
-        )
-        self.btn_done_step.setEnabled(
-            step.status in {
-                MaintenanceWorkOrderTaskStepStatus.NOT_STARTED,
-                MaintenanceWorkOrderTaskStepStatus.IN_PROGRESS,
-            }
-        )
-        self.btn_confirm_step.setEnabled(
+        can_start = step.status in {
+            MaintenanceWorkOrderTaskStepStatus.NOT_STARTED,
+            MaintenanceWorkOrderTaskStepStatus.FAILED,
+        }
+        can_done = step.status in {
+            MaintenanceWorkOrderTaskStepStatus.NOT_STARTED,
+            MaintenanceWorkOrderTaskStepStatus.IN_PROGRESS,
+        }
+        can_confirm = (
             step.requires_confirmation
             and step.status == MaintenanceWorkOrderTaskStepStatus.DONE
             and step.confirmed_at is None
         )
+        self.btn_start_step.setEnabled(can_start)
+        self.btn_done_step.setEnabled(can_done)
+        self.btn_confirm_step.setEnabled(can_confirm)
+        self.btn_start_quick_step.setEnabled(can_start)
+        self.btn_done_quick_step.setEnabled(can_done)
+        self.btn_confirm_quick_step.setEnabled(can_confirm)
         if task is not None:
             self.step_summary.setText(
                 f"Task {task.sequence_no}: execute step {step.step_number} ({step.status.value.replace('_', ' ').title()})."
             )
+        self._sync_execution_actions()
+
+    def _sync_execution_actions(self) -> None:
+        task = self._selected_task()
+        step = self._selected_step()
+        evidence_count = len(self._detail_evidence_records_by_link_id)
+        self.btn_open_evidence.setEnabled(self._current_work_order_id is not None)
+        if task is None:
+            self.execution_focus_summary.setText("Select a task and step to start guided execution.")
+            self.execution_gate_summary.setText(
+                f"No execution focus selected yet. {evidence_count} linked evidence record(s) are already available for this work order."
+            )
+            return
+        if step is None:
+            self.execution_focus_summary.setText(
+                f"Task {task.sequence_no}. {task.task_name} is the current focus. Select one of its steps to drive quick confirmation."
+            )
+            self.execution_gate_summary.setText(
+                f"Task status: {task.status.value.replace('_', ' ').title()} | Assignment: {self._format_assignment(task.assigned_employee_id, task.assigned_team_id)} | Evidence: {evidence_count}"
+            )
+            return
+        requirement_bits = []
+        if step.requires_confirmation:
+            requirement_bits.append("confirmation required")
+        if step.requires_measurement:
+            requirement_bits.append("measurement required")
+        if step.requires_photo:
+            requirement_bits.append("photo evidence expected")
+        requirement_label = ", ".join(requirement_bits) if requirement_bits else "standard execution"
+        self.execution_focus_summary.setText(
+            f"Current focus: task {task.sequence_no}, step {step.step_number}. {step.instruction}"
+        )
+        self.execution_gate_summary.setText(
+            f"Step status: {step.status.value.replace('_', ' ').title()} | {requirement_label} | "
+            f"Task completion ready: {'yes' if self._task_can_complete(task) else 'no'} | Evidence: {evidence_count}"
+        )
+
+    def _current_measurement_text(self) -> str:
+        return self.execution_measurement_edit.text().strip() or self.step_measurement_edit.text().strip()
 
     def _sync_evidence_actions(self) -> None:
-        self.btn_preview_evidence.setEnabled(self._selected_evidence_document() is not None)
+        record = self._selected_evidence_record()
+        has_service = self._document_service is not None and self._current_work_order_id is not None
+        self.btn_capture_evidence.setEnabled(has_service)
+        self.btn_link_evidence.setEnabled(has_service)
+        self.btn_unlink_evidence.setEnabled(record is not None and has_service)
+        self.btn_view_evidence_links.setEnabled(record is not None)
+        self.btn_preview_evidence.setEnabled(record is not None)
 
     def _sync_labor_actions(self) -> None:
         task = self._selected_task()
@@ -724,6 +916,7 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         self._sync_step_actions()
 
     def _refresh_after_action(self, *, selected_task_id: str | None, selected_step_id: str | None) -> None:
+        current_section = self.workbench.current_section_key()
         if self._current_work_order_id is None:
             return
         self.load_work_order(
@@ -731,6 +924,8 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             selected_task_id=selected_task_id,
             selected_step_id=selected_step_id,
         )
+        if current_section:
+            self.workbench.set_current_section(current_section)
 
     def _on_complete_task(self) -> None:
         task = self._selected_task()
@@ -743,7 +938,6 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             expected_version=task.version,
         )
         self._refresh_after_action(selected_task_id=updated.id, selected_step_id=None)
-        self.workbench.set_current_section("tasks")
 
     def _on_start_step(self) -> None:
         step = self._selected_step()
@@ -757,7 +951,6 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             expected_version=step.version,
         )
         self._refresh_after_action(selected_task_id=task.id, selected_step_id=updated.id)
-        self.workbench.set_current_section("steps")
 
     def _on_done_step(self) -> None:
         step = self._selected_step()
@@ -769,11 +962,11 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             "status": MaintenanceWorkOrderTaskStepStatus.DONE.value,
             "expected_version": step.version,
         }
-        if self.step_measurement_edit.text().strip():
-            update_kwargs["measurement_value"] = self.step_measurement_edit.text().strip()
+        measurement_text = self._current_measurement_text()
+        if measurement_text:
+            update_kwargs["measurement_value"] = measurement_text
         updated = self._work_order_task_step_service.update_step(step.id, **update_kwargs)
         self._refresh_after_action(selected_task_id=task.id, selected_step_id=updated.id)
-        self.workbench.set_current_section("steps")
 
     def _on_confirm_step(self) -> None:
         step = self._selected_step()
@@ -787,7 +980,6 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
             expected_version=step.version,
         )
         self._refresh_after_action(selected_task_id=task.id, selected_step_id=updated.id)
-        self.workbench.set_current_section("steps")
 
     def _on_add_labor_entry(self) -> None:
         task = self._selected_task()
@@ -802,15 +994,71 @@ class MaintenanceWorkOrderDetailDialog(QDialog):
         )
         self.labor_note_edit.clear()
         self._refresh_after_action(selected_task_id=task.id, selected_step_id=self._selected_step_id())
-        self.workbench.set_current_section("labor")
         self.labor_date_edit.setDate(QDate(entry.entry_date.year, entry.entry_date.month, entry.entry_date.day))
 
     def _show_evidence_preview(self) -> None:
-        document = self._selected_evidence_document()
-        if document is None:
+        record = self._selected_evidence_record()
+        if record is None:
             QMessageBox.information(self, "Maintenance Work Order Detail", "Select a linked evidence document to preview it.")
             return
-        DocumentPreviewDialog(document=document, parent=self).exec()
+        DocumentPreviewDialog(document=record.document, parent=self).exec()
+
+    def _show_evidence_links(self) -> None:
+        record = self._selected_evidence_record()
+        if record is None or self._document_service is None:
+            QMessageBox.information(self, "Maintenance Work Order Detail", "Select a linked evidence document first.")
+            return
+        links = self._document_service.list_links_for_document(record.document.id)
+        DocumentLinksDialog(document=record.document, links=links, parent=self).exec()
+
+    def _capture_evidence(self) -> None:
+        if self._document_service is None or self._current_work_order_id is None:
+            return
+        dialog = MaintenanceWorkOrderEvidenceCaptureDialog(
+            document_service=self._document_service,
+            context_label=self.title_label.text() or "selected work order",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+        self._document_service.register_entity_attachments(
+            entity_type="work_order",
+            entity_id=self._current_work_order_id,
+            attachments=dialog.attachments,
+            document_type=dialog.document_type,
+            document_structure_id=dialog.document_structure_id,
+            business_version_label=dialog.business_version_label,
+            source_system=dialog.source_system,
+            link_role=dialog.link_role,
+            notes=dialog.notes,
+        )
+        self._refresh_after_action(selected_task_id=self._selected_task_id(), selected_step_id=self._selected_step_id())
+
+    def _link_existing_evidence(self) -> None:
+        if self._document_service is None or self._current_work_order_id is None:
+            return
+        dialog = MaintenanceWorkOrderEvidenceLinkDialog(
+            document_service=self._document_service,
+            context_label=self.title_label.text() or "selected work order",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.Accepted:
+            return
+        self._document_service.link_existing_document(
+            entity_type="work_order",
+            entity_id=self._current_work_order_id,
+            document_id=dialog.document_id or "",
+            link_role=dialog.link_role,
+        )
+        self._refresh_after_action(selected_task_id=self._selected_task_id(), selected_step_id=self._selected_step_id())
+
+    def _unlink_evidence(self) -> None:
+        record = self._selected_evidence_record()
+        if record is None or self._document_service is None:
+            QMessageBox.information(self, "Maintenance Work Order Detail", "Select linked evidence to unlink it.")
+            return
+        self._document_service.unlink_document_link(record.link_id)
+        self._refresh_after_action(selected_task_id=self._selected_task_id(), selected_step_id=self._selected_step_id())
 
     def _source_label(self, source_type: str, source_id: str | None) -> str:
         if not source_id:
