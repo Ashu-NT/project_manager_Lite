@@ -10,6 +10,7 @@ from ui.modules.maintenance_management import (
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
     MaintenanceReliabilityTab,
+    MaintenanceWorkOrdersTab,
 )
 from ui.platform.shell.main_window import MainWindow
 
@@ -118,6 +119,27 @@ def _create_maintenance_context(services):
         planned_start=now - timedelta(days=2),
         planned_end=now - timedelta(days=1),
         expected_version=open_order.version,
+    )
+    open_task = services["maintenance_work_order_task_service"].create_task(
+        work_order_id=open_order.id,
+        task_name="Inspect seal housing",
+        required_skill="Mechanical",
+        estimated_minutes=45,
+        completion_rule="all_steps_required",
+    )
+    services["maintenance_work_order_task_step_service"].create_step(
+        work_order_task_id=open_task.id,
+        instruction="Verify isolation, inspect seal area, and capture readings.",
+        expected_result="Seal area inspected and condition confirmed.",
+        requires_confirmation=True,
+    )
+    services["maintenance_work_order_material_requirement_service"].create_requirement(
+        work_order_id=open_order.id,
+        description="Seal kit",
+        required_qty="1",
+        required_uom="EA",
+        is_stock_item=False,
+        notes="Direct-charge seal kit pending release.",
     )
 
     request_closed = services["maintenance_work_request_service"].create_work_request(
@@ -312,6 +334,40 @@ def test_maintenance_requests_tab_lists_queue_and_linked_orders(qapp, services):
     assert "WO-UI-OPEN" in tab.linked_orders_table.item(0, 0).text()
 
 
+def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, services):
+    _enable_maintenance_module(services)
+    site, _location, _system, _asset, _symptom = _create_maintenance_context(services)
+
+    tab = MaintenanceWorkOrdersTab(
+        work_order_service=services["maintenance_work_order_service"],
+        work_order_task_service=services["maintenance_work_order_task_service"],
+        work_order_task_step_service=services["maintenance_work_order_task_step_service"],
+        material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+        work_request_service=services["maintenance_work_request_service"],
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        location_service=services["maintenance_location_service"],
+        system_service=services["maintenance_system_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.work_order_table.rowCount() >= 3
+    assert tab.total_card._lbl_value.text() == str(tab.work_order_table.rowCount())
+    row = _find_row_by_contains(tab.work_order_table, 0, "WO-UI-OPEN")
+    assert row >= 0
+    tab.work_order_table.selectRow(row)
+    qapp.processEvents()
+    assert "Open seal leak" in tab.detail_title.text()
+    assert tab.task_table.rowCount() >= 1
+    assert "Inspect seal housing" in tab.task_table.item(0, 0).text()
+    assert tab.material_table.rowCount() >= 1
+    assert "Seal kit" in tab.material_table.item(0, 0).text()
+
+
 def test_maintenance_dashboard_tab_surfaces_reliability_metrics(qapp, services):
     _enable_maintenance_module(services)
     site, _location, _system, asset, _symptom = _create_maintenance_context(services)
@@ -394,11 +450,12 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     assert "Maintenance Dashboard" in labels
     assert "Assets" in labels
     assert "Requests" in labels
+    assert "Work Orders" in labels
     assert "Reliability" in labels
 
     maintenance_section = window.shell_navigation.tree.topLevelItem(3)
     assert maintenance_section.text(0) == "Maintenance Management"
     assert _child_labels(maintenance_section) == ["Overview", "Records", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
-    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Requests"]
+    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Requests", "Work Orders"]
     assert _child_labels(maintenance_section.child(2)) == ["Reliability"]

@@ -253,6 +253,8 @@ def test_maintenance_management_now_has_core_foundation_packages():
     assert (ui_root / "assets" / "tab.py").exists()
     assert (ui_root / "requests" / "__init__.py").exists()
     assert (ui_root / "requests" / "tab.py").exists()
+    assert (ui_root / "work_orders" / "__init__.py").exists()
+    assert (ui_root / "work_orders" / "tab.py").exists()
     assert (ui_root / "shared.py").exists()
     assert (ui_root / "dashboard" / "__init__.py").exists()
     assert (ui_root / "dashboard" / "tab.py").exists()
