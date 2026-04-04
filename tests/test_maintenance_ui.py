@@ -33,6 +33,14 @@ def _select_combo_value(combo, value) -> None:
     combo.setCurrentIndex(index)
 
 
+def _find_row_by_contains(table, column: int, needle: str) -> int:
+    for row in range(table.rowCount()):
+        item = table.item(row, column)
+        if item is not None and needle in item.text():
+            return row
+    return -1
+
+
 def _mute_message_boxes(monkeypatch) -> None:
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", lambda *args, **kwargs: None)
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.warning", lambda *args, **kwargs: None)
@@ -92,6 +100,11 @@ def _create_maintenance_context(services):
         title="Open seal leak",
         failure_symptom_code=symptom.failure_code,
     )
+    request_open = services["maintenance_work_request_service"].update_work_request(
+        request_open.id,
+        status="TRIAGED",
+        expected_version=request_open.version,
+    )
     open_order = services["maintenance_work_order_service"].create_work_order(
         site_id=site.id,
         work_order_code="wo-ui-open",
@@ -124,6 +137,11 @@ def _create_maintenance_context(services):
         work_order_type="corrective",
         source_type="work_request",
         source_id=request_closed.id,
+    )
+    request_closed = services["maintenance_work_request_service"].update_work_request(
+        request_closed.id,
+        status="CONVERTED",
+        expected_version=request_closed.version,
     )
     closed_order = services["maintenance_work_order_service"].update_work_order(
         closed_order.id,
@@ -176,6 +194,11 @@ def _create_maintenance_context(services):
         source_type="work_request",
         source_id=request_repeat.id,
     )
+    request_repeat = services["maintenance_work_request_service"].update_work_request(
+        request_repeat.id,
+        status="CONVERTED",
+        expected_version=request_repeat.version,
+    )
     repeat_order = services["maintenance_work_order_service"].update_work_order(
         repeat_order.id,
         status="planned",
@@ -209,6 +232,22 @@ def _create_maintenance_context(services):
         reason_code=symptom.failure_code,
         impact_notes="Repeat leak recurrence.",
     )
+    request_deferred = services["maintenance_work_request_service"].create_work_request(
+        site_id=site.id,
+        work_request_code="wr-ui-deferred",
+        source_type="manual",
+        request_type="inspection",
+        asset_id=asset.id,
+        location_id=location.id,
+        system_id=system.id,
+        title="Deferred inspection follow-up",
+        failure_symptom_code=symptom.failure_code,
+    )
+    services["maintenance_work_request_service"].update_work_request(
+        request_deferred.id,
+        status="DEFERRED",
+        expected_version=request_deferred.version,
+    )
     return site, location, system, asset, symptom
 
 
@@ -225,12 +264,12 @@ def test_maintenance_assets_tab_lists_assets_and_components(qapp, services):
         platform_runtime_application_service=services["platform_runtime_application_service"],
         user_session=services["user_session"],
     )
-    assert tab.btn_filters.text() == "Filters"
+    assert tab.btn_filters.text().strip() == "Filters"
     assert tab.filter_panel.isHidden()
     tab.btn_filters.click()
     qapp.processEvents()
     assert not tab.filter_panel.isHidden()
-    assert tab.btn_filters.text() == "Hide Filters"
+    assert tab.btn_filters.text().strip() == "Hide Filters"
     _select_combo_value(tab.site_combo, site.id)
     qapp.processEvents()
 
@@ -240,6 +279,37 @@ def test_maintenance_assets_tab_lists_assets_and_components(qapp, services):
     assert tab.detail_title.text() == "PUMP-101 - Pump 101"
     assert tab.component_table.rowCount() >= 1
     assert "Mechanical Seal" in tab.component_table.item(0, 0).text()
+
+
+def test_maintenance_requests_tab_lists_queue_and_linked_orders(qapp, services):
+    _enable_maintenance_module(services)
+    site, _location, _system, _asset, _symptom = _create_maintenance_context(services)
+
+    from ui.modules.maintenance_management import MaintenanceRequestsTab
+
+    tab = MaintenanceRequestsTab(
+        work_request_service=services["maintenance_work_request_service"],
+        work_order_service=services["maintenance_work_order_service"],
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        location_service=services["maintenance_location_service"],
+        system_service=services["maintenance_system_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.request_table.rowCount() >= 4
+    assert tab.total_card._lbl_value.text() == str(tab.request_table.rowCount())
+    row = _find_row_by_contains(tab.request_table, 0, "WR-UI-OPEN")
+    assert row >= 0
+    tab.request_table.selectRow(row)
+    qapp.processEvents()
+    assert "Open seal leak" in tab.detail_title.text()
+    assert tab.linked_orders_table.rowCount() >= 1
+    assert "WO-UI-OPEN" in tab.linked_orders_table.item(0, 0).text()
 
 
 def test_maintenance_dashboard_tab_surfaces_reliability_metrics(qapp, services):
@@ -323,11 +393,12 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
 
     assert "Maintenance Dashboard" in labels
     assert "Assets" in labels
+    assert "Requests" in labels
     assert "Reliability" in labels
 
     maintenance_section = window.shell_navigation.tree.topLevelItem(3)
     assert maintenance_section.text(0) == "Maintenance Management"
     assert _child_labels(maintenance_section) == ["Overview", "Records", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
-    assert _child_labels(maintenance_section.child(1)) == ["Assets"]
+    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Requests"]
     assert _child_labels(maintenance_section.child(2)) == ["Reliability"]

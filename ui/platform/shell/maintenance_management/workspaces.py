@@ -4,6 +4,7 @@ from ui.modules.maintenance_management import (
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
     MaintenanceReliabilityTab,
+    MaintenanceRequestsTab,
 )
 from ui.platform.shell.common import (
     MAINTENANCE_MANAGEMENT_MODULE_CODE,
@@ -53,6 +54,25 @@ def build_maintenance_management_workspace_definitions(
                 asset_service=services["maintenance_asset_service"],
                 component_service=services["maintenance_asset_component_service"],
                 site_service=services["site_service"],
+                location_service=services["maintenance_location_service"],
+                system_service=services["maintenance_system_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        )
+    )
+    definitions.append(
+        WorkspaceDefinition(
+            module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,
+            module_label=MAINTENANCE_MANAGEMENT_MODULE_LABEL,
+            group_label="Records",
+            label="Requests",
+            widget=MaintenanceRequestsTab(
+                work_request_service=services["maintenance_work_request_service"],
+                work_order_service=services["maintenance_work_order_service"],
+                site_service=services["site_service"],
+                asset_service=services["maintenance_asset_service"],
                 location_service=services["maintenance_location_service"],
                 system_service=services["maintenance_system_service"],
                 platform_runtime_application_service=context.platform_runtime_application_service,

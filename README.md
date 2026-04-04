@@ -12,7 +12,7 @@ Delivered in the current codebase:
 
 - `Project Management` as the active production module for planning, execution, control, dashboarding, reporting, collaboration, and timesheets
 - `Inventory & Procurement` phase 1 as an available module for item master, storerooms, stock balances and transactions, reservations, requisitions, purchase orders, receiving, and shared document/approval integration
-- `Maintenance Management` as an available early-phase module with persisted master/work execution foundations, reliability analytics/reporting, and first shell workspaces for `Maintenance Dashboard`, `Assets`, and `Reliability`
+- `Maintenance Management` as an available early-phase module with persisted master/work execution foundations, reliability analytics/reporting, and first shell workspaces for `Maintenance Dashboard`, `Assets`, `Requests`, and `Reliability`
 - grouped enterprise shell and platform admin workspaces
 - organization and employee management
 - persistent module licensing with organization-scoped entitlements
@@ -23,7 +23,7 @@ Delivered in the current codebase:
 Pending major work:
 
 - deeper hardening for `Inventory & Procurement`, especially maintenance-facing integration workflows, broader serial/lot lifecycle traceability, and richer warehouse execution policies beyond the delivered document-import and receiving hardening
-- deeper `Maintenance Management` buildout, especially requests, work orders, asset/detail runtimes, preventive templates, planner flows, and technician execution UX
+- deeper `Maintenance Management` buildout, especially work orders, preventive templates, planner flows, and technician execution UX
 - `QHSE` and `HR Management` business modules
 - deeper enterprise identity controls such as hosted SSO rollout, richer contextual policy evaluation, broader scope adoption, and stronger security operations on top of the delivered federation/MFA/per-session groundwork
 - a concrete hosted web/router layer when the product moves beyond desktop-first deployment

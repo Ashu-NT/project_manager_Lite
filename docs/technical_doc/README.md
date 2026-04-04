@@ -17,7 +17,7 @@ It focuses on actual package boundaries, runtime flow, and the current enterpris
 - Current business-module state:
   - `project_management` is production-ready
   - `inventory_procurement` is implemented as a first-phase available module with runtime services and UI workspaces
-  - `maintenance_management` is implemented as an early available module with persisted foundations plus first dashboard/assets/reliability workspaces
+  - `maintenance_management` is implemented as an early available module with persisted foundations plus first dashboard/assets/requests/reliability workspaces
   - `qhse` and `hr_management` remain planned scaffolds
 - Runtime entrypoints:
   - GUI: `main_qt.py`
