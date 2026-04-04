@@ -29,6 +29,8 @@ from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService
 from ui.modules.maintenance_management.shared import (
+    MaintenanceWorkbenchNavigator,
+    MaintenanceWorkbenchSection,
     build_maintenance_header,
     display_metric,
     format_timestamp,
@@ -95,16 +97,6 @@ class MaintenanceReliabilityTab(QWidget):
             badges=(self.context_badge, self.export_badge, self.focus_badge),
         )
 
-        controls, controls_layout = build_admin_surface_card(
-            object_name="maintenanceReliabilityControlSurface",
-            alt=True,
-        )
-        toolbar_row = QHBoxLayout()
-        toolbar_row.setSpacing(CFG.SPACING_SM)
-        self.filter_summary = QLabel("Filters: All sites | All assets | All systems | All locations | All failure symptoms")
-        self.filter_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
-        self.filter_summary.setWordWrap(True)
-        toolbar_row.addWidget(self.filter_summary, 1)
         self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
         self.btn_backlog_excel = QPushButton("Backlog Excel")
         self.btn_pm_excel = QPushButton("PM Excel")
@@ -125,7 +117,49 @@ class MaintenanceReliabilityTab(QWidget):
         ):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
             button.setStyleSheet(dashboard_action_button_style(variant))
-            toolbar_row.addWidget(button)
+
+        exports, exports_layout = build_admin_surface_card(
+            object_name="maintenanceReliabilityExportSurface",
+            alt=False,
+        )
+        self.export_surface = exports
+        export_summary = QLabel(
+            "Generate workbook and PDF packs for backlog, PM compliance, recurring failures, exception review, downtime, and execution."
+        )
+        export_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        export_summary.setWordWrap(True)
+        exports_layout.addWidget(export_summary)
+        export_grid = QGridLayout()
+        export_grid.setContentsMargins(0, 0, 0, 0)
+        export_grid.setHorizontalSpacing(CFG.SPACING_SM)
+        export_grid.setVerticalSpacing(CFG.SPACING_SM)
+        for index, button in enumerate(
+            (
+                self.btn_backlog_excel,
+                self.btn_pm_excel,
+                self.btn_recurring_excel,
+                self.btn_exception_excel,
+                self.btn_downtime_pdf,
+                self.btn_execution_pdf,
+            )
+        ):
+            export_grid.addWidget(button, index // 3, index % 3)
+        exports_layout.addLayout(export_grid)
+        root.addWidget(exports)
+
+        controls, controls_layout = build_admin_surface_card(
+            object_name="maintenanceReliabilityControlSurface",
+            alt=True,
+        )
+        self.control_surface = controls
+        toolbar_row = QHBoxLayout()
+        toolbar_row.setSpacing(CFG.SPACING_SM)
+        self.filter_summary = QLabel("Filters: All sites | All assets | All systems | All locations | All failure symptoms")
+        self.filter_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+        self.filter_summary.setWordWrap(True)
+        toolbar_row.addWidget(self.filter_summary, 1)
+        toolbar_row.addWidget(self.btn_filters)
+        toolbar_row.addWidget(self.btn_refresh)
         controls_layout.addLayout(toolbar_row)
 
         self.filter_panel = QWidget()
@@ -178,12 +212,31 @@ class MaintenanceReliabilityTab(QWidget):
             summary_row.addWidget(card, 1)
         root.addLayout(summary_row)
 
-        tables_row = QHBoxLayout()
-        tables_row.setSpacing(CFG.SPACING_MD)
-        tables_row.addWidget(self._build_suggestions_panel(), 1)
-        tables_row.addWidget(self._build_root_cause_panel(), 1)
-        root.addLayout(tables_row, 1)
-        root.addWidget(self._build_recurring_panel(), 1)
+        self.workbench = MaintenanceWorkbenchNavigator(object_name="maintenanceReliabilityWorkbench", parent=self)
+        self.suggestions_panel = self._build_suggestions_panel()
+        self.root_cause_panel = self._build_root_cause_panel()
+        self.recurring_panel = self._build_recurring_panel()
+        self.workbench.set_sections(
+            [
+                MaintenanceWorkbenchSection(
+                    key="suggestions",
+                    label="Suggestions",
+                    widget=self.suggestions_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="root_causes",
+                    label="Root Causes",
+                    widget=self.root_cause_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="recurring_failures",
+                    label="Recurring Failures",
+                    widget=self.recurring_panel,
+                ),
+            ],
+            initial_key="suggestions",
+        )
+        root.addWidget(self.workbench, 1)
 
         self.site_combo.currentIndexChanged.connect(self._on_site_changed)
         self.asset_combo.currentIndexChanged.connect(

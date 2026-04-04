@@ -1043,6 +1043,23 @@ def test_maintenance_reliability_tab_exports_report_packs(qapp, services, tmp_pa
         platform_runtime_application_service=services["platform_runtime_application_service"],
         user_session=services["user_session"],
     )
+    assert tab.layout().itemAt(1).widget() is tab.export_surface
+    assert tab.layout().itemAt(2).widget() is tab.control_surface
+    assert tab.btn_filters.text().strip() == "Filters"
+    assert tab.filter_panel.isHidden()
+    assert tab.workbench.current_section_key() == "suggestions"
+    assert tab.workbench.current_section_label.text() == "Suggestions"
+    assert _top_level_labels(tab.workbench.tree) == [
+        "Suggestions",
+        "Root Causes",
+        "Recurring Failures",
+    ]
+    tab.workbench.btn_toggle_tree.click()
+    qapp.processEvents()
+    assert tab.workbench.tree_panel.isHidden()
+    tab.workbench.btn_toggle_tree.click()
+    qapp.processEvents()
+    assert not tab.workbench.tree_panel.isHidden()
     _select_combo_value(tab.site_combo, site.id)
     qapp.processEvents()
     _select_combo_value(tab.asset_combo, asset.id)
@@ -1057,8 +1074,14 @@ def test_maintenance_reliability_tab_exports_report_packs(qapp, services, tmp_pa
 
     assert tab.export_badge.text() == "Export Enabled"
     assert tab.suggestions_table.rowCount() >= 1
+    tab.workbench.set_current_section("root_causes")
+    qapp.processEvents()
     assert tab.root_cause_table.rowCount() >= 1
+    assert tab.workbench.current_section_label.text() == "Root Causes"
+    tab.workbench.set_current_section("recurring_failures")
+    qapp.processEvents()
     assert tab.recurring_table.rowCount() >= 1
+    assert tab.workbench.current_section_label.text() == "Recurring Failures"
     assert backlog_path is not None
     assert recurring_path is not None
     assert exception_path is not None
