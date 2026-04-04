@@ -28,9 +28,11 @@ from core.platform.org import SiteService
 from ui.modules.maintenance_management.shared import (
     build_maintenance_header,
     make_accent_badge,
+    make_filter_toggle_button,
     make_meta_badge,
     reset_combo_options,
     selected_combo_value,
+    set_filter_panel_visible,
 )
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.modules.project_management.dashboard.widgets import KpiCard
@@ -90,7 +92,23 @@ class MaintenanceAssetsTab(QWidget):
             object_name="maintenanceAssetsControlSurface",
             alt=True,
         )
-        filter_row = QGridLayout()
+        toolbar_row = QHBoxLayout()
+        toolbar_row.setSpacing(CFG.SPACING_SM)
+        self.filter_summary = QLabel("Filters: All sites | All locations | All systems | Active only | All categories")
+        self.filter_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+        self.filter_summary.setWordWrap(True)
+        toolbar_row.addWidget(self.filter_summary, 1)
+        self.btn_filters = make_filter_toggle_button(self)
+        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
+        self.btn_refresh.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
+        toolbar_row.addWidget(self.btn_filters)
+        toolbar_row.addWidget(self.btn_refresh)
+        controls_layout.addLayout(toolbar_row)
+
+        self.filter_panel = QWidget()
+        filter_row = QGridLayout(self.filter_panel)
+        filter_row.setContentsMargins(0, 0, 0, 0)
         filter_row.setHorizontalSpacing(CFG.SPACING_MD)
         filter_row.setVerticalSpacing(CFG.SPACING_SM)
         self.site_combo = QComboBox()
@@ -115,20 +133,8 @@ class MaintenanceAssetsTab(QWidget):
         filter_row.addWidget(self.category_combo, 2, 1)
         filter_row.addWidget(QLabel("Search"), 2, 2)
         filter_row.addWidget(self.search_edit, 2, 3)
-        controls_layout.addLayout(filter_row)
-
-        action_row = QHBoxLayout()
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_refresh.setFixedHeight(CFG.BUTTON_HEIGHT)
-        self.btn_refresh.setStyleSheet(dashboard_action_button_style("secondary"))
-        action_row.addStretch(1)
-        action_row.addWidget(self.btn_refresh)
-        controls_layout.addLayout(action_row)
-
-        self.filter_summary = QLabel("")
-        self.filter_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
-        self.filter_summary.setWordWrap(True)
-        controls_layout.addWidget(self.filter_summary)
+        controls_layout.addWidget(self.filter_panel)
+        set_filter_panel_visible(button=self.btn_filters, panel=self.filter_panel, visible=False)
         root.addWidget(controls)
 
         summary_row = QHBoxLayout()
@@ -171,6 +177,7 @@ class MaintenanceAssetsTab(QWidget):
         self.btn_refresh.clicked.connect(
             make_guarded_slot(self, title="Maintenance Assets", callback=self.reload_data)
         )
+        self.btn_filters.clicked.connect(self._toggle_filters)
         self.asset_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Assets", callback=self._on_asset_selection_changed)
         )
@@ -327,6 +334,11 @@ class MaintenanceAssetsTab(QWidget):
             f"{self.site_combo.currentText()} | {self.location_combo.currentText()} | "
             f"{self.system_combo.currentText()} | {self.status_combo.currentText()} | "
             f"{self.category_combo.currentText()}"
+            + (
+                f" | Search: {self.search_edit.text().strip()}"
+                if self.search_edit.text().strip()
+                else ""
+            )
         )
         self._populate_asset_table(rows, selected_asset_id=selected_asset_id)
 
@@ -360,6 +372,13 @@ class MaintenanceAssetsTab(QWidget):
 
     def _on_site_changed(self) -> None:
         self.reload_data()
+
+    def _toggle_filters(self) -> None:
+        set_filter_panel_visible(
+            button=self.btn_filters,
+            panel=self.filter_panel,
+            visible=not self.filter_panel.isVisible(),
+        )
 
     def _on_asset_selection_changed(self) -> None:
         asset_id = self._selected_asset_id()

@@ -4,9 +4,22 @@ from collections.abc import Iterable, Sequence
 from datetime import datetime
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QComboBox,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QStyle,
+    QVBoxLayout,
+    QWidget,
+)
 
-from ui.modules.project_management.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style
+from ui.modules.project_management.dashboard.styles import (
+    dashboard_action_button_style,
+    dashboard_badge_style,
+    dashboard_meta_chip_style,
+)
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -72,6 +85,25 @@ def make_meta_badge(text: str) -> QLabel:
     return label
 
 
+def make_filter_toggle_button(parent: QWidget, *, label: str = "Filters") -> QPushButton:
+    button = QPushButton(label, parent)
+    button.setFixedHeight(CFG.BUTTON_HEIGHT)
+    button.setMinimumWidth(132)
+    button.setStyleSheet(dashboard_action_button_style("secondary"))
+    button.setIcon(parent.style().standardIcon(QStyle.SP_FileDialogDetailedView))
+    return button
+
+
+def set_filter_panel_visible(*, button: QPushButton, panel: QWidget, visible: bool) -> None:
+    panel.setVisible(visible)
+    button.setText(" Hide Filters" if visible else " Filters")
+    button.setIcon(
+        button.style().standardIcon(
+            QStyle.SP_ArrowUp if visible else QStyle.SP_FileDialogDetailedView
+        )
+    )
+
+
 def reset_combo_options(
     combo: QComboBox,
     *,
@@ -115,8 +147,10 @@ __all__ = [
     "build_maintenance_header",
     "display_metric",
     "format_timestamp",
+    "make_filter_toggle_button",
     "make_accent_badge",
     "make_meta_badge",
     "reset_combo_options",
     "selected_combo_value",
+    "set_filter_panel_visible",
 ]

@@ -33,9 +33,11 @@ from ui.modules.maintenance_management.shared import (
     display_metric,
     format_timestamp,
     make_accent_badge,
+    make_filter_toggle_button,
     make_meta_badge,
     reset_combo_options,
     selected_combo_value,
+    set_filter_panel_visible,
 )
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.modules.project_management.dashboard.widgets import KpiCard
@@ -97,7 +99,34 @@ class MaintenanceReliabilityTab(QWidget):
             object_name="maintenanceReliabilityControlSurface",
             alt=True,
         )
-        filter_row = QGridLayout()
+        toolbar_row = QHBoxLayout()
+        toolbar_row.setSpacing(CFG.SPACING_SM)
+        self.filter_summary = QLabel("Filters: All sites | All assets | All systems | All locations | All failure symptoms")
+        self.filter_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
+        self.filter_summary.setWordWrap(True)
+        toolbar_row.addWidget(self.filter_summary, 1)
+        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
+        self.btn_backlog_excel = QPushButton("Backlog Excel")
+        self.btn_pm_excel = QPushButton("PM Excel")
+        self.btn_downtime_pdf = QPushButton("Downtime PDF")
+        self.btn_execution_pdf = QPushButton("Execution PDF")
+        self.btn_filters = make_filter_toggle_button(self)
+        for button, variant in (
+            (self.btn_refresh, "secondary"),
+            (self.btn_backlog_excel, "secondary"),
+            (self.btn_pm_excel, "secondary"),
+            (self.btn_downtime_pdf, "secondary"),
+            (self.btn_execution_pdf, "primary"),
+            (self.btn_filters, "secondary"),
+        ):
+            button.setFixedHeight(CFG.BUTTON_HEIGHT)
+            button.setStyleSheet(dashboard_action_button_style(variant))
+            toolbar_row.addWidget(button)
+        controls_layout.addLayout(toolbar_row)
+
+        self.filter_panel = QWidget()
+        filter_row = QGridLayout(self.filter_panel)
+        filter_row.setContentsMargins(0, 0, 0, 0)
         filter_row.setHorizontalSpacing(CFG.SPACING_MD)
         filter_row.setVerticalSpacing(CFG.SPACING_SM)
         self.site_combo = QComboBox()
@@ -132,31 +161,8 @@ class MaintenanceReliabilityTab(QWidget):
         filter_row.addWidget(self.limit_combo, 2, 1)
         filter_row.addWidget(QLabel("Recurring Threshold"), 2, 2)
         filter_row.addWidget(self.threshold_combo, 2, 3)
-        controls_layout.addLayout(filter_row)
-
-        action_row = QHBoxLayout()
-        self.btn_refresh = QPushButton(CFG.REFRESH_BUTTON_LABEL)
-        self.btn_backlog_excel = QPushButton("Backlog Excel")
-        self.btn_pm_excel = QPushButton("PM Excel")
-        self.btn_downtime_pdf = QPushButton("Downtime PDF")
-        self.btn_execution_pdf = QPushButton("Execution PDF")
-        for button, variant in (
-            (self.btn_refresh, "secondary"),
-            (self.btn_backlog_excel, "secondary"),
-            (self.btn_pm_excel, "secondary"),
-            (self.btn_downtime_pdf, "secondary"),
-            (self.btn_execution_pdf, "primary"),
-        ):
-            button.setFixedHeight(CFG.BUTTON_HEIGHT)
-            button.setStyleSheet(dashboard_action_button_style(variant))
-            action_row.addWidget(button)
-        action_row.addStretch(1)
-        controls_layout.addLayout(action_row)
-
-        self.filter_summary = QLabel("")
-        self.filter_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
-        self.filter_summary.setWordWrap(True)
-        controls_layout.addWidget(self.filter_summary)
+        controls_layout.addWidget(self.filter_panel)
+        set_filter_panel_visible(button=self.btn_filters, panel=self.filter_panel, visible=False)
         root.addWidget(controls)
 
         summary_row = QHBoxLayout()
@@ -212,6 +218,7 @@ class MaintenanceReliabilityTab(QWidget):
         self.btn_execution_pdf.clicked.connect(
             make_guarded_slot(self, title="Maintenance Reliability", callback=self.export_execution_pdf)
         )
+        self.btn_filters.clicked.connect(self._toggle_filters)
         for button in (
             self.btn_backlog_excel,
             self.btn_pm_excel,
@@ -404,7 +411,8 @@ class MaintenanceReliabilityTab(QWidget):
             "Filters: "
             f"{self.site_combo.currentText()} | {self.asset_combo.currentText()} | "
             f"{self.system_combo.currentText()} | {self.location_combo.currentText()} | "
-            f"{self.failure_code_combo.currentText()} | {self.days_combo.currentText()}"
+            f"{self.failure_code_combo.currentText()} | {self.days_combo.currentText()} | "
+            f"{self.limit_combo.currentText()} | {self.threshold_combo.currentText()}"
         )
         self.suggestion_card.set_value(str(len(suggestions)))
         self.root_cause_card.set_value(str(len(insights)))
@@ -525,6 +533,13 @@ class MaintenanceReliabilityTab(QWidget):
 
     def _on_site_changed(self) -> None:
         self.reload_data()
+
+    def _toggle_filters(self) -> None:
+        set_filter_panel_visible(
+            button=self.btn_filters,
+            panel=self.filter_panel,
+            visible=not self.filter_panel.isVisible(),
+        )
 
     def _on_domain_change(self, event: DomainChangeEvent) -> None:
         if getattr(event, "scope_code", "") == "maintenance_management":

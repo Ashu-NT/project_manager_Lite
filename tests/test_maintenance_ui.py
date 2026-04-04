@@ -225,6 +225,12 @@ def test_maintenance_assets_tab_lists_assets_and_components(qapp, services):
         platform_runtime_application_service=services["platform_runtime_application_service"],
         user_session=services["user_session"],
     )
+    assert tab.btn_filters.text() == "Filters"
+    assert tab.filter_panel.isHidden()
+    tab.btn_filters.click()
+    qapp.processEvents()
+    assert not tab.filter_panel.isHidden()
+    assert tab.btn_filters.text() == "Hide Filters"
     _select_combo_value(tab.site_combo, site.id)
     qapp.processEvents()
 
