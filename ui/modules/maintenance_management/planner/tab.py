@@ -280,12 +280,12 @@ class MaintenancePlannerTab(QWidget):
             object_name="maintenancePlannerRequestSurface",
             alt=False,
         )
-        title = QLabel("Request Intake")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Request Intake")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Requests still needing triage, approval, or conversion decisions.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         self.request_table = build_admin_table(
             headers=("Request", "Anchor", "Status", "Priority"),
@@ -299,12 +299,12 @@ class MaintenancePlannerTab(QWidget):
             object_name="maintenancePlannerBacklogSurface",
             alt=False,
         )
-        title = QLabel("Backlog and Scheduling")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Backlog and Scheduling")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Corrective and preventive work orders that still need planning, parts, or scheduling decisions.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         self.work_order_table = build_admin_table(
             headers=("Work Order", "Type", "Status", "Priority", "Plan Window"),
@@ -324,12 +324,12 @@ class MaintenancePlannerTab(QWidget):
             object_name="maintenancePlannerMaterialSurface",
             alt=False,
         )
-        title = QLabel("Material Readiness")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Material Readiness")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Material lines that may block scheduled work or need procurement follow-through.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         self.material_table = build_admin_table(
             headers=("Work Order", "Material", "Status", "Qty", "Storeroom"),
@@ -349,12 +349,12 @@ class MaintenancePlannerTab(QWidget):
             object_name="maintenancePlannerRecurringSurface",
             alt=False,
         )
-        title = QLabel("Recurring Failure Review")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Recurring Failure Review")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Recurring-failure and exception signals that planners should fold into scheduling decisions.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         self.recurring_table = build_admin_table(
             headers=("Anchor", "Failure", "Lead Cause", "Count", "Open", "Sensor Exceptions"),
@@ -375,12 +375,12 @@ class MaintenancePlannerTab(QWidget):
             object_name="maintenancePlannerPreventiveSurface",
             alt=False,
         )
-        title = QLabel("Preventive Readiness")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Preventive Readiness")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Due, near-due, and blocked preventive plans that planners should fold into the active schedule.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         self.preventive_table = build_admin_table(
             headers=("Plan", "Trigger", "Due State", "Next Due", "Target"),

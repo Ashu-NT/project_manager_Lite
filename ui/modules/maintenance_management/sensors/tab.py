@@ -252,12 +252,12 @@ class MaintenanceSensorsTab(QWidget):
             object_name="maintenanceSensorsGridSurface",
             alt=False,
         )
-        title = QLabel("Sensor Register")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Sensor Register")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Maintenance sensors, counters, and condition points active in the current scope.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         action_row = QHBoxLayout()
         action_row.setSpacing(CFG.SPACING_SM)
@@ -289,12 +289,12 @@ class MaintenanceSensorsTab(QWidget):
             object_name="maintenanceIntegrationStatusSurface",
             alt=False,
         )
-        title = QLabel("Integration Queue")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Integration Queue")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Connectivity and sync health for maintenance sensor source integrations.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         self.integration_table = build_admin_table(
             headers=("Integration", "Type", "Status", "Last Success", "Last Failure"),
@@ -314,12 +314,12 @@ class MaintenanceSensorsTab(QWidget):
             object_name="maintenanceSensorExceptionSurface",
             alt=False,
         )
-        title = QLabel("Exception Queue")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        #title = QLabel("Exception Queue")
+        #title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Sensor and sync exceptions that need planner or reliability review.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
-        layout.addWidget(title)
+        #layout.addWidget(title)
         layout.addWidget(subtitle)
         self.exception_table = build_admin_table(
             headers=("Exception", "Anchor", "Status", "Detected", "Batch"),
