@@ -29,6 +29,7 @@ from core.modules.inventory_procurement import (
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDocumentService,
     MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
@@ -109,6 +110,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_runtime_contract_catalog_service, MaintenanceRuntimeContractCatalogService)
     assert isinstance(graph.maintenance_asset_service, MaintenanceAssetService)
     assert isinstance(graph.maintenance_asset_component_service, MaintenanceAssetComponentService)
+    assert isinstance(graph.maintenance_document_service, MaintenanceDocumentService)
     assert isinstance(graph.maintenance_downtime_event_service, MaintenanceDowntimeEventService)
     assert isinstance(graph.maintenance_failure_code_service, MaintenanceFailureCodeService)
     assert isinstance(graph.maintenance_integration_source_service, MaintenanceIntegrationSourceService)
@@ -173,6 +175,7 @@ def test_service_graph_builder_wires_all_services(session):
     )
     assert as_dict["maintenance_asset_service"] is graph.maintenance_asset_service
     assert as_dict["maintenance_asset_component_service"] is graph.maintenance_asset_component_service
+    assert as_dict["maintenance_document_service"] is graph.maintenance_document_service
     assert as_dict["maintenance_downtime_event_service"] is graph.maintenance_downtime_event_service
     assert as_dict["maintenance_failure_code_service"] is graph.maintenance_failure_code_service
     assert as_dict["maintenance_integration_source_service"] is graph.maintenance_integration_source_service

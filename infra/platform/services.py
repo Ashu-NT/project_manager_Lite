@@ -34,6 +34,7 @@ from core.modules.inventory_procurement import (
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDocumentService,
     MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
@@ -109,6 +110,7 @@ class ServiceGraph:
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
     maintenance_asset_service: MaintenanceAssetService
     maintenance_asset_component_service: MaintenanceAssetComponentService
+    maintenance_document_service: MaintenanceDocumentService
     maintenance_downtime_event_service: MaintenanceDowntimeEventService
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
@@ -179,6 +181,7 @@ class ServiceGraph:
             "maintenance_runtime_contract_catalog_service": self.maintenance_runtime_contract_catalog_service,
             "maintenance_asset_service": self.maintenance_asset_service,
             "maintenance_asset_component_service": self.maintenance_asset_component_service,
+            "maintenance_document_service": self.maintenance_document_service,
             "maintenance_downtime_event_service": self.maintenance_downtime_event_service,
             "maintenance_failure_code_service": self.maintenance_failure_code_service,
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
@@ -263,6 +266,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_runtime_contract_catalog_service=maintenance_management_services.maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_management_services.maintenance_asset_service,
         maintenance_asset_component_service=maintenance_management_services.maintenance_asset_component_service,
+        maintenance_document_service=maintenance_management_services.maintenance_document_service,
         maintenance_downtime_event_service=maintenance_management_services.maintenance_downtime_event_service,
         maintenance_failure_code_service=maintenance_management_services.maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,

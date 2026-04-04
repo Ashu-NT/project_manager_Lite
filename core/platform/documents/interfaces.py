@@ -53,6 +53,14 @@ class DocumentLinkRepository(ABC):
     @abstractmethod
     def list_for_entity(self, organization_id: str, module_code: str, entity_type: str, entity_id: str) -> list[DocumentLink]: ...
     @abstractmethod
+    def list_for_module(
+        self,
+        organization_id: str,
+        module_code: str,
+        *,
+        entity_type: str | None = None,
+    ) -> list[DocumentLink]: ...
+    @abstractmethod
     def find_existing(
         self,
         *,

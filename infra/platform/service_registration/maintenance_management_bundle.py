@@ -6,6 +6,7 @@ from core.platform.access import ScopedRolePolicy
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDocumentService,
     MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
@@ -23,6 +24,11 @@ from core.modules.maintenance_management import (
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
     MaintenanceWorkRequestService,
+)
+from infra.platform.db.documents import (
+    SqlAlchemyDocumentLinkRepository,
+    SqlAlchemyDocumentRepository,
+    SqlAlchemyDocumentStructureRepository,
 )
 from core.modules.maintenance_management.access import (
     MAINTENANCE_SCOPE_ROLE_CHOICES,
@@ -57,6 +63,7 @@ class MaintenanceManagementServiceBundle:
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
     maintenance_asset_service: MaintenanceAssetService
     maintenance_asset_component_service: MaintenanceAssetComponentService
+    maintenance_document_service: MaintenanceDocumentService
     maintenance_downtime_event_service: MaintenanceDowntimeEventService
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
@@ -95,6 +102,9 @@ def build_maintenance_management_service_bundle(
     work_order_material_requirement_repo = SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(platform_services.session)
     work_order_task_repo = SqlAlchemyMaintenanceWorkOrderTaskRepository(platform_services.session)
     work_order_task_step_repo = SqlAlchemyMaintenanceWorkOrderTaskStepRepository(platform_services.session)
+    document_repo = SqlAlchemyDocumentRepository(platform_services.session)
+    document_link_repo = SqlAlchemyDocumentLinkRepository(platform_services.session)
+    document_structure_repo = SqlAlchemyDocumentStructureRepository(platform_services.session)
     user_repo = SqlAlchemyUserRepository(platform_services.session)
     
     platform_services.department_service.register_location_reference_repository(location_repo)
@@ -134,6 +144,20 @@ def build_maintenance_management_service_bundle(
         party_repo=platform_services.party_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+    )
+    maintenance_document_service = MaintenanceDocumentService(
+        document_repo=document_repo,
+        link_repo=document_link_repo,
+        structure_repo=document_structure_repo,
+        document_integration_service=platform_services.document_integration_service,
+        organization_repo=platform_services.organization_repo,
+        site_repo=platform_services.site_repo,
+        location_repo=location_repo,
+        system_repo=system_repo,
+        asset_repo=asset_repo,
+        work_request_repo=work_request_repo,
+        work_order_repo=work_order_repo,
+        user_session=platform_services.user_session,
     )
     maintenance_downtime_event_service = MaintenanceDowntimeEventService(
         platform_services.session,
@@ -308,6 +332,7 @@ def build_maintenance_management_service_bundle(
         maintenance_runtime_contract_catalog_service=maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_asset_service,
         maintenance_asset_component_service=maintenance_asset_component_service,
+        maintenance_document_service=maintenance_document_service,
         maintenance_downtime_event_service=maintenance_downtime_event_service,
         maintenance_failure_code_service=maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_integration_source_service,

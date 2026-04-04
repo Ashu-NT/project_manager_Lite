@@ -1,5 +1,6 @@
 from .asset import MaintenanceAssetService
 from .component import MaintenanceAssetComponentService
+from .documents import MaintenanceDocumentService
 from .downtime_event import MaintenanceDowntimeEventService
 from .failure_code import MaintenanceFailureCodeService
 from .integration_source import MaintenanceIntegrationSourceService
@@ -21,6 +22,7 @@ from .work_request import MaintenanceWorkRequestService
 __all__ = [
     "MaintenanceAssetService",
     "MaintenanceAssetComponentService",
+    "MaintenanceDocumentService",
     "MaintenanceDowntimeEventService",
     "MaintenanceFailureCodeService",
     "MaintenanceIntegrationSourceService",

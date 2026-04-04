@@ -3,6 +3,7 @@ from __future__ import annotations
 from ui.modules.maintenance_management import (
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
+    MaintenanceDocumentsTab,
     MaintenanceReliabilityTab,
     MaintenanceRequestsTab,
     MaintenanceWorkOrdersTab,
@@ -98,6 +99,21 @@ def build_maintenance_management_workspace_definitions(
                 asset_service=services["maintenance_asset_service"],
                 location_service=services["maintenance_location_service"],
                 system_service=services["maintenance_system_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        )
+    )
+    definitions.append(
+        WorkspaceDefinition(
+            module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,
+            module_label=MAINTENANCE_MANAGEMENT_MODULE_LABEL,
+            group_label="Records",
+            label="Documents",
+            widget=MaintenanceDocumentsTab(
+                document_service=services["maintenance_document_service"],
+                site_service=services["site_service"],
                 platform_runtime_application_service=context.platform_runtime_application_service,
                 user_session=context.user_session,
                 parent=context.parent,

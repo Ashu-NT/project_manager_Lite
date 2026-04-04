@@ -9,6 +9,7 @@ from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.maintenance_management import (
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
+    MaintenanceDocumentsTab,
     MaintenanceReliabilityTab,
     MaintenanceWorkOrdersTab,
 )
@@ -368,6 +369,43 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     assert "Seal kit" in tab.material_table.item(0, 0).text()
 
 
+def test_maintenance_documents_tab_lists_linked_documents(qapp, services):
+    _enable_maintenance_module(services)
+    site, _location, _system, asset, _symptom = _create_maintenance_context(services)
+    document = services["document_service"].create_document(
+        document_code="DOC-UI-MNT",
+        title="Maintenance SOP",
+        document_type="PROCEDURE",
+        storage_kind="FILE_PATH",
+        storage_uri="C:/docs/maintenance-sop.pdf",
+    )
+    services["maintenance_document_service"].link_existing_document(
+        entity_type="asset",
+        entity_id=asset.id,
+        document_id=document.id,
+        link_role="reference",
+    )
+
+    tab = MaintenanceDocumentsTab(
+        document_service=services["maintenance_document_service"],
+        site_service=services["site_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.document_table.rowCount() >= 1
+    row = _find_row_by_contains(tab.document_table, 0, "DOC-UI-MNT")
+    assert row >= 0
+    tab.document_table.selectRow(row)
+    qapp.processEvents()
+    assert tab.detail_title.text() == "Maintenance SOP"
+    assert "Asset: PUMP-101 - Pump 101" in tab.metadata_labels["linked_record"].text()
+    assert tab.metadata_labels["type"].text() == "Procedure"
+
+
 def test_maintenance_dashboard_tab_surfaces_reliability_metrics(qapp, services):
     _enable_maintenance_module(services)
     site, _location, _system, asset, _symptom = _create_maintenance_context(services)
@@ -451,11 +489,12 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     assert "Assets" in labels
     assert "Requests" in labels
     assert "Work Orders" in labels
+    assert "Documents" in labels
     assert "Reliability" in labels
 
     maintenance_section = window.shell_navigation.tree.topLevelItem(3)
     assert maintenance_section.text(0) == "Maintenance Management"
     assert _child_labels(maintenance_section) == ["Overview", "Records", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
-    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Requests", "Work Orders"]
+    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Requests", "Work Orders", "Documents"]
     assert _child_labels(maintenance_section.child(2)) == ["Reliability"]

@@ -41,7 +41,7 @@ This avoids mega-tabs and improves local maintainability.
   - portfolio
   - timesheet
 - `ui/modules/inventory_procurement/`: available module workspaces for inventory, procurement, data exchange, and reporting
-- `ui/modules/maintenance_management/`: early maintenance workspaces for dashboard, assets, requests, work orders, and reliability
+- `ui/modules/maintenance_management/`: early maintenance workspaces for dashboard, assets, requests, work orders, documents, and reliability
 
 Placeholder package roots still exist for `qhse` and `hr_management`.
 

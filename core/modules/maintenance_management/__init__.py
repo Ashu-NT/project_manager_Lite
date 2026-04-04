@@ -3,6 +3,7 @@
 from core.modules.maintenance_management.services import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDocumentService,
     MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
@@ -25,6 +26,7 @@ from core.modules.maintenance_management.services import (
 __all__ = [
     "MaintenanceAssetService",
     "MaintenanceAssetComponentService",
+    "MaintenanceDocumentService",
     "MaintenanceDowntimeEventService",
     "MaintenanceFailureCodeService",
     "MaintenanceIntegrationSourceService",

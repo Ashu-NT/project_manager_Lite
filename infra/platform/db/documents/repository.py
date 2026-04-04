@@ -178,6 +178,28 @@ class SqlAlchemyDocumentLinkRepository(DocumentLinkRepository):
         rows = self.session.execute(stmt.order_by(DocumentLinkORM.document_id.asc())).scalars().all()
         return [document_link_from_orm(row) for row in rows]
 
+    def list_for_module(
+        self,
+        organization_id: str,
+        module_code: str,
+        *,
+        entity_type: str | None = None,
+    ) -> list[DocumentLink]:
+        stmt = select(DocumentLinkORM).where(
+            DocumentLinkORM.organization_id == organization_id,
+            DocumentLinkORM.module_code == module_code,
+        )
+        if entity_type is not None:
+            stmt = stmt.where(DocumentLinkORM.entity_type == entity_type)
+        rows = self.session.execute(
+            stmt.order_by(
+                DocumentLinkORM.entity_type.asc(),
+                DocumentLinkORM.entity_id.asc(),
+                DocumentLinkORM.document_id.asc(),
+            )
+        ).scalars().all()
+        return [document_link_from_orm(row) for row in rows]
+
     def find_existing(
         self,
         *,
