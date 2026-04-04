@@ -4,8 +4,10 @@ from .integration_source import MaintenanceIntegrationSourceService
 from .location import MaintenanceLocationService
 from .material_requirement import MaintenanceWorkOrderMaterialRequirementService
 from .runtime_catalog import MaintenanceRuntimeContractCatalogService
+from .sensor_exception import MaintenanceSensorExceptionService
 from .sensor import MaintenanceSensorService
 from .sensor_reading import MaintenanceSensorReadingService
+from .sensor_source_mapping import MaintenanceSensorSourceMappingService
 from .system import MaintenanceSystemService
 from .work_order import MaintenanceWorkOrderService
 from .work_order_task import MaintenanceWorkOrderTaskService
@@ -19,8 +21,10 @@ __all__ = [
     "MaintenanceLocationService",
     "MaintenanceWorkOrderMaterialRequirementService",
     "MaintenanceRuntimeContractCatalogService",
+    "MaintenanceSensorExceptionService",
     "MaintenanceSensorService",
     "MaintenanceSensorReadingService",
+    "MaintenanceSensorSourceMappingService",
     "MaintenanceSystemService",
     "MaintenanceWorkOrderService",
     "MaintenanceWorkOrderTaskService",

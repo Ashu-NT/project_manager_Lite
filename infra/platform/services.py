@@ -38,8 +38,10 @@ from core.modules.maintenance_management import (
     MaintenanceLocationService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
+    MaintenanceSensorExceptionService,
     MaintenanceSensorReadingService,
     MaintenanceSensorService,
+    MaintenanceSensorSourceMappingService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
@@ -105,8 +107,10 @@ class ServiceGraph:
     maintenance_asset_component_service: MaintenanceAssetComponentService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_sensor_exception_service: MaintenanceSensorExceptionService
     maintenance_sensor_service: MaintenanceSensorService
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
+    maintenance_sensor_source_mapping_service: MaintenanceSensorSourceMappingService
     maintenance_system_service: MaintenanceSystemService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
@@ -169,8 +173,10 @@ class ServiceGraph:
             "maintenance_asset_component_service": self.maintenance_asset_component_service,
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
             "maintenance_location_service": self.maintenance_location_service,
+            "maintenance_sensor_exception_service": self.maintenance_sensor_exception_service,
             "maintenance_sensor_service": self.maintenance_sensor_service,
             "maintenance_sensor_reading_service": self.maintenance_sensor_reading_service,
+            "maintenance_sensor_source_mapping_service": self.maintenance_sensor_source_mapping_service,
             "maintenance_system_service": self.maintenance_system_service,
             "maintenance_work_request_service": self.maintenance_work_request_service,
             "maintenance_work_order_service": self.maintenance_work_order_service,
@@ -247,8 +253,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_asset_component_service=maintenance_management_services.maintenance_asset_component_service,
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
+        maintenance_sensor_exception_service=maintenance_management_services.maintenance_sensor_exception_service,
         maintenance_sensor_service=maintenance_management_services.maintenance_sensor_service,
         maintenance_sensor_reading_service=maintenance_management_services.maintenance_sensor_reading_service,
+        maintenance_sensor_source_mapping_service=maintenance_management_services.maintenance_sensor_source_mapping_service,
         maintenance_system_service=maintenance_management_services.maintenance_system_service,
         maintenance_work_request_service=maintenance_management_services.maintenance_work_request_service,
         maintenance_work_order_service=maintenance_management_services.maintenance_work_order_service,

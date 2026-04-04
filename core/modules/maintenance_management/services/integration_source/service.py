@@ -28,12 +28,14 @@ class MaintenanceIntegrationSourceService:
         integration_source_repo: MaintenanceIntegrationSourceRepository,
         *,
         organization_repo: OrganizationRepository,
+        sensor_exception_service=None,
         user_session=None,
         audit_service=None,
     ) -> None:
         self._session = session
         self._integration_source_repo = integration_source_repo
         self._organization_repo = organization_repo
+        self._sensor_exception_service = sensor_exception_service
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -247,12 +249,20 @@ class MaintenanceIntegrationSourceService:
         error_message: str,
         expected_version: int | None = None,
     ) -> MaintenanceIntegrationSource:
-        return self.update_source(
+        updated = self.update_source(
             integration_source_id,
             last_failed_sync_at=failed_at or datetime.now(timezone.utc),
             last_error_message=error_message,
             expected_version=expected_version,
         )
+        if self._sensor_exception_service is not None:
+            self._sensor_exception_service.raise_exception(
+                integration_source_id=integration_source_id,
+                exception_type="EXTERNAL_SYNC_FAILURE",
+                message=error_message,
+                detected_at=updated.last_failed_sync_at,
+            )
+        return updated
 
     def _record_change(self, action: str, source: MaintenanceIntegrationSource) -> None:
         record_audit(

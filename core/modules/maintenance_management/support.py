@@ -5,9 +5,12 @@ from decimal import Decimal, InvalidOperation
 
 from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
+    MaintenanceFailureCodeType,
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
     MaintenancePriority,
+    MaintenanceSensorExceptionStatus,
+    MaintenanceSensorExceptionType,
     MaintenanceSensorQualityState,
     MaintenanceTriggerMode,
     MaintenanceTaskCompletionRule,
@@ -288,6 +291,66 @@ def coerce_sensor_quality_state(
         ) from exc
 
 
+def coerce_sensor_exception_type(
+    value: MaintenanceSensorExceptionType | str | None,
+) -> MaintenanceSensorExceptionType:
+    if isinstance(value, MaintenanceSensorExceptionType):
+        return value
+    raw = str(value or MaintenanceSensorExceptionType.STALE_READING.value).strip().upper()
+    try:
+        return MaintenanceSensorExceptionType(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance sensor exception type is invalid.",
+            code="MAINTENANCE_SENSOR_EXCEPTION_TYPE_INVALID",
+        ) from exc
+
+
+def coerce_sensor_exception_status(
+    value: MaintenanceSensorExceptionStatus | str | None,
+) -> MaintenanceSensorExceptionStatus:
+    if isinstance(value, MaintenanceSensorExceptionStatus):
+        return value
+    raw = str(value or MaintenanceSensorExceptionStatus.OPEN.value).strip().upper()
+    try:
+        return MaintenanceSensorExceptionStatus(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance sensor exception status is invalid.",
+            code="MAINTENANCE_SENSOR_EXCEPTION_STATUS_INVALID",
+        ) from exc
+
+
+def coerce_failure_code_type(
+    value: MaintenanceFailureCodeType | str | None,
+) -> MaintenanceFailureCodeType:
+    if isinstance(value, MaintenanceFailureCodeType):
+        return value
+    raw = str(value or MaintenanceFailureCodeType.SYMPTOM.value).strip().upper()
+    try:
+        return MaintenanceFailureCodeType(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance failure code type is invalid.",
+            code="MAINTENANCE_FAILURE_CODE_TYPE_INVALID",
+        ) from exc
+
+
+def calculate_downtime_minutes(
+    started_at: datetime,
+    ended_at: datetime | None,
+) -> int | None:
+    if ended_at is None:
+        return None
+    if ended_at < started_at:
+        raise ValidationError(
+            "Downtime end cannot be earlier than downtime start.",
+            code="MAINTENANCE_DOWNTIME_RANGE_INVALID",
+        )
+    total_seconds = max(0.0, (ended_at - started_at).total_seconds())
+    return int((total_seconds + 59) // 60)
+
+
 __all__ = [
     "coerce_criticality",
     "coerce_decimal_value",
@@ -299,6 +362,8 @@ __all__ = [
     "coerce_optional_datetime",
     "coerce_optional_non_negative_int",
     "coerce_priority",
+    "coerce_sensor_exception_status",
+    "coerce_sensor_exception_type",
     "coerce_sensor_quality_state",
     "coerce_task_completion_rule",
     "coerce_work_order_task_step_status",

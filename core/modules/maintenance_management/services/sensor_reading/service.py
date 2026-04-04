@@ -34,6 +34,7 @@ class MaintenanceSensorReadingService:
         organization_repo: OrganizationRepository,
         sensor_repo: MaintenanceSensorRepository,
         component_repo: MaintenanceAssetComponentRepository,
+        sensor_exception_service=None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -42,6 +43,7 @@ class MaintenanceSensorReadingService:
         self._organization_repo = organization_repo
         self._sensor_repo = sensor_repo
         self._component_repo = component_repo
+        self._sensor_exception_service = sensor_exception_service
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -116,11 +118,27 @@ class MaintenanceSensorReadingService:
 
         normalized_unit = normalize_optional_text(reading_unit).upper() or sensor.unit
         if not normalized_unit:
+            self._raise_exception_if_possible(
+                sensor_id=sensor.id,
+                exception_type="UNIT_MISMATCH",
+                message="Sensor reading was received without a usable unit.",
+                detected_at=datetime.now(timezone.utc),
+                source_batch_id=source_batch_id,
+                raw_payload_ref=raw_payload_ref,
+            )
             raise ValidationError(
                 "Reading unit is required when the sensor does not already define one.",
                 code="MAINTENANCE_SENSOR_READING_UNIT_REQUIRED",
             )
         if sensor.unit and normalized_unit != sensor.unit:
+            self._raise_exception_if_possible(
+                sensor_id=sensor.id,
+                exception_type="UNIT_MISMATCH",
+                message=f"Sensor reading unit '{normalized_unit}' does not match configured unit '{sensor.unit}'.",
+                detected_at=datetime.now(timezone.utc),
+                source_batch_id=source_batch_id,
+                raw_payload_ref=raw_payload_ref,
+            )
             raise ValidationError(
                 "Reading unit must match the configured maintenance sensor unit.",
                 code="MAINTENANCE_SENSOR_READING_UNIT_MISMATCH",
@@ -169,7 +187,37 @@ class MaintenanceSensorReadingService:
                     source_event="maintenance_sensors_changed",
                 )
             )
+        if resolved_quality.value in {"STALE", "ERROR"}:
+            self._raise_exception_if_possible(
+                sensor_id=sensor.id,
+                exception_type="STALE_READING" if resolved_quality.value == "STALE" else "EXTERNAL_SYNC_FAILURE",
+                message="Sensor reading quality requires planner review.",
+                detected_at=resolved_timestamp,
+                source_batch_id=reading.source_batch_id,
+                raw_payload_ref=reading.raw_payload_ref,
+            )
         return reading
+
+    def _raise_exception_if_possible(
+        self,
+        *,
+        sensor_id: str,
+        exception_type: str,
+        message: str,
+        detected_at,
+        source_batch_id: str,
+        raw_payload_ref: str,
+    ) -> None:
+        if self._sensor_exception_service is None:
+            return
+        self._sensor_exception_service.raise_exception(
+            sensor_id=sensor_id,
+            exception_type=exception_type,
+            message=message,
+            detected_at=detected_at,
+            source_batch_id=source_batch_id,
+            raw_payload_ref=raw_payload_ref,
+        )
 
     def _scope_anchor_for_sensor_id(self, sensor_id: str) -> str:
         sensor = self._sensor_repo.get(sensor_id)

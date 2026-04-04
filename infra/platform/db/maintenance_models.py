@@ -24,6 +24,8 @@ from core.modules.maintenance_management.domain import (
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
     MaintenancePriority,
+    MaintenanceSensorExceptionStatus,
+    MaintenanceSensorExceptionType,
     MaintenanceSensorQualityState,
     MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderStatus,
@@ -389,6 +391,106 @@ class MaintenanceIntegrationSourceORM(Base):
     last_failed_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceSensorSourceMappingORM(Base):
+    __tablename__ = "maintenance_sensor_source_mappings"
+    __table_args__ = (
+        UniqueConstraint(
+            "integration_source_id",
+            "sensor_id",
+            "external_equipment_key",
+            "external_measurement_key",
+            name="ux_maintenance_sensor_source_mappings_unique",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    integration_source_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_integration_sources.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sensor_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_sensors.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    external_equipment_key: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    external_measurement_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    transform_rule: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    unit_conversion_rule: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceSensorExceptionORM(Base):
+    __tablename__ = "maintenance_sensor_exceptions"
+    __table_args__ = (
+        Index("ix_maintenance_sensor_exceptions_status", "status"),
+        Index("ix_maintenance_sensor_exceptions_sensor", "sensor_id"),
+        Index("ix_maintenance_sensor_exceptions_integration_source", "integration_source_id"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    sensor_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_sensors.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    integration_source_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_integration_sources.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source_mapping_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_sensor_source_mappings.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    exception_type: Mapped[MaintenanceSensorExceptionType] = mapped_column(
+        SAEnum(MaintenanceSensorExceptionType),
+        nullable=False,
+    )
+    status: Mapped[MaintenanceSensorExceptionStatus] = mapped_column(
+        SAEnum(MaintenanceSensorExceptionStatus),
+        nullable=False,
+        default=MaintenanceSensorExceptionStatus.OPEN,
+        server_default=MaintenanceSensorExceptionStatus.OPEN.value,
+    )
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    source_batch_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    raw_payload_ref: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    acknowledged_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    resolved_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

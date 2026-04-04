@@ -5,8 +5,10 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAssetComponent,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenanceSensorException,
     MaintenanceSensor,
     MaintenanceSensorReading,
+    MaintenanceSensorSourceMapping,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
@@ -19,8 +21,10 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetORM,
     MaintenanceIntegrationSourceORM,
     MaintenanceLocationORM,
+    MaintenanceSensorExceptionORM,
     MaintenanceSensorORM,
     MaintenanceSensorReadingORM,
+    MaintenanceSensorSourceMappingORM,
     MaintenanceSystemORM,
     MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceWorkOrderORM,
@@ -373,6 +377,96 @@ def maintenance_integration_source_from_orm(obj: MaintenanceIntegrationSourceORM
         last_failed_sync_at=obj.last_failed_sync_at,
         last_error_message=obj.last_error_message or "",
         is_active=obj.is_active,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_source_mapping_to_orm(
+    sensor_source_mapping: MaintenanceSensorSourceMapping,
+) -> MaintenanceSensorSourceMappingORM:
+    return MaintenanceSensorSourceMappingORM(
+        id=sensor_source_mapping.id,
+        organization_id=sensor_source_mapping.organization_id,
+        integration_source_id=sensor_source_mapping.integration_source_id,
+        sensor_id=sensor_source_mapping.sensor_id,
+        external_equipment_key=sensor_source_mapping.external_equipment_key or None,
+        external_measurement_key=sensor_source_mapping.external_measurement_key,
+        transform_rule=sensor_source_mapping.transform_rule or None,
+        unit_conversion_rule=sensor_source_mapping.unit_conversion_rule or None,
+        is_active=sensor_source_mapping.is_active,
+        notes=sensor_source_mapping.notes or None,
+        created_at=sensor_source_mapping.created_at,
+        updated_at=sensor_source_mapping.updated_at,
+        version=getattr(sensor_source_mapping, "version", 1),
+    )
+
+
+def maintenance_sensor_source_mapping_from_orm(
+    obj: MaintenanceSensorSourceMappingORM,
+) -> MaintenanceSensorSourceMapping:
+    return MaintenanceSensorSourceMapping(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        integration_source_id=obj.integration_source_id,
+        sensor_id=obj.sensor_id,
+        external_equipment_key=obj.external_equipment_key or "",
+        external_measurement_key=obj.external_measurement_key,
+        transform_rule=obj.transform_rule or "",
+        unit_conversion_rule=obj.unit_conversion_rule or "",
+        is_active=obj.is_active,
+        notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_sensor_exception_to_orm(
+    sensor_exception: MaintenanceSensorException,
+) -> MaintenanceSensorExceptionORM:
+    return MaintenanceSensorExceptionORM(
+        id=sensor_exception.id,
+        organization_id=sensor_exception.organization_id,
+        sensor_id=sensor_exception.sensor_id,
+        integration_source_id=sensor_exception.integration_source_id,
+        source_mapping_id=sensor_exception.source_mapping_id,
+        exception_type=sensor_exception.exception_type,
+        status=sensor_exception.status,
+        message=sensor_exception.message,
+        source_batch_id=sensor_exception.source_batch_id or None,
+        raw_payload_ref=sensor_exception.raw_payload_ref or None,
+        detected_at=sensor_exception.detected_at,
+        acknowledged_at=sensor_exception.acknowledged_at,
+        acknowledged_by_user_id=sensor_exception.acknowledged_by_user_id,
+        resolved_at=sensor_exception.resolved_at,
+        resolved_by_user_id=sensor_exception.resolved_by_user_id,
+        notes=sensor_exception.notes or None,
+        created_at=sensor_exception.created_at,
+        updated_at=sensor_exception.updated_at,
+        version=getattr(sensor_exception, "version", 1),
+    )
+
+
+def maintenance_sensor_exception_from_orm(obj: MaintenanceSensorExceptionORM) -> MaintenanceSensorException:
+    return MaintenanceSensorException(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        sensor_id=obj.sensor_id,
+        integration_source_id=obj.integration_source_id,
+        source_mapping_id=obj.source_mapping_id,
+        exception_type=obj.exception_type,
+        status=obj.status,
+        message=obj.message,
+        source_batch_id=obj.source_batch_id or "",
+        raw_payload_ref=obj.raw_payload_ref or "",
+        detected_at=obj.detected_at,
+        acknowledged_at=obj.acknowledged_at,
+        acknowledged_by_user_id=obj.acknowledged_by_user_id,
+        resolved_at=obj.resolved_at,
+        resolved_by_user_id=obj.resolved_by_user_id,
         notes=obj.notes or "",
         created_at=obj.created_at,
         updated_at=obj.updated_at,

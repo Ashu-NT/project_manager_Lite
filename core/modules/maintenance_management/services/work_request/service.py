@@ -5,10 +5,11 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceWorkRequest
+from core.modules.maintenance_management.domain import MaintenanceFailureCodeType, MaintenanceWorkRequest
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
+    MaintenanceFailureCodeRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkRequestRepository,
@@ -44,6 +45,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         component_repo: MaintenanceAssetComponentRepository,
         location_repo: MaintenanceLocationRepository,
         system_repo: MaintenanceSystemRepository,
+        failure_code_repo: MaintenanceFailureCodeRepository | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -56,6 +58,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         self._component_repo = component_repo
         self._location_repo = location_repo
         self._system_repo = system_repo
+        self._failure_code_repo = failure_code_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -223,7 +226,10 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
             priority=coerce_priority(priority),
             requested_by_user_id=requested_by_user_id,
             requested_by_name_snapshot=requested_by_name_snapshot,
-            failure_symptom_code=normalize_optional_text(failure_symptom_code),
+            failure_symptom_code=self._normalize_failure_symptom_code(
+                failure_symptom_code,
+                organization=organization,
+            ),
             safety_risk_level=normalize_optional_text(safety_risk_level),
             production_impact_level=normalize_optional_text(production_impact_level),
             notes=normalize_optional_text(notes),
@@ -315,7 +321,10 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         if priority is not None:
             work_request.priority = coerce_priority(priority)
         if failure_symptom_code is not None:
-            work_request.failure_symptom_code = normalize_optional_text(failure_symptom_code)
+            work_request.failure_symptom_code = self._normalize_failure_symptom_code(
+                failure_symptom_code,
+                organization=organization,
+            )
         if safety_risk_level is not None:
             work_request.safety_risk_level = normalize_optional_text(safety_risk_level)
         if production_impact_level is not None:
@@ -366,6 +375,28 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
+
+    def _normalize_failure_symptom_code(
+        self,
+        value: str | None,
+        *,
+        organization: Organization,
+    ) -> str:
+        normalized = normalize_optional_text(value).upper()
+        if not normalized or self._failure_code_repo is None:
+            return normalized
+        failure_code = self._failure_code_repo.get_by_code(organization.id, normalized)
+        if failure_code is None:
+            raise ValidationError(
+                "Failure symptom code not found in the active organization.",
+                code="MAINTENANCE_FAILURE_SYMPTOM_CODE_NOT_FOUND",
+            )
+        if failure_code.code_type != MaintenanceFailureCodeType.SYMPTOM:
+            raise ValidationError(
+                "Failure symptom code must use a SYMPTOM maintenance failure code.",
+                code="MAINTENANCE_FAILURE_SYMPTOM_CODE_INVALID",
+            )
+        return normalized
 
     def _get_site(self, site_id: str, *, organization: Organization) -> Site:
         site = self._site_repo.get(site_id)

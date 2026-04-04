@@ -59,14 +59,15 @@ def test_maintenance_integration_source_service_tracks_sync_status(session) -> N
         error_message="Gateway timeout",
         expected_version=source.version,
     )
+    assert failed.last_error_message == "Gateway timeout"
+    assert failed.last_failed_sync_at is not None
+
     recovered = service.record_sync_success(
         source.id,
         expected_version=failed.version,
     )
 
     assert source.integration_code == "IOT-GATEWAY-1"
-    assert failed.last_error_message == "Gateway timeout"
-    assert failed.last_failed_sync_at is not None
     assert recovered.last_successful_sync_at is not None
     assert recovered.last_error_message == ""
     assert service.find_source_by_code("IOT-GATEWAY-1") is not None

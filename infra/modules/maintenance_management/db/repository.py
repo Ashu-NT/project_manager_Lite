@@ -8,8 +8,10 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAssetComponent,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenanceSensorException,
     MaintenanceSensor,
     MaintenanceSensorReading,
+    MaintenanceSensorSourceMapping,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
@@ -22,8 +24,10 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetComponentRepository,
     MaintenanceIntegrationSourceRepository,
     MaintenanceLocationRepository,
+    MaintenanceSensorExceptionRepository,
     MaintenanceSensorReadingRepository,
     MaintenanceSensorRepository,
+    MaintenanceSensorSourceMappingRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderRepository,
@@ -40,9 +44,13 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_integration_source_to_orm,
     maintenance_location_from_orm,
     maintenance_location_to_orm,
+    maintenance_sensor_exception_from_orm,
+    maintenance_sensor_exception_to_orm,
     maintenance_sensor_from_orm,
     maintenance_sensor_reading_from_orm,
     maintenance_sensor_reading_to_orm,
+    maintenance_sensor_source_mapping_from_orm,
+    maintenance_sensor_source_mapping_to_orm,
     maintenance_sensor_to_orm,
     maintenance_work_order_material_requirement_from_orm,
     maintenance_work_order_material_requirement_to_orm,
@@ -62,8 +70,10 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetORM,
     MaintenanceIntegrationSourceORM,
     MaintenanceLocationORM,
+    MaintenanceSensorExceptionORM,
     MaintenanceSensorORM,
     MaintenanceSensorReadingORM,
+    MaintenanceSensorSourceMappingORM,
     MaintenanceSystemORM,
     MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceWorkOrderORM,
@@ -587,6 +597,139 @@ class SqlAlchemyMaintenanceIntegrationSourceRepository(MaintenanceIntegrationSou
             )
         ).scalars().all()
         return [maintenance_integration_source_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenanceSensorSourceMappingRepository(MaintenanceSensorSourceMappingRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, sensor_source_mapping: MaintenanceSensorSourceMapping) -> None:
+        self.session.add(maintenance_sensor_source_mapping_to_orm(sensor_source_mapping))
+
+    def update(self, sensor_source_mapping: MaintenanceSensorSourceMapping) -> None:
+        sensor_source_mapping.version = update_with_version_check(
+            self.session,
+            MaintenanceSensorSourceMappingORM,
+            sensor_source_mapping.id,
+            getattr(sensor_source_mapping, "version", 1),
+            {
+                "integration_source_id": sensor_source_mapping.integration_source_id,
+                "sensor_id": sensor_source_mapping.sensor_id,
+                "external_equipment_key": sensor_source_mapping.external_equipment_key or None,
+                "external_measurement_key": sensor_source_mapping.external_measurement_key,
+                "transform_rule": sensor_source_mapping.transform_rule or None,
+                "unit_conversion_rule": sensor_source_mapping.unit_conversion_rule or None,
+                "is_active": sensor_source_mapping.is_active,
+                "notes": sensor_source_mapping.notes or None,
+                "created_at": sensor_source_mapping.created_at,
+                "updated_at": sensor_source_mapping.updated_at,
+            },
+            not_found_message="Maintenance sensor source mapping not found.",
+            stale_message="Maintenance sensor source mapping was updated by another user.",
+        )
+
+    def get(self, sensor_source_mapping_id: str) -> MaintenanceSensorSourceMapping | None:
+        obj = self.session.get(MaintenanceSensorSourceMappingORM, sensor_source_mapping_id)
+        return maintenance_sensor_source_mapping_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        integration_source_id: str | None = None,
+        sensor_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> list[MaintenanceSensorSourceMapping]:
+        stmt = select(MaintenanceSensorSourceMappingORM).where(
+            MaintenanceSensorSourceMappingORM.organization_id == organization_id
+        )
+        if integration_source_id is not None:
+            stmt = stmt.where(MaintenanceSensorSourceMappingORM.integration_source_id == integration_source_id)
+        if sensor_id is not None:
+            stmt = stmt.where(MaintenanceSensorSourceMappingORM.sensor_id == sensor_id)
+        if active_only is not None:
+            stmt = stmt.where(MaintenanceSensorSourceMappingORM.is_active == bool(active_only))
+        rows = self.session.execute(
+            stmt.order_by(
+                MaintenanceSensorSourceMappingORM.integration_source_id.asc(),
+                MaintenanceSensorSourceMappingORM.external_measurement_key.asc(),
+            )
+        ).scalars().all()
+        return [maintenance_sensor_source_mapping_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenanceSensorExceptionRepository(MaintenanceSensorExceptionRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, sensor_exception: MaintenanceSensorException) -> None:
+        self.session.add(maintenance_sensor_exception_to_orm(sensor_exception))
+
+    def update(self, sensor_exception: MaintenanceSensorException) -> None:
+        sensor_exception.version = update_with_version_check(
+            self.session,
+            MaintenanceSensorExceptionORM,
+            sensor_exception.id,
+            getattr(sensor_exception, "version", 1),
+            {
+                "sensor_id": sensor_exception.sensor_id,
+                "integration_source_id": sensor_exception.integration_source_id,
+                "source_mapping_id": sensor_exception.source_mapping_id,
+                "exception_type": sensor_exception.exception_type,
+                "status": sensor_exception.status,
+                "message": sensor_exception.message,
+                "source_batch_id": sensor_exception.source_batch_id or None,
+                "raw_payload_ref": sensor_exception.raw_payload_ref or None,
+                "detected_at": sensor_exception.detected_at,
+                "acknowledged_at": sensor_exception.acknowledged_at,
+                "acknowledged_by_user_id": sensor_exception.acknowledged_by_user_id,
+                "resolved_at": sensor_exception.resolved_at,
+                "resolved_by_user_id": sensor_exception.resolved_by_user_id,
+                "notes": sensor_exception.notes or None,
+                "created_at": sensor_exception.created_at,
+                "updated_at": sensor_exception.updated_at,
+            },
+            not_found_message="Maintenance sensor exception not found.",
+            stale_message="Maintenance sensor exception was updated by another user.",
+        )
+
+    def get(self, sensor_exception_id: str) -> MaintenanceSensorException | None:
+        obj = self.session.get(MaintenanceSensorExceptionORM, sensor_exception_id)
+        return maintenance_sensor_exception_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        sensor_id: str | None = None,
+        integration_source_id: str | None = None,
+        source_mapping_id: str | None = None,
+        exception_type: str | None = None,
+        status: str | None = None,
+        source_batch_id: str | None = None,
+    ) -> list[MaintenanceSensorException]:
+        stmt = select(MaintenanceSensorExceptionORM).where(
+            MaintenanceSensorExceptionORM.organization_id == organization_id
+        )
+        if sensor_id is not None:
+            stmt = stmt.where(MaintenanceSensorExceptionORM.sensor_id == sensor_id)
+        if integration_source_id is not None:
+            stmt = stmt.where(MaintenanceSensorExceptionORM.integration_source_id == integration_source_id)
+        if source_mapping_id is not None:
+            stmt = stmt.where(MaintenanceSensorExceptionORM.source_mapping_id == source_mapping_id)
+        if exception_type is not None:
+            stmt = stmt.where(MaintenanceSensorExceptionORM.exception_type == exception_type)
+        if status is not None:
+            stmt = stmt.where(MaintenanceSensorExceptionORM.status == status)
+        if source_batch_id is not None:
+            stmt = stmt.where(MaintenanceSensorExceptionORM.source_batch_id == source_batch_id)
+        rows = self.session.execute(
+            stmt.order_by(
+                MaintenanceSensorExceptionORM.detected_at.desc(),
+                MaintenanceSensorExceptionORM.created_at.desc(),
+            )
+        ).scalars().all()
+        return [maintenance_sensor_exception_from_orm(row) for row in rows]
 
 
 class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepository):

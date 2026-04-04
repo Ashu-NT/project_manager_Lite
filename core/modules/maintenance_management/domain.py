@@ -115,6 +115,27 @@ class MaintenanceSensorQualityState(str, Enum):
     ERROR = "ERROR"
 
 
+class MaintenanceSensorExceptionType(str, Enum):
+    MISSING_FEED = "MISSING_FEED"
+    STALE_READING = "STALE_READING"
+    UNIT_MISMATCH = "UNIT_MISMATCH"
+    INVALID_THRESHOLD_MAPPING = "INVALID_THRESHOLD_MAPPING"
+    EXTERNAL_SYNC_FAILURE = "EXTERNAL_SYNC_FAILURE"
+
+
+class MaintenanceSensorExceptionStatus(str, Enum):
+    OPEN = "OPEN"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    RESOLVED = "RESOLVED"
+    IGNORED = "IGNORED"
+
+
+class MaintenanceFailureCodeType(str, Enum):
+    SYMPTOM = "SYMPTOM"
+    CAUSE = "CAUSE"
+    REMEDY = "REMEDY"
+
+
 @dataclass
 class MaintenanceLocation:
     id: str
@@ -985,18 +1006,223 @@ class MaintenanceIntegrationSource:
         )
 
 
+@dataclass
+class MaintenanceSensorSourceMapping:
+    id: str
+    organization_id: str
+    integration_source_id: str
+    sensor_id: str
+    external_equipment_key: str = ""
+    external_measurement_key: str = ""
+    transform_rule: str = ""
+    unit_conversion_rule: str = ""
+    is_active: bool = True
+    notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        integration_source_id: str,
+        sensor_id: str,
+        external_equipment_key: str = "",
+        external_measurement_key: str = "",
+        transform_rule: str = "",
+        unit_conversion_rule: str = "",
+        is_active: bool = True,
+        notes: str = "",
+    ) -> "MaintenanceSensorSourceMapping":
+        now = datetime.now(timezone.utc)
+        return MaintenanceSensorSourceMapping(
+            id=generate_id(),
+            organization_id=organization_id,
+            integration_source_id=integration_source_id,
+            sensor_id=sensor_id,
+            external_equipment_key=external_equipment_key,
+            external_measurement_key=external_measurement_key,
+            transform_rule=transform_rule,
+            unit_conversion_rule=unit_conversion_rule,
+            is_active=is_active,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
+@dataclass
+class MaintenanceSensorException:
+    id: str
+    organization_id: str
+    sensor_id: str | None = None
+    integration_source_id: str | None = None
+    source_mapping_id: str | None = None
+    exception_type: MaintenanceSensorExceptionType = MaintenanceSensorExceptionType.STALE_READING
+    status: MaintenanceSensorExceptionStatus = MaintenanceSensorExceptionStatus.OPEN
+    message: str = ""
+    source_batch_id: str = ""
+    raw_payload_ref: str = ""
+    detected_at: datetime | None = None
+    acknowledged_at: datetime | None = None
+    acknowledged_by_user_id: str | None = None
+    resolved_at: datetime | None = None
+    resolved_by_user_id: str | None = None
+    notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        sensor_id: str | None = None,
+        integration_source_id: str | None = None,
+        source_mapping_id: str | None = None,
+        exception_type: MaintenanceSensorExceptionType,
+        message: str,
+        source_batch_id: str = "",
+        raw_payload_ref: str = "",
+        detected_at: datetime | None = None,
+        notes: str = "",
+    ) -> "MaintenanceSensorException":
+        now = datetime.now(timezone.utc)
+        return MaintenanceSensorException(
+            id=generate_id(),
+            organization_id=organization_id,
+            sensor_id=sensor_id,
+            integration_source_id=integration_source_id,
+            source_mapping_id=source_mapping_id,
+            exception_type=exception_type,
+            status=MaintenanceSensorExceptionStatus.OPEN,
+            message=message,
+            source_batch_id=source_batch_id,
+            raw_payload_ref=raw_payload_ref,
+            detected_at=detected_at or now,
+            acknowledged_at=None,
+            acknowledged_by_user_id=None,
+            resolved_at=None,
+            resolved_by_user_id=None,
+            notes=notes,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
+@dataclass
+class MaintenanceDowntimeEvent:
+    id: str
+    organization_id: str
+    asset_id: str | None = None
+    system_id: str | None = None
+    work_order_id: str | None = None
+    started_at: datetime | None = None
+    ended_at: datetime | None = None
+    duration_minutes: int | None = None
+    downtime_type: str = ""
+    reason_code: str = ""
+    impact_notes: str = ""
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        started_at: datetime,
+        downtime_type: str,
+        asset_id: str | None = None,
+        system_id: str | None = None,
+        work_order_id: str | None = None,
+        ended_at: datetime | None = None,
+        duration_minutes: int | None = None,
+        reason_code: str = "",
+        impact_notes: str = "",
+    ) -> "MaintenanceDowntimeEvent":
+        now = datetime.now(timezone.utc)
+        return MaintenanceDowntimeEvent(
+            id=generate_id(),
+            organization_id=organization_id,
+            asset_id=asset_id,
+            system_id=system_id,
+            work_order_id=work_order_id,
+            started_at=started_at,
+            ended_at=ended_at,
+            duration_minutes=duration_minutes,
+            downtime_type=downtime_type,
+            reason_code=reason_code,
+            impact_notes=impact_notes,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
+@dataclass
+class MaintenanceFailureCode:
+    id: str
+    organization_id: str
+    failure_code: str
+    name: str
+    description: str = ""
+    code_type: MaintenanceFailureCodeType = MaintenanceFailureCodeType.SYMPTOM
+    parent_code_id: str | None = None
+    is_active: bool = True
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    version: int = 1
+
+    @staticmethod
+    def create(
+        *,
+        organization_id: str,
+        failure_code: str,
+        name: str,
+        description: str = "",
+        code_type: MaintenanceFailureCodeType = MaintenanceFailureCodeType.SYMPTOM,
+        parent_code_id: str | None = None,
+        is_active: bool = True,
+    ) -> "MaintenanceFailureCode":
+        now = datetime.now(timezone.utc)
+        return MaintenanceFailureCode(
+            id=generate_id(),
+            organization_id=organization_id,
+            failure_code=failure_code,
+            name=name,
+            description=description,
+            code_type=code_type,
+            parent_code_id=parent_code_id,
+            is_active=is_active,
+            created_at=now,
+            updated_at=now,
+            version=1,
+        )
+
+
 __all__ = [
     "MaintenanceAsset",
     "MaintenanceAssetComponent",
     "MaintenanceCriticality",
+    "MaintenanceDowntimeEvent",
+    "MaintenanceFailureCode",
+    "MaintenanceFailureCodeType",
     "MaintenanceIntegrationSource",
     "MaintenanceLifecycleStatus",
     "MaintenanceLocation",
     "MaintenanceMaterialProcurementStatus",
     "MaintenancePriority",
+    "MaintenanceSensorException",
+    "MaintenanceSensorExceptionStatus",
+    "MaintenanceSensorExceptionType",
     "MaintenanceSensor",
     "MaintenanceSensorQualityState",
     "MaintenanceSensorReading",
+    "MaintenanceSensorSourceMapping",
     "MaintenanceSystem",
     "MaintenanceTriggerMode",
     "MaintenanceWorkOrder",

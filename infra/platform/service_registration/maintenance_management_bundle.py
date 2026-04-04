@@ -10,8 +10,10 @@ from core.modules.maintenance_management import (
     MaintenanceLocationService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
+    MaintenanceSensorExceptionService,
     MaintenanceSensorReadingService,
     MaintenanceSensorService,
+    MaintenanceSensorSourceMappingService,
     MaintenanceSystemService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
@@ -28,8 +30,10 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceAssetComponentRepository,
     SqlAlchemyMaintenanceIntegrationSourceRepository,
     SqlAlchemyMaintenanceLocationRepository,
+    SqlAlchemyMaintenanceSensorExceptionRepository,
     SqlAlchemyMaintenanceSensorReadingRepository,
     SqlAlchemyMaintenanceSensorRepository,
+    SqlAlchemyMaintenanceSensorSourceMappingRepository,
     SqlAlchemyMaintenanceSystemRepository,
     SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository,
     SqlAlchemyMaintenanceWorkOrderRepository,
@@ -49,8 +53,10 @@ class MaintenanceManagementServiceBundle:
     maintenance_asset_component_service: MaintenanceAssetComponentService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_sensor_exception_service: MaintenanceSensorExceptionService
     maintenance_sensor_service: MaintenanceSensorService
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
+    maintenance_sensor_source_mapping_service: MaintenanceSensorSourceMappingService
     maintenance_system_service: MaintenanceSystemService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
@@ -68,6 +74,8 @@ def build_maintenance_management_service_bundle(
     asset_repo = SqlAlchemyMaintenanceAssetRepository(platform_services.session)
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
     integration_source_repo = SqlAlchemyMaintenanceIntegrationSourceRepository(platform_services.session)
+    sensor_source_mapping_repo = SqlAlchemyMaintenanceSensorSourceMappingRepository(platform_services.session)
+    sensor_exception_repo = SqlAlchemyMaintenanceSensorExceptionRepository(platform_services.session)
     sensor_repo = SqlAlchemyMaintenanceSensorRepository(platform_services.session)
     sensor_reading_repo = SqlAlchemyMaintenanceSensorReadingRepository(platform_services.session)
     work_request_repo = SqlAlchemyMaintenanceWorkRequestRepository(platform_services.session)
@@ -123,10 +131,21 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_sensor_exception_service = MaintenanceSensorExceptionService(
+        platform_services.session,
+        sensor_exception_repo,
+        organization_repo=platform_services.organization_repo,
+        sensor_repo=sensor_repo,
+        integration_source_repo=integration_source_repo,
+        sensor_source_mapping_repo=sensor_source_mapping_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     maintenance_integration_source_service = MaintenanceIntegrationSourceService(
         platform_services.session,
         integration_source_repo,
         organization_repo=platform_services.organization_repo,
+        sensor_exception_service=maintenance_sensor_exception_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -141,12 +160,22 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_sensor_source_mapping_service = MaintenanceSensorSourceMappingService(
+        platform_services.session,
+        sensor_source_mapping_repo,
+        organization_repo=platform_services.organization_repo,
+        integration_source_repo=integration_source_repo,
+        sensor_repo=sensor_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     maintenance_sensor_reading_service = MaintenanceSensorReadingService(
         platform_services.session,
         sensor_reading_repo,
         organization_repo=platform_services.organization_repo,
         sensor_repo=sensor_repo,
         component_repo=component_repo,
+        sensor_exception_service=maintenance_sensor_exception_service,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -221,8 +250,10 @@ def build_maintenance_management_service_bundle(
         maintenance_asset_component_service=maintenance_asset_component_service,
         maintenance_integration_source_service=maintenance_integration_source_service,
         maintenance_location_service=maintenance_location_service,
+        maintenance_sensor_exception_service=maintenance_sensor_exception_service,
         maintenance_sensor_service=maintenance_sensor_service,
         maintenance_sensor_reading_service=maintenance_sensor_reading_service,
+        maintenance_sensor_source_mapping_service=maintenance_sensor_source_mapping_service,
         maintenance_system_service=maintenance_system_service,
         maintenance_work_request_service=maintenance_work_request_service,
         maintenance_work_order_service=maintenance_work_order_service,

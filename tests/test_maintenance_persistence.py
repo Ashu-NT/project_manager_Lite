@@ -621,3 +621,56 @@ def test_maintenance_integration_sources_persist_via_service_graph(services):
     assert reloaded.last_error_message == ""
     assert recovered.version == failed.version + 1
     assert [row.id for row in listed] == [source.id]
+
+
+def test_maintenance_sensor_mappings_and_exceptions_persist_via_service_graph(services):
+    site = services["site_service"].create_site(site_code="MNT-P4", name="Phase4 Plant")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="p4-area",
+        name="Phase4 Area",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="p4-asset",
+        name="Phase4 Asset",
+    )
+    source = services["maintenance_integration_source_service"].create_source(
+        integration_code="p4-source",
+        name="Phase4 Source",
+        integration_type="IOT_GATEWAY",
+    )
+    sensor = services["maintenance_sensor_service"].create_sensor(
+        site_id=site.id,
+        sensor_code="p4-sensor",
+        sensor_name="Phase4 Sensor",
+        asset_id=asset.id,
+        sensor_type="TEMPERATURE",
+        unit="C",
+    )
+    mapping = services["maintenance_sensor_source_mapping_service"].create_mapping(
+        integration_source_id=source.id,
+        sensor_id=sensor.id,
+        external_equipment_key="EQ-P4",
+        external_measurement_key="TEMP_P4",
+    )
+    services["maintenance_integration_source_service"].record_sync_failure(
+        source.id,
+        error_message="Gateway timeout",
+        expected_version=source.version,
+    )
+    services["maintenance_sensor_reading_service"].record_reading(
+        sensor_id=sensor.id,
+        reading_value="77.5",
+        reading_unit="C",
+        quality_state="STALE",
+        source_batch_id="BATCH-P4",
+    )
+
+    mappings = services["maintenance_sensor_source_mapping_service"].list_mappings(sensor_id=sensor.id)
+    exceptions = services["maintenance_sensor_exception_service"].list_exceptions()
+
+    assert [row.id for row in mappings] == [mapping.id]
+    assert any(row.integration_source_id == source.id and row.exception_type.value == "EXTERNAL_SYNC_FAILURE" for row in exceptions)
+    assert any(row.sensor_id == sensor.id and row.exception_type.value == "STALE_READING" for row in exceptions)

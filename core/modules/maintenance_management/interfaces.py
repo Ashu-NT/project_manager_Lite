@@ -6,10 +6,14 @@ from typing import List, Optional
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
+    MaintenanceDowntimeEvent,
+    MaintenanceFailureCode,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenanceSensorException,
     MaintenanceSensor,
     MaintenanceSensorReading,
+    MaintenanceSensorSourceMapping,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
@@ -215,6 +219,105 @@ class MaintenanceIntegrationSourceRepository(ABC):
     ) -> List[MaintenanceIntegrationSource]: ...
 
 
+class MaintenanceSensorSourceMappingRepository(ABC):
+    @abstractmethod
+    def add(self, sensor_source_mapping: MaintenanceSensorSourceMapping) -> None: ...
+
+    @abstractmethod
+    def update(self, sensor_source_mapping: MaintenanceSensorSourceMapping) -> None: ...
+
+    @abstractmethod
+    def get(self, sensor_source_mapping_id: str) -> Optional[MaintenanceSensorSourceMapping]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        integration_source_id: str | None = None,
+        sensor_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> List[MaintenanceSensorSourceMapping]: ...
+
+
+class MaintenanceSensorExceptionRepository(ABC):
+    @abstractmethod
+    def add(self, sensor_exception: MaintenanceSensorException) -> None: ...
+
+    @abstractmethod
+    def update(self, sensor_exception: MaintenanceSensorException) -> None: ...
+
+    @abstractmethod
+    def get(self, sensor_exception_id: str) -> Optional[MaintenanceSensorException]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        sensor_id: str | None = None,
+        integration_source_id: str | None = None,
+        source_mapping_id: str | None = None,
+        exception_type: str | None = None,
+        status: str | None = None,
+        source_batch_id: str | None = None,
+    ) -> List[MaintenanceSensorException]: ...
+
+
+class MaintenanceFailureCodeRepository(ABC):
+    @abstractmethod
+    def add(self, failure_code: MaintenanceFailureCode) -> None: ...
+
+    @abstractmethod
+    def update(self, failure_code: MaintenanceFailureCode) -> None: ...
+
+    @abstractmethod
+    def get(self, failure_code_id: str) -> Optional[MaintenanceFailureCode]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        failure_code: str,
+    ) -> Optional[MaintenanceFailureCode]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        code_type: str | None = None,
+        parent_code_id: str | None = None,
+    ) -> List[MaintenanceFailureCode]: ...
+
+
+class MaintenanceDowntimeEventRepository(ABC):
+    @abstractmethod
+    def add(self, downtime_event: MaintenanceDowntimeEvent) -> None: ...
+
+    @abstractmethod
+    def update(self, downtime_event: MaintenanceDowntimeEvent) -> None: ...
+
+    @abstractmethod
+    def get(self, downtime_event_id: str) -> Optional[MaintenanceDowntimeEvent]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        work_order_id: str | None = None,
+        asset_id: str | None = None,
+        system_id: str | None = None,
+        downtime_type: str | None = None,
+        reason_code: str | None = None,
+        open_only: bool | None = None,
+        started_from=None,
+        started_to=None,
+    ) -> List[MaintenanceDowntimeEvent]: ...
+
+
 class MaintenanceWorkRequestRepository(ABC):
     @abstractmethod
     def add(self, work_request: MaintenanceWorkRequest) -> None: ...
@@ -355,7 +458,14 @@ class MaintenanceWorkOrderMaterialRequirementRepository(ABC):
 __all__ = [
     "MaintenanceAssetRepository",
     "MaintenanceAssetComponentRepository",
+    "MaintenanceDowntimeEventRepository",
+    "MaintenanceFailureCodeRepository",
+    "MaintenanceIntegrationSourceRepository",
     "MaintenanceLocationRepository",
+    "MaintenanceSensorExceptionRepository",
+    "MaintenanceSensorReadingRepository",
+    "MaintenanceSensorRepository",
+    "MaintenanceSensorSourceMappingRepository",
     "MaintenanceSystemRepository",
     "MaintenanceWorkOrderRepository",
     "MaintenanceWorkOrderMaterialRequirementRepository",
