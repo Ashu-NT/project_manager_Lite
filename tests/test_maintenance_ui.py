@@ -10,6 +10,7 @@ from ui.modules.maintenance_management import (
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
     MaintenanceDocumentsTab,
+    MaintenancePlannerTab,
     MaintenanceReliabilityTab,
     MaintenanceSensorsTab,
     MaintenanceWorkOrdersTab,
@@ -485,6 +486,42 @@ def test_maintenance_sensors_tab_lists_sensor_register_and_exception_queue(qapp,
     assert tab.mapping_table.rowCount() >= 1
 
 
+def test_maintenance_planner_tab_surfaces_backlog_material_and_recurring_queues(qapp, services):
+    _enable_maintenance_module(services)
+    site, _location, _system, asset, _symptom = _create_maintenance_context(services)
+
+    tab = MaintenancePlannerTab(
+        work_request_service=services["maintenance_work_request_service"],
+        work_order_service=services["maintenance_work_order_service"],
+        material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+        reliability_service=services["maintenance_reliability_service"],
+        sensor_exception_service=services["maintenance_sensor_exception_service"],
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        system_service=services["maintenance_system_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    assert tab.btn_filters.text().strip() == "Filters"
+    assert tab.filter_panel.isHidden()
+    tab.btn_filters.click()
+    qapp.processEvents()
+    assert not tab.filter_panel.isHidden()
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+    _select_combo_value(tab.asset_combo, asset.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.request_table.rowCount() >= 1
+    assert tab.work_order_table.rowCount() >= 1
+    assert tab.material_table.rowCount() >= 1
+    assert tab.recurring_table.rowCount() >= 1
+    assert tab.backlog_card._lbl_value.text() != "0"
+    assert tab.material_card._lbl_value.text() != "0"
+    assert "WO-UI-OPEN" in tab.work_order_table.item(0, 0).text()
+
+
 def test_maintenance_dashboard_tab_surfaces_reliability_metrics(qapp, services):
     _enable_maintenance_module(services)
     site, _location, _system, asset, _symptom = _create_maintenance_context(services)
@@ -566,6 +603,7 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
 
     assert "Maintenance Dashboard" in labels
     assert "Assets" in labels
+    assert "Planner" in labels
     assert "Sensors" in labels
     assert "Requests" in labels
     assert "Work Orders" in labels
@@ -574,7 +612,8 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
 
     maintenance_section = window.shell_navigation.tree.topLevelItem(3)
     assert maintenance_section.text(0) == "Maintenance Management"
-    assert _child_labels(maintenance_section) == ["Overview", "Records", "Analytics"]
+    assert _child_labels(maintenance_section) == ["Overview", "Records", "Planning", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
     assert _child_labels(maintenance_section.child(1)) == ["Assets", "Sensors", "Requests", "Work Orders", "Documents"]
-    assert _child_labels(maintenance_section.child(2)) == ["Reliability"]
+    assert _child_labels(maintenance_section.child(2)) == ["Planner"]
+    assert _child_labels(maintenance_section.child(3)) == ["Reliability"]

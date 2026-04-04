@@ -2,7 +2,7 @@
 
 Status: active blueprint and phased implementation tracker, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, plus reliability analytics/report-pack services and first shell/UI workspaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, and `Reliability`; broader planner, preventive-template, and technician execution flows are still pending
+Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, plus reliability analytics/report-pack services and first shell/UI workspaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability`; broader preventive-template and technician execution flows are still pending
 
 ## Purpose
 
@@ -2150,8 +2150,8 @@ Build first:
 Current kickoff status:
 
 - started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
-- started: first shell/UI surfaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, and `Reliability`, backed by the live asset, sensor, request, work-order, document, and reliability services
-- pending: planner and technician execution runtimes, plus the later preventive-maintenance template stack
+- started: first shell/UI surfaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability`, backed by the live asset, sensor, request, work-order, document, and reliability services
+- pending: technician execution runtimes, plus the later preventive-maintenance template stack
 
 Phase 1 UI:
 
@@ -2162,6 +2162,7 @@ Phase 1 UI:
 - Requests
 - Work Orders
 - Documents
+- Planner
 
 ### Phase 2: Preventive Maintenance and Task Library
 
@@ -2201,8 +2202,8 @@ Phase 3 UI:
 
 Build next:
 
-- integration status cards
-- exception queue UI
+- integration status cards. Started.
+- exception queue UI. Started.
 - sensor-driven preventive trigger bridge
 
 Phase 4 UI:
@@ -2216,7 +2217,7 @@ Phase 4 UI:
 Build next:
 
 - reliability dashboard and reliability-engineer workbench UI. Started.
-- planner-facing recurring-failure and root-cause review queues
+- planner-facing recurring-failure and root-cause review queues. Started.
 - deeper rendered reliability packs such as recurring-failure and exception-review workbooks once preventive and exception UI flows exist
 
 ## Initial Development Backlog
@@ -2243,12 +2244,12 @@ Build next:
 
 ### UI
 
-- started: workspace registration, module licensing, `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, and `Reliability` workbench surfaces
+- started: workspace registration, module licensing, `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability` workbench surfaces
 - asset list/detail runtime
 - work request queue
 - work order queue and detail runtime
-- preventive planner runtime
-- sensors exception runtime
+- started: planner runtime
+- started: sensors exception runtime
 - stock runtime
 - purchasing runtime
 - documents browser runtime
