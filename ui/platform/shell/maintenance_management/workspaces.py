@@ -120,6 +120,7 @@ def build_maintenance_management_workspace_definitions(
                 work_order_task_service=services["maintenance_work_order_task_service"],
                 work_order_task_step_service=services["maintenance_work_order_task_step_service"],
                 material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+                document_service=services["maintenance_document_service"],
                 work_request_service=services["maintenance_work_request_service"],
                 site_service=services["site_service"],
                 asset_service=services["maintenance_asset_service"],

@@ -486,12 +486,31 @@ def test_maintenance_requests_tab_lists_queue_and_linked_orders(qapp, services):
 def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, services):
     _enable_maintenance_module(services)
     site, _location, _system, _asset, _symptom = _create_maintenance_context(services)
+    open_order = next(
+        row
+        for row in services["maintenance_work_order_service"].search_work_orders(search_text="WO-UI-OPEN")
+        if row.work_order_code == "WO-UI-OPEN"
+    )
+    execution_doc = services["document_service"].create_document(
+        document_code="DOC-UI-WO",
+        title="Open Work Order Procedure",
+        document_type="PROCEDURE",
+        storage_kind="FILE_PATH",
+        storage_uri="C:/docs/work-order-procedure.pdf",
+    )
+    services["maintenance_document_service"].link_existing_document(
+        entity_type="work_order",
+        entity_id=open_order.id,
+        document_id=execution_doc.id,
+        link_role="execution",
+    )
 
     tab = MaintenanceWorkOrdersTab(
         work_order_service=services["maintenance_work_order_service"],
         work_order_task_service=services["maintenance_work_order_task_service"],
         work_order_task_step_service=services["maintenance_work_order_task_step_service"],
         material_requirement_service=services["maintenance_work_order_material_requirement_service"],
+        document_service=services["maintenance_document_service"],
         work_request_service=services["maintenance_work_request_service"],
         site_service=services["site_service"],
         asset_service=services["maintenance_asset_service"],
@@ -518,9 +537,13 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     assert "Verify isolation" in tab.step_table.item(0, 1).text()
     assert tab.material_table.rowCount() >= 1
     assert "Seal kit" in tab.material_table.item(0, 0).text()
+    assert tab.evidence_table.rowCount() >= 1
+    assert "DOC-UI-WO" in tab.evidence_table.item(0, 0).text()
     tab.task_table.selectRow(0)
     tab.step_table.selectRow(0)
+    tab.evidence_table.selectRow(0)
     qapp.processEvents()
+    assert tab.btn_preview_evidence.isEnabled()
     assert tab.btn_start_step.isEnabled()
     assert tab.btn_done_step.isEnabled()
     assert not tab.btn_confirm_step.isEnabled()

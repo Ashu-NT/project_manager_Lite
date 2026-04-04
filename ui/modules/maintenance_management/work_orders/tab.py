@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from application.platform import PlatformRuntimeApplicationService
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
+    MaintenanceDocumentService,
     MaintenanceLocationService,
     MaintenanceSystemService,
     MaintenanceWorkOrderMaterialRequirementService,
@@ -50,6 +51,7 @@ from ui.modules.maintenance_management.shared import (
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.modules.project_management.dashboard.widgets import KpiCard
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
+from ui.platform.admin.documents.viewer_dialogs import DocumentPreviewDialog
 from ui.platform.shared.guards import make_guarded_slot
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
@@ -84,6 +86,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         work_order_task_service: MaintenanceWorkOrderTaskService,
         work_order_task_step_service: MaintenanceWorkOrderTaskStepService,
         material_requirement_service: MaintenanceWorkOrderMaterialRequirementService,
+        document_service: MaintenanceDocumentService | None = None,
         site_service: SiteService,
         asset_service: MaintenanceAssetService,
         location_service: MaintenanceLocationService,
@@ -98,6 +101,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         self._work_order_task_service = work_order_task_service
         self._work_order_task_step_service = work_order_task_step_service
         self._material_requirement_service = material_requirement_service
+        self._document_service = document_service
         self._site_service = site_service
         self._asset_service = asset_service
         self._location_service = location_service
@@ -112,6 +116,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         self._detail_tasks_by_id: dict[str, object] = {}
         self._detail_steps_by_id: dict[str, object] = {}
         self._step_ids_by_task_id: dict[str, list[str]] = {}
+        self._detail_documents_by_id: dict[str, object] = {}
         self._setup_ui()
         self.reload_data()
         domain_events.domain_changed.connect(self._on_domain_change)
@@ -246,6 +251,12 @@ class MaintenanceWorkOrdersTab(QWidget):
         self.step_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_step_selection_changed)
         )
+        self.evidence_table.itemSelectionChanged.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_evidence_selection_changed)
+        )
+        self.btn_preview_evidence.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._show_evidence_preview)
+        )
 
     def _build_queue_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
@@ -366,6 +377,34 @@ class MaintenanceWorkOrdersTab(QWidget):
             ),
         )
         layout.addWidget(self.material_table)
+
+        evidence_title = QLabel("Execution Evidence")
+        evidence_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        layout.addWidget(evidence_title)
+        self.evidence_summary = QLabel(
+            "Linked work-order documents such as procedures, drawings, permits, and completion evidence."
+        )
+        self.evidence_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.evidence_summary.setWordWrap(True)
+        layout.addWidget(self.evidence_summary)
+        evidence_action_row = QHBoxLayout()
+        evidence_action_row.setSpacing(CFG.SPACING_SM)
+        self.btn_preview_evidence = QPushButton("Preview Evidence")
+        self.btn_preview_evidence.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_preview_evidence.setStyleSheet(dashboard_action_button_style("secondary"))
+        evidence_action_row.addWidget(self.btn_preview_evidence)
+        evidence_action_row.addStretch(1)
+        layout.addLayout(evidence_action_row)
+        self.evidence_table = build_admin_table(
+            headers=("Document", "Type", "Structure", "Uploaded"),
+            resize_modes=(
+                self._stretch(),
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+            ),
+        )
+        layout.addWidget(self.evidence_table)
         self.btn_start_step.clicked.connect(
             make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_start_step)
         )
@@ -379,6 +418,7 @@ class MaintenanceWorkOrdersTab(QWidget):
             make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_complete_task)
         )
         self._update_execution_controls()
+        self._sync_evidence_actions()
         return panel
 
     def reload_data(self) -> None:
@@ -540,6 +580,15 @@ class MaintenanceWorkOrdersTab(QWidget):
                 for task in tasks
             }
             materials = self._material_requirement_service.list_requirements(work_order_id=work_order.id)
+            documents = (
+                self._document_service.list_documents_for_entity(
+                    entity_type="work_order",
+                    entity_id=work_order.id,
+                    active_only=None,
+                )
+                if self._document_service is not None
+                else []
+            )
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Maintenance Work Orders", str(exc))
             return
@@ -550,6 +599,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         self._detail_tasks_by_id = {task.id: task for task in tasks}
         self._detail_steps_by_id = {}
         self._step_ids_by_task_id = {}
+        self._detail_documents_by_id = {document.id: document for document in documents}
         for task in tasks:
             step_ids: list[str] = []
             for step in step_rows_by_task_id.get(task.id, []):
@@ -587,6 +637,7 @@ class MaintenanceWorkOrdersTab(QWidget):
                     f"Actual window: {self._format_timestamp_pair(work_order.actual_start, work_order.actual_end)}",
                     f"Failure / Root cause: {work_order.failure_code or '-'} / {work_order.root_cause_code or '-'}",
                     f"Downtime: {work_order.downtime_minutes or 0} min | Flags: {flag_text}",
+                    f"Evidence: {len(documents)} linked document(s)",
                     f"Notes: {work_order.notes or '-'}",
                 ]
             )
@@ -603,8 +654,10 @@ class MaintenanceWorkOrdersTab(QWidget):
             selected_step_id=selected_step_id,
         )
         self._populate_material_table(materials)
+        self._populate_evidence_table(documents)
         self._sync_step_measurement_editor(self._selected_step())
         self._update_execution_controls()
+        self._sync_evidence_actions()
 
     def _populate_task_table(self, tasks, *, step_rows_by_task_id, selected_task_id: str | None) -> None:
         self.task_table.blockSignals(True)
@@ -689,6 +742,32 @@ class MaintenanceWorkOrdersTab(QWidget):
             for column, value in enumerate(values):
                 self.material_table.setItem(row_index, column, QTableWidgetItem(value))
 
+    def _populate_evidence_table(self, documents) -> None:
+        self.evidence_table.blockSignals(True)
+        self.evidence_table.setRowCount(len(documents))
+        for row_index, document in enumerate(documents):
+            values = (
+                f"{document.document_code} - {document.title}",
+                document.document_type.value.replace("_", " ").title(),
+                document.document_structure_id or "-",
+                format_timestamp(document.uploaded_at),
+            )
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                if column == 0:
+                    item.setData(Qt.UserRole, document.id)
+                self.evidence_table.setItem(row_index, column, item)
+        if documents:
+            self.evidence_table.selectRow(0)
+        else:
+            self.evidence_table.clearSelection()
+        self.evidence_table.blockSignals(False)
+        count_text = f"{len(documents)} linked document(s)" if documents else "No work-order evidence linked yet."
+        self.evidence_summary.setText(
+            "Linked work-order documents such as procedures, drawings, permits, and completion evidence. "
+            f"Current selection: {count_text}"
+        )
+
     def _on_work_order_selection_changed(self) -> None:
         work_order_id = self._selected_work_order_id()
         if work_order_id:
@@ -718,11 +797,14 @@ class MaintenanceWorkOrdersTab(QWidget):
         self._detail_tasks_by_id = {}
         self._detail_steps_by_id = {}
         self._step_ids_by_task_id = {}
+        self._detail_documents_by_id = {}
         self.task_table.setRowCount(0)
         self.step_table.setRowCount(0)
         self.material_table.setRowCount(0)
+        self.evidence_table.setRowCount(0)
         self.step_measurement_edit.clear()
         self._update_execution_controls()
+        self._sync_evidence_actions()
 
     def _selected_work_order_id(self) -> str | None:
         row = self.work_order_table.currentRow()
@@ -765,6 +847,18 @@ class MaintenanceWorkOrdersTab(QWidget):
         if not step_id:
             return None
         return self._detail_steps_by_id.get(step_id)
+
+    def _selected_evidence_document(self):
+        row = self.evidence_table.currentRow()
+        if row < 0:
+            return None
+        item = self.evidence_table.item(row, 0)
+        if item is None:
+            return None
+        value = item.data(Qt.UserRole)
+        if not value:
+            return None
+        return self._detail_documents_by_id.get(str(value))
 
     def _select_task_row(self, task_id: str) -> None:
         current_task_id = self._selected_task_id()
@@ -948,6 +1042,19 @@ class MaintenanceWorkOrdersTab(QWidget):
             expected_version=task.version,
         )
         self._reload_after_execution(work_order_id=work_order_id, task_id=updated.id, step_id=step_id)
+
+    def _on_evidence_selection_changed(self) -> None:
+        self._sync_evidence_actions()
+
+    def _sync_evidence_actions(self) -> None:
+        self.btn_preview_evidence.setEnabled(self._selected_evidence_document() is not None)
+
+    def _show_evidence_preview(self) -> None:
+        document = self._selected_evidence_document()
+        if document is None:
+            QMessageBox.information(self, "Maintenance Work Orders", "Select a linked evidence document to preview it.")
+            return
+        DocumentPreviewDialog(document=document, parent=self).exec()
 
     def _source_label(self, source_type: str, source_id: str | None) -> str:
         if not source_id:
