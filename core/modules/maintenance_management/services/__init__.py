@@ -6,6 +6,7 @@ from .failure_code import MaintenanceFailureCodeService
 from .integration_source import MaintenanceIntegrationSourceService
 from .location import MaintenanceLocationService
 from .material_requirement import MaintenanceWorkOrderMaterialRequirementService
+from .preventive import MaintenancePreventiveGenerationService
 from .preventive_plan import MaintenancePreventivePlanService
 from .preventive_plan_task import MaintenancePreventivePlanTaskService
 from .reliability import MaintenanceReliabilityService
@@ -31,6 +32,7 @@ __all__ = [
     "MaintenanceFailureCodeService",
     "MaintenanceIntegrationSourceService",
     "MaintenanceLocationService",
+    "MaintenancePreventiveGenerationService",
     "MaintenancePreventivePlanService",
     "MaintenancePreventivePlanTaskService",
     "MaintenanceReliabilityService",

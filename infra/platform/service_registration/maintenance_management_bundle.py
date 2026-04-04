@@ -11,6 +11,7 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
     MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
@@ -76,6 +77,7 @@ class MaintenanceManagementServiceBundle:
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_preventive_generation_service: MaintenancePreventiveGenerationService
     maintenance_preventive_plan_service: MaintenancePreventivePlanService
     maintenance_preventive_plan_task_service: MaintenancePreventivePlanTaskService
     maintenance_reliability_service: MaintenanceReliabilityService
@@ -382,6 +384,22 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_preventive_generation_service = MaintenancePreventiveGenerationService(
+        platform_services.session,
+        organization_repo=platform_services.organization_repo,
+        site_repo=platform_services.site_repo,
+        preventive_plan_repo=preventive_plan_repo,
+        preventive_plan_task_repo=preventive_plan_task_repo,
+        task_template_repo=task_template_repo,
+        task_step_template_repo=task_step_template_repo,
+        sensor_repo=sensor_repo,
+        work_request_service=maintenance_work_request_service,
+        work_order_service=maintenance_work_order_service,
+        work_order_task_service=maintenance_work_order_task_service,
+        work_order_task_step_service=maintenance_work_order_task_step_service,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     return MaintenanceManagementServiceBundle(
         maintenance_runtime_contract_catalog_service=maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_asset_service,
@@ -391,6 +409,7 @@ def build_maintenance_management_service_bundle(
         maintenance_failure_code_service=maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_integration_source_service,
         maintenance_location_service=maintenance_location_service,
+        maintenance_preventive_generation_service=maintenance_preventive_generation_service,
         maintenance_preventive_plan_service=maintenance_preventive_plan_service,
         maintenance_preventive_plan_task_service=maintenance_preventive_plan_task_service,
         maintenance_reliability_service=maintenance_reliability_service,

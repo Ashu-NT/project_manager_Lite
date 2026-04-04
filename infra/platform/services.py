@@ -39,6 +39,7 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
     MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
@@ -119,6 +120,7 @@ class ServiceGraph:
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_preventive_generation_service: MaintenancePreventiveGenerationService
     maintenance_preventive_plan_service: MaintenancePreventivePlanService
     maintenance_preventive_plan_task_service: MaintenancePreventivePlanTaskService
     maintenance_reliability_service: MaintenanceReliabilityService
@@ -194,6 +196,7 @@ class ServiceGraph:
             "maintenance_failure_code_service": self.maintenance_failure_code_service,
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
             "maintenance_location_service": self.maintenance_location_service,
+            "maintenance_preventive_generation_service": self.maintenance_preventive_generation_service,
             "maintenance_preventive_plan_service": self.maintenance_preventive_plan_service,
             "maintenance_preventive_plan_task_service": self.maintenance_preventive_plan_task_service,
             "maintenance_reliability_service": self.maintenance_reliability_service,
@@ -283,6 +286,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_failure_code_service=maintenance_management_services.maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
+        maintenance_preventive_generation_service=maintenance_management_services.maintenance_preventive_generation_service,
         maintenance_preventive_plan_service=maintenance_management_services.maintenance_preventive_plan_service,
         maintenance_preventive_plan_task_service=maintenance_management_services.maintenance_preventive_plan_task_service,
         maintenance_reliability_service=maintenance_management_services.maintenance_reliability_service,

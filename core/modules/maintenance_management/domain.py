@@ -1394,6 +1394,9 @@ class MaintenancePreventivePlanTask:
     default_assigned_employee_id: str | None = None
     default_assigned_team_id: str | None = None
     estimated_minutes_override: int | None = None
+    last_generated_at: datetime | None = None
+    next_due_at: datetime | None = None
+    next_due_counter: Decimal | None = None
     notes: str = ""
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -1417,6 +1420,9 @@ class MaintenancePreventivePlanTask:
         default_assigned_employee_id: str | None = None,
         default_assigned_team_id: str | None = None,
         estimated_minutes_override: int | None = None,
+        last_generated_at: datetime | None = None,
+        next_due_at: datetime | None = None,
+        next_due_counter: Decimal | None = None,
         notes: str = "",
     ) -> "MaintenancePreventivePlanTask":
         now = datetime.now(timezone.utc)
@@ -1437,6 +1443,9 @@ class MaintenancePreventivePlanTask:
             default_assigned_employee_id=default_assigned_employee_id,
             default_assigned_team_id=default_assigned_team_id,
             estimated_minutes_override=estimated_minutes_override,
+            last_generated_at=last_generated_at,
+            next_due_at=next_due_at,
+            next_due_counter=next_due_counter,
             notes=notes,
             created_at=now,
             updated_at=now,

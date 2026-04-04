@@ -1151,6 +1151,9 @@ class MaintenancePreventivePlanTaskORM(Base):
     )
     default_assigned_team_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     estimated_minutes_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    last_generated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_due_counter: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 6), nullable=True)
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -1252,6 +1255,7 @@ Index("idx_maintenance_plan_tasks_plan", MaintenancePreventivePlanTaskORM.plan_i
 Index("idx_maintenance_plan_tasks_template", MaintenancePreventivePlanTaskORM.task_template_id)
 Index("idx_maintenance_plan_tasks_sensor", MaintenancePreventivePlanTaskORM.sensor_id_override)
 Index("idx_maintenance_plan_tasks_assigned_employee", MaintenancePreventivePlanTaskORM.default_assigned_employee_id)
+Index("idx_maintenance_plan_tasks_next_due_at", MaintenancePreventivePlanTaskORM.next_due_at)
 
 
 __all__ = [

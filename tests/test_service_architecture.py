@@ -34,6 +34,7 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
     MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
@@ -119,6 +120,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_failure_code_service, MaintenanceFailureCodeService)
     assert isinstance(graph.maintenance_integration_source_service, MaintenanceIntegrationSourceService)
     assert isinstance(graph.maintenance_location_service, MaintenanceLocationService)
+    assert isinstance(graph.maintenance_preventive_generation_service, MaintenancePreventiveGenerationService)
     assert isinstance(graph.maintenance_preventive_plan_service, MaintenancePreventivePlanService)
     assert isinstance(graph.maintenance_preventive_plan_task_service, MaintenancePreventivePlanTaskService)
     assert isinstance(graph.maintenance_reliability_service, MaintenanceReliabilityService)
@@ -188,6 +190,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["maintenance_failure_code_service"] is graph.maintenance_failure_code_service
     assert as_dict["maintenance_integration_source_service"] is graph.maintenance_integration_source_service
     assert as_dict["maintenance_location_service"] is graph.maintenance_location_service
+    assert as_dict["maintenance_preventive_generation_service"] is graph.maintenance_preventive_generation_service
     assert as_dict["maintenance_preventive_plan_service"] is graph.maintenance_preventive_plan_service
     assert as_dict["maintenance_preventive_plan_task_service"] is graph.maintenance_preventive_plan_task_service
     assert as_dict["maintenance_reliability_service"] is graph.maintenance_reliability_service

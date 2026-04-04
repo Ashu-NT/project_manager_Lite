@@ -79,6 +79,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         planner_user_id: str | None = None,
         supervisor_user_id: str | None = None,
         work_order_type: str | None = None,
+        is_preventive: bool | None = None,
+        is_emergency: bool | None = None,
     ) -> list[MaintenanceWorkOrder]:
         self._require_read("list maintenance work orders")
         organization = self._active_organization()
@@ -106,6 +108,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             planner_user_id=planner_user_id,
             supervisor_user_id=supervisor_user_id,
             work_order_type=work_order_type,
+            is_preventive=is_preventive,
+            is_emergency=is_emergency,
         )
         return filter_scope_rows(
             rows,
