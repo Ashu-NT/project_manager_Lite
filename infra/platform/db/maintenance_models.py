@@ -20,14 +20,21 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.modules.maintenance_management.domain import (
+    MaintenanceCalendarFrequencyUnit,
     MaintenanceCriticality,
     MaintenanceFailureCodeType,
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
+    MaintenancePlanStatus,
+    MaintenancePlanTaskTriggerScope,
+    MaintenancePlanType,
     MaintenancePriority,
+    MaintenanceSensorDirection,
     MaintenanceSensorExceptionStatus,
     MaintenanceSensorExceptionType,
     MaintenanceSensorQualityState,
+    MaintenanceTemplateStatus,
+    MaintenanceTriggerMode,
     MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderStatus,
     MaintenanceWorkOrderTaskStatus,
@@ -921,6 +928,235 @@ class MaintenanceWorkOrderMaterialRequirementORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+class MaintenanceTaskTemplateORM(Base):
+    __tablename__ = "maintenance_task_templates"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "task_template_code", name="ux_maintenance_task_templates_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    task_template_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    maintenance_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    revision_no: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    template_status: Mapped[MaintenanceTemplateStatus] = mapped_column(
+        SAEnum(MaintenanceTemplateStatus),
+        nullable=False,
+        default=MaintenanceTemplateStatus.DRAFT,
+        server_default=MaintenanceTemplateStatus.DRAFT.value,
+    )
+    estimated_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    required_skill: Mapped[str] = mapped_column(String(128), nullable=False, default="", server_default="")
+    requires_shutdown: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    requires_permit: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceTaskStepTemplateORM(Base):
+    __tablename__ = "maintenance_task_step_templates"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "task_template_id",
+            "step_number",
+            name="ux_maintenance_task_step_templates_task_step_number",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    task_template_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_task_templates.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    step_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    instruction: Mapped[str] = mapped_column(Text, nullable=False)
+    expected_result: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    hint_level: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
+    hint_text: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    requires_confirmation: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    requires_measurement: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    requires_photo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    measurement_unit: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenancePreventivePlanORM(Base):
+    __tablename__ = "maintenance_preventive_plans"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "plan_code", name="ux_maintenance_preventive_plans_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    site_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sites.id"),
+        nullable=False,
+    )
+    plan_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    asset_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    component_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_asset_components.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    system_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_systems.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    status: Mapped[MaintenancePlanStatus] = mapped_column(
+        SAEnum(MaintenancePlanStatus),
+        nullable=False,
+        default=MaintenancePlanStatus.DRAFT,
+        server_default=MaintenancePlanStatus.DRAFT.value,
+    )
+    plan_type: Mapped[MaintenancePlanType] = mapped_column(
+        SAEnum(MaintenancePlanType),
+        nullable=False,
+        default=MaintenancePlanType.PREVENTIVE,
+        server_default=MaintenancePlanType.PREVENTIVE.value,
+    )
+    priority: Mapped[MaintenancePriority] = mapped_column(
+        SAEnum(MaintenancePriority),
+        nullable=False,
+        default=MaintenancePriority.MEDIUM,
+        server_default=MaintenancePriority.MEDIUM.value,
+    )
+    trigger_mode: Mapped[MaintenanceTriggerMode] = mapped_column(
+        SAEnum(MaintenanceTriggerMode),
+        nullable=False,
+        default=MaintenanceTriggerMode.CALENDAR,
+        server_default=MaintenanceTriggerMode.CALENDAR.value,
+    )
+    calendar_frequency_unit: Mapped[Optional[MaintenanceCalendarFrequencyUnit]] = mapped_column(
+        SAEnum(MaintenanceCalendarFrequencyUnit),
+        nullable=True,
+    )
+    calendar_frequency_value: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sensor_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_sensors.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    sensor_threshold: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 6), nullable=True)
+    sensor_direction: Mapped[Optional[MaintenanceSensorDirection]] = mapped_column(
+        SAEnum(MaintenanceSensorDirection),
+        nullable=True,
+    )
+    sensor_reset_rule: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    last_generated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_due_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    next_due_counter: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 6), nullable=True)
+    requires_shutdown: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    approval_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    auto_generate_work_order: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenancePreventivePlanTaskORM(Base):
+    __tablename__ = "maintenance_preventive_plan_tasks"
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "plan_id",
+            "sequence_no",
+            name="ux_maintenance_preventive_plan_tasks_plan_sequence",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    plan_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_preventive_plans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    task_template_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("maintenance_task_templates.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trigger_scope: Mapped[MaintenancePlanTaskTriggerScope] = mapped_column(
+        SAEnum(MaintenancePlanTaskTriggerScope),
+        nullable=False,
+        default=MaintenancePlanTaskTriggerScope.INHERIT_PLAN,
+        server_default=MaintenancePlanTaskTriggerScope.INHERIT_PLAN.value,
+    )
+    trigger_mode_override: Mapped[Optional[MaintenanceTriggerMode]] = mapped_column(
+        SAEnum(MaintenanceTriggerMode),
+        nullable=True,
+    )
+    calendar_frequency_unit_override: Mapped[Optional[MaintenanceCalendarFrequencyUnit]] = mapped_column(
+        SAEnum(MaintenanceCalendarFrequencyUnit),
+        nullable=True,
+    )
+    calendar_frequency_value_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    sensor_id_override: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_sensors.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    sensor_threshold_override: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 6), nullable=True)
+    sensor_direction_override: Mapped[Optional[MaintenanceSensorDirection]] = mapped_column(
+        SAEnum(MaintenanceSensorDirection),
+        nullable=True,
+    )
+    sequence_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    is_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    default_assigned_employee_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("employees.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    default_assigned_team_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    estimated_minutes_override: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
 Index("idx_maintenance_locations_org", MaintenanceLocationORM.organization_id)
 Index("idx_maintenance_locations_site", MaintenanceLocationORM.site_id)
 Index("idx_maintenance_locations_parent", MaintenanceLocationORM.parent_location_id)
@@ -994,13 +1230,39 @@ Index(
     "idx_maintenance_material_requirements_requisition",
     MaintenanceWorkOrderMaterialRequirementORM.linked_requisition_id,
 )
+Index("idx_maintenance_task_templates_org", MaintenanceTaskTemplateORM.organization_id)
+Index("idx_maintenance_task_templates_status", MaintenanceTaskTemplateORM.template_status)
+Index("idx_maintenance_task_templates_active", MaintenanceTaskTemplateORM.is_active)
+Index("idx_maintenance_task_templates_type", MaintenanceTaskTemplateORM.maintenance_type)
+Index("idx_maintenance_task_step_templates_org", MaintenanceTaskStepTemplateORM.organization_id)
+Index("idx_maintenance_task_step_templates_task", MaintenanceTaskStepTemplateORM.task_template_id)
+Index("idx_maintenance_task_step_templates_active", MaintenanceTaskStepTemplateORM.is_active)
+Index("idx_maintenance_task_step_templates_sort", MaintenanceTaskStepTemplateORM.sort_order)
+Index("idx_maintenance_preventive_plans_org", MaintenancePreventivePlanORM.organization_id)
+Index("idx_maintenance_preventive_plans_site", MaintenancePreventivePlanORM.site_id)
+Index("idx_maintenance_preventive_plans_asset", MaintenancePreventivePlanORM.asset_id)
+Index("idx_maintenance_preventive_plans_component", MaintenancePreventivePlanORM.component_id)
+Index("idx_maintenance_preventive_plans_system", MaintenancePreventivePlanORM.system_id)
+Index("idx_maintenance_preventive_plans_status", MaintenancePreventivePlanORM.status)
+Index("idx_maintenance_preventive_plans_type", MaintenancePreventivePlanORM.plan_type)
+Index("idx_maintenance_preventive_plans_trigger", MaintenancePreventivePlanORM.trigger_mode)
+Index("idx_maintenance_preventive_plans_sensor", MaintenancePreventivePlanORM.sensor_id)
+Index("idx_maintenance_plan_tasks_org", MaintenancePreventivePlanTaskORM.organization_id)
+Index("idx_maintenance_plan_tasks_plan", MaintenancePreventivePlanTaskORM.plan_id)
+Index("idx_maintenance_plan_tasks_template", MaintenancePreventivePlanTaskORM.task_template_id)
+Index("idx_maintenance_plan_tasks_sensor", MaintenancePreventivePlanTaskORM.sensor_id_override)
+Index("idx_maintenance_plan_tasks_assigned_employee", MaintenancePreventivePlanTaskORM.default_assigned_employee_id)
 
 
 __all__ = [
     "MaintenanceAssetORM",
     "MaintenanceAssetComponentORM",
     "MaintenanceLocationORM",
+    "MaintenancePreventivePlanORM",
+    "MaintenancePreventivePlanTaskORM",
     "MaintenanceSystemORM",
+    "MaintenanceTaskStepTemplateORM",
+    "MaintenanceTaskTemplateORM",
     "MaintenanceWorkOrderORM",
     "MaintenanceWorkOrderMaterialRequirementORM",
     "MaintenanceWorkOrderTaskORM",

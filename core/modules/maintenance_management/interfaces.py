@@ -10,10 +10,14 @@ from core.modules.maintenance_management.domain import (
     MaintenanceFailureCode,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenancePreventivePlan,
+    MaintenancePreventivePlanTask,
     MaintenanceSensorException,
     MaintenanceSensor,
     MaintenanceSensorReading,
     MaintenanceSensorSourceMapping,
+    MaintenanceTaskStepTemplate,
+    MaintenanceTaskTemplate,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
     MaintenanceWorkOrder,
@@ -455,6 +459,108 @@ class MaintenanceWorkOrderMaterialRequirementRepository(ABC):
     ) -> List[MaintenanceWorkOrderMaterialRequirement]: ...
 
 
+class MaintenanceTaskTemplateRepository(ABC):
+    @abstractmethod
+    def add(self, task_template: MaintenanceTaskTemplate) -> None: ...
+
+    @abstractmethod
+    def update(self, task_template: MaintenanceTaskTemplate) -> None: ...
+
+    @abstractmethod
+    def get(self, task_template_id: str) -> Optional[MaintenanceTaskTemplate]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        task_template_code: str,
+    ) -> Optional[MaintenanceTaskTemplate]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        maintenance_type: str | None = None,
+        template_status: str | None = None,
+    ) -> List[MaintenanceTaskTemplate]: ...
+
+
+class MaintenanceTaskStepTemplateRepository(ABC):
+    @abstractmethod
+    def add(self, task_step_template: MaintenanceTaskStepTemplate) -> None: ...
+
+    @abstractmethod
+    def update(self, task_step_template: MaintenanceTaskStepTemplate) -> None: ...
+
+    @abstractmethod
+    def get(self, task_step_template_id: str) -> Optional[MaintenanceTaskStepTemplate]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        task_template_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> List[MaintenanceTaskStepTemplate]: ...
+
+
+class MaintenancePreventivePlanRepository(ABC):
+    @abstractmethod
+    def add(self, preventive_plan: MaintenancePreventivePlan) -> None: ...
+
+    @abstractmethod
+    def update(self, preventive_plan: MaintenancePreventivePlan) -> None: ...
+
+    @abstractmethod
+    def get(self, preventive_plan_id: str) -> Optional[MaintenancePreventivePlan]: ...
+
+    @abstractmethod
+    def get_by_code(
+        self,
+        organization_id: str,
+        plan_code: str,
+    ) -> Optional[MaintenancePreventivePlan]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        status: str | None = None,
+        plan_type: str | None = None,
+        trigger_mode: str | None = None,
+        sensor_id: str | None = None,
+    ) -> List[MaintenancePreventivePlan]: ...
+
+
+class MaintenancePreventivePlanTaskRepository(ABC):
+    @abstractmethod
+    def add(self, preventive_plan_task: MaintenancePreventivePlanTask) -> None: ...
+
+    @abstractmethod
+    def update(self, preventive_plan_task: MaintenancePreventivePlanTask) -> None: ...
+
+    @abstractmethod
+    def get(self, preventive_plan_task_id: str) -> Optional[MaintenancePreventivePlanTask]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        plan_id: str | None = None,
+        task_template_id: str | None = None,
+    ) -> List[MaintenancePreventivePlanTask]: ...
+
+
 __all__ = [
     "MaintenanceAssetRepository",
     "MaintenanceAssetComponentRepository",
@@ -462,11 +568,15 @@ __all__ = [
     "MaintenanceFailureCodeRepository",
     "MaintenanceIntegrationSourceRepository",
     "MaintenanceLocationRepository",
+    "MaintenancePreventivePlanRepository",
+    "MaintenancePreventivePlanTaskRepository",
     "MaintenanceSensorExceptionRepository",
     "MaintenanceSensorReadingRepository",
     "MaintenanceSensorRepository",
     "MaintenanceSensorSourceMappingRepository",
     "MaintenanceSystemRepository",
+    "MaintenanceTaskStepTemplateRepository",
+    "MaintenanceTaskTemplateRepository",
     "MaintenanceWorkOrderRepository",
     "MaintenanceWorkOrderMaterialRequirementRepository",
     "MaintenanceWorkOrderTaskRepository",

@@ -412,6 +412,7 @@ Progress notes:
 - maintenance now also has a first reliability analytics foundation on top of those records, including KPI snapshot assembly, root-cause suggestion helpers, recurring-failure rollups, service-graph exposure, and regression coverage for both in-memory and persisted flows
 - maintenance now also has the first rendered report-pack layer on top of that analytics seam, including backlog, PM compliance, downtime, and execution overview Excel/PDF outputs wired through the shared report runtime
 - maintenance is now cataloged as an available-but-disabled module by default, and the shell can expose the first `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability` workspaces when the module is licensed and enabled
+- maintenance now also has the first preventive-library foundation for `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, including lifecycle validation, SQLAlchemy persistence, migration coverage, service-graph exposure, and focused regression tests before the due-generation engine starts
 
 ## Guardrails
 

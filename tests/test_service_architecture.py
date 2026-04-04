@@ -34,6 +34,8 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenancePreventivePlanService,
+    MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
     MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
@@ -43,6 +45,8 @@ from core.modules.maintenance_management import (
     MaintenanceSensorService,
     MaintenanceSensorSourceMappingService,
     MaintenanceSystemService,
+    MaintenanceTaskStepTemplateService,
+    MaintenanceTaskTemplateService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
@@ -115,6 +119,8 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_failure_code_service, MaintenanceFailureCodeService)
     assert isinstance(graph.maintenance_integration_source_service, MaintenanceIntegrationSourceService)
     assert isinstance(graph.maintenance_location_service, MaintenanceLocationService)
+    assert isinstance(graph.maintenance_preventive_plan_service, MaintenancePreventivePlanService)
+    assert isinstance(graph.maintenance_preventive_plan_task_service, MaintenancePreventivePlanTaskService)
     assert isinstance(graph.maintenance_reliability_service, MaintenanceReliabilityService)
     assert isinstance(graph.maintenance_reporting_service, MaintenanceReportingService)
     assert isinstance(graph.maintenance_sensor_exception_service, MaintenanceSensorExceptionService)
@@ -122,6 +128,8 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_sensor_reading_service, MaintenanceSensorReadingService)
     assert isinstance(graph.maintenance_sensor_source_mapping_service, MaintenanceSensorSourceMappingService)
     assert isinstance(graph.maintenance_system_service, MaintenanceSystemService)
+    assert isinstance(graph.maintenance_task_step_template_service, MaintenanceTaskStepTemplateService)
+    assert isinstance(graph.maintenance_task_template_service, MaintenanceTaskTemplateService)
     assert isinstance(graph.maintenance_work_request_service, MaintenanceWorkRequestService)
     assert isinstance(graph.maintenance_work_order_service, MaintenanceWorkOrderService)
     assert isinstance(graph.maintenance_work_order_material_requirement_service, MaintenanceWorkOrderMaterialRequirementService)
@@ -180,6 +188,8 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["maintenance_failure_code_service"] is graph.maintenance_failure_code_service
     assert as_dict["maintenance_integration_source_service"] is graph.maintenance_integration_source_service
     assert as_dict["maintenance_location_service"] is graph.maintenance_location_service
+    assert as_dict["maintenance_preventive_plan_service"] is graph.maintenance_preventive_plan_service
+    assert as_dict["maintenance_preventive_plan_task_service"] is graph.maintenance_preventive_plan_task_service
     assert as_dict["maintenance_reliability_service"] is graph.maintenance_reliability_service
     assert as_dict["maintenance_reporting_service"] is graph.maintenance_reporting_service
     assert as_dict["maintenance_sensor_exception_service"] is graph.maintenance_sensor_exception_service
@@ -187,6 +197,8 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["maintenance_sensor_reading_service"] is graph.maintenance_sensor_reading_service
     assert as_dict["maintenance_sensor_source_mapping_service"] is graph.maintenance_sensor_source_mapping_service
     assert as_dict["maintenance_system_service"] is graph.maintenance_system_service
+    assert as_dict["maintenance_task_step_template_service"] is graph.maintenance_task_step_template_service
+    assert as_dict["maintenance_task_template_service"] is graph.maintenance_task_template_service
     assert as_dict["maintenance_work_request_service"] is graph.maintenance_work_request_service
     assert as_dict["maintenance_work_order_service"] is graph.maintenance_work_order_service
     assert (

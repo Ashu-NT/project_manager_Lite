@@ -4,14 +4,20 @@ from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from core.modules.maintenance_management.domain import (
+    MaintenanceCalendarFrequencyUnit,
     MaintenanceCriticality,
     MaintenanceFailureCodeType,
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
+    MaintenancePlanStatus,
+    MaintenancePlanTaskTriggerScope,
+    MaintenancePlanType,
     MaintenancePriority,
+    MaintenanceSensorDirection,
     MaintenanceSensorExceptionStatus,
     MaintenanceSensorExceptionType,
     MaintenanceSensorQualityState,
+    MaintenanceTemplateStatus,
     MaintenanceTriggerMode,
     MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderTaskStepStatus,
@@ -156,6 +162,85 @@ def coerce_trigger_mode(value: MaintenanceTriggerMode | str | None) -> Maintenan
         return MaintenanceTriggerMode(raw)
     except ValueError as exc:
         raise ValidationError("Maintenance trigger mode is invalid.", code="MAINTENANCE_TRIGGER_MODE_INVALID") from exc
+
+
+def coerce_template_status(value: MaintenanceTemplateStatus | str | None) -> MaintenanceTemplateStatus:
+    if isinstance(value, MaintenanceTemplateStatus):
+        return value
+    raw = str(value or MaintenanceTemplateStatus.DRAFT.value).strip().upper()
+    try:
+        return MaintenanceTemplateStatus(raw)
+    except ValueError as exc:
+        raise ValidationError("Maintenance template status is invalid.", code="MAINTENANCE_TEMPLATE_STATUS_INVALID") from exc
+
+
+def coerce_plan_status(value: MaintenancePlanStatus | str | None) -> MaintenancePlanStatus:
+    if isinstance(value, MaintenancePlanStatus):
+        return value
+    raw = str(value or MaintenancePlanStatus.DRAFT.value).strip().upper()
+    try:
+        return MaintenancePlanStatus(raw)
+    except ValueError as exc:
+        raise ValidationError("Maintenance plan status is invalid.", code="MAINTENANCE_PLAN_STATUS_INVALID") from exc
+
+
+def coerce_plan_type(value: MaintenancePlanType | str | None) -> MaintenancePlanType:
+    if isinstance(value, MaintenancePlanType):
+        return value
+    raw = str(value or MaintenancePlanType.PREVENTIVE.value).strip().upper()
+    try:
+        return MaintenancePlanType(raw)
+    except ValueError as exc:
+        raise ValidationError("Maintenance plan type is invalid.", code="MAINTENANCE_PLAN_TYPE_INVALID") from exc
+
+
+def coerce_calendar_frequency_unit(
+    value: MaintenanceCalendarFrequencyUnit | str | None,
+) -> MaintenanceCalendarFrequencyUnit | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, MaintenanceCalendarFrequencyUnit):
+        return value
+    raw = str(value).strip().upper()
+    try:
+        return MaintenanceCalendarFrequencyUnit(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance calendar frequency unit is invalid.",
+            code="MAINTENANCE_CALENDAR_FREQUENCY_UNIT_INVALID",
+        ) from exc
+
+
+def coerce_sensor_direction(
+    value: MaintenanceSensorDirection | str | None,
+) -> MaintenanceSensorDirection | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, MaintenanceSensorDirection):
+        return value
+    raw = str(value).strip().upper()
+    try:
+        return MaintenanceSensorDirection(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance sensor direction is invalid.",
+            code="MAINTENANCE_SENSOR_DIRECTION_INVALID",
+        ) from exc
+
+
+def coerce_plan_task_trigger_scope(
+    value: MaintenancePlanTaskTriggerScope | str | None,
+) -> MaintenancePlanTaskTriggerScope:
+    if isinstance(value, MaintenancePlanTaskTriggerScope):
+        return value
+    raw = str(value or MaintenancePlanTaskTriggerScope.INHERIT_PLAN.value).strip().upper()
+    try:
+        return MaintenancePlanTaskTriggerScope(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance plan task trigger scope is invalid.",
+            code="MAINTENANCE_PLAN_TASK_TRIGGER_SCOPE_INVALID",
+        ) from exc
 
 
 def coerce_work_request_source_type(
@@ -353,6 +438,7 @@ def calculate_downtime_minutes(
 
 __all__ = [
     "coerce_criticality",
+    "coerce_calendar_frequency_unit",
     "coerce_decimal_value",
     "coerce_material_procurement_status",
     "coerce_lifecycle_status",
@@ -361,11 +447,16 @@ __all__ = [
     "coerce_optional_decimal_value",
     "coerce_optional_datetime",
     "coerce_optional_non_negative_int",
+    "coerce_plan_status",
+    "coerce_plan_task_trigger_scope",
+    "coerce_plan_type",
     "coerce_priority",
+    "coerce_sensor_direction",
     "coerce_sensor_exception_status",
     "coerce_sensor_exception_type",
     "coerce_sensor_quality_state",
     "coerce_task_completion_rule",
+    "coerce_template_status",
     "coerce_work_order_task_step_status",
     "coerce_trigger_mode",
     "coerce_work_order_status",

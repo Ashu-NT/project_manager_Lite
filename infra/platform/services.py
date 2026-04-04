@@ -39,6 +39,8 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenancePreventivePlanService,
+    MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
     MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
@@ -48,6 +50,8 @@ from core.modules.maintenance_management import (
     MaintenanceSensorService,
     MaintenanceSensorSourceMappingService,
     MaintenanceSystemService,
+    MaintenanceTaskStepTemplateService,
+    MaintenanceTaskTemplateService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
@@ -115,6 +119,8 @@ class ServiceGraph:
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_preventive_plan_service: MaintenancePreventivePlanService
+    maintenance_preventive_plan_task_service: MaintenancePreventivePlanTaskService
     maintenance_reliability_service: MaintenanceReliabilityService
     maintenance_reporting_service: MaintenanceReportingService
     maintenance_sensor_exception_service: MaintenanceSensorExceptionService
@@ -122,6 +128,8 @@ class ServiceGraph:
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
     maintenance_sensor_source_mapping_service: MaintenanceSensorSourceMappingService
     maintenance_system_service: MaintenanceSystemService
+    maintenance_task_step_template_service: MaintenanceTaskStepTemplateService
+    maintenance_task_template_service: MaintenanceTaskTemplateService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
     maintenance_work_order_material_requirement_service: MaintenanceWorkOrderMaterialRequirementService
@@ -186,6 +194,8 @@ class ServiceGraph:
             "maintenance_failure_code_service": self.maintenance_failure_code_service,
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
             "maintenance_location_service": self.maintenance_location_service,
+            "maintenance_preventive_plan_service": self.maintenance_preventive_plan_service,
+            "maintenance_preventive_plan_task_service": self.maintenance_preventive_plan_task_service,
             "maintenance_reliability_service": self.maintenance_reliability_service,
             "maintenance_reporting_service": self.maintenance_reporting_service,
             "maintenance_sensor_exception_service": self.maintenance_sensor_exception_service,
@@ -193,6 +203,8 @@ class ServiceGraph:
             "maintenance_sensor_reading_service": self.maintenance_sensor_reading_service,
             "maintenance_sensor_source_mapping_service": self.maintenance_sensor_source_mapping_service,
             "maintenance_system_service": self.maintenance_system_service,
+            "maintenance_task_step_template_service": self.maintenance_task_step_template_service,
+            "maintenance_task_template_service": self.maintenance_task_template_service,
             "maintenance_work_request_service": self.maintenance_work_request_service,
             "maintenance_work_order_service": self.maintenance_work_order_service,
             "maintenance_work_order_material_requirement_service": self.maintenance_work_order_material_requirement_service,
@@ -271,6 +283,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_failure_code_service=maintenance_management_services.maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
+        maintenance_preventive_plan_service=maintenance_management_services.maintenance_preventive_plan_service,
+        maintenance_preventive_plan_task_service=maintenance_management_services.maintenance_preventive_plan_task_service,
         maintenance_reliability_service=maintenance_management_services.maintenance_reliability_service,
         maintenance_reporting_service=maintenance_management_services.maintenance_reporting_service,
         maintenance_sensor_exception_service=maintenance_management_services.maintenance_sensor_exception_service,
@@ -278,6 +292,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_sensor_reading_service=maintenance_management_services.maintenance_sensor_reading_service,
         maintenance_sensor_source_mapping_service=maintenance_management_services.maintenance_sensor_source_mapping_service,
         maintenance_system_service=maintenance_management_services.maintenance_system_service,
+        maintenance_task_step_template_service=maintenance_management_services.maintenance_task_step_template_service,
+        maintenance_task_template_service=maintenance_management_services.maintenance_task_template_service,
         maintenance_work_request_service=maintenance_management_services.maintenance_work_request_service,
         maintenance_work_order_service=maintenance_management_services.maintenance_work_order_service,
         maintenance_work_order_material_requirement_service=maintenance_management_services.maintenance_work_order_material_requirement_service,

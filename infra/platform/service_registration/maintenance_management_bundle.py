@@ -11,6 +11,8 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenancePreventivePlanService,
+    MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
     MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
@@ -20,6 +22,8 @@ from core.modules.maintenance_management import (
     MaintenanceSensorService,
     MaintenanceSensorSourceMappingService,
     MaintenanceSystemService,
+    MaintenanceTaskStepTemplateService,
+    MaintenanceTaskTemplateService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
@@ -42,11 +46,15 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceFailureCodeRepository,
     SqlAlchemyMaintenanceIntegrationSourceRepository,
     SqlAlchemyMaintenanceLocationRepository,
+    SqlAlchemyMaintenancePreventivePlanRepository,
+    SqlAlchemyMaintenancePreventivePlanTaskRepository,
     SqlAlchemyMaintenanceSensorExceptionRepository,
     SqlAlchemyMaintenanceSensorReadingRepository,
     SqlAlchemyMaintenanceSensorRepository,
     SqlAlchemyMaintenanceSensorSourceMappingRepository,
     SqlAlchemyMaintenanceSystemRepository,
+    SqlAlchemyMaintenanceTaskStepTemplateRepository,
+    SqlAlchemyMaintenanceTaskTemplateRepository,
     SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository,
     SqlAlchemyMaintenanceWorkOrderRepository,
     SqlAlchemyMaintenanceWorkOrderTaskRepository,
@@ -68,6 +76,8 @@ class MaintenanceManagementServiceBundle:
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_preventive_plan_service: MaintenancePreventivePlanService
+    maintenance_preventive_plan_task_service: MaintenancePreventivePlanTaskService
     maintenance_reliability_service: MaintenanceReliabilityService
     maintenance_reporting_service: MaintenanceReportingService
     maintenance_sensor_exception_service: MaintenanceSensorExceptionService
@@ -75,6 +85,8 @@ class MaintenanceManagementServiceBundle:
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
     maintenance_sensor_source_mapping_service: MaintenanceSensorSourceMappingService
     maintenance_system_service: MaintenanceSystemService
+    maintenance_task_step_template_service: MaintenanceTaskStepTemplateService
+    maintenance_task_template_service: MaintenanceTaskTemplateService
     maintenance_work_request_service: MaintenanceWorkRequestService
     maintenance_work_order_service: MaintenanceWorkOrderService
     maintenance_work_order_material_requirement_service: MaintenanceWorkOrderMaterialRequirementService
@@ -93,10 +105,14 @@ def build_maintenance_management_service_bundle(
     downtime_event_repo = SqlAlchemyMaintenanceDowntimeEventRepository(platform_services.session)
     failure_code_repo = SqlAlchemyMaintenanceFailureCodeRepository(platform_services.session)
     integration_source_repo = SqlAlchemyMaintenanceIntegrationSourceRepository(platform_services.session)
+    preventive_plan_repo = SqlAlchemyMaintenancePreventivePlanRepository(platform_services.session)
+    preventive_plan_task_repo = SqlAlchemyMaintenancePreventivePlanTaskRepository(platform_services.session)
     sensor_source_mapping_repo = SqlAlchemyMaintenanceSensorSourceMappingRepository(platform_services.session)
     sensor_exception_repo = SqlAlchemyMaintenanceSensorExceptionRepository(platform_services.session)
     sensor_repo = SqlAlchemyMaintenanceSensorRepository(platform_services.session)
     sensor_reading_repo = SqlAlchemyMaintenanceSensorReadingRepository(platform_services.session)
+    task_step_template_repo = SqlAlchemyMaintenanceTaskStepTemplateRepository(platform_services.session)
+    task_template_repo = SqlAlchemyMaintenanceTaskTemplateRepository(platform_services.session)
     work_request_repo = SqlAlchemyMaintenanceWorkRequestRepository(platform_services.session)
     work_order_repo = SqlAlchemyMaintenanceWorkOrderRepository(platform_services.session)
     work_order_material_requirement_repo = SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(platform_services.session)
@@ -185,6 +201,21 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_task_template_service = MaintenanceTaskTemplateService(
+        platform_services.session,
+        task_template_repo,
+        organization_repo=platform_services.organization_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_task_step_template_service = MaintenanceTaskStepTemplateService(
+        platform_services.session,
+        task_step_template_repo,
+        organization_repo=platform_services.organization_repo,
+        task_template_repo=task_template_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     maintenance_reliability_service = MaintenanceReliabilityService(
         platform_services.session,
         organization_repo=platform_services.organization_repo,
@@ -270,6 +301,29 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
+    maintenance_preventive_plan_service = MaintenancePreventivePlanService(
+        platform_services.session,
+        preventive_plan_repo,
+        organization_repo=platform_services.organization_repo,
+        site_repo=platform_services.site_repo,
+        asset_repo=asset_repo,
+        component_repo=component_repo,
+        system_repo=system_repo,
+        sensor_repo=sensor_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_preventive_plan_task_service = MaintenancePreventivePlanTaskService(
+        platform_services.session,
+        preventive_plan_task_repo,
+        organization_repo=platform_services.organization_repo,
+        preventive_plan_repo=preventive_plan_repo,
+        task_template_repo=task_template_repo,
+        sensor_repo=sensor_repo,
+        component_repo=component_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
     maintenance_work_request_service = MaintenanceWorkRequestService(
         platform_services.session,
         work_request_repo,
@@ -337,6 +391,8 @@ def build_maintenance_management_service_bundle(
         maintenance_failure_code_service=maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_integration_source_service,
         maintenance_location_service=maintenance_location_service,
+        maintenance_preventive_plan_service=maintenance_preventive_plan_service,
+        maintenance_preventive_plan_task_service=maintenance_preventive_plan_task_service,
         maintenance_reliability_service=maintenance_reliability_service,
         maintenance_reporting_service=maintenance_reporting_service,
         maintenance_sensor_exception_service=maintenance_sensor_exception_service,
@@ -344,6 +400,8 @@ def build_maintenance_management_service_bundle(
         maintenance_sensor_reading_service=maintenance_sensor_reading_service,
         maintenance_sensor_source_mapping_service=maintenance_sensor_source_mapping_service,
         maintenance_system_service=maintenance_system_service,
+        maintenance_task_step_template_service=maintenance_task_step_template_service,
+        maintenance_task_template_service=maintenance_task_template_service,
         maintenance_work_request_service=maintenance_work_request_service,
         maintenance_work_order_service=maintenance_work_order_service,
         maintenance_work_order_material_requirement_service=maintenance_work_order_material_requirement_service,

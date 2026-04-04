@@ -594,6 +594,82 @@ def test_maintenance_sensors_and_readings_persist_via_service_graph(services):
     assert listed_readings[0].source_batch_id == "SYNC-100"
 
 
+def test_maintenance_preventive_templates_and_plans_persist_via_service_graph(services):
+    site = services["site_service"].create_site(site_code="MNT-PM", name="Preventive Plant")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="pm-area",
+        name="PM Area",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="pm-asset-100",
+        name="Preventive Asset",
+    )
+    sensor = services["maintenance_sensor_service"].create_sensor(
+        site_id=site.id,
+        sensor_code="pm-sensor-100",
+        sensor_name="Runtime Hours",
+        asset_id=asset.id,
+        sensor_type="RUN_HOURS",
+        unit="H",
+    )
+    task_template = services["maintenance_task_template_service"].create_task_template(
+        task_template_code="pm-lube-100",
+        name="Lubricate Drive End",
+        maintenance_type="preventive",
+        template_status="active",
+        estimated_minutes=35,
+        required_skill="MECHANICAL",
+    )
+    step_template = services["maintenance_task_step_template_service"].create_step_template(
+        task_template_id=task_template.id,
+        step_number=1,
+        instruction="Apply grease to the drive-end bearing.",
+        requires_confirmation=True,
+    )
+    plan = services["maintenance_preventive_plan_service"].create_preventive_plan(
+        site_id=site.id,
+        plan_code="pm-plan-100",
+        name="Drive-End Lubrication Plan",
+        asset_id=asset.id,
+        plan_type="preventive",
+        trigger_mode="hybrid",
+        calendar_frequency_unit="monthly",
+        calendar_frequency_value=1,
+        sensor_id=sensor.id,
+        sensor_threshold="250.0",
+        sensor_direction="greater_or_equal",
+        auto_generate_work_order=True,
+    )
+    plan_task = services["maintenance_preventive_plan_task_service"].create_plan_task(
+        plan_id=plan.id,
+        task_template_id=task_template.id,
+        sequence_no=1,
+        trigger_scope="inherit_plan",
+    )
+
+    reloaded_template = services["maintenance_task_template_service"].find_task_template_by_code("PM-LUBE-100")
+    reloaded_plan = services["maintenance_preventive_plan_service"].find_preventive_plan_by_code("PM-PLAN-100")
+    step_rows = services["maintenance_task_step_template_service"].list_step_templates(
+        task_template_id=task_template.id
+    )
+    plan_task_rows = services["maintenance_preventive_plan_task_service"].list_plan_tasks(plan_id=plan.id)
+
+    assert reloaded_template is not None
+    assert reloaded_template.id == task_template.id
+    assert reloaded_template.required_skill == "MECHANICAL"
+    assert reloaded_plan is not None
+    assert reloaded_plan.id == plan.id
+    assert reloaded_plan.sensor_id == sensor.id
+    assert reloaded_plan.trigger_mode.value == "HYBRID"
+    assert [row.id for row in step_rows] == [step_template.id]
+    assert step_rows[0].requires_confirmation is True
+    assert [row.id for row in plan_task_rows] == [plan_task.id]
+    assert plan_task_rows[0].trigger_scope.value == "INHERIT_PLAN"
+
+
 def test_maintenance_integration_sources_persist_via_service_graph(services):
     source = services["maintenance_integration_source_service"].create_source(
         integration_code="erp-bridge-1",

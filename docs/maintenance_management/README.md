@@ -2,7 +2,7 @@
 
 Status: active blueprint and phased implementation tracker, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, plus reliability analytics/report-pack services and first shell/UI workspaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability`; broader preventive-template and technician execution flows are still pending
+Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, plus reliability analytics/report-pack services and first shell/UI workspaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability`; due-generation and broader technician execution flows are still pending
 
 ## Purpose
 
@@ -2151,7 +2151,8 @@ Current kickoff status:
 
 - started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
 - started: first shell/UI surfaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability`, backed by the live asset, sensor, request, work-order, document, and reliability services
-- pending: technician execution runtimes, plus the later preventive-maintenance template stack
+- started: preventive-maintenance foundation for `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, including lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
+- pending: due-generation and technician execution runtimes
 
 Phase 1 UI:
 
@@ -2168,10 +2169,10 @@ Phase 1 UI:
 
 Build next:
 
-- maintenance task templates
-- task step templates
-- preventive plans
-- preventive plan tasks
+- maintenance task templates. Started.
+- task step templates. Started.
+- preventive plans. Started.
+- preventive plan tasks. Started.
 - due generation engine
 
 Phase 2 UI:

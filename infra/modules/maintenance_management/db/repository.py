@@ -8,12 +8,16 @@ from core.modules.maintenance_management.domain import (
     MaintenanceAssetComponent,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenancePreventivePlan,
+    MaintenancePreventivePlanTask,
     MaintenanceSensorException,
     MaintenanceSensor,
     MaintenanceSensorReading,
     MaintenanceSensorSourceMapping,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceSystem,
+    MaintenanceTaskStepTemplate,
+    MaintenanceTaskTemplate,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderTask,
     MaintenanceWorkOrderTaskStep,
@@ -24,11 +28,15 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetComponentRepository,
     MaintenanceIntegrationSourceRepository,
     MaintenanceLocationRepository,
+    MaintenancePreventivePlanRepository,
+    MaintenancePreventivePlanTaskRepository,
     MaintenanceSensorExceptionRepository,
     MaintenanceSensorReadingRepository,
     MaintenanceSensorRepository,
     MaintenanceSensorSourceMappingRepository,
     MaintenanceSystemRepository,
+    MaintenanceTaskStepTemplateRepository,
+    MaintenanceTaskTemplateRepository,
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
@@ -44,6 +52,10 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_integration_source_to_orm,
     maintenance_location_from_orm,
     maintenance_location_to_orm,
+    maintenance_preventive_plan_from_orm,
+    maintenance_preventive_plan_task_from_orm,
+    maintenance_preventive_plan_task_to_orm,
+    maintenance_preventive_plan_to_orm,
     maintenance_sensor_exception_from_orm,
     maintenance_sensor_exception_to_orm,
     maintenance_sensor_from_orm,
@@ -52,6 +64,10 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_sensor_source_mapping_from_orm,
     maintenance_sensor_source_mapping_to_orm,
     maintenance_sensor_to_orm,
+    maintenance_task_step_template_from_orm,
+    maintenance_task_step_template_to_orm,
+    maintenance_task_template_from_orm,
+    maintenance_task_template_to_orm,
     maintenance_work_order_material_requirement_from_orm,
     maintenance_work_order_material_requirement_to_orm,
     maintenance_system_from_orm,
@@ -70,11 +86,15 @@ from infra.platform.db.maintenance_models import (
     MaintenanceAssetORM,
     MaintenanceIntegrationSourceORM,
     MaintenanceLocationORM,
+    MaintenancePreventivePlanORM,
+    MaintenancePreventivePlanTaskORM,
     MaintenanceSensorExceptionORM,
     MaintenanceSensorORM,
     MaintenanceSensorReadingORM,
     MaintenanceSensorSourceMappingORM,
     MaintenanceSystemORM,
+    MaintenanceTaskStepTemplateORM,
+    MaintenanceTaskTemplateORM,
     MaintenanceWorkOrderMaterialRequirementORM,
     MaintenanceWorkOrderORM,
     MaintenanceWorkOrderTaskORM,
@@ -1150,11 +1170,306 @@ class SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository(
         return [maintenance_work_order_material_requirement_from_orm(row) for row in rows]
 
 
+class SqlAlchemyMaintenanceTaskTemplateRepository(MaintenanceTaskTemplateRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, task_template: MaintenanceTaskTemplate) -> None:
+        self.session.add(maintenance_task_template_to_orm(task_template))
+
+    def update(self, task_template: MaintenanceTaskTemplate) -> None:
+        task_template.version = update_with_version_check(
+            self.session,
+            MaintenanceTaskTemplateORM,
+            task_template.id,
+            getattr(task_template, "version", 1),
+            {
+                "task_template_code": task_template.task_template_code,
+                "name": task_template.name,
+                "description": task_template.description or None,
+                "maintenance_type": task_template.maintenance_type or None,
+                "revision_no": task_template.revision_no,
+                "template_status": task_template.template_status,
+                "estimated_minutes": task_template.estimated_minutes,
+                "required_skill": task_template.required_skill,
+                "requires_shutdown": task_template.requires_shutdown,
+                "requires_permit": task_template.requires_permit,
+                "is_active": task_template.is_active,
+                "notes": task_template.notes,
+                "created_at": task_template.created_at,
+                "updated_at": task_template.updated_at,
+            },
+            not_found_message="Maintenance task template not found.",
+            stale_message="Maintenance task template was updated by another user.",
+        )
+
+    def get(self, task_template_id: str) -> MaintenanceTaskTemplate | None:
+        obj = self.session.get(MaintenanceTaskTemplateORM, task_template_id)
+        return maintenance_task_template_from_orm(obj) if obj else None
+
+    def get_by_code(self, organization_id: str, task_template_code: str) -> MaintenanceTaskTemplate | None:
+        stmt = select(MaintenanceTaskTemplateORM).where(
+            MaintenanceTaskTemplateORM.organization_id == organization_id,
+            MaintenanceTaskTemplateORM.task_template_code == task_template_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return maintenance_task_template_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        maintenance_type: str | None = None,
+        template_status: str | None = None,
+    ) -> list[MaintenanceTaskTemplate]:
+        stmt = select(MaintenanceTaskTemplateORM).where(MaintenanceTaskTemplateORM.organization_id == organization_id)
+        if active_only is not None:
+            stmt = stmt.where(MaintenanceTaskTemplateORM.is_active == bool(active_only))
+        if maintenance_type is not None:
+            stmt = stmt.where(MaintenanceTaskTemplateORM.maintenance_type == maintenance_type)
+        if template_status is not None:
+            stmt = stmt.where(MaintenanceTaskTemplateORM.template_status == template_status)
+        rows = self.session.execute(
+            stmt.order_by(MaintenanceTaskTemplateORM.name.asc(), MaintenanceTaskTemplateORM.task_template_code.asc())
+        ).scalars().all()
+        return [maintenance_task_template_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplateRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, task_step_template: MaintenanceTaskStepTemplate) -> None:
+        self.session.add(maintenance_task_step_template_to_orm(task_step_template))
+
+    def update(self, task_step_template: MaintenanceTaskStepTemplate) -> None:
+        task_step_template.version = update_with_version_check(
+            self.session,
+            MaintenanceTaskStepTemplateORM,
+            task_step_template.id,
+            getattr(task_step_template, "version", 1),
+            {
+                "task_template_id": task_step_template.task_template_id,
+                "step_number": task_step_template.step_number,
+                "instruction": task_step_template.instruction,
+                "expected_result": task_step_template.expected_result,
+                "hint_level": task_step_template.hint_level,
+                "hint_text": task_step_template.hint_text,
+                "requires_confirmation": task_step_template.requires_confirmation,
+                "requires_measurement": task_step_template.requires_measurement,
+                "requires_photo": task_step_template.requires_photo,
+                "measurement_unit": task_step_template.measurement_unit,
+                "sort_order": task_step_template.sort_order,
+                "is_active": task_step_template.is_active,
+                "notes": task_step_template.notes,
+                "created_at": task_step_template.created_at,
+                "updated_at": task_step_template.updated_at,
+            },
+            not_found_message="Maintenance task step template not found.",
+            stale_message="Maintenance task step template was updated by another user.",
+        )
+
+    def get(self, task_step_template_id: str) -> MaintenanceTaskStepTemplate | None:
+        obj = self.session.get(MaintenanceTaskStepTemplateORM, task_step_template_id)
+        return maintenance_task_step_template_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        task_template_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> list[MaintenanceTaskStepTemplate]:
+        stmt = select(MaintenanceTaskStepTemplateORM).where(
+            MaintenanceTaskStepTemplateORM.organization_id == organization_id
+        )
+        if task_template_id is not None:
+            stmt = stmt.where(MaintenanceTaskStepTemplateORM.task_template_id == task_template_id)
+        if active_only is not None:
+            stmt = stmt.where(MaintenanceTaskStepTemplateORM.is_active == bool(active_only))
+        rows = self.session.execute(
+            stmt.order_by(
+                MaintenanceTaskStepTemplateORM.sort_order.asc(),
+                MaintenanceTaskStepTemplateORM.step_number.asc(),
+                MaintenanceTaskStepTemplateORM.created_at.asc(),
+            )
+        ).scalars().all()
+        return [maintenance_task_step_template_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, preventive_plan: MaintenancePreventivePlan) -> None:
+        self.session.add(maintenance_preventive_plan_to_orm(preventive_plan))
+
+    def update(self, preventive_plan: MaintenancePreventivePlan) -> None:
+        preventive_plan.version = update_with_version_check(
+            self.session,
+            MaintenancePreventivePlanORM,
+            preventive_plan.id,
+            getattr(preventive_plan, "version", 1),
+            {
+                "site_id": preventive_plan.site_id,
+                "plan_code": preventive_plan.plan_code,
+                "name": preventive_plan.name,
+                "asset_id": preventive_plan.asset_id,
+                "component_id": preventive_plan.component_id,
+                "system_id": preventive_plan.system_id,
+                "description": preventive_plan.description,
+                "status": preventive_plan.status,
+                "plan_type": preventive_plan.plan_type,
+                "priority": preventive_plan.priority,
+                "trigger_mode": preventive_plan.trigger_mode,
+                "calendar_frequency_unit": preventive_plan.calendar_frequency_unit,
+                "calendar_frequency_value": preventive_plan.calendar_frequency_value,
+                "sensor_id": preventive_plan.sensor_id,
+                "sensor_threshold": preventive_plan.sensor_threshold,
+                "sensor_direction": preventive_plan.sensor_direction,
+                "sensor_reset_rule": preventive_plan.sensor_reset_rule,
+                "last_generated_at": preventive_plan.last_generated_at,
+                "last_completed_at": preventive_plan.last_completed_at,
+                "next_due_at": preventive_plan.next_due_at,
+                "next_due_counter": preventive_plan.next_due_counter,
+                "requires_shutdown": preventive_plan.requires_shutdown,
+                "approval_required": preventive_plan.approval_required,
+                "auto_generate_work_order": preventive_plan.auto_generate_work_order,
+                "is_active": preventive_plan.is_active,
+                "notes": preventive_plan.notes,
+                "created_at": preventive_plan.created_at,
+                "updated_at": preventive_plan.updated_at,
+            },
+            not_found_message="Maintenance preventive plan not found.",
+            stale_message="Maintenance preventive plan was updated by another user.",
+        )
+
+    def get(self, preventive_plan_id: str) -> MaintenancePreventivePlan | None:
+        obj = self.session.get(MaintenancePreventivePlanORM, preventive_plan_id)
+        return maintenance_preventive_plan_from_orm(obj) if obj else None
+
+    def get_by_code(self, organization_id: str, plan_code: str) -> MaintenancePreventivePlan | None:
+        stmt = select(MaintenancePreventivePlanORM).where(
+            MaintenancePreventivePlanORM.organization_id == organization_id,
+            MaintenancePreventivePlanORM.plan_code == plan_code,
+        )
+        obj = self.session.execute(stmt).scalars().first()
+        return maintenance_preventive_plan_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        active_only: bool | None = None,
+        site_id: str | None = None,
+        asset_id: str | None = None,
+        component_id: str | None = None,
+        system_id: str | None = None,
+        status: str | None = None,
+        plan_type: str | None = None,
+        trigger_mode: str | None = None,
+        sensor_id: str | None = None,
+    ) -> list[MaintenancePreventivePlan]:
+        stmt = select(MaintenancePreventivePlanORM).where(
+            MaintenancePreventivePlanORM.organization_id == organization_id
+        )
+        if active_only is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.is_active == bool(active_only))
+        if site_id is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.site_id == site_id)
+        if asset_id is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.asset_id == asset_id)
+        if component_id is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.component_id == component_id)
+        if system_id is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.system_id == system_id)
+        if status is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.status == status)
+        if plan_type is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.plan_type == plan_type)
+        if trigger_mode is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.trigger_mode == trigger_mode)
+        if sensor_id is not None:
+            stmt = stmt.where(MaintenancePreventivePlanORM.sensor_id == sensor_id)
+        rows = self.session.execute(
+            stmt.order_by(MaintenancePreventivePlanORM.name.asc(), MaintenancePreventivePlanORM.plan_code.asc())
+        ).scalars().all()
+        return [maintenance_preventive_plan_from_orm(row) for row in rows]
+
+
+class SqlAlchemyMaintenancePreventivePlanTaskRepository(MaintenancePreventivePlanTaskRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    def add(self, preventive_plan_task: MaintenancePreventivePlanTask) -> None:
+        self.session.add(maintenance_preventive_plan_task_to_orm(preventive_plan_task))
+
+    def update(self, preventive_plan_task: MaintenancePreventivePlanTask) -> None:
+        preventive_plan_task.version = update_with_version_check(
+            self.session,
+            MaintenancePreventivePlanTaskORM,
+            preventive_plan_task.id,
+            getattr(preventive_plan_task, "version", 1),
+            {
+                "plan_id": preventive_plan_task.plan_id,
+                "task_template_id": preventive_plan_task.task_template_id,
+                "trigger_scope": preventive_plan_task.trigger_scope,
+                "trigger_mode_override": preventive_plan_task.trigger_mode_override,
+                "calendar_frequency_unit_override": preventive_plan_task.calendar_frequency_unit_override,
+                "calendar_frequency_value_override": preventive_plan_task.calendar_frequency_value_override,
+                "sensor_id_override": preventive_plan_task.sensor_id_override,
+                "sensor_threshold_override": preventive_plan_task.sensor_threshold_override,
+                "sensor_direction_override": preventive_plan_task.sensor_direction_override,
+                "sequence_no": preventive_plan_task.sequence_no,
+                "is_mandatory": preventive_plan_task.is_mandatory,
+                "default_assigned_employee_id": preventive_plan_task.default_assigned_employee_id,
+                "default_assigned_team_id": preventive_plan_task.default_assigned_team_id,
+                "estimated_minutes_override": preventive_plan_task.estimated_minutes_override,
+                "notes": preventive_plan_task.notes,
+                "created_at": preventive_plan_task.created_at,
+                "updated_at": preventive_plan_task.updated_at,
+            },
+            not_found_message="Maintenance preventive plan task not found.",
+            stale_message="Maintenance preventive plan task was updated by another user.",
+        )
+
+    def get(self, preventive_plan_task_id: str) -> MaintenancePreventivePlanTask | None:
+        obj = self.session.get(MaintenancePreventivePlanTaskORM, preventive_plan_task_id)
+        return maintenance_preventive_plan_task_from_orm(obj) if obj else None
+
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        plan_id: str | None = None,
+        task_template_id: str | None = None,
+    ) -> list[MaintenancePreventivePlanTask]:
+        stmt = select(MaintenancePreventivePlanTaskORM).where(
+            MaintenancePreventivePlanTaskORM.organization_id == organization_id
+        )
+        if plan_id is not None:
+            stmt = stmt.where(MaintenancePreventivePlanTaskORM.plan_id == plan_id)
+        if task_template_id is not None:
+            stmt = stmt.where(MaintenancePreventivePlanTaskORM.task_template_id == task_template_id)
+        rows = self.session.execute(
+            stmt.order_by(
+                MaintenancePreventivePlanTaskORM.sequence_no.asc(),
+                MaintenancePreventivePlanTaskORM.created_at.asc(),
+            )
+        ).scalars().all()
+        return [maintenance_preventive_plan_task_from_orm(row) for row in rows]
+
+
 __all__ = [
     "SqlAlchemyMaintenanceAssetRepository",
     "SqlAlchemyMaintenanceAssetComponentRepository",
     "SqlAlchemyMaintenanceLocationRepository",
+    "SqlAlchemyMaintenancePreventivePlanRepository",
+    "SqlAlchemyMaintenancePreventivePlanTaskRepository",
     "SqlAlchemyMaintenanceSystemRepository",
+    "SqlAlchemyMaintenanceTaskStepTemplateRepository",
+    "SqlAlchemyMaintenanceTaskTemplateRepository",
     "SqlAlchemyMaintenanceWorkOrderMaterialRequirementRepository",
     "SqlAlchemyMaintenanceWorkOrderRepository",
     "SqlAlchemyMaintenanceWorkOrderTaskRepository",
