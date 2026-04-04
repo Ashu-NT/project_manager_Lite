@@ -109,7 +109,8 @@ class MaintenanceReliabilityService:
         overdue_rows = [
             row
             for row in open_rows
-            if row.planned_end is not None and row.planned_end < datetime.now(timezone.utc)
+            if row.planned_end is not None
+            and self._normalize_timestamp(row.planned_end) < datetime.now(timezone.utc)
         ]
         backlog_by_status = Counter(str(row.status.value) for row in open_rows)
         backlog_by_priority = Counter(str(row.priority.value) for row in open_rows)

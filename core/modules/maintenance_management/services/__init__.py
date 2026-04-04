@@ -6,6 +6,7 @@ from .integration_source import MaintenanceIntegrationSourceService
 from .location import MaintenanceLocationService
 from .material_requirement import MaintenanceWorkOrderMaterialRequirementService
 from .reliability import MaintenanceReliabilityService
+from .reporting import MaintenanceReportingService
 from .runtime_catalog import MaintenanceRuntimeContractCatalogService
 from .sensor_exception import MaintenanceSensorExceptionService
 from .sensor import MaintenanceSensorService
@@ -25,6 +26,7 @@ __all__ = [
     "MaintenanceIntegrationSourceService",
     "MaintenanceLocationService",
     "MaintenanceReliabilityService",
+    "MaintenanceReportingService",
     "MaintenanceWorkOrderMaterialRequirementService",
     "MaintenanceRuntimeContractCatalogService",
     "MaintenanceSensorExceptionService",

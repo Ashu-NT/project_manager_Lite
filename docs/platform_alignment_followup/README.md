@@ -410,6 +410,7 @@ Progress notes:
 - maintenance now also has the first `sensor_source_mapping` and `sensor_exception` slices, including external-to-internal sensor binding, exception queue records, persistence, migration coverage, service-graph exposure, and regression coverage for stale/unit-mismatch/sync-failure cases
 - maintenance now also has the first reliability foundations for `failure_code` and `downtime_event`, including controlled failure-code master data, downtime duration tracking, work-order downtime rollup, persistence, migration coverage, and service-graph exposure
 - maintenance now also has a first reliability analytics foundation on top of those records, including KPI snapshot assembly, root-cause suggestion helpers, recurring-failure rollups, service-graph exposure, and regression coverage for both in-memory and persisted flows
+- maintenance now also has the first rendered report-pack layer on top of that analytics seam, including backlog, PM compliance, downtime, and execution overview Excel/PDF outputs wired through the shared report runtime
 
 ## Guardrails
 

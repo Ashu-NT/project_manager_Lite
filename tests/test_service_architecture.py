@@ -34,6 +34,7 @@ from core.modules.maintenance_management import (
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
     MaintenanceReliabilityService,
+    MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSensorExceptionService,
@@ -113,6 +114,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.maintenance_integration_source_service, MaintenanceIntegrationSourceService)
     assert isinstance(graph.maintenance_location_service, MaintenanceLocationService)
     assert isinstance(graph.maintenance_reliability_service, MaintenanceReliabilityService)
+    assert isinstance(graph.maintenance_reporting_service, MaintenanceReportingService)
     assert isinstance(graph.maintenance_sensor_exception_service, MaintenanceSensorExceptionService)
     assert isinstance(graph.maintenance_sensor_service, MaintenanceSensorService)
     assert isinstance(graph.maintenance_sensor_reading_service, MaintenanceSensorReadingService)
@@ -176,6 +178,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["maintenance_integration_source_service"] is graph.maintenance_integration_source_service
     assert as_dict["maintenance_location_service"] is graph.maintenance_location_service
     assert as_dict["maintenance_reliability_service"] is graph.maintenance_reliability_service
+    assert as_dict["maintenance_reporting_service"] is graph.maintenance_reporting_service
     assert as_dict["maintenance_sensor_exception_service"] is graph.maintenance_sensor_exception_service
     assert as_dict["maintenance_sensor_service"] is graph.maintenance_sensor_service
     assert as_dict["maintenance_sensor_reading_service"] is graph.maintenance_sensor_reading_service

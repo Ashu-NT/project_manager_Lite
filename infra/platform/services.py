@@ -39,6 +39,7 @@ from core.modules.maintenance_management import (
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
     MaintenanceReliabilityService,
+    MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSensorExceptionService,
@@ -113,6 +114,7 @@ class ServiceGraph:
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
     maintenance_reliability_service: MaintenanceReliabilityService
+    maintenance_reporting_service: MaintenanceReportingService
     maintenance_sensor_exception_service: MaintenanceSensorExceptionService
     maintenance_sensor_service: MaintenanceSensorService
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
@@ -182,6 +184,7 @@ class ServiceGraph:
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
             "maintenance_location_service": self.maintenance_location_service,
             "maintenance_reliability_service": self.maintenance_reliability_service,
+            "maintenance_reporting_service": self.maintenance_reporting_service,
             "maintenance_sensor_exception_service": self.maintenance_sensor_exception_service,
             "maintenance_sensor_service": self.maintenance_sensor_service,
             "maintenance_sensor_reading_service": self.maintenance_sensor_reading_service,
@@ -265,6 +268,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
         maintenance_reliability_service=maintenance_management_services.maintenance_reliability_service,
+        maintenance_reporting_service=maintenance_management_services.maintenance_reporting_service,
         maintenance_sensor_exception_service=maintenance_management_services.maintenance_sensor_exception_service,
         maintenance_sensor_service=maintenance_management_services.maintenance_sensor_service,
         maintenance_sensor_reading_service=maintenance_management_services.maintenance_sensor_reading_service,
