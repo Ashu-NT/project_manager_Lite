@@ -26,9 +26,11 @@ from core.modules.maintenance_management import (
     MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management.domain import (
+    MaintenanceTaskCompletionRule,
     MaintenancePriority,
     MaintenanceWorkOrderStatus,
     MaintenanceWorkOrderTaskStatus,
+    MaintenanceWorkOrderTaskStepStatus,
     MaintenanceWorkOrderType,
 )
 from core.platform.auth import UserSessionContext
@@ -70,6 +72,8 @@ _RESPONSIBILITY_ALL = "__ALL__"
 _RESPONSIBILITY_EMPLOYEE = "__EMPLOYEE__"
 _RESPONSIBILITY_TEAM = "__TEAM__"
 _RESPONSIBILITY_UNASSIGNED = "__UNASSIGNED__"
+_TASK_ID_ROLE = Qt.UserRole
+_STEP_ID_ROLE = Qt.UserRole + 1
 
 
 class MaintenanceWorkOrdersTab(QWidget):
@@ -105,6 +109,9 @@ class MaintenanceWorkOrdersTab(QWidget):
         self._asset_labels: dict[str, str] = {}
         self._location_labels: dict[str, str] = {}
         self._system_labels: dict[str, str] = {}
+        self._detail_tasks_by_id: dict[str, object] = {}
+        self._detail_steps_by_id: dict[str, object] = {}
+        self._step_ids_by_task_id: dict[str, list[str]] = {}
         self._setup_ui()
         self.reload_data()
         domain_events.domain_changed.connect(self._on_domain_change)
@@ -233,6 +240,12 @@ class MaintenanceWorkOrdersTab(QWidget):
         self.work_order_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_work_order_selection_changed)
         )
+        self.task_table.itemSelectionChanged.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_task_selection_changed)
+        )
+        self.step_table.itemSelectionChanged.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_step_selection_changed)
+        )
 
     def _build_queue_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
@@ -311,6 +324,34 @@ class MaintenanceWorkOrdersTab(QWidget):
         )
         layout.addWidget(self.step_table)
 
+        execution_title = QLabel("Execution Actions")
+        execution_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        layout.addWidget(execution_title)
+        self.execution_summary = QLabel("Select a task or step to run technician execution actions.")
+        self.execution_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.execution_summary.setWordWrap(True)
+        layout.addWidget(self.execution_summary)
+        execution_row = QHBoxLayout()
+        execution_row.setSpacing(CFG.SPACING_SM)
+        execution_row.addWidget(QLabel("Measurement"))
+        self.step_measurement_edit = QLineEdit()
+        self.step_measurement_edit.setPlaceholderText("Enter measurement if the selected step requires one")
+        execution_row.addWidget(self.step_measurement_edit, 1)
+        self.btn_start_step = QPushButton("Start Step")
+        self.btn_done_step = QPushButton("Done Step")
+        self.btn_confirm_step = QPushButton("Confirm Step")
+        self.btn_complete_task = QPushButton("Complete Task")
+        for button in (
+            self.btn_start_step,
+            self.btn_done_step,
+            self.btn_confirm_step,
+            self.btn_complete_task,
+        ):
+            button.setFixedHeight(CFG.BUTTON_HEIGHT)
+            button.setStyleSheet(dashboard_action_button_style("secondary"))
+            execution_row.addWidget(button)
+        layout.addLayout(execution_row)
+
         material_title = QLabel("Material Requirements")
         material_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         layout.addWidget(material_title)
@@ -325,6 +366,19 @@ class MaintenanceWorkOrdersTab(QWidget):
             ),
         )
         layout.addWidget(self.material_table)
+        self.btn_start_step.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_start_step)
+        )
+        self.btn_done_step.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_done_step)
+        )
+        self.btn_confirm_step.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_confirm_step)
+        )
+        self.btn_complete_task.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self._on_complete_task)
+        )
+        self._update_execution_controls()
         return panel
 
     def reload_data(self) -> None:
@@ -354,7 +408,13 @@ class MaintenanceWorkOrdersTab(QWidget):
         )
         self.reload_work_orders(selected_work_order_id=selected_work_order_id)
 
-    def reload_work_orders(self, *, selected_work_order_id: str | None = None) -> None:
+    def reload_work_orders(
+        self,
+        *,
+        selected_work_order_id: str | None = None,
+        selected_task_id: str | None = None,
+        selected_step_id: str | None = None,
+    ) -> None:
         selected_work_order_id = selected_work_order_id or self._selected_work_order_id()
         responsibility_filter = selected_combo_value(self.responsibility_combo) or _RESPONSIBILITY_ALL
         try:
@@ -411,9 +471,21 @@ class MaintenanceWorkOrdersTab(QWidget):
                 else ""
             )
         )
-        self._populate_work_order_table(rows, selected_work_order_id=selected_work_order_id)
+        self._populate_work_order_table(
+            rows,
+            selected_work_order_id=selected_work_order_id,
+            selected_task_id=selected_task_id,
+            selected_step_id=selected_step_id,
+        )
 
-    def _populate_work_order_table(self, rows, *, selected_work_order_id: str | None) -> None:
+    def _populate_work_order_table(
+        self,
+        rows,
+        *,
+        selected_work_order_id: str | None,
+        selected_task_id: str | None,
+        selected_step_id: str | None,
+    ) -> None:
         self.work_order_table.blockSignals(True)
         self.work_order_table.setRowCount(len(rows))
         selected_row = 0 if rows else -1
@@ -433,14 +505,27 @@ class MaintenanceWorkOrdersTab(QWidget):
                 self.work_order_table.setItem(row_index, column, item)
             if selected_work_order_id and work_order.id == selected_work_order_id:
                 selected_row = row_index
-        self.work_order_table.blockSignals(False)
         if selected_row >= 0:
             self.work_order_table.selectRow(selected_row)
-            self._refresh_work_order_details(rows[selected_row].id)
+            self.work_order_table.blockSignals(False)
+            self._refresh_work_order_details(
+                rows[selected_row].id,
+                selected_task_id=selected_task_id,
+                selected_step_id=selected_step_id,
+            )
             return
+        self.work_order_table.blockSignals(False)
         self._clear_work_order_details()
 
-    def _refresh_work_order_details(self, work_order_id: str) -> None:
+    def _refresh_work_order_details(
+        self,
+        work_order_id: str,
+        *,
+        selected_task_id: str | None = None,
+        selected_step_id: str | None = None,
+    ) -> None:
+        selected_task_id = selected_task_id or self._selected_task_id()
+        selected_step_id = selected_step_id or self._selected_step_id()
         try:
             work_order = self._work_order_service.get_work_order(work_order_id)
             tasks = sorted(
@@ -461,6 +546,16 @@ class MaintenanceWorkOrdersTab(QWidget):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Maintenance Work Orders", f"Failed to load work-order details: {exc}")
             return
+
+        self._detail_tasks_by_id = {task.id: task for task in tasks}
+        self._detail_steps_by_id = {}
+        self._step_ids_by_task_id = {}
+        for task in tasks:
+            step_ids: list[str] = []
+            for step in step_rows_by_task_id.get(task.id, []):
+                self._detail_steps_by_id[step.id] = step
+                step_ids.append(step.id)
+            self._step_ids_by_task_id[task.id] = step_ids
 
         source_label = self._source_label(work_order.source_type, work_order.source_id)
         flags: list[str] = []
@@ -496,12 +591,25 @@ class MaintenanceWorkOrdersTab(QWidget):
                 ]
             )
         )
-        self._populate_task_table(tasks, step_rows_by_task_id=step_rows_by_task_id)
-        self._populate_step_table(tasks, step_rows_by_task_id=step_rows_by_task_id)
+        self._populate_task_table(
+            tasks,
+            step_rows_by_task_id=step_rows_by_task_id,
+            selected_task_id=selected_task_id,
+        )
+        self._populate_step_table(
+            tasks,
+            step_rows_by_task_id=step_rows_by_task_id,
+            selected_task_id=selected_task_id,
+            selected_step_id=selected_step_id,
+        )
         self._populate_material_table(materials)
+        self._sync_step_measurement_editor(self._selected_step())
+        self._update_execution_controls()
 
-    def _populate_task_table(self, tasks, *, step_rows_by_task_id) -> None:
+    def _populate_task_table(self, tasks, *, step_rows_by_task_id, selected_task_id: str | None) -> None:
+        self.task_table.blockSignals(True)
         self.task_table.setRowCount(len(tasks))
+        selected_row = 0 if tasks else -1
         for row_index, task in enumerate(tasks):
             step_rows = step_rows_by_task_id.get(task.id, [])
             done_steps = sum(1 for row in step_rows if row.status.value == "DONE")
@@ -514,14 +622,33 @@ class MaintenanceWorkOrdersTab(QWidget):
                 self._format_step_summary(task.status, done_steps, len(step_rows)),
             )
             for column, value in enumerate(values):
-                self.task_table.setItem(row_index, column, QTableWidgetItem(value))
+                item = QTableWidgetItem(value)
+                if column == 0:
+                    item.setData(_TASK_ID_ROLE, task.id)
+                self.task_table.setItem(row_index, column, item)
+            if selected_task_id and task.id == selected_task_id:
+                selected_row = row_index
+        if selected_row >= 0:
+            self.task_table.selectRow(selected_row)
+        else:
+            self.task_table.clearSelection()
+        self.task_table.blockSignals(False)
 
-    def _populate_step_table(self, tasks, *, step_rows_by_task_id) -> None:
+    def _populate_step_table(
+        self,
+        tasks,
+        *,
+        step_rows_by_task_id,
+        selected_task_id: str | None,
+        selected_step_id: str | None,
+    ) -> None:
         flattened_rows: list[tuple[object, object]] = []
         for task in tasks:
             for step in step_rows_by_task_id.get(task.id, []):
                 flattened_rows.append((task, step))
+        self.step_table.blockSignals(True)
         self.step_table.setRowCount(len(flattened_rows))
+        selected_row = -1
         for row_index, (task, step) in enumerate(flattened_rows):
             values = (
                 f"{task.sequence_no}. {task.task_name}",
@@ -531,7 +658,23 @@ class MaintenanceWorkOrdersTab(QWidget):
                 self._format_step_completion(step),
             )
             for column, value in enumerate(values):
-                self.step_table.setItem(row_index, column, QTableWidgetItem(value))
+                item = QTableWidgetItem(value)
+                if column == 0:
+                    item.setData(_TASK_ID_ROLE, task.id)
+                if column == 1:
+                    item.setData(_STEP_ID_ROLE, step.id)
+                self.step_table.setItem(row_index, column, item)
+            if selected_step_id and step.id == selected_step_id:
+                selected_row = row_index
+            elif selected_row < 0 and selected_task_id and task.id == selected_task_id:
+                selected_row = row_index
+        if selected_row >= 0:
+            self.step_table.selectRow(selected_row)
+        elif flattened_rows:
+            self.step_table.selectRow(0)
+        else:
+            self.step_table.clearSelection()
+        self.step_table.blockSignals(False)
 
     def _populate_material_table(self, materials) -> None:
         self.material_table.setRowCount(len(materials))
@@ -553,12 +696,33 @@ class MaintenanceWorkOrdersTab(QWidget):
             return
         self._clear_work_order_details()
 
+    def _on_task_selection_changed(self) -> None:
+        task_id = self._selected_task_id()
+        if task_id:
+            current_step = self._selected_step()
+            if current_step is None or current_step.work_order_task_id != task_id:
+                self._select_first_step_for_task(task_id)
+        self._sync_step_measurement_editor(self._selected_step())
+        self._update_execution_controls()
+
+    def _on_step_selection_changed(self) -> None:
+        step = self._selected_step()
+        if step is not None:
+            self._select_task_row(step.work_order_task_id)
+        self._sync_step_measurement_editor(step)
+        self._update_execution_controls()
+
     def _clear_work_order_details(self) -> None:
         self.detail_title.setText("No work order selected")
         self.detail_summary.setText("Select a work order to inspect execution context, tasks, and material demand.")
+        self._detail_tasks_by_id = {}
+        self._detail_steps_by_id = {}
+        self._step_ids_by_task_id = {}
         self.task_table.setRowCount(0)
         self.step_table.setRowCount(0)
         self.material_table.setRowCount(0)
+        self.step_measurement_edit.clear()
+        self._update_execution_controls()
 
     def _selected_work_order_id(self) -> str | None:
         row = self.work_order_table.currentRow()
@@ -569,6 +733,221 @@ class MaintenanceWorkOrdersTab(QWidget):
             return None
         value = item.data(Qt.UserRole)
         return str(value) if value else None
+
+    def _selected_task_id(self) -> str | None:
+        row = self.task_table.currentRow()
+        if row < 0:
+            return None
+        item = self.task_table.item(row, 0)
+        if item is None:
+            return None
+        value = item.data(_TASK_ID_ROLE)
+        return str(value) if value else None
+
+    def _selected_step_id(self) -> str | None:
+        row = self.step_table.currentRow()
+        if row < 0:
+            return None
+        item = self.step_table.item(row, 1)
+        if item is None:
+            return None
+        value = item.data(_STEP_ID_ROLE)
+        return str(value) if value else None
+
+    def _selected_task(self):
+        task_id = self._selected_task_id()
+        if not task_id:
+            return None
+        return self._detail_tasks_by_id.get(task_id)
+
+    def _selected_step(self):
+        step_id = self._selected_step_id()
+        if not step_id:
+            return None
+        return self._detail_steps_by_id.get(step_id)
+
+    def _select_task_row(self, task_id: str) -> None:
+        current_task_id = self._selected_task_id()
+        if current_task_id == task_id:
+            return
+        for row in range(self.task_table.rowCount()):
+            item = self.task_table.item(row, 0)
+            if item is not None and item.data(_TASK_ID_ROLE) == task_id:
+                self.task_table.blockSignals(True)
+                self.task_table.selectRow(row)
+                self.task_table.blockSignals(False)
+                break
+
+    def _select_first_step_for_task(self, task_id: str) -> None:
+        for row in range(self.step_table.rowCount()):
+            task_item = self.step_table.item(row, 0)
+            if task_item is not None and task_item.data(_TASK_ID_ROLE) == task_id:
+                self.step_table.blockSignals(True)
+                self.step_table.selectRow(row)
+                self.step_table.blockSignals(False)
+                return
+        self.step_table.blockSignals(True)
+        self.step_table.clearSelection()
+        self.step_table.blockSignals(False)
+
+    def _task_can_complete(self, task) -> bool:
+        if task.status not in {
+            MaintenanceWorkOrderTaskStatus.NOT_STARTED,
+            MaintenanceWorkOrderTaskStatus.IN_PROGRESS,
+        }:
+            return False
+        if task.completion_rule != MaintenanceTaskCompletionRule.ALL_STEPS_REQUIRED:
+            return True
+        step_ids = self._step_ids_by_task_id.get(task.id, [])
+        if not step_ids:
+            return False
+        for step_id in step_ids:
+            step = self._detail_steps_by_id.get(step_id)
+            if step is None or step.status != MaintenanceWorkOrderTaskStepStatus.DONE:
+                return False
+            if step.requires_confirmation and step.confirmed_at is None:
+                return False
+            if step.requires_measurement and not str(step.measurement_value or "").strip():
+                return False
+        return True
+
+    def _sync_step_measurement_editor(self, step) -> None:
+        if step is None:
+            self.step_measurement_edit.clear()
+            self.step_measurement_edit.setPlaceholderText("Enter measurement if the selected step requires one")
+            return
+        if step.requires_measurement or step.measurement_value:
+            unit = f" ({step.measurement_unit})" if step.measurement_unit else ""
+            self.step_measurement_edit.setPlaceholderText(f"Measurement{unit}")
+            self.step_measurement_edit.setText(step.measurement_value or "")
+            return
+        self.step_measurement_edit.clear()
+        self.step_measurement_edit.setPlaceholderText("Selected step does not require a measurement")
+
+    def _update_execution_controls(self) -> None:
+        task = self._selected_task()
+        step = self._selected_step()
+        if step is None and task is None:
+            self.execution_summary.setText("Select a task or step to run technician execution actions.")
+            self.step_measurement_edit.setEnabled(False)
+            self.btn_start_step.setEnabled(False)
+            self.btn_done_step.setEnabled(False)
+            self.btn_confirm_step.setEnabled(False)
+            self.btn_complete_task.setEnabled(False)
+            return
+        if step is not None:
+            requirement_bits: list[str] = []
+            if step.requires_measurement:
+                unit = f" ({step.measurement_unit})" if step.measurement_unit else ""
+                requirement_bits.append(f"measurement{unit}")
+            if step.requires_confirmation:
+                requirement_bits.append("confirmation")
+            if step.requires_photo:
+                requirement_bits.append("photo evidence")
+            requirement_text = ", ".join(requirement_bits) if requirement_bits else "standard execution"
+            self.execution_summary.setText(
+                f"Selected step {step.step_number} is {step.status.value.replace('_', ' ').title()}. "
+                f"Requirements: {requirement_text}."
+            )
+            self.step_measurement_edit.setEnabled(
+                step.requires_measurement
+                and step.status not in {
+                    MaintenanceWorkOrderTaskStepStatus.DONE,
+                    MaintenanceWorkOrderTaskStepStatus.SKIPPED,
+                }
+            )
+        elif task is not None:
+            self.execution_summary.setText(
+                f"Selected task {task.sequence_no} is {task.status.value.replace('_', ' ').title()}. "
+                "Choose a step to drive execution or complete the task when all required steps are done."
+            )
+            self.step_measurement_edit.setEnabled(False)
+        self.btn_start_step.setEnabled(
+            step is not None
+            and step.status in {
+                MaintenanceWorkOrderTaskStepStatus.NOT_STARTED,
+                MaintenanceWorkOrderTaskStepStatus.FAILED,
+            }
+        )
+        self.btn_done_step.setEnabled(
+            step is not None
+            and step.status in {
+                MaintenanceWorkOrderTaskStepStatus.NOT_STARTED,
+                MaintenanceWorkOrderTaskStepStatus.IN_PROGRESS,
+            }
+        )
+        self.btn_confirm_step.setEnabled(
+            step is not None
+            and step.requires_confirmation
+            and step.status == MaintenanceWorkOrderTaskStepStatus.DONE
+            and step.confirmed_at is None
+        )
+        self.btn_complete_task.setEnabled(task is not None and self._task_can_complete(task))
+
+    def _reload_after_execution(self, *, work_order_id: str, task_id: str | None, step_id: str | None) -> None:
+        self.reload_work_orders(
+            selected_work_order_id=work_order_id,
+            selected_task_id=task_id,
+            selected_step_id=step_id,
+        )
+
+    def _on_start_step(self) -> None:
+        step = self._selected_step()
+        task = self._selected_task()
+        work_order_id = self._selected_work_order_id()
+        if step is None or task is None or work_order_id is None:
+            QMessageBox.information(self, "Maintenance Work Orders", "Select a task step to start execution.")
+            return
+        updated = self._work_order_task_step_service.update_step(
+            step.id,
+            status=MaintenanceWorkOrderTaskStepStatus.IN_PROGRESS.value,
+            expected_version=step.version,
+        )
+        self._reload_after_execution(work_order_id=work_order_id, task_id=task.id, step_id=updated.id)
+
+    def _on_done_step(self) -> None:
+        step = self._selected_step()
+        task = self._selected_task()
+        work_order_id = self._selected_work_order_id()
+        if step is None or task is None or work_order_id is None:
+            QMessageBox.information(self, "Maintenance Work Orders", "Select a task step to complete it.")
+            return
+        update_kwargs = {
+            "status": MaintenanceWorkOrderTaskStepStatus.DONE.value,
+            "expected_version": step.version,
+        }
+        if self.step_measurement_edit.text().strip():
+            update_kwargs["measurement_value"] = self.step_measurement_edit.text().strip()
+        updated = self._work_order_task_step_service.update_step(step.id, **update_kwargs)
+        self._reload_after_execution(work_order_id=work_order_id, task_id=task.id, step_id=updated.id)
+
+    def _on_confirm_step(self) -> None:
+        step = self._selected_step()
+        task = self._selected_task()
+        work_order_id = self._selected_work_order_id()
+        if step is None or task is None or work_order_id is None:
+            QMessageBox.information(self, "Maintenance Work Orders", "Select a completed task step to confirm it.")
+            return
+        updated = self._work_order_task_step_service.update_step(
+            step.id,
+            confirm_completion=True,
+            expected_version=step.version,
+        )
+        self._reload_after_execution(work_order_id=work_order_id, task_id=task.id, step_id=updated.id)
+
+    def _on_complete_task(self) -> None:
+        task = self._selected_task()
+        step_id = self._selected_step_id()
+        work_order_id = self._selected_work_order_id()
+        if task is None or work_order_id is None:
+            QMessageBox.information(self, "Maintenance Work Orders", "Select a task to complete it.")
+            return
+        updated = self._work_order_task_service.update_task(
+            task.id,
+            status=MaintenanceWorkOrderTaskStatus.COMPLETED.value,
+            expected_version=task.version,
+        )
+        self._reload_after_execution(work_order_id=work_order_id, task_id=updated.id, step_id=step_id)
 
     def _source_label(self, source_type: str, source_id: str | None) -> str:
         if not source_id:

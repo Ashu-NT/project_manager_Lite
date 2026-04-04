@@ -199,6 +199,8 @@ def _create_maintenance_context(services):
         instruction="Verify isolation, inspect seal area, and capture readings.",
         expected_result="Seal area inspected and condition confirmed.",
         requires_confirmation=True,
+        requires_measurement=True,
+        measurement_unit="C",
     )
     services["maintenance_work_order_material_requirement_service"].create_requirement(
         work_order_id=open_order.id,
@@ -516,6 +518,30 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     assert "Verify isolation" in tab.step_table.item(0, 1).text()
     assert tab.material_table.rowCount() >= 1
     assert "Seal kit" in tab.material_table.item(0, 0).text()
+    tab.task_table.selectRow(0)
+    tab.step_table.selectRow(0)
+    qapp.processEvents()
+    assert tab.btn_start_step.isEnabled()
+    assert tab.btn_done_step.isEnabled()
+    assert not tab.btn_confirm_step.isEnabled()
+    assert not tab.btn_complete_task.isEnabled()
+    tab.btn_start_step.click()
+    qapp.processEvents()
+    assert tab.task_table.item(0, 2).text() == "In Progress"
+    assert tab.step_table.item(0, 2).text() == "In Progress"
+    tab.step_measurement_edit.setText("81.5")
+    tab.btn_done_step.click()
+    qapp.processEvents()
+    assert tab.step_table.item(0, 2).text() == "Done"
+    assert "Measurement 81.5 C" in tab.step_table.item(0, 4).text()
+    assert tab.btn_confirm_step.isEnabled()
+    tab.btn_confirm_step.click()
+    qapp.processEvents()
+    assert "Confirmed" in tab.step_table.item(0, 4).text()
+    assert tab.btn_complete_task.isEnabled()
+    tab.btn_complete_task.click()
+    qapp.processEvents()
+    assert tab.task_table.item(0, 2).text() == "Completed"
     _select_combo_value(tab.responsibility_combo, "__EMPLOYEE__")
     qapp.processEvents()
     assert tab.work_order_table.rowCount() >= 1
