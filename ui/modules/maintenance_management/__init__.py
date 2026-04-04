@@ -4,6 +4,7 @@ from ui.modules.maintenance_management.assets import MaintenanceAssetsTab
 from ui.modules.maintenance_management.dashboard import MaintenanceDashboardTab
 from ui.modules.maintenance_management.documents import MaintenanceDocumentsTab
 from ui.modules.maintenance_management.planner import MaintenancePlannerTab
+from ui.modules.maintenance_management.preventive import MaintenancePreventivePlansTab
 from ui.modules.maintenance_management.reliability import MaintenanceReliabilityTab
 from ui.modules.maintenance_management.requests import MaintenanceRequestsTab
 from ui.modules.maintenance_management.sensors import MaintenanceSensorsTab
@@ -14,6 +15,7 @@ __all__ = [
     "MaintenanceDashboardTab",
     "MaintenanceDocumentsTab",
     "MaintenancePlannerTab",
+    "MaintenancePreventivePlansTab",
     "MaintenanceReliabilityTab",
     "MaintenanceRequestsTab",
     "MaintenanceSensorsTab",

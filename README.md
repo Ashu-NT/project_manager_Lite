@@ -12,7 +12,7 @@ Delivered in the current codebase:
 
 - `Project Management` as the active production module for planning, execution, control, dashboarding, reporting, collaboration, and timesheets
 - `Inventory & Procurement` phase 1 as an available module for item master, storerooms, stock balances and transactions, reservations, requisitions, purchase orders, receiving, and shared document/approval integration
-- `Maintenance Management` as an available early-phase module with persisted master/work execution foundations, sensor/integration monitoring, planner workbench support, reliability analytics/reporting, and first shell workspaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Planner`, and `Reliability`
+- `Maintenance Management` as an available early-phase module with persisted master/work execution foundations, sensor/integration monitoring, preventive planning support, planner workbench support, reliability analytics/reporting, and first shell workspaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`
 - grouped enterprise shell and platform admin workspaces
 - organization and employee management
 - persistent module licensing with organization-scoped entitlements

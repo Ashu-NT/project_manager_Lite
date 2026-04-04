@@ -11,6 +11,7 @@ from ui.modules.maintenance_management import (
     MaintenanceDashboardTab,
     MaintenanceDocumentsTab,
     MaintenancePlannerTab,
+    MaintenancePreventivePlansTab,
     MaintenanceReliabilityTab,
     MaintenanceSensorsTab,
     MaintenanceWorkOrdersTab,
@@ -119,6 +120,21 @@ def _create_maintenance_context(services):
         source.id,
         error_message="Gateway timeout during maintenance UI refresh.",
         expected_version=source.version,
+    )
+    task_template = services["maintenance_task_template_service"].create_task_template(
+        task_template_code="pm-seal-check",
+        name="Seal inspection route",
+        maintenance_type="preventive",
+        template_status="active",
+        estimated_minutes=60,
+        required_skill="Mechanical",
+    )
+    services["maintenance_task_step_template_service"].create_step_template(
+        task_template_id=task_template.id,
+        step_number=1,
+        instruction="Inspect the seal assembly and capture abnormal wear indicators.",
+        expected_result="Seal condition confirmed and documented.",
+        requires_confirmation=True,
     )
     symptom = services["maintenance_failure_code_service"].create_failure_code(
         failure_code="seal-leak",
@@ -310,6 +326,86 @@ def _create_maintenance_context(services):
         request_deferred.id,
         status="DEFERRED",
         expected_version=request_deferred.version,
+    )
+    due_plan = services["maintenance_preventive_plan_service"].create_preventive_plan(
+        site_id=site.id,
+        plan_code="pm-ui-due",
+        name="Due seal inspection",
+        asset_id=asset.id,
+        plan_type="preventive",
+        priority="high",
+        trigger_mode="calendar",
+        calendar_frequency_unit="weekly",
+        calendar_frequency_value=1,
+        next_due_at=(now - timedelta(days=1)).isoformat(),
+        auto_generate_work_order=True,
+        status="active",
+    )
+    services["maintenance_preventive_plan_task_service"].create_plan_task(
+        plan_id=due_plan.id,
+        task_template_id=task_template.id,
+        sequence_no=1,
+        trigger_scope="inherit_plan",
+        estimated_minutes_override=50,
+    )
+    due_soon_plan = services["maintenance_preventive_plan_service"].create_preventive_plan(
+        site_id=site.id,
+        plan_code="pm-ui-soon",
+        name="Due soon seal review",
+        asset_id=asset.id,
+        plan_type="inspection",
+        priority="medium",
+        trigger_mode="calendar",
+        calendar_frequency_unit="monthly",
+        calendar_frequency_value=1,
+        next_due_at=(now + timedelta(days=7)).isoformat(),
+        status="active",
+    )
+    services["maintenance_preventive_plan_task_service"].create_plan_task(
+        plan_id=due_soon_plan.id,
+        task_template_id=task_template.id,
+        sequence_no=1,
+        trigger_scope="inherit_plan",
+    )
+    blocked_plan = services["maintenance_preventive_plan_service"].create_preventive_plan(
+        site_id=site.id,
+        plan_code="pm-ui-blocked",
+        name="Blocked hybrid inspection",
+        asset_id=asset.id,
+        plan_type="condition_based",
+        priority="high",
+        trigger_mode="hybrid",
+        calendar_frequency_unit="monthly",
+        calendar_frequency_value=1,
+        sensor_id=sensor.id,
+        sensor_threshold="1200",
+        sensor_direction="greater_or_equal",
+        next_due_at=(now + timedelta(days=14)).isoformat(),
+        status="active",
+    )
+    services["maintenance_preventive_plan_task_service"].create_plan_task(
+        plan_id=blocked_plan.id,
+        task_template_id=task_template.id,
+        sequence_no=1,
+        trigger_scope="task_override",
+        trigger_mode_override="sensor",
+        sensor_id_override=sensor.id,
+        sensor_threshold_override="1200",
+        sensor_direction_override="greater_or_equal",
+    )
+    services["maintenance_preventive_plan_service"].create_preventive_plan(
+        site_id=site.id,
+        plan_code="pm-ui-paused",
+        name="Paused overhaul library",
+        system_id=system.id,
+        plan_type="preventive",
+        priority="low",
+        trigger_mode="calendar",
+        calendar_frequency_unit="quarterly",
+        calendar_frequency_value=1,
+        next_due_at=(now + timedelta(days=45)).isoformat(),
+        status="paused",
+        is_active=False,
     )
     return site, location, system, asset, symptom
 
@@ -522,6 +618,51 @@ def test_maintenance_planner_tab_surfaces_backlog_material_and_recurring_queues(
     assert "WO-UI-OPEN" in tab.work_order_table.item(0, 0).text()
 
 
+def test_maintenance_preventive_tab_surfaces_due_blocked_and_inactive_plan_states(qapp, services):
+    _enable_maintenance_module(services)
+    site, _location, _system, _asset, _symptom = _create_maintenance_context(services)
+
+    tab = MaintenancePreventivePlansTab(
+        preventive_plan_service=services["maintenance_preventive_plan_service"],
+        preventive_plan_task_service=services["maintenance_preventive_plan_task_service"],
+        preventive_generation_service=services["maintenance_preventive_generation_service"],
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        system_service=services["maintenance_system_service"],
+        sensor_service=services["maintenance_sensor_service"],
+        task_template_service=services["maintenance_task_template_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    assert tab.btn_filters.text().strip() == "Filters"
+    assert tab.filter_panel.isHidden()
+    tab.btn_filters.click()
+    qapp.processEvents()
+    assert not tab.filter_panel.isHidden()
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.plan_table.rowCount() >= 4
+    assert tab.due_now_card._lbl_value.text() != "0"
+    assert tab.due_soon_card._lbl_value.text() != "0"
+    assert tab.blocked_card._lbl_value.text() != "0"
+
+    row = _find_row_by_contains(tab.plan_table, 0, "PM-UI-DUE")
+    assert row >= 0
+    tab.plan_table.selectRow(row)
+    qapp.processEvents()
+    assert "Due seal inspection" in tab.detail_title.text()
+    assert "Due state: Due" in tab.detail_summary.text()
+    assert tab.task_table.rowCount() >= 1
+    assert "PM-SEAL-CHECK" in tab.task_table.item(0, 1).text()
+
+    _select_combo_value(tab.due_state_combo, "BLOCKED")
+    qapp.processEvents()
+    assert tab.plan_table.rowCount() >= 1
+    assert "PM-UI-BLOCKED" in tab.plan_table.item(0, 0).text()
+
+
 def test_maintenance_dashboard_tab_surfaces_reliability_metrics(qapp, services):
     _enable_maintenance_module(services)
     site, _location, _system, asset, _symptom = _create_maintenance_context(services)
@@ -604,6 +745,7 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     assert "Maintenance Dashboard" in labels
     assert "Assets" in labels
     assert "Planner" in labels
+    assert "Preventive Plans" in labels
     assert "Sensors" in labels
     assert "Requests" in labels
     assert "Work Orders" in labels
@@ -615,5 +757,5 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     assert _child_labels(maintenance_section) == ["Overview", "Records", "Planning", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
     assert _child_labels(maintenance_section.child(1)) == ["Assets", "Sensors", "Requests", "Work Orders", "Documents"]
-    assert _child_labels(maintenance_section.child(2)) == ["Planner"]
+    assert _child_labels(maintenance_section.child(2)) == ["Preventive Plans", "Planner"]
     assert _child_labels(maintenance_section.child(3)) == ["Reliability"]
