@@ -147,6 +147,14 @@ def _create_maintenance_context(services):
         code_type="cause",
     )
     now = datetime.now(timezone.utc)
+    assigned_employee = services["employee_service"].create_employee(
+        employee_code="mnt-tech-01",
+        full_name="Maintenance Technician 01",
+        site_id=site.id,
+        site_name=site.name,
+        department="Maintenance",
+        title="Technician",
+    )
     request_open = services["maintenance_work_request_service"].create_work_request(
         site_id=site.id,
         work_request_code="wr-ui-open",
@@ -170,9 +178,10 @@ def _create_maintenance_context(services):
         source_type="work_request",
         source_id=request_open.id,
     )
-    services["maintenance_work_order_service"].update_work_order(
+    open_order = services["maintenance_work_order_service"].update_work_order(
         open_order.id,
         status="planned",
+        assigned_employee_id=assigned_employee.id,
         planned_start=now - timedelta(days=2),
         planned_end=now - timedelta(days=1),
         expected_version=open_order.version,
@@ -180,6 +189,7 @@ def _create_maintenance_context(services):
     open_task = services["maintenance_work_order_task_service"].create_task(
         work_order_id=open_order.id,
         task_name="Inspect seal housing",
+        assigned_employee_id=assigned_employee.id,
         required_skill="Mechanical",
         estimated_minutes=45,
         completion_rule="all_steps_required",
@@ -501,8 +511,15 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     assert "Open seal leak" in tab.detail_title.text()
     assert tab.task_table.rowCount() >= 1
     assert "Inspect seal housing" in tab.task_table.item(0, 0).text()
+    assert "Employee" in tab.task_table.item(0, 1).text()
+    assert tab.step_table.rowCount() >= 1
+    assert "Verify isolation" in tab.step_table.item(0, 1).text()
     assert tab.material_table.rowCount() >= 1
     assert "Seal kit" in tab.material_table.item(0, 0).text()
+    _select_combo_value(tab.responsibility_combo, "__EMPLOYEE__")
+    qapp.processEvents()
+    assert tab.work_order_table.rowCount() >= 1
+    assert "WO-UI-OPEN" in tab.work_order_table.item(0, 0).text()
 
 
 def test_maintenance_documents_tab_lists_linked_documents(qapp, services):

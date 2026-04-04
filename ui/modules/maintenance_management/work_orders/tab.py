@@ -66,6 +66,10 @@ _PENDING_CLOSE_STATUSES = {
     MaintenanceWorkOrderStatus.COMPLETED,
     MaintenanceWorkOrderStatus.VERIFIED,
 }
+_RESPONSIBILITY_ALL = "__ALL__"
+_RESPONSIBILITY_EMPLOYEE = "__EMPLOYEE__"
+_RESPONSIBILITY_TEAM = "__TEAM__"
+_RESPONSIBILITY_UNASSIGNED = "__UNASSIGNED__"
 
 
 class MaintenanceWorkOrdersTab(QWidget):
@@ -130,7 +134,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         )
         toolbar_row = QHBoxLayout()
         toolbar_row.setSpacing(CFG.SPACING_SM)
-        self.filter_summary = QLabel("Filters: All sites | All statuses | All priorities | All types")
+        self.filter_summary = QLabel("Filters: All sites | All statuses | All priorities | All types | All responsibilities")
         self.filter_summary.setStyleSheet(CFG.NOTE_STYLE_SHEET)
         self.filter_summary.setWordWrap(True)
         toolbar_row.addWidget(self.filter_summary, 1)
@@ -151,6 +155,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         self.status_combo = QComboBox()
         self.priority_combo = QComboBox()
         self.type_combo = QComboBox()
+        self.responsibility_combo = QComboBox()
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("Search by code, title, type, status, failure code, or root cause")
         self.status_combo.addItem("All statuses", None)
@@ -162,6 +167,10 @@ class MaintenanceWorkOrdersTab(QWidget):
         self.type_combo.addItem("All types", None)
         for work_order_type in MaintenanceWorkOrderType:
             self.type_combo.addItem(work_order_type.value.replace("_", " ").title(), work_order_type.value)
+        self.responsibility_combo.addItem("All responsibilities", _RESPONSIBILITY_ALL)
+        self.responsibility_combo.addItem("Employee assigned", _RESPONSIBILITY_EMPLOYEE)
+        self.responsibility_combo.addItem("Team assigned", _RESPONSIBILITY_TEAM)
+        self.responsibility_combo.addItem("Unassigned", _RESPONSIBILITY_UNASSIGNED)
         filter_row.addWidget(QLabel("Site"), 0, 0)
         filter_row.addWidget(self.site_combo, 0, 1)
         filter_row.addWidget(QLabel("Status"), 0, 2)
@@ -170,8 +179,10 @@ class MaintenanceWorkOrdersTab(QWidget):
         filter_row.addWidget(self.priority_combo, 1, 1)
         filter_row.addWidget(QLabel("Type"), 1, 2)
         filter_row.addWidget(self.type_combo, 1, 3)
-        filter_row.addWidget(QLabel("Search"), 2, 0)
-        filter_row.addWidget(self.search_edit, 2, 1, 1, 3)
+        filter_row.addWidget(QLabel("Responsibility"), 2, 0)
+        filter_row.addWidget(self.responsibility_combo, 2, 1)
+        filter_row.addWidget(QLabel("Search"), 2, 2)
+        filter_row.addWidget(self.search_edit, 2, 3)
         controls_layout.addWidget(self.filter_panel)
         set_filter_panel_visible(button=self.btn_filters, panel=self.filter_panel, visible=False)
         root.addWidget(controls)
@@ -207,6 +218,9 @@ class MaintenanceWorkOrdersTab(QWidget):
             make_guarded_slot(self, title="Maintenance Work Orders", callback=self.reload_work_orders)
         )
         self.type_combo.currentIndexChanged.connect(
+            make_guarded_slot(self, title="Maintenance Work Orders", callback=self.reload_work_orders)
+        )
+        self.responsibility_combo.currentIndexChanged.connect(
             make_guarded_slot(self, title="Maintenance Work Orders", callback=self.reload_work_orders)
         )
         self.search_edit.returnPressed.connect(
@@ -270,9 +284,10 @@ class MaintenanceWorkOrdersTab(QWidget):
         task_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         layout.addWidget(task_title)
         self.task_table = build_admin_table(
-            headers=("Task", "Status", "Skill", "Minutes", "Steps"),
+            headers=("Task", "Assigned", "Status", "Skill", "Minutes", "Steps"),
             resize_modes=(
                 self._stretch(),
+                self._resize_to_contents(),
                 self._resize_to_contents(),
                 self._resize_to_contents(),
                 self._resize_to_contents(),
@@ -280,6 +295,21 @@ class MaintenanceWorkOrdersTab(QWidget):
             ),
         )
         layout.addWidget(self.task_table)
+
+        step_title = QLabel("Task Steps")
+        step_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        layout.addWidget(step_title)
+        self.step_table = build_admin_table(
+            headers=("Task", "Step", "Status", "Requirements", "Completion"),
+            resize_modes=(
+                self._stretch(),
+                self._stretch(),
+                self._resize_to_contents(),
+                self._stretch(),
+                self._stretch(),
+            ),
+        )
+        layout.addWidget(self.step_table)
 
         material_title = QLabel("Material Requirements")
         material_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
@@ -326,6 +356,7 @@ class MaintenanceWorkOrdersTab(QWidget):
 
     def reload_work_orders(self, *, selected_work_order_id: str | None = None) -> None:
         selected_work_order_id = selected_work_order_id or self._selected_work_order_id()
+        responsibility_filter = selected_combo_value(self.responsibility_combo) or _RESPONSIBILITY_ALL
         try:
             rows = self._work_order_service.search_work_orders(
                 search_text=self.search_edit.text(),
@@ -341,6 +372,13 @@ class MaintenanceWorkOrdersTab(QWidget):
             QMessageBox.critical(self, "Maintenance Work Orders", f"Failed to load maintenance work orders: {exc}")
             return
 
+        if responsibility_filter == _RESPONSIBILITY_EMPLOYEE:
+            rows = [row for row in rows if row.assigned_employee_id]
+        elif responsibility_filter == _RESPONSIBILITY_TEAM:
+            rows = [row for row in rows if row.assigned_team_id]
+        elif responsibility_filter == _RESPONSIBILITY_UNASSIGNED:
+            rows = [row for row in rows if not row.assigned_employee_id and not row.assigned_team_id]
+
         self.total_card.set_value(str(len(rows)))
         self.active_card.set_value(str(sum(1 for row in rows if row.status in _ACTIVE_WORK_ORDER_STATUSES)))
         self.waiting_parts_card.set_value(
@@ -348,14 +386,25 @@ class MaintenanceWorkOrdersTab(QWidget):
         )
         self.pending_close_card.set_value(str(sum(1 for row in rows if row.status in _PENDING_CLOSE_STATUSES)))
         self.context_badge.setText(f"Context: {self._context_label()}")
-        self.queue_badge.setText(f"{len(rows)} work orders")
-        self.execution_badge.setText(
-            f"{sum(1 for row in rows if row.status == MaintenanceWorkOrderStatus.IN_PROGRESS)} in progress"
-        )
+        if responsibility_filter in {_RESPONSIBILITY_EMPLOYEE, _RESPONSIBILITY_TEAM}:
+            self.queue_badge.setText(f"{len(rows)} assigned orders")
+            self.execution_badge.setText(
+                f"{sum(1 for row in rows if row.status == MaintenanceWorkOrderStatus.IN_PROGRESS)} assigned active"
+            )
+        elif responsibility_filter == _RESPONSIBILITY_UNASSIGNED:
+            self.queue_badge.setText(f"{len(rows)} unassigned orders")
+            self.execution_badge.setText(
+                f"{sum(1 for row in rows if row.status == MaintenanceWorkOrderStatus.IN_PROGRESS)} unassigned active"
+            )
+        else:
+            self.queue_badge.setText(f"{len(rows)} work orders")
+            self.execution_badge.setText(
+                f"{sum(1 for row in rows if row.status == MaintenanceWorkOrderStatus.IN_PROGRESS)} in progress"
+            )
         self.filter_summary.setText(
             "Filters: "
             f"{self.site_combo.currentText()} | {self.status_combo.currentText()} | "
-            f"{self.priority_combo.currentText()} | {self.type_combo.currentText()}"
+            f"{self.priority_combo.currentText()} | {self.type_combo.currentText()} | {self.responsibility_combo.currentText()}"
             + (
                 f" | Search: {self.search_edit.text().strip()}"
                 if self.search_edit.text().strip()
@@ -398,6 +447,13 @@ class MaintenanceWorkOrdersTab(QWidget):
                 self._work_order_task_service.list_tasks(work_order_id=work_order.id),
                 key=lambda row: row.sequence_no,
             )
+            step_rows_by_task_id = {
+                task.id: sorted(
+                    self._work_order_task_step_service.list_steps(work_order_task_id=task.id),
+                    key=lambda row: row.step_number,
+                )
+                for task in tasks
+            }
             materials = self._material_requirement_service.list_requirements(work_order_id=work_order.id)
         except BusinessRuleError as exc:
             QMessageBox.warning(self, "Maintenance Work Orders", str(exc))
@@ -430,6 +486,7 @@ class MaintenanceWorkOrdersTab(QWidget):
                     f"Site: {self._site_labels.get(work_order.site_id, work_order.site_id)}",
                     f"Asset: {self._label_for(self._asset_labels, work_order.asset_id)} | System: {self._label_for(self._system_labels, work_order.system_id)}",
                     f"Location: {self._label_for(self._location_labels, work_order.location_id)} | Component: {work_order.component_id or '-'}",
+                    f"Assigned: {self._format_assignment(work_order.assigned_employee_id, work_order.assigned_team_id)} | Planner: {work_order.planner_user_id or '-'} | Supervisor: {work_order.supervisor_user_id or '-'}",
                     f"Source: {source_label}",
                     f"Plan window: {self._format_timestamp_pair(work_order.planned_start, work_order.planned_end)}",
                     f"Actual window: {self._format_timestamp_pair(work_order.actual_start, work_order.actual_end)}",
@@ -439,16 +496,18 @@ class MaintenanceWorkOrdersTab(QWidget):
                 ]
             )
         )
-        self._populate_task_table(tasks)
+        self._populate_task_table(tasks, step_rows_by_task_id=step_rows_by_task_id)
+        self._populate_step_table(tasks, step_rows_by_task_id=step_rows_by_task_id)
         self._populate_material_table(materials)
 
-    def _populate_task_table(self, tasks) -> None:
+    def _populate_task_table(self, tasks, *, step_rows_by_task_id) -> None:
         self.task_table.setRowCount(len(tasks))
         for row_index, task in enumerate(tasks):
-            step_rows = self._work_order_task_step_service.list_steps(work_order_task_id=task.id)
+            step_rows = step_rows_by_task_id.get(task.id, [])
             done_steps = sum(1 for row in step_rows if row.status.value == "DONE")
             values = (
                 f"{task.sequence_no}. {task.task_name}",
+                self._format_assignment(task.assigned_employee_id, task.assigned_team_id),
                 task.status.value.replace("_", " ").title(),
                 task.required_skill or "-",
                 self._format_task_minutes(task),
@@ -456,6 +515,23 @@ class MaintenanceWorkOrdersTab(QWidget):
             )
             for column, value in enumerate(values):
                 self.task_table.setItem(row_index, column, QTableWidgetItem(value))
+
+    def _populate_step_table(self, tasks, *, step_rows_by_task_id) -> None:
+        flattened_rows: list[tuple[object, object]] = []
+        for task in tasks:
+            for step in step_rows_by_task_id.get(task.id, []):
+                flattened_rows.append((task, step))
+        self.step_table.setRowCount(len(flattened_rows))
+        for row_index, (task, step) in enumerate(flattened_rows):
+            values = (
+                f"{task.sequence_no}. {task.task_name}",
+                f"{step.step_number}. {step.instruction}",
+                step.status.value.replace("_", " ").title(),
+                self._format_step_requirements(step),
+                self._format_step_completion(step),
+            )
+            for column, value in enumerate(values):
+                self.step_table.setItem(row_index, column, QTableWidgetItem(value))
 
     def _populate_material_table(self, materials) -> None:
         self.material_table.setRowCount(len(materials))
@@ -481,6 +557,7 @@ class MaintenanceWorkOrdersTab(QWidget):
         self.detail_title.setText("No work order selected")
         self.detail_summary.setText("Select a work order to inspect execution context, tasks, and material demand.")
         self.task_table.setRowCount(0)
+        self.step_table.setRowCount(0)
         self.material_table.setRowCount(0)
 
     def _selected_work_order_id(self) -> str | None:
@@ -565,6 +642,40 @@ class MaintenanceWorkOrdersTab(QWidget):
         if task_status == MaintenanceWorkOrderTaskStatus.COMPLETED:
             return f"{done_steps}/{total_steps} done"
         return f"{done_steps}/{total_steps} complete"
+
+    @staticmethod
+    def _format_assignment(assigned_employee_id: str | None, assigned_team_id: str | None) -> str:
+        if assigned_employee_id:
+            return f"Employee {assigned_employee_id}"
+        if assigned_team_id:
+            return f"Team {assigned_team_id}"
+        return "Unassigned"
+
+    @staticmethod
+    def _format_step_requirements(step) -> str:
+        flags = []
+        if step.requires_confirmation:
+            flags.append("Confirm")
+        if step.requires_measurement:
+            unit = f" {step.measurement_unit}" if step.measurement_unit else ""
+            flags.append(f"Measure{unit}")
+        if step.requires_photo:
+            flags.append("Photo")
+        return ", ".join(flags) if flags else "Standard"
+
+    @staticmethod
+    def _format_step_completion(step) -> str:
+        parts = []
+        if step.completed_at is not None:
+            completed_by = f" by {step.completed_by_user_id}" if step.completed_by_user_id else ""
+            parts.append(f"Done {format_timestamp(step.completed_at)}{completed_by}")
+        if step.confirmed_at is not None:
+            confirmed_by = f" by {step.confirmed_by_user_id}" if step.confirmed_by_user_id else ""
+            parts.append(f"Confirmed {format_timestamp(step.confirmed_at)}{confirmed_by}")
+        if step.measurement_value:
+            measurement_unit = f" {step.measurement_unit}" if step.measurement_unit else ""
+            parts.append(f"Measurement {step.measurement_value}{measurement_unit}")
+        return " | ".join(parts) if parts else "-"
 
     @staticmethod
     def _resize_to_contents():

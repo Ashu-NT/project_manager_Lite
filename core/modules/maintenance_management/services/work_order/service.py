@@ -127,6 +127,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         status: str | None = None,
         priority: str | None = None,
         work_order_type: str | None = None,
+        assigned_employee_id: str | None = None,
+        assigned_team_id: str | None = None,
     ) -> list[MaintenanceWorkOrder]:
         normalized_search = normalize_optional_text(search_text).lower()
         rows = self.list_work_orders(
@@ -134,6 +136,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             status=status,
             priority=priority,
             work_order_type=work_order_type,
+            assigned_employee_id=assigned_employee_id,
+            assigned_team_id=assigned_team_id,
         )
         if not normalized_search:
             return rows
