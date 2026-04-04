@@ -11,10 +11,12 @@ from ui.modules.maintenance_management import (
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
     MaintenanceDocumentsTab,
+    MaintenanceLocationsTab,
     MaintenancePlannerTab,
     MaintenancePreventivePlansTab,
     MaintenanceReliabilityTab,
     MaintenanceSensorsTab,
+    MaintenanceSystemsTab,
     MaintenanceWorkOrdersTab,
 )
 from ui.platform.shell.main_window import MainWindow
@@ -425,6 +427,305 @@ def _create_maintenance_context(services):
         is_active=False,
     )
     return site, location, system, asset, symptom
+
+
+def test_maintenance_locations_tab_supports_create_edit_and_toggle(qapp, services, monkeypatch):
+    _enable_maintenance_module(services)
+    _mute_message_boxes(monkeypatch)
+    site, location, _system, _asset, _symptom = _create_maintenance_context(services)
+
+    tab = MaintenanceLocationsTab(
+        location_service=services["maintenance_location_service"],
+        site_service=services["site_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.table.rowCount() >= 1
+    assert "AREA-A" in tab.table.item(0, 0).text()
+
+    class FakeCreateDialog:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        @property
+        def site_id(self):
+            return site.id
+
+        @property
+        def location_code(self):
+            return "area-b"
+
+        @property
+        def name(self):
+            return "Area B"
+
+        @property
+        def parent_location_id(self):
+            return location.id
+
+        @property
+        def location_type(self):
+            return "AREA"
+
+        @property
+        def criticality(self):
+            return "HIGH"
+
+        @property
+        def status(self):
+            return "ACTIVE"
+
+        @property
+        def description(self):
+            return "Secondary maintenance area"
+
+        @property
+        def notes(self):
+            return "Created from maintenance libraries UI."
+
+        @property
+        def is_active(self):
+            return True
+
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.locations.tab.MaintenanceLocationEditDialog",
+        FakeCreateDialog,
+    )
+    tab.btn_new_location.click()
+    qapp.processEvents()
+    created_row = _find_row_by_contains(tab.table, 0, "AREA-B")
+    assert created_row >= 0
+
+    tab.table.selectRow(created_row)
+    qapp.processEvents()
+
+    class FakeEditDialog:
+        def __init__(self, *args, **kwargs):
+            edited = kwargs["location"]
+            self._location = edited
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        @property
+        def site_id(self):
+            return self._location.site_id
+
+        @property
+        def location_code(self):
+            return self._location.location_code
+
+        @property
+        def name(self):
+            return "Area B Updated"
+
+        @property
+        def parent_location_id(self):
+            return self._location.parent_location_id
+
+        @property
+        def location_type(self):
+            return "ZONE"
+
+        @property
+        def criticality(self):
+            return self._location.criticality.value
+
+        @property
+        def status(self):
+            return self._location.status.value
+
+        @property
+        def description(self):
+            return "Updated through the maintenance locations editor."
+
+        @property
+        def notes(self):
+            return self._location.notes
+
+        @property
+        def is_active(self):
+            return self._location.is_active
+
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.locations.tab.MaintenanceLocationEditDialog",
+        FakeEditDialog,
+    )
+    tab.btn_edit_location.click()
+    qapp.processEvents()
+    created_row = _find_row_by_contains(tab.table, 0, "AREA-B")
+    assert "Area B Updated" in tab.table.item(created_row, 1).text()
+
+    tab.table.selectRow(created_row)
+    qapp.processEvents()
+    tab.btn_toggle_active.click()
+    qapp.processEvents()
+    assert _find_row_by_contains(tab.table, 0, "AREA-B") == -1
+    tab.active_combo.setCurrentIndex(2)
+    qapp.processEvents()
+    created_row = _find_row_by_contains(tab.table, 0, "AREA-B")
+    assert tab.table.item(created_row, 7).text() == "No"
+
+
+def test_maintenance_systems_tab_supports_create_edit_and_toggle(qapp, services, monkeypatch):
+    _enable_maintenance_module(services)
+    _mute_message_boxes(monkeypatch)
+    site, location, system, _asset, _symptom = _create_maintenance_context(services)
+
+    tab = MaintenanceSystemsTab(
+        system_service=services["maintenance_system_service"],
+        location_service=services["maintenance_location_service"],
+        site_service=services["site_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.table.rowCount() >= 1
+    assert "PUMP-LINE" in tab.table.item(0, 0).text()
+
+    class FakeCreateDialog:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        @property
+        def site_id(self):
+            return site.id
+
+        @property
+        def system_code(self):
+            return "pack-line"
+
+        @property
+        def name(self):
+            return "Packaging Line"
+
+        @property
+        def location_id(self):
+            return location.id
+
+        @property
+        def parent_system_id(self):
+            return system.id
+
+        @property
+        def system_type(self):
+            return "PROCESS"
+
+        @property
+        def criticality(self):
+            return "MEDIUM"
+
+        @property
+        def status(self):
+            return "ACTIVE"
+
+        @property
+        def description(self):
+            return "Secondary packaging system."
+
+        @property
+        def notes(self):
+            return "Created from maintenance systems UI."
+
+        @property
+        def is_active(self):
+            return True
+
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.systems.tab.MaintenanceSystemEditDialog",
+        FakeCreateDialog,
+    )
+    tab.btn_new_system.click()
+    qapp.processEvents()
+    created_row = _find_row_by_contains(tab.table, 0, "PACK-LINE")
+    assert created_row >= 0
+
+    tab.table.selectRow(created_row)
+    qapp.processEvents()
+
+    class FakeEditDialog:
+        def __init__(self, *args, **kwargs):
+            edited = kwargs["system"]
+            self._system = edited
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        @property
+        def site_id(self):
+            return self._system.site_id
+
+        @property
+        def system_code(self):
+            return self._system.system_code
+
+        @property
+        def name(self):
+            return "Packaging Line Updated"
+
+        @property
+        def location_id(self):
+            return self._system.location_id
+
+        @property
+        def parent_system_id(self):
+            return self._system.parent_system_id
+
+        @property
+        def system_type(self):
+            return "UTILITY"
+
+        @property
+        def criticality(self):
+            return self._system.criticality.value
+
+        @property
+        def status(self):
+            return self._system.status.value
+
+        @property
+        def description(self):
+            return "Updated through the maintenance systems editor."
+
+        @property
+        def notes(self):
+            return self._system.notes
+
+        @property
+        def is_active(self):
+            return self._system.is_active
+
+    monkeypatch.setattr(
+        "ui.modules.maintenance_management.systems.tab.MaintenanceSystemEditDialog",
+        FakeEditDialog,
+    )
+    tab.btn_edit_system.click()
+    qapp.processEvents()
+    created_row = _find_row_by_contains(tab.table, 0, "PACK-LINE")
+    assert "Packaging Line Updated" in tab.table.item(created_row, 1).text()
+
+    tab.table.selectRow(created_row)
+    qapp.processEvents()
+    tab.btn_toggle_active.click()
+    qapp.processEvents()
+    assert _find_row_by_contains(tab.table, 0, "PACK-LINE") == -1
+    tab.active_combo.setCurrentIndex(2)
+    qapp.processEvents()
+    created_row = _find_row_by_contains(tab.table, 0, "PACK-LINE")
+    assert tab.table.item(created_row, 7).text() == "No"
 
 
 def test_maintenance_assets_tab_lists_assets_and_components(qapp, services):
@@ -1114,6 +1415,8 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
 
     assert "Maintenance Dashboard" in labels
+    assert "Locations" in labels
+    assert "Systems" in labels
     assert "Assets" in labels
     assert "Planner" in labels
     assert "Preventive Plans" in labels
@@ -1125,8 +1428,9 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
 
     maintenance_section = window.shell_navigation.tree.topLevelItem(3)
     assert maintenance_section.text(0) == "Maintenance Management"
-    assert _child_labels(maintenance_section) == ["Overview", "Records", "Planning", "Analytics"]
+    assert _child_labels(maintenance_section) == ["Overview", "Libraries", "Records", "Planning", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
-    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Sensors", "Requests", "Work Orders", "Documents"]
-    assert _child_labels(maintenance_section.child(2)) == ["Preventive Plans", "Planner"]
-    assert _child_labels(maintenance_section.child(3)) == ["Reliability"]
+    assert _child_labels(maintenance_section.child(1)) == ["Locations", "Systems"]
+    assert _child_labels(maintenance_section.child(2)) == ["Assets", "Sensors", "Requests", "Work Orders", "Documents"]
+    assert _child_labels(maintenance_section.child(3)) == ["Preventive Plans", "Planner"]
+    assert _child_labels(maintenance_section.child(4)) == ["Reliability"]

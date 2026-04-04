@@ -4,11 +4,13 @@ from ui.modules.maintenance_management import (
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
     MaintenanceDocumentsTab,
+    MaintenanceLocationsTab,
     MaintenancePlannerTab,
     MaintenancePreventivePlansTab,
     MaintenanceReliabilityTab,
     MaintenanceRequestsTab,
     MaintenanceSensorsTab,
+    MaintenanceSystemsTab,
     MaintenanceWorkOrdersTab,
 )
 from ui.platform.shell.common import (
@@ -49,6 +51,37 @@ def build_maintenance_management_workspace_definitions(
                 ),
             )
         )
+    definitions.append(
+        WorkspaceDefinition(
+            module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,
+            module_label=MAINTENANCE_MANAGEMENT_MODULE_LABEL,
+            group_label="Libraries",
+            label="Locations",
+            widget=MaintenanceLocationsTab(
+                location_service=services["maintenance_location_service"],
+                site_service=services["site_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        )
+    )
+    definitions.append(
+        WorkspaceDefinition(
+            module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,
+            module_label=MAINTENANCE_MANAGEMENT_MODULE_LABEL,
+            group_label="Libraries",
+            label="Systems",
+            widget=MaintenanceSystemsTab(
+                system_service=services["maintenance_system_service"],
+                location_service=services["maintenance_location_service"],
+                site_service=services["site_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        )
+    )
     definitions.append(
         WorkspaceDefinition(
             module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,

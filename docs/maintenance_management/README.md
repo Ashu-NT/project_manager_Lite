@@ -2,7 +2,7 @@
 
 Status: active blueprint and phased implementation tracker, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, plus a live preventive due-generation engine, reliability analytics/report-pack services, and first shell/UI workspaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`; the planner now folds due, due-soon, blocked, material-risk, and recurring-failure review into one tree-driven planning surface, `Sensors` now uses tree-driven monitoring views plus a nested sensor-detail popup, `Work Orders` now follows a queue-first popup flow with technician-facing assigned-work filtering, a compact execution section for fast confirmation, live step start/done/confirm and task completion actions, richer evidence capture/link/unlink/preview flows, and shared-time-backed labor booking, and `Reliability` now exports recurring-failure and exception-review workbooks alongside the earlier backlog, PM, downtime, and execution packs. The important current limit is that the implemented UI is still mainly runtime/browse oriented; dedicated maintenance setup and authoring screens for `Locations`, `Systems`, richer `Assets` administration, `Task Templates`, `Task Step Templates`, full `Preventive Plan` authoring, richer `Sensors` registry management, and request/order creation libraries are still pending in the blueprint backlog.
+Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, plus a live preventive due-generation engine, reliability analytics/report-pack services, and first shell/UI workspaces for `Maintenance Dashboard`, `Locations`, `Systems`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`; the planner now folds due, due-soon, blocked, material-risk, and recurring-failure review into one tree-driven planning surface, `Sensors` now uses tree-driven monitoring views plus a nested sensor-detail popup, `Work Orders` now follows a queue-first popup flow with technician-facing assigned-work filtering, a compact execution section for fast confirmation, live step start/done/confirm and task completion actions, richer evidence capture/link/unlink/preview flows, and shared-time-backed labor booking, and `Reliability` now exports recurring-failure and exception-review workbooks alongside the earlier backlog, PM, downtime, and execution packs. The maintenance shell now also starts a real `Libraries` setup area with create/edit/toggle-active flows for `Locations` and `Systems`. The important current limit is that the implemented UI is still only partially into authoring/setup; richer `Assets` administration, `Task Templates`, `Task Step Templates`, full `Preventive Plan` authoring, richer `Sensors` registry management, and request/order creation libraries are still pending in the blueprint backlog.
 
 ## Purpose
 
@@ -54,6 +54,8 @@ That means:
 The current implementation already covers the first operational workbenches:
 
 - `Maintenance Dashboard`
+- `Locations`
+- `Systems`
 - `Assets`
 - `Sensors`
 - `Requests`
@@ -76,8 +78,6 @@ They are not yet the full maintenance setup surface.
 
 Still pending as explicit maintenance authoring/setup UI:
 
-- `Locations` library and hierarchy maintenance
-- `Systems` library and hierarchy maintenance
 - richer `Assets` admin/create-edit flows beyond the current browse/detail runtime
 - `Task Templates` library
 - `Task Step Templates` library
@@ -91,7 +91,7 @@ This is an important distinction for the blueprint:
 - current UI = operational runtime
 - pending UI = setup, library, and authoring surfaces
 
-That setup backlog should stay explicit until the maintenance shell grows a dedicated `Libraries` / `Setup` area.
+That setup backlog should stay explicit while the maintenance shell grows out the rest of its dedicated `Libraries` / `Setup` area.
 
 ## Design Principles
 
@@ -1937,13 +1937,13 @@ Recommended maintenance shell groups once the setup side is built:
 - `Libraries`
 - `Analytics`
 
-The current implementation mostly covers `Overview`, `Operations`, `Planning`, and `Analytics`.
-The missing gap is `Libraries`.
+The current implementation now covers the first `Libraries` slice as well.
+The remaining gap is the rest of the authoring/setup surface under `Libraries`.
 
 Recommended future `Libraries` workspaces:
 
-- `Locations`
-- `Systems`
+- `Locations`. Started.
+- `Systems`. Started.
 - `Asset Library`
 - `Task Templates`
 - `Preventive Plan Library`
@@ -2219,7 +2219,7 @@ Build first:
 Current kickoff status:
 
 - started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
-- started: first shell/UI surfaces for `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`, backed by the live asset, sensor, request, work-order, document, preventive, and reliability services, with planner-side preventive readiness queues for due, due-soon, and blocked plans, tree-driven monitoring/planning navigation in `Sensors` and `Planner`, and a queue-first popup execution flow in `Work Orders` with assigned-work filtering, compact technician confirmation controls, shared-time-backed labor booking, and richer execution-evidence capture/link/unlink/preview actions
+- started: first shell/UI surfaces for `Maintenance Dashboard`, `Locations`, `Systems`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`, backed by the live asset, sensor, request, work-order, document, preventive, and reliability services, with planner-side preventive readiness queues for due, due-soon, and blocked plans, tree-driven monitoring/planning navigation in `Sensors` and `Planner`, queue-first popup execution flow in `Work Orders`, and the first maintenance `Libraries` setup slice for `Locations` and `Systems`
 - started: preventive-maintenance foundation for `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, including lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
 - started: preventive due-generation engine for calendar, sensor, and hybrid plans, including work-request/work-order generation and template-to-execution task/step copying
 - pending: deeper field/mobile confirmation variants on top of the current execution/runtime foundation
@@ -2227,6 +2227,8 @@ Current kickoff status:
 Phase 1 UI:
 
 - Maintenance Dashboard
+- Locations
+- Systems
 - Reliability
 - Assets
 - Sensors
@@ -2317,8 +2319,9 @@ Build next:
 
 ### UI
 
-- started: workspace registration, module licensing, `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability` workbench surfaces
-- pending: maintenance `Libraries` / `Setup` area for `Locations`, `Systems`, `Asset Library`, `Task Templates`, `Task Step Templates`, richer `Preventive Plan` authoring, and richer `Sensor Registry` administration
+- started: workspace registration, module licensing, `Maintenance Dashboard`, `Locations`, `Systems`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability` workbench surfaces
+- started: maintenance `Libraries` / `Setup` area with `Locations` and `Systems`
+- pending: `Asset Library`, `Task Templates`, `Task Step Templates`, richer `Preventive Plan` authoring, richer `Sensor Registry` administration, and guided request/work-order authoring surfaces
 - asset list/detail runtime
 - work request queue
 - work order queue and detail runtime

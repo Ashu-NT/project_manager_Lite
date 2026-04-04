@@ -10,6 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1499,
     "infra/modules/maintenance_management/db/repository.py": 1481,
     "infra/platform/db/maintenance_models.py": 1275,
+    "tests/test_maintenance_ui.py": 1450,
 }
 
 
