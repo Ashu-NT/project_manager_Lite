@@ -1418,6 +1418,7 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     assert "Locations" in labels
     assert "Systems" in labels
     assert "Task Templates" in labels
+    assert "Asset Library" in labels
     assert "Assets" in labels
     assert "Planner" in labels
     assert "Preventive Plans" in labels
@@ -1431,7 +1432,7 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     assert maintenance_section.text(0) == "Maintenance Management"
     assert _child_labels(maintenance_section) == ["Overview", "Libraries", "Records", "Planning", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
-    assert _child_labels(maintenance_section.child(1)) == ["Locations", "Systems", "Task Templates"]
+    assert _child_labels(maintenance_section.child(1)) == ["Locations", "Systems", "Task Templates", "Asset Library"]
     assert _child_labels(maintenance_section.child(2)) == ["Assets", "Sensors", "Requests", "Work Orders", "Documents"]
     assert _child_labels(maintenance_section.child(3)) == ["Preventive Plans", "Planner"]
     assert _child_labels(maintenance_section.child(4)) == ["Reliability"]

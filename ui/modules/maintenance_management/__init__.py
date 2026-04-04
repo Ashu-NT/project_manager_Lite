@@ -1,5 +1,6 @@
 """User-interface package for the maintenance management module."""
 
+from ui.modules.maintenance_management.asset_library import MaintenanceAssetLibraryTab
 from ui.modules.maintenance_management.assets import MaintenanceAssetsTab
 from ui.modules.maintenance_management.dashboard import MaintenanceDashboardTab
 from ui.modules.maintenance_management.documents import MaintenanceDocumentsTab
@@ -14,6 +15,7 @@ from ui.modules.maintenance_management.task_templates import MaintenanceTaskTemp
 from ui.modules.maintenance_management.work_orders import MaintenanceWorkOrdersTab
 
 __all__ = [
+    "MaintenanceAssetLibraryTab",
     "MaintenanceAssetsTab",
     "MaintenanceDashboardTab",
     "MaintenanceDocumentsTab",

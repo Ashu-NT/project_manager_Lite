@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ui.modules.maintenance_management import (
+    MaintenanceAssetLibraryTab,
     MaintenanceAssetsTab,
     MaintenanceDashboardTab,
     MaintenanceDocumentsTab,
@@ -92,6 +93,24 @@ def build_maintenance_management_workspace_definitions(
             widget=MaintenanceTaskTemplatesTab(
                 task_template_service=services["maintenance_task_template_service"],
                 task_step_template_service=services["maintenance_task_step_template_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        )
+    )
+    definitions.append(
+        WorkspaceDefinition(
+            module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,
+            module_label=MAINTENANCE_MANAGEMENT_MODULE_LABEL,
+            group_label="Libraries",
+            label="Asset Library",
+            widget=MaintenanceAssetLibraryTab(
+                asset_service=services["maintenance_asset_service"],
+                component_service=services["maintenance_asset_component_service"],
+                site_service=services["site_service"],
+                location_service=services["maintenance_location_service"],
+                system_service=services["maintenance_system_service"],
                 platform_runtime_application_service=context.platform_runtime_application_service,
                 user_session=context.user_session,
                 parent=context.parent,
