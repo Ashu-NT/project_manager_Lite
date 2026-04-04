@@ -674,3 +674,72 @@ def test_maintenance_sensor_mappings_and_exceptions_persist_via_service_graph(se
     assert [row.id for row in mappings] == [mapping.id]
     assert any(row.integration_source_id == source.id and row.exception_type.value == "EXTERNAL_SYNC_FAILURE" for row in exceptions)
     assert any(row.sensor_id == sensor.id and row.exception_type.value == "STALE_READING" for row in exceptions)
+
+
+def test_maintenance_failure_codes_and_downtime_events_persist_via_service_graph(services):
+    site = services["site_service"].create_site(site_code="MNT-RLY", name="Reliability Plant")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="rly-area",
+        name="Reliability Area",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="rly-asset",
+        name="Reliability Asset",
+    )
+    symptom_code = services["maintenance_failure_code_service"].create_failure_code(
+        failure_code="seal-leak",
+        name="Seal Leak",
+        code_type="symptom",
+    )
+    cause_code = services["maintenance_failure_code_service"].create_failure_code(
+        failure_code="misalignment",
+        name="Misalignment",
+        code_type="cause",
+    )
+    work_request = services["maintenance_work_request_service"].create_work_request(
+        site_id=site.id,
+        work_request_code="wr-rly-100",
+        source_type="manual",
+        request_type="breakdown",
+        asset_id=asset.id,
+        location_id=location.id,
+        title="Seal leak on main pump",
+        failure_symptom_code=symptom_code.failure_code,
+    )
+    work_order = services["maintenance_work_order_service"].create_work_order(
+        site_id=site.id,
+        work_order_code="wo-rly-100",
+        work_order_type="corrective",
+        source_type="work_request",
+        source_id=work_request.id,
+    )
+    updated_work_order = services["maintenance_work_order_service"].update_work_order(
+        work_order.id,
+        failure_code=symptom_code.failure_code,
+        root_cause_code=cause_code.failure_code,
+        expected_version=work_order.version,
+    )
+    downtime_event = services["maintenance_downtime_event_service"].create_downtime_event(
+        work_order_id=updated_work_order.id,
+        started_at="2026-04-03T08:00:00+00:00",
+        ended_at="2026-04-03T09:15:00+00:00",
+        downtime_type="unplanned",
+        reason_code=symptom_code.failure_code,
+        impact_notes="Production stopped during seal replacement.",
+    )
+
+    listed_codes = services["maintenance_failure_code_service"].list_failure_codes()
+    listed_events = services["maintenance_downtime_event_service"].list_downtime_events(
+        work_order_id=updated_work_order.id
+    )
+    reloaded_work_order = services["maintenance_work_order_service"].get_work_order(updated_work_order.id)
+
+    assert [row.failure_code for row in listed_codes] == ["MISALIGNMENT", "SEAL-LEAK"]
+    assert [row.id for row in listed_events] == [downtime_event.id]
+    assert listed_events[0].duration_minutes == 75
+    assert reloaded_work_order.failure_code == symptom_code.failure_code
+    assert reloaded_work_order.root_cause_code == cause_code.failure_code
+    assert reloaded_work_order.downtime_minutes == 75

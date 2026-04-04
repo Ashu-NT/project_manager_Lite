@@ -407,6 +407,8 @@ Progress notes:
 - maintenance now also has the first `work_order_material_requirement` slice, including demand-side material records, availability refresh against the inventory contract, requisition escalation linkage, persistence, migration coverage, and service-graph exposure
 - maintenance now also has the first `sensor` and `sensor_reading` slices, including anchored sensor master data, time-series reading capture, current-value snapshot refresh, persistence, migration coverage, and service-graph exposure
 - maintenance now also has the first `integration_source` slice, including sync-endpoint master data, last-success/last-failure tracking, persistence, migration coverage, and service-graph exposure
+- maintenance now also has the first `sensor_source_mapping` and `sensor_exception` slices, including external-to-internal sensor binding, exception queue records, persistence, migration coverage, service-graph exposure, and regression coverage for stale/unit-mismatch/sync-failure cases
+- maintenance now also has the first reliability foundations for `failure_code` and `downtime_event`, including controlled failure-code master data, downtime duration tracking, work-order downtime rollup, persistence, migration coverage, and service-graph exposure
 
 ## Guardrails
 

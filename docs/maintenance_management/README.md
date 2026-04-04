@@ -2,7 +2,7 @@
 
 Status: planning blueprint, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: module-owned `location`, `system`, `asset`, and `asset_component` now have core domain, SQLAlchemy persistence, migration coverage, and service-graph wiring, but there are still no live maintenance workflows or UI surfaces yet
+Implementation state: maintenance now has backend foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, all with domain/service/persistence wiring and regression coverage, while UI surfaces, preventive templates, and deeper reliability analytics are still pending
 
 ## Purpose
 
@@ -2148,7 +2148,7 @@ Build first:
 
 Current kickoff status:
 
-- started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, and `integration_source` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
+- started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
 - pending: import handlers, UI surfaces, and the later preventive-maintenance template stack
 
 Phase 1 UI:
@@ -2196,8 +2196,9 @@ Phase 3 UI:
 
 Build next:
 
-- sensor source mapping
-- sensor exception handling
+- integration status cards
+- exception queue UI
+- sensor-driven preventive trigger bridge
 
 Phase 4 UI:
 
@@ -2209,8 +2210,6 @@ Phase 4 UI:
 
 Build next:
 
-- downtime events
-- failure codes
 - root cause analysis helpers
 - KPI dashboard
 - recurring failure analytics

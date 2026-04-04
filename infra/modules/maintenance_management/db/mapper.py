@@ -3,6 +3,8 @@ from __future__ import annotations
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
+    MaintenanceDowntimeEvent,
+    MaintenanceFailureCode,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
     MaintenanceSensorException,
@@ -19,6 +21,8 @@ from core.modules.maintenance_management.domain import (
 from infra.platform.db.maintenance_models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
+    MaintenanceDowntimeEventORM,
+    MaintenanceFailureCodeORM,
     MaintenanceIntegrationSourceORM,
     MaintenanceLocationORM,
     MaintenanceSensorExceptionORM,
@@ -468,6 +472,76 @@ def maintenance_sensor_exception_from_orm(obj: MaintenanceSensorExceptionORM) ->
         resolved_at=obj.resolved_at,
         resolved_by_user_id=obj.resolved_by_user_id,
         notes=obj.notes or "",
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_failure_code_to_orm(failure_code: MaintenanceFailureCode) -> MaintenanceFailureCodeORM:
+    return MaintenanceFailureCodeORM(
+        id=failure_code.id,
+        organization_id=failure_code.organization_id,
+        failure_code=failure_code.failure_code,
+        name=failure_code.name,
+        description=failure_code.description or None,
+        code_type=failure_code.code_type,
+        parent_code_id=failure_code.parent_code_id,
+        is_active=failure_code.is_active,
+        created_at=failure_code.created_at,
+        updated_at=failure_code.updated_at,
+        version=getattr(failure_code, "version", 1),
+    )
+
+
+def maintenance_failure_code_from_orm(obj: MaintenanceFailureCodeORM) -> MaintenanceFailureCode:
+    return MaintenanceFailureCode(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        failure_code=obj.failure_code,
+        name=obj.name,
+        description=obj.description or "",
+        code_type=obj.code_type,
+        parent_code_id=obj.parent_code_id,
+        is_active=obj.is_active,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_downtime_event_to_orm(downtime_event: MaintenanceDowntimeEvent) -> MaintenanceDowntimeEventORM:
+    return MaintenanceDowntimeEventORM(
+        id=downtime_event.id,
+        organization_id=downtime_event.organization_id,
+        asset_id=downtime_event.asset_id,
+        system_id=downtime_event.system_id,
+        work_order_id=downtime_event.work_order_id,
+        started_at=downtime_event.started_at,
+        ended_at=downtime_event.ended_at,
+        duration_minutes=downtime_event.duration_minutes,
+        downtime_type=downtime_event.downtime_type,
+        reason_code=downtime_event.reason_code,
+        impact_notes=downtime_event.impact_notes,
+        created_at=downtime_event.created_at,
+        updated_at=downtime_event.updated_at,
+        version=getattr(downtime_event, "version", 1),
+    )
+
+
+def maintenance_downtime_event_from_orm(obj: MaintenanceDowntimeEventORM) -> MaintenanceDowntimeEvent:
+    return MaintenanceDowntimeEvent(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        asset_id=obj.asset_id,
+        system_id=obj.system_id,
+        work_order_id=obj.work_order_id,
+        started_at=obj.started_at,
+        ended_at=obj.ended_at,
+        duration_minutes=obj.duration_minutes,
+        downtime_type=obj.downtime_type,
+        reason_code=obj.reason_code,
+        impact_notes=obj.impact_notes,
         created_at=obj.created_at,
         updated_at=obj.updated_at,
         version=getattr(obj, "version", 1),

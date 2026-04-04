@@ -6,6 +6,8 @@ from core.platform.access import ScopedRolePolicy
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDowntimeEventService,
+    MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
     MaintenanceWorkOrderMaterialRequirementService,
@@ -28,6 +30,8 @@ from core.modules.maintenance_management.access import (
 from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceAssetRepository,
     SqlAlchemyMaintenanceAssetComponentRepository,
+    SqlAlchemyMaintenanceDowntimeEventRepository,
+    SqlAlchemyMaintenanceFailureCodeRepository,
     SqlAlchemyMaintenanceIntegrationSourceRepository,
     SqlAlchemyMaintenanceLocationRepository,
     SqlAlchemyMaintenanceSensorExceptionRepository,
@@ -51,6 +55,8 @@ class MaintenanceManagementServiceBundle:
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
     maintenance_asset_service: MaintenanceAssetService
     maintenance_asset_component_service: MaintenanceAssetComponentService
+    maintenance_downtime_event_service: MaintenanceDowntimeEventService
+    maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
     maintenance_sensor_exception_service: MaintenanceSensorExceptionService
@@ -73,6 +79,8 @@ def build_maintenance_management_service_bundle(
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
     asset_repo = SqlAlchemyMaintenanceAssetRepository(platform_services.session)
     component_repo = SqlAlchemyMaintenanceAssetComponentRepository(platform_services.session)
+    downtime_event_repo = SqlAlchemyMaintenanceDowntimeEventRepository(platform_services.session)
+    failure_code_repo = SqlAlchemyMaintenanceFailureCodeRepository(platform_services.session)
     integration_source_repo = SqlAlchemyMaintenanceIntegrationSourceRepository(platform_services.session)
     sensor_source_mapping_repo = SqlAlchemyMaintenanceSensorSourceMappingRepository(platform_services.session)
     sensor_exception_repo = SqlAlchemyMaintenanceSensorExceptionRepository(platform_services.session)
@@ -120,6 +128,24 @@ def build_maintenance_management_service_bundle(
         asset_repo=asset_repo,
         organization_repo=platform_services.organization_repo,
         party_repo=platform_services.party_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_downtime_event_service = MaintenanceDowntimeEventService(
+        platform_services.session,
+        downtime_event_repo,
+        organization_repo=platform_services.organization_repo,
+        work_order_repo=work_order_repo,
+        asset_repo=asset_repo,
+        component_repo=component_repo,
+        system_repo=system_repo,
+        user_session=platform_services.user_session,
+        audit_service=platform_services.audit_service,
+    )
+    maintenance_failure_code_service = MaintenanceFailureCodeService(
+        platform_services.session,
+        failure_code_repo,
+        organization_repo=platform_services.organization_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -198,6 +224,7 @@ def build_maintenance_management_service_bundle(
         component_repo=component_repo,
         location_repo=location_repo,
         system_repo=system_repo,
+        failure_code_repo=failure_code_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -212,6 +239,7 @@ def build_maintenance_management_service_bundle(
         location_repo=location_repo,
         system_repo=system_repo,
         work_request_repo=work_request_repo,
+        failure_code_repo=failure_code_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -248,6 +276,8 @@ def build_maintenance_management_service_bundle(
         maintenance_runtime_contract_catalog_service=maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_asset_service,
         maintenance_asset_component_service=maintenance_asset_component_service,
+        maintenance_downtime_event_service=maintenance_downtime_event_service,
+        maintenance_failure_code_service=maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_integration_source_service,
         maintenance_location_service=maintenance_location_service,
         maintenance_sensor_exception_service=maintenance_sensor_exception_service,

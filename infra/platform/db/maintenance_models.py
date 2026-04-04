@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.modules.maintenance_management.domain import (
     MaintenanceCriticality,
+    MaintenanceFailureCodeType,
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
     MaintenancePriority,
@@ -492,6 +493,79 @@ class MaintenanceSensorExceptionORM(Base):
         nullable=True,
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceFailureCodeORM(Base):
+    __tablename__ = "maintenance_failure_codes"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "failure_code", name="ux_maintenance_failure_codes_org_code"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    failure_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    code_type: Mapped[MaintenanceFailureCodeType] = mapped_column(
+        SAEnum(MaintenanceFailureCodeType),
+        nullable=False,
+        default=MaintenanceFailureCodeType.SYMPTOM,
+        server_default=MaintenanceFailureCodeType.SYMPTOM.value,
+    )
+    parent_code_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_failure_codes.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+class MaintenanceDowntimeEventORM(Base):
+    __tablename__ = "maintenance_downtime_events"
+    __table_args__ = (
+        Index("ix_maintenance_downtime_events_work_order", "work_order_id"),
+        Index("ix_maintenance_downtime_events_asset", "asset_id"),
+        Index("ix_maintenance_downtime_events_system", "system_id"),
+        Index("ix_maintenance_downtime_events_start", "started_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    organization_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    asset_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_assets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    system_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_systems.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    work_order_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("maintenance_work_orders.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    downtime_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    impact_notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")

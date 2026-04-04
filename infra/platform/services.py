@@ -34,6 +34,8 @@ from core.modules.inventory_procurement import (
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDowntimeEventService,
+    MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
     MaintenanceWorkOrderMaterialRequirementService,
@@ -105,6 +107,8 @@ class ServiceGraph:
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
     maintenance_asset_service: MaintenanceAssetService
     maintenance_asset_component_service: MaintenanceAssetComponentService
+    maintenance_downtime_event_service: MaintenanceDowntimeEventService
+    maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
     maintenance_sensor_exception_service: MaintenanceSensorExceptionService
@@ -171,6 +175,8 @@ class ServiceGraph:
             "maintenance_runtime_contract_catalog_service": self.maintenance_runtime_contract_catalog_service,
             "maintenance_asset_service": self.maintenance_asset_service,
             "maintenance_asset_component_service": self.maintenance_asset_component_service,
+            "maintenance_downtime_event_service": self.maintenance_downtime_event_service,
+            "maintenance_failure_code_service": self.maintenance_failure_code_service,
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
             "maintenance_location_service": self.maintenance_location_service,
             "maintenance_sensor_exception_service": self.maintenance_sensor_exception_service,
@@ -251,6 +257,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_runtime_contract_catalog_service=maintenance_management_services.maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_management_services.maintenance_asset_service,
         maintenance_asset_component_service=maintenance_management_services.maintenance_asset_component_service,
+        maintenance_downtime_event_service=maintenance_management_services.maintenance_downtime_event_service,
+        maintenance_failure_code_service=maintenance_management_services.maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
         maintenance_sensor_exception_service=maintenance_management_services.maintenance_sensor_exception_service,

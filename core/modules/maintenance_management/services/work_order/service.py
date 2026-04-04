@@ -5,10 +5,11 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceWorkOrder
+from core.modules.maintenance_management.domain import MaintenanceFailureCodeType, MaintenanceWorkOrder
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
+    MaintenanceFailureCodeRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
@@ -45,6 +46,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         location_repo: MaintenanceLocationRepository,
         system_repo: MaintenanceSystemRepository,
         work_request_repo: MaintenanceWorkRequestRepository,
+        failure_code_repo: MaintenanceFailureCodeRepository | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -58,6 +60,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._location_repo = location_repo
         self._system_repo = system_repo
         self._work_request_repo = work_request_repo
+        self._failure_code_repo = failure_code_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -391,9 +394,23 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         if approval_required is not None:
             work_order.approval_required = bool(approval_required)
         if failure_code is not None:
-            work_order.failure_code = normalize_optional_text(failure_code)
+            work_order.failure_code = self._normalize_failure_code(
+                failure_code,
+                organization=organization,
+                expected_type=MaintenanceFailureCodeType.SYMPTOM,
+                label="Failure code",
+                not_found_code="MAINTENANCE_FAILURE_CODE_NOT_FOUND",
+                invalid_code="MAINTENANCE_FAILURE_CODE_INVALID",
+            )
         if root_cause_code is not None:
-            work_order.root_cause_code = normalize_optional_text(root_cause_code)
+            work_order.root_cause_code = self._normalize_failure_code(
+                root_cause_code,
+                organization=organization,
+                expected_type=MaintenanceFailureCodeType.CAUSE,
+                label="Root cause code",
+                not_found_code="MAINTENANCE_ROOT_CAUSE_CODE_NOT_FOUND",
+                invalid_code="MAINTENANCE_ROOT_CAUSE_CODE_INVALID",
+            )
         if downtime_minutes is not None:
             work_order.downtime_minutes = downtime_minutes
         if parts_cost is not None:
@@ -461,6 +478,29 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
+
+    def _normalize_failure_code(
+        self,
+        value: str | None,
+        *,
+        organization: Organization,
+        expected_type: MaintenanceFailureCodeType,
+        label: str,
+        not_found_code: str,
+        invalid_code: str,
+    ) -> str:
+        normalized = normalize_optional_text(value).upper()
+        if not normalized or self._failure_code_repo is None:
+            return normalized
+        failure_code = self._failure_code_repo.get_by_code(organization.id, normalized)
+        if failure_code is None:
+            raise ValidationError(f"{label} not found in the active organization.", code=not_found_code)
+        if failure_code.code_type != expected_type:
+            raise ValidationError(
+                f"{label} must use a {expected_type.value} maintenance failure code.",
+                code=invalid_code,
+            )
+        return normalized
 
     def _get_site(self, site_id: str, *, organization: Organization) -> Site:
         site = self._site_repo.get(site_id)
