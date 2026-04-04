@@ -411,7 +411,7 @@ Progress notes:
 - maintenance now also has the first reliability foundations for `failure_code` and `downtime_event`, including controlled failure-code master data, downtime duration tracking, work-order downtime rollup, persistence, migration coverage, and service-graph exposure
 - maintenance now also has a first reliability analytics foundation on top of those records, including KPI snapshot assembly, root-cause suggestion helpers, recurring-failure rollups, service-graph exposure, and regression coverage for both in-memory and persisted flows
 - maintenance now also has the first rendered report-pack layer on top of that analytics seam, including backlog, PM compliance, downtime, and execution overview Excel/PDF outputs wired through the shared report runtime
-- maintenance is now cataloged as an available-but-disabled module by default, and the shell can expose the first `Maintenance Dashboard`, `Assets`, `Requests`, `Work Orders`, `Documents`, and `Reliability` workspaces when the module is licensed and enabled
+- maintenance is now cataloged as an available-but-disabled module by default, and the shell can expose the first `Maintenance Dashboard`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, and `Reliability` workspaces when the module is licensed and enabled
 
 ## Guardrails
 

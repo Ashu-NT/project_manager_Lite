@@ -11,6 +11,7 @@ from ui.modules.maintenance_management import (
     MaintenanceDashboardTab,
     MaintenanceDocumentsTab,
     MaintenanceReliabilityTab,
+    MaintenanceSensorsTab,
     MaintenanceWorkOrdersTab,
 )
 from ui.platform.shell.main_window import MainWindow
@@ -79,6 +80,44 @@ def _create_maintenance_context(services):
         name="Mechanical Seal",
         component_type="seal",
         is_critical_component=True,
+    )
+    source = services["maintenance_integration_source_service"].create_source(
+        integration_code="iot-ui-1",
+        name="IoT Gateway UI",
+        integration_type="iot_gateway",
+        endpoint_or_path="mqtt://broker/pumps",
+        authentication_mode="token",
+        schedule_expression="*/10 * * * *",
+    )
+    sensor = services["maintenance_sensor_service"].create_sensor(
+        site_id=site.id,
+        sensor_code="run-hours-101",
+        sensor_name="Pump 101 Running Hours",
+        asset_id=asset.id,
+        sensor_type="running_hours",
+        source_type="iot_gateway",
+        source_name=source.name,
+        source_key="pump-101.hours",
+        unit="H",
+    )
+    services["maintenance_sensor_source_mapping_service"].create_mapping(
+        integration_source_id=source.id,
+        sensor_id=sensor.id,
+        external_equipment_key="PUMP-101",
+        external_measurement_key="run_hours",
+    )
+    services["maintenance_sensor_reading_service"].record_reading(
+        sensor_id=sensor.id,
+        reading_value="1240.5",
+        reading_unit="H",
+        quality_state="stale",
+        source_name=source.name,
+        source_batch_id="BATCH-UI-001",
+    )
+    services["maintenance_integration_source_service"].record_sync_failure(
+        source.id,
+        error_message="Gateway timeout during maintenance UI refresh.",
+        expected_version=source.version,
     )
     symptom = services["maintenance_failure_code_service"].create_failure_code(
         failure_code="seal-leak",
@@ -406,6 +445,46 @@ def test_maintenance_documents_tab_lists_linked_documents(qapp, services):
     assert tab.metadata_labels["type"].text() == "Procedure"
 
 
+def test_maintenance_sensors_tab_lists_sensor_register_and_exception_queue(qapp, services):
+    _enable_maintenance_module(services)
+    site, _location, _system, asset, _symptom = _create_maintenance_context(services)
+
+    tab = MaintenanceSensorsTab(
+        sensor_service=services["maintenance_sensor_service"],
+        sensor_reading_service=services["maintenance_sensor_reading_service"],
+        sensor_source_mapping_service=services["maintenance_sensor_source_mapping_service"],
+        sensor_exception_service=services["maintenance_sensor_exception_service"],
+        integration_source_service=services["maintenance_integration_source_service"],
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        component_service=services["maintenance_asset_component_service"],
+        location_service=services["maintenance_location_service"],
+        system_service=services["maintenance_system_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    assert tab.btn_filters.text().strip() == "Filters"
+    assert tab.filter_panel.isHidden()
+    tab.btn_filters.click()
+    qapp.processEvents()
+    assert not tab.filter_panel.isHidden()
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+    _select_combo_value(tab.asset_combo, asset.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.sensor_table.rowCount() >= 1
+    assert "RUN-HOURS-101" in tab.sensor_table.item(0, 0).text()
+    assert tab.integration_table.rowCount() >= 1
+    assert tab.exception_table.rowCount() >= 1
+    assert tab.attention_card._lbl_value.text() != "0"
+    assert tab.open_exceptions_card._lbl_value.text() != "0"
+    assert tab.detail_title.text() == "RUN-HOURS-101 - Pump 101 Running Hours"
+    assert tab.reading_table.rowCount() >= 1
+    assert tab.mapping_table.rowCount() >= 1
+
+
 def test_maintenance_dashboard_tab_surfaces_reliability_metrics(qapp, services):
     _enable_maintenance_module(services)
     site, _location, _system, asset, _symptom = _create_maintenance_context(services)
@@ -487,6 +566,7 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
 
     assert "Maintenance Dashboard" in labels
     assert "Assets" in labels
+    assert "Sensors" in labels
     assert "Requests" in labels
     assert "Work Orders" in labels
     assert "Documents" in labels
@@ -496,5 +576,5 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     assert maintenance_section.text(0) == "Maintenance Management"
     assert _child_labels(maintenance_section) == ["Overview", "Records", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
-    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Requests", "Work Orders", "Documents"]
+    assert _child_labels(maintenance_section.child(1)) == ["Assets", "Sensors", "Requests", "Work Orders", "Documents"]
     assert _child_labels(maintenance_section.child(2)) == ["Reliability"]

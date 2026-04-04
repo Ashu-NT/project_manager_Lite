@@ -6,6 +6,7 @@ from ui.modules.maintenance_management import (
     MaintenanceDocumentsTab,
     MaintenanceReliabilityTab,
     MaintenanceRequestsTab,
+    MaintenanceSensorsTab,
     MaintenanceWorkOrdersTab,
 )
 from ui.platform.shell.common import (
@@ -56,6 +57,29 @@ def build_maintenance_management_workspace_definitions(
                 asset_service=services["maintenance_asset_service"],
                 component_service=services["maintenance_asset_component_service"],
                 site_service=services["site_service"],
+                location_service=services["maintenance_location_service"],
+                system_service=services["maintenance_system_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        )
+    )
+    definitions.append(
+        WorkspaceDefinition(
+            module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,
+            module_label=MAINTENANCE_MANAGEMENT_MODULE_LABEL,
+            group_label="Records",
+            label="Sensors",
+            widget=MaintenanceSensorsTab(
+                sensor_service=services["maintenance_sensor_service"],
+                sensor_reading_service=services["maintenance_sensor_reading_service"],
+                sensor_source_mapping_service=services["maintenance_sensor_source_mapping_service"],
+                sensor_exception_service=services["maintenance_sensor_exception_service"],
+                integration_source_service=services["maintenance_integration_source_service"],
+                site_service=services["site_service"],
+                asset_service=services["maintenance_asset_service"],
+                component_service=services["maintenance_asset_component_service"],
                 location_service=services["maintenance_location_service"],
                 system_service=services["maintenance_system_service"],
                 platform_runtime_application_service=context.platform_runtime_application_service,
