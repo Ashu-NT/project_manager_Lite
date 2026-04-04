@@ -30,7 +30,10 @@ from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService
+from ui.modules.maintenance_management.sensors.dialogs import MaintenanceSensorDetailDialog
 from ui.modules.maintenance_management.shared import (
+    MaintenanceWorkbenchNavigator,
+    MaintenanceWorkbenchSection,
     build_maintenance_header,
     format_timestamp,
     make_accent_badge,
@@ -85,6 +88,7 @@ class MaintenanceSensorsTab(QWidget):
         self._sensor_rows = []
         self._integration_rows = []
         self._exception_rows = []
+        self._sensor_detail_dialog: MaintenanceSensorDetailDialog | None = None
         self._setup_ui()
         self.reload_data()
         domain_events.domain_changed.connect(self._on_domain_change)
@@ -184,17 +188,31 @@ class MaintenanceSensorsTab(QWidget):
             summary_row.addWidget(card, 1)
         root.addLayout(summary_row)
 
-        content_row = QHBoxLayout()
-        content_row.setSpacing(CFG.SPACING_MD)
-        content_row.addWidget(self._build_sensor_panel(), 3)
-        content_row.addWidget(self._build_detail_panel(), 2)
-        root.addLayout(content_row, 1)
-
-        lower_row = QHBoxLayout()
-        lower_row.setSpacing(CFG.SPACING_MD)
-        lower_row.addWidget(self._build_integration_panel(), 1)
-        lower_row.addWidget(self._build_exception_panel(), 1)
-        root.addLayout(lower_row, 1)
+        self.workbench = MaintenanceWorkbenchNavigator(object_name="maintenanceSensorsWorkbench", parent=self)
+        self.sensor_panel = self._build_sensor_panel()
+        self.integration_panel = self._build_integration_panel()
+        self.exception_panel = self._build_exception_panel()
+        self.workbench.set_sections(
+            [
+                MaintenanceWorkbenchSection(
+                    key="sensor_register",
+                    label="Sensor Register",
+                    widget=self.sensor_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="integration_queue",
+                    label="Integration Queue",
+                    widget=self.integration_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="exception_queue",
+                    label="Exception Queue",
+                    widget=self.exception_panel,
+                ),
+            ],
+            initial_key="sensor_register",
+        )
+        root.addWidget(self.workbench, 1)
 
         self.site_combo.currentIndexChanged.connect(self._on_site_changed)
         self.asset_combo.currentIndexChanged.connect(
@@ -225,6 +243,9 @@ class MaintenanceSensorsTab(QWidget):
         self.sensor_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Sensors", callback=self._on_sensor_selection_changed)
         )
+        self.btn_view_sensor_detail.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Sensors", callback=self._open_sensor_detail_dialog)
+        )
 
     def _build_sensor_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
@@ -233,11 +254,22 @@ class MaintenanceSensorsTab(QWidget):
         )
         title = QLabel("Sensor Register")
         title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        subtitle = QLabel("Maintenance sensors, counters, and condition points that are active in the current scope.")
+        subtitle = QLabel("Maintenance sensors, counters, and condition points active in the current scope.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
         subtitle.setWordWrap(True)
         layout.addWidget(title)
         layout.addWidget(subtitle)
+        action_row = QHBoxLayout()
+        action_row.setSpacing(CFG.SPACING_SM)
+        self.sensor_selection_summary = QLabel("Select a sensor, then open its detail workbench.")
+        self.sensor_selection_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        self.sensor_selection_summary.setWordWrap(True)
+        action_row.addWidget(self.sensor_selection_summary, 1)
+        self.btn_view_sensor_detail = QPushButton("View Sensor Detail")
+        self.btn_view_sensor_detail.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_view_sensor_detail.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_view_sensor_detail)
+        layout.addLayout(action_row)
         self.sensor_table = build_admin_table(
             headers=("Sensor", "Anchor", "Type", "Source", "Quality", "Last Read"),
             resize_modes=(
@@ -252,62 +284,12 @@ class MaintenanceSensorsTab(QWidget):
         layout.addWidget(self.sensor_table)
         return panel
 
-    def _build_detail_panel(self) -> QWidget:
-        panel, layout = build_admin_surface_card(
-            object_name="maintenanceSensorDetailSurface",
-            alt=False,
-        )
-        title = QLabel("Selected Sensor")
-        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        subtitle = QLabel("Latest snapshot, recent readings, and source mapping context for the current sensor.")
-        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        subtitle.setWordWrap(True)
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        self.detail_title = QLabel("No sensor selected")
-        self.detail_title.setStyleSheet(CFG.DASHBOARD_PROJECT_TITLE_STYLE)
-        layout.addWidget(self.detail_title)
-        self.detail_summary = QLabel("Select a sensor to inspect its anchor, latest reading, and integration bindings.")
-        self.detail_summary.setWordWrap(True)
-        self.detail_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
-        layout.addWidget(self.detail_summary)
-
-        reading_title = QLabel("Recent Readings")
-        reading_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(reading_title)
-        self.reading_table = build_admin_table(
-            headers=("Value", "Unit", "Quality", "Timestamp", "Batch"),
-            resize_modes=(
-                self._resize_to_contents(),
-                self._resize_to_contents(),
-                self._resize_to_contents(),
-                self._resize_to_contents(),
-                self._stretch(),
-            ),
-        )
-        layout.addWidget(self.reading_table)
-
-        mapping_title = QLabel("Source Mappings")
-        mapping_title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
-        layout.addWidget(mapping_title)
-        self.mapping_table = build_admin_table(
-            headers=("Integration", "Measurement", "Equipment", "Active"),
-            resize_modes=(
-                self._stretch(),
-                self._stretch(),
-                self._stretch(),
-                self._resize_to_contents(),
-            ),
-        )
-        layout.addWidget(self.mapping_table)
-        return panel
-
     def _build_integration_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
             object_name="maintenanceIntegrationStatusSurface",
             alt=False,
         )
-        title = QLabel("Integration Status")
+        title = QLabel("Integration Queue")
         title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
         subtitle = QLabel("Connectivity and sync health for maintenance sensor source integrations.")
         subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
@@ -485,6 +467,7 @@ class MaintenanceSensorsTab(QWidget):
         self._populate_sensor_table(selected_sensor_id=selected_sensor_id)
         self._populate_integration_table()
         self._populate_exception_table(filtered_exceptions)
+        self._sync_sensor_actions()
 
     def _populate_sensor_table(self, *, selected_sensor_id: str | None) -> None:
         self.sensor_table.blockSignals(True)
@@ -509,9 +492,8 @@ class MaintenanceSensorsTab(QWidget):
         self.sensor_table.blockSignals(False)
         if selected_row >= 0:
             self.sensor_table.selectRow(selected_row)
-            self._refresh_sensor_details(self._sensor_rows[selected_row].id)
             return
-        self._clear_sensor_details()
+        self.sensor_table.clearSelection()
 
     def _populate_integration_table(self) -> None:
         self.integration_table.setRowCount(len(self._integration_rows))
@@ -539,68 +521,6 @@ class MaintenanceSensorsTab(QWidget):
             for column, value in enumerate(values):
                 self.exception_table.setItem(row_index, column, QTableWidgetItem(value))
 
-    def _refresh_sensor_details(self, sensor_id: str) -> None:
-        try:
-            sensor = self._sensor_service.get_sensor(sensor_id)
-            readings = self._sensor_reading_service.list_readings(sensor_id=sensor.id)
-            mappings = self._sensor_source_mapping_service.list_mappings(sensor_id=sensor.id, active_only=None)
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Maintenance Sensors", str(exc))
-            return
-        except Exception as exc:  # noqa: BLE001
-            QMessageBox.critical(self, "Maintenance Sensors", f"Failed to load maintenance sensor details: {exc}")
-            return
-
-        self.detail_title.setText(f"{sensor.sensor_code} - {sensor.sensor_name}")
-        self.detail_summary.setText(
-            "\n".join(
-                [
-                    f"Anchor: {self._anchor_label(sensor)}",
-                    f"Type / Source: {sensor.sensor_type.replace('_', ' ').title() or '-'} / {sensor.source_type.replace('_', ' ').title() or '-'}",
-                    f"Tag / Key: {sensor.sensor_tag or '-'} / {sensor.source_key or '-'}",
-                    f"Current value: {sensor.current_value if sensor.current_value is not None else '-'} {sensor.unit or ''}".strip(),
-                    f"Latest quality: {sensor.last_quality_state.value.title()} | Last read: {format_timestamp(sensor.last_read_at)}",
-                    f"Source name: {sensor.source_name or '-'}",
-                    f"Notes: {sensor.notes or '-'}",
-                ]
-            )
-        )
-        self.reading_table.setRowCount(len(readings))
-        for row_index, row in enumerate(readings[:10]):
-            values = (
-                str(row.reading_value),
-                row.reading_unit,
-                row.quality_state.value.title(),
-                format_timestamp(row.reading_timestamp),
-                row.source_batch_id or "-",
-            )
-            for column, value in enumerate(values):
-                self.reading_table.setItem(row_index, column, QTableWidgetItem(value))
-        self.mapping_table.setRowCount(len(mappings))
-        for row_index, row in enumerate(mappings):
-            source_label = next(
-                (
-                    f"{source.integration_code} - {source.name}"
-                    for source in self._integration_rows
-                    if source.id == row.integration_source_id
-                ),
-                row.integration_source_id,
-            )
-            values = (
-                source_label,
-                row.external_measurement_key or "-",
-                row.external_equipment_key or "-",
-                "Yes" if row.is_active else "No",
-            )
-            for column, value in enumerate(values):
-                self.mapping_table.setItem(row_index, column, QTableWidgetItem(value))
-
-    def _clear_sensor_details(self) -> None:
-        self.detail_title.setText("No sensor selected")
-        self.detail_summary.setText("Select a sensor to inspect its anchor, latest reading, and integration bindings.")
-        self.reading_table.setRowCount(0)
-        self.mapping_table.setRowCount(0)
-
     def _selected_sensor_id(self) -> str | None:
         row = self.sensor_table.currentRow()
         if row < 0:
@@ -610,6 +530,45 @@ class MaintenanceSensorsTab(QWidget):
             return None
         value = item.data(Qt.UserRole)
         return str(value) if value else None
+
+    def _selected_sensor(self):
+        sensor_id = self._selected_sensor_id()
+        if not sensor_id:
+            return None
+        return next((row for row in self._sensor_rows if row.id == sensor_id), None)
+
+    def _sync_sensor_actions(self) -> None:
+        sensor = self._selected_sensor()
+        if sensor is None:
+            self.sensor_selection_summary.setText("Select a sensor, then open its detail workbench.")
+            self.btn_view_sensor_detail.setEnabled(False)
+            return
+        self.sensor_selection_summary.setText(
+            f"Selected: {sensor.sensor_code} | Quality: {sensor.last_quality_state.value.title()} | Last read: {format_timestamp(sensor.last_read_at)}"
+        )
+        self.btn_view_sensor_detail.setEnabled(True)
+
+    def _open_sensor_detail_dialog(self) -> None:
+        sensor_id = self._selected_sensor_id()
+        if not sensor_id:
+            QMessageBox.information(self, "Maintenance Sensors", "Select a sensor to open its detail workbench.")
+            return
+        dialog = MaintenanceSensorDetailDialog(
+            sensor_service=self._sensor_service,
+            sensor_reading_service=self._sensor_reading_service,
+            sensor_source_mapping_service=self._sensor_source_mapping_service,
+            integration_source_service=self._integration_source_service,
+            site_labels=self._site_labels,
+            asset_labels=self._asset_labels,
+            component_labels=self._component_labels,
+            system_labels=self._system_labels,
+            parent=self,
+        )
+        dialog.load_sensor(sensor_id)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        self._sensor_detail_dialog = dialog
 
     def _anchor_label(self, sensor) -> str:
         if sensor.component_id:
@@ -654,11 +613,7 @@ class MaintenanceSensorsTab(QWidget):
         )
 
     def _on_sensor_selection_changed(self) -> None:
-        sensor_id = self._selected_sensor_id()
-        if sensor_id:
-            self._refresh_sensor_details(sensor_id)
-            return
-        self._clear_sensor_details()
+        self._sync_sensor_actions()
 
     def _on_domain_change(self, event: DomainChangeEvent) -> None:
         if getattr(event, "scope_code", "") == "maintenance_management":

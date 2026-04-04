@@ -33,6 +33,8 @@ from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService
 from ui.modules.maintenance_management.shared import (
+    MaintenanceWorkbenchNavigator,
+    MaintenanceWorkbenchSection,
     build_maintenance_header,
     format_timestamp,
     make_accent_badge,
@@ -214,18 +216,43 @@ class MaintenancePlannerTab(QWidget):
             summary_row.addWidget(card, 1)
         root.addLayout(summary_row)
 
-        upper_row = QHBoxLayout()
-        upper_row.setSpacing(CFG.SPACING_MD)
-        upper_row.addWidget(self._build_request_panel(), 1)
-        upper_row.addWidget(self._build_work_order_panel(), 1)
-        root.addLayout(upper_row, 1)
-
-        lower_row = QHBoxLayout()
-        lower_row.setSpacing(CFG.SPACING_MD)
-        lower_row.addWidget(self._build_material_panel(), 1)
-        lower_row.addWidget(self._build_preventive_panel(), 1)
-        lower_row.addWidget(self._build_recurring_panel(), 1)
-        root.addLayout(lower_row, 1)
+        self.workbench = MaintenanceWorkbenchNavigator(object_name="maintenancePlannerWorkbench", parent=self)
+        self.request_panel = self._build_request_panel()
+        self.work_order_panel = self._build_work_order_panel()
+        self.material_panel = self._build_material_panel()
+        self.preventive_panel = self._build_preventive_panel()
+        self.recurring_panel = self._build_recurring_panel()
+        self.workbench.set_sections(
+            [
+                MaintenanceWorkbenchSection(
+                    key="request_intake",
+                    label="Request Intake",
+                    widget=self.request_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="backlog",
+                    label="Backlog and Scheduling",
+                    widget=self.work_order_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="material_readiness",
+                    label="Material Readiness",
+                    widget=self.material_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="preventive_readiness",
+                    label="Preventive Readiness",
+                    widget=self.preventive_panel,
+                ),
+                MaintenanceWorkbenchSection(
+                    key="recurring_failure_review",
+                    label="Recurring Failure Review",
+                    widget=self.recurring_panel,
+                ),
+            ],
+            initial_key="request_intake",
+        )
+        root.addWidget(self.workbench, 1)
 
         self.site_combo.currentIndexChanged.connect(self._on_site_changed)
         self.asset_combo.currentIndexChanged.connect(

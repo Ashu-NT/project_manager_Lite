@@ -23,6 +23,10 @@ def _child_labels(item) -> list[str]:
     return [item.child(i).text(0) for i in range(item.childCount())]
 
 
+def _top_level_labels(tree) -> list[str]:
+    return [tree.topLevelItem(i).text(0) for i in range(tree.topLevelItemCount())]
+
+
 def _enable_maintenance_module(services) -> None:
     services["module_catalog_service"].set_module_state(
         "maintenance_management",
@@ -525,46 +529,59 @@ def test_maintenance_work_orders_tab_lists_execution_queue_and_detail(qapp, serv
     assert tab.context_badge.text() == "Context: Default Organization"
     assert tab.work_order_table.rowCount() >= 3
     assert tab.total_card._lbl_value.text() == str(tab.work_order_table.rowCount())
+    assert "Open Detail" in tab.selection_summary.text()
     row = _find_row_by_contains(tab.work_order_table, 0, "WO-UI-OPEN")
     assert row >= 0
     tab.work_order_table.selectRow(row)
     qapp.processEvents()
-    assert "Open seal leak" in tab.detail_title.text()
-    assert tab.task_table.rowCount() >= 1
-    assert "Inspect seal housing" in tab.task_table.item(0, 0).text()
-    assert "Employee" in tab.task_table.item(0, 1).text()
-    assert tab.step_table.rowCount() >= 1
-    assert "Verify isolation" in tab.step_table.item(0, 1).text()
-    assert tab.material_table.rowCount() >= 1
-    assert "Seal kit" in tab.material_table.item(0, 0).text()
-    assert tab.evidence_table.rowCount() >= 1
-    assert "DOC-UI-WO" in tab.evidence_table.item(0, 0).text()
-    tab.task_table.selectRow(0)
-    tab.step_table.selectRow(0)
-    tab.evidence_table.selectRow(0)
+    assert "WO-UI-OPEN" in tab.selection_summary.text()
+    assert tab.btn_open_detail.isEnabled()
+    tab.btn_open_detail.click()
     qapp.processEvents()
-    assert tab.btn_preview_evidence.isEnabled()
-    assert tab.btn_start_step.isEnabled()
-    assert tab.btn_done_step.isEnabled()
-    assert not tab.btn_confirm_step.isEnabled()
-    assert not tab.btn_complete_task.isEnabled()
-    tab.btn_start_step.click()
+    dialog = tab._detail_dialog
+    assert dialog is not None
+    assert "Open seal leak" in dialog.title_label.text()
+    assert _top_level_labels(dialog.workbench.tree) == ["Overview", "Tasks", "Task Steps", "Materials", "Evidence"]
+    assert dialog.task_table.rowCount() >= 1
+    assert "Inspect seal housing" in dialog.task_table.item(0, 0).text()
+    assert "Employee" in dialog.task_table.item(0, 1).text()
+    assert dialog.step_table.rowCount() >= 1
+    assert "Verify isolation" in dialog.step_table.item(0, 0).text()
+    assert dialog.material_table.rowCount() >= 1
+    assert "Seal kit" in dialog.material_table.item(0, 0).text()
+    dialog.workbench.set_current_section("evidence")
     qapp.processEvents()
-    assert tab.task_table.item(0, 2).text() == "In Progress"
-    assert tab.step_table.item(0, 2).text() == "In Progress"
-    tab.step_measurement_edit.setText("81.5")
-    tab.btn_done_step.click()
+    assert dialog.evidence_table.rowCount() >= 1
+    assert "DOC-UI-WO" in dialog.evidence_table.item(0, 0).text()
+    assert dialog.btn_preview_evidence.isEnabled()
+    dialog.workbench.set_current_section("steps")
     qapp.processEvents()
-    assert tab.step_table.item(0, 2).text() == "Done"
-    assert "Measurement 81.5 C" in tab.step_table.item(0, 4).text()
-    assert tab.btn_confirm_step.isEnabled()
-    tab.btn_confirm_step.click()
+    dialog.task_table.selectRow(0)
+    dialog.step_table.selectRow(0)
     qapp.processEvents()
-    assert "Confirmed" in tab.step_table.item(0, 4).text()
-    assert tab.btn_complete_task.isEnabled()
-    tab.btn_complete_task.click()
+    assert dialog.btn_start_step.isEnabled()
+    assert dialog.btn_done_step.isEnabled()
+    assert not dialog.btn_confirm_step.isEnabled()
+    assert not dialog.btn_complete_task.isEnabled()
+    dialog.btn_start_step.click()
     qapp.processEvents()
-    assert tab.task_table.item(0, 2).text() == "Completed"
+    assert dialog.task_table.item(0, 2).text() == "In Progress"
+    assert dialog.step_table.item(0, 1).text() == "In Progress"
+    dialog.step_measurement_edit.setText("81.5")
+    dialog.btn_done_step.click()
+    qapp.processEvents()
+    assert dialog.step_table.item(0, 1).text() == "Done"
+    assert "Measurement 81.5 C" in dialog.step_table.item(0, 3).text()
+    assert dialog.btn_confirm_step.isEnabled()
+    dialog.btn_confirm_step.click()
+    qapp.processEvents()
+    assert "Confirmed" in dialog.step_table.item(0, 3).text()
+    dialog.workbench.set_current_section("tasks")
+    qapp.processEvents()
+    assert dialog.btn_complete_task.isEnabled()
+    dialog.btn_complete_task.click()
+    qapp.processEvents()
+    assert dialog.task_table.item(0, 2).text() == "Completed"
     _select_combo_value(tab.responsibility_combo, "__EMPLOYEE__")
     qapp.processEvents()
     assert tab.work_order_table.rowCount() >= 1
@@ -637,15 +654,45 @@ def test_maintenance_sensors_tab_lists_sensor_register_and_exception_queue(qapp,
     qapp.processEvents()
 
     assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.workbench.current_section_key() == "sensor_register"
+    assert tab.workbench.current_section_label.text() == "Sensor Register"
+    assert _top_level_labels(tab.workbench.tree) == [
+        "Sensor Register",
+        "Integration Queue",
+        "Exception Queue",
+    ]
+    assert not tab.workbench.tree_panel.isHidden()
+    tab.workbench.btn_toggle_tree.click()
+    qapp.processEvents()
+    assert tab.workbench.tree_panel.isHidden()
+    assert tab.workbench.btn_toggle_tree.text() == ">> Show Sections"
+    tab.workbench.btn_toggle_tree.click()
+    qapp.processEvents()
+    assert not tab.workbench.tree_panel.isHidden()
     assert tab.sensor_table.rowCount() >= 1
     assert "RUN-HOURS-101" in tab.sensor_table.item(0, 0).text()
+    assert tab.btn_view_sensor_detail.isEnabled()
+    tab.btn_view_sensor_detail.click()
+    qapp.processEvents()
+    dialog = tab._sensor_detail_dialog
+    assert dialog is not None
+    assert "RUN-HOURS-101" in dialog.title_label.text()
+    assert _top_level_labels(dialog.workbench.tree) == ["Overview", "Recent Readings", "Source Mappings"]
+    dialog.workbench.set_current_section("readings")
+    qapp.processEvents()
+    assert dialog.workbench.current_section_label.text() == "Recent Readings"
+    assert dialog.readings_table.rowCount() >= 1
+    dialog.workbench.set_current_section("mappings")
+    qapp.processEvents()
+    assert dialog.mapping_table.rowCount() >= 1
+    tab.workbench.set_current_section("integration_queue")
+    qapp.processEvents()
     assert tab.integration_table.rowCount() >= 1
+    tab.workbench.set_current_section("exception_queue")
+    qapp.processEvents()
     assert tab.exception_table.rowCount() >= 1
     assert tab.attention_card._lbl_value.text() != "0"
     assert tab.open_exceptions_card._lbl_value.text() != "0"
-    assert tab.detail_title.text() == "RUN-HOURS-101 - Pump 101 Running Hours"
-    assert tab.reading_table.rowCount() >= 1
-    assert tab.mapping_table.rowCount() >= 1
 
 
 def test_maintenance_planner_tab_surfaces_backlog_material_and_recurring_queues(qapp, services):
@@ -677,10 +724,32 @@ def test_maintenance_planner_tab_surfaces_backlog_material_and_recurring_queues(
     qapp.processEvents()
 
     assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.workbench.current_section_key() == "request_intake"
+    assert _top_level_labels(tab.workbench.tree) == [
+        "Request Intake",
+        "Backlog and Scheduling",
+        "Material Readiness",
+        "Preventive Readiness",
+        "Recurring Failure Review",
+    ]
+    tab.workbench.btn_toggle_tree.click()
+    qapp.processEvents()
+    assert tab.workbench.tree_panel.isHidden()
+    tab.workbench.btn_toggle_tree.click()
+    qapp.processEvents()
+    assert not tab.workbench.tree_panel.isHidden()
     assert tab.request_table.rowCount() >= 1
+    tab.workbench.set_current_section("backlog")
+    qapp.processEvents()
     assert tab.work_order_table.rowCount() >= 1
+    tab.workbench.set_current_section("preventive_readiness")
+    qapp.processEvents()
     assert tab.preventive_table.rowCount() >= 1
+    tab.workbench.set_current_section("material_readiness")
+    qapp.processEvents()
     assert tab.material_table.rowCount() >= 1
+    tab.workbench.set_current_section("recurring_failure_review")
+    qapp.processEvents()
     assert tab.recurring_table.rowCount() >= 1
     assert tab.backlog_card._lbl_value.text() != "0"
     assert tab.preventive_card._lbl_value.text() != "0"
