@@ -6,7 +6,11 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from tests.ui_runtime_helpers import make_settings_store
-from ui.modules.maintenance_management import MaintenanceDashboardTab, MaintenanceReliabilityTab
+from ui.modules.maintenance_management import (
+    MaintenanceAssetsTab,
+    MaintenanceDashboardTab,
+    MaintenanceReliabilityTab,
+)
 from ui.platform.shell.main_window import MainWindow
 
 
@@ -58,6 +62,13 @@ def _create_maintenance_context(services):
         system_id=system.id,
         asset_code="pump-101",
         name="Pump 101",
+    )
+    services["maintenance_asset_component_service"].create_component(
+        asset_id=asset.id,
+        component_code="seal-001",
+        name="Mechanical Seal",
+        component_type="seal",
+        is_critical_component=True,
     )
     symptom = services["maintenance_failure_code_service"].create_failure_code(
         failure_code="seal-leak",
@@ -201,6 +212,30 @@ def _create_maintenance_context(services):
     return site, location, system, asset, symptom
 
 
+def test_maintenance_assets_tab_lists_assets_and_components(qapp, services):
+    _enable_maintenance_module(services)
+    site, _location, _system, asset, _symptom = _create_maintenance_context(services)
+
+    tab = MaintenanceAssetsTab(
+        asset_service=services["maintenance_asset_service"],
+        component_service=services["maintenance_asset_component_service"],
+        site_service=services["site_service"],
+        location_service=services["maintenance_location_service"],
+        system_service=services["maintenance_system_service"],
+        platform_runtime_application_service=services["platform_runtime_application_service"],
+        user_session=services["user_session"],
+    )
+    _select_combo_value(tab.site_combo, site.id)
+    qapp.processEvents()
+
+    assert tab.context_badge.text() == "Context: Default Organization"
+    assert tab.asset_table.rowCount() >= 1
+    assert "Pump 101" in tab.asset_table.item(0, 0).text()
+    assert tab.detail_title.text() == "PUMP-101 - Pump 101"
+    assert tab.component_table.rowCount() >= 1
+    assert "Mechanical Seal" in tab.component_table.item(0, 0).text()
+
+
 def test_maintenance_dashboard_tab_surfaces_reliability_metrics(qapp, services):
     _enable_maintenance_module(services)
     site, _location, _system, asset, _symptom = _create_maintenance_context(services)
@@ -281,10 +316,12 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
 
     assert "Maintenance Dashboard" in labels
+    assert "Assets" in labels
     assert "Reliability" in labels
 
     maintenance_section = window.shell_navigation.tree.topLevelItem(3)
     assert maintenance_section.text(0) == "Maintenance Management"
-    assert _child_labels(maintenance_section) == ["Overview", "Analytics"]
+    assert _child_labels(maintenance_section) == ["Overview", "Records", "Analytics"]
     assert _child_labels(maintenance_section.child(0)) == ["Maintenance Dashboard"]
-    assert _child_labels(maintenance_section.child(1)) == ["Reliability"]
+    assert _child_labels(maintenance_section.child(1)) == ["Assets"]
+    assert _child_labels(maintenance_section.child(2)) == ["Reliability"]

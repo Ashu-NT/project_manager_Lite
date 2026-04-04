@@ -2,7 +2,7 @@
 
 Status: active blueprint and phased implementation tracker, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, plus reliability analytics/report-pack services and first shell/UI workspaces for `Maintenance Dashboard` and `Reliability`; broader queue/workbench UI, preventive templates, and planner/execution flows are still pending
+Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, plus reliability analytics/report-pack services and first shell/UI workspaces for `Maintenance Dashboard`, `Assets`, and `Reliability`; broader queue/workbench UI, preventive templates, and planner/execution flows are still pending
 
 ## Purpose
 
@@ -2150,7 +2150,7 @@ Build first:
 Current kickoff status:
 
 - started: module-owned `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event` domain models, repository contracts, lifecycle services, SQLAlchemy persistence, migration coverage, and service-graph wiring
-- started: first shell/UI surfaces for `Maintenance Dashboard` and `Reliability`, backed by the live reliability analytics/reporting seam
+- started: first shell/UI surfaces for `Maintenance Dashboard`, `Assets`, and `Reliability`, backed by the live asset/reliability services
 - pending: asset, request, work-order, document, planner, and technician execution runtimes, plus the later preventive-maintenance template stack
 
 Phase 1 UI:
@@ -2242,7 +2242,7 @@ Build next:
 
 ### UI
 
-- started: workspace registration, module licensing, `Maintenance Dashboard`, and `Reliability` workbench surfaces
+- started: workspace registration, module licensing, `Maintenance Dashboard`, `Assets`, and `Reliability` workbench surfaces
 - asset list/detail runtime
 - work request queue
 - work order queue and detail runtime
