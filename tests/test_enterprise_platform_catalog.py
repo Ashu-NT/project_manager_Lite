@@ -214,6 +214,8 @@ def test_maintenance_management_now_has_core_foundation_packages():
     assert (root / "services" / "integration_source" / "service.py").exists()
     assert (root / "services" / "location" / "__init__.py").exists()
     assert (root / "services" / "location" / "service.py").exists()
+    assert (root / "services" / "reliability" / "__init__.py").exists()
+    assert (root / "services" / "reliability" / "service.py").exists()
     assert (root / "services" / "sensor_exception" / "__init__.py").exists()
     assert (root / "services" / "sensor_exception" / "service.py").exists()
     assert (root / "services" / "sensor" / "__init__.py").exists()

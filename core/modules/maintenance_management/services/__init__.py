@@ -5,6 +5,7 @@ from .failure_code import MaintenanceFailureCodeService
 from .integration_source import MaintenanceIntegrationSourceService
 from .location import MaintenanceLocationService
 from .material_requirement import MaintenanceWorkOrderMaterialRequirementService
+from .reliability import MaintenanceReliabilityService
 from .runtime_catalog import MaintenanceRuntimeContractCatalogService
 from .sensor_exception import MaintenanceSensorExceptionService
 from .sensor import MaintenanceSensorService
@@ -23,6 +24,7 @@ __all__ = [
     "MaintenanceFailureCodeService",
     "MaintenanceIntegrationSourceService",
     "MaintenanceLocationService",
+    "MaintenanceReliabilityService",
     "MaintenanceWorkOrderMaterialRequirementService",
     "MaintenanceRuntimeContractCatalogService",
     "MaintenanceSensorExceptionService",

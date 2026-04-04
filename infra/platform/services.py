@@ -38,6 +38,7 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenanceReliabilityService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSensorExceptionService,
@@ -111,6 +112,7 @@ class ServiceGraph:
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_reliability_service: MaintenanceReliabilityService
     maintenance_sensor_exception_service: MaintenanceSensorExceptionService
     maintenance_sensor_service: MaintenanceSensorService
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
@@ -179,6 +181,7 @@ class ServiceGraph:
             "maintenance_failure_code_service": self.maintenance_failure_code_service,
             "maintenance_integration_source_service": self.maintenance_integration_source_service,
             "maintenance_location_service": self.maintenance_location_service,
+            "maintenance_reliability_service": self.maintenance_reliability_service,
             "maintenance_sensor_exception_service": self.maintenance_sensor_exception_service,
             "maintenance_sensor_service": self.maintenance_sensor_service,
             "maintenance_sensor_reading_service": self.maintenance_sensor_reading_service,
@@ -261,6 +264,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         maintenance_failure_code_service=maintenance_management_services.maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
         maintenance_location_service=maintenance_management_services.maintenance_location_service,
+        maintenance_reliability_service=maintenance_management_services.maintenance_reliability_service,
         maintenance_sensor_exception_service=maintenance_management_services.maintenance_sensor_exception_service,
         maintenance_sensor_service=maintenance_management_services.maintenance_sensor_service,
         maintenance_sensor_reading_service=maintenance_management_services.maintenance_sensor_reading_service,

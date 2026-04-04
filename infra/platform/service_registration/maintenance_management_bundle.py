@@ -10,6 +10,7 @@ from core.modules.maintenance_management import (
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceLocationService,
+    MaintenanceReliabilityService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceRuntimeContractCatalogService,
     MaintenanceSensorExceptionService,
@@ -59,6 +60,7 @@ class MaintenanceManagementServiceBundle:
     maintenance_failure_code_service: MaintenanceFailureCodeService
     maintenance_integration_source_service: MaintenanceIntegrationSourceService
     maintenance_location_service: MaintenanceLocationService
+    maintenance_reliability_service: MaintenanceReliabilityService
     maintenance_sensor_exception_service: MaintenanceSensorExceptionService
     maintenance_sensor_service: MaintenanceSensorService
     maintenance_sensor_reading_service: MaintenanceSensorReadingService
@@ -156,6 +158,19 @@ def build_maintenance_management_service_bundle(
         site_repo=platform_services.site_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
+    )
+    maintenance_reliability_service = MaintenanceReliabilityService(
+        platform_services.session,
+        organization_repo=platform_services.organization_repo,
+        site_repo=platform_services.site_repo,
+        asset_repo=asset_repo,
+        component_repo=component_repo,
+        location_repo=location_repo,
+        system_repo=system_repo,
+        work_order_repo=work_order_repo,
+        failure_code_repo=failure_code_repo,
+        downtime_event_repo=downtime_event_repo,
+        user_session=platform_services.user_session,
     )
     maintenance_sensor_exception_service = MaintenanceSensorExceptionService(
         platform_services.session,
@@ -280,6 +295,7 @@ def build_maintenance_management_service_bundle(
         maintenance_failure_code_service=maintenance_failure_code_service,
         maintenance_integration_source_service=maintenance_integration_source_service,
         maintenance_location_service=maintenance_location_service,
+        maintenance_reliability_service=maintenance_reliability_service,
         maintenance_sensor_exception_service=maintenance_sensor_exception_service,
         maintenance_sensor_service=maintenance_sensor_service,
         maintenance_sensor_reading_service=maintenance_sensor_reading_service,

@@ -2,7 +2,7 @@
 
 Status: planning blueprint, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has backend foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, and `downtime_event`, all with domain/service/persistence wiring and regression coverage, while UI surfaces, preventive templates, and deeper reliability analytics are still pending
+Implementation state: maintenance now has backend foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, and a first `reliability analytics` service for KPI snapshots, root-cause helpers, and recurring-failure detection, all with domain/service/persistence wiring and regression coverage, while UI surfaces, preventive templates, and rendered reliability workbenches are still pending
 
 ## Purpose
 
@@ -2210,9 +2210,9 @@ Phase 4 UI:
 
 Build next:
 
-- root cause analysis helpers
-- KPI dashboard
-- recurring failure analytics
+- reliability dashboard and reliability-engineer workbench UI
+- rendered KPI / downtime / recurring-failure report packs on top of the new analytics seam
+- planner-facing recurring-failure and root-cause review queues
 
 ## Initial Development Backlog
 
@@ -2233,7 +2233,8 @@ Build next:
 - preventive trigger evaluation service
 - inventory and reservation services
 - purchase requisition and purchase order services
-- sensor ingestion and validation service
+- started: sensor ingestion and validation service
+- started: reliability analytics helpers for KPI snapshot, root-cause suggestion, and recurring-failure detection
 
 ### UI
 
