@@ -26,6 +26,12 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceTaskStepTemplateRepository,
     MaintenanceTaskTemplateRepository,
 )
+from core.modules.maintenance_management.services.work_order.service import MaintenanceWorkOrderService
+from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService
+from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService
+from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
+from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
+from core.modules.maintenance_management.services.work_request.service import MaintenanceWorkRequestService
 from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
@@ -80,10 +86,10 @@ class MaintenancePreventiveGenerationService:
         task_template_repo: MaintenanceTaskTemplateRepository,
         task_step_template_repo: MaintenanceTaskStepTemplateRepository,
         sensor_repo: MaintenanceSensorRepository,
-        work_request_service,
-        work_order_service,
-        work_order_task_service,
-        work_order_task_step_service,
+        work_request_service:MaintenanceWorkRequestService,
+        work_order_service:MaintenanceWorkOrderService,
+        work_order_task_service:MaintenanceWorkOrderTaskService,
+        work_order_task_step_service:MaintenanceWorkOrderTaskStepService,
         user_session=None,
         audit_service=None,
     ) -> None:
