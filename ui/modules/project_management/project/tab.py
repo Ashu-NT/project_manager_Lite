@@ -287,4 +287,3 @@ class ProjectTab(
         status_label = self.project_status_filter.currentText() if self.project_status_filter.currentIndex() > 0 else "All Statuses"
         self.project_scope_badge.setText(status_label)
         self.project_count_badge.setText(f"{len(visible_projects)} visible")
-
