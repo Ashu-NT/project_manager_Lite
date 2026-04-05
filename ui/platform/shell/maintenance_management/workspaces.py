@@ -7,6 +7,7 @@ from ui.modules.maintenance_management import (
     MaintenanceDocumentsTab,
     MaintenanceLocationsTab,
     MaintenancePlannerTab,
+    MaintenancePreventivePlanLibraryTab,
     MaintenancePreventivePlansTab,
     MaintenanceReliabilityTab,
     MaintenanceRequestsTab,
@@ -111,6 +112,27 @@ def build_maintenance_management_workspace_definitions(
                 site_service=services["site_service"],
                 location_service=services["maintenance_location_service"],
                 system_service=services["maintenance_system_service"],
+                platform_runtime_application_service=context.platform_runtime_application_service,
+                user_session=context.user_session,
+                parent=context.parent,
+            ),
+        )
+    )
+    definitions.append(
+        WorkspaceDefinition(
+            module_code=MAINTENANCE_MANAGEMENT_MODULE_CODE,
+            module_label=MAINTENANCE_MANAGEMENT_MODULE_LABEL,
+            group_label="Libraries",
+            label="Preventive Plan Library",
+            widget=MaintenancePreventivePlanLibraryTab(
+                preventive_plan_service=services["maintenance_preventive_plan_service"],
+                preventive_plan_task_service=services["maintenance_preventive_plan_task_service"],
+                site_service=services["site_service"],
+                asset_service=services["maintenance_asset_service"],
+                component_service=services["maintenance_asset_component_service"],
+                system_service=services["maintenance_system_service"],
+                sensor_service=services["maintenance_sensor_service"],
+                task_template_service=services["maintenance_task_template_service"],
                 platform_runtime_application_service=context.platform_runtime_application_service,
                 user_session=context.user_session,
                 parent=context.parent,
