@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGridLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -44,7 +45,7 @@ class MaintenanceAssetEditDialog(QDialog):
         self._assets = list(assets)
         self._asset = asset
         self.setWindowTitle("Edit Asset" if asset is not None else "New Asset")
-        self.resize(680, 680)
+        self.resize(1000, 600)
         self._setup_ui()
         self._load_asset()
 
@@ -56,7 +57,12 @@ class MaintenanceAssetEditDialog(QDialog):
         intro.setWordWrap(True)
         root.addWidget(intro)
 
-        form = QFormLayout()
+        # Create two-column grid layout
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(20)
+        grid.setVerticalSpacing(10)
+
+        # Left column fields
         self.asset_code_edit = QLineEdit()
         self.name_edit = QLineEdit()
         self.asset_code_field = CodeFieldWidget(
@@ -78,6 +84,8 @@ class MaintenanceAssetEditDialog(QDialog):
         self.status_combo = QComboBox()
         for value in MaintenanceLifecycleStatus:
             self.status_combo.addItem(value.value.title(), value.value)
+
+        # Right column fields
         self.model_number_edit = QLineEdit()
         self.serial_number_edit = QLineEdit()
         self.barcode_edit = QLineEdit()
@@ -89,26 +97,47 @@ class MaintenanceAssetEditDialog(QDialog):
         self.requires_shutdown_check = QCheckBox("Requires shutdown for major work")
         self.is_active_check = QCheckBox("Active")
 
-        form.addRow("Asset Code", self.asset_code_field)
-        form.addRow("Name", self.name_edit)
-        form.addRow("Site", self.site_combo)
-        form.addRow("Location", self.location_combo)
-        form.addRow("System", self.system_combo)
-        form.addRow("Parent Asset", self.parent_asset_combo)
-        form.addRow("Asset Type", self.asset_type_edit)
-        form.addRow("Asset Category", self.asset_category_edit)
-        form.addRow("Criticality", self.criticality_combo)
-        form.addRow("Status", self.status_combo)
-        form.addRow("Model Number", self.model_number_edit)
-        form.addRow("Serial Number", self.serial_number_edit)
-        form.addRow("Barcode", self.barcode_edit)
-        form.addRow("Maintenance Strategy", self.maintenance_strategy_edit)
-        form.addRow("Service Level", self.service_level_edit)
-        form.addRow("Description", self.description_edit)
-        form.addRow("Notes", self.notes_edit)
-        form.addRow("", self.requires_shutdown_check)
-        form.addRow("", self.is_active_check)
-        root.addLayout(form)
+        # Left column (rows 0-9)
+        grid.addWidget(QLabel("Asset Code"), 0, 0)
+        grid.addWidget(self.asset_code_field, 0, 1)
+        grid.addWidget(QLabel("Name"), 1, 0)
+        grid.addWidget(self.name_edit, 1, 1)
+        grid.addWidget(QLabel("Site"), 2, 0)
+        grid.addWidget(self.site_combo, 2, 1)
+        grid.addWidget(QLabel("Location"), 3, 0)
+        grid.addWidget(self.location_combo, 3, 1)
+        grid.addWidget(QLabel("System"), 4, 0)
+        grid.addWidget(self.system_combo, 4, 1)
+        grid.addWidget(QLabel("Parent Asset"), 5, 0)
+        grid.addWidget(self.parent_asset_combo, 5, 1)
+        grid.addWidget(QLabel("Asset Type"), 6, 0)
+        grid.addWidget(self.asset_type_edit, 6, 1)
+        grid.addWidget(QLabel("Asset Category"), 7, 0)
+        grid.addWidget(self.asset_category_edit, 7, 1)
+        grid.addWidget(QLabel("Criticality"), 8, 0)
+        grid.addWidget(self.criticality_combo, 8, 1)
+        grid.addWidget(QLabel("Status"), 9, 0)
+        grid.addWidget(self.status_combo, 9, 1)
+
+        # Right column (rows 0-9)
+        grid.addWidget(QLabel("Model Number"), 0, 2)
+        grid.addWidget(self.model_number_edit, 0, 3)
+        grid.addWidget(QLabel("Serial Number"), 1, 2)
+        grid.addWidget(self.serial_number_edit, 1, 3)
+        grid.addWidget(QLabel("Barcode"), 2, 2)
+        grid.addWidget(self.barcode_edit, 2, 3)
+        grid.addWidget(QLabel("Maintenance Strategy"), 3, 2)
+        grid.addWidget(self.maintenance_strategy_edit, 3, 3)
+        grid.addWidget(QLabel("Service Level"), 4, 2)
+        grid.addWidget(self.service_level_edit, 4, 3)
+        grid.addWidget(QLabel("Description"), 5, 2)
+        grid.addWidget(self.description_edit, 5, 3)
+        grid.addWidget(QLabel("Notes"), 6, 2)
+        grid.addWidget(self.notes_edit, 6, 3, 2, 1)  # Span 2 rows
+        grid.addWidget(self.requires_shutdown_check, 8, 2)
+        grid.addWidget(self.is_active_check, 9, 2)
+
+        root.addLayout(grid)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._validate_and_accept)

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGridLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -48,12 +49,13 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         self._sensors = list(sensors)
         self._preventive_plan = preventive_plan
         self.setWindowTitle("Edit Preventive Plan" if preventive_plan is not None else "New Preventive Plan")
-        self.resize(720, 760)
+        self.resize(1200, 700)
         self._setup_ui()
         self._load_preventive_plan()
 
     def _setup_ui(self) -> None:
         root = QVBoxLayout(self)
+    
         intro = QLabel(
             "Author preventive-plan libraries for calendar, sensor, and hybrid generation. "
             "Use the detail popup later to manage the selected plan's task library."
@@ -61,7 +63,12 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         intro.setWordWrap(True)
         root.addWidget(intro)
 
-        form = QFormLayout()
+        # Create two-column grid layout
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(20)
+        grid.setVerticalSpacing(10)
+
+        # Initialize all form fields
         self.code_edit = QLineEdit()
         self.name_edit = QLineEdit()
         self.code_field = CodeFieldWidget(
@@ -95,6 +102,7 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         self.calendar_value_spin.setSpecialValueText("Not set")
         self.sensor_threshold_edit.setPlaceholderText("Example: 1000 or 75.5")
 
+        # Populate combo boxes
         for label, value in ((f"{site.site_code} - {site.name}", site.id) for site in self._sites):
             self.site_combo.addItem(label, value)
         self.asset_combo.addItem("No asset anchor", None)
@@ -116,29 +124,53 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         for value in MaintenanceSensorDirection:
             self.sensor_direction_combo.addItem(value.value.replace("_", " ").title(), value.value)
 
-        form.addRow("Plan Code", self.code_field)
-        form.addRow("Name", self.name_edit)
-        form.addRow("Site", self.site_combo)
-        form.addRow("Asset", self.asset_combo)
-        form.addRow("Component", self.component_combo)
-        form.addRow("System", self.system_combo)
-        form.addRow("Status", self.status_combo)
-        form.addRow("Plan Type", self.plan_type_combo)
-        form.addRow("Priority", self.priority_combo)
-        form.addRow("Trigger Mode", self.trigger_mode_combo)
-        form.addRow("Calendar Unit", self.calendar_unit_combo)
-        form.addRow("Calendar Value", self.calendar_value_spin)
-        form.addRow("Sensor", self.sensor_combo)
-        form.addRow("Sensor Threshold", self.sensor_threshold_edit)
-        form.addRow("Sensor Direction", self.sensor_direction_combo)
-        form.addRow("Sensor Reset Rule", self.sensor_reset_rule_edit)
-        form.addRow("Description", self.description_edit)
-        form.addRow("Notes", self.notes_edit)
-        form.addRow("", self.requires_shutdown_check)
-        form.addRow("", self.approval_required_check)
-        form.addRow("", self.auto_generate_work_order_check)
-        form.addRow("", self.is_active_check)
-        root.addLayout(form)
+        # Left column - Basic Info and Settings
+        grid.addWidget(QLabel("Plan Code"), 0, 0)
+        grid.addWidget(self.code_field, 0, 1)
+        grid.addWidget(QLabel("Name"), 1, 0)
+        grid.addWidget(self.name_edit, 1, 1)
+        grid.addWidget(QLabel("Site"), 2, 0)
+        grid.addWidget(self.site_combo, 2, 1)
+        grid.addWidget(QLabel("Asset"), 3, 0)
+        grid.addWidget(self.asset_combo, 3, 1)
+        grid.addWidget(QLabel("Component"), 4, 0)
+        grid.addWidget(self.component_combo, 4, 1)
+        grid.addWidget(QLabel("System"), 5, 0)
+        grid.addWidget(self.system_combo, 5, 1)
+        grid.addWidget(QLabel("Status"), 6, 0)
+        grid.addWidget(self.status_combo, 6, 1)
+        grid.addWidget(QLabel("Plan Type"), 7, 0)
+        grid.addWidget(self.plan_type_combo, 7, 1)
+        grid.addWidget(QLabel("Priority"), 8, 0)
+        grid.addWidget(self.priority_combo, 8, 1)
+        grid.addWidget(QLabel("Trigger Mode"), 9, 0)
+        grid.addWidget(self.trigger_mode_combo, 9, 1)
+
+        # Right column - Triggers and Options
+        grid.addWidget(QLabel("Calendar Unit"), 0, 2)
+        grid.addWidget(self.calendar_unit_combo, 0, 3)
+        grid.addWidget(QLabel("Calendar Value"), 1, 2)
+        grid.addWidget(self.calendar_value_spin, 1, 3)
+        grid.addWidget(QLabel("Sensor"), 2, 2)
+        grid.addWidget(self.sensor_combo, 2, 3)
+        grid.addWidget(QLabel("Sensor Threshold"), 3, 2)
+        grid.addWidget(self.sensor_threshold_edit, 3, 3)
+        grid.addWidget(QLabel("Sensor Direction"), 4, 2)
+        grid.addWidget(self.sensor_direction_combo, 4, 3)
+        grid.addWidget(QLabel("Sensor Reset Rule"), 5, 2)
+        grid.addWidget(self.sensor_reset_rule_edit, 5, 3)
+        grid.addWidget(QLabel("Description"), 6, 2)
+        grid.addWidget(self.description_edit, 6, 3)
+        grid.addWidget(QLabel("Notes"), 7, 2)
+        grid.addWidget(self.notes_edit, 7, 3, 2, 1)  # Span 2 rows
+
+        # Checkboxes at bottom
+        grid.addWidget(self.requires_shutdown_check, 9, 2)
+        grid.addWidget(self.approval_required_check, 9, 3)
+        grid.addWidget(self.auto_generate_work_order_check, 10, 2)
+        grid.addWidget(self.is_active_check, 10, 3)
+
+        root.addLayout(grid)
 
         self.site_combo.currentIndexChanged.connect(self._refresh_context_options)
         self.asset_combo.currentIndexChanged.connect(self._refresh_component_options)
