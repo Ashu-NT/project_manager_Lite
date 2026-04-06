@@ -1,5 +1,6 @@
 # infra/platform/db/base.py
 from __future__ import annotations
+from urllib.parse import urlparse
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import create_engine
 from pathlib import Path
