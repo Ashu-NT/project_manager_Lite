@@ -268,6 +268,8 @@ class MaintenancePreventivePlanLibraryDetailDialog(QDialog):
                     "Shutdown required" if plan.requires_shutdown else "No shutdown",
                     "Approval required" if plan.approval_required else "No approval",
                     "Auto-generate WO" if plan.auto_generate_work_order else "Generate WR/queue",
+                    f"Schedule {plan.schedule_policy.value.title()}",
+                    f"Horizon {plan.generation_horizon_count}",
                 ]
             )
         )

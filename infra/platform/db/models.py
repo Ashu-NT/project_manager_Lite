@@ -66,6 +66,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceWorkOrderTaskStepORM,
     MaintenanceWorkRequestORM,
 )
+from infra.platform.db.maintenance_preventive_runtime_models import MaintenancePreventivePlanInstanceORM
 
 
 class ProjectORM(Base):

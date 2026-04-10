@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from calendar import monthrange
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
+    MaintenanceCalendarFrequencyUnit,
     MaintenancePreventivePlan,
     MaintenanceSensor,
     MaintenanceSystem,
@@ -29,6 +31,7 @@ from core.modules.maintenance_management.support import (
     coerce_plan_status,
     coerce_plan_type,
     coerce_priority,
+    coerce_schedule_policy,
     coerce_sensor_direction,
     coerce_trigger_mode,
     normalize_maintenance_code,
@@ -197,8 +200,10 @@ class MaintenancePreventivePlanService:
         plan_type=None,
         priority=None,
         trigger_mode=None,
+        schedule_policy=None,
         calendar_frequency_unit=None,
         calendar_frequency_value: int | str | None = None,
+        generation_horizon_count: int | str | None = None,
         sensor_id: str | None = None,
         sensor_threshold: Decimal | int | float | str | None = None,
         sensor_direction=None,
@@ -230,11 +235,13 @@ class MaintenancePreventivePlanService:
             system_id=system_id,
         )
         resolved_trigger_mode = coerce_trigger_mode(trigger_mode)
+        resolved_schedule_policy = coerce_schedule_policy(schedule_policy)
         resolved_calendar_frequency_unit = coerce_calendar_frequency_unit(calendar_frequency_unit)
         resolved_calendar_frequency_value = coerce_optional_non_negative_int(
             calendar_frequency_value,
             label="Calendar frequency value",
         )
+        resolved_generation_horizon_count = self._normalize_generation_horizon_count(generation_horizon_count)
         resolved_sensor_threshold = coerce_optional_decimal_value(sensor_threshold, label="Sensor threshold")
         resolved_sensor_direction = coerce_sensor_direction(sensor_direction)
         sensor = self._resolve_sensor(
@@ -257,6 +264,13 @@ class MaintenancePreventivePlanService:
             self._scope_anchor_from_context(asset=asset, component=component, system=system),
             operation_label="create maintenance preventive plan",
         )
+        resolved_next_due_at = coerce_optional_datetime(next_due_at, label="Next due at")
+        if resolved_next_due_at is None:
+            resolved_next_due_at = self._derive_initial_next_due_at(
+                trigger_mode=resolved_trigger_mode,
+                calendar_frequency_unit=resolved_calendar_frequency_unit,
+                calendar_frequency_value=resolved_calendar_frequency_value,
+            )
         row = MaintenancePreventivePlan.create(
             organization_id=organization.id,
             site_id=site.id,
@@ -270,15 +284,17 @@ class MaintenancePreventivePlanService:
             plan_type=coerce_plan_type(plan_type),
             priority=coerce_priority(priority),
             trigger_mode=resolved_trigger_mode,
+            schedule_policy=resolved_schedule_policy,
             calendar_frequency_unit=resolved_calendar_frequency_unit,
             calendar_frequency_value=resolved_calendar_frequency_value,
+            generation_horizon_count=resolved_generation_horizon_count,
             sensor_id=sensor.id if sensor is not None else None,
             sensor_threshold=resolved_sensor_threshold,
             sensor_direction=resolved_sensor_direction,
             sensor_reset_rule=normalize_optional_text(sensor_reset_rule),
             last_generated_at=coerce_optional_datetime(last_generated_at, label="Last generated at"),
             last_completed_at=coerce_optional_datetime(last_completed_at, label="Last completed at"),
-            next_due_at=coerce_optional_datetime(next_due_at, label="Next due at"),
+            next_due_at=resolved_next_due_at,
             next_due_counter=coerce_optional_decimal_value(next_due_counter, label="Next due counter"),
             requires_shutdown=bool(requires_shutdown),
             approval_required=bool(approval_required),
@@ -316,8 +332,10 @@ class MaintenancePreventivePlanService:
         plan_type=None,
         priority=None,
         trigger_mode=None,
+        schedule_policy=None,
         calendar_frequency_unit=None,
         calendar_frequency_value: int | str | None = None,
+        generation_horizon_count: int | str | None = None,
         sensor_id: str | None = None,
         sensor_threshold: Decimal | int | float | str | None = None,
         sensor_direction=None,
@@ -354,6 +372,9 @@ class MaintenancePreventivePlanService:
             system_id=row.system_id if system_id is None else (normalize_optional_text(system_id) or None),
         )
         resolved_trigger_mode = row.trigger_mode if trigger_mode is None else coerce_trigger_mode(trigger_mode)
+        resolved_schedule_policy = (
+            row.schedule_policy if schedule_policy is None else coerce_schedule_policy(schedule_policy)
+        )
         resolved_calendar_frequency_unit = (
             row.calendar_frequency_unit
             if calendar_frequency_unit is None
@@ -363,6 +384,11 @@ class MaintenancePreventivePlanService:
             row.calendar_frequency_value
             if calendar_frequency_value is None
             else coerce_optional_non_negative_int(calendar_frequency_value, label="Calendar frequency value")
+        )
+        resolved_generation_horizon_count = (
+            row.generation_horizon_count
+            if generation_horizon_count is None
+            else self._normalize_generation_horizon_count(generation_horizon_count)
         )
         resolved_sensor_threshold = (
             row.sensor_threshold
@@ -416,8 +442,10 @@ class MaintenancePreventivePlanService:
         row.component_id = component.id if component is not None else None
         row.system_id = system.id if system is not None else None
         row.trigger_mode = resolved_trigger_mode
+        row.schedule_policy = resolved_schedule_policy
         row.calendar_frequency_unit = resolved_calendar_frequency_unit
         row.calendar_frequency_value = resolved_calendar_frequency_value
+        row.generation_horizon_count = resolved_generation_horizon_count
         row.sensor_id = sensor.id if sensor is not None else None
         row.sensor_threshold = resolved_sensor_threshold
         row.sensor_direction = resolved_sensor_direction
@@ -429,6 +457,17 @@ class MaintenancePreventivePlanService:
             row.last_completed_at = coerce_optional_datetime(last_completed_at, label="Last completed at")
         if next_due_at is not None:
             row.next_due_at = coerce_optional_datetime(next_due_at, label="Next due at")
+        elif (
+            row.next_due_at is None
+            and row.trigger_mode in (MaintenanceTriggerMode.CALENDAR, MaintenanceTriggerMode.HYBRID)
+            and row.calendar_frequency_unit is not None
+            and row.calendar_frequency_value not in (None, 0)
+        ):
+            row.next_due_at = self._derive_initial_next_due_at(
+                trigger_mode=row.trigger_mode,
+                calendar_frequency_unit=row.calendar_frequency_unit,
+                calendar_frequency_value=row.calendar_frequency_value,
+            )
         if next_due_counter is not None:
             row.next_due_counter = coerce_optional_decimal_value(next_due_counter, label="Next due counter")
         if requires_shutdown is not None:
@@ -581,6 +620,52 @@ class MaintenancePreventivePlanService:
                 "Hybrid preventive plans require sensor, threshold, and direction.",
                 code="MAINTENANCE_PREVENTIVE_PLAN_SENSOR_REQUIRED",
             )
+
+    def _normalize_generation_horizon_count(self, value: int | str | None) -> int:
+        resolved = coerce_optional_non_negative_int(value, label="Generation horizon count")
+        if resolved in (None, 0):
+            return 13
+        return resolved
+
+    def _derive_initial_next_due_at(
+        self,
+        *,
+        trigger_mode: MaintenanceTriggerMode,
+        calendar_frequency_unit: MaintenanceCalendarFrequencyUnit | None,
+        calendar_frequency_value: int | None,
+    ) -> datetime | None:
+        if trigger_mode not in (MaintenanceTriggerMode.CALENDAR, MaintenanceTriggerMode.HYBRID):
+            return None
+        if calendar_frequency_unit is None or calendar_frequency_value in (None, 0):
+            return None
+        return self._advance_calendar_due(
+            datetime.now(timezone.utc),
+            calendar_frequency_unit,
+            calendar_frequency_value,
+        )
+
+    def _advance_calendar_due(
+        self,
+        anchor: datetime,
+        unit: MaintenanceCalendarFrequencyUnit,
+        value: int,
+    ) -> datetime:
+        if unit == MaintenanceCalendarFrequencyUnit.DAILY:
+            return anchor + timedelta(days=value)
+        if unit == MaintenanceCalendarFrequencyUnit.WEEKLY:
+            return anchor + timedelta(weeks=value)
+        if unit == MaintenanceCalendarFrequencyUnit.CUSTOM_DAYS:
+            return anchor + timedelta(days=value)
+        months = value
+        if unit == MaintenanceCalendarFrequencyUnit.QUARTERLY:
+            months = value * 3
+        elif unit == MaintenanceCalendarFrequencyUnit.YEARLY:
+            months = value * 12
+        total_month = anchor.month - 1 + months
+        year = anchor.year + total_month // 12
+        month = total_month % 12 + 1
+        day = min(anchor.day, monthrange(year, month)[1])
+        return anchor.replace(year=year, month=month, day=day)
 
     def _scope_anchor_from_context(
         self,

@@ -10,6 +10,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceFailureCode,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenancePreventivePlanInstance,
     MaintenancePreventivePlan,
     MaintenancePreventivePlanTask,
     MaintenanceSensorException,
@@ -561,6 +562,38 @@ class MaintenancePreventivePlanTaskRepository(ABC):
     ) -> List[MaintenancePreventivePlanTask]: ...
 
 
+class MaintenancePreventivePlanInstanceRepository(ABC):
+    @abstractmethod
+    def add(self, preventive_instance: MaintenancePreventivePlanInstance) -> None: ...
+
+    @abstractmethod
+    def update(self, preventive_instance: MaintenancePreventivePlanInstance) -> None: ...
+
+    @abstractmethod
+    def delete(self, preventive_instance_id: str) -> None: ...
+
+    @abstractmethod
+    def get(self, preventive_instance_id: str) -> Optional[MaintenancePreventivePlanInstance]: ...
+
+    @abstractmethod
+    def get_by_generated_work_order_id(
+        self,
+        organization_id: str,
+        work_order_id: str,
+    ) -> Optional[MaintenancePreventivePlanInstance]: ...
+
+    @abstractmethod
+    def list_for_organization(
+        self,
+        organization_id: str,
+        *,
+        plan_id: str | None = None,
+        status: str | None = None,
+        generated_work_request_id: str | None = None,
+        generated_work_order_id: str | None = None,
+    ) -> List[MaintenancePreventivePlanInstance]: ...
+
+
 __all__ = [
     "MaintenanceAssetRepository",
     "MaintenanceAssetComponentRepository",
@@ -569,6 +602,7 @@ __all__ = [
     "MaintenanceIntegrationSourceRepository",
     "MaintenanceLocationRepository",
     "MaintenancePreventivePlanRepository",
+    "MaintenancePreventivePlanInstanceRepository",
     "MaintenancePreventivePlanTaskRepository",
     "MaintenanceSensorExceptionRepository",
     "MaintenanceSensorReadingRepository",

@@ -1,3 +1,6 @@
+from infra.modules.maintenance_management.db.preventive_instance_repository import (
+    SqlAlchemyMaintenancePreventivePlanInstanceRepository,
+)
 from infra.modules.maintenance_management.db.repository import (
     SqlAlchemyMaintenanceAssetRepository,
     SqlAlchemyMaintenanceAssetComponentRepository,
@@ -30,6 +33,7 @@ __all__ = [
     "SqlAlchemyMaintenanceFailureCodeRepository",
     "SqlAlchemyMaintenanceIntegrationSourceRepository",
     "SqlAlchemyMaintenanceLocationRepository",
+    "SqlAlchemyMaintenancePreventivePlanInstanceRepository",
     "SqlAlchemyMaintenancePreventivePlanRepository",
     "SqlAlchemyMaintenancePreventivePlanTaskRepository",
     "SqlAlchemyMaintenanceSensorExceptionRepository",

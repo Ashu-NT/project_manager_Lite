@@ -10,6 +10,11 @@ from core.modules.maintenance_management.reliability_domain import (
     MaintenanceFailureCode,
     MaintenanceFailureCodeType,
 )
+from core.modules.maintenance_management.preventive_schedule_domain import (
+    MaintenancePreventiveInstanceStatus,
+    MaintenancePreventivePlanInstance,
+    MaintenanceSchedulePolicy,
+)
 from core.platform.common.ids import generate_id
 
 
@@ -1290,8 +1295,10 @@ class MaintenancePreventivePlan:
     plan_type: MaintenancePlanType = MaintenancePlanType.PREVENTIVE
     priority: MaintenancePriority = MaintenancePriority.MEDIUM
     trigger_mode: MaintenanceTriggerMode = MaintenanceTriggerMode.CALENDAR
+    schedule_policy: MaintenanceSchedulePolicy = MaintenanceSchedulePolicy.FIXED
     calendar_frequency_unit: MaintenanceCalendarFrequencyUnit | None = None
     calendar_frequency_value: int | None = None
+    generation_horizon_count: int = 13
     sensor_id: str | None = None
     sensor_threshold: Decimal | None = None
     sensor_direction: MaintenanceSensorDirection | None = None
@@ -1324,8 +1331,10 @@ class MaintenancePreventivePlan:
         plan_type: MaintenancePlanType = MaintenancePlanType.PREVENTIVE,
         priority: MaintenancePriority = MaintenancePriority.MEDIUM,
         trigger_mode: MaintenanceTriggerMode = MaintenanceTriggerMode.CALENDAR,
+        schedule_policy: MaintenanceSchedulePolicy = MaintenanceSchedulePolicy.FIXED,
         calendar_frequency_unit: MaintenanceCalendarFrequencyUnit | None = None,
         calendar_frequency_value: int | None = None,
+        generation_horizon_count: int = 13,
         sensor_id: str | None = None,
         sensor_threshold: Decimal | None = None,
         sensor_direction: MaintenanceSensorDirection | None = None,
@@ -1355,8 +1364,10 @@ class MaintenancePreventivePlan:
             plan_type=plan_type,
             priority=priority,
             trigger_mode=trigger_mode,
+            schedule_policy=schedule_policy,
             calendar_frequency_unit=calendar_frequency_unit,
             calendar_frequency_value=calendar_frequency_value,
+            generation_horizon_count=generation_horizon_count,
             sensor_id=sensor_id,
             sensor_threshold=sensor_threshold,
             sensor_direction=sensor_direction,
@@ -1470,7 +1481,10 @@ __all__ = [
     "MaintenancePlanStatus",
     "MaintenancePlanTaskTriggerScope",
     "MaintenancePlanType",
+    "MaintenancePreventiveInstanceStatus",
+    "MaintenancePreventivePlanInstance",
     "MaintenanceCalendarFrequencyUnit",
+    "MaintenanceSchedulePolicy",
     "MaintenanceSensorException",
     "MaintenanceSensorDirection",
     "MaintenanceSensorExceptionStatus",

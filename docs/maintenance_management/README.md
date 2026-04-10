@@ -2,7 +2,7 @@
 
 Status: active blueprint and phased implementation tracker, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, plus a live preventive due-generation engine, reliability analytics/report-pack services, and first shell/UI workspaces for `Maintenance Dashboard`, `Locations`, `Systems`, `Task Templates`, `Asset Library`, `Preventive Plan Library`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`; the planner now folds due, due-soon, blocked, material-risk, and recurring-failure review into one tree-driven planning surface, `Sensors` now uses tree-driven monitoring views plus a nested sensor-detail popup, `Work Orders` now follows a queue-first popup flow with technician-facing assigned-work filtering, a compact execution section for fast confirmation, live step start/done/confirm and task completion actions, richer evidence capture/link/unlink/preview flows, and shared-time-backed labor booking, and `Reliability` now exports recurring-failure and exception-review workbooks alongside the earlier backlog, PM, downtime, and execution packs. The maintenance shell now also starts a real `Libraries` setup area with create/edit/toggle-active flows for `Locations`, `Systems`, `Task Templates`, `Asset Library`, and `Preventive Plan Library`, with step-template authoring held inside the task-template detail popup, component authoring held inside the asset-library detail popup, and plan-task authoring held inside the preventive-plan detail popup. The important current limit is that the implemented UI is still only partially into authoring/setup; richer `Sensors` registry management and request/order creation libraries are still pending in the blueprint backlog.
+Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, plus a live preventive engine that now persists forward schedule instances for calendar plans, supports configurable horizon generation, and distinguishes `fixed` versus `floating` calendar policy at plan level. Reliability analytics/report-pack services and first shell/UI workspaces are also live for `Maintenance Dashboard`, `Locations`, `Systems`, `Task Templates`, `Asset Library`, `Preventive Plan Library`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`; the planner now folds due, due-soon, blocked, material-risk, and recurring-failure review into one tree-driven planning surface, `Sensors` now uses tree-driven monitoring views plus a nested sensor-detail popup, `Work Orders` now follows a queue-first popup flow with technician-facing assigned-work filtering, a compact execution section for fast confirmation, live step start/done/confirm and task completion actions, richer evidence capture/link/unlink/preview flows, and shared-time-backed labor booking, and `Reliability` now exports recurring-failure and exception-review workbooks alongside the earlier backlog, PM, downtime, and execution packs. The maintenance shell now also starts a real `Libraries` setup area with create/edit/toggle-active flows for `Locations`, `Systems`, `Task Templates`, `Asset Library`, and `Preventive Plan Library`, with step-template authoring held inside the task-template detail popup, component authoring held inside the asset-library detail popup, and plan-task authoring held inside the preventive-plan detail popup. The important current limit is that the implemented UI is still only partially into authoring/setup; richer `Sensors` registry management, richer request/order creation libraries, and later preventive lead-time/blackout/packaging controls are still pending in the blueprint backlog.
 
 ## Purpose
 
@@ -2039,6 +2039,86 @@ Should support:
 - hybrid-trigger exceptions
 - inactive plans
 - last execution summary
+- fixed interval plans
+- floating interval plans
+- forward generation horizon for future instances
+- manual hold / freeze of generated future instances
+- forecast preview before generation
+- skipped / missed / overdue visibility
+- route or package grouping for multi-asset PM rounds
+
+### Preventive Engine Expectations
+
+The current engine foundation is a good start, but a professional preventive engine should go beyond "evaluate due work when the app loads."
+
+Recommended enterprise behavior:
+
+- generate a configurable horizon of future preventive instances
+  - example: pre-create the next `13` weekly or monthly occurrences instead of waiting for the next app refresh
+- support both fixed and floating intervals
+  - `fixed`: the next scheduled dates stay anchored to the original plan calendar
+  - `floating`: the next scheduled dates are recalculated from the actual completion date or completion counter
+- support lead-time generation windows
+  - example: create the next work order `14` days before due instead of on the due date itself
+- support explicit generation targets and release states
+  - forecast only
+  - draft work request
+  - released work request
+  - direct work order
+- prevent duplicate generation when the engine is rerun or the app is restarted
+- keep generation history and next-run reasoning auditable
+- support missed / late / early completion rules
+  - continue fixed schedule
+  - float from actual completion
+  - optionally suppress duplicate catch-up generation
+- support blackout windows and non-working periods
+  - shutdown windows
+  - seasonal shutdowns
+  - holiday / weekend rules when required
+- support packaging and grouping logic
+  - combine tasks due in the same window into one work order
+  - group by asset, route, area, or shutdown campaign
+- support counter-based and sensor-based reset rules
+  - meter rollover
+  - manual reset
+  - completion-driven reset
+  - moving-threshold recalculation
+- support blocked-generation states explicitly
+  - missing task library
+  - missing sensor mapping
+  - missing asset context
+  - approval gate not satisfied
+  - material precondition not satisfied
+- support planner preview and regeneration tools
+  - dry-run "what will be generated"
+  - regenerate horizon after plan edits
+  - recompute next due using new policy without losing audit history
+
+Recommended additional data points for later engine hardening:
+
+- `schedule_policy`
+  - `fixed`
+  - `floating`
+- `generation_horizon_count`
+- `generation_horizon_unit`
+- `generation_lead_value`
+- `generation_lead_unit`
+- `last_scheduled_due_at`
+- `last_completion_basis_at`
+- `last_completion_basis_counter`
+- `freeze_generated_instances`
+- `allow_catch_up_generation`
+- `grouping_key`
+- `route_code`
+- `blackout_calendar_code`
+
+Current implementation progress for this engine block:
+
+- done: persisted `schedule_policy` and `generation_horizon_count` on preventive plans
+- done: persisted preventive plan instances for calendar-plan horizon scheduling
+- done: horizon refresh and duplicate-safe instance regeneration through the preventive engine
+- done: floating calendar plans now recalculate future planned instances from actual work-order completion
+- next: lead-time generation windows, blackout calendars, packaging/grouping, and richer planner preview/regeneration tooling
 
 ### Sensors
 
@@ -2253,7 +2333,15 @@ Build next:
 - task step templates. Started.
 - preventive plans. Started.
 - preventive plan tasks. Started.
-- due generation engine. Started.
+- due generation engine. Started as a baseline foundation.
+- next preventive-engine hardening:
+  - configurable horizon generation of future instances
+  - fixed vs floating interval policy
+  - lead-time generation windows
+  - duplicate-prevention and generation audit trail
+  - blocked-generation reasons and planner preview
+  - grouping / route packaging logic
+  - blackout-calendar handling
 
 Phase 2 UI:
 
@@ -2319,6 +2407,13 @@ Build next:
 - started: asset and asset-component master services, work request services, work order lifecycle services, and work-order task execution services
 - document and document-link services
 - preventive trigger evaluation service. Started.
+- preventive engine hardening still pending:
+  - horizon generation service
+  - fixed/floating schedule recalculation service
+  - generation forecast / preview service
+  - duplicate-generation guard service
+  - blackout / calendar-adjustment service
+  - grouping and campaign-packaging rules
 - inventory and reservation services
 - purchase requisition and purchase order services
 - started: sensor ingestion and validation service
@@ -2359,6 +2454,11 @@ Build next:
 - every maintainable asset should optionally belong to a system
 - every hybrid preventive plan prioritizes sensor logic over calendar logic
 - every preventive task may inherit the plan trigger or override it through `preventive_plan_task`
+- every preventive plan should declare whether its schedule is `fixed` or `floating`
+- every floating preventive plan should recalculate future due dates from the actual completion basis
+- every fixed preventive plan should keep future due dates anchored to the planned cadence
+- every preventive engine run must be idempotent and must not create duplicate future instances
+- every preventive engine should be able to pre-generate a planner-visible horizon of future work
 - every technician-facing task is a generated execution record, not a live template row
 - every task with steps must block task completion until required steps are done
 - inventory and purchasing should be owned by a dedicated `inventory_procurement` business module
@@ -2380,6 +2480,7 @@ For this product, a professional enterprise CMMS should provide:
 - guided execution with step hints
 - clean planner and work queues
 - admin-controlled maintenance libraries separate from technician execution
+- horizon-based preventive generation with fixed/floating scheduling logic and planner preview
 - stock, spare-part, and purchasing control linked to work
 - formal preventive trigger logic
 - integration-ready sensor architecture
@@ -2393,8 +2494,10 @@ These are the best questions to answer before implementation starts:
 1. Should `site` be its own table in phase 1, or is `location` enough initially?
 2. Do you want `party` as one unified table, or separate `supplier` and `manufacturer` tables?
 3. Should preventive plans generate work requests first, or direct work orders by default?
-4. Should technicians record labor through the shared time boundary from day one?
-5. Should the `inventory_procurement` module skeleton ship before Maintenance runtime screens, or in parallel?
+4. Should the default PM schedule policy be `fixed` or `floating`, and where should users be allowed to override it?
+5. How far ahead should the engine generate PM instances by default: by count, by days, or by planning horizon?
+6. Should technicians record labor through the shared time boundary from day one?
+7. Should the `inventory_procurement` module skeleton ship before Maintenance runtime screens, or in parallel?
 
 ## Summary
 

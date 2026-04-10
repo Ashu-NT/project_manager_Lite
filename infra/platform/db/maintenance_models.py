@@ -29,6 +29,7 @@ from core.modules.maintenance_management.domain import (
     MaintenancePlanTaskTriggerScope,
     MaintenancePlanType,
     MaintenancePriority,
+    MaintenanceSchedulePolicy,
     MaintenanceSensorDirection,
     MaintenanceSensorExceptionStatus,
     MaintenanceSensorExceptionType,
@@ -1060,11 +1061,18 @@ class MaintenancePreventivePlanORM(Base):
         default=MaintenanceTriggerMode.CALENDAR,
         server_default=MaintenanceTriggerMode.CALENDAR.value,
     )
+    schedule_policy: Mapped[MaintenanceSchedulePolicy] = mapped_column(
+        SAEnum(MaintenanceSchedulePolicy),
+        nullable=False,
+        default=MaintenanceSchedulePolicy.FIXED,
+        server_default=MaintenanceSchedulePolicy.FIXED.value,
+    )
     calendar_frequency_unit: Mapped[Optional[MaintenanceCalendarFrequencyUnit]] = mapped_column(
         SAEnum(MaintenanceCalendarFrequencyUnit),
         nullable=True,
     )
     calendar_frequency_value: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    generation_horizon_count: Mapped[int] = mapped_column(Integer, nullable=False, default=13, server_default="13")
     sensor_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("maintenance_sensors.id", ondelete="SET NULL"),

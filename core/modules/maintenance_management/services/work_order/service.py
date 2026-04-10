@@ -1,16 +1,26 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from calendar import monthrange
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceFailureCodeType, MaintenanceWorkOrder
+from core.modules.maintenance_management.domain import (
+    MaintenanceCalendarFrequencyUnit,
+    MaintenanceFailureCodeType,
+    MaintenancePreventiveInstanceStatus,
+    MaintenanceSchedulePolicy,
+    MaintenanceTriggerMode,
+    MaintenanceWorkOrder,
+)
 from core.modules.maintenance_management.interfaces import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenanceFailureCodeRepository,
     MaintenanceLocationRepository,
+    MaintenancePreventivePlanInstanceRepository,
+    MaintenancePreventivePlanRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
     MaintenanceWorkRequestRepository,
@@ -47,6 +57,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         system_repo: MaintenanceSystemRepository,
         work_request_repo: MaintenanceWorkRequestRepository,
         failure_code_repo: MaintenanceFailureCodeRepository | None = None,
+        preventive_plan_repo: MaintenancePreventivePlanRepository | None = None,
+        preventive_plan_instance_repo: MaintenancePreventivePlanInstanceRepository | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -61,6 +73,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._system_repo = system_repo
         self._work_request_repo = work_request_repo
         self._failure_code_repo = failure_code_repo
+        self._preventive_plan_repo = preventive_plan_repo
+        self._preventive_plan_instance_repo = preventive_plan_instance_repo
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -322,6 +336,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
     ) -> MaintenanceWorkOrder:
         self._require_manage("update maintenance work order")
         work_order = self.get_work_order(work_order_id)
+        status_completion_changed = False
 
         if expected_version is not None and work_order.version != expected_version:
             raise ConcurrencyError(
@@ -329,9 +344,10 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 code="STALE_WRITE",
             )
 
-        # Validate status transition
+            # Validate status transition
         if status is not None:
             from core.modules.maintenance_management.domain import MaintenanceWorkOrderStatus
+            prior_status = work_order.status
             new_status = coerce_work_order_status(status)
             self._validate_work_order_status_transition(work_order.status, new_status)
             work_order.status = new_status
@@ -347,6 +363,19 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 current_user_id = self._current_user_id()
                 if current_user_id:
                     work_order.closed_by_user_id = current_user_id
+            status_completion_changed = (
+                prior_status not in (
+                    MaintenanceWorkOrderStatus.COMPLETED,
+                    MaintenanceWorkOrderStatus.VERIFIED,
+                    MaintenanceWorkOrderStatus.CLOSED,
+                )
+                and new_status
+                in (
+                    MaintenanceWorkOrderStatus.COMPLETED,
+                    MaintenanceWorkOrderStatus.VERIFIED,
+                    MaintenanceWorkOrderStatus.CLOSED,
+                )
+            )
 
         if work_order_code is not None:
             normalized_code = normalize_maintenance_code(work_order_code, label="Work order code")
@@ -435,6 +464,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             work_order.notes = normalize_optional_text(notes)
 
         work_order.updated_at = datetime.now(timezone.utc)
+        if status_completion_changed:
+            self._apply_preventive_completion(work_order)
 
         try:
             self._work_order_repo.update(work_order)
@@ -486,6 +517,74 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         if organization is None:
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
+
+    def _apply_preventive_completion(self, work_order: MaintenanceWorkOrder) -> None:
+        if (
+            self._preventive_plan_repo is None
+            or self._preventive_plan_instance_repo is None
+            or work_order.source_type != "PREVENTIVE_PLAN"
+            or not work_order.is_preventive
+        ):
+            return
+        organization = self._active_organization()
+        preventive_instance = self._preventive_plan_instance_repo.get_by_generated_work_order_id(
+            organization.id,
+            work_order.id,
+        )
+        if preventive_instance is None:
+            return
+        completed_at = work_order.actual_end or datetime.now(timezone.utc)
+        preventive_instance.status = MaintenancePreventiveInstanceStatus.COMPLETED
+        preventive_instance.completed_at = completed_at
+        preventive_instance.updated_at = completed_at
+        self._preventive_plan_instance_repo.update(preventive_instance)
+
+        preventive_plan = self._preventive_plan_repo.get(preventive_instance.plan_id)
+        if preventive_plan is None:
+            return
+        preventive_plan.last_completed_at = completed_at
+        if (
+            preventive_plan.schedule_policy == MaintenanceSchedulePolicy.FLOATING
+            and preventive_plan.trigger_mode == MaintenanceTriggerMode.CALENDAR
+        ):
+            for future_instance in self._preventive_plan_instance_repo.list_for_organization(
+                organization.id,
+                plan_id=preventive_plan.id,
+                status=MaintenancePreventiveInstanceStatus.PLANNED.value,
+            ):
+                self._preventive_plan_instance_repo.delete(future_instance.id)
+            preventive_plan.next_due_at = self._advance_calendar_due(
+                completed_at,
+                preventive_plan.calendar_frequency_unit,
+                preventive_plan.calendar_frequency_value,
+            )
+        preventive_plan.updated_at = completed_at
+        self._preventive_plan_repo.update(preventive_plan)
+
+    def _advance_calendar_due(
+        self,
+        anchor: datetime,
+        unit: MaintenanceCalendarFrequencyUnit | None,
+        value: int | None,
+    ) -> datetime | None:
+        if unit is None or value in (None, 0):
+            return None
+        if unit == MaintenanceCalendarFrequencyUnit.DAILY:
+            return anchor + timedelta(days=value)
+        if unit == MaintenanceCalendarFrequencyUnit.WEEKLY:
+            return anchor + timedelta(weeks=value)
+        if unit == MaintenanceCalendarFrequencyUnit.CUSTOM_DAYS:
+            return anchor + timedelta(days=value)
+        months = value
+        if unit == MaintenanceCalendarFrequencyUnit.QUARTERLY:
+            months = value * 3
+        elif unit == MaintenanceCalendarFrequencyUnit.YEARLY:
+            months = value * 12
+        total_month = anchor.month - 1 + months
+        year = anchor.year + total_month // 12
+        month = total_month % 12 + 1
+        day = min(anchor.day, monthrange(year, month)[1])
+        return anchor.replace(year=year, month=month, day=day)
 
     def _normalize_failure_code(
         self,

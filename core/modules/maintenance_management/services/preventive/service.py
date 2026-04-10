@@ -11,8 +11,11 @@ from core.modules.maintenance_management.domain import (
     MaintenanceCalendarFrequencyUnit,
     MaintenancePlanStatus,
     MaintenancePlanTaskTriggerScope,
+    MaintenancePreventiveInstanceStatus,
     MaintenancePreventivePlan,
+    MaintenancePreventivePlanInstance,
     MaintenancePreventivePlanTask,
+    MaintenanceSchedulePolicy,
     MaintenanceSensor,
     MaintenanceSensorDirection,
     MaintenanceSensorQualityState,
@@ -20,6 +23,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceTriggerMode,
 )
 from core.modules.maintenance_management.interfaces import (
+    MaintenancePreventivePlanInstanceRepository,
     MaintenancePreventivePlanRepository,
     MaintenancePreventivePlanTaskRepository,
     MaintenanceSensorRepository,
@@ -28,8 +32,6 @@ from core.modules.maintenance_management.interfaces import (
 )
 from core.modules.maintenance_management.services.work_order.service import MaintenanceWorkOrderService
 from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService
-from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService
-from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
 from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
 from core.modules.maintenance_management.services.work_request.service import MaintenanceWorkRequestService
 from core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -81,6 +83,7 @@ class MaintenancePreventiveGenerationService:
         *,
         organization_repo: OrganizationRepository,
         site_repo: SiteRepository,
+        preventive_plan_instance_repo: MaintenancePreventivePlanInstanceRepository,
         preventive_plan_repo: MaintenancePreventivePlanRepository,
         preventive_plan_task_repo: MaintenancePreventivePlanTaskRepository,
         task_template_repo: MaintenanceTaskTemplateRepository,
@@ -96,6 +99,7 @@ class MaintenancePreventiveGenerationService:
         self._session = session
         self._organization_repo = organization_repo
         self._site_repo = site_repo
+        self._preventive_plan_instance_repo = preventive_plan_instance_repo
         self._preventive_plan_repo = preventive_plan_repo
         self._preventive_plan_task_repo = preventive_plan_task_repo
         self._task_template_repo = task_template_repo
@@ -121,7 +125,57 @@ class MaintenancePreventiveGenerationService:
         if site_id is not None:
             self._get_site(site_id, organization=organization)
         rows = self._list_visible_active_plans(organization=organization, site_id=site_id, plan_id=plan_id)
+        for row in rows:
+            self._sync_calendar_plan_instances(row, resolved_as_of)
         return [self._build_candidate(plan, resolved_as_of) for plan in rows]
+
+    def refresh_schedule(
+        self,
+        *,
+        as_of: datetime | None = None,
+        site_id: str | None = None,
+        plan_id: str | None = None,
+    ) -> list[MaintenancePreventivePlanInstance]:
+        self._require_manage("refresh maintenance preventive schedule")
+        organization = self._active_organization()
+        resolved_as_of = self._resolve_as_of(as_of)
+        if site_id is not None:
+            self._get_site(site_id, organization=organization)
+        rows = self._list_visible_active_plans(organization=organization, site_id=site_id, plan_id=plan_id)
+        refreshed: list[MaintenancePreventivePlanInstance] = []
+        for row in rows:
+            self._require_scope_manage(
+                self._scope_anchor_for_plan(row),
+                operation_label="refresh maintenance preventive schedule",
+            )
+            refreshed.extend(self._normalize_instances(self._sync_calendar_plan_instances(row, resolved_as_of)))
+        return refreshed
+
+    def list_plan_instances(
+        self,
+        *,
+        plan_id: str,
+        status: str | None = None,
+    ) -> list[MaintenancePreventivePlanInstance]:
+        self._require_read("list maintenance preventive schedule instances")
+        organization = self._active_organization()
+        plan = self._preventive_plan_repo.get(plan_id)
+        if plan is None or plan.organization_id != organization.id:
+            raise NotFoundError(
+                "Maintenance preventive plan not found in the active organization.",
+                code="MAINTENANCE_PREVENTIVE_PLAN_NOT_FOUND",
+            )
+        self._require_scope_read(
+            self._scope_anchor_for_plan(plan),
+            operation_label="list maintenance preventive schedule instances",
+        )
+        self._sync_calendar_plan_instances(plan, self._resolve_as_of(None))
+        rows = self._preventive_plan_instance_repo.list_for_organization(
+            organization.id,
+            plan_id=plan.id,
+            status=status,
+        )
+        return self._normalize_instances(rows)
 
     def generate_due_work(
         self,
@@ -138,6 +192,7 @@ class MaintenancePreventiveGenerationService:
         rows = self._list_visible_active_plans(organization=organization, site_id=site_id, plan_id=plan_id)
         results: list[MaintenancePreventiveGenerationResult] = []
         for plan in rows:
+            self._sync_calendar_plan_instances(plan, resolved_as_of)
             candidate = self._build_candidate(plan, resolved_as_of)
             if candidate.due_state != "DUE":
                 results.append(
@@ -162,6 +217,7 @@ class MaintenancePreventiveGenerationService:
         candidate: MaintenancePreventiveDueCandidate,
         as_of: datetime,
     ) -> MaintenancePreventiveGenerationResult:
+        due_instance = self._select_due_instance(plan, as_of)
         generated_work_request_id: str | None = None
         generated_work_order_id: str | None = None
         generated_task_ids: list[str] = []
@@ -241,7 +297,13 @@ class MaintenancePreventiveGenerationService:
             )
             generated_work_request_id = work_request.id
 
-        self._apply_plan_generation_state(plan, as_of)
+        self._apply_plan_generation_state(
+            plan,
+            as_of,
+            due_instance=due_instance,
+            generated_work_request_id=generated_work_request_id,
+            generated_work_order_id=generated_work_order_id,
+        )
         for plan_task in self._selected_plan_tasks(plan.id, candidate):
             self._apply_plan_task_generation_state(plan_task, as_of)
 
@@ -330,6 +392,106 @@ class MaintenancePreventiveGenerationService:
             due_reason=plan_eval.reason or "Preventive plan is not due.",
             generation_target="WORK_ORDER" if plan.auto_generate_work_order else "WORK_REQUEST",
             blocked_plan_task_ids=tuple(blocked_ids),
+        )
+
+    def _sync_calendar_plan_instances(
+        self,
+        plan: MaintenancePreventivePlan,
+        as_of: datetime,
+    ) -> list[MaintenancePreventivePlanInstance]:
+        if not self._plan_uses_calendar_instances(plan):
+            return self._preventive_plan_instance_repo.list_for_organization(
+                plan.organization_id,
+                plan_id=plan.id,
+            )
+        rows = self._preventive_plan_instance_repo.list_for_organization(
+            plan.organization_id,
+            plan_id=plan.id,
+        )
+        planned_by_due = {
+            self._resolve_as_of(row.due_at): row
+            for row in rows
+            if row.status == MaintenancePreventiveInstanceStatus.PLANNED
+        }
+        desired_due_dates = self._build_planned_due_dates(plan, as_of)
+        desired_instances: list[MaintenancePreventivePlanInstance] = []
+        changed = False
+        for due_at in desired_due_dates:
+            existing = planned_by_due.pop(due_at, None)
+            if existing is not None:
+                desired_instances.append(existing)
+                continue
+            instance = MaintenancePreventivePlanInstance.create(
+                organization_id=plan.organization_id,
+                plan_id=plan.id,
+                due_at=due_at,
+                notes=f"Planned schedule instance for preventive plan {plan.plan_code}.",
+            )
+            self._preventive_plan_instance_repo.add(instance)
+            desired_instances.append(instance)
+            changed = True
+        for orphan in planned_by_due.values():
+            self._preventive_plan_instance_repo.delete(orphan.id)
+            changed = True
+        next_due_at = desired_instances[0].due_at if desired_instances else None
+        if plan.next_due_at != next_due_at:
+            plan.next_due_at = next_due_at
+            plan.updated_at = as_of
+            self._preventive_plan_repo.update(plan)
+            changed = True
+        if changed:
+            self._session.commit()
+        return self._normalize_instances(self._preventive_plan_instance_repo.list_for_organization(
+            plan.organization_id,
+            plan_id=plan.id,
+        ))
+
+    def _build_planned_due_dates(
+        self,
+        plan: MaintenancePreventivePlan,
+        as_of: datetime,
+    ) -> list[datetime]:
+        if plan.calendar_frequency_unit is None or plan.calendar_frequency_value in (None, 0):
+            return []
+        start_due = self._resolve_as_of(plan.next_due_at) if plan.next_due_at is not None else None
+        if start_due is None:
+            start_due = self._advance_calendar_due(
+                as_of,
+                plan.calendar_frequency_unit,
+                plan.calendar_frequency_value,
+            )
+        planned_due_dates: list[datetime] = []
+        current_due = start_due
+        for _ in range(max(plan.generation_horizon_count, 1)):
+            planned_due_dates.append(current_due)
+            current_due = self._advance_calendar_due(
+                current_due,
+                plan.calendar_frequency_unit,
+                plan.calendar_frequency_value,
+            )
+        return planned_due_dates
+
+    def _select_due_instance(
+        self,
+        plan: MaintenancePreventivePlan,
+        as_of: datetime,
+    ) -> MaintenancePreventivePlanInstance | None:
+        if not self._plan_uses_calendar_instances(plan):
+            return None
+        for row in self._preventive_plan_instance_repo.list_for_organization(
+            plan.organization_id,
+            plan_id=plan.id,
+            status=MaintenancePreventiveInstanceStatus.PLANNED.value,
+        ):
+            if self._resolve_as_of(row.due_at) <= as_of:
+                return row
+        return None
+
+    def _plan_uses_calendar_instances(self, plan: MaintenancePreventivePlan) -> bool:
+        return (
+            plan.trigger_mode == MaintenanceTriggerMode.CALENDAR
+            and plan.calendar_frequency_unit is not None
+            and plan.calendar_frequency_value not in (None, 0)
         )
 
     def _selected_plan_tasks(
@@ -523,14 +685,36 @@ class MaintenancePreventiveGenerationService:
             sensor=sensor,
         )
 
-    def _apply_plan_generation_state(self, plan: MaintenancePreventivePlan, as_of: datetime) -> None:
+    def _apply_plan_generation_state(
+        self,
+        plan: MaintenancePreventivePlan,
+        as_of: datetime,
+        *,
+        due_instance: MaintenancePreventivePlanInstance | None,
+        generated_work_request_id: str | None,
+        generated_work_order_id: str | None,
+    ) -> None:
         sensor = self._sensor_repo.get(plan.sensor_id) if plan.sensor_id else None
         plan.last_generated_at = as_of
-        plan.next_due_at = self._next_calendar_due_value(
-            as_of,
-            plan.calendar_frequency_unit,
-            plan.calendar_frequency_value,
-        )
+        if due_instance is not None:
+            due_instance.status = MaintenancePreventiveInstanceStatus.GENERATED
+            due_instance.generated_at = as_of
+            due_instance.generated_work_request_id = generated_work_request_id
+            due_instance.generated_work_order_id = generated_work_order_id
+            due_instance.updated_at = as_of
+            self._preventive_plan_instance_repo.update(due_instance)
+            remaining_planned = self._preventive_plan_instance_repo.list_for_organization(
+                plan.organization_id,
+                plan_id=plan.id,
+                status=MaintenancePreventiveInstanceStatus.PLANNED.value,
+            )
+            plan.next_due_at = remaining_planned[0].due_at if remaining_planned else None
+        else:
+            plan.next_due_at = self._next_calendar_due_value(
+                as_of,
+                plan.calendar_frequency_unit,
+                plan.calendar_frequency_value,
+            )
         plan.next_due_counter = self._next_sensor_due_counter(
             sensor=sensor,
             threshold=plan.sensor_threshold,
@@ -540,6 +724,8 @@ class MaintenancePreventiveGenerationService:
         plan.updated_at = as_of
         self._preventive_plan_repo.update(plan)
         self._session.commit()
+        if due_instance is not None and self._plan_uses_calendar_instances(plan):
+            self._sync_calendar_plan_instances(plan, as_of)
         domain_events.domain_changed.emit(
             DomainChangeEvent(
                 category="module",
@@ -719,11 +905,32 @@ class MaintenancePreventiveGenerationService:
             raise NotFoundError("Site not found in the active organization.", code="SITE_NOT_FOUND")
         return row
 
+    def _normalize_instances(
+        self,
+        rows: list[MaintenancePreventivePlanInstance],
+    ) -> list[MaintenancePreventivePlanInstance]:
+        for row in rows:
+            row.due_at = self._resolve_as_of(row.due_at)
+            if row.generated_at is not None:
+                row.generated_at = self._resolve_as_of(row.generated_at)
+            if row.completed_at is not None:
+                row.completed_at = self._resolve_as_of(row.completed_at)
+        return rows
+
     def _require_read(self, operation_label: str) -> None:
         require_permission(self._user_session, "maintenance.read", operation_label=operation_label)
 
     def _require_manage(self, operation_label: str) -> None:
         require_permission(self._user_session, "maintenance.manage", operation_label=operation_label)
+
+    def _require_scope_read(self, scope_id: str, *, operation_label: str) -> None:
+        require_scope_permission(
+            self._user_session,
+            "maintenance",
+            scope_id,
+            "maintenance.read",
+            operation_label=operation_label,
+        )
 
     def _require_scope_manage(self, scope_id: str, *, operation_label: str) -> None:
         require_scope_permission(

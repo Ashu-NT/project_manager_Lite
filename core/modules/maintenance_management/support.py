@@ -12,7 +12,9 @@ from core.modules.maintenance_management.domain import (
     MaintenancePlanStatus,
     MaintenancePlanTaskTriggerScope,
     MaintenancePlanType,
+    MaintenancePreventiveInstanceStatus,
     MaintenancePriority,
+    MaintenanceSchedulePolicy,
     MaintenanceSensorDirection,
     MaintenanceSensorExceptionStatus,
     MaintenanceSensorExceptionType,
@@ -194,6 +196,19 @@ def coerce_plan_type(value: MaintenancePlanType | str | None) -> MaintenancePlan
         raise ValidationError("Maintenance plan type is invalid.", code="MAINTENANCE_PLAN_TYPE_INVALID") from exc
 
 
+def coerce_schedule_policy(value: MaintenanceSchedulePolicy | str | None) -> MaintenanceSchedulePolicy:
+    if isinstance(value, MaintenanceSchedulePolicy):
+        return value
+    raw = str(value or MaintenanceSchedulePolicy.FIXED.value).strip().upper()
+    try:
+        return MaintenanceSchedulePolicy(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance schedule policy is invalid.",
+            code="MAINTENANCE_SCHEDULE_POLICY_INVALID",
+        ) from exc
+
+
 def coerce_calendar_frequency_unit(
     value: MaintenanceCalendarFrequencyUnit | str | None,
 ) -> MaintenanceCalendarFrequencyUnit | None:
@@ -240,6 +255,21 @@ def coerce_plan_task_trigger_scope(
         raise ValidationError(
             "Maintenance plan task trigger scope is invalid.",
             code="MAINTENANCE_PLAN_TASK_TRIGGER_SCOPE_INVALID",
+        ) from exc
+
+
+def coerce_preventive_instance_status(
+    value: MaintenancePreventiveInstanceStatus | str | None,
+) -> MaintenancePreventiveInstanceStatus:
+    if isinstance(value, MaintenancePreventiveInstanceStatus):
+        return value
+    raw = str(value or MaintenancePreventiveInstanceStatus.PLANNED.value).strip().upper()
+    try:
+        return MaintenancePreventiveInstanceStatus(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance preventive instance status is invalid.",
+            code="MAINTENANCE_PREVENTIVE_INSTANCE_STATUS_INVALID",
         ) from exc
 
 

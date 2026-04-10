@@ -53,6 +53,7 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceFailureCodeRepository,
     SqlAlchemyMaintenanceIntegrationSourceRepository,
     SqlAlchemyMaintenanceLocationRepository,
+    SqlAlchemyMaintenancePreventivePlanInstanceRepository,
     SqlAlchemyMaintenancePreventivePlanRepository,
     SqlAlchemyMaintenancePreventivePlanTaskRepository,
     SqlAlchemyMaintenanceSensorExceptionRepository,
@@ -120,6 +121,7 @@ def build_maintenance_management_service_bundle(
     failure_code_repo = SqlAlchemyMaintenanceFailureCodeRepository(platform_services.session)
     integration_source_repo = SqlAlchemyMaintenanceIntegrationSourceRepository(platform_services.session)
     preventive_plan_repo = SqlAlchemyMaintenancePreventivePlanRepository(platform_services.session)
+    preventive_plan_instance_repo = SqlAlchemyMaintenancePreventivePlanInstanceRepository(platform_services.session)
     preventive_plan_task_repo = SqlAlchemyMaintenancePreventivePlanTaskRepository(platform_services.session)
     sensor_source_mapping_repo = SqlAlchemyMaintenanceSensorSourceMappingRepository(platform_services.session)
     sensor_exception_repo = SqlAlchemyMaintenanceSensorExceptionRepository(platform_services.session)
@@ -382,6 +384,8 @@ def build_maintenance_management_service_bundle(
         system_repo=system_repo,
         work_request_repo=work_request_repo,
         failure_code_repo=failure_code_repo,
+        preventive_plan_repo=preventive_plan_repo,
+        preventive_plan_instance_repo=preventive_plan_instance_repo,
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
@@ -431,6 +435,7 @@ def build_maintenance_management_service_bundle(
         platform_services.session,
         organization_repo=platform_services.organization_repo,
         site_repo=platform_services.site_repo,
+        preventive_plan_instance_repo=preventive_plan_instance_repo,
         preventive_plan_repo=preventive_plan_repo,
         preventive_plan_task_repo=preventive_plan_task_repo,
         task_template_repo=task_template_repo,

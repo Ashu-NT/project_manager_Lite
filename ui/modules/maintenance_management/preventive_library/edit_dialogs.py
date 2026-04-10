@@ -23,6 +23,7 @@ from core.modules.maintenance_management.domain import (
     MaintenancePreventivePlan,
     MaintenancePreventivePlanTask,
     MaintenancePriority,
+    MaintenanceSchedulePolicy,
     MaintenanceSensorDirection,
     MaintenanceTriggerMode,
 )
@@ -84,8 +85,10 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         self.plan_type_combo = QComboBox()
         self.priority_combo = QComboBox()
         self.trigger_mode_combo = QComboBox()
+        self.schedule_policy_combo = QComboBox()
         self.calendar_unit_combo = QComboBox()
         self.calendar_value_spin = QSpinBox()
+        self.generation_horizon_spin = QSpinBox()
         self.sensor_combo = QComboBox()
         self.sensor_threshold_edit = QLineEdit()
         self.sensor_direction_combo = QComboBox()
@@ -100,6 +103,8 @@ class MaintenancePreventivePlanEditDialog(QDialog):
 
         self.calendar_value_spin.setRange(0, 100000)
         self.calendar_value_spin.setSpecialValueText("Not set")
+        self.generation_horizon_spin.setRange(1, 52)
+        self.generation_horizon_spin.setValue(13)
         self.sensor_threshold_edit.setPlaceholderText("Example: 1000 or 75.5")
 
         # Populate combo boxes
@@ -116,6 +121,8 @@ class MaintenancePreventivePlanEditDialog(QDialog):
             self.priority_combo.addItem(value.value.title(), value.value)
         for value in MaintenanceTriggerMode:
             self.trigger_mode_combo.addItem(value.value.title(), value.value)
+        for value in MaintenanceSchedulePolicy:
+            self.schedule_policy_combo.addItem(value.value.title(), value.value)
         self.calendar_unit_combo.addItem("No calendar rule", None)
         for value in MaintenanceCalendarFrequencyUnit:
             self.calendar_unit_combo.addItem(value.value.replace("_", " ").title(), value.value)
@@ -145,30 +152,34 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         grid.addWidget(self.priority_combo, 8, 1)
         grid.addWidget(QLabel("Trigger Mode"), 9, 0)
         grid.addWidget(self.trigger_mode_combo, 9, 1)
+        grid.addWidget(QLabel("Schedule Policy"), 10, 0)
+        grid.addWidget(self.schedule_policy_combo, 10, 1)
 
         # Right column - Triggers and Options
         grid.addWidget(QLabel("Calendar Unit"), 0, 2)
         grid.addWidget(self.calendar_unit_combo, 0, 3)
         grid.addWidget(QLabel("Calendar Value"), 1, 2)
         grid.addWidget(self.calendar_value_spin, 1, 3)
-        grid.addWidget(QLabel("Sensor"), 2, 2)
-        grid.addWidget(self.sensor_combo, 2, 3)
-        grid.addWidget(QLabel("Sensor Threshold"), 3, 2)
-        grid.addWidget(self.sensor_threshold_edit, 3, 3)
-        grid.addWidget(QLabel("Sensor Direction"), 4, 2)
-        grid.addWidget(self.sensor_direction_combo, 4, 3)
-        grid.addWidget(QLabel("Sensor Reset Rule"), 5, 2)
-        grid.addWidget(self.sensor_reset_rule_edit, 5, 3)
-        grid.addWidget(QLabel("Description"), 6, 2)
-        grid.addWidget(self.description_edit, 6, 3)
-        grid.addWidget(QLabel("Notes"), 7, 2)
-        grid.addWidget(self.notes_edit, 7, 3, 2, 1)  # Span 2 rows
+        grid.addWidget(QLabel("Generation Horizon"), 2, 2)
+        grid.addWidget(self.generation_horizon_spin, 2, 3)
+        grid.addWidget(QLabel("Sensor"), 3, 2)
+        grid.addWidget(self.sensor_combo, 3, 3)
+        grid.addWidget(QLabel("Sensor Threshold"), 4, 2)
+        grid.addWidget(self.sensor_threshold_edit, 4, 3)
+        grid.addWidget(QLabel("Sensor Direction"), 5, 2)
+        grid.addWidget(self.sensor_direction_combo, 5, 3)
+        grid.addWidget(QLabel("Sensor Reset Rule"), 6, 2)
+        grid.addWidget(self.sensor_reset_rule_edit, 6, 3)
+        grid.addWidget(QLabel("Description"), 7, 2)
+        grid.addWidget(self.description_edit, 7, 3)
+        grid.addWidget(QLabel("Notes"), 8, 2)
+        grid.addWidget(self.notes_edit, 8, 3, 2, 1)  # Span 2 rows
 
         # Checkboxes at bottom
-        grid.addWidget(self.requires_shutdown_check, 9, 2)
-        grid.addWidget(self.approval_required_check, 9, 3)
-        grid.addWidget(self.auto_generate_work_order_check, 10, 2)
-        grid.addWidget(self.is_active_check, 10, 3)
+        grid.addWidget(self.requires_shutdown_check, 10, 2)
+        grid.addWidget(self.approval_required_check, 10, 3)
+        grid.addWidget(self.auto_generate_work_order_check, 11, 2)
+        grid.addWidget(self.is_active_check, 11, 3)
 
         root.addLayout(grid)
 
@@ -189,6 +200,7 @@ class MaintenancePreventivePlanEditDialog(QDialog):
             self._set_combo_to_data(self.plan_type_combo, MaintenancePlanType.PREVENTIVE.value)
             self._set_combo_to_data(self.priority_combo, MaintenancePriority.MEDIUM.value)
             self._set_combo_to_data(self.trigger_mode_combo, MaintenanceTriggerMode.CALENDAR.value)
+            self._set_combo_to_data(self.schedule_policy_combo, MaintenanceSchedulePolicy.FIXED.value)
             self.is_active_check.setChecked(True)
             self._sync_trigger_mode_state()
             return
@@ -204,11 +216,13 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         self._set_combo_to_data(self.plan_type_combo, row.plan_type.value)
         self._set_combo_to_data(self.priority_combo, row.priority.value)
         self._set_combo_to_data(self.trigger_mode_combo, row.trigger_mode.value)
+        self._set_combo_to_data(self.schedule_policy_combo, row.schedule_policy.value)
         self._set_combo_to_data(
             self.calendar_unit_combo,
             row.calendar_frequency_unit.value if row.calendar_frequency_unit is not None else None,
         )
         self.calendar_value_spin.setValue(row.calendar_frequency_value or 0)
+        self.generation_horizon_spin.setValue(max(row.generation_horizon_count, 1))
         self._set_combo_to_data(self.sensor_combo, row.sensor_id)
         self.sensor_threshold_edit.setText("" if row.sensor_threshold is None else str(row.sensor_threshold))
         self._set_combo_to_data(
@@ -351,6 +365,10 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         return str(self.trigger_mode_combo.currentData() or "").strip().upper()
 
     @property
+    def schedule_policy(self) -> str:
+        return str(self.schedule_policy_combo.currentData() or "").strip().upper()
+
+    @property
     def calendar_frequency_unit(self) -> str | None:
         if self.trigger_mode not in {"CALENDAR", "HYBRID"}:
             return None
@@ -363,6 +381,10 @@ class MaintenancePreventivePlanEditDialog(QDialog):
             return None
         value = int(self.calendar_value_spin.value())
         return value or None
+
+    @property
+    def generation_horizon_count(self) -> int:
+        return max(1, int(self.generation_horizon_spin.value()))
 
     @property
     def sensor_id(self) -> str | None:

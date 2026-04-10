@@ -7,6 +7,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceFailureCode,
     MaintenanceIntegrationSource,
     MaintenanceLocation,
+    MaintenancePreventivePlanInstance,
     MaintenancePreventivePlan,
     MaintenancePreventivePlanTask,
     MaintenanceSensorException,
@@ -44,6 +45,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceWorkOrderTaskStepORM,
     MaintenanceWorkRequestORM,
 )
+from infra.platform.db.maintenance_preventive_runtime_models import MaintenancePreventivePlanInstanceORM
 
 
 def maintenance_location_to_orm(location: MaintenanceLocation) -> MaintenanceLocationORM:
@@ -979,8 +981,10 @@ def maintenance_preventive_plan_to_orm(plan: MaintenancePreventivePlan) -> Maint
         plan_type=plan.plan_type,
         priority=plan.priority,
         trigger_mode=plan.trigger_mode,
+        schedule_policy=plan.schedule_policy,
         calendar_frequency_unit=plan.calendar_frequency_unit,
         calendar_frequency_value=plan.calendar_frequency_value,
+        generation_horizon_count=plan.generation_horizon_count,
         sensor_id=plan.sensor_id,
         sensor_threshold=plan.sensor_threshold,
         sensor_direction=plan.sensor_direction,
@@ -1015,8 +1019,10 @@ def maintenance_preventive_plan_from_orm(obj: MaintenancePreventivePlanORM) -> M
         plan_type=obj.plan_type,
         priority=obj.priority,
         trigger_mode=obj.trigger_mode,
+        schedule_policy=obj.schedule_policy,
         calendar_frequency_unit=obj.calendar_frequency_unit,
         calendar_frequency_value=obj.calendar_frequency_value,
+        generation_horizon_count=obj.generation_horizon_count,
         sensor_id=obj.sensor_id,
         sensor_threshold=obj.sensor_threshold,
         sensor_direction=obj.sensor_direction,
@@ -1029,6 +1035,48 @@ def maintenance_preventive_plan_from_orm(obj: MaintenancePreventivePlanORM) -> M
         approval_required=obj.approval_required,
         auto_generate_work_order=obj.auto_generate_work_order,
         is_active=obj.is_active,
+        notes=obj.notes,
+        created_at=obj.created_at,
+        updated_at=obj.updated_at,
+        version=getattr(obj, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_instance_to_orm(
+    preventive_instance: MaintenancePreventivePlanInstance,
+) -> MaintenancePreventivePlanInstanceORM:
+    return MaintenancePreventivePlanInstanceORM(
+        id=preventive_instance.id,
+        organization_id=preventive_instance.organization_id,
+        plan_id=preventive_instance.plan_id,
+        due_at=preventive_instance.due_at,
+        due_counter=preventive_instance.due_counter,
+        status=preventive_instance.status,
+        generated_at=preventive_instance.generated_at,
+        generated_work_request_id=preventive_instance.generated_work_request_id,
+        generated_work_order_id=preventive_instance.generated_work_order_id,
+        completed_at=preventive_instance.completed_at,
+        notes=preventive_instance.notes,
+        created_at=preventive_instance.created_at,
+        updated_at=preventive_instance.updated_at,
+        version=getattr(preventive_instance, "version", 1),
+    )
+
+
+def maintenance_preventive_plan_instance_from_orm(
+    obj: MaintenancePreventivePlanInstanceORM,
+) -> MaintenancePreventivePlanInstance:
+    return MaintenancePreventivePlanInstance(
+        id=obj.id,
+        organization_id=obj.organization_id,
+        plan_id=obj.plan_id,
+        due_at=obj.due_at,
+        due_counter=obj.due_counter,
+        status=obj.status,
+        generated_at=obj.generated_at,
+        generated_work_request_id=obj.generated_work_request_id,
+        generated_work_order_id=obj.generated_work_order_id,
+        completed_at=obj.completed_at,
         notes=obj.notes,
         created_at=obj.created_at,
         updated_at=obj.updated_at,
@@ -1101,6 +1149,8 @@ __all__ = [
     "maintenance_asset_to_orm",
     "maintenance_location_from_orm",
     "maintenance_location_to_orm",
+    "maintenance_preventive_plan_instance_from_orm",
+    "maintenance_preventive_plan_instance_to_orm",
     "maintenance_preventive_plan_from_orm",
     "maintenance_preventive_plan_task_from_orm",
     "maintenance_preventive_plan_task_to_orm",
