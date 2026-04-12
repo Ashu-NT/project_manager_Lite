@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from PySide6.QtWidgets import QDialog, QLabel, QTableWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QTableWidgetItem, QVBoxLayout, QWidget
 
-from core.modules.maintenance_management import MaintenancePreventivePlanService, MaintenancePreventivePlanTaskService
+from core.modules.maintenance_management import (
+    MaintenancePreventiveGenerationService,
+    MaintenancePreventivePlanService,
+    MaintenancePreventivePlanTaskService,
+)
 from core.modules.maintenance_management.domain import (
     MaintenancePlanTaskTriggerScope,
     MaintenancePreventivePlan,
     MaintenancePreventivePlanTask,
     MaintenanceTriggerMode,
 )
+from core.platform.common.exceptions import BusinessRuleError
 from ui.modules.maintenance_management.shared import MaintenanceWorkbenchNavigator, MaintenanceWorkbenchSection, format_timestamp
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
+from ui.platform.shared.guards import make_guarded_slot
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -31,6 +37,7 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
     def __init__(
         self,
         *,
+        preventive_generation_service: MaintenancePreventiveGenerationService,
         preventive_plan_service: MaintenancePreventivePlanService,
         preventive_plan_task_service: MaintenancePreventivePlanTaskService,
         asset_labels: dict[str, str],
@@ -40,12 +47,15 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self._preventive_generation_service = preventive_generation_service
         self._preventive_plan_service = preventive_plan_service
         self._preventive_plan_task_service = preventive_plan_task_service
         self._asset_labels = asset_labels
         self._system_labels = system_labels
         self._sensor_labels = sensor_labels
         self._task_template_labels = task_template_labels
+        self._current_plan_id: str | None = None
+        self._current_context: MaintenancePreventivePlanDetailContext | None = None
 
         self.setWindowTitle("Preventive Plan Detail")
         self.resize(1060, 720)
@@ -61,17 +71,28 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
 
         self.workbench = MaintenanceWorkbenchNavigator(object_name="maintenancePreventiveDetailWorkbench", parent=self)
         self.overview_widget, self.overview_summary = self._build_overview_widget()
+        self.forecast_widget, self.forecast_summary, self.forecast_table = self._build_forecast_widget()
         self.tasks_widget, self.task_table = self._build_tasks_widget()
         self.workbench.set_sections(
             [
                 MaintenanceWorkbenchSection(key="overview", label="Overview", widget=self.overview_widget),
+                MaintenanceWorkbenchSection(key="forecast", label="Forecast", widget=self.forecast_widget),
                 MaintenanceWorkbenchSection(key="plan_tasks", label="Plan Tasks", widget=self.tasks_widget),
             ],
             initial_key="overview",
         )
         root.addWidget(self.workbench, 1)
 
+        self.btn_refresh_forecast.clicked.connect(
+            make_guarded_slot(self, title="Preventive Plan Detail", callback=self._refresh_forecast)
+        )
+        self.btn_regenerate_horizon.clicked.connect(
+            make_guarded_slot(self, title="Preventive Plan Detail", callback=self._regenerate_horizon)
+        )
+
     def load_plan(self, plan_id: str, *, context: MaintenancePreventivePlanDetailContext) -> None:
+        self._current_plan_id = plan_id
+        self._current_context = context
         plan = self._preventive_plan_service.get_preventive_plan(plan_id)
         plan_tasks = sorted(
             self._preventive_plan_task_service.list_plan_tasks(plan_id=plan.id),
@@ -93,6 +114,7 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
             )
         )
         self._populate_task_table(plan_tasks, context=context)
+        self._populate_forecast_table(plan)
         self.workbench.set_current_section("overview")
 
     def _populate_task_table(
@@ -155,6 +177,128 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
         )
         layout.addWidget(table)
         return widget, table
+
+    def _build_forecast_widget(self) -> tuple[QWidget, QLabel, object]:
+        widget, layout = build_admin_surface_card(
+            object_name="maintenancePreventiveDialogForecastSurface",
+            alt=False,
+        )
+        title = QLabel("Forecast")
+        title.setStyleSheet(CFG.SECTION_BOLD_MARGIN_STYLE)
+        subtitle = QLabel("Future schedule instances, generation windows, and planner-facing regeneration controls.")
+        subtitle.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        subtitle.setWordWrap(True)
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        summary = QLabel("Select a preventive plan to preview its schedule horizon.")
+        summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
+        summary.setWordWrap(True)
+        layout.addWidget(summary)
+        action_row = QHBoxLayout()
+        action_row.setSpacing(CFG.SPACING_SM)
+        self.btn_refresh_forecast = QPushButton("Refresh Forecast")
+        self.btn_regenerate_horizon = QPushButton("Regenerate Horizon")
+        for button in (self.btn_refresh_forecast, self.btn_regenerate_horizon):
+            button.setFixedHeight(CFG.BUTTON_HEIGHT)
+        action_row.addWidget(self.btn_refresh_forecast)
+        action_row.addWidget(self.btn_regenerate_horizon)
+        action_row.addStretch(1)
+        layout.addLayout(action_row)
+        table = build_admin_table(
+            headers=("Due", "Window Opens", "Instance", "Planner State", "Generated Work", "Completed"),
+            resize_modes=(
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+                self._resize_to_contents(),
+                self._stretch(),
+                self._resize_to_contents(),
+            ),
+        )
+        layout.addWidget(table)
+        return widget, summary, table
+
+    def _populate_forecast_table(self, plan: MaintenancePreventivePlan) -> None:
+        rows = self._preventive_generation_service.preview_plan_schedule(plan_id=plan.id)
+        self.forecast_table.setRowCount(len(rows))
+        for row_index, row in enumerate(rows):
+            generated_work = row.generated_work_order_id or row.generated_work_request_id or "-"
+            values = (
+                format_timestamp(row.due_at),
+                format_timestamp(row.generation_window_opens_at),
+                row.instance_status.replace("_", " ").title(),
+                row.planner_state.replace("_", " ").title(),
+                generated_work,
+                format_timestamp(row.completed_at),
+            )
+            for column, value in enumerate(values):
+                self.forecast_table.setItem(row_index, column, QTableWidgetItem(value))
+        if not rows:
+            self.forecast_summary.setText(
+                "No persisted forecast rows are available for this plan yet. Sensor-only plans can still show due state in Overview."
+            )
+            return
+        first_row = rows[0]
+        self.forecast_summary.setText(
+            f"{len(rows)} instance(s) in horizon. Next Window opens {format_timestamp(first_row.generation_window_opens_at)} "
+            f"for due date {format_timestamp(first_row.due_at)}."
+        )
+
+    def _refresh_forecast(self) -> None:
+        if not self._current_plan_id or self._current_context is None:
+            return
+        try:
+            self.load_plan(self._current_plan_id, context=self._reload_context(self._current_plan_id))
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Preventive Plan Detail", str(exc))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Preventive Plan Detail", f"Failed to refresh preventive forecast: {exc}")
+
+    def _regenerate_horizon(self) -> None:
+        if not self._current_plan_id or self._current_context is None:
+            return
+        try:
+            self._preventive_generation_service.regenerate_plan_schedule(plan_id=self._current_plan_id)
+            self.load_plan(self._current_plan_id, context=self._reload_context(self._current_plan_id))
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Preventive Plan Detail", str(exc))
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Preventive Plan Detail", f"Failed to regenerate preventive horizon: {exc}")
+
+    def _reload_context(self, plan_id: str) -> MaintenancePreventivePlanDetailContext:
+        plan = self._preventive_plan_service.get_preventive_plan(plan_id)
+        candidate_rows = self._preventive_generation_service.list_due_candidates(plan_id=plan_id)
+        candidate = candidate_rows[0] if candidate_rows else None
+        next_due = self._ensure_utc_datetime(plan.next_due_at)
+        now = datetime.now(timezone.utc)
+        is_due_soon = (
+            candidate is None
+            and plan.is_active
+            and plan.status.value == "ACTIVE"
+            and next_due is not None
+            and now <= next_due <= now + timedelta(days=30)
+        )
+        if candidate is None:
+            return MaintenancePreventivePlanDetailContext(
+                due_state="INACTIVE" if (not plan.is_active or plan.status.value != "ACTIVE") else "NOT_DUE",
+                due_reason=(
+                    "Preventive plan is not active for due generation."
+                    if (not plan.is_active or plan.status.value != "ACTIVE")
+                    else "Preventive plan is active but has no current due candidate."
+                ),
+                generation_target="WORK_ORDER" if plan.auto_generate_work_order else "WORK_REQUEST",
+                selected_plan_task_ids=(),
+                blocked_plan_task_ids=(),
+                is_due_soon=is_due_soon,
+            )
+        return MaintenancePreventivePlanDetailContext(
+            due_state=candidate.due_state,
+            due_reason=candidate.due_reason,
+            generation_target=candidate.generation_target,
+            selected_plan_task_ids=candidate.selected_plan_task_ids,
+            blocked_plan_task_ids=candidate.blocked_plan_task_ids,
+            is_due_soon=False,
+        )
 
     def _anchor_label(self, plan: MaintenancePreventivePlan) -> str:
         if plan.asset_id:

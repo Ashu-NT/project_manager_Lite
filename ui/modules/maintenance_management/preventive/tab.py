@@ -240,6 +240,9 @@ class MaintenancePreventivePlansTab(QWidget):
         self.btn_open_detail.clicked.connect(
             make_guarded_slot(self, title="Preventive Plans", callback=self._open_detail_dialog)
         )
+        self.btn_regenerate_horizon.clicked.connect(
+            make_guarded_slot(self, title="Preventive Plans", callback=self._regenerate_selected_horizon)
+        )
 
     def _build_plan_panel(self) -> QWidget:
         panel, layout = build_admin_surface_card(
@@ -261,6 +264,10 @@ class MaintenancePreventivePlansTab(QWidget):
         self.selection_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
         self.selection_summary.setWordWrap(True)
         action_row.addWidget(self.selection_summary, 1)
+        self.btn_regenerate_horizon = QPushButton("Regenerate Horizon")
+        self.btn_regenerate_horizon.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_regenerate_horizon.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_regenerate_horizon)
         self.btn_open_detail = QPushButton("Open Detail")
         self.btn_open_detail.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_open_detail.setStyleSheet(dashboard_action_button_style("secondary"))
@@ -518,11 +525,13 @@ class MaintenancePreventivePlansTab(QWidget):
                 "Select a preventive plan, then click Open Detail to inspect trigger state and task library."
             )
             self.btn_open_detail.setEnabled(False)
+            self.btn_regenerate_horizon.setEnabled(False)
             return
         self.selection_summary.setText(
             f"Selected: {view.plan.plan_code} | Due state: {self._due_state_label(view)} | Trigger: {view.plan.trigger_mode.value.title()}"
         )
         self.btn_open_detail.setEnabled(True)
+        self.btn_regenerate_horizon.setEnabled(True)
 
     def _open_detail_dialog(self) -> None:
         view = self._selected_view()
@@ -530,6 +539,7 @@ class MaintenancePreventivePlansTab(QWidget):
             QMessageBox.information(self, "Preventive Plans", "Select a preventive plan to open its detail view.")
             return
         dialog = MaintenancePreventivePlanDetailDialog(
+            preventive_generation_service=self._preventive_generation_service,
             preventive_plan_service=self._preventive_plan_service,
             preventive_plan_task_service=self._preventive_plan_task_service,
             asset_labels=self._asset_labels,
@@ -553,6 +563,21 @@ class MaintenancePreventivePlansTab(QWidget):
         dialog.raise_()
         dialog.activateWindow()
         self._detail_dialog = dialog
+
+    def _regenerate_selected_horizon(self) -> None:
+        view = self._selected_view()
+        if view is None:
+            QMessageBox.information(self, "Preventive Plans", "Select a preventive plan to regenerate its horizon.")
+            return
+        try:
+            self._preventive_generation_service.regenerate_plan_schedule(plan_id=view.plan.id)
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Preventive Plans", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Preventive Plans", f"Failed to regenerate preventive horizon: {exc}")
+            return
+        self.reload_data()
 
     def _on_domain_change(self, event: DomainChangeEvent) -> None:
         if getattr(event, "scope_code", "") == "maintenance_management":

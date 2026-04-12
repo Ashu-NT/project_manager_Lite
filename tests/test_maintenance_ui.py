@@ -1286,13 +1286,18 @@ def test_maintenance_preventive_tab_surfaces_due_blocked_and_inactive_plan_state
     tab.plan_table.selectRow(row)
     qapp.processEvents()
     assert "PM-UI-DUE" in tab.selection_summary.text()
-    assert tab.btn_open_detail.isEnabled()
+    assert tab.btn_open_detail.isEnabled() and tab.btn_regenerate_horizon.isEnabled()
+    tab.btn_regenerate_horizon.click(); qapp.processEvents()
     tab.btn_open_detail.click()
     qapp.processEvents()
     dialog = tab._detail_dialog
     assert dialog is not None
     assert "Due seal inspection" in dialog.title_label.text()
     assert "Due state: Due" in dialog.overview_summary.text()
+    dialog.workbench.set_current_section("forecast"); qapp.processEvents()
+    assert dialog.forecast_table.rowCount() >= 1 and "Window opens" in dialog.forecast_summary.text()
+    dialog.btn_regenerate_horizon.click(); qapp.processEvents()
+    assert dialog.forecast_table.rowCount() >= 1
     assert dialog.task_table.rowCount() >= 1
     assert "PM-SEAL-CHECK" in dialog.task_table.item(0, 1).text()
 

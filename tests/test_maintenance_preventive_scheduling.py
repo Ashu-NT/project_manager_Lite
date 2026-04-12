@@ -234,3 +234,25 @@ def test_preventive_generation_can_create_work_order_before_due_date_from_lead_w
     assert generated[0].status.value == "GENERATED"
     assert generated[0].due_at == first_due
     assert _ensure_utc(generated[0].generated_at) == generation_as_of
+
+
+def test_preventive_forecast_preview_exposes_generation_window_and_regeneration_rows(services):
+    plan, first_due = _build_calendar_plan(
+        services,
+        plan_code="SCH-600",
+        schedule_policy="fixed",
+        generation_lead_value=10,
+        generation_lead_unit="days",
+    )
+    as_of = first_due - timedelta(days=4)
+
+    preview = services["maintenance_preventive_generation_service"].preview_plan_schedule(
+        plan_id=plan.id,
+        as_of=as_of,
+    )
+
+    assert len(preview) == 3
+    assert preview[0].due_at == first_due
+    assert preview[0].generation_window_opens_at == first_due - timedelta(days=10)
+    assert preview[0].planner_state == "READY_WINDOW"
+    assert preview[1].planner_state == "UPCOMING"

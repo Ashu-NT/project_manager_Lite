@@ -70,6 +70,18 @@ class MaintenancePreventiveGenerationResult:
 
 
 @dataclass(frozen=True)
+class MaintenancePreventiveForecastRow:
+    instance_id: str
+    due_at: datetime
+    generation_window_opens_at: datetime
+    instance_status: str
+    planner_state: str
+    generated_work_request_id: str | None = None
+    generated_work_order_id: str | None = None
+    completed_at: datetime | None = None
+
+
+@dataclass(frozen=True)
 class _TriggerEvaluation:
     due: bool
     blocked: bool
@@ -177,6 +189,53 @@ class MaintenancePreventiveGenerationService:
             status=status,
         )
         return self._normalize_instances(rows)
+
+    def preview_plan_schedule(
+        self,
+        *,
+        plan_id: str,
+        as_of: datetime | None = None,
+    ) -> list[MaintenancePreventiveForecastRow]:
+        self._require_read("preview maintenance preventive schedule")
+        organization = self._active_organization()
+        plan = self._preventive_plan_repo.get(plan_id)
+        if plan is None or plan.organization_id != organization.id:
+            raise NotFoundError(
+                "Maintenance preventive plan not found in the active organization.",
+                code="MAINTENANCE_PREVENTIVE_PLAN_NOT_FOUND",
+            )
+        self._require_scope_read(
+            self._scope_anchor_for_plan(plan),
+            operation_label="preview maintenance preventive schedule",
+        )
+        resolved_as_of = self._resolve_as_of(as_of)
+        self._sync_calendar_plan_instances(plan, resolved_as_of)
+        rows = self._preventive_plan_instance_repo.list_for_organization(
+            organization.id,
+            plan_id=plan.id,
+        )
+        return [
+            MaintenancePreventiveForecastRow(
+                instance_id=row.id,
+                due_at=self._resolve_as_of(row.due_at),
+                generation_window_opens_at=self._lead_window_starts_at(plan, self._resolve_as_of(row.due_at)),
+                instance_status=row.status.value,
+                planner_state=self._forecast_planner_state(plan, row, resolved_as_of),
+                generated_work_request_id=row.generated_work_request_id,
+                generated_work_order_id=row.generated_work_order_id,
+                completed_at=self._resolve_as_of(row.completed_at) if row.completed_at is not None else None,
+            )
+            for row in rows
+        ]
+
+    def regenerate_plan_schedule(
+        self,
+        *,
+        plan_id: str,
+        as_of: datetime | None = None,
+    ) -> list[MaintenancePreventiveForecastRow]:
+        self.refresh_schedule(plan_id=plan_id, as_of=as_of)
+        return self.preview_plan_schedule(plan_id=plan_id, as_of=as_of)
 
     def generate_due_work(
         self,
@@ -881,6 +940,26 @@ class MaintenancePreventiveGenerationService:
         if lead_unit == MaintenanceGenerationLeadUnit.WEEKS:
             return due_at - timedelta(weeks=lead_value)
         return self._add_months(due_at, -lead_value)
+
+    def _forecast_planner_state(
+        self,
+        plan: MaintenancePreventivePlan,
+        row: MaintenancePreventivePlanInstance,
+        as_of: datetime,
+    ) -> str:
+        if row.status == MaintenancePreventiveInstanceStatus.COMPLETED:
+            return "COMPLETED"
+        if row.status == MaintenancePreventiveInstanceStatus.GENERATED:
+            return "GENERATED"
+        if row.status == MaintenancePreventiveInstanceStatus.CANCELLED:
+            return "CANCELLED"
+        due_at = self._resolve_as_of(row.due_at)
+        window_opens_at = self._lead_window_starts_at(plan, due_at)
+        if as_of >= due_at:
+            return "DUE"
+        if as_of >= window_opens_at:
+            return "READY_WINDOW"
+        return "UPCOMING"
 
     def _add_months(self, anchor: datetime, months: int) -> datetime:
         total_month = anchor.month - 1 + months
