@@ -270,6 +270,11 @@ class MaintenancePreventivePlanLibraryDetailDialog(QDialog):
                     "Auto-generate WO" if plan.auto_generate_work_order else "Generate WR/queue",
                     f"Schedule {plan.schedule_policy.value.title()}",
                     f"Horizon {plan.generation_horizon_count}",
+                    (
+                        f"Lead {plan.generation_lead_value} {plan.generation_lead_unit.value.title()}"
+                        if plan.generation_lead_value > 0
+                        else "Lead On due date"
+                    ),
                 ]
             )
         )

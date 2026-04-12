@@ -13,6 +13,12 @@ class MaintenanceSchedulePolicy(str, Enum):
     FLOATING = "FLOATING"
 
 
+class MaintenanceGenerationLeadUnit(str, Enum):
+    DAYS = "DAYS"
+    WEEKS = "WEEKS"
+    MONTHS = "MONTHS"
+
+
 class MaintenancePreventiveInstanceStatus(str, Enum):
     PLANNED = "PLANNED"
     GENERATED = "GENERATED"
@@ -71,6 +77,7 @@ class MaintenancePreventivePlanInstance:
 
 
 __all__ = [
+    "MaintenanceGenerationLeadUnit",
     "MaintenancePreventiveInstanceStatus",
     "MaintenancePreventivePlanInstance",
     "MaintenanceSchedulePolicy",

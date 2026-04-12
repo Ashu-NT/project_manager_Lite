@@ -1296,8 +1296,6 @@ class SqlAlchemyMaintenanceTaskStepTemplateRepository(MaintenanceTaskStepTemplat
             )
         ).scalars().all()
         return [maintenance_task_step_template_from_orm(row) for row in rows]
-
-
 class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRepository):
     def __init__(self, session: Session):
         self.session = session
@@ -1327,6 +1325,7 @@ class SqlAlchemyMaintenancePreventivePlanRepository(MaintenancePreventivePlanRep
                 "calendar_frequency_unit": preventive_plan.calendar_frequency_unit,
                 "calendar_frequency_value": preventive_plan.calendar_frequency_value,
                 "generation_horizon_count": preventive_plan.generation_horizon_count,
+                "generation_lead_value": preventive_plan.generation_lead_value, "generation_lead_unit": preventive_plan.generation_lead_unit,
                 "sensor_id": preventive_plan.sensor_id,
                 "sensor_threshold": preventive_plan.sensor_threshold,
                 "sensor_direction": preventive_plan.sensor_direction,

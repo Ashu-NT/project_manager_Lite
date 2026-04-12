@@ -25,6 +25,7 @@ from core.modules.maintenance_management.interfaces import (
 )
 from core.modules.maintenance_management.support import (
     coerce_calendar_frequency_unit,
+    coerce_generation_lead_unit,
     coerce_optional_datetime,
     coerce_optional_decimal_value,
     coerce_optional_non_negative_int,
@@ -204,6 +205,8 @@ class MaintenancePreventivePlanService:
         calendar_frequency_unit=None,
         calendar_frequency_value: int | str | None = None,
         generation_horizon_count: int | str | None = None,
+        generation_lead_value: int | str | None = None,
+        generation_lead_unit=None,
         sensor_id: str | None = None,
         sensor_threshold: Decimal | int | float | str | None = None,
         sensor_direction=None,
@@ -242,6 +245,8 @@ class MaintenancePreventivePlanService:
             label="Calendar frequency value",
         )
         resolved_generation_horizon_count = self._normalize_generation_horizon_count(generation_horizon_count)
+        resolved_generation_lead_value = self._normalize_generation_lead_value(generation_lead_value)
+        resolved_generation_lead_unit = coerce_generation_lead_unit(generation_lead_unit)
         resolved_sensor_threshold = coerce_optional_decimal_value(sensor_threshold, label="Sensor threshold")
         resolved_sensor_direction = coerce_sensor_direction(sensor_direction)
         sensor = self._resolve_sensor(
@@ -288,6 +293,8 @@ class MaintenancePreventivePlanService:
             calendar_frequency_unit=resolved_calendar_frequency_unit,
             calendar_frequency_value=resolved_calendar_frequency_value,
             generation_horizon_count=resolved_generation_horizon_count,
+            generation_lead_value=resolved_generation_lead_value,
+            generation_lead_unit=resolved_generation_lead_unit,
             sensor_id=sensor.id if sensor is not None else None,
             sensor_threshold=resolved_sensor_threshold,
             sensor_direction=resolved_sensor_direction,
@@ -336,6 +343,8 @@ class MaintenancePreventivePlanService:
         calendar_frequency_unit=None,
         calendar_frequency_value: int | str | None = None,
         generation_horizon_count: int | str | None = None,
+        generation_lead_value: int | str | None = None,
+        generation_lead_unit=None,
         sensor_id: str | None = None,
         sensor_threshold: Decimal | int | float | str | None = None,
         sensor_direction=None,
@@ -389,6 +398,14 @@ class MaintenancePreventivePlanService:
             row.generation_horizon_count
             if generation_horizon_count is None
             else self._normalize_generation_horizon_count(generation_horizon_count)
+        )
+        resolved_generation_lead_value = (
+            row.generation_lead_value
+            if generation_lead_value is None
+            else self._normalize_generation_lead_value(generation_lead_value)
+        )
+        resolved_generation_lead_unit = (
+            row.generation_lead_unit if generation_lead_unit is None else coerce_generation_lead_unit(generation_lead_unit)
         )
         resolved_sensor_threshold = (
             row.sensor_threshold
@@ -446,6 +463,8 @@ class MaintenancePreventivePlanService:
         row.calendar_frequency_unit = resolved_calendar_frequency_unit
         row.calendar_frequency_value = resolved_calendar_frequency_value
         row.generation_horizon_count = resolved_generation_horizon_count
+        row.generation_lead_value = resolved_generation_lead_value
+        row.generation_lead_unit = resolved_generation_lead_unit
         row.sensor_id = sensor.id if sensor is not None else None
         row.sensor_threshold = resolved_sensor_threshold
         row.sensor_direction = resolved_sensor_direction
@@ -625,6 +644,12 @@ class MaintenancePreventivePlanService:
         resolved = coerce_optional_non_negative_int(value, label="Generation horizon count")
         if resolved in (None, 0):
             return 13
+        return resolved
+
+    def _normalize_generation_lead_value(self, value: int | str | None) -> int:
+        resolved = coerce_optional_non_negative_int(value, label="Generation lead value")
+        if resolved is None:
+            return 0
         return resolved
 
     def _derive_initial_next_due_at(

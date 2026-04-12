@@ -7,6 +7,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceCalendarFrequencyUnit,
     MaintenanceCriticality,
     MaintenanceFailureCodeType,
+    MaintenanceGenerationLeadUnit,
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
     MaintenancePlanStatus,
@@ -206,6 +207,21 @@ def coerce_schedule_policy(value: MaintenanceSchedulePolicy | str | None) -> Mai
         raise ValidationError(
             "Maintenance schedule policy is invalid.",
             code="MAINTENANCE_SCHEDULE_POLICY_INVALID",
+        ) from exc
+
+
+def coerce_generation_lead_unit(
+    value: MaintenanceGenerationLeadUnit | str | None,
+) -> MaintenanceGenerationLeadUnit:
+    if isinstance(value, MaintenanceGenerationLeadUnit):
+        return value
+    raw = str(value or MaintenanceGenerationLeadUnit.DAYS.value).strip().upper()
+    try:
+        return MaintenanceGenerationLeadUnit(raw)
+    except ValueError as exc:
+        raise ValidationError(
+            "Maintenance generation lead unit is invalid.",
+            code="MAINTENANCE_GENERATION_LEAD_UNIT_INVALID",
         ) from exc
 
 

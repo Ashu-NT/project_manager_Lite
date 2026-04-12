@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from core.modules.maintenance_management.domain import (
     MaintenanceCalendarFrequencyUnit,
+    MaintenanceGenerationLeadUnit,
     MaintenancePlanStatus,
     MaintenancePlanTaskTriggerScope,
     MaintenancePreventiveInstanceStatus,
@@ -337,7 +338,11 @@ class MaintenancePreventiveGenerationService:
         plan: MaintenancePreventivePlan,
         as_of: datetime,
     ) -> MaintenancePreventiveDueCandidate:
-        plan_eval = self._evaluate_plan_trigger(plan, as_of)
+        plan_eval = (
+            self._evaluate_calendar_instance_window(plan, as_of)
+            if self._plan_uses_calendar_instances(plan)
+            else self._evaluate_plan_trigger(plan, as_of)
+        )
         plan_tasks = self._preventive_plan_task_repo.list_for_organization(plan.organization_id, plan_id=plan.id)
         selected_ids: list[str] = []
         blocked_ids: list[str] = []
@@ -483,9 +488,58 @@ class MaintenancePreventiveGenerationService:
             plan_id=plan.id,
             status=MaintenancePreventiveInstanceStatus.PLANNED.value,
         ):
-            if self._resolve_as_of(row.due_at) <= as_of:
+            if as_of >= self._lead_window_starts_at(plan, self._resolve_as_of(row.due_at)):
                 return row
         return None
+
+    def _evaluate_calendar_instance_window(
+        self,
+        plan: MaintenancePreventivePlan,
+        as_of: datetime,
+    ) -> _TriggerEvaluation:
+        rows = self._preventive_plan_instance_repo.list_for_organization(
+            plan.organization_id,
+            plan_id=plan.id,
+            status=MaintenancePreventiveInstanceStatus.PLANNED.value,
+        )
+        if not rows:
+            return _TriggerEvaluation(
+                due=False,
+                blocked=True,
+                reason="Preventive plan has no planned schedule instances to generate from.",
+            )
+        next_instance = rows[0]
+        due_at = self._resolve_as_of(next_instance.due_at)
+        window_opens_at = self._lead_window_starts_at(plan, due_at)
+        if as_of >= due_at:
+            return _TriggerEvaluation(
+                due=True,
+                blocked=False,
+                reason=f"Preventive plan reached its scheduled due date on {due_at.isoformat()}.",
+            )
+        if as_of >= window_opens_at:
+            if window_opens_at == due_at:
+                return _TriggerEvaluation(
+                    due=True,
+                    blocked=False,
+                    reason="Preventive plan reached its generation window on the due date.",
+                )
+            return _TriggerEvaluation(
+                due=True,
+                blocked=False,
+                reason=(
+                    "Preventive plan entered its lead generation window "
+                    f"on {window_opens_at.isoformat()} for scheduled due date {due_at.isoformat()}."
+                ),
+            )
+        return _TriggerEvaluation(
+            due=False,
+            blocked=False,
+            reason=(
+                f"Preventive plan is scheduled for {due_at.isoformat()}; "
+                f"generation window opens at {window_opens_at.isoformat()}."
+            ),
+        )
 
     def _plan_uses_calendar_instances(self, plan: MaintenancePreventivePlan) -> bool:
         return (
@@ -812,6 +866,21 @@ class MaintenancePreventiveGenerationService:
         elif unit == MaintenanceCalendarFrequencyUnit.YEARLY:
             months = value * 12
         return self._add_months(anchor, months)
+
+    def _lead_window_starts_at(
+        self,
+        plan: MaintenancePreventivePlan,
+        due_at: datetime,
+    ) -> datetime:
+        lead_value = max(int(getattr(plan, "generation_lead_value", 0) or 0), 0)
+        if lead_value == 0:
+            return due_at
+        lead_unit = getattr(plan, "generation_lead_unit", MaintenanceGenerationLeadUnit.DAYS)
+        if lead_unit == MaintenanceGenerationLeadUnit.DAYS:
+            return due_at - timedelta(days=lead_value)
+        if lead_unit == MaintenanceGenerationLeadUnit.WEEKS:
+            return due_at - timedelta(weeks=lead_value)
+        return self._add_months(due_at, -lead_value)
 
     def _add_months(self, anchor: datetime, months: int) -> datetime:
         total_month = anchor.month - 1 + months

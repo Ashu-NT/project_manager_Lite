@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from core.modules.maintenance_management.domain import (
     MaintenanceCalendarFrequencyUnit,
+    MaintenanceGenerationLeadUnit,
     MaintenancePlanStatus,
     MaintenancePlanTaskTriggerScope,
     MaintenancePlanType,
@@ -89,6 +90,8 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         self.calendar_unit_combo = QComboBox()
         self.calendar_value_spin = QSpinBox()
         self.generation_horizon_spin = QSpinBox()
+        self.generation_lead_spin = QSpinBox()
+        self.generation_lead_unit_combo = QComboBox()
         self.sensor_combo = QComboBox()
         self.sensor_threshold_edit = QLineEdit()
         self.sensor_direction_combo = QComboBox()
@@ -105,6 +108,8 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         self.calendar_value_spin.setSpecialValueText("Not set")
         self.generation_horizon_spin.setRange(1, 52)
         self.generation_horizon_spin.setValue(13)
+        self.generation_lead_spin.setRange(0, 365)
+        self.generation_lead_spin.setSpecialValueText("On due date")
         self.sensor_threshold_edit.setPlaceholderText("Example: 1000 or 75.5")
 
         # Populate combo boxes
@@ -126,6 +131,8 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         self.calendar_unit_combo.addItem("No calendar rule", None)
         for value in MaintenanceCalendarFrequencyUnit:
             self.calendar_unit_combo.addItem(value.value.replace("_", " ").title(), value.value)
+        for value in MaintenanceGenerationLeadUnit:
+            self.generation_lead_unit_combo.addItem(value.value.title(), value.value)
         self.sensor_combo.addItem("No sensor rule", None)
         self.sensor_direction_combo.addItem("No direction", None)
         for value in MaintenanceSensorDirection:
@@ -162,24 +169,28 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         grid.addWidget(self.calendar_value_spin, 1, 3)
         grid.addWidget(QLabel("Generation Horizon"), 2, 2)
         grid.addWidget(self.generation_horizon_spin, 2, 3)
-        grid.addWidget(QLabel("Sensor"), 3, 2)
-        grid.addWidget(self.sensor_combo, 3, 3)
-        grid.addWidget(QLabel("Sensor Threshold"), 4, 2)
-        grid.addWidget(self.sensor_threshold_edit, 4, 3)
-        grid.addWidget(QLabel("Sensor Direction"), 5, 2)
-        grid.addWidget(self.sensor_direction_combo, 5, 3)
-        grid.addWidget(QLabel("Sensor Reset Rule"), 6, 2)
-        grid.addWidget(self.sensor_reset_rule_edit, 6, 3)
-        grid.addWidget(QLabel("Description"), 7, 2)
-        grid.addWidget(self.description_edit, 7, 3)
-        grid.addWidget(QLabel("Notes"), 8, 2)
-        grid.addWidget(self.notes_edit, 8, 3, 2, 1)  # Span 2 rows
+        grid.addWidget(QLabel("Generation Lead"), 3, 2)
+        grid.addWidget(self.generation_lead_spin, 3, 3)
+        grid.addWidget(QLabel("Lead Unit"), 4, 2)
+        grid.addWidget(self.generation_lead_unit_combo, 4, 3)
+        grid.addWidget(QLabel("Sensor"), 5, 2)
+        grid.addWidget(self.sensor_combo, 5, 3)
+        grid.addWidget(QLabel("Sensor Threshold"), 6, 2)
+        grid.addWidget(self.sensor_threshold_edit, 6, 3)
+        grid.addWidget(QLabel("Sensor Direction"), 7, 2)
+        grid.addWidget(self.sensor_direction_combo, 7, 3)
+        grid.addWidget(QLabel("Sensor Reset Rule"), 8, 2)
+        grid.addWidget(self.sensor_reset_rule_edit, 8, 3)
+        grid.addWidget(QLabel("Description"), 9, 2)
+        grid.addWidget(self.description_edit, 9, 3)
+        grid.addWidget(QLabel("Notes"), 10, 2)
+        grid.addWidget(self.notes_edit, 10, 3, 2, 1)
 
         # Checkboxes at bottom
-        grid.addWidget(self.requires_shutdown_check, 10, 2)
-        grid.addWidget(self.approval_required_check, 10, 3)
-        grid.addWidget(self.auto_generate_work_order_check, 11, 2)
-        grid.addWidget(self.is_active_check, 11, 3)
+        grid.addWidget(self.requires_shutdown_check, 12, 2)
+        grid.addWidget(self.approval_required_check, 12, 3)
+        grid.addWidget(self.auto_generate_work_order_check, 13, 2)
+        grid.addWidget(self.is_active_check, 13, 3)
 
         root.addLayout(grid)
 
@@ -201,6 +212,7 @@ class MaintenancePreventivePlanEditDialog(QDialog):
             self._set_combo_to_data(self.priority_combo, MaintenancePriority.MEDIUM.value)
             self._set_combo_to_data(self.trigger_mode_combo, MaintenanceTriggerMode.CALENDAR.value)
             self._set_combo_to_data(self.schedule_policy_combo, MaintenanceSchedulePolicy.FIXED.value)
+            self._set_combo_to_data(self.generation_lead_unit_combo, MaintenanceGenerationLeadUnit.DAYS.value)
             self.is_active_check.setChecked(True)
             self._sync_trigger_mode_state()
             return
@@ -223,6 +235,8 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         )
         self.calendar_value_spin.setValue(row.calendar_frequency_value or 0)
         self.generation_horizon_spin.setValue(max(row.generation_horizon_count, 1))
+        self.generation_lead_spin.setValue(max(row.generation_lead_value, 0))
+        self._set_combo_to_data(self.generation_lead_unit_combo, row.generation_lead_unit.value)
         self._set_combo_to_data(self.sensor_combo, row.sensor_id)
         self.sensor_threshold_edit.setText("" if row.sensor_threshold is None else str(row.sensor_threshold))
         self._set_combo_to_data(
@@ -297,6 +311,8 @@ class MaintenancePreventivePlanEditDialog(QDialog):
         sensor_enabled = trigger_mode in {"SENSOR", "HYBRID"}
         self.calendar_unit_combo.setEnabled(calendar_enabled)
         self.calendar_value_spin.setEnabled(calendar_enabled)
+        self.generation_lead_spin.setEnabled(calendar_enabled)
+        self.generation_lead_unit_combo.setEnabled(calendar_enabled)
         self.sensor_combo.setEnabled(sensor_enabled)
         self.sensor_threshold_edit.setEnabled(sensor_enabled)
         self.sensor_direction_combo.setEnabled(sensor_enabled)
@@ -385,6 +401,16 @@ class MaintenancePreventivePlanEditDialog(QDialog):
     @property
     def generation_horizon_count(self) -> int:
         return max(1, int(self.generation_horizon_spin.value()))
+
+    @property
+    def generation_lead_value(self) -> int:
+        if self.trigger_mode not in {"CALENDAR", "HYBRID"}:
+            return 0
+        return max(0, int(self.generation_lead_spin.value()))
+
+    @property
+    def generation_lead_unit(self) -> str:
+        return str(self.generation_lead_unit_combo.currentData() or "DAYS").strip().upper()
 
     @property
     def sensor_id(self) -> str | None:

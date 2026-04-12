@@ -11,6 +11,7 @@ from core.modules.maintenance_management.reliability_domain import (
     MaintenanceFailureCodeType,
 )
 from core.modules.maintenance_management.preventive_schedule_domain import (
+    MaintenanceGenerationLeadUnit,
     MaintenancePreventiveInstanceStatus,
     MaintenancePreventivePlanInstance,
     MaintenanceSchedulePolicy,
@@ -1278,8 +1279,6 @@ class MaintenanceTaskStepTemplate:
             updated_at=now,
             version=1,
         )
-
-
 @dataclass
 class MaintenancePreventivePlan:
     id: str
@@ -1298,13 +1297,12 @@ class MaintenancePreventivePlan:
     schedule_policy: MaintenanceSchedulePolicy = MaintenanceSchedulePolicy.FIXED
     calendar_frequency_unit: MaintenanceCalendarFrequencyUnit | None = None
     calendar_frequency_value: int | None = None
-    generation_horizon_count: int = 13
-    sensor_id: str | None = None
+    generation_horizon_count: int = 13; generation_lead_value: int = 0
+    generation_lead_unit: MaintenanceGenerationLeadUnit = MaintenanceGenerationLeadUnit.DAYS; sensor_id: str | None = None
     sensor_threshold: Decimal | None = None
     sensor_direction: MaintenanceSensorDirection | None = None
     sensor_reset_rule: str = ""
-    last_generated_at: datetime | None = None
-    last_completed_at: datetime | None = None
+    last_generated_at: datetime | None = None; last_completed_at: datetime | None = None
     next_due_at: datetime | None = None
     next_due_counter: Decimal | None = None
     requires_shutdown: bool = False
@@ -1333,8 +1331,8 @@ class MaintenancePreventivePlan:
         trigger_mode: MaintenanceTriggerMode = MaintenanceTriggerMode.CALENDAR,
         schedule_policy: MaintenanceSchedulePolicy = MaintenanceSchedulePolicy.FIXED,
         calendar_frequency_unit: MaintenanceCalendarFrequencyUnit | None = None,
-        calendar_frequency_value: int | None = None,
-        generation_horizon_count: int = 13,
+        calendar_frequency_value: int | None = None, generation_horizon_count: int = 13,
+        generation_lead_value: int = 0, generation_lead_unit: MaintenanceGenerationLeadUnit = MaintenanceGenerationLeadUnit.DAYS,
         sensor_id: str | None = None,
         sensor_threshold: Decimal | None = None,
         sensor_direction: MaintenanceSensorDirection | None = None,
@@ -1368,6 +1366,8 @@ class MaintenancePreventivePlan:
             calendar_frequency_unit=calendar_frequency_unit,
             calendar_frequency_value=calendar_frequency_value,
             generation_horizon_count=generation_horizon_count,
+            generation_lead_value=generation_lead_value,
+            generation_lead_unit=generation_lead_unit,
             sensor_id=sensor_id,
             sensor_threshold=sensor_threshold,
             sensor_direction=sensor_direction,
@@ -1385,8 +1385,6 @@ class MaintenancePreventivePlan:
             updated_at=now,
             version=1,
         )
-
-
 @dataclass
 class MaintenancePreventivePlanTask:
     id: str

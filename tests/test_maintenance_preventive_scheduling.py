@@ -20,7 +20,14 @@ def _ensure_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(timezone.utc)
 
 
-def _build_calendar_plan(services, *, plan_code: str, schedule_policy: str) -> tuple[object, object]:
+def _build_calendar_plan(
+    services,
+    *,
+    plan_code: str,
+    schedule_policy: str,
+    generation_lead_value: int = 0,
+    generation_lead_unit: str = "days",
+) -> tuple[object, object]:
     site = services["site_service"].create_site(site_code=f"{plan_code}-SITE", name=f"{plan_code} Site")
     location = services["maintenance_location_service"].create_location(
         site_id=site.id,
@@ -53,6 +60,8 @@ def _build_calendar_plan(services, *, plan_code: str, schedule_policy: str) -> t
         calendar_frequency_unit="monthly",
         calendar_frequency_value=1,
         generation_horizon_count=3,
+        generation_lead_value=generation_lead_value,
+        generation_lead_unit=generation_lead_unit,
         next_due_at=first_due.isoformat(),
         auto_generate_work_order=True,
     )
@@ -173,3 +182,55 @@ def test_floating_preventive_schedule_recalculates_future_instances_from_complet
         _add_months(expected_due, 1),
         _add_months(expected_due, 2),
     ]
+
+
+def test_preventive_schedule_enters_due_state_when_generation_lead_window_opens(services):
+    plan, first_due = _build_calendar_plan(
+        services,
+        plan_code="SCH-400",
+        schedule_policy="fixed",
+        generation_lead_value=5,
+        generation_lead_unit="days",
+    )
+
+    before_window = services["maintenance_preventive_generation_service"].list_due_candidates(
+        plan_id=plan.id,
+        as_of=first_due - timedelta(days=6),
+    )[0]
+    at_window_open = services["maintenance_preventive_generation_service"].list_due_candidates(
+        plan_id=plan.id,
+        as_of=first_due - timedelta(days=5),
+    )[0]
+
+    assert before_window.due_state == "NOT_DUE"
+    assert "generation window opens" in before_window.due_reason
+    assert at_window_open.due_state == "DUE"
+    assert "lead generation window" in at_window_open.due_reason
+
+
+def test_preventive_generation_can_create_work_order_before_due_date_from_lead_window(services):
+    plan, first_due = _build_calendar_plan(
+        services,
+        plan_code="SCH-500",
+        schedule_policy="fixed",
+        generation_lead_value=7,
+        generation_lead_unit="days",
+    )
+    generation_as_of = first_due - timedelta(days=4)
+    services["maintenance_preventive_generation_service"].refresh_schedule(
+        plan_id=plan.id,
+        as_of=generation_as_of,
+    )
+
+    result = services["maintenance_preventive_generation_service"].generate_due_work(
+        plan_id=plan.id,
+        as_of=generation_as_of,
+    )[0]
+    instances = services["maintenance_preventive_generation_service"].list_plan_instances(plan_id=plan.id)
+    generated = [row for row in instances if row.generated_work_order_id == result.generated_work_order_id]
+
+    assert result.generated_work_order_id is not None
+    assert len(generated) == 1
+    assert generated[0].status.value == "GENERATED"
+    assert generated[0].due_at == first_due
+    assert _ensure_utc(generated[0].generated_at) == generation_as_of

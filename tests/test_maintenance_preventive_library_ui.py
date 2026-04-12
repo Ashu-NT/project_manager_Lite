@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog
 
+from ui.modules.maintenance_management.preventive_library.edit_dialogs import (
+    MaintenancePreventivePlanEditDialog,
+)
 from ui.modules.maintenance_management.preventive_library.detail_dialog import (
     MaintenancePreventivePlanLibraryDetailDialog,
 )
@@ -501,3 +504,28 @@ def test_preventive_plan_library_detail_supports_plan_task_create_and_edit(qapp,
     added_row = _find_row_by_contains(dialog.task_table, 0, "2")
     assert dialog.task_table.item(added_row, 4).text() == "No"
     assert dialog.task_table.item(added_row, 5).text() == "25"
+
+
+def test_preventive_plan_edit_dialog_loads_generation_lead_settings(qapp, services):
+    site, _location, _system, asset, _sensor, _task_template, plan, _plan_task = _create_preventive_library_context(services)
+    services["maintenance_preventive_plan_service"].update_preventive_plan(
+        plan.id,
+        generation_lead_value=14,
+        generation_lead_unit="weeks",
+        expected_version=plan.version,
+    )
+    refreshed = services["maintenance_preventive_plan_service"].get_preventive_plan(plan.id)
+
+    dialog = MaintenancePreventivePlanEditDialog(
+        sites=services["site_service"].list_sites(active_only=None),
+        assets=services["maintenance_asset_service"].list_assets(active_only=None),
+        components=services["maintenance_asset_component_service"].list_components(active_only=None),
+        systems=services["maintenance_system_service"].list_systems(active_only=None),
+        sensors=services["maintenance_sensor_service"].list_sensors(active_only=None),
+        preventive_plan=refreshed,
+    )
+
+    assert dialog.site_id == site.id
+    assert dialog.asset_id == asset.id
+    assert dialog.generation_lead_value == 14
+    assert dialog.generation_lead_unit == "WEEKS"

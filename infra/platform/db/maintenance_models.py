@@ -23,6 +23,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceCalendarFrequencyUnit,
     MaintenanceCriticality,
     MaintenanceFailureCodeType,
+    MaintenanceGenerationLeadUnit,
     MaintenanceLifecycleStatus,
     MaintenanceMaterialProcurementStatus,
     MaintenancePlanStatus,
@@ -1067,22 +1068,18 @@ class MaintenancePreventivePlanORM(Base):
         default=MaintenanceSchedulePolicy.FIXED,
         server_default=MaintenanceSchedulePolicy.FIXED.value,
     )
-    calendar_frequency_unit: Mapped[Optional[MaintenanceCalendarFrequencyUnit]] = mapped_column(
-        SAEnum(MaintenanceCalendarFrequencyUnit),
-        nullable=True,
-    )
+    calendar_frequency_unit: Mapped[Optional[MaintenanceCalendarFrequencyUnit]] = mapped_column(SAEnum(MaintenanceCalendarFrequencyUnit), nullable=True)
     calendar_frequency_value: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     generation_horizon_count: Mapped[int] = mapped_column(Integer, nullable=False, default=13, server_default="13")
+    generation_lead_value: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    generation_lead_unit: Mapped[MaintenanceGenerationLeadUnit] = mapped_column(SAEnum(MaintenanceGenerationLeadUnit), nullable=False, default=MaintenanceGenerationLeadUnit.DAYS, server_default=MaintenanceGenerationLeadUnit.DAYS.value)
     sensor_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("maintenance_sensors.id", ondelete="SET NULL"),
         nullable=True,
     )
     sensor_threshold: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 6), nullable=True)
-    sensor_direction: Mapped[Optional[MaintenanceSensorDirection]] = mapped_column(
-        SAEnum(MaintenanceSensorDirection),
-        nullable=True,
-    )
+    sensor_direction: Mapped[Optional[MaintenanceSensorDirection]] = mapped_column(SAEnum(MaintenanceSensorDirection), nullable=True)
     sensor_reset_rule: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     last_generated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
