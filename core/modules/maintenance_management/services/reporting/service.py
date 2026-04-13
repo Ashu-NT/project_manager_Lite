@@ -566,7 +566,7 @@ def _activity_at(work_order: MaintenanceWorkOrder) -> datetime:
         or work_order.actual_end
         or work_order.actual_start
         or work_order.planned_start
-        or work_order.requested_at
+        or getattr(work_order, "requested_at", None)
         or work_order.created_at
         or datetime.now(timezone.utc)
     )

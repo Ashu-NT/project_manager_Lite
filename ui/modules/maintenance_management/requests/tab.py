@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -27,6 +28,10 @@ from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService
+from ui.modules.maintenance_management.requests.edit_dialogs import (
+    MaintenanceRequestConvertDialog,
+    MaintenanceRequestEditDialog,
+)
 from ui.modules.maintenance_management.requests.dialogs import MaintenanceRequestDetailDialog
 from ui.modules.maintenance_management.shared import (
     build_maintenance_header,
@@ -41,7 +46,7 @@ from ui.modules.maintenance_management.shared import (
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.modules.project_management.dashboard.widgets import KpiCard
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
-from ui.platform.shared.guards import make_guarded_slot
+from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 
@@ -68,6 +73,7 @@ class MaintenanceRequestsTab(QWidget):
         self._system_service = system_service
         self._platform_runtime_application_service = platform_runtime_application_service
         self._user_session = user_session
+        self._can_manage = has_permission(user_session, "maintenance.manage")
         self._site_labels: dict[str, str] = {}
         self._asset_labels: dict[str, str] = {}
         self._location_labels: dict[str, str] = {}
@@ -171,8 +177,20 @@ class MaintenanceRequestsTab(QWidget):
         self.request_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Maintenance Requests", callback=self._on_request_selection_changed)
         )
+        self.btn_new_request.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Requests", callback=self._open_new_request_dialog)
+        )
+        self.btn_convert_request.clicked.connect(
+            make_guarded_slot(self, title="Maintenance Requests", callback=self._convert_selected_request)
+        )
         self.btn_open_detail.clicked.connect(
             make_guarded_slot(self, title="Maintenance Requests", callback=self._open_detail_dialog)
+        )
+        apply_permission_hint(self.btn_new_request, allowed=self._can_manage, missing_permission="maintenance.manage")
+        apply_permission_hint(
+            self.btn_convert_request,
+            allowed=self._can_manage,
+            missing_permission="maintenance.manage",
         )
 
     def _build_queue_panel(self) -> QWidget:
@@ -195,6 +213,14 @@ class MaintenanceRequestsTab(QWidget):
         self.selection_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
         self.selection_summary.setWordWrap(True)
         action_row.addWidget(self.selection_summary, 1)
+        self.btn_new_request = QPushButton("New Request")
+        self.btn_new_request.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_new_request.setStyleSheet(dashboard_action_button_style("primary"))
+        action_row.addWidget(self.btn_new_request)
+        self.btn_convert_request = QPushButton("Convert to Work Order")
+        self.btn_convert_request.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_convert_request.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_convert_request)
         self.btn_open_detail = QPushButton("Open Detail")
         self.btn_open_detail.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_open_detail.setStyleSheet(dashboard_action_button_style("secondary"))
@@ -300,6 +326,7 @@ class MaintenanceRequestsTab(QWidget):
         self.request_table.blockSignals(False)
         if selected_row >= 0:
             self.request_table.selectRow(selected_row)
+            self._sync_selection_actions()
             return
         self.request_table.clearSelection()
         self._sync_selection_actions()
@@ -325,11 +352,17 @@ class MaintenanceRequestsTab(QWidget):
             self.selection_summary.setText(
                 "Select a request, then click Open Detail to inspect intake, impact, and linked work orders."
             )
+            self.btn_new_request.setEnabled(self._can_manage)
+            self.btn_convert_request.setEnabled(False)
             self.btn_open_detail.setEnabled(False)
             return
+        linked_orders = self._linked_orders_for_request(request)
         self.selection_summary.setText(
-            f"Selected: {request.work_request_code} | Status: {request.status.value.title()} | Priority: {request.priority.value.title()}"
+            f"Selected: {request.work_request_code} | Status: {request.status.value.title()} | "
+            f"Priority: {request.priority.value.title()} | Linked orders: {len(linked_orders)}"
         )
+        self.btn_new_request.setEnabled(self._can_manage)
+        self.btn_convert_request.setEnabled(self._can_manage and self._can_convert_request(request, linked_orders))
         self.btn_open_detail.setEnabled(True)
 
     def _open_detail_dialog(self) -> None:
@@ -351,6 +384,109 @@ class MaintenanceRequestsTab(QWidget):
         dialog.raise_()
         dialog.activateWindow()
         self._detail_dialog = dialog
+
+    def _open_new_request_dialog(self) -> None:
+        if not self._can_manage:
+            QMessageBox.information(self, "Maintenance Requests", "You do not have permission to create maintenance requests.")
+            return
+        selected_site_id = selected_combo_value(self.site_combo)
+        try:
+            sites = self._site_service.list_sites(active_only=None)
+            assets = self._asset_service.list_assets(active_only=None, site_id=selected_site_id)
+            systems = self._system_service.list_systems(active_only=None, site_id=selected_site_id)
+            locations = self._location_service.list_locations(active_only=None, site_id=selected_site_id)
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Maintenance Requests", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Maintenance Requests", f"Failed to load request intake options: {exc}")
+            return
+        dialog = MaintenanceRequestEditDialog(
+            site_options=[(f"{site.site_code} - {site.name}", site.id) for site in sites],
+            asset_options=[(f"{asset.asset_code} - {asset.name}", asset.id) for asset in assets],
+            system_options=[(f"{system.system_code} - {system.name}", system.id) for system in systems],
+            location_options=[(f"{location.location_code} - {location.name}", location.id) for location in locations],
+            selected_site_id=selected_site_id,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._work_request_service.create_work_request(
+                site_id=dialog.site_id,
+                work_request_code=dialog.request_code,
+                source_type=dialog.source_type,
+                request_type=dialog.request_type,
+                asset_id=dialog.asset_id,
+                system_id=dialog.system_id,
+                location_id=dialog.location_id,
+                title=dialog.title,
+                description=dialog.description,
+                priority=dialog.priority,
+                failure_symptom_code=dialog.failure_symptom_code,
+                safety_risk_level=dialog.safety_risk_level,
+                production_impact_level=dialog.production_impact_level,
+                notes=dialog.notes,
+            )
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Maintenance Requests", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Maintenance Requests", f"Failed to create maintenance request: {exc}")
+            return
+        self.reload_data()
+
+    def _convert_selected_request(self) -> None:
+        request = self._selected_request()
+        if request is None:
+            QMessageBox.information(self, "Maintenance Requests", "Select a request to convert into a work order.")
+            return
+        linked_orders = self._linked_orders_for_request(request)
+        if not self._can_convert_request(request, linked_orders):
+            QMessageBox.information(
+                self,
+                "Maintenance Requests",
+                "This request is not currently eligible for conversion into a new work order.",
+            )
+            return
+        dialog = MaintenanceRequestConvertDialog(work_request=request, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            self._work_order_service.create_work_order(
+                site_id=request.site_id,
+                work_order_code=dialog.work_order_code,
+                work_order_type=dialog.work_order_type,
+                source_type="work_request",
+                source_id=request.id,
+                title=dialog.title,
+                description=dialog.description,
+                assigned_team_id=dialog.assigned_team_id,
+                requires_shutdown=dialog.requires_shutdown,
+                permit_required=dialog.permit_required,
+                approval_required=dialog.approval_required,
+                notes=dialog.notes,
+            )
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Maintenance Requests", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Maintenance Requests", f"Failed to convert request into work order: {exc}")
+            return
+        self.reload_data()
+
+    def _linked_orders_for_request(self, request):
+        return [
+            row
+            for row in self._work_order_service.list_work_orders(site_id=request.site_id)
+            if row.source_type == "WORK_REQUEST" and row.source_id == request.id
+        ]
+
+    @staticmethod
+    def _can_convert_request(request, linked_orders) -> bool:
+        if request.status.value in {"REJECTED", "CONVERTED"}:
+            return False
+        return len(linked_orders) == 0
 
     def _selected_request_id(self) -> str | None:
         row = self.request_table.currentRow()
