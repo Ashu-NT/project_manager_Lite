@@ -237,6 +237,9 @@ class MaintenancePreventivePlansTab(QWidget):
         self.plan_table.itemSelectionChanged.connect(
             make_guarded_slot(self, title="Preventive Plans", callback=self._on_plan_selection_changed)
         )
+        self.btn_generate_due_work.clicked.connect(
+            make_guarded_slot(self, title="Preventive Plans", callback=self._generate_due_work_for_selected_plan)
+        )
         self.btn_open_detail.clicked.connect(
             make_guarded_slot(self, title="Preventive Plans", callback=self._open_detail_dialog)
         )
@@ -264,6 +267,10 @@ class MaintenancePreventivePlansTab(QWidget):
         self.selection_summary.setStyleSheet(CFG.INFO_TEXT_STYLE)
         self.selection_summary.setWordWrap(True)
         action_row.addWidget(self.selection_summary, 1)
+        self.btn_generate_due_work = QPushButton("Generate Due Work")
+        self.btn_generate_due_work.setFixedHeight(CFG.BUTTON_HEIGHT)
+        self.btn_generate_due_work.setStyleSheet(dashboard_action_button_style("secondary"))
+        action_row.addWidget(self.btn_generate_due_work)
         self.btn_regenerate_horizon = QPushButton("Regenerate Horizon")
         self.btn_regenerate_horizon.setFixedHeight(CFG.BUTTON_HEIGHT)
         self.btn_regenerate_horizon.setStyleSheet(dashboard_action_button_style("secondary"))
@@ -524,12 +531,14 @@ class MaintenancePreventivePlansTab(QWidget):
             self.selection_summary.setText(
                 "Select a preventive plan, then click Open Detail to inspect trigger state and task library."
             )
+            self.btn_generate_due_work.setEnabled(False)
             self.btn_open_detail.setEnabled(False)
             self.btn_regenerate_horizon.setEnabled(False)
             return
         self.selection_summary.setText(
             f"Selected: {view.plan.plan_code} | Due state: {self._due_state_label(view)} | Trigger: {view.plan.trigger_mode.value.title()}"
         )
+        self.btn_generate_due_work.setEnabled(view.due_state == _DUE_STATE_DUE)
         self.btn_open_detail.setEnabled(True)
         self.btn_regenerate_horizon.setEnabled(True)
 
@@ -577,6 +586,37 @@ class MaintenancePreventivePlansTab(QWidget):
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Preventive Plans", f"Failed to regenerate preventive horizon: {exc}")
             return
+        self.reload_data()
+
+    def _generate_due_work_for_selected_plan(self) -> None:
+        view = self._selected_view()
+        if view is None:
+            QMessageBox.information(self, "Preventive Plans", "Select a preventive plan to generate work.")
+            return
+        try:
+            results = self._preventive_generation_service.generate_due_work(plan_id=view.plan.id)
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Preventive Plans", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Preventive Plans", f"Failed to generate preventive work: {exc}")
+            return
+        result = results[0] if results else None
+        if result is None:
+            QMessageBox.information(self, "Preventive Plans", "No preventive generation result was returned.")
+        elif result.generated_work_order_id or result.generated_work_request_id:
+            generated_label = result.generated_work_order_id or result.generated_work_request_id
+            QMessageBox.information(
+                self,
+                "Preventive Plans",
+                f"Generated preventive work successfully.\nReference: {generated_label}",
+            )
+        elif result.skipped_reason:
+            QMessageBox.information(
+                self,
+                "Preventive Plans",
+                f"No work was generated.\nReason: {result.skipped_reason}",
+            )
         self.reload_data()
 
     def _on_domain_change(self, event: DomainChangeEvent) -> None:

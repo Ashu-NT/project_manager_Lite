@@ -236,11 +236,6 @@ def _create_maintenance_context(services):
         source_type="work_request",
         source_id=request_closed.id,
     )
-    request_closed = services["maintenance_work_request_service"].update_work_request(
-        request_closed.id,
-        status="CONVERTED",
-        expected_version=request_closed.version,
-    )
     closed_order = services["maintenance_work_order_service"].update_work_order(
         closed_order.id,
         status="planned",
@@ -291,11 +286,6 @@ def _create_maintenance_context(services):
         work_order_type="corrective",
         source_type="work_request",
         source_id=request_repeat.id,
-    )
-    request_repeat = services["maintenance_work_request_service"].update_work_request(
-        request_repeat.id,
-        status="CONVERTED",
-        expected_version=request_repeat.version,
     )
     repeat_order = services["maintenance_work_order_service"].update_work_order(
         repeat_order.id,

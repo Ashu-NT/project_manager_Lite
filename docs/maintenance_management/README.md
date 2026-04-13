@@ -2,7 +2,7 @@
 
 Status: active blueprint and phased implementation tracker, benchmark refresh completed on 2026-03-28  
 Scope: enterprise CMMS design, data model, workflow, integration, import, and implementation backlog  
-Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, plus a live preventive engine that now persists forward schedule instances for calendar plans, supports configurable horizon generation, distinguishes `fixed` versus `floating` calendar policy at plan level, supports configurable lead-time generation windows such as generating work `14` days before due, and now exposes planner-facing forecast preview and explicit horizon regeneration tooling for preventive libraries. Reliability analytics/report-pack services and first shell/UI workspaces are also live for `Maintenance Dashboard`, `Locations`, `Systems`, `Task Templates`, `Asset Library`, `Preventive Plan Library`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`; the planner now folds due, due-soon, blocked, material-risk, and recurring-failure review into one tree-driven planning surface, `Sensors` now uses tree-driven monitoring views plus a nested sensor-detail popup, `Work Orders` now follows a queue-first popup flow with technician-facing assigned-work filtering, a compact execution section for fast confirmation, live step start/done/confirm and task completion actions, richer evidence capture/link/unlink/preview flows, and shared-time-backed labor booking, and `Reliability` now exports recurring-failure and exception-review workbooks alongside the earlier backlog, PM, downtime, and execution packs. The maintenance shell now also starts a real `Libraries` setup area with create/edit/toggle-active flows for `Locations`, `Systems`, `Task Templates`, `Asset Library`, and `Preventive Plan Library`, with step-template authoring held inside the task-template detail popup, component authoring held inside the asset-library detail popup, and plan-task authoring held inside the preventive-plan detail popup. The important current limit is that the implemented UI is still only partially into authoring/setup; richer `Sensors` registry management, richer request/order creation libraries, and later preventive blackout/packaging controls are still pending in the blueprint backlog.
+Implementation state: maintenance now has persisted foundations through `location`, `system`, `asset`, `asset_component`, `work_request`, `work_order`, `work_order_task`, `work_order_task_step`, `work_order_material_requirement`, `sensor`, `sensor_reading`, `integration_source`, `sensor_source_mapping`, `sensor_exception`, `failure_code`, `downtime_event`, `maintenance_task_template`, `maintenance_task_step_template`, `preventive_plan`, and `preventive_plan_task`, plus a live preventive engine that now persists forward schedule instances for calendar plans, supports configurable horizon generation, distinguishes `fixed` versus `floating` calendar policy at plan level, supports configurable lead-time generation windows such as generating work `14` days before due, and now exposes planner-facing forecast preview, explicit horizon regeneration tooling, and runtime `Generate Due Work` actions in the preventive runtime screens. Reliability analytics/report-pack services and first shell/UI workspaces are also live for `Maintenance Dashboard`, `Locations`, `Systems`, `Task Templates`, `Asset Library`, `Preventive Plan Library`, `Assets`, `Sensors`, `Requests`, `Work Orders`, `Documents`, `Preventive Plans`, `Planner`, and `Reliability`; the planner now folds due, due-soon, blocked, material-risk, and recurring-failure review into one tree-driven planning surface, `Sensors` now uses tree-driven monitoring views plus a nested sensor-detail popup, `Work Orders` now follows a queue-first popup flow with technician-facing assigned-work filtering, a compact execution section for fast confirmation, live step start/done/confirm and task completion actions, richer evidence capture/link/unlink/preview flows, and shared-time-backed labor booking, and `Reliability` now exports recurring-failure and exception-review workbooks alongside the earlier backlog, PM, downtime, and execution packs. The maintenance shell now also starts a real `Libraries` setup area with create/edit/toggle-active flows for `Locations`, `Systems`, `Task Templates`, `Asset Library`, and `Preventive Plan Library`, with step-template authoring held inside the task-template detail popup, component authoring held inside the asset-library detail popup, and plan-task authoring held inside the preventive-plan detail popup. The important current limit is that the implemented UI is still only partially into authoring/setup; richer `Sensors` registry management, richer request/order creation libraries, and later preventive blackout/packaging controls are still pending in the blueprint backlog.
 
 ## Purpose
 
@@ -2014,6 +2014,29 @@ Should support:
 - shutdown planning
 - crew loading
 - due preventive plans
+
+### Current Connectivity Map
+
+Current end-to-end flow in the codebase is:
+
+- `Work requests` are created through `maintenance_work_request_service.create_work_request(...)`
+- `Work orders` are created through `maintenance_work_order_service.create_work_order(...)`
+- when a work order is created from a request, the service now auto-marks that source request as `CONVERTED`
+- `Preventive Plans` call the preventive generation engine through `maintenance_preventive_generation_service.generate_due_work(...)`
+- that engine creates either a work request or a work order based on the plan target, then copies plan-task and step-template structure into execution records when a direct work order is generated
+- `Planner` does not own records; it is a connected read-through workbench over:
+  - `maintenance_work_request_service`
+  - `maintenance_work_order_service`
+  - `maintenance_work_order_material_requirement_service`
+  - `maintenance_preventive_generation_service`
+  - `maintenance_reliability_service`
+  - `maintenance_sensor_exception_service`
+- `Requests`, `Work Orders`, `Planner`, and `Preventive Plans` all refresh from the same maintenance domain-event stream, so generated or updated work appears across queues after service-side changes
+
+Current practical limit:
+
+- the runtime tabs are now connected, but `Requests`, `Work Orders`, and `Planner` are still primarily queue/workbench surfaces
+- guided request intake authoring, request-to-work-order conversion actions, and richer planner-side scheduling actions are still a later slice
 
 ### Assets
 

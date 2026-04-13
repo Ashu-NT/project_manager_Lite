@@ -274,11 +274,13 @@ def test_maintenance_work_request_and_work_order_persist_via_service_graph(servi
         assigned_team_id="TEAM-A",
     )
     reloaded_work_order = services["maintenance_work_order_service"].find_work_order_by_code("WO-100")
+    converted_work_request = services["maintenance_work_request_service"].get_work_request(work_request.id)
 
     assert reloaded_work_request is not None
     assert reloaded_work_request.id == work_request.id
     assert reloaded_work_request.source_type.value == "MANUAL"
     assert reloaded_work_request.request_type == "BREAKDOWN"
+    assert converted_work_request.status.value == "CONVERTED"
     assert reloaded_work_order is not None
     assert reloaded_work_order.id == work_order.id
     assert reloaded_work_order.work_order_type.value == "CORRECTIVE"

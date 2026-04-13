@@ -12,6 +12,7 @@ from core.modules.maintenance_management.domain import (
     MaintenancePreventiveInstanceStatus,
     MaintenanceSchedulePolicy,
     MaintenanceTriggerMode,
+    MaintenanceWorkRequestStatus,
     MaintenanceWorkOrder,
 )
 from core.modules.maintenance_management.interfaces import (
@@ -289,6 +290,11 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         )
         try:
             self._work_order_repo.add(work_order)
+            converted_request = self._sync_source_request_conversion(
+                normalized_source_type,
+                source_id=source_id,
+                organization=organization,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -296,6 +302,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         except Exception:
             self._session.rollback()
             raise
+        if converted_request is not None:
+            self._record_source_request_conversion(converted_request)
         self._record_change("maintenance_work_order.create", work_order)
         return work_order
 
@@ -518,6 +526,34 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
             raise NotFoundError("Active organization not found.", code="ORGANIZATION_NOT_FOUND")
         return organization
 
+    def _sync_source_request_conversion(
+        self,
+        normalized_source_type: str,
+        *,
+        source_id: str | None,
+        organization: Organization,
+    ):
+        if normalized_source_type != "WORK_REQUEST" or not source_id:
+            return None
+        source_request = self._get_work_request(source_id, organization=organization)
+        if source_request.status == MaintenanceWorkRequestStatus.REJECTED:
+            raise ValidationError(
+                "Rejected maintenance work requests cannot be converted into work orders.",
+                code="MAINTENANCE_WORK_REQUEST_STATUS_INVALID_TRANSITION",
+            )
+        if source_request.status == MaintenanceWorkRequestStatus.CONVERTED:
+            return None
+        now = datetime.now(timezone.utc)
+        source_request.status = MaintenanceWorkRequestStatus.CONVERTED
+        if source_request.triaged_at is None:
+            source_request.triaged_at = now
+            current_user_id = self._current_user_id()
+            if current_user_id:
+                source_request.triaged_by_user_id = current_user_id
+        source_request.updated_at = now
+        self._work_request_repo.update(source_request)
+        return source_request
+
     def _apply_preventive_completion(self, work_order: MaintenanceWorkOrder) -> None:
         if (
             self._preventive_plan_repo is None
@@ -638,6 +674,29 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 entity_type="maintenance_work_order",
                 entity_id=work_order.id,
                 source_event="maintenance_work_orders_changed",
+            )
+        )
+
+    def _record_source_request_conversion(self, work_request) -> None:
+        record_audit(
+            self,
+            action="maintenance_work_request.convert",
+            entity_type="maintenance_work_request",
+            entity_id=work_request.id,
+            details={
+                "organization_id": work_request.organization_id,
+                "site_id": work_request.site_id,
+                "work_request_code": work_request.work_request_code,
+                "status": work_request.status.value,
+            },
+        )
+        domain_events.domain_changed.emit(
+            DomainChangeEvent(
+                category="module",
+                scope_code="maintenance_management",
+                entity_type="maintenance_work_request",
+                entity_id=work_request.id,
+                source_event="maintenance_work_requests_changed",
             )
         )
 

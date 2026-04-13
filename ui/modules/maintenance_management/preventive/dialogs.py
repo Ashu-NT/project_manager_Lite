@@ -86,6 +86,9 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
         self.btn_refresh_forecast.clicked.connect(
             make_guarded_slot(self, title="Preventive Plan Detail", callback=self._refresh_forecast)
         )
+        self.btn_generate_due_work.clicked.connect(
+            make_guarded_slot(self, title="Preventive Plan Detail", callback=self._generate_due_work)
+        )
         self.btn_regenerate_horizon.clicked.connect(
             make_guarded_slot(self, title="Preventive Plan Detail", callback=self._regenerate_horizon)
         )
@@ -197,10 +200,12 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
         action_row = QHBoxLayout()
         action_row.setSpacing(CFG.SPACING_SM)
         self.btn_refresh_forecast = QPushButton("Refresh Forecast")
+        self.btn_generate_due_work = QPushButton("Generate Due Work")
         self.btn_regenerate_horizon = QPushButton("Regenerate Horizon")
-        for button in (self.btn_refresh_forecast, self.btn_regenerate_horizon):
+        for button in (self.btn_refresh_forecast, self.btn_generate_due_work, self.btn_regenerate_horizon):
             button.setFixedHeight(CFG.BUTTON_HEIGHT)
         action_row.addWidget(self.btn_refresh_forecast)
+        action_row.addWidget(self.btn_generate_due_work)
         action_row.addWidget(self.btn_regenerate_horizon)
         action_row.addStretch(1)
         layout.addLayout(action_row)
@@ -264,6 +269,35 @@ class MaintenancePreventivePlanDetailDialog(QDialog):
             QMessageBox.warning(self, "Preventive Plan Detail", str(exc))
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Preventive Plan Detail", f"Failed to regenerate preventive horizon: {exc}")
+
+    def _generate_due_work(self) -> None:
+        if not self._current_plan_id or self._current_context is None:
+            return
+        try:
+            results = self._preventive_generation_service.generate_due_work(plan_id=self._current_plan_id)
+            result = results[0] if results else None
+            self.load_plan(self._current_plan_id, context=self._reload_context(self._current_plan_id))
+        except BusinessRuleError as exc:
+            QMessageBox.warning(self, "Preventive Plan Detail", str(exc))
+            return
+        except Exception as exc:  # noqa: BLE001
+            QMessageBox.critical(self, "Preventive Plan Detail", f"Failed to generate preventive work: {exc}")
+            return
+        if result is None:
+            QMessageBox.information(self, "Preventive Plan Detail", "No preventive generation result was returned.")
+        elif result.generated_work_order_id or result.generated_work_request_id:
+            generated_label = result.generated_work_order_id or result.generated_work_request_id
+            QMessageBox.information(
+                self,
+                "Preventive Plan Detail",
+                f"Generated preventive work successfully.\nReference: {generated_label}",
+            )
+        elif result.skipped_reason:
+            QMessageBox.information(
+                self,
+                "Preventive Plan Detail",
+                f"No work was generated.\nReason: {result.skipped_reason}",
+            )
 
     def _reload_context(self, plan_id: str) -> MaintenancePreventivePlanDetailContext:
         plan = self._preventive_plan_service.get_preventive_plan(plan_id)
