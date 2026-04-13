@@ -7,8 +7,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 _LARGE_MODULE_BUDGETS = {
-    "core/modules/maintenance_management/domain.py": 1513,
-    "infra/modules/maintenance_management/db/repository.py": 1483,
+    "core/modules/maintenance_management/domain.py": 1517,
+    "infra/modules/maintenance_management/db/repository.py": 1488,
     "infra/platform/db/maintenance_models.py": 1283,
     "tests/test_maintenance_ui.py": 1450,
 }

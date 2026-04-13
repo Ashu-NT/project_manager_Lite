@@ -172,6 +172,8 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         site_id: str,
         work_request_code: str,
         source_type: str,
+        source_id: str | None = None,
+        source_plan_task_ids: tuple[str, ...] = (),
         request_type: str,
         asset_id: str | None = None,
         component_id: str | None = None,
@@ -191,8 +193,14 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         normalized_code = normalize_maintenance_code(work_request_code, label="Work request code")
         normalized_source_type = coerce_work_request_source_type(source_type)
         normalized_request_type = normalize_maintenance_name(request_type, label="Request type").upper()
+        normalized_source_id = (str(source_id or "").strip() or None)
         if self._work_request_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Work request code already exists in the active organization.", code="MAINTENANCE_WORK_REQUEST_CODE_EXISTS")
+        if normalized_source_type.value == "PREVENTIVE_PLAN" and not normalized_source_id:
+            raise ValidationError(
+                "Preventive maintenance work requests must retain their source plan id.",
+                code="MAINTENANCE_WORK_REQUEST_SOURCE_REQUIRED",
+            )
 
         asset_id, component_id, system_id, location_id = self._resolve_context_references(
             organization=organization,
@@ -216,6 +224,8 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
             site_id=site.id,
             work_request_code=normalized_code,
             source_type=normalized_source_type,
+            source_id=normalized_source_id,
+            source_plan_task_ids=tuple(str(value).strip() for value in source_plan_task_ids if str(value).strip()),
             request_type=normalized_request_type,
             asset_id=asset_id,
             component_id=component_id,

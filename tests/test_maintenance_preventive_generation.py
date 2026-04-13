@@ -204,3 +204,157 @@ def test_preventive_generation_supports_due_task_override_without_plan_due(servi
     assert result.generated_work_order_id is not None
     assert refreshed_task.last_generated_at is not None
     assert refreshed_task.next_due_counter == Decimal("15.0")
+
+
+def test_preventive_request_conversion_populates_work_order_from_source_plan(services):
+    site = services["site_service"].create_site(site_code="MNT-GEN4", name="Generation Plant 4")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="gen4-area",
+        name="Generation Area 4",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="gen4-asset",
+        name="Generation Asset 4",
+    )
+    task_template = services["maintenance_task_template_service"].create_task_template(
+        task_template_code="gen4-task",
+        name="Inspect drive coupling",
+        maintenance_type="preventive",
+        template_status="active",
+        estimated_minutes=40,
+        required_skill="MECHANICAL",
+    )
+    step_template = services["maintenance_task_step_template_service"].create_step_template(
+        task_template_id=task_template.id,
+        step_number=1,
+        instruction="Check alignment and tighten set screws.",
+        expected_result="Drive coupling aligned and secured.",
+        requires_confirmation=True,
+    )
+    plan = services["maintenance_preventive_plan_service"].create_preventive_plan(
+        site_id=site.id,
+        plan_code="gen4-plan",
+        name="Drive Coupling PM",
+        asset_id=asset.id,
+        status="active",
+        plan_type="preventive",
+        trigger_mode="calendar",
+        calendar_frequency_unit="monthly",
+        calendar_frequency_value=1,
+        next_due_at=datetime.now(timezone.utc) - timedelta(days=1),
+        auto_generate_work_order=False,
+    )
+    plan_task = services["maintenance_preventive_plan_task_service"].create_plan_task(
+        plan_id=plan.id,
+        task_template_id=task_template.id,
+        sequence_no=1,
+        trigger_scope="inherit_plan",
+    )
+
+    result = services["maintenance_preventive_generation_service"].generate_due_work(plan_id=plan.id)[0]
+    work_request = services["maintenance_work_request_service"].get_work_request(result.generated_work_request_id)
+    work_order = services["maintenance_work_order_service"].create_work_order(
+        site_id=site.id,
+        work_order_code="gen4-wo",
+        work_order_type="preventive",
+        source_type="work_request",
+        source_id=work_request.id,
+    )
+    tasks = services["maintenance_work_order_task_service"].list_tasks(work_order_id=work_order.id)
+    steps = services["maintenance_work_order_task_step_service"].list_steps(work_order_task_id=tasks[0].id)
+
+    assert result.generated_work_request_id is not None
+    assert result.generated_work_order_id is None
+    assert work_request.source_id == plan.id
+    assert work_request.source_plan_task_ids == (plan_task.id,)
+    assert work_order.is_preventive is True
+    assert tasks[0].task_template_id == task_template.id
+    assert tasks[0].task_name == "Inspect drive coupling"
+    assert steps[0].source_step_template_id == step_template.id
+    assert steps[0].instruction == "Check alignment and tighten set screws."
+
+
+def test_preventive_request_conversion_completion_updates_preventive_instance(services):
+    site = services["site_service"].create_site(site_code="MNT-GEN5", name="Generation Plant 5")
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="gen5-area",
+        name="Generation Area 5",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        asset_code="gen5-asset",
+        name="Generation Asset 5",
+    )
+    task_template = services["maintenance_task_template_service"].create_task_template(
+        task_template_code="gen5-task",
+        name="Check lubrication points",
+        maintenance_type="preventive",
+        template_status="active",
+    )
+    plan = services["maintenance_preventive_plan_service"].create_preventive_plan(
+        site_id=site.id,
+        plan_code="gen5-plan",
+        name="Lubrication PM",
+        asset_id=asset.id,
+        status="active",
+        plan_type="preventive",
+        trigger_mode="calendar",
+        calendar_frequency_unit="monthly",
+        calendar_frequency_value=1,
+        next_due_at=datetime.now(timezone.utc) - timedelta(days=2),
+        auto_generate_work_order=False,
+    )
+    services["maintenance_preventive_plan_task_service"].create_plan_task(
+        plan_id=plan.id,
+        task_template_id=task_template.id,
+        sequence_no=1,
+        trigger_scope="inherit_plan",
+    )
+
+    result = services["maintenance_preventive_generation_service"].generate_due_work(plan_id=plan.id)[0]
+    work_order = services["maintenance_work_order_service"].create_work_order(
+        site_id=site.id,
+        work_order_code="gen5-wo",
+        work_order_type="preventive",
+        source_type="work_request",
+        source_id=result.generated_work_request_id,
+    )
+    planned = services["maintenance_work_order_service"].update_work_order(
+        work_order.id,
+        status="PLANNED",
+        expected_version=work_order.version,
+    )
+    released = services["maintenance_work_order_service"].update_work_order(
+        planned.id,
+        status="RELEASED",
+        expected_version=planned.version,
+    )
+    started = services["maintenance_work_order_service"].update_work_order(
+        released.id,
+        status="IN_PROGRESS",
+        expected_version=released.version,
+    )
+    completed = services["maintenance_work_order_service"].update_work_order(
+        started.id,
+        status="COMPLETED",
+        expected_version=started.version,
+    )
+
+    forecast_rows = services["maintenance_preventive_generation_service"].preview_plan_schedule(plan_id=plan.id)
+    matching_rows = [
+        row
+        for row in forecast_rows
+        if row.generated_work_request_id == result.generated_work_request_id
+    ]
+
+    assert completed.is_preventive is True
+    assert len(matching_rows) == 1
+    assert matching_rows[0].generated_work_request_id == result.generated_work_request_id
+    assert matching_rows[0].generated_work_order_id == work_order.id
+    assert matching_rows[0].instance_status == "COMPLETED"
+    assert matching_rows[0].completed_at is not None

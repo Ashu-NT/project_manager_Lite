@@ -602,6 +602,8 @@ class MaintenanceWorkRequestORM(Base):
         SAEnum(MaintenanceWorkRequestSourceType),
         nullable=False,
     )
+    source_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    source_plan_task_ids_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     request_type: Mapped[str] = mapped_column(String(64), nullable=False)
     asset_id: Mapped[Optional[str]] = mapped_column(
         String,

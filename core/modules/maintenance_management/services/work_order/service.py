@@ -22,10 +22,18 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceLocationRepository,
     MaintenancePreventivePlanInstanceRepository,
     MaintenancePreventivePlanRepository,
+    MaintenancePreventivePlanTaskRepository,
     MaintenanceSystemRepository,
+    MaintenanceTaskStepTemplateRepository,
+    MaintenanceTaskTemplateRepository,
     MaintenanceWorkOrderRepository,
     MaintenanceWorkRequestRepository,
 )
+from core.modules.maintenance_management.services.preventive.work_package import (
+    MaintenancePreventiveWorkPackageBuilder,
+)
+from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService
+from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
 from core.modules.maintenance_management.support import (
     coerce_priority,
     coerce_work_order_status,
@@ -60,6 +68,11 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         failure_code_repo: MaintenanceFailureCodeRepository | None = None,
         preventive_plan_repo: MaintenancePreventivePlanRepository | None = None,
         preventive_plan_instance_repo: MaintenancePreventivePlanInstanceRepository | None = None,
+        preventive_plan_task_repo: MaintenancePreventivePlanTaskRepository | None = None,
+        task_template_repo: MaintenanceTaskTemplateRepository | None = None,
+        task_step_template_repo: MaintenanceTaskStepTemplateRepository | None = None,
+        work_order_task_service: MaintenanceWorkOrderTaskService | None = None,
+        work_order_task_step_service: MaintenanceWorkOrderTaskStepService | None = None,
         user_session=None,
         audit_service=None,
     ) -> None:
@@ -76,6 +89,25 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._failure_code_repo = failure_code_repo
         self._preventive_plan_repo = preventive_plan_repo
         self._preventive_plan_instance_repo = preventive_plan_instance_repo
+        self._preventive_plan_task_repo = preventive_plan_task_repo
+        self._task_template_repo = task_template_repo
+        self._task_step_template_repo = task_step_template_repo
+        self._work_order_task_service = work_order_task_service
+        self._work_order_task_step_service = work_order_task_step_service
+        self._work_package_builder = None
+        if (
+            preventive_plan_task_repo is not None
+            and task_template_repo is not None
+            and task_step_template_repo is not None
+            and work_order_task_service is not None
+            and work_order_task_step_service is not None
+        ):
+            self._work_package_builder = MaintenancePreventiveWorkPackageBuilder(
+                task_template_repo=task_template_repo,
+                task_step_template_repo=task_step_template_repo,
+                work_order_task_service=work_order_task_service,
+                work_order_task_step_service=work_order_task_step_service,
+            )
         self._user_session = user_session
         self._audit_service = audit_service
 
@@ -230,6 +262,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         if self._work_order_repo.get_by_code(organization.id, normalized_code) is not None:
             raise ValidationError("Work order code already exists in the active organization.", code="MAINTENANCE_WORK_ORDER_CODE_EXISTS")
 
+        source_request = None
         if normalized_source_type == "WORK_REQUEST":
             if not source_id:
                 raise ValidationError(
@@ -252,6 +285,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 description = source_request.description
             if priority is None:
                 priority = source_request.priority
+            if source_request.source_type.value == "PREVENTIVE_PLAN":
+                is_preventive = True
 
         asset_id, component_id, system_id, location_id = self._resolve_context_references(
             organization=organization,
@@ -302,6 +337,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         except Exception:
             self._session.rollback()
             raise
+        if source_request is not None:
+            self._apply_request_source_work_package(work_order, source_request, organization=organization)
         if converted_request is not None:
             self._record_source_request_conversion(converted_request)
         self._record_change("maintenance_work_order.create", work_order)
@@ -554,11 +591,89 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         self._work_request_repo.update(source_request)
         return source_request
 
+    def _apply_request_source_work_package(
+        self,
+        work_order: MaintenanceWorkOrder,
+        source_request,
+        *,
+        organization: Organization,
+    ) -> None:
+        if source_request.source_type.value != "PREVENTIVE_PLAN":
+            return
+        if (
+            self._preventive_plan_repo is None
+            or self._preventive_plan_task_repo is None
+            or self._work_package_builder is None
+        ):
+            return
+        if not source_request.source_id:
+            return
+        preventive_plan = self._preventive_plan_repo.get(source_request.source_id)
+        if preventive_plan is None or preventive_plan.organization_id != organization.id:
+            return
+        plan_tasks = self._resolve_preventive_request_plan_tasks(
+            preventive_plan_id=preventive_plan.id,
+            organization=organization,
+            source_request=source_request,
+        )
+        if plan_tasks:
+            self._work_package_builder.populate_work_order(
+                plan=preventive_plan,
+                plan_tasks=plan_tasks,
+                work_order=work_order,
+            )
+        self._sync_preventive_request_instance_link(
+            organization=organization,
+            source_request_id=source_request.id,
+            work_order_id=work_order.id,
+        )
+
+    def _resolve_preventive_request_plan_tasks(
+        self,
+        *,
+        preventive_plan_id: str,
+        organization: Organization,
+        source_request,
+    ) -> list:
+        if self._preventive_plan_task_repo is None:
+            return []
+        selected_ids = {row_id for row_id in source_request.source_plan_task_ids if row_id}
+        plan_tasks = self._preventive_plan_task_repo.list_for_organization(
+            organization.id,
+            plan_id=preventive_plan_id,
+        )
+        if not selected_ids:
+            return plan_tasks
+        selected_rows = [row for row in plan_tasks if row.id in selected_ids]
+        return selected_rows or plan_tasks
+
+    def _sync_preventive_request_instance_link(
+        self,
+        *,
+        organization: Organization,
+        source_request_id: str,
+        work_order_id: str,
+    ) -> None:
+        if self._preventive_plan_instance_repo is None:
+            return
+        matches = self._preventive_plan_instance_repo.list_for_organization(
+            organization.id,
+            generated_work_request_id=source_request_id,
+        )
+        if not matches:
+            return
+        instance = matches[0]
+        if instance.generated_work_order_id == work_order_id:
+            return
+        instance.generated_work_order_id = work_order_id
+        instance.updated_at = datetime.now(timezone.utc)
+        self._preventive_plan_instance_repo.update(instance)
+        self._session.commit()
+
     def _apply_preventive_completion(self, work_order: MaintenanceWorkOrder) -> None:
         if (
             self._preventive_plan_repo is None
             or self._preventive_plan_instance_repo is None
-            or work_order.source_type != "PREVENTIVE_PLAN"
             or not work_order.is_preventive
         ):
             return

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
@@ -565,6 +567,10 @@ def maintenance_work_request_to_orm(work_request: MaintenanceWorkRequest) -> Mai
         site_id=work_request.site_id,
         work_request_code=work_request.work_request_code,
         source_type=work_request.source_type,
+        source_id=work_request.source_id,
+        source_plan_task_ids_json=json.dumps(list(work_request.source_plan_task_ids))
+        if work_request.source_plan_task_ids
+        else None,
         request_type=work_request.request_type,
         asset_id=work_request.asset_id,
         component_id=work_request.component_id,
@@ -596,6 +602,10 @@ def maintenance_work_request_from_orm(obj: MaintenanceWorkRequestORM) -> Mainten
         site_id=obj.site_id,
         work_request_code=obj.work_request_code,
         source_type=obj.source_type,
+        source_id=obj.source_id,
+        source_plan_task_ids=tuple(json.loads(obj.source_plan_task_ids_json))
+        if obj.source_plan_task_ids_json
+        else (),
         request_type=obj.request_type,
         asset_id=obj.asset_id,
         component_id=obj.component_id,

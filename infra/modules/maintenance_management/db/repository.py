@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -769,6 +771,10 @@ class SqlAlchemyMaintenanceWorkRequestRepository(MaintenanceWorkRequestRepositor
                 "site_id": work_request.site_id,
                 "work_request_code": work_request.work_request_code,
                 "source_type": work_request.source_type,
+                "source_id": work_request.source_id,
+                "source_plan_task_ids_json": json.dumps(list(work_request.source_plan_task_ids))
+                if work_request.source_plan_task_ids
+                else None,
                 "request_type": work_request.request_type,
                 "asset_id": work_request.asset_id,
                 "component_id": work_request.component_id,

@@ -487,6 +487,8 @@ class MaintenanceWorkRequest:
     work_request_code: str
     source_type: MaintenanceWorkRequestSourceType
     request_type: str
+    source_id: str | None = None
+    source_plan_task_ids: tuple[str, ...] = ()
     asset_id: str | None = None
     component_id: str | None = None
     system_id: str | None = None
@@ -516,6 +518,8 @@ class MaintenanceWorkRequest:
         work_request_code: str,
         source_type: MaintenanceWorkRequestSourceType,
         request_type: str,
+        source_id: str | None = None,
+        source_plan_task_ids: tuple[str, ...] = (),
         asset_id: str | None = None,
         component_id: str | None = None,
         system_id: str | None = None,
@@ -537,6 +541,8 @@ class MaintenanceWorkRequest:
             site_id=site_id,
             work_request_code=work_request_code,
             source_type=source_type,
+            source_id=source_id,
+            source_plan_task_ids=tuple(source_plan_task_ids),
             request_type=request_type,
             asset_id=asset_id,
             component_id=component_id,
