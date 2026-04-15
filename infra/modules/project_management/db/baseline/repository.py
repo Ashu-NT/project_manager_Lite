@@ -13,7 +13,7 @@ from infra.modules.project_management.db.baseline.mapper import (
     baseline_task_to_orm,
     baseline_to_orm,
 )
-from infra.platform.db.models import BaselineTaskORM, ProjectBaselineORM
+from src.infra.persistence.orm.platform.models import BaselineTaskORM, ProjectBaselineORM
 
 
 class SqlAlchemyBaselineRepository(BaselineRepository):

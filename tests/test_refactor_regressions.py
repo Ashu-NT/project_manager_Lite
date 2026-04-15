@@ -3,7 +3,10 @@ from pathlib import Path
 
 from core.platform.common.exceptions import NotFoundError
 from core.modules.project_management.domain.enums import DependencyType
-from infra.platform.db.repositories import SqlAlchemyAssignmentRepository, SqlAlchemyDependencyRepository
+from infra.modules.project_management.db.task.repository import (
+    SqlAlchemyAssignmentRepository,
+    SqlAlchemyDependencyRepository,
+)
 from ui.platform.shared.styles.theme import base_stylesheet
 from ui.platform.shared.styles.theme import set_theme_mode
 from ui.platform.shared.styles.theme import table_stylesheet

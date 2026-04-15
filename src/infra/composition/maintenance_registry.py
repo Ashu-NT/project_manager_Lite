@@ -36,7 +36,7 @@ from core.modules.maintenance_management.services.labor.adapters import (
     MaintenanceTaskWorkAllocationRepository,
     MaintenanceTaskWorkOwnerRepository,
 )
-from infra.platform.db.documents import (
+from src.infra.persistence.db.platform.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
@@ -69,9 +69,9 @@ from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceWorkOrderTaskStepRepository,
     SqlAlchemyMaintenanceWorkRequestRepository,
 )
-from infra.platform.db.auth.repository import SqlAlchemyUserRepository
-from infra.platform.db.org.repository import SqlAlchemyEmployeeRepository
-from infra.platform.db.time import (
+from src.infra.persistence.db.platform.auth.repository import SqlAlchemyUserRepository
+from src.infra.persistence.db.platform.org.repository import SqlAlchemyEmployeeRepository
+from src.infra.persistence.db.platform.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )

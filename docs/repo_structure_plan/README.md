@@ -1484,18 +1484,30 @@ Completed in the clean/no-facade execution:
 - moved `migration/*` to `src/infra/persistence/migrations/*`
 - moved `infra/platform/migrate.py` to `src/infra/persistence/migrations/runner.py`
 - updated `main.py`, `main_qt.py`, and `main_qt.spec` to use the new migration runner/assets path
+- moved platform ORM model files out of `infra/platform/db/`:
+  - `models.py` to `src/infra/persistence/orm/platform/models.py`
+  - `inventory_models.py` to `src/infra/persistence/orm/inventory_procurement/models.py`
+  - `maintenance_models.py` to `src/infra/persistence/orm/maintenance/models.py`
+  - `maintenance_preventive_runtime_models.py` to `src/infra/persistence/orm/maintenance/preventive_runtime_models.py`
+- moved `infra/platform/db/optimistic.py` to `src/infra/persistence/db/optimistic.py`
+- moved platform persistence adapters to `src/infra/persistence/db/platform/*` for access, approval, audit, auth, documents, modules, org, party, runtime tracking, and time
+- deleted the old `infra/platform/db/` package after callers were rewritten
+- removed `infra/platform/db/repositories.py`, `repositories_org.py`, and `mappers.py` instead of keeping compatibility facades
+- rewired composition registries, module repositories, regression tests, architecture guardrails, and test path rewrites to the new direct imports
 
 Verified:
 
-- `python -m compileall -q src infra ui core tests main.py main_qt.py` passes
+- `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec` passes
 - direct imports for platform runtime, entitlement runtime, platform HTTP API, and persistence bootstrap pass
+- direct import of `src.infra.persistence.db.optimistic.update_with_version_check` passes
 - migration asset lookup resolves `src/infra/persistence/migrations/alembic.ini`
-- full pytest is currently blocked before slice assertions run by a missing environment dependency: `reportlab`, imported by maintenance reporting renderers
+- importing full platform repository adapters and running pytest are currently blocked before slice assertions run by a missing environment dependency: `reportlab`, imported by maintenance reporting renderers through the maintenance package import chain
+- attempted targeted architecture guardrail run is blocked by the same `reportlab` import error during `tests/conftest.py` loading
 
 Still remaining in Slice 1:
 
 - split `core/platform/*` into the target `domain/`, `application/`, and `contracts/` package layout
-- move remaining platform ORM models/mappers/repositories out of `infra/platform/db/*`
+- split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
 - add `src/api/desktop/runtime.py` and desktop platform adapters
 - move shell code from `ui/platform/shell/*` to `src/ui/shell/*`
 - move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`

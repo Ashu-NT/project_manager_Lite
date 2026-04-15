@@ -17,13 +17,13 @@ from core.modules.project_management.domain.portfolio import (
     PortfolioScoringTemplate,
     PortfolioScenario,
 )
-from infra.platform.db.models import (
+from src.infra.persistence.orm.platform.models import (
     PortfolioIntakeItemORM,
     PortfolioProjectDependencyORM,
     PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
 )
-from infra.platform.db.optimistic import update_with_version_check
+from src.infra.persistence.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.portfolio.mapper import (
     portfolio_intake_from_orm,
     portfolio_intake_to_orm,

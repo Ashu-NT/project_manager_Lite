@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
-    "infra/platform/db/maintenance_models.py": 1283,
+    "src/infra/persistence/orm/maintenance/models.py": 1283,
     "tests/test_maintenance_ui.py": 1450,
 }
 
@@ -532,28 +532,27 @@ def test_support_tab_is_coordinator_only():
     assert "def _emit_support_event" not in text
 
 
-def test_infra_repositories_module_is_facade_only():
-    repo_path = ROOT / "infra" / "db" / "repositories.py"
+def test_legacy_platform_db_facades_are_removed():
+    removed = [
+        ROOT / "infra" / "platform" / "db" / "repositories.py",
+        ROOT / "infra" / "platform" / "db" / "repositories_org.py",
+        ROOT / "infra" / "platform" / "db" / "mappers.py",
+    ]
+
+    for path in removed:
+        assert not path.exists()
+
+
+def test_composition_imports_focused_persistence_adapters():
+    repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from infra.platform.db.mappers import" in text
-    assert "from infra.modules.project_management.db.project.repository import" in text
+    assert "from infra.platform.db.repositories import" not in text
+    assert "from infra.platform.db.mappers import" not in text
     assert "from infra.modules.project_management.db.task.repository import" in text
-    assert "class SqlAlchemy" not in text
-
-
-def test_infra_mappers_module_is_facade_only():
-    mapper_path = ROOT / "infra" / "db" / "mappers.py"
-    text = mapper_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from infra.modules.project_management.db.project.mapper import" in text
-    assert "from infra.modules.project_management.db.task.mapper import" in text
-    assert "from infra.modules.project_management.db.resource.mapper import" in text
-    assert "from infra.modules.project_management.db.cost_calendar.mapper import" in text
-    assert "from infra.modules.project_management.db.baseline.mapper import" in text
-    assert "def project_to_orm" not in text
-    assert "def task_to_orm" not in text
-    assert "def cost_to_orm" not in text
+    assert "from src.infra.persistence.db.platform.auth.repository import" in text
+    assert "from src.infra.persistence.db.platform.org.repository import" in text
+    assert "from src.infra.persistence.db.platform.time import" in text
 
 
 def test_legacy_infra_repository_wrappers_are_removed():
@@ -917,8 +916,6 @@ def test_known_large_modules_have_growth_budgets():
         "core/platform/org/employee_service.py": 220,
         "core/platform/org/organization_service.py": 240,
         "core/platform/org/support.py": 80,
-        "infra/platform/db/repositories.py": 140,
-        "infra/platform/db/mappers.py": 120,
         "infra/modules/project_management/db/project/__init__.py": 80,
         "infra/modules/project_management/db/project/mapper.py": 120,
         "infra/modules/project_management/db/project/repository.py": 140,

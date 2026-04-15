@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
-from infra.platform.db.models import TaskCommentORM, TaskPresenceORM
+from src.infra.persistence.orm.platform.models import TaskCommentORM, TaskPresenceORM
 
 
 def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:

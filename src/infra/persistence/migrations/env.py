@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from src.infra.persistence.orm.base import Base
-import infra.platform.db.models  # noqa
+import src.infra.persistence.orm.platform.models  # noqa
 
 
 config = context.config

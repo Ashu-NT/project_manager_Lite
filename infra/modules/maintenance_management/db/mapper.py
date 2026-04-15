@@ -25,7 +25,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrderTaskStep,
     MaintenanceWorkRequest,
 )
-from infra.platform.db.maintenance_models import (
+from src.infra.persistence.orm.maintenance.models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
     MaintenanceDowntimeEventORM,
@@ -47,7 +47,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceWorkOrderTaskStepORM,
     MaintenanceWorkRequestORM,
 )
-from infra.platform.db.maintenance_preventive_runtime_models import MaintenancePreventivePlanInstanceORM
+from src.infra.persistence.orm.maintenance.preventive_runtime_models import MaintenancePreventivePlanInstanceORM
 
 
 def maintenance_location_to_orm(location: MaintenanceLocation) -> MaintenanceLocationORM:

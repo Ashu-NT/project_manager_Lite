@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
-from infra.platform.db.models import BaselineTaskORM, ProjectBaselineORM
+from src.infra.persistence.orm.platform.models import BaselineTaskORM, ProjectBaselineORM
 
 
 def baseline_from_orm(obj: ProjectBaselineORM) -> ProjectBaseline:

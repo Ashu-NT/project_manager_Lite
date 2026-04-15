@@ -10,8 +10,8 @@ from core.modules.project_management.domain.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from infra.platform.db.models import RegisterEntryORM
-from infra.platform.db.optimistic import update_with_version_check
+from src.infra.persistence.orm.platform.models import RegisterEntryORM
+from src.infra.persistence.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.register.mapper import register_entry_from_orm, register_entry_to_orm
 
 

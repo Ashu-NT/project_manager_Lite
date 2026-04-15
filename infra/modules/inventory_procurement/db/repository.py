@@ -55,7 +55,7 @@ from infra.modules.inventory_procurement.db.mapper import (
     storeroom_from_orm,
     storeroom_to_orm,
 )
-from infra.platform.db.models import (
+from src.infra.persistence.orm.platform.models import (
     InventoryItemCategoryORM,
     PurchaseOrderLineORM,
     PurchaseOrderORM,
@@ -69,7 +69,7 @@ from infra.platform.db.models import (
     StockTransactionORM,
     StoreroomORM,
 )
-from infra.platform.db.optimistic import update_with_version_check
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyInventoryItemCategoryRepository(InventoryItemCategoryRepository):

@@ -473,22 +473,48 @@ Completed:
 - Alembic assets were moved from `migration/*` to `src/infra/persistence/migrations/*`
 - migration execution moved from `infra/platform/migrate.py` to `src/infra/persistence/migrations/runner.py`
 - `main.py`, `main_qt.py`, and `main_qt.spec` now reference the new migration runner/assets path
+- platform ORM model files were moved out of `infra/platform/db/`:
+  - `models.py` now lives at `src/infra/persistence/orm/platform/models.py`
+  - `inventory_models.py` now lives at `src/infra/persistence/orm/inventory_procurement/models.py`
+  - `maintenance_models.py` now lives at `src/infra/persistence/orm/maintenance/models.py`
+  - `maintenance_preventive_runtime_models.py` now lives at `src/infra/persistence/orm/maintenance/preventive_runtime_models.py`
+- platform persistence helpers and adapters now live under `src/infra/persistence/db/`:
+  - `optimistic.py`
+  - `platform/access`
+  - `platform/approval`
+  - `platform/audit`
+  - `platform/auth`
+  - `platform/documents`
+  - `platform/modules`
+  - `platform/org`
+  - `platform/party`
+  - `platform/runtime_tracking`
+  - `platform/time`
+- the old `infra/platform/db/` source package was deleted after direct import rewrites
+- old platform DB facade files were removed instead of recreated:
+  - `infra/platform/db/repositories.py`
+  - `infra/platform/db/repositories_org.py`
+  - `infra/platform/db/mappers.py`
+- composition registries, module repositories, regression tests, architecture guardrails, and test path rewrites now use direct imports
 
 Verified:
 
-- `python -m compileall -q src infra ui core tests main.py main_qt.py`
+- `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec`
 - direct import/smoke checks for platform runtime, entitlement runtime, HTTP platform adapter, and persistence bootstrap
+- direct import of `src.infra.persistence.db.optimistic.update_with_version_check`
 - migration asset lookup resolves the new `src/infra/persistence/migrations/alembic.ini`
 
 Known blocker:
 
 - full pytest currently fails during `tests/conftest.py` import because `reportlab` is missing and maintenance reporting imports it before the targeted platform assertions run
+- full platform repository import smoke checks hit the same `reportlab` blocker through the maintenance ORM import chain
+- targeted architecture guardrail pytest execution hits the same `reportlab` blocker during `tests/conftest.py` loading
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
 
 Continue next:
 
 1. Split `core/platform/*` into `domain/`, `application/`, and `contracts/` without wrappers.
-2. Move remaining platform ORM/mappers/repositories out of `infra/platform/db/*`.
+2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
 3. Add desktop runtime/platform API adapters.
 4. Move shell and platform UI paths.
 5. Update test path strategy and remove path rewrites only after the new paths are complete.

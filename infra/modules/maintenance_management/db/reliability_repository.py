@@ -14,8 +14,8 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_failure_code_from_orm,
     maintenance_failure_code_to_orm,
 )
-from infra.platform.db.maintenance_models import MaintenanceDowntimeEventORM, MaintenanceFailureCodeORM
-from infra.platform.db.optimistic import update_with_version_check
+from src.infra.persistence.orm.maintenance.models import MaintenanceDowntimeEventORM, MaintenanceFailureCodeORM
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyMaintenanceFailureCodeRepository(MaintenanceFailureCodeRepository):

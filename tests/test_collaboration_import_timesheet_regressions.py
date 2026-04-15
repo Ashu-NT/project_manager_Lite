@@ -7,7 +7,7 @@ import pytest
 
 from core.platform.common.exceptions import ValidationError
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
-from infra.platform.db.models import TimeEntryORM
+from src.infra.persistence.orm.platform.models import TimeEntryORM
 from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
 

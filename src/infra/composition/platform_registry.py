@@ -30,8 +30,8 @@ from core.platform.org import DepartmentService, EmployeeService, OrganizationSe
 from core.platform.party import PartyService
 from core.platform.party.interfaces import PartyRepository
 from core.platform.runtime_tracking import RuntimeExecutionService
-from infra.platform.db.repositories import SqlAlchemyModuleEntitlementRepository
-from infra.platform.db.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
+from src.infra.persistence.db.platform.modules import SqlAlchemyModuleEntitlementRepository
+from src.infra.persistence.db.platform.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
 
 

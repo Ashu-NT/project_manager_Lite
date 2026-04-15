@@ -9,8 +9,8 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_preventive_plan_instance_from_orm,
     maintenance_preventive_plan_instance_to_orm,
 )
-from infra.platform.db.maintenance_preventive_runtime_models import MaintenancePreventivePlanInstanceORM
-from infra.platform.db.optimistic import update_with_version_check
+from src.infra.persistence.orm.maintenance.preventive_runtime_models import MaintenancePreventivePlanInstanceORM
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyMaintenancePreventivePlanInstanceRepository(MaintenancePreventivePlanInstanceRepository):

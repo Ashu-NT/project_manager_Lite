@@ -22,8 +22,8 @@ from infra.modules.project_management.db.cost_calendar.mapper import (
     holiday_from_orm,
     holiday_to_orm,
 )
-from infra.platform.db.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
-from infra.platform.db.optimistic import update_with_version_check
+from src.infra.persistence.orm.platform.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyCostRepository(CostRepository):

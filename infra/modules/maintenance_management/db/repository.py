@@ -83,7 +83,7 @@ from infra.modules.maintenance_management.db.mapper import (
     maintenance_work_request_from_orm,
     maintenance_work_request_to_orm,
 )
-from infra.platform.db.maintenance_models import (
+from src.infra.persistence.orm.maintenance.models import (
     MaintenanceAssetComponentORM,
     MaintenanceAssetORM,
     MaintenanceIntegrationSourceORM,
@@ -103,7 +103,7 @@ from infra.platform.db.maintenance_models import (
     MaintenanceWorkOrderTaskStepORM,
     MaintenanceWorkRequestORM,
 )
-from infra.platform.db.optimistic import update_with_version_check
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyMaintenanceLocationRepository(MaintenanceLocationRepository):

@@ -5,7 +5,7 @@ from typing import Set
 from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
 from core.modules.project_management.domain.cost import CostItem
 from core.modules.project_management.domain.enums import CostType
-from infra.platform.db.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
+from src.infra.persistence.orm.platform.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
 
 
 def cost_to_orm(cost: CostItem) -> CostItemORM:

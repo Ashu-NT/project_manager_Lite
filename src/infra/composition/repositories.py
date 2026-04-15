@@ -14,42 +14,52 @@ from infra.modules.project_management.db.portfolio import (
     SqlAlchemyPortfolioScoringTemplateRepository,
     SqlAlchemyPortfolioScenarioRepository,
 )
+from infra.modules.project_management.db.baseline.repository import SqlAlchemyBaselineRepository
+from infra.modules.project_management.db.cost_calendar.repository import (
+    SqlAlchemyCalendarEventRepository,
+    SqlAlchemyCostRepository,
+    SqlAlchemyWorkingCalendarRepository,
+)
+from infra.modules.project_management.db.project.repository import (
+    SqlAlchemyProjectRepository,
+    SqlAlchemyProjectResourceRepository,
+)
 from infra.modules.project_management.db.register.repository import SqlAlchemyRegisterEntryRepository
-from infra.platform.db.access import (
+from infra.modules.project_management.db.resource.repository import SqlAlchemyResourceRepository
+from infra.modules.project_management.db.task.repository import (
+    SqlAlchemyAssignmentRepository,
+    SqlAlchemyDependencyRepository,
+    SqlAlchemyTaskRepository,
+)
+from src.infra.persistence.db.platform.access import (
     SqlAlchemyProjectMembershipRepository,
     SqlAlchemyScopedAccessGrantRepository,
 )
-from infra.platform.db.approval.repository import SqlAlchemyApprovalRepository
-from infra.platform.db.audit.repository import SqlAlchemyAuditLogRepository
-from infra.platform.db.documents import (
+from src.infra.persistence.db.platform.approval.repository import SqlAlchemyApprovalRepository
+from src.infra.persistence.db.platform.audit.repository import SqlAlchemyAuditLogRepository
+from src.infra.persistence.db.platform.auth.repository import (
+    SqlAlchemyAuthSessionRepository,
+    SqlAlchemyPermissionRepository,
+    SqlAlchemyRolePermissionRepository,
+    SqlAlchemyRoleRepository,
+    SqlAlchemyUserRepository,
+    SqlAlchemyUserRoleRepository,
+)
+from src.infra.persistence.db.platform.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from infra.platform.db.party import SqlAlchemyPartyRepository
-from infra.platform.db.repositories import (
-    SqlAlchemyAssignmentRepository,
-    SqlAlchemyAuthSessionRepository,
-    SqlAlchemyBaselineRepository,
-    SqlAlchemyCalendarEventRepository,
-    SqlAlchemyCostRepository,
+from src.infra.persistence.db.platform.org.repository import (
     SqlAlchemyDepartmentRepository,
-    SqlAlchemyDependencyRepository,
     SqlAlchemyEmployeeRepository,
     SqlAlchemyOrganizationRepository,
-    SqlAlchemyPermissionRepository,
-    SqlAlchemyProjectRepository,
-    SqlAlchemyProjectResourceRepository,
-    SqlAlchemyResourceRepository,
-    SqlAlchemyRolePermissionRepository,
-    SqlAlchemyRoleRepository,
     SqlAlchemySiteRepository,
-    SqlAlchemyTaskRepository,
+)
+from src.infra.persistence.db.platform.party import SqlAlchemyPartyRepository
+from src.infra.persistence.db.platform.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
-    SqlAlchemyUserRepository,
-    SqlAlchemyUserRoleRepository,
-    SqlAlchemyWorkingCalendarRepository,
 )
 
 

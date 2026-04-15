@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.modules.project_management.domain.resource import Resource
-from infra.platform.db.models import ResourceORM
+from src.infra.persistence.orm.platform.models import ResourceORM
 
 
 def resource_to_orm(resource: Resource) -> ResourceORM:
