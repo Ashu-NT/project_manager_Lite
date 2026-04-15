@@ -45,7 +45,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkRequestSourceType,
     MaintenanceWorkRequestStatus,
 )
-from infra.platform.db.base import Base
+from src.infra.persistence.orm.base import Base
 
 
 class MaintenanceLocationORM(Base):

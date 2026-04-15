@@ -8,6 +8,7 @@ hidden = (
     collect_submodules("infra")
     + collect_submodules("core")
     + collect_submodules("ui")
+    + collect_submodules("src")
 )
 
 a = Analysis(
@@ -16,8 +17,11 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(project_root / "assets"), "assets"),
-        (str(project_root / "migration"), "migration"),
-        (str(project_root / "infra" / "app_version.txt"), "infra"),
+        (
+            str(project_root / "src" / "infra" / "persistence" / "migrations"),
+            "src/infra/persistence/migrations",
+        ),
+        (str(project_root / "infra" / "platform" / "app_version.txt"), "infra/platform"),
     ],
     # Ensure stdlib logging.config is included for Alembic env imports
     hiddenimports=hidden + ["logging.config"],

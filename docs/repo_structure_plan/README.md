@@ -1463,6 +1463,44 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 - do not cement employee master-data ownership inside platform during this slice; keep current behavior compatible, then move ownership into `hr_management` when Slice 5 is executed
 - run architecture and platform suites after platform migration before touching any module
 
+#### Slice 1 execution status
+
+Updated: 2026-04-15
+
+Completed in the clean/no-facade execution:
+
+- created the target `src/` tree and package markers
+- moved `application/platform/runtime/service.py` to `src/application/runtime/platform_runtime.py`
+- deleted the old `application/` package path after all callers were rewritten
+- moved `core/platform/modules/runtime.py` to `src/application/runtime/entitlement_runtime.py`
+- removed module-runtime re-exports from `core/platform/__init__.py` and `core/platform/modules/__init__.py`
+- moved `api/http/platform/*` to `src/api/http/platform/*`
+- deleted the old top-level `api/` package path after all callers were rewritten
+- moved `infra/platform/services.py` to `src/infra/composition/app_container.py`
+- moved `infra/platform/service_registration/*` into `src/infra/composition/*_registry.py` and `src/infra/composition/repositories.py`
+- deleted the old `infra/platform/service_registration/` package path after all callers were rewritten
+- split `infra/platform/db/base.py` into `src/infra/persistence/orm/base.py`, `src/infra/persistence/db/engine.py`, `src/infra/persistence/db/session_factory.py`, and `src/infra/persistence/db/unit_of_work.py`
+- deleted `infra/platform/db/base.py` after ORM models, entrypoints, workers, and tests were rewritten
+- moved `migration/*` to `src/infra/persistence/migrations/*`
+- moved `infra/platform/migrate.py` to `src/infra/persistence/migrations/runner.py`
+- updated `main.py`, `main_qt.py`, and `main_qt.spec` to use the new migration runner/assets path
+
+Verified:
+
+- `python -m compileall -q src infra ui core tests main.py main_qt.py` passes
+- direct imports for platform runtime, entitlement runtime, platform HTTP API, and persistence bootstrap pass
+- migration asset lookup resolves `src/infra/persistence/migrations/alembic.ini`
+- full pytest is currently blocked before slice assertions run by a missing environment dependency: `reportlab`, imported by maintenance reporting renderers
+
+Still remaining in Slice 1:
+
+- split `core/platform/*` into the target `domain/`, `application/`, and `contracts/` package layout
+- move remaining platform ORM models/mappers/repositories out of `infra/platform/db/*`
+- add `src/api/desktop/runtime.py` and desktop platform adapters
+- move shell code from `ui/platform/shell/*` to `src/ui/shell/*`
+- move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
+- update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
+
 ### Slice 2: Project Management
 
 Goal: complete the full project management slice before moving to the next module.

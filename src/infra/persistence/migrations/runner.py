@@ -1,7 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
 import sys
-from alembic import command
-from alembic.config import Config
 
 
 def _app_dir() -> Path:
@@ -9,30 +9,41 @@ def _app_dir() -> Path:
     Returns the directory where the running app lives.
     - For PyInstaller onefile builds, prefer sys._MEIPASS (temporary extraction dir).
     - For PyInstaller onedir builds, use the folder containing the .exe.
-    - In dev: return the project root (infra -> project root).
+    - In dev: return the project root (`src/infra/persistence/migrations` -> root).
     """
     if getattr(sys, "frozen", False):
-        # Onefile build (sys._MEIPASS) contains unpacked data resources
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
             return Path(meipass).resolve()
-        # Fallback to exe parent (onedir)
         return Path(sys.executable).resolve().parent
-    # dev fallback: infra/platform/migrate.py -> infra -> project root
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[4]
+
+
+def _migration_candidates(app_dir: Path) -> list[Path]:
+    package_location = Path(__file__).resolve().parent
+    candidates = [
+        package_location,
+        app_dir / "src" / "infra" / "persistence" / "migrations",
+        app_dir / "_internal" / "src" / "infra" / "persistence" / "migrations",
+        app_dir / "ProjectManagerLite" / "src" / "infra" / "persistence" / "migrations",
+    ]
+
+    unique_candidates: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved not in seen:
+            unique_candidates.append(resolved)
+            seen.add(resolved)
+    return unique_candidates
 
 
 def run_migrations(db_url: str) -> None:
+    from alembic import command
+    from alembic.config import Config
+
     app_dir = _app_dir()
-
-    # Primary expected location: <app_dir>/migration
-    candidates = [app_dir / "migration"]
-
-    # Common packaging layout: some packagers place resources under an '_internal' folder
-    candidates.append(app_dir / "_internal" / "migration")
-
-    # Also consider a nested folder named after the app (e.g., dist/ProjectManagerLite/migration)
-    candidates.append(app_dir / "ProjectManagerLite" / "migration")
+    candidates = _migration_candidates(app_dir)
 
     script_location = None
     alembic_ini = None

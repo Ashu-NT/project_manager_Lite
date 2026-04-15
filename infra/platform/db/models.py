@@ -19,7 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from infra.platform.db.base import Base
+from src.infra.persistence.orm.base import Base
 from core.modules.project_management.domain.enums import (
     CostType,
     DependencyType,

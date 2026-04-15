@@ -12,8 +12,8 @@ from sqlalchemy import select
 
 from core.platform.notifications.domain_events import domain_events
 from infra.modules.project_management.collaboration_attachments import store_task_comment_attachments
-from infra.platform.db.base import SessionLocal
 from infra.platform.db.models import TaskCommentORM
+from src.infra.persistence.db.session_factory import SessionLocal
 
 
 _MENTION_RE = re.compile(r"@([A-Za-z0-9_.-]+)")

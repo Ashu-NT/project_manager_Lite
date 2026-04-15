@@ -5,9 +5,10 @@ from PySide6.QtWidgets import QApplication, QDialog
 from PySide6.QtGui import QFont, QIcon
 from infra.platform.resource import resource_path
 
-from infra.platform.db.base import SessionLocal, get_db_url
 from infra.platform.logging_config import setup_logging
 from src.infra.composition.app_container import build_service_dict
+from src.infra.persistence.db.engine import get_db_url
+from src.infra.persistence.db.session_factory import SessionLocal
 
 from ui.platform.shared.auth.login_dialog import LoginDialog
 from ui.platform.shell.main_window import MainWindow
@@ -16,7 +17,8 @@ from ui.platform.settings import MainWindowSettingsStore
 
 def build_services():
     # same DB as CLI
-    from infra.platform.migrate import run_migrations
+    from src.infra.persistence.migrations.runner import run_migrations
+
     run_migrations(db_url=get_db_url())
     #Base.metadata.create_all(bind=engine)
     session = SessionLocal()

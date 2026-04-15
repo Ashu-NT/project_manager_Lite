@@ -27,7 +27,7 @@ from core.modules.inventory_procurement.domain import (
     StockReservationStatus,
     StockTransactionType,
 )
-from infra.platform.db.base import Base
+from src.infra.persistence.orm.base import Base
 
 
 class InventoryItemCategoryORM(Base):

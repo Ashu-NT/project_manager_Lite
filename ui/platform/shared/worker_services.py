@@ -4,8 +4,8 @@ from contextlib import contextmanager
 from typing import Any
 
 from core.platform.auth.session import UserSessionContext
-from infra.platform.db.base import SessionLocal
 from src.infra.composition.app_container import build_service_dict
+from src.infra.persistence.db.session_factory import SessionLocal
 
 
 def _copy_principal(

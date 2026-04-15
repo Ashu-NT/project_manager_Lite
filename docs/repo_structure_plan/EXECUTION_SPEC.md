@@ -451,6 +451,48 @@ Do not:
 - keep root package wrappers
 - delete live behavior
 
+Status as of 2026-04-15:
+
+Completed:
+
+- `src/` tree and package markers are in place
+- platform runtime orchestration now lives in `src/application/runtime/platform_runtime.py`
+- entitlement/module runtime now lives in `src/application/runtime/entitlement_runtime.py`
+- old `application/` package path was deleted after import rewrite
+- platform HTTP API now lives in `src/api/http/platform/`
+- old top-level `api/` package path was deleted after import rewrite
+- composition root now lives in `src/infra/composition/app_container.py`
+- platform, project, inventory, and maintenance service-registration bundles now live as composition registries under `src/infra/composition/`
+- old `infra/platform/services.py` and `infra/platform/service_registration/` paths were deleted after import rewrite
+- database bootstrap was split from `infra/platform/db/base.py` into:
+  - `src/infra/persistence/orm/base.py`
+  - `src/infra/persistence/db/engine.py`
+  - `src/infra/persistence/db/session_factory.py`
+  - `src/infra/persistence/db/unit_of_work.py`
+- old `infra/platform/db/base.py` was deleted after import rewrite
+- Alembic assets were moved from `migration/*` to `src/infra/persistence/migrations/*`
+- migration execution moved from `infra/platform/migrate.py` to `src/infra/persistence/migrations/runner.py`
+- `main.py`, `main_qt.py`, and `main_qt.spec` now reference the new migration runner/assets path
+
+Verified:
+
+- `python -m compileall -q src infra ui core tests main.py main_qt.py`
+- direct import/smoke checks for platform runtime, entitlement runtime, HTTP platform adapter, and persistence bootstrap
+- migration asset lookup resolves the new `src/infra/persistence/migrations/alembic.ini`
+
+Known blocker:
+
+- full pytest currently fails during `tests/conftest.py` import because `reportlab` is missing and maintenance reporting imports it before the targeted platform assertions run
+- executing migrations also requires the declared `alembic` dependency to be installed in the active environment
+
+Continue next:
+
+1. Split `core/platform/*` into `domain/`, `application/`, and `contracts/` without wrappers.
+2. Move remaining platform ORM/mappers/repositories out of `infra/platform/db/*`.
+3. Add desktop runtime/platform API adapters.
+4. Move shell and platform UI paths.
+5. Update test path strategy and remove path rewrites only after the new paths are complete.
+
 ### Slice 2: Project Management
 
 Do:

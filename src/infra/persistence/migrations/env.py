@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from infra.platform.db.base import Base
+from src.infra.persistence.orm.base import Base
 import infra.platform.db.models  # noqa
 
 
