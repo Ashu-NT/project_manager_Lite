@@ -11,7 +11,7 @@ from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.documents import DocumentService
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
-from core.platform.modules.runtime import ModuleRuntimeService
+from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from core.platform.time import TimeService
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
@@ -82,7 +82,7 @@ from core.modules.project_management.services.timesheet import TimesheetService
 from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine as LegacyWorkCalendarEngine
 from core.modules.project_management.services.work_calendar.service import WorkCalendarService as LegacyWorkCalendarService
-from infra.platform.services import ServiceGraph, build_service_graph
+from src.infra.composition.app_container import ServiceGraph, build_service_graph
 from pathlib import Path
 
 
@@ -249,12 +249,15 @@ def test_legacy_service_imports_point_to_new_packages():
 
 
 def test_services_module_delegates_to_modular_registration_builders():
-    text = (Path(__file__).resolve().parents[1] / "infra" / "platform" / "services.py").read_text(
+    text = (
+        Path(__file__).resolve().parents[1] / "src" / "infra" / "composition" / "app_container.py"
+    ).read_text(
         encoding="utf-8",
         errors="ignore",
     )
 
-    assert "from infra.platform.service_registration import (" in text
+    assert "from src.infra.composition.platform_registry import build_platform_service_bundle" in text
+    assert "from src.infra.composition.repositories import build_repository_bundle" in text
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
     assert "build_inventory_procurement_service_bundle(platform_services)" in text
@@ -263,11 +266,11 @@ def test_services_module_delegates_to_modular_registration_builders():
 
 
 def test_service_registration_package_is_split_by_platform_and_module():
-    root = Path(__file__).resolve().parents[1] / "infra" / "platform" / "service_registration"
+    root = Path(__file__).resolve().parents[1] / "src" / "infra" / "composition"
 
     assert (root / "__init__.py").exists()
     assert (root / "repositories.py").exists()
-    assert (root / "platform_bundle.py").exists()
-    assert (root / "inventory_procurement_bundle.py").exists()
-    assert (root / "maintenance_management_bundle.py").exists()
-    assert (root / "project_management_bundle.py").exists()
+    assert (root / "platform_registry.py").exists()
+    assert (root / "inventory_registry.py").exists()
+    assert (root / "maintenance_registry.py").exists()
+    assert (root / "project_registry.py").exists()

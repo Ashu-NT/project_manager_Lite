@@ -1,1 +1,1 @@
-"""Application composition root."""
+"""Application composition package."""

@@ -2,12 +2,6 @@ from __future__ import annotations
 
 from typing import Any, Callable, TypeVar
 
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from api.http.platform.models import (
-    HttpApiResponse,
-    ModuleStatePatchRequest,
-    OrganizationProvisionRequest,
-)
 from core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -15,17 +9,18 @@ from core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.api.http.platform.models import (
+    HttpApiResponse,
+    ModuleStatePatchRequest,
+    OrganizationProvisionRequest,
+)
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 
 _ResultT = TypeVar("_ResultT")
 
 
 class PlatformRuntimeHttpApi:
-    """Transport-facing adapter for module licensing and organization setup.
-
-    This is intentionally lightweight: it produces JSON-ready payloads and
-    HTTP-like status codes now, and can later be wrapped by FastAPI or another
-    server adapter without rewriting the underlying rules.
-    """
+    """Transport-facing adapter for module licensing and organization setup."""
 
     def __init__(
         self,

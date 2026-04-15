@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.platform.modules.runtime import (
+from src.application.runtime.entitlement_runtime import (
     ModuleRuntimeService,
     ModuleRuntimeSnapshot,
     resolve_module_runtime_service,

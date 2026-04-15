@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from api.http.platform import (
+from src.api.http.platform import (
     ModuleStatePatchRequest,
     OrganizationProvisionRequest,
     PlatformRuntimeHttpApi,

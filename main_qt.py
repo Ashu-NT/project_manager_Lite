@@ -7,7 +7,7 @@ from infra.platform.resource import resource_path
 
 from infra.platform.db.base import SessionLocal, get_db_url
 from infra.platform.logging_config import setup_logging
-from infra.platform.services import build_service_dict
+from src.infra.composition.app_container import build_service_dict
 
 from ui.platform.shared.auth.login_dialog import LoginDialog
 from ui.platform.shell.main_window import MainWindow

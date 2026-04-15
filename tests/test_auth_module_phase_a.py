@@ -6,7 +6,7 @@ import pytest
 
 from core.platform.auth.mfa import generate_totp_code
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from infra.platform.services import build_service_dict
+from src.infra.composition.app_container import build_service_dict
 
 
 def test_bootstrap_creates_admin_and_permissions(services):

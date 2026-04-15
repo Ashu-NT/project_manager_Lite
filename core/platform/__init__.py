@@ -7,15 +7,12 @@ from core.platform.modules import (
     ModuleCatalogEntry,
     ModuleCatalogService,
     ModuleEntitlement,
-    ModuleRuntimeService,
-    ModuleRuntimeSnapshot,
     PlatformCapability,
     SupportsModuleEntitlements,
     build_default_module_catalog,
     normalize_module_code,
     parse_enabled_module_codes,
     parse_licensed_module_codes,
-    resolve_module_runtime_service,
 )
 
 __all__ = [
@@ -27,8 +24,6 @@ __all__ = [
     "ModuleEntitlementRecord",
     "ModuleEntitlementRepository",
     "ModuleGuardedServiceMixin",
-    "ModuleRuntimeService",
-    "ModuleRuntimeSnapshot",
     "PlatformCapability",
     "SupportsModuleEntitlements",
     "TimeEntry",
@@ -42,6 +37,5 @@ __all__ = [
     "normalize_module_code",
     "parse_enabled_module_codes",
     "parse_licensed_module_codes",
-    "resolve_module_runtime_service",
     "require_module_enabled",
 ]

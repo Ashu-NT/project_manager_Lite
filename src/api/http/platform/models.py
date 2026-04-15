@@ -26,4 +26,3 @@ class OrganizationProvisionRequest:
     base_currency: str
     is_active: bool = True
     initial_module_codes: tuple[str, ...] = field(default_factory=tuple)
-

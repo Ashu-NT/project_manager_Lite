@@ -763,7 +763,7 @@ def test_main_build_services_delegates_to_service_graph():
     main_path = ROOT / "main.py"
     text = main_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from infra.platform.services import build_service_dict" in text
+    assert "from src.infra.composition.app_container import build_service_dict" in text
     assert "return build_service_dict(session)" in text
 
 

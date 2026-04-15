@@ -5,7 +5,7 @@ from typing import Any
 
 from core.platform.auth.session import UserSessionContext
 from infra.platform.db.base import SessionLocal
-from infra.platform.services import build_service_dict
+from src.infra.composition.app_container import build_service_dict
 
 
 def _copy_principal(
