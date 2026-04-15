@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from application.platform import resolve_platform_runtime_application_service
+from src.application.runtime.platform_runtime import resolve_platform_runtime_application_service
 from core.platform.auth import UserSessionContext
 from core.platform.notifications.domain_events import domain_events
 from infra.platform.update import check_for_updates, default_update_manifest_source

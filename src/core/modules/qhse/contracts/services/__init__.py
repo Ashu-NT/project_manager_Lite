@@ -1,0 +1,1 @@
+"""QHSE service contracts."""

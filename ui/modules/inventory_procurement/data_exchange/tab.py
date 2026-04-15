@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.modules.inventory_procurement import InventoryDataExchangeService
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError

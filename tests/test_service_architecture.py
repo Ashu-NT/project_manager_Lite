@@ -1,4 +1,4 @@
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from core.platform.access import AccessControlService
 from core.platform.approval import ApprovalService

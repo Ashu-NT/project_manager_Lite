@@ -1,0 +1,1 @@
+"""Party platform capability."""

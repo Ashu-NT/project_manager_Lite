@@ -1,0 +1,1 @@
+"""Payroll desktop API adapters."""

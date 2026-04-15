@@ -1,0 +1,1 @@
+"""Payroll HTTP API adapters."""

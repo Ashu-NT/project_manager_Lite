@@ -1,0 +1,1 @@
+"""Permission domain target module."""

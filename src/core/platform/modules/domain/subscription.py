@@ -1,0 +1,1 @@
+"""Subscription domain target module."""

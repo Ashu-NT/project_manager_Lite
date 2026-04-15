@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QDialog,
 )
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.modules.maintenance_management import (
     MaintenanceAssetComponentService,
     MaintenanceAssetService,

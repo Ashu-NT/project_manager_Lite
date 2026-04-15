@@ -1,0 +1,1 @@
+"""Desktop notifier target module."""

@@ -1,0 +1,1 @@
+"""Documents platform capability."""

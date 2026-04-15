@@ -1,0 +1,1 @@
+"""QHSE view models."""

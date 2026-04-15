@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.platform.access import AccessControlService
 from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService

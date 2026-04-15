@@ -1,0 +1,1 @@
+"""HR management view models."""

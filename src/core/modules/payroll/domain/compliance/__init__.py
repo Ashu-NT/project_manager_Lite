@@ -1,0 +1,1 @@
+"""Payroll compliance domain."""

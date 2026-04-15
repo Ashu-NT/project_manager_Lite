@@ -1,0 +1,1 @@
+"""Notifications platform capability."""

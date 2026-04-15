@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.platform import (
     DEFAULT_ENTERPRISE_MODULES,
     ModuleCatalogService,

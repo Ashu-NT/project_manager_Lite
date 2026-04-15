@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.platform import build_default_module_catalog
 from core.platform.modules.runtime import ModuleRuntimeService
 from core.platform.modules.service import DEFAULT_ENTERPRISE_MODULES, ModuleCatalogService

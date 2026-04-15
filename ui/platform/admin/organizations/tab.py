@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.org.domain import Organization

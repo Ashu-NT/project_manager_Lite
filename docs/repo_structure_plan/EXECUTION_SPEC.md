@@ -1,0 +1,679 @@
+# Clean Refactor Execution Spec
+
+This file is the execution-level companion to `README.md`.
+
+It captures the practical refactor rules from the provided spec, but applies the project decision that the migration must be clean:
+
+- no compatibility facades
+- no re-export wrappers
+- no temporary old-path modules
+- no duplicated business logic
+- each completed slice removes its old paths
+
+When this file and the original downloaded execution spec differ, this file wins for migration mechanics because it reflects the no-facade decision.
+
+## Purpose
+
+This document tells Codex how to execute the repo restructuring safely while keeping the desktop app functional.
+
+It answers:
+
+1. how to execute the migration one slice at a time
+2. what each new folder must contain
+3. what each folder must never contain
+4. how handlers, DTOs, repositories, APIs, presenters, and registries should be shaped
+5. where currently-live repo features should land when the canonical tree did not name them
+
+## Hard Execution Rules
+
+1. Preserve runtime behavior.
+2. Move one architectural slice at a time.
+3. Finish the active slice before starting the next slice.
+4. Do not use compatibility facades or old-path re-exports.
+5. Rewrite all imports for the active slice before deleting old files.
+6. Delete old paths for the active slice before marking it complete.
+7. Do not change business behavior while restructuring.
+8. Do not delete live features because the canonical tree omitted them.
+9. Assign omitted live features to final homes before their slice closes.
+10. Every completed slice must leave the desktop app runnable.
+
+## Target Runtime Call Chain
+
+Desktop runtime:
+
+```text
+Qt UI -> top-level desktop API -> module desktop API -> application handler -> domain + contracts -> infrastructure implementation
+```
+
+Future HTTP runtime:
+
+```text
+HTTP router/controller -> top-level HTTP API -> module HTTP API -> application handler -> domain + contracts -> infrastructure implementation
+```
+
+Rules:
+
+- UI imports from `src/api/desktop/...`
+- shell/runtime bootstrap imports from `src/api/desktop/runtime.py`
+- hosted HTTP bootstrap imports from `src/api/http/...`
+- module-local APIs live under `src/core/modules/<module>/api/...`
+- module-local APIs do not own UI rendering or persistence
+
+## `src/` Package Strategy
+
+The target layout is a true `src/` layout.
+
+Execution rule:
+
+- create the `src/` tree first
+- move code slice by slice
+- rewrite callers to `src.*` paths inside the same slice
+- remove old root package paths for the completed slice
+- do not keep old package names as compatibility modules
+
+Tooling that must be updated when the `src/` layout becomes active:
+
+- `pytest.ini`
+- import bootstrap assumptions in tests
+- `main_qt.py`
+- `main.py`
+- `main_qt.spec`
+- packaging scripts
+- migration/Alembic paths
+
+## Transaction Boundary Rule
+
+Each state-changing application handler must define exactly one transaction boundary.
+
+Rules:
+
+- transaction begins in the application handler or application service boundary
+- repositories use the provided session or unit of work
+- UI does not manage transactions
+- API adapters do not manage transactions
+- domain entities do not manage transactions
+- new handlers should accept repositories and gateways, not raw global service dictionaries
+
+## Error And Result Convention
+
+Command handlers return either:
+
+- a DTO
+- `Result[DTO]` when `src/application/common/result.py` exists for that slice
+
+Query handlers return:
+
+- DTOs
+- lists of DTOs
+- paged DTOs
+
+Standard error categories:
+
+- `DomainValidationError`
+- `ApplicationPermissionError`
+- `ApplicationNotFoundError`
+- `InfrastructureOperationError`
+
+Transport mapping belongs in API adapters:
+
+- desktop API maps exceptions into UI-friendly messages or typed desktop results
+- HTTP API maps validation to `400`
+- HTTP API maps permission errors to `403`
+- HTTP API maps not-found errors to `404`
+- HTTP API maps optimistic-lock/conflict errors to `409`
+- HTTP API maps infrastructure/runtime errors to `500`
+
+Handlers must not format UI or HTTP responses.
+
+## Handler Naming Convention
+
+State-changing use case file:
+
+```text
+<verb>_<aggregate>.py
+```
+
+Examples:
+
+- `create_work_order.py`
+- `assign_work_order.py`
+- `close_work_order.py`
+- `create_project.py`
+- `approve_purchase_request.py`
+
+Each command file contains:
+
+- one command object
+- one handler class
+- optional private helper functions when genuinely local
+
+Class naming:
+
+- command object: `CreateWorkOrderCommand`
+- handler: `CreateWorkOrderHandler`
+
+Query naming:
+
+- file: `get_work_order.py`
+- query object: `GetWorkOrderQuery`
+- handler: `GetWorkOrderHandler`
+
+DTO naming:
+
+- `WorkOrderDto`
+- `WorkOrderDetailDto`
+- `WorkOrderBoardItemDto`
+
+Forbidden in migrated slices:
+
+- new catch-all `service.py`
+- new catch-all `manager.py`
+- new catch-all `helper.py`
+- new catch-all `utils.py`
+
+## Repository Contract Convention
+
+Repository contracts must be use-case driven and aggregate scoped.
+
+Allowed method categories:
+
+- `get_by_id(...)`
+- `save(...)`
+- `delete(...)` only when delete semantics are real
+- aggregate-specific `list_*` or `find_*` methods
+- list methods scoped by organization, site, project, asset, warehouse, or another owned boundary
+
+Forbidden repository styles:
+
+- giant generic repositories
+- one repository serving unrelated aggregates
+- repositories exposing raw ORM query objects outside infrastructure
+
+Repository interface placement:
+
+```text
+src/core/modules/<module>/contracts/repositories/
+```
+
+Repository implementation placement:
+
+```text
+src/core/modules/<module>/infrastructure/persistence/repositories/
+```
+
+## Persistence Split Rule
+
+Global infrastructure owns:
+
+- engine creation
+- session factory
+- unit of work
+- migration bootstrap
+- shared ORM base metadata roots
+- shared DB helpers
+
+Global placement:
+
+```text
+src/infra/persistence/
+  db/
+  migrations/
+  orm/
+```
+
+Module infrastructure owns:
+
+- module repository implementations
+- module ORM mappers or mapping helpers
+- module read models
+- module query projections
+
+Module placement:
+
+```text
+src/core/modules/<module>/infrastructure/persistence/
+  repositories/
+  mappers/
+  read_models/
+```
+
+Preferred ORM row placement:
+
+```text
+src/infra/persistence/orm/<module>/
+```
+
+Preferred domain-to-ORM mapper placement:
+
+```text
+src/core/modules/<module>/infrastructure/persistence/mappers/
+```
+
+Dashboard, board, planner, and report reads belong in:
+
+```text
+src/core/modules/<module>/infrastructure/persistence/read_models/
+```
+
+## Unnamed Live Feature Final Homes
+
+These features exist today and must not be lost.
+
+### Project Management
+
+| Live feature | Final target home |
+| --- | --- |
+| portfolio | `application/projects/queries/` plus `infrastructure/persistence/read_models/portfolio_*` |
+| register | `application/risk/queries/` when risk semantics apply, otherwise `application/projects/queries/` |
+| collaboration | `application/tasks/commands/`, `application/tasks/queries/`, `contracts/gateways/`, and infra-backed collaboration storage |
+| timesheet | `application/resources/` initially, or `application/time_entries/` if the slice expands it |
+| import_service | `infrastructure/importers/` plus application command handlers |
+| dashboard coordinators | application queries plus infrastructure read models |
+
+### Inventory & Procurement
+
+| Live feature | Final target home |
+| --- | --- |
+| reservations | `domain/inventory/` plus `application/inventory/commands/` and `queries/` |
+| stock_control | fold into the `inventory` subdomain |
+| maintenance_integration | `contracts/gateways/maintenance_*` plus infrastructure adapters |
+| data_exchange | `contracts/gateways/` plus `infrastructure/importers/` and `exporters/` |
+| reporting helpers | `infrastructure/reporting/` |
+
+### Maintenance
+
+| Live feature | Final target home |
+| --- | --- |
+| planner | `application/preventive/queries/`, planner read models, and `ui/modules/maintenance/workspaces/planner_*` |
+| dashboard | `application/reliability/queries/` plus dashboard read models |
+| task templates | `domain/preventive/` or `domain/work_orders/` based on ownership found during extraction |
+| asset library | asset queries plus `ui/modules/maintenance/workspaces/` |
+| preventive library | preventive queries plus `ui/modules/maintenance/workspaces/` |
+| runtime contract catalog | module API/support area until broader runtime contract strategy is finalized |
+
+### HR, Payroll, And QHSE Ownership
+
+- HR owns employee master data.
+- Payroll reads employee payroll-facing data through contracts or gateways.
+- QHSE may reference asset IDs and employee IDs only.
+- Maintenance uses employee lookup gateways and must not import HR internals.
+
+## Composition Root Rule
+
+Current composition root:
+
+- `infra/platform/services.py`
+- `infra/platform/service_registration/*`
+
+Target composition root:
+
+```text
+src/infra/composition/
+  app_container.py
+  platform_registry.py
+  project_registry.py
+  inventory_registry.py
+  maintenance_registry.py
+  hr_registry.py
+  payroll_registry.py
+  qhse_registry.py
+```
+
+Each registry must:
+
+- instantiate repository implementations
+- instantiate command handlers
+- instantiate query handlers
+- instantiate module API adapters
+- expose one bundle object to the app container
+
+`app_container.py` must:
+
+- load settings
+- create engine and session factory
+- create event bus, storage, and notifiers
+- create platform registry
+- create module registries
+- expose a typed container for entrypoints
+
+No business logic belongs in composition.
+
+## UI Refactor Rule
+
+Target UI structure:
+
+```text
+src/ui/
+  shell/
+  shared/
+  platform/
+  modules/
+```
+
+`src/ui/shell/` holds:
+
+- app bootstrap glue
+- login dialog wiring
+- main window
+- navigation registration
+
+`src/ui/shared/` holds:
+
+- reusable widgets
+- reusable dialogs
+- formatting helpers
+- UI models
+
+`src/ui/platform/` holds:
+
+- platform-owned workspaces
+- platform-owned dialogs
+- platform-owned widgets
+
+`src/ui/modules/<module>/` must use:
+
+```text
+workspaces/
+dialogs/
+presenters/
+view_models/
+widgets/
+```
+
+Presenter priority:
+
+- PM dashboard and scheduling screens
+- Maintenance planner
+- Maintenance work orders
+- Inventory stock control
+- Inventory reservations
+
+View models are UI-shaped only.
+
+Examples:
+
+- `WorkOrderRowViewModel`
+- `TaskBoardCardViewModel`
+- `StockBalanceRowViewModel`
+
+## API Refactor Rule
+
+Create top-level desktop APIs:
+
+```text
+src/api/desktop/runtime.py
+src/api/desktop/platform/
+src/api/desktop/project_management/
+src/api/desktop/inventory_procurement/
+src/api/desktop/maintenance/
+```
+
+Create parallel HTTP APIs:
+
+```text
+src/api/http/platform/
+src/api/http/project_management/
+src/api/http/inventory_procurement/
+src/api/http/maintenance/
+```
+
+Desktop APIs must:
+
+- expose stable methods for UI usage
+- accept typed command/query objects or primitive inputs
+- return DTOs or result envelopes
+- translate application exceptions to UI-friendly errors
+
+HTTP APIs must:
+
+- map web input to command/query objects
+- return serialized DTOs
+- translate exceptions to HTTP-level responses
+
+## Slice Execution Order
+
+### Slice 1: Platform And `src/` Bootstrap
+
+Do:
+
+1. Create the `src/` tree.
+2. Move platform runtime orchestration into `src/application/runtime/`.
+3. Create `src/infra/composition/`.
+4. Move platform DB bootstrapping into `src/infra/persistence/`.
+5. Move shell code into `src/ui/shell/`.
+6. Create `src/api/desktop/runtime.py`.
+7. Rewrite entrypoints and tests to new imports.
+8. Delete old platform paths after callers are rewritten.
+
+Do not:
+
+- move all modules at once
+- keep root package wrappers
+- delete live behavior
+
+### Slice 2: Project Management
+
+Do:
+
+1. Split PM domain by `projects`, `tasks`, `scheduling`, `resources`, `risk`, and `financials`.
+2. Extract PM contracts from broad interfaces.
+3. Break scheduling engine into graph builder, forward pass, backward pass, critical path, calendars, and baseline comparison.
+4. Convert broad PM services into command/query handlers.
+5. Move PM repositories and read models under module infrastructure.
+6. Add PM desktop API adapters.
+7. Add PM presenters and view models.
+8. Rewrite imports and delete old PM paths for the moved code.
+
+### Slice 3: Inventory & Procurement
+
+Do:
+
+1. Split into `catalog`, `inventory`, `procurement`, and `pricing`.
+2. Fold stock control into `inventory`.
+3. Keep reservations as explicit inventory use cases.
+4. Keep maintenance integration behind gateway contracts.
+5. Add inventory desktop API adapters.
+6. Rewrite imports and delete old inventory paths for the moved code.
+
+### Slice 4: Maintenance
+
+Do:
+
+1. Rename `maintenance_management` to `maintenance`.
+2. Split domain by `assets`, `locations`, `work_requests`, `work_orders`, `preventive`, `reliability`, and `documents`.
+3. Split service files into command/query handlers.
+4. Move repositories, mappers, and read models into module infrastructure.
+5. Add planner and dashboard read models.
+6. Add maintenance desktop API adapters.
+7. Add presenters for planner and work orders.
+8. Rewrite imports and delete old maintenance-management paths.
+
+### Slice 5: HR, Payroll, And QHSE Skeletons
+
+Do:
+
+1. Create package skeletons.
+2. Create registries and empty API surfaces.
+3. Establish ownership rules through contracts.
+4. Add architecture tests for cross-module isolation.
+
+### Slice 6: Cleanup
+
+Do:
+
+1. Delete any remaining legacy paths.
+2. Delete path rewrite helpers.
+3. Update architecture tests to forbid old imports.
+4. Update README and packaging docs.
+
+## Architecture Tests Codex Must Add
+
+Layer import tests:
+
+- `src/core/**` must not import `src/ui/**`
+- `src/core/**` must not import `src/api/**`
+- `src/core/**` must not import repository implementations
+- `src/ui/**` must not import `src/core/**/infrastructure/**`
+- `src/api/**` must not import ORM repositories directly
+
+Cross-module isolation tests:
+
+- one module must not import another module's `domain/` directly
+- one module must not import another module's `infrastructure/` directly
+- allowed cross-module references go through contracts, gateways, events, or IDs
+
+Giant-file regression tests:
+
+- enforce file-size ceilings for known hotspots
+- prioritize scheduling engine, work-order flows, preventive flows, and large UI tabs
+
+Clean-cutover tests:
+
+- old imports for completed slices must fail or be absent
+- entrypoints must import from the target paths
+- runtime must start through the new app container
+
+## Current-To-Target Mapping Rules
+
+`main_qt.py` target split:
+
+- `src/ui/shell/app.py` for shell startup glue
+- `src/infra/composition/app_container.py` for container build
+- `src/api/desktop/runtime.py` for runtime-facing desktop API
+- keep `main_qt.py` only as the root entrypoint that calls the new shell app
+
+`infra/platform/services.py` target split:
+
+- `src/infra/composition/app_container.py`
+- `src/infra/composition/platform_registry.py`
+- `src/infra/composition/project_registry.py`
+- `src/infra/composition/inventory_registry.py`
+- `src/infra/composition/maintenance_registry.py`
+
+`infra/platform/service_registration/*` target:
+
+- convert into `src/infra/composition/*_registry.py`
+- do not leave old bundle builders after the slice is complete
+
+`migration/` target:
+
+- `src/infra/persistence/migrations/`
+
+`api/http/platform/*` target:
+
+- `src/api/http/platform/*`
+- add matching `src/api/desktop/platform/*`
+
+`ui/platform/shell/*` target:
+
+- `src/ui/shell/*`
+
+`ui/platform/admin`, `control`, `settings`, and `shared` target:
+
+- platform-owned screens to `src/ui/platform/workspaces/`
+- platform-owned dialogs to `src/ui/platform/dialogs/`
+- platform-owned widgets to `src/ui/platform/widgets/`
+- reusable pieces to `src/ui/shared/*`
+
+`core/modules/project_management/services/*` target:
+
+- `application/<subdomain>/commands/`
+- `application/<subdomain>/queries/`
+- reporting and import code to infrastructure adapters
+- scheduling split under `domain/scheduling/` and `application/scheduling/`
+
+`core/modules/inventory_procurement/services/*` target:
+
+- catalog application handlers
+- inventory application handlers
+- procurement application handlers
+- reporting, import, and export under infrastructure
+
+`core/modules/maintenance_management/services/*` target:
+
+- assets application handlers
+- work requests application handlers
+- work orders application handlers
+- preventive application handlers
+- reliability application handlers
+- reporting, import, export, and read models under infrastructure
+
+## File Creation Rules
+
+Allowed names:
+
+- `create_<aggregate>.py`
+- `update_<aggregate>.py`
+- `get_<aggregate>.py`
+- `list_<aggregate>.py`
+- `<aggregate>_dto.py`
+- `<aggregate>_mapper.py`
+- `sql_<aggregate>_repository.py`
+
+Avoid generic names:
+
+- `utils.py`
+- `helpers.py`
+- `manager.py`
+- `common_service.py`
+- `misc.py`
+
+Generic names are allowed only when the file is truly cross-cutting and the owning layer is obvious.
+
+## Codex Working Modes
+
+Scaffold:
+
+- create folders
+- add `__init__.py`
+- create placeholder classes/files
+- do not move logic yet
+
+Extract:
+
+- move existing code into new files without changing behavior
+- rewrite imports as part of the same slice
+
+Normalize:
+
+- standardize handler names
+- standardize DTO names
+- standardize interfaces
+- standardize registries
+
+Enforce:
+
+- add architecture tests
+- remove old paths for the completed slice
+- verify entrypoints and tests
+
+Forbidden behavior:
+
+- inventing new product behavior
+- deleting current live features because the canonical tree omitted them
+- changing business logic during pure structure moves
+- leaving compatibility facades after a slice is complete
+
+## Completion Criteria
+
+A migration slice is complete only when:
+
+- the desktop app still launches
+- tests for the slice pass
+- architecture tests enforce the new boundary
+- old paths for the completed slice are removed
+- no new `ui -> repository` dependency exists
+- no new direct cross-module internal import exists
+
+## Final Instruction
+
+Use `README.md` as the architecture map.
+
+Use this file as the execution contract.
+
+When the two differ:
+
+- `README.md` controls destination structure
+- this file controls clean migration mechanics, naming conventions, dependency rules, and unresolved feature placement
+
+If a feature or file is still ambiguous after both documents, stop and assign it a final home before moving that slice. Do not preserve it through compatibility facades.

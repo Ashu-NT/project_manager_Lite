@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.modules.inventory_procurement import InventoryService, ItemMasterService, ReservationService
 from core.modules.inventory_procurement.domain import StockReservation, StockReservationStatus
 from core.platform.auth import UserSessionContext

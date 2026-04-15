@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, TypeVar
 
-from application.platform import PlatformRuntimeApplicationService
+from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from api.http.platform.models import (
     HttpApiResponse,
     ModuleStatePatchRequest,

@@ -1,0 +1,1 @@
+"""Maintenance registry target module."""

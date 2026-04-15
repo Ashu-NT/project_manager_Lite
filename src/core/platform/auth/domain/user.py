@@ -1,0 +1,1 @@
+"""User domain target module."""

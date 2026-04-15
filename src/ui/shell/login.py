@@ -1,0 +1,1 @@
+"""Desktop login target module."""

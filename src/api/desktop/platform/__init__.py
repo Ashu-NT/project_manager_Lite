@@ -1,0 +1,1 @@
+"""Platform desktop API entrypoints."""
