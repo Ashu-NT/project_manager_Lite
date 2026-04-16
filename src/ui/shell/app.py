@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from infra.platform.logging_config import setup_logging
 from infra.platform.resource import resource_path
+from src.api.desktop.runtime import build_desktop_api_registry
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import get_db_url
 from src.infra.persistence.db.session_factory import SessionLocal
@@ -21,7 +22,11 @@ from ui.platform.shared.styles.theme import apply_app_style
 def build_services() -> dict[str, object]:
     run_migrations(db_url=get_db_url())
     session = SessionLocal()
-    return build_service_dict(session)
+    services = build_service_dict(session)
+    desktop_api_registry = build_desktop_api_registry(services)
+    services["desktop_api_registry"] = desktop_api_registry
+    services["desktop_platform_runtime_api"] = desktop_api_registry.platform_runtime
+    return services
 
 
 def main(argv: list[str] | None = None) -> int:

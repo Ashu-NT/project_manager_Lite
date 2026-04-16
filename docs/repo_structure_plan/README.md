@@ -1498,6 +1498,12 @@ Completed in the clean/no-facade execution:
 - replaced `src/ui/shell/app.py` and `src/ui/shell/login.py` placeholders with real shell startup and login wiring
 - updated `main_qt.py`, UI tests, and test path rewrites to import from `src.ui.shell`
 - deleted the old `ui/platform/shell/` package after callers were rewritten
+- replaced `src/api/desktop/runtime.py` with a real desktop API registry builder
+- added real platform desktop adapters under `src/api/desktop/platform/`:
+  - `models.py`
+  - `runtime.py`
+- wired `src/ui/shell/app.py` to expose the desktop API registry and platform runtime desktop adapter in the desktop service map
+- added targeted desktop adapter tests for platform runtime flows
 
 Verified:
 
@@ -1506,15 +1512,16 @@ Verified:
 - direct import of `src.infra.persistence.db.optimistic.update_with_version_check` passes
 - direct import of `src.ui.shell.navigation.ShellNavigation` passes
 - migration asset lookup resolves `src/infra/persistence/migrations/alembic.ini`
-- importing full platform repository adapters and running pytest are currently blocked before slice assertions run by a missing environment dependency: `reportlab`, imported by maintenance reporting renderers through the maintenance package import chain
-- attempted targeted architecture guardrail run is blocked by the same `reportlab` import error during `tests/conftest.py` loading
-- direct import of `src.ui.shell.main_window.MainWindow` is blocked by the same `reportlab` dependency chain through shared worker/service imports, not by shell path errors
+- in `conda run -n pmenv`, direct import of `src.ui.shell.main_window.MainWindow` passes
+- in `conda run -n pmenv`, direct import of `src.api.desktop.runtime.build_desktop_api_registry` passes
+- in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
+- in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
+- the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split `core/platform/*` into the target `domain/`, `application/`, and `contracts/` package layout
 - split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
-- add `src/api/desktop/runtime.py` and desktop platform adapters
 - move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
 

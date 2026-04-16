@@ -512,6 +512,12 @@ Completed:
 - `src/ui/shell/login.py` now owns login dialog wiring
 - UI tests and test path rewrites now use `src.ui.shell`
 - the old `ui/platform/shell/` source package was deleted after direct import rewrites
+- desktop runtime/platform API now lives under `src/api/desktop/`:
+  - `runtime.py` builds a desktop API registry from the service graph
+  - `platform/models.py` defines desktop result envelopes, DTOs, and commands
+  - `platform/runtime.py` adapts platform runtime and organization flows for desktop consumers
+- `src/ui/shell/app.py` now exposes the desktop API registry and platform runtime desktop adapter in the desktop service map
+- targeted desktop adapter tests were added for platform runtime flows
 
 Verified:
 
@@ -520,22 +526,23 @@ Verified:
 - direct import of `src.infra.persistence.db.optimistic.update_with_version_check`
 - direct import of `src.ui.shell.navigation.ShellNavigation`
 - migration asset lookup resolves the new `src/infra/persistence/migrations/alembic.ini`
+- in `conda run -n pmenv`:
+  - direct import of `src.ui.shell.main_window.MainWindow`
+  - direct import of `src.api.desktop.runtime.build_desktop_api_registry`
+  - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
 
 Known blocker:
 
-- full pytest currently fails during `tests/conftest.py` import because `reportlab` is missing and maintenance reporting imports it before the targeted platform assertions run
-- full platform repository import smoke checks hit the same `reportlab` blocker through the maintenance ORM import chain
-- targeted architecture guardrail pytest execution hits the same `reportlab` blocker during `tests/conftest.py` loading
-- direct `src.ui.shell.main_window.MainWindow` import smoke checks hit the same `reportlab` blocker through shared worker/service imports and the maintenance package chain
+- the default interpreter outside `pmenv` still fails on `reportlab` during full app/test imports because that environment dependency is not installed there
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
 
 Continue next:
 
 1. Split `core/platform/*` into `domain/`, `application/`, and `contracts/` without wrappers.
 2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
-3. Add desktop runtime/platform API adapters.
-4. Move platform admin/control/settings/shared UI paths.
-5. Update test path strategy and remove path rewrites only after the new paths are complete.
+3. Move platform admin/control/settings/shared UI paths.
+4. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
 
