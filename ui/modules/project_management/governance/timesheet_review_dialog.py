@@ -14,7 +14,10 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.time.review import TimesheetReviewDetail, TimesheetReviewQueueItem
+from src.core.platform.time.application.timesheet_review import (
+    TimesheetReviewDetail,
+    TimesheetReviewQueueItem,
+)
 from ui.platform.shared.guards import has_permission
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG

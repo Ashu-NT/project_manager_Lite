@@ -21,7 +21,7 @@ from core.platform.approval import ApprovalService
 from core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
-from core.platform.time.review import TimesheetReviewQueueItem
+from src.core.platform.time.application.timesheet_review import TimesheetReviewQueueItem
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.timesheet import TimesheetService
 from ui.modules.project_management.dashboard.styles import (

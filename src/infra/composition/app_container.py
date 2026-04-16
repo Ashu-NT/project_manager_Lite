@@ -17,7 +17,7 @@ from core.platform.documents import DocumentService
 from core.platform.modules.service import ModuleCatalogService
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
-from core.platform.time import TimeService
+from src.core.platform.time.application import TimeService
 from src.core.platform.runtime_tracking import RuntimeExecutionService
 from core.modules.inventory_procurement import (
     ProcurementService,

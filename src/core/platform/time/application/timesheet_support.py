@@ -7,8 +7,7 @@ from typing import Protocol
 from core.platform.auth.authorization import require_any_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.interfaces import EmployeeRepository
-from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
-from core.platform.time.interfaces import (
+from src.core.platform.time.contracts import (
     TimeEntryRepository,
     TimesheetPeriodRepository,
     WorkAllocationRecord,
@@ -18,6 +17,7 @@ from core.platform.time.interfaces import (
     WorkResourceRecord,
     WorkResourceRepository,
 )
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 
 class _LegacySeedContext(Protocol):

@@ -15,7 +15,7 @@ from core.platform.auth.domain import (
     UserRoleBinding,
 )
 from core.platform.org.domain import Department, Employee, Organization, Site
-from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
+from src.core.platform.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
 
 
 class ProjectMembershipRepository(ABC):

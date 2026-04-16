@@ -29,7 +29,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrderTaskStatus,
     MaintenanceWorkOrderTaskStepStatus,
 )
-from core.platform.time.domain import TimeEntry
+from src.core.platform.time.domain import TimeEntry
 from ui.modules.maintenance_management.shared import (
     MaintenanceWorkbenchNavigator,
     MaintenanceWorkbenchSection,

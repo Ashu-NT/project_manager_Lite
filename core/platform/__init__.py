@@ -1,6 +1,5 @@
 from core.platform.modules import ModuleGuardedServiceMixin, require_module_enabled
 from core.platform.modules import ModuleEntitlementRecord, ModuleEntitlementRepository
-from core.platform.time import TimeEntry, TimeEntryRepository, TimeService, TimesheetPeriod, TimesheetPeriodRepository, TimesheetPeriodStatus, WorkEntry
 from core.platform.modules import (
     DEFAULT_PLATFORM_CAPABILITIES,
     DEFAULT_ENTERPRISE_MODULES,
@@ -26,13 +25,6 @@ __all__ = [
     "ModuleGuardedServiceMixin",
     "PlatformCapability",
     "SupportsModuleEntitlements",
-    "TimeEntry",
-    "TimeEntryRepository",
-    "TimeService",
-    "TimesheetPeriod",
-    "TimesheetPeriodRepository",
-    "TimesheetPeriodStatus",
-    "WorkEntry",
     "build_default_module_catalog",
     "normalize_module_code",
     "parse_enabled_module_codes",

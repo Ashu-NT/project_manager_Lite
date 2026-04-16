@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from core.platform.auth.authorization import require_any_permission
-from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 
 @dataclass(frozen=True, slots=True)

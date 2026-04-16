@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from core.modules.project_management.domain.identifiers import generate_id
 

@@ -1,3 +1,3 @@
-from core.platform.time.entries import TimesheetEntriesMixin
+from src.core.platform.time.application.timesheet_entries import TimesheetEntriesMixin
 
 __all__ = ["TimesheetEntriesMixin"]

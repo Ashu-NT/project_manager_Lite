@@ -6,7 +6,7 @@ from core.platform.audit.helpers import record_audit
 from core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ValidationError
 from core.platform.notifications.domain_events import domain_events
-from core.platform.time.domain import TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.time.domain import TimesheetPeriod, TimesheetPeriodStatus
 
 
 class TimesheetPeriodsMixin:

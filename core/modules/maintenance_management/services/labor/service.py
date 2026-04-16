@@ -6,8 +6,8 @@ from core.modules.maintenance_management.services.work_order_task import Mainten
 from core.platform.auth.authorization import require_any_permission
 from core.platform.common.exceptions import ValidationError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from core.platform.time import TimeService
-from core.platform.time.domain import TimeEntry
+from src.core.platform.time.application import TimeService
+from src.core.platform.time.domain import TimeEntry
 
 
 class MaintenanceLaborService(TimeService):

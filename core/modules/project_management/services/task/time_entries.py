@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from core.platform.time.domain import TimeEntry, TimesheetPeriod
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod
 from core.modules.project_management.services.timesheet import TimesheetService
 
 

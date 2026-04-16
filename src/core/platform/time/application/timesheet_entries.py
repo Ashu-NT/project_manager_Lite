@@ -5,13 +5,13 @@ from datetime import date, datetime, timezone
 from core.platform.audit.helpers import record_audit
 from core.platform.common.exceptions import ValidationError
 from core.platform.notifications.domain_events import domain_events
-from core.platform.time.domain import TimeEntry
-from core.platform.time.interfaces import (
+from src.core.platform.time.contracts import (
     TimeEntryRepository,
     WorkAllocationRepository,
     WorkOwnerRepository,
     WorkResourceRepository,
 )
+from src.core.platform.time.domain import TimeEntry
 
 
 class TimesheetEntriesMixin:

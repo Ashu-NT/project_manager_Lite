@@ -33,7 +33,7 @@ from core.modules.project_management.domain.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from core.platform.time.domain import TimesheetPeriodStatus
+from src.core.platform.time.domain import TimesheetPeriodStatus
 from src.infra.persistence.orm.inventory_procurement.models import (
     InventoryItemCategoryORM,
     PurchaseOrderLineORM,

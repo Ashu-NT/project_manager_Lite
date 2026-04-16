@@ -1,1 +1,0 @@
-"""Calendar domain target module."""

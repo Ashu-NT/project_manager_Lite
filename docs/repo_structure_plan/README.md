@@ -1534,6 +1534,18 @@ Completed in the clean/no-facade execution:
   - `application/export_runtime.py`
 - rewired platform data exchange, module import/export services, report runtime, UI import flows, and tests to `src.core.platform.importing` and `src.core.platform.exporting`
 - deleted the old `core/platform/importing/` and `core/platform/exporting/` packages after callers were rewritten
+- split `core/platform/time/*` into the real `src/core/platform/time/` package:
+  - `domain/timesheet_models.py`
+  - `contracts.py`
+  - `application/time_service.py`
+  - `application/timesheet_entries.py`
+  - `application/timesheet_periods.py`
+  - `application/timesheet_query.py`
+  - `application/timesheet_review.py`
+  - `application/timesheet_support.py`
+- deleted placeholder target files from `src/core/platform/time/`
+- rewired composition, persistence, PM timesheet wrappers/domain/UI, maintenance labor, and tests to `src.core.platform.time`
+- deleted the old `core/platform/time/` package after callers were rewritten
 
 Verified:
 
@@ -1548,6 +1560,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.report_runtime.ReportDefinitionRegistry`, `ReportRuntime`, `ReportDocument`, and `ReportFormat` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.importing.CsvImportRuntime`, `ImportDefinitionRegistry`, and `ImportFieldSpec` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.exporting.ExportArtifactDraft`, `ExportDefinitionRegistry`, and `ExportRuntime` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.time.application.TimeService`, `src.core.platform.time.contracts.TimeEntryRepository`, `src.core.platform.time.domain.TimesheetPeriodStatus`, and `src.core.platform.time.application.timesheet_review.TimesheetReviewQueueItem` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1556,7 +1569,10 @@ Verified:
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
 - in `conda run -n pmenv`, import/export runtime verification plus legacy-package removal guardrail passes:
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py tests/test_architecture_guardrails.py::test_legacy_platform_import_export_packages_are_removed -q`
+- in `conda run -n pmenv`, time-runtime verification plus legacy-package removal guardrail passes:
+  - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_time_package_is_removed -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
+- no Python import statements remain for `core.platform.time`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
@@ -1572,7 +1588,6 @@ Still remaining in Slice 1:
   - `documents`
   - `notifications`
   - `audit`
-  - `time`
 - split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
 - move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths

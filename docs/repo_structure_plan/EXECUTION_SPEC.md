@@ -546,6 +546,18 @@ Completed:
   - `application/export_runtime.py`
 - platform data exchange, module import/export services, report runtime, UI import flows, and tests now use `src.core.platform.importing` and `src.core.platform.exporting`
 - the old `core/platform/importing/` and `core/platform/exporting/` source packages were deleted after direct import rewrites
+- time now lives under `src/core/platform/time/`:
+  - `domain/timesheet_models.py`
+  - `contracts.py`
+  - `application/time_service.py`
+  - `application/timesheet_entries.py`
+  - `application/timesheet_periods.py`
+  - `application/timesheet_query.py`
+  - `application/timesheet_review.py`
+  - `application/timesheet_support.py`
+- placeholder time target files were removed from `src/core/platform/time/`
+- composition, persistence, PM timesheet wrappers/domain/UI, maintenance labor, and tests now use `src.core.platform.time`
+- the old `core/platform/time/` source package was deleted after direct import rewrites
 
 Verified:
 
@@ -561,12 +573,15 @@ Verified:
   - direct import of `src.core.platform.report_runtime.ReportDefinitionRegistry`, `ReportRuntime`, `ReportDocument`, and `ReportFormat`
   - direct import of `src.core.platform.importing.CsvImportRuntime`, `ImportDefinitionRegistry`, and `ImportFieldSpec`
   - direct import of `src.core.platform.exporting.ExportArtifactDraft`, `ExportDefinitionRegistry`, and `ExportRuntime`
+  - direct import of `src.core.platform.time.application.TimeService`, `src.core.platform.time.contracts.TimeEntryRepository`, `src.core.platform.time.domain.TimesheetPeriodStatus`, and `src.core.platform.time.application.timesheet_review.TimesheetReviewQueueItem`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py tests/test_architecture_guardrails.py::test_legacy_platform_import_export_packages_are_removed -q`
+  - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_time_package_is_removed -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
+- no Python import statements remain for `core.platform.time`
 
 Known blocker:
 
@@ -575,7 +590,7 @@ Known blocker:
 
 Continue next:
 
-1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `auth`, `authorization`, `access`, `modules`, `org`, `party`, `approval`, `documents`, `notifications`, `audit`, and `time`.
+1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `auth`, `authorization`, `access`, `modules`, `org`, `party`, `approval`, `documents`, `notifications`, and `audit`.
 2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
 3. Move platform admin/control/settings/shared UI paths.
 4. Update test path strategy and remove path rewrites only after the new paths are complete.

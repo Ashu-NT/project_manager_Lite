@@ -5,8 +5,8 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
-from core.platform.time.interfaces import TimeEntryRepository, TimesheetPeriodRepository
+from src.core.platform.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from src.infra.persistence.orm.platform.models import TimeEntryORM, TimesheetPeriodORM
 from src.infra.persistence.db.platform.time.mapper import (
     time_entry_from_orm,

@@ -13,7 +13,7 @@ from core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
-from core.platform.time import TimeService
+from src.core.platform.time.application import TimeService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService

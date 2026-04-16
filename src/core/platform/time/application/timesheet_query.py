@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.time.domain import TimeEntry, TimesheetPeriod
-from core.platform.time.interfaces import (
+from src.core.platform.time.contracts import (
     TimeEntryRepository,
     TimesheetPeriodRepository,
     WorkAllocationRepository,
 )
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod
 
 
 class TimesheetQueryMixin:

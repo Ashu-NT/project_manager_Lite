@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.time.domain import TimeEntry, TimesheetPeriod
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod
 from src.infra.persistence.orm.platform.models import TimeEntryORM, TimesheetPeriodORM
 
 

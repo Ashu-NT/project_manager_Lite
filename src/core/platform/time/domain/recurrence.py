@@ -1,1 +1,0 @@
-"""Recurrence domain target module."""

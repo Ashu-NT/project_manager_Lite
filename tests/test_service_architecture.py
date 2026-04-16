@@ -12,7 +12,7 @@ from core.platform.documents import DocumentService
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
-from core.platform.time import TimeService
+from src.core.platform.time.application import TimeService
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     MaintenanceMaterialService,
