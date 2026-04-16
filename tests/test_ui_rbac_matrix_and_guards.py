@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 from ui.modules.project_management.project.tab import ProjectTab
 from ui.modules.project_management.resource.tab import ResourceTab
 from ui.platform.shared import guards as guards_mod
@@ -76,7 +76,7 @@ def test_guard_permission_helpers_resolve_manage_vs_governed_modes(monkeypatch):
 def test_main_window_runtime_hides_admin_tabs_for_viewer(qapp, services, repo_workspace, monkeypatch):
     register_and_login(services, username_prefix="viewer-main-window", role_names=("viewer",))
     store = make_settings_store(repo_workspace, prefix="main-window-viewer")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -100,7 +100,7 @@ def test_main_window_runtime_hides_business_tabs_for_anonymous_session(
     monkeypatch,
 ):
     store = make_settings_store(repo_workspace, prefix="main-window-anonymous")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(anonymous_services)

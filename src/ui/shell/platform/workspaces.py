@@ -12,7 +12,7 @@ from ui.platform.admin.support.tab import SupportTab
 from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.approvals.tab import ApprovalControlTab
 from ui.platform.control.audit.tab import AuditLogTab
-from ui.platform.shell.common import (
+from src.ui.shell.common import (
     PLATFORM_MODULE_CODE,
     PLATFORM_MODULE_LABEL,
     ShellWorkspaceContext,
@@ -20,7 +20,7 @@ from ui.platform.shell.common import (
     has_any_permission,
     has_permission,
 )
-from ui.platform.shell.platform.home import PlatformHomeTab
+from src.ui.shell.platform.home import PlatformHomeTab
 
 
 def build_platform_home_workspace_definitions(context: ShellWorkspaceContext) -> list[WorkspaceDefinition]:

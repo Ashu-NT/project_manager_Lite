@@ -7,10 +7,10 @@ from core.platform import build_default_module_catalog
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from core.platform.modules.service import DEFAULT_ENTERPRISE_MODULES, ModuleCatalogService
 from tests.ui_runtime_helpers import make_settings_store
-from ui.platform.shell.main_window import MainWindow
-from ui.platform.shell.workspaces import build_workspace_definitions
-from ui.platform.shell import ShellNavigation as PlatformShellNavigation
-from ui.platform.shell import ShellNavigation as LegacyShellNavigation
+from src.ui.shell.main_window import MainWindow
+from src.ui.shell.workspaces import build_workspace_definitions
+from src.ui.shell.navigation import ShellNavigation as PlatformShellNavigation
+from src.ui.shell.navigation import ShellNavigation as LegacyShellNavigation
 
 
 def test_service_graph_exposes_project_management_as_enabled_module(services):
@@ -87,7 +87,7 @@ def test_main_window_runtime_displays_module_summary(
     monkeypatch,
 ):
     store = make_settings_store(repo_workspace, prefix="main-window-module-catalog")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

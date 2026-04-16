@@ -22,13 +22,13 @@ from ui.platform.admin.users.tab import UserAdminTab
 from ui.platform.control.approvals.tab import ApprovalControlTab
 from ui.platform.control.audit.tab import AuditLogTab
 from ui.platform.shared.auth.login_dialog import LoginDialog
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 from ui.modules.project_management.task.task_progress_dialog import TaskProgressDialog
 
 
 def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-admin")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

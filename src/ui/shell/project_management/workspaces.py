@@ -11,7 +11,7 @@ from ui.modules.project_management.register.tab import RegisterTab
 from ui.modules.project_management.report.tab import ReportTab
 from ui.modules.project_management.resource.tab import ResourceTab
 from ui.modules.project_management.task.tab import TaskTab
-from ui.platform.shell.common import (
+from src.ui.shell.common import (
     PROJECT_MANAGEMENT_MODULE_CODE,
     PROJECT_MANAGEMENT_MODULE_LABEL,
     ShellWorkspaceContext,

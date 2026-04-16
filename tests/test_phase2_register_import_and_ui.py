@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QDialog
 from core.modules.project_management.domain.register import RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
 from core.platform.notifications.domain_events import domain_events
 from tests.ui_runtime_helpers import make_settings_store
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 from ui.modules.project_management.project.import_wizard import ImportWizardDialog
 from ui.modules.project_management.register.dialogs import RegisterEntryDialog
 from ui.modules.project_management.register.tab import RegisterTab
@@ -126,7 +126,7 @@ def test_register_tab_and_main_window_surface_register_runtime(qapp, services, r
         response_plan="Register response",
     )
     store = make_settings_store(repo_workspace, prefix="main-window-register")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

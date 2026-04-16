@@ -6,7 +6,7 @@ import os
 from core.platform.approval.domain import ApprovalStatus
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from ui.modules.project_management.governance.tab import GovernanceTab
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 
 
 def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
@@ -77,7 +77,7 @@ def test_main_window_runtime_exposes_governance_tab_for_request_permissions(
 ):
     register_and_login(services, username_prefix="planner-governance", role_names=("planner",))
     store = make_settings_store(repo_workspace, prefix="governance-main-window")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -154,7 +154,7 @@ def test_main_window_runtime_exposes_governance_tab_for_timesheet_approvers(
 ):
     register_and_login(services, username_prefix="resource-manager-governance", role_names=("resource_manager",))
     store = make_settings_store(repo_workspace, prefix="governance-timesheet-main-window")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

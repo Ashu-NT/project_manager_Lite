@@ -19,7 +19,7 @@ from ui.modules.maintenance_management import (
     MaintenanceSystemsTab,
     MaintenanceWorkOrdersTab,
 )
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 
 
 def _child_labels(item) -> list[str]:
@@ -1403,7 +1403,7 @@ def test_main_window_exposes_maintenance_workspaces_when_module_is_enabled(
     _enable_maintenance_module(services)
     _create_maintenance_context(services)
     store = make_settings_store(repo_workspace, prefix="maintenance-shell")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

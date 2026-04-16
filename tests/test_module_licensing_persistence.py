@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from tests.ui_runtime_helpers import make_settings_store
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 
 
 def test_module_catalog_service_bootstraps_persistent_defaults(services):
@@ -72,7 +72,7 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
 
 def test_main_window_rebuilds_when_modules_change(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-module-refresh")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

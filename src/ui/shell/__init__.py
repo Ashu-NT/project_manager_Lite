@@ -1,1 +1,1 @@
-"""Desktop shell presentation."""
+"""Desktop shell package."""

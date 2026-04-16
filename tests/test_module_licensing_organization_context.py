@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from tests.ui_runtime_helpers import make_settings_store
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 
 
 def _tab_labels(window: MainWindow) -> list[str]:
@@ -60,7 +60,7 @@ def test_main_window_rebuilds_when_active_organization_changes_module_context(
     organization_service.set_active_organization(default_organization.id)
 
     store = make_settings_store(repo_workspace, prefix="main-window-org-module-context")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

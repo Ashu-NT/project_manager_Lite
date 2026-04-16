@@ -14,7 +14,7 @@ from ui.modules.inventory_procurement import (
     StockTab,
     StoreroomsTab,
 )
-from ui.platform.shell.common import (
+from src.ui.shell.common import (
     INVENTORY_PROCUREMENT_MODULE_CODE,
     INVENTORY_PROCUREMENT_MODULE_LABEL,
     ShellWorkspaceContext,

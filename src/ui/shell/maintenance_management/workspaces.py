@@ -16,7 +16,7 @@ from ui.modules.maintenance_management import (
     MaintenanceTaskTemplatesTab,
     MaintenanceWorkOrdersTab,
 )
-from ui.platform.shell.common import (
+from src.ui.shell.common import (
     MAINTENANCE_MANAGEMENT_MODULE_CODE,
     MAINTENANCE_MANAGEMENT_MODULE_LABEL,
     ShellWorkspaceContext,

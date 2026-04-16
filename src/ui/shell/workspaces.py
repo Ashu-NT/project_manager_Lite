@@ -4,22 +4,22 @@ from PySide6.QtWidgets import QWidget
 
 from core.platform.auth import UserSessionContext
 from ui.platform.settings import MainWindowSettingsStore
-from ui.platform.shell.common import (
+from src.ui.shell.common import (
     ShellWorkspaceContext,
     WorkspaceDefinition,
     build_shell_workspace_context,
 )
-from ui.platform.shell.inventory_procurement import (
+from src.ui.shell.inventory_procurement import (
     build_inventory_procurement_workspace_definitions,
 )
-from ui.platform.shell.maintenance_management import (
+from src.ui.shell.maintenance_management import (
     build_maintenance_management_workspace_definitions,
 )
-from ui.platform.shell.platform import (
+from src.ui.shell.platform import (
     build_platform_administration_workspace_definitions,
     build_platform_home_workspace_definitions,
 )
-from ui.platform.shell.project_management import (
+from src.ui.shell.project_management import (
     build_project_management_workspace_definitions,
 )
 

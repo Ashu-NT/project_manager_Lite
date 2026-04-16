@@ -11,7 +11,7 @@ from core.modules.project_management.access.policy import (
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
 from PySide6.QtWidgets import QTabWidget
 from ui.platform.admin.access.tab import AccessTab
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 
 
 def test_security_and_payroll_roles_expose_expected_permissions(services):
@@ -108,7 +108,7 @@ def test_project_scope_roles_are_canonical_and_editor_is_compatibility_alias():
 def test_main_window_exposes_users_for_auth_read_roles(qapp, services, repo_workspace, monkeypatch):
     register_and_login(services, username_prefix="support-auth-read", role_names=("support_admin",))
     store = make_settings_store(repo_workspace, prefix="main-window-support-admin")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

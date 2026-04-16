@@ -1,4 +1,4 @@
-from ui.platform.shell.inventory_procurement.workspaces import (
+from src.ui.shell.inventory_procurement.workspaces import (
     build_inventory_procurement_workspace_definitions,
 )
 

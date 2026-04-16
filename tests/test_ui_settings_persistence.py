@@ -6,7 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import QByteArray, QSettings
 
 import main_qt
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 from ui.platform.settings.main_window_store import MainWindowSettingsStore
 
 
@@ -205,7 +205,7 @@ def test_main_window_persists_and_restores_ui_state_with_store_runtime(
     store, _settings = _store_with_ini(repo_workspace)
     store.save_theme_mode("dark")
     store.save_tab_index(3)
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     first_window = MainWindow(services)

@@ -22,7 +22,7 @@ from ui.modules.inventory_procurement.reporting.tab import InventoryReportsTab
 from ui.modules.inventory_procurement.reservation.reservations_tab import ReservationsTab
 from ui.modules.inventory_procurement.stock_control.movements_tab import MovementsTab
 from ui.modules.inventory_procurement.stock_control.stock_tab import StockTab
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 from ui.platform.shared.styles.theme import base_stylesheet
 
 
@@ -892,7 +892,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
     _enable_inventory_module(services)
     register_and_login(services, username_prefix="inventory-shell", role_names=("inventory_manager", "viewer"))
     store = make_settings_store(repo_workspace, prefix="inventory-shell")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

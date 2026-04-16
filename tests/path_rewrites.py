@@ -10,7 +10,7 @@ PATH_REWRITE_EXACT = {
     "core/interfaces.py": "core/platform/common/interfaces.py",
     "core/exceptions.py": "core/platform/common/exceptions.py",
     "infra/services.py": "src/infra/composition/app_container.py",
-    "ui/main_window.py": "ui/platform/shell/main_window.py",
+    "ui/main_window.py": "src/ui/shell/main_window.py",
     "ui/admin/audit_tab.py": "ui/platform/control/audit/tab.py",
 }
 
@@ -30,7 +30,7 @@ PATH_REWRITE_PREFIXES = (
     ("ui/resource/", "ui/modules/project_management/resource/"),
     ("ui/settings/", "ui/platform/settings/"),
     ("ui/shared/", "ui/platform/shared/"),
-    ("ui/shell/", "ui/platform/shell/"),
+    ("ui/shell/", "src/ui/shell/"),
     ("ui/styles/", "ui/platform/shared/styles/"),
     ("ui/support/", "ui/platform/admin/support/"),
     ("ui/task/", "ui/modules/project_management/task/"),

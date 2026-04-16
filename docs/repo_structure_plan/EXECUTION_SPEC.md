@@ -451,7 +451,7 @@ Do not:
 - keep root package wrappers
 - delete live behavior
 
-Status as of 2026-04-15:
+Status as of 2026-04-16:
 
 Completed:
 
@@ -496,12 +496,29 @@ Completed:
   - `infra/platform/db/repositories_org.py`
   - `infra/platform/db/mappers.py`
 - composition registries, module repositories, regression tests, architecture guardrails, and test path rewrites now use direct imports
+- the real shell package now lives under `src/ui/shell/`:
+  - `__init__.py`
+  - `app.py`
+  - `login.py`
+  - `main_window.py`
+  - `navigation.py`
+  - `common.py`
+  - `workspaces.py`
+  - `platform/*`
+  - `project_management/*`
+  - `inventory_procurement/*`
+  - `maintenance_management/*`
+- `src/ui/shell/app.py` now owns shell startup glue and `main_qt.py` delegates to it
+- `src/ui/shell/login.py` now owns login dialog wiring
+- UI tests and test path rewrites now use `src.ui.shell`
+- the old `ui/platform/shell/` source package was deleted after direct import rewrites
 
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec`
 - direct import/smoke checks for platform runtime, entitlement runtime, HTTP platform adapter, and persistence bootstrap
 - direct import of `src.infra.persistence.db.optimistic.update_with_version_check`
+- direct import of `src.ui.shell.navigation.ShellNavigation`
 - migration asset lookup resolves the new `src/infra/persistence/migrations/alembic.ini`
 
 Known blocker:
@@ -509,6 +526,7 @@ Known blocker:
 - full pytest currently fails during `tests/conftest.py` import because `reportlab` is missing and maintenance reporting imports it before the targeted platform assertions run
 - full platform repository import smoke checks hit the same `reportlab` blocker through the maintenance ORM import chain
 - targeted architecture guardrail pytest execution hits the same `reportlab` blocker during `tests/conftest.py` loading
+- direct `src.ui.shell.main_window.MainWindow` import smoke checks hit the same `reportlab` blocker through shared worker/service imports and the maintenance package chain
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
 
 Continue next:
@@ -516,7 +534,7 @@ Continue next:
 1. Split `core/platform/*` into `domain/`, `application/`, and `contracts/` without wrappers.
 2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
 3. Add desktop runtime/platform API adapters.
-4. Move shell and platform UI paths.
+4. Move platform admin/control/settings/shared UI paths.
 5. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management

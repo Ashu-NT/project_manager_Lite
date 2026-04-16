@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from core.modules.project_management.domain.enums import WorkerType
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 
 
 def test_employee_updates_keep_linked_resources_in_sync(services):
@@ -81,7 +81,7 @@ def test_resource_manager_navigation_exposes_employee_directory(
 ):
     register_and_login(services, username_prefix="resource-manager", role_names=("resource_manager",))
     store = make_settings_store(repo_workspace, prefix="main-window-resource-manager")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)

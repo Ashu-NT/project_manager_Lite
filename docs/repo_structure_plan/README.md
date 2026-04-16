@@ -1465,7 +1465,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 
 #### Slice 1 execution status
 
-Updated: 2026-04-15
+Updated: 2026-04-16
 
 Completed in the clean/no-facade execution:
 
@@ -1494,22 +1494,27 @@ Completed in the clean/no-facade execution:
 - deleted the old `infra/platform/db/` package after callers were rewritten
 - removed `infra/platform/db/repositories.py`, `repositories_org.py`, and `mappers.py` instead of keeping compatibility facades
 - rewired composition registries, module repositories, regression tests, architecture guardrails, and test path rewrites to the new direct imports
+- moved the real shell package from `ui/platform/shell/*` to `src/ui/shell/*`
+- replaced `src/ui/shell/app.py` and `src/ui/shell/login.py` placeholders with real shell startup and login wiring
+- updated `main_qt.py`, UI tests, and test path rewrites to import from `src.ui.shell`
+- deleted the old `ui/platform/shell/` package after callers were rewritten
 
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec` passes
 - direct imports for platform runtime, entitlement runtime, platform HTTP API, and persistence bootstrap pass
 - direct import of `src.infra.persistence.db.optimistic.update_with_version_check` passes
+- direct import of `src.ui.shell.navigation.ShellNavigation` passes
 - migration asset lookup resolves `src/infra/persistence/migrations/alembic.ini`
 - importing full platform repository adapters and running pytest are currently blocked before slice assertions run by a missing environment dependency: `reportlab`, imported by maintenance reporting renderers through the maintenance package import chain
 - attempted targeted architecture guardrail run is blocked by the same `reportlab` import error during `tests/conftest.py` loading
+- direct import of `src.ui.shell.main_window.MainWindow` is blocked by the same `reportlab` dependency chain through shared worker/service imports, not by shell path errors
 
 Still remaining in Slice 1:
 
 - split `core/platform/*` into the target `domain/`, `application/`, and `contracts/` package layout
 - split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
 - add `src/api/desktop/runtime.py` and desktop platform adapters
-- move shell code from `ui/platform/shell/*` to `src/ui/shell/*`
 - move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
 

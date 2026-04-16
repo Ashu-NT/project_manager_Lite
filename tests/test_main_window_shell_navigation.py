@@ -3,7 +3,7 @@ from __future__ import annotations
 from ui.platform.shared.styles.theme_tokens import DARK_THEME, LIGHT_THEME
 
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
-from ui.platform.shell.main_window import MainWindow
+from src.ui.shell.main_window import MainWindow
 
 
 def _child_labels(item) -> list[str]:
@@ -12,7 +12,7 @@ def _child_labels(item) -> list[str]:
 
 def test_main_window_runtime_uses_grouped_sidebar_navigation(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-shell")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -90,7 +90,7 @@ def test_main_window_runtime_supports_sidebar_toggle_and_auto_hide(
     monkeypatch,
 ):
     store = make_settings_store(repo_workspace, prefix="main-window-shell-toggle")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -133,7 +133,7 @@ def test_main_window_workspace_stack_uses_flat_hidden_tab_pane(
     monkeypatch,
 ):
     store = make_settings_store(repo_workspace, prefix="main-window-workspace-stack-style")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -153,7 +153,7 @@ def test_main_window_theme_switch_refreshes_shell_without_rebuilding_tabs(
     monkeypatch,
 ):
     store = make_settings_store(repo_workspace, prefix="main-window-shell-theme-refresh")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -186,7 +186,7 @@ def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
 ):
     register_and_login(services, username_prefix="viewer-shell", role_names=("viewer",))
     store = make_settings_store(repo_workspace, prefix="main-window-viewer-shell")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -212,7 +212,7 @@ def test_main_window_runtime_hides_empty_sections_for_viewer_navigation(
 
 def test_main_window_focus_workspace_selects_existing_tab(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-focus-workspace")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
@@ -229,7 +229,7 @@ def test_main_window_rebuild_tabs_batches_tab_change_side_effects(
     monkeypatch,
 ):
     store = make_settings_store(repo_workspace, prefix="main-window-rebuild-batch")
-    monkeypatch.setattr("ui.platform.shell.main_window.MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
     monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
 
     window = MainWindow(services)
