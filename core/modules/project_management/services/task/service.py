@@ -17,7 +17,7 @@ from core.modules.project_management.interfaces import (
 from core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from core.platform.approval.service import ApprovalService
 from core.platform.audit.service import AuditService
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.scheduling import SchedulingEngine
 from core.modules.project_management.services.task.assignment import TaskAssignmentMixin

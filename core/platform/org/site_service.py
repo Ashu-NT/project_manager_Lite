@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from core.platform.org.domain import Organization, Site

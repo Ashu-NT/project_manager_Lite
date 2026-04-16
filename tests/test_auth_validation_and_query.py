@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.auth.validation import AuthValidationMixin
+from src.core.platform.auth.application.auth_validation import AuthValidationMixin
 
 
 class _ValidationProbe(AuthValidationMixin):

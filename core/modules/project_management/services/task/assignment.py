@@ -14,7 +14,7 @@ from core.modules.project_management.interfaces import (
 )
 from core.modules.project_management.domain.task import TaskAssignment
 from core.platform.access.authorization import require_project_permission
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.task.assignment_audit import record_assignment_action
 
 

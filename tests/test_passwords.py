@@ -2,7 +2,7 @@ import base64
 import hashlib
 import os
 
-from core.platform.auth.passwords import verify_password
+from src.core.platform.auth.passwords import verify_password
 
 
 def test_verify_password_accepts_sha256_stored_scheme():

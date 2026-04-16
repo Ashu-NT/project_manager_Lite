@@ -9,7 +9,7 @@ from core.modules.project_management.domain.portfolio import (
     PortfolioProjectDependencyView,
 )
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 
 
 class PortfolioDependencyMixin:

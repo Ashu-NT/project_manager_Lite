@@ -6,7 +6,7 @@ from core.modules.project_management.domain.task import Task
 from core.modules.project_management.interfaces import CalendarEventRepository, TaskRepository
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from sqlalchemy.orm import Session
 

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from core.platform.auth.session import UserSessionPrincipal
+from src.core.platform.auth.domain.session import UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
 
 

@@ -23,7 +23,7 @@ from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.portfolio import PortfolioService
 from core.modules.project_management.services.project import ProjectService
 from ui.modules.project_management.portfolio.scenario_dialog import PortfolioScenarioDialog

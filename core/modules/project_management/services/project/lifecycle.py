@@ -20,7 +20,7 @@ from core.modules.project_management.domain.project import Project
 from core.modules.project_management.domain.enums import ProjectStatus
 from core.platform.access.authorization import require_project_permission
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.project.validation import ProjectValidationMixin
 
 logger = logging.getLogger(__name__)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
 
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from infra.platform.operational_support import get_operational_support
 from ui.platform.settings import MainWindowSettingsStore
 from ui.platform.admin.support.diagnostics_flow import SupportDiagnosticsFlowMixin

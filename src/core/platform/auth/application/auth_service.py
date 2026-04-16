@@ -11,16 +11,22 @@ from sqlalchemy.orm import Session
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ValidationError
 from core.platform.common.interfaces import (
+    ProjectMembershipRepository,
+    ScopedAccessGrantRepository,
+)
+from src.core.platform.auth.application.auth_query import AuthQueryMixin
+from src.core.platform.auth.application.auth_validation import AuthValidationMixin
+from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
-    ProjectMembershipRepository,
     RolePermissionRepository,
     RoleRepository,
-    ScopedAccessGrantRepository,
     UserRepository,
     UserRoleRepository,
 )
-from core.platform.auth.domain import (
+from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.auth.domain import (
     AuthSession,
     Permission,
     Role,
@@ -28,21 +34,17 @@ from core.platform.auth.domain import (
     UserAccount,
     UserRoleBinding,
 )
-from core.platform.auth.authorization import require_any_permission, require_permission
-from core.platform.auth.datetime_utils import ensure_utc_datetime
-from core.platform.auth.mfa import generate_mfa_secret, verify_totp_code
-from core.platform.auth.passwords import hash_password, verify_password
-from core.platform.auth.policy import (
+from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.auth.mfa import generate_mfa_secret, verify_totp_code
+from src.core.platform.auth.passwords import hash_password, verify_password
+from src.core.platform.auth.policy import (
     DEFAULT_PERMISSIONS,
     DEFAULT_ROLE_PERMISSIONS,
     login_lockout_minutes,
     login_lockout_threshold,
     session_timeout_minutes,
 )
-from core.platform.auth.query import AuthQueryMixin
-from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
-from core.platform.auth.sod import SeparationOfDutiesPolicy, find_separation_of_duties_conflicts
-from core.platform.auth.validation import AuthValidationMixin
+from src.core.platform.auth.sod import SeparationOfDutiesPolicy, find_separation_of_duties_conflicts
 
 if TYPE_CHECKING:
     from core.platform.audit.service import AuditService

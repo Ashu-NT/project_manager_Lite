@@ -12,7 +12,7 @@ from core.modules.project_management.interfaces import (
 )
 from core.platform.common.interfaces import TimeEntryRepository
 from core.platform.audit.service import AuditService
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.project.lifecycle import ProjectLifecycleMixin
 from core.modules.project_management.services.project.query import ProjectQueryMixin

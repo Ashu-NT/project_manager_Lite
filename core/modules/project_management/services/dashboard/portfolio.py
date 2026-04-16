@@ -4,7 +4,7 @@ from datetime import date
 
 from core.modules.project_management.domain.enums import ProjectStatus
 from core.platform.access.authorization import filter_project_rows
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.dashboard.models import DashboardData
 from core.modules.project_management.services.dashboard.portfolio_models import (
     PORTFOLIO_SCOPE_ID,

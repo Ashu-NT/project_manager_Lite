@@ -5,7 +5,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QWidget
 
 from core.platform.notifications.domain_events import domain_events
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.collaboration import CollaborationService
 from core.modules.project_management.services.project import ProjectResourceService, ProjectService
 from core.modules.project_management.services.resource import ResourceService

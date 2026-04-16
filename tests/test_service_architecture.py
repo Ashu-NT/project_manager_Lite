@@ -3,8 +3,8 @@ from core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from core.platform.access import AccessControlService
 from core.platform.approval import ApprovalService
 from core.platform.approval.service import ApprovalService as LegacyApprovalService
-from core.platform.auth import AuthService
-from core.platform.auth.service import AuthService as LegacyAuthService
+from src.core.platform.auth import AuthService
+from src.core.platform.auth.application.auth_service import AuthService as LegacyAuthService
 from core.platform.audit import AuditService
 from core.platform.audit.service import AuditService as LegacyAuditService
 from core.platform.data_exchange import MasterDataExchangeService

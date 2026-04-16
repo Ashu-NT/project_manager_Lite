@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any, Protocol, TypeVar
 
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 
 
 _T = TypeVar("_T")

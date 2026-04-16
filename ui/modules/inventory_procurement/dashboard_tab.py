@@ -25,7 +25,7 @@ from core.modules.inventory_procurement import (
     StockControlService,
 )
 from core.modules.inventory_procurement.domain import PurchaseOrderStatus, PurchaseRequisitionStatus, StockReservationStatus
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.shared.header_support import (

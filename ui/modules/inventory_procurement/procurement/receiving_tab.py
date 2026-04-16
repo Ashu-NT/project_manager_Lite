@@ -26,7 +26,7 @@ from core.modules.inventory_procurement import (
     PurchasingService,
 )
 from core.modules.inventory_procurement.domain import PurchaseOrder, PurchaseOrderStatus
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.procurement.procurement_dialogs import ReceiptPostDialog

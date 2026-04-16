@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.auth import AuthService, UserSessionContext, UserSessionPrincipal
+from src.core.platform.auth import AuthService, UserSessionContext, UserSessionPrincipal
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

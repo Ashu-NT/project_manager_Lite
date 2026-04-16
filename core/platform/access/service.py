@@ -12,15 +12,15 @@ from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.interfaces import (
     ProjectMembershipRepository,
     ScopedAccessGrantRepository,
-    UserRepository,
 )
 from core.platform.access.domain import ProjectMembership
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.contracts import UserRepository
+from src.core.platform.auth.authorization import require_permission
 
 if TYPE_CHECKING:
-    from core.platform.auth.service import AuthService
-    from core.platform.auth.session import UserSessionContext
+    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.auth.domain.session import UserSessionContext
     from core.platform.audit.service import AuditService
 
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from core.platform.auth.authorization import require_permission
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.modules.authorization import require_module_enabled
 from core.platform.modules.contracts import SupportsModuleEntitlements
 

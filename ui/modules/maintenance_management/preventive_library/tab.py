@@ -29,7 +29,7 @@ from core.modules.maintenance_management.domain import (
     MaintenancePlanType,
     MaintenanceTriggerMode,
 )
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org import SiteService

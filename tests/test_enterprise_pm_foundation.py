@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 from tests.ui_runtime_helpers import login_as, register_and_login, wait_until

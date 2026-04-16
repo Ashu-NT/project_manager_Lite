@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QWidget
 from core.platform.notifications.domain_events import domain_events
 from core.modules.project_management.domain.project import Project
 from core.modules.project_management.domain.task import Task
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.reporting import ReportingService

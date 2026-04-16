@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.exporting import ExportDefinitionRegistry, ExportRuntime
 from src.core.platform.importing import (

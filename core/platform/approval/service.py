@@ -9,8 +9,8 @@ from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from core.platform.common.interfaces import ApprovalRepository
 from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
-from core.platform.auth.authorization import require_any_permission, require_permission
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.audit.service import AuditService
 
 ApplyHandler = Callable[[ApprovalRequest], None]

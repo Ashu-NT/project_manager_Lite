@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from core.modules.project_management.interfaces import ProjectRepository, RegisterEntryRepository
 from core.platform.audit.service import AuditService
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.register.lifecycle import RegisterLifecycleMixin
 from core.modules.project_management.services.register.query import RegisterQueryMixin

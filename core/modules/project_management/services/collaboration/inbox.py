@@ -4,7 +4,7 @@ from core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     CollaborationWorkspaceSnapshot,
 )
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 
 
 class CollaborationInboxMixin:

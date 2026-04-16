@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from core.platform.common.interfaces import AuditLogRepository
 from core.platform.audit.domain import AuditLogEntry
-from core.platform.auth.authorization import require_permission
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.domain.session import UserSessionContext
 
 
 class AuditService:

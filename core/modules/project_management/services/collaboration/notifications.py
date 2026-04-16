@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     CollaborationNotificationItem,

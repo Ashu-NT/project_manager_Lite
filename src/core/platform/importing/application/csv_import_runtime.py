@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
 from core.platform.modules.contracts import SupportsModuleEntitlements
 from src.core.platform.importing.application.import_definition_registry import (

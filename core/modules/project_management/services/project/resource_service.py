@@ -11,7 +11,7 @@ from core.modules.project_management.interfaces import ProjectResourceRepository
 from core.platform.notifications.domain_events import domain_events
 from core.platform.access.authorization import require_project_permission
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 
 DEFAULT_CURRENCY_CODE = "EUR"

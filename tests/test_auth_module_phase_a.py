@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 
-from core.platform.auth.mfa import generate_totp_code
+from src.core.platform.auth.mfa import generate_totp_code
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from src.infra.composition.app_container import build_service_dict
 

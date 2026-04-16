@@ -8,7 +8,7 @@ from core.modules.project_management.interfaces import AssignmentRepository, Tas
 from core.modules.project_management.domain.task import Task, TaskAssignment
 from core.modules.project_management.domain.enums import TaskStatus
 from core.platform.access.authorization import require_project_permission
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 
 
 class TaskQueryMixin:

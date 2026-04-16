@@ -30,11 +30,12 @@ from core.modules.maintenance_management.services import (
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkRequestService,
 )
-from core.platform.auth.domain import UserAccount
+from src.core.platform.auth.domain import UserAccount
 from core.modules.maintenance_management.support import coerce_priority, coerce_trigger_mode
-from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.auth.contracts import UserRepository
+from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository, UserRepository
+from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from core.platform.notifications.domain_events import domain_events
 from core.platform.org.domain import Organization, Site
 from core.platform.party.domain import Party, PartyType

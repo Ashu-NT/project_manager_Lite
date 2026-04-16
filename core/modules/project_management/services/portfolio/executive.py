@@ -5,7 +5,7 @@ from core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioRecentAction,
 )
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 
 
 class PortfolioExecutiveMixin:

@@ -15,7 +15,7 @@ from core.modules.project_management.interfaces import (
 )
 from core.platform.common.interfaces import EmployeeRepository, TimeEntryRepository
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.platform.audit.helpers import record_audit
 from core.platform.notifications.domain_events import domain_events
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin

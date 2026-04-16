@@ -44,9 +44,10 @@ from core.modules.maintenance_management.support import (
 from core.modules.maintenance_management.services.work_order.validation import MaintenanceWorkOrderValidationMixin
 from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.contracts import UserRepository
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository, UserRepository
+from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from core.platform.org.domain import Organization, Site
 

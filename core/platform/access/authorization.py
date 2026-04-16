@@ -4,7 +4,7 @@ from typing import Iterable, TypeVar
 
 from core.platform.authorization import get_authorization_engine
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 
 
 _T = TypeVar("_T")

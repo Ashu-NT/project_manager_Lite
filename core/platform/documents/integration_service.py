@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository
 from core.platform.documents.domain import Document, DocumentLink, DocumentStructure, DocumentType

@@ -8,7 +8,7 @@ from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioScoringTemplate,
 )
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 
 
 class PortfolioTemplateMixin:

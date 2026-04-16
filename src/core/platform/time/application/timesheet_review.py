@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 
-from core.platform.auth.authorization import require_any_permission
+from src.core.platform.auth.authorization import require_any_permission
 from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 

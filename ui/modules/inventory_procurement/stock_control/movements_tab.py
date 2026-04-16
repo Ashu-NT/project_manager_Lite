@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.modules.inventory_procurement import InventoryService, ItemMasterService, StockControlService
 from core.modules.inventory_procurement.domain import StockTransaction, StockTransactionType
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.shared.header_support import (

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.runtime_tracking.contracts import RuntimeExecutionRepository
 from src.core.platform.runtime_tracking.domain import RuntimeExecution
 

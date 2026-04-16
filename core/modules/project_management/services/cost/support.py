@@ -6,7 +6,7 @@ from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.modules.project_management.domain.enums import CostType
 from core.platform.approval.policy import is_governance_required
 from core.platform.access.authorization import require_project_permission
-from core.platform.auth.authorization import is_admin_session, require_permission
+from src.core.platform.auth.authorization import is_admin_session, require_permission
 
 DEFAULT_CURRENCY_CODE = "EUR"
 

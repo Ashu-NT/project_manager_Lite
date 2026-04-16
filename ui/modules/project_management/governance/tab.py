@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.approval import ApprovalService
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
 from src.core.platform.time.application.timesheet_review import TimesheetReviewQueueItem

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import NotFoundError
-from core.platform.common.interfaces import (
+from src.core.platform.auth.contracts import (
     PermissionRepository,
     RolePermissionRepository,
     RoleRepository,
     UserRepository,
     UserRoleRepository,
 )
-from core.platform.auth.domain import Role, UserAccount
+from src.core.platform.auth.domain import Role, UserAccount
 
 
 class AuthQueryMixin:

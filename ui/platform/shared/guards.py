@@ -12,7 +12,7 @@ from core.platform.common.exceptions import (
     ValidationError,
 )
 from core.platform.approval.policy import is_governance_required
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from ui.platform.shared.incident_support import emit_error_event, message_with_incident
 
 

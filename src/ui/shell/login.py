@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QWidget
 
-from core.platform.auth import AuthService, UserSessionContext
+from src.core.platform.auth import AuthService, UserSessionContext
 from ui.platform.shared.auth.login_dialog import LoginDialog
 
 

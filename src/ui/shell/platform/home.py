@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

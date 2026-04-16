@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import QWidget
 
 from src.application.runtime.platform_runtime import resolve_platform_runtime_application_service
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from ui.platform.settings import MainWindowSettingsStore
 
 PLATFORM_MODULE_CODE = "platform"

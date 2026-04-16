@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.auth.domain import (
+from src.core.platform.auth.domain import (
     AuthSession,
     Permission,
     Role,
@@ -8,7 +8,7 @@ from core.platform.auth.domain import (
     UserAccount,
     UserRoleBinding,
 )
-from core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 from src.infra.persistence.orm.platform.models import AuthSessionORM, PermissionORM, RoleORM, RolePermissionORM, UserORM, UserRoleORM
 
 

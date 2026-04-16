@@ -20,7 +20,7 @@ from core.modules.inventory_procurement import (
     InventoryReportingService,
     InventoryService,
 )
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.shared.header_support import (

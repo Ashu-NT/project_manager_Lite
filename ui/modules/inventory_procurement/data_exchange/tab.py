@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.modules.inventory_procurement import InventoryDataExchangeService
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
 from ui.modules.inventory_procurement.data_exchange.import_dialog import InventoryImportDialog
 from ui.modules.inventory_procurement.shared.header_support import (

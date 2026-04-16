@@ -10,8 +10,8 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from core.platform.access import AccessControlService
 from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
-from core.platform.auth import AuthService
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth import AuthService
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.documents import DocumentService
 from core.platform.modules.service import ModuleCatalogService

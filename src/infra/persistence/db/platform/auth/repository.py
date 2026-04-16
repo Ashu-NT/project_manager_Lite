@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import (
+from src.core.platform.auth.contracts import (
     AuthSessionRepository,
     PermissionRepository,
     RolePermissionRepository,
@@ -13,7 +13,7 @@ from core.platform.common.interfaces import (
     UserRepository,
     UserRoleRepository,
 )
-from core.platform.auth.domain import (
+from src.core.platform.auth.domain import (
     AuthSession,
     Permission,
     Role,

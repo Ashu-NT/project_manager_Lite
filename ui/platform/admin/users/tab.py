@@ -16,8 +16,8 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.platform.auth.domain import UserAccount
-from core.platform.auth import AuthService, UserSessionContext
+from src.core.platform.auth.domain import UserAccount
+from src.core.platform.auth import AuthService, UserSessionContext
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserCreateDialog, UserEditDialog
 from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface

@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from core.platform.authorization import get_authorization_engine
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 
 
 def require_permission(

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from core.platform.notifications.domain_events import domain_events
 from core.platform.access.authorization import require_project_permission
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.dashboard.alerts import DashboardAlertsMixin
 from core.modules.project_management.services.dashboard.burndown import DashboardBurndownMixin

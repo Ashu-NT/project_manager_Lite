@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from core.platform.access.authorization import require_project_permission
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ValidationError
 from core.platform.documents import Document
 

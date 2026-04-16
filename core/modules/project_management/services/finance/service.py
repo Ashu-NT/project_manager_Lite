@@ -11,7 +11,7 @@ from core.modules.project_management.interfaces import (
     TaskRepository,
 )
 from core.platform.access.authorization import require_project_permission
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.finance.analytics import build_dimension_analytics, build_source_analytics
 from core.modules.project_management.services.finance.cashflow import build_period_cashflow
 from core.modules.project_management.services.finance.helpers import normalize_currency

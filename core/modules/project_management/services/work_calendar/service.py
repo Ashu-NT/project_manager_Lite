@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from core.modules.project_management.domain.calendar import WorkingCalendar, Holiday
 from core.modules.project_management.interfaces import WorkingCalendarRepository
 from core.platform.common.exceptions import ValidationError
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 

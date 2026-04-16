@@ -20,7 +20,7 @@ from core.modules.maintenance_management import (
     MaintenanceTaskTemplateService,
 )
 from core.modules.maintenance_management.domain import MaintenanceTemplateStatus
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.maintenance_management.shared import (

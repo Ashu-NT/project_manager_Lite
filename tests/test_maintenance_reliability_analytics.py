@@ -17,7 +17,7 @@ from core.modules.maintenance_management.reliability_domain import (
     MaintenanceFailureCodeType,
 )
 from core.modules.maintenance_management.services import MaintenanceReliabilityService
-from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.org.domain import Organization, Site
 

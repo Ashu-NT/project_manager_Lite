@@ -557,6 +557,10 @@ def test_legacy_platform_time_package_is_removed():
     assert not (ROOT / "core" / "platform" / "time").exists()
 
 
+def test_legacy_platform_auth_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "auth").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -630,11 +634,11 @@ def test_task_service_is_orchestrator_only():
 
 
 def test_auth_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "services" / "auth" / "service.py"
+    service_path = ROOT / "src" / "core" / "platform" / "auth" / "application" / "auth_service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.platform.auth.query import AuthQueryMixin" in text
-    assert "from core.platform.auth.validation import AuthValidationMixin" in text
+    assert "from src.core.platform.auth.application.auth_query import AuthQueryMixin" in text
+    assert "from src.core.platform.auth.application.auth_validation import AuthValidationMixin" in text
     assert "class AuthService(AuthQueryMixin, AuthValidationMixin)" in text
     assert "def get_user_permissions" not in text
     assert "def get_user_role_names" not in text

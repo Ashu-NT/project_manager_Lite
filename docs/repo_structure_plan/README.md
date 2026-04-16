@@ -1546,6 +1546,23 @@ Completed in the clean/no-facade execution:
 - deleted placeholder target files from `src/core/platform/time/`
 - rewired composition, persistence, PM timesheet wrappers/domain/UI, maintenance labor, and tests to `src.core.platform.time`
 - deleted the old `core/platform/time/` package after callers were rewritten
+- split `core/platform/auth/*` into the real `src/core/platform/auth/` package:
+  - `domain/user.py`
+  - `domain/session.py`
+  - `contracts/auth_repository.py`
+  - `application/auth_query.py`
+  - `application/auth_validation.py`
+  - `application/auth_service.py`
+  - `authorization.py`
+  - `datetime_utils.py`
+  - `mfa.py`
+  - `passwords.py`
+  - `policy.py`
+  - `sod.py`
+- deleted placeholder target files from `src/core/platform/auth/`
+- moved auth-specific repository contracts out of `core/platform/common/interfaces.py` into `src/core/platform/auth/contracts/auth_repository.py`
+- rewired composition, platform services, runtime packages, module services, UI, tests, persistence, and test path rewrites to `src.core.platform.auth`
+- deleted the old `core/platform/auth/` package after callers were rewritten
 
 Verified:
 
@@ -1561,6 +1578,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.importing.CsvImportRuntime`, `ImportDefinitionRegistry`, and `ImportFieldSpec` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.exporting.ExportArtifactDraft`, `ExportDefinitionRegistry`, and `ExportRuntime` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.time.application.TimeService`, `src.core.platform.time.contracts.TimeEntryRepository`, `src.core.platform.time.domain.TimesheetPeriodStatus`, and `src.core.platform.time.application.timesheet_review.TimesheetReviewQueueItem` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.auth.AuthService`, `UserSessionContext`, `UserSessionPrincipal`, `UserRepository`, `AuthSessionRepository`, `UserAccount`, and `AuthSession` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1571,14 +1589,18 @@ Verified:
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py tests/test_architecture_guardrails.py::test_legacy_platform_import_export_packages_are_removed -q`
 - in `conda run -n pmenv`, time-runtime verification plus legacy-package removal guardrail passes:
   - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_time_package_is_removed -q`
+- in `conda run -n pmenv`, auth verification passes:
+  - `pytest tests/test_auth_module_phase_a.py tests/test_auth_validation_and_query.py tests/test_authorization_engine.py tests/test_passwords.py tests/test_phase_b_session_permissions.py -q`
+- in `conda run -n pmenv`, auth/platform integration verification passes:
+  - `pytest tests/test_service_architecture.py tests/test_platform_access_scopes.py tests/test_architecture_guardrails.py::test_legacy_platform_auth_package_is_removed tests/test_architecture_guardrails.py::test_auth_service_is_orchestrator_only -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
+- no Python import statements remain for `core.platform.auth`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
-  - `auth`
   - `authorization`
   - `access`
   - `modules`

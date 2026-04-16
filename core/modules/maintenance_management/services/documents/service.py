@@ -11,7 +11,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkRequestRepository,
 )
 from core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from core.platform.auth.authorization import require_permission
+from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from core.platform.documents import Document, DocumentIntegrationService, DocumentLink, DocumentStructure

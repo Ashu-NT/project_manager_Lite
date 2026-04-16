@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.approval import ApprovalService
 from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
-from core.platform.auth import UserSessionContext
+from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style

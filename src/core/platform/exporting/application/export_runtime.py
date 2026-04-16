@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.auth.session import UserSessionContext
+from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
 from core.platform.modules.contracts import SupportsModuleEntitlements
 from src.core.platform.exporting.application.artifact_delivery import finalize_artifact
