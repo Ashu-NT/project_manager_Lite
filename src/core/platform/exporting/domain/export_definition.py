@@ -3,7 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
-from .models import ExportArtifact, ExportArtifactDraft
+from src.core.platform.exporting.domain.export_models import (
+    ExportArtifact,
+    ExportArtifactDraft,
+)
 
 
 class ExportDefinition(Protocol):

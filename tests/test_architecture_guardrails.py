@@ -543,6 +543,16 @@ def test_legacy_platform_db_facades_are_removed():
         assert not path.exists()
 
 
+def test_legacy_platform_import_export_packages_are_removed():
+    removed = [
+        ROOT / "core" / "platform" / "importing",
+        ROOT / "core" / "platform" / "exporting",
+    ]
+
+    for path in removed:
+        assert not path.exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")

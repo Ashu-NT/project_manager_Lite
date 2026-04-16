@@ -3,7 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Protocol
 
-from .models import ImportFieldSpec, ImportPreview, ImportSourceRow, ImportSummary
+from src.core.platform.importing.domain.import_models import (
+    ImportFieldSpec,
+    ImportPreview,
+    ImportSourceRow,
+    ImportSummary,
+)
 
 
 class ImportDefinition(Protocol):

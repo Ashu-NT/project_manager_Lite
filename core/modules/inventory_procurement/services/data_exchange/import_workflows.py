@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.importing import (
+from src.core.platform.importing import (
     ImportPreview,
     ImportPreviewRow,
     ImportSourceRow,

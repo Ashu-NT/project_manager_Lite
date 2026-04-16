@@ -4,7 +4,7 @@ from pathlib import Path
 
 from core.platform.auth.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
-from core.platform.exporting import ExportArtifact, ExportArtifactDraft, finalize_artifact
+from src.core.platform.exporting import ExportArtifact, ExportArtifactDraft, finalize_artifact
 from core.platform.modules.contracts import SupportsModuleEntitlements
 from src.core.platform.runtime_tracking import RuntimeExecutionService
 

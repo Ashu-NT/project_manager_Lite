@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .contracts import ExportDefinition
+from src.core.platform.exporting.domain import ExportDefinition
 
 
 class ExportDefinitionRegistry:

@@ -7,8 +7,8 @@ import pytest
 
 from core.platform.auth.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.exporting import ExportDefinitionRegistry, ExportRuntime
-from core.platform.importing import (
+from src.core.platform.exporting import ExportDefinitionRegistry, ExportRuntime
+from src.core.platform.importing import (
     CsvImportRuntime,
     ImportDefinitionRegistry,
     ImportFieldSpec,
@@ -194,9 +194,9 @@ def test_import_summary_tracks_structured_and_legacy_row_errors() -> None:
 
 def test_platform_runtime_packages_do_not_import_module_code() -> None:
     packages = (
-        ROOT / "core" / "platform" / "importing",
-        ROOT / "core" / "platform" / "exporting",
-        ROOT / "core" / "platform" / "report_runtime",
+        ROOT / "src" / "core" / "platform" / "importing",
+        ROOT / "src" / "core" / "platform" / "exporting",
+        ROOT / "src" / "core" / "platform" / "report_runtime",
     )
     violations: list[tuple[str, str]] = []
 

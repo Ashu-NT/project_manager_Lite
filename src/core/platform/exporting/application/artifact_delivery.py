@@ -4,7 +4,7 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Mapping
 
-from .models import ExportArtifact, ExportArtifactDraft
+from src.core.platform.exporting.domain import ExportArtifact, ExportArtifactDraft
 
 
 def ensure_output_path(path: str | Path) -> Path:

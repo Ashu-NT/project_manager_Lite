@@ -39,13 +39,13 @@ from core.modules.inventory_procurement.services.data_exchange.support import (
 from core.modules.inventory_procurement.services.inventory import InventoryService
 from core.modules.inventory_procurement.services.item_master import ItemMasterService
 from core.modules.inventory_procurement.services.procurement import ProcurementService, PurchasingService
-from core.platform.exporting import (
+from src.core.platform.exporting import (
     ExportArtifactDraft,
     ExportDefinitionRegistry,
     ExportRuntime,
     ensure_output_path,
 )
-from core.platform.importing import (
+from src.core.platform.importing import (
     CsvImportRuntime,
     ImportDefinitionRegistry,
     ImportPreview,

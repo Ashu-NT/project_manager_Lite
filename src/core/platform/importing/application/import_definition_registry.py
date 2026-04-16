@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .contracts import ImportDefinition
+from src.core.platform.importing.domain import ImportDefinition
 
 
 class ImportDefinitionRegistry:

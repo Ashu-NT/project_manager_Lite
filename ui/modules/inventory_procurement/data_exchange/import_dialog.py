@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.inventory_procurement import InventoryDataExchangeService
-from core.platform.importing import ImportPreview
+from src.core.platform.importing import ImportPreview
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 

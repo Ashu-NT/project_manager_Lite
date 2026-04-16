@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from core.platform.importing import (
+from src.core.platform.importing import (
     ImportDefinitionRegistry,
     ImportFieldSpec,
     ImportPreview,

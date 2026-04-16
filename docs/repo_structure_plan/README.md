@@ -1451,6 +1451,8 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 - `core/platform/documents/*` becomes `src/core/platform/documents/domain/*` and `application/*`
 - `core/platform/notifications/*` becomes `src/core/platform/notifications/domain/*` and `application/*`
 - `core/platform/audit/*` becomes `src/core/platform/audit/domain/*` and `application/*`
+- `core/platform/importing/*` becomes `src/core/platform/importing/domain/*` and `application/*`
+- `core/platform/exporting/*` becomes `src/core/platform/exporting/domain/*` and `application/*`
 - `core/platform/report_runtime/*` becomes `src/core/platform/report_runtime/domain/*` and `application/*`
 - `core/platform/runtime_tracking/*` becomes `src/core/platform/runtime_tracking/domain/*` and `application/*`
 - `core/platform/time/*` becomes `src/core/platform/time/domain/*` and `application/*`
@@ -1519,6 +1521,19 @@ Completed in the clean/no-facade execution:
 - deleted placeholder report-runtime target files from `src/core/platform/report_runtime/`
 - rewired module reporting contracts/services/tests to `src.core.platform.report_runtime`
 - deleted the old `core/platform/report_runtime/` package after callers were rewritten
+- split `core/platform/importing/*` into the real `src/core/platform/importing/` package:
+  - `domain/import_definition.py`
+  - `domain/import_models.py`
+  - `application/import_definition_registry.py`
+  - `application/csv_import_runtime.py`
+- split `core/platform/exporting/*` into the real `src/core/platform/exporting/` package:
+  - `domain/export_definition.py`
+  - `domain/export_models.py`
+  - `application/artifact_delivery.py`
+  - `application/export_definition_registry.py`
+  - `application/export_runtime.py`
+- rewired platform data exchange, module import/export services, report runtime, UI import flows, and tests to `src.core.platform.importing` and `src.core.platform.exporting`
+- deleted the old `core/platform/importing/` and `core/platform/exporting/` packages after callers were rewritten
 
 Verified:
 
@@ -1531,17 +1546,33 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.api.desktop.runtime.build_desktop_api_registry` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.runtime_tracking.RuntimeExecutionService`, `RuntimeExecutionRepository`, and `RuntimeExecution` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.report_runtime.ReportDefinitionRegistry`, `ReportRuntime`, `ReportDocument`, and `ReportFormat` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.importing.CsvImportRuntime`, `ImportDefinitionRegistry`, and `ImportFieldSpec` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.exporting.ExportArtifactDraft`, `ExportDefinitionRegistry`, and `ExportRuntime` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
 - in `conda run -n pmenv`, report-runtime verification passes:
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
+- in `conda run -n pmenv`, import/export runtime verification plus legacy-package removal guardrail passes:
+  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py tests/test_architecture_guardrails.py::test_legacy_platform_import_export_packages_are_removed -q`
+- no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
-- split `core/platform/*` into the target `domain/`, `application/`, and `contracts/` package layout
+- split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
+  - `auth`
+  - `authorization`
+  - `access`
+  - `modules`
+  - `org`
+  - `party`
+  - `approval`
+  - `documents`
+  - `notifications`
+  - `audit`
+  - `time`
 - split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
 - move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths

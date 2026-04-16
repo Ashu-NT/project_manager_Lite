@@ -1,4 +1,6 @@
-from src.core.platform.importing import (
+from src.core.platform.importing.application import CsvImportRuntime, ImportDefinitionRegistry
+from src.core.platform.importing.domain import (
+    ImportDefinition,
     ImportFieldSpec,
     ImportPreview,
     ImportPreviewRow,
@@ -8,6 +10,9 @@ from src.core.platform.importing import (
 )
 
 __all__ = [
+    "CsvImportRuntime",
+    "ImportDefinition",
+    "ImportDefinitionRegistry",
     "ImportFieldSpec",
     "ImportPreview",
     "ImportPreviewRow",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.platform.importing import CsvImportRuntime, ImportDefinitionRegistry
+from src.core.platform.importing import CsvImportRuntime, ImportDefinitionRegistry
 from core.modules.project_management.importing import register_project_management_import_definitions
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.cost import CostService

@@ -533,6 +533,19 @@ Completed:
 - placeholder report-runtime target files were removed from `src/core/platform/report_runtime/`
 - reporting contracts/services/tests now use `src.core.platform.report_runtime`
 - the old `core/platform/report_runtime/` source package was deleted after direct import rewrites
+- importing now lives under `src/core/platform/importing/`:
+  - `domain/import_definition.py`
+  - `domain/import_models.py`
+  - `application/import_definition_registry.py`
+  - `application/csv_import_runtime.py`
+- exporting now lives under `src/core/platform/exporting/`:
+  - `domain/export_definition.py`
+  - `domain/export_models.py`
+  - `application/artifact_delivery.py`
+  - `application/export_definition_registry.py`
+  - `application/export_runtime.py`
+- platform data exchange, module import/export services, report runtime, UI import flows, and tests now use `src.core.platform.importing` and `src.core.platform.exporting`
+- the old `core/platform/importing/` and `core/platform/exporting/` source packages were deleted after direct import rewrites
 
 Verified:
 
@@ -546,10 +559,14 @@ Verified:
   - direct import of `src.api.desktop.runtime.build_desktop_api_registry`
   - direct import of `src.core.platform.runtime_tracking.RuntimeExecutionService`, `RuntimeExecutionRepository`, and `RuntimeExecution`
   - direct import of `src.core.platform.report_runtime.ReportDefinitionRegistry`, `ReportRuntime`, `ReportDocument`, and `ReportFormat`
+  - direct import of `src.core.platform.importing.CsvImportRuntime`, `ImportDefinitionRegistry`, and `ImportFieldSpec`
+  - direct import of `src.core.platform.exporting.ExportArtifactDraft`, `ExportDefinitionRegistry`, and `ExportRuntime`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
+  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py tests/test_architecture_guardrails.py::test_legacy_platform_import_export_packages_are_removed -q`
+- no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 
 Known blocker:
 
@@ -558,7 +575,7 @@ Known blocker:
 
 Continue next:
 
-1. Split `core/platform/*` into `domain/`, `application/`, and `contracts/` without wrappers.
+1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `auth`, `authorization`, `access`, `modules`, `org`, `party`, `approval`, `documents`, `notifications`, `audit`, and `time`.
 2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
 3. Move platform admin/control/settings/shared UI paths.
 4. Update test path strategy and remove path rewrites only after the new paths are complete.

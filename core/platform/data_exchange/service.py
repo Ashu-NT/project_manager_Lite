@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from core.platform.exporting import ExportDefinitionRegistry, ExportRuntime, ensure_output_path
-from core.platform.importing import (
+from src.core.platform.exporting import ExportDefinitionRegistry, ExportRuntime, ensure_output_path
+from src.core.platform.importing import (
     CsvImportRuntime,
     ImportDefinitionRegistry,
     ImportFieldSpec,

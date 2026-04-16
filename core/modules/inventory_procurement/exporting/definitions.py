@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping
 
-from core.platform.exporting import (
+from src.core.platform.exporting import (
     ExportArtifact,
     ExportArtifactDraft,
     ExportDefinitionRegistry,

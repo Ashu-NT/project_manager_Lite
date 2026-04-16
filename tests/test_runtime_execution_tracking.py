@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from core.platform.exporting import ExportArtifactDraft, ExportDefinitionRegistry, ExportRuntime
+from src.core.platform.exporting import ExportArtifactDraft, ExportDefinitionRegistry, ExportRuntime
 from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 

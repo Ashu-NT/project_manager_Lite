@@ -20,8 +20,8 @@ from core.modules.maintenance_management.reporting import (
     register_maintenance_management_report_definitions,
 )
 from core.modules.maintenance_management.services import MaintenanceRuntimeContractCatalogService
-from core.platform.exporting import ExportDefinitionRegistry
-from core.platform.importing import (
+from src.core.platform.exporting import ExportDefinitionRegistry
+from src.core.platform.importing import (
     ImportDefinitionRegistry,
     ImportPreview,
     ImportPreviewRow,
