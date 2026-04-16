@@ -518,6 +518,21 @@ Completed:
   - `platform/runtime.py` adapts platform runtime and organization flows for desktop consumers
 - `src/ui/shell/app.py` now exposes the desktop API registry and platform runtime desktop adapter in the desktop service map
 - targeted desktop adapter tests were added for platform runtime flows
+- runtime tracking now lives under `src/core/platform/runtime_tracking/`:
+  - `domain/runtime_execution.py`
+  - `contracts.py`
+  - `application/runtime_execution_service.py`
+- placeholder runtime-tracking target files were removed from `src/core/platform/runtime_tracking/`
+- importing/exporting/report runtime, composition, and persistence now use `src.core.platform.runtime_tracking`
+- the old `core/platform/runtime_tracking/` source package was deleted after direct import rewrites
+- report runtime now lives under `src/core/platform/report_runtime/`:
+  - `domain/report_definition.py`
+  - `domain/report_document.py`
+  - `application/report_definition_registry.py`
+  - `application/report_runtime.py`
+- placeholder report-runtime target files were removed from `src/core/platform/report_runtime/`
+- reporting contracts/services/tests now use `src.core.platform.report_runtime`
+- the old `core/platform/report_runtime/` source package was deleted after direct import rewrites
 
 Verified:
 
@@ -529,8 +544,12 @@ Verified:
 - in `conda run -n pmenv`:
   - direct import of `src.ui.shell.main_window.MainWindow`
   - direct import of `src.api.desktop.runtime.build_desktop_api_registry`
+  - direct import of `src.core.platform.runtime_tracking.RuntimeExecutionService`, `RuntimeExecutionRepository`, and `RuntimeExecution`
+  - direct import of `src.core.platform.report_runtime.ReportDefinitionRegistry`, `ReportRuntime`, `ReportDocument`, and `ReportFormat`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
+  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
 
 Known blocker:
 

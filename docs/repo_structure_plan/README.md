@@ -1504,6 +1504,21 @@ Completed in the clean/no-facade execution:
   - `runtime.py`
 - wired `src/ui/shell/app.py` to expose the desktop API registry and platform runtime desktop adapter in the desktop service map
 - added targeted desktop adapter tests for platform runtime flows
+- split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
+  - `domain/runtime_execution.py`
+  - `contracts.py`
+  - `application/runtime_execution_service.py`
+- deleted placeholder runtime-tracking target files from `src/core/platform/runtime_tracking/`
+- rewired importing/exporting/report runtime, composition, and persistence imports to `src.core.platform.runtime_tracking`
+- deleted the old `core/platform/runtime_tracking/` package after callers were rewritten
+- split `core/platform/report_runtime/*` into the real `src/core/platform/report_runtime/` package:
+  - `domain/report_definition.py`
+  - `domain/report_document.py`
+  - `application/report_definition_registry.py`
+  - `application/report_runtime.py`
+- deleted placeholder report-runtime target files from `src/core/platform/report_runtime/`
+- rewired module reporting contracts/services/tests to `src.core.platform.report_runtime`
+- deleted the old `core/platform/report_runtime/` package after callers were rewritten
 
 Verified:
 
@@ -1514,8 +1529,14 @@ Verified:
 - migration asset lookup resolves `src/infra/persistence/migrations/alembic.ini`
 - in `conda run -n pmenv`, direct import of `src.ui.shell.main_window.MainWindow` passes
 - in `conda run -n pmenv`, direct import of `src.api.desktop.runtime.build_desktop_api_registry` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.runtime_tracking.RuntimeExecutionService`, `RuntimeExecutionRepository`, and `RuntimeExecution` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.report_runtime.ReportDefinitionRegistry`, `ReportRuntime`, `ReportDocument`, and `ReportFormat` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
+- in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
+- in `conda run -n pmenv`, report-runtime verification passes:
+  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:

@@ -6,7 +6,7 @@ from pathlib import Path
 from core.platform.auth.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
 from core.platform.modules.contracts import SupportsModuleEntitlements
-from core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.runtime_tracking import RuntimeExecutionService
 
 from .models import ImportFieldSpec, ImportPreview, ImportSourceRow, ImportSummary
 from .registry import ImportDefinitionRegistry

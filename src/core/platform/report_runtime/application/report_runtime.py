@@ -6,9 +6,11 @@ from core.platform.auth.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
 from core.platform.exporting import ExportArtifact, ExportArtifactDraft, finalize_artifact
 from core.platform.modules.contracts import SupportsModuleEntitlements
-from core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.runtime_tracking import RuntimeExecutionService
 
-from .registry import ReportDefinitionRegistry
+from src.core.platform.report_runtime.application.report_definition_registry import (
+    ReportDefinitionRegistry,
+)
 
 
 class ReportRuntime:

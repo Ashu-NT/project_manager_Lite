@@ -17,7 +17,7 @@ from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.reporting.models import GanttTaskBar
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.exporting import ExportArtifact, cleanup_temp_artifact, ensure_output_path, finalize_artifact
-from core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from core.platform.exporting import ExportArtifactDraft, ExportDefinitionRegistry, ExportRuntime
-from core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 class _TrackingExportDefinition:

@@ -27,7 +27,7 @@ from core.platform.importing import (
     ImportPreviewRow,
     ImportSummary,
 )
-from core.platform.report_runtime import ReportDefinitionRegistry
+from src.core.platform.report_runtime import ReportDefinitionRegistry
 
 
 def _preview(rows):

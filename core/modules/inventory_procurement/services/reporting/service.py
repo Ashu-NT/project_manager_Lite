@@ -22,7 +22,7 @@ from core.modules.inventory_procurement.services.reference_service import Invent
 from core.modules.inventory_procurement.services.stock_control import StockControlService
 from core.platform.common.exceptions import ValidationError
 from core.platform.exporting import ensure_output_path, finalize_artifact
-from core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 def _isoformat(value: object) -> str:

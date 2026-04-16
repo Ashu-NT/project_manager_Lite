@@ -22,7 +22,7 @@ from core.platform.access.authorization import filter_scope_rows
 from core.platform.common.exceptions import NotFoundError
 from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from core.platform.exporting import ensure_output_path, finalize_artifact
-from core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 from .documents import (
     MaintenanceReportLookups,

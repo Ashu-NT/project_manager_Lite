@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from core.platform.auth.session import UserSessionContext
-from core.platform.runtime_tracking.contracts import RuntimeExecutionRepository
-from core.platform.runtime_tracking.domain import RuntimeExecution
+from src.core.platform.runtime_tracking.contracts import RuntimeExecutionRepository
+from src.core.platform.runtime_tracking.domain import RuntimeExecution
 
 
 class RuntimeExecutionService:

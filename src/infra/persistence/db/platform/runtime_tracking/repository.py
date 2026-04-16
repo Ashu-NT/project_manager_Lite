@@ -5,8 +5,8 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.runtime_tracking.contracts import RuntimeExecutionRepository
-from core.platform.runtime_tracking.domain import RuntimeExecution
+from src.core.platform.runtime_tracking.contracts import RuntimeExecutionRepository
+from src.core.platform.runtime_tracking.domain import RuntimeExecution
 from src.infra.persistence.orm.platform.models import RuntimeExecutionORM
 
 

@@ -9,7 +9,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from core.platform.report_runtime import ChartBlock, MetricBlock, ReportDocument, TableBlock, TextBlock
+from src.core.platform.report_runtime import ChartBlock, MetricBlock, ReportDocument, TableBlock, TextBlock
 
 
 def render_report_document_excel(document: ReportDocument, output_path: Path) -> Path:

@@ -29,7 +29,7 @@ from core.platform.org.access_policy import (
 from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from core.platform.party.interfaces import PartyRepository
-from core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.runtime_tracking import RuntimeExecutionService
 from src.infra.persistence.db.platform.modules import SqlAlchemyModuleEntitlementRepository
 from src.infra.persistence.db.platform.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle

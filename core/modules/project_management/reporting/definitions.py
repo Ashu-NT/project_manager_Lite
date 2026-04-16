@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Mapping
 
-from core.platform.report_runtime import ReportDefinitionRegistry, ReportFormat
+from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportFormat
 
 
 RenderHandler = Callable[[object], object]

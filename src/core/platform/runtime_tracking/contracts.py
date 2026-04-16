@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from core.platform.runtime_tracking.domain import RuntimeExecution
+from src.core.platform.runtime_tracking.domain import RuntimeExecution
 
 
 class RuntimeExecutionRepository(ABC):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Mapping, Sequence
 
-from core.platform.report_runtime import ReportDefinitionRegistry
+from src.core.platform.report_runtime import ReportDefinitionRegistry
 
 from .contracts import MAINTENANCE_REPORT_CONTRACTS, MaintenanceReportContract
 

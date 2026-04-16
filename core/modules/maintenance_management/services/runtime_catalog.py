@@ -10,7 +10,7 @@ from core.modules.maintenance_management.exporting import MAINTENANCE_EXPORT_CON
 from core.modules.maintenance_management.importing import MAINTENANCE_WORKBOOK_SHEETS
 from core.modules.maintenance_management.reporting import MAINTENANCE_REPORT_CONTRACTS
 from core.platform.exporting import ensure_output_path, finalize_artifact
-from core.platform.report_runtime import MetricBlock, MetricRow, ReportDocument, ReportSection, TableBlock, TextBlock
+from src.core.platform.report_runtime import MetricBlock, MetricRow, ReportDocument, ReportSection, TableBlock, TextBlock
 
 
 class MaintenanceRuntimeContractCatalogService:

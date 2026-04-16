@@ -16,7 +16,7 @@ from core.platform.importing import (
     ImportPreviewRow,
     ImportSummary,
 )
-from core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 ROOT = Path(__file__).resolve().parents[1]

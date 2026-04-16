@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .contracts import ReportDefinition
+from src.core.platform.report_runtime.domain.report_definition import ReportDefinition
 
 
 class ReportDefinitionRegistry:
