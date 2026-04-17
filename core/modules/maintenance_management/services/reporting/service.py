@@ -18,7 +18,7 @@ from core.modules.maintenance_management.interfaces import (
 )
 from core.modules.maintenance_management.reporting import register_maintenance_management_report_definitions
 from core.modules.maintenance_management.services.reliability import MaintenanceReliabilityService
-from core.platform.access.authorization import filter_scope_rows
+from src.core.platform.access.authorization import filter_scope_rows
 from core.platform.common.exceptions import NotFoundError
 from core.platform.common.interfaces import OrganizationRepository, SiteRepository
 from src.core.platform.exporting import ensure_output_path, finalize_artifact

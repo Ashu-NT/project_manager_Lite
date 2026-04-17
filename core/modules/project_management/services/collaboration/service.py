@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from core.platform.common.interfaces import (
     AuditLogRepository,
-    ProjectMembershipRepository,
 )
 from core.modules.project_management.interfaces import (
     ProjectRepository,
@@ -15,6 +14,7 @@ from core.modules.project_management.interfaces import (
     TaskRepository,
 )
 from core.platform.documents import DocumentIntegrationService
+from src.core.platform.access.contracts import ProjectMembershipRepository
 from src.core.platform.auth.contracts import UserRepository
 from core.modules.project_management.services.collaboration.comments import CollaborationCommentMixin
 from core.modules.project_management.services.collaboration.documents import CollaborationDocumentMixin

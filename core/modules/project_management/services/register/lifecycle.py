@@ -15,7 +15,7 @@ from core.modules.project_management.domain.register import (
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.modules.project_management.interfaces import ProjectRepository, RegisterEntryRepository
-from core.platform.access.authorization import require_project_permission
+from src.core.platform.access.authorization import require_project_permission
 from core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 

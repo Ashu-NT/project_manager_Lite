@@ -5,23 +5,26 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from core.platform.access.domain import ScopedAccessGrant
-from core.platform.access.policies import ScopedRolePolicy, ScopedRolePolicyRegistry
-from core.platform.notifications.domain_events import domain_events
+from core.platform.audit.helpers import record_audit
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.common.interfaces import (
+from core.platform.notifications.domain_events import domain_events
+from src.core.platform.access.contracts import (
     ProjectMembershipRepository,
     ScopedAccessGrantRepository,
 )
-from core.platform.access.domain import ProjectMembership
-from core.platform.audit.helpers import record_audit
-from src.core.platform.auth.contracts import UserRepository
+from src.core.platform.access.domain import (
+    ProjectMembership,
+    ScopedAccessGrant,
+    ScopedRolePolicy,
+    ScopedRolePolicyRegistry,
+)
 from src.core.platform.auth.authorization import require_permission
+from src.core.platform.auth.contracts import UserRepository
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.application.auth_service import AuthService
-    from src.core.platform.auth.domain.session import UserSessionContext
     from core.platform.audit.service import AuditService
+    from src.core.platform.auth import UserSessionContext
+    from src.core.platform.auth.application.auth_service import AuthService
 
 
 class AccessControlService:
@@ -252,7 +255,6 @@ class AccessControlService:
         )
         domain_events.access_changed.emit(normalized_scope_id)
         self._refresh_current_session_if_needed(user_id)
-        return
 
     def remove_project_membership(self, *, project_id: str, user_id: str) -> None:
         self.remove_scope_grant(scope_type="project", scope_id=project_id, user_id=user_id)

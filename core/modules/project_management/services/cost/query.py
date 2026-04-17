@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from core.platform.common.exceptions import NotFoundError
 from core.modules.project_management.domain.cost import CostItem
-from core.platform.access.authorization import require_project_permission
+from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 
 

@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.platform.access import AccessControlService
+from src.core.platform.access import AccessControlService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError

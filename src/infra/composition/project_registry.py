@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from core.platform.access import ScopedRolePolicy
+from src.core.platform.access import ScopedRolePolicy
 from core.modules.project_management.domain.enums import CostType, DependencyType
 from core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,

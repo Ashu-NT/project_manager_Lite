@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.interfaces import (
+from src.core.platform.access.contracts import (
     ProjectMembershipRepository,
     ScopedAccessGrantRepository,
 )

@@ -8,7 +8,7 @@ from core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
     TaskComment,
 )
-from core.platform.access.authorization import require_project_permission
+from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.collaboration.mentions import resolve_mentions
 from infra.modules.project_management.collaboration_attachments import store_task_comment_attachments

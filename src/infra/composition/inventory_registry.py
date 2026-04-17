@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.platform.access import ScopedRolePolicy
+from src.core.platform.access import ScopedRolePolicy
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     MaintenanceMaterialService,

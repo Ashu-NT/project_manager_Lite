@@ -5,7 +5,7 @@ from typing import List
 from core.modules.project_management.interfaces import ProjectRepository
 from core.modules.project_management.domain.project import Project
 from core.modules.project_management.domain.enums import ProjectStatus
-from core.platform.access.authorization import filter_project_rows, require_project_permission
+from src.core.platform.access.authorization import filter_project_rows, require_project_permission
 from src.core.platform.auth.authorization import require_permission
 
 

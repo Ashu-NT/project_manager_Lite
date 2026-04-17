@@ -13,7 +13,7 @@ from core.platform import (
     parse_enabled_module_codes,
     parse_licensed_module_codes,
 )
-from core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
+from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from src.core.platform.auth import AuthService

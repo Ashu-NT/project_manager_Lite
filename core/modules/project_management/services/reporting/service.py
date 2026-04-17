@@ -11,7 +11,7 @@ from core.modules.project_management.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
-from core.platform.access.authorization import require_project_permission
+from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.base import ServiceBase
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin

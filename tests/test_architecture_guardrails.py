@@ -565,6 +565,10 @@ def test_legacy_platform_authorization_package_is_removed():
     assert not (ROOT / "core" / "platform" / "authorization").exists()
 
 
+def test_legacy_platform_access_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "access").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -684,6 +688,8 @@ def test_platform_common_interfaces_are_platform_only():
     assert "class ProjectRepository" not in text
     assert "class TaskRepository" not in text
     assert "class BaselineRepository" not in text
+    assert "class ProjectMembershipRepository" not in text
+    assert "class ScopedAccessGrantRepository" not in text
 
 
 def test_core_platform_does_not_import_module_contracts():

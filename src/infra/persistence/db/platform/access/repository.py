@@ -5,8 +5,8 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import ProjectMembershipRepository, ScopedAccessGrantRepository
-from core.platform.access.domain import ProjectMembership, ScopedAccessGrant
+from src.core.platform.access.contracts import ProjectMembershipRepository, ScopedAccessGrantRepository
+from src.core.platform.access.domain import ProjectMembership, ScopedAccessGrant
 from src.infra.persistence.db.platform.access.mapper import (
     project_membership_from_orm,
     project_membership_to_orm,

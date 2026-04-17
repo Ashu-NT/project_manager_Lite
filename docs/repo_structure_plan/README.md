@@ -680,6 +680,10 @@ core/platform/
     domain/
       access_scope.py
       feature_access.py
+    application/
+      access_control_service.py
+    contracts.py
+    authorization.py
 
   modules/
     domain/
@@ -1443,7 +1447,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 
 - `core/platform/auth/*` becomes `src/core/platform/auth/domain/*`, `application/*`, and `contracts/*`
 - `core/platform/authorization/*` becomes `src/core/platform/authorization/domain/*` and `application/*`
-- `core/platform/access/*` becomes `src/core/platform/access/domain/*`
+- `core/platform/access/*` becomes `src/core/platform/access/domain/*`, `application/*`, `contracts.py`, and `authorization.py`
 - `core/platform/modules/*` becomes `src/core/platform/modules/domain/*` and `application/*`
 - `core/platform/org/*` becomes `src/core/platform/org/domain/*` and `application/*`
 - `core/platform/party/*` becomes `src/core/platform/party/domain/*`
@@ -1569,6 +1573,16 @@ Completed in the clean/no-facade execution:
 - deleted placeholder target files from `src/core/platform/authorization/`
 - rewired platform auth/access helpers and authorization tests to `src.core.platform.authorization`
 - deleted the old `core/platform/authorization/` package after callers were rewritten
+- split `core/platform/access/*` into the real `src/core/platform/access/` package:
+  - `domain/access_scope.py`
+  - `domain/feature_access.py`
+  - `application/access_control_service.py`
+  - `contracts.py`
+  - `authorization.py`
+- deleted placeholder target files from `src/core/platform/access/`
+- moved access-specific repository contracts out of `core/platform/common/interfaces.py` into `src/core/platform/access/contracts.py`
+- rewired composition, auth principal building, persistence, platform services, module services, UI, tests, and test path rewrites to `src.core.platform.access`
+- deleted the old `core/platform/access/` package after callers were rewritten
 
 Verified:
 
@@ -1586,6 +1600,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.time.application.TimeService`, `src.core.platform.time.contracts.TimeEntryRepository`, `src.core.platform.time.domain.TimesheetPeriodStatus`, and `src.core.platform.time.application.timesheet_review.TimesheetReviewQueueItem` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.auth.AuthService`, `UserSessionContext`, `UserSessionPrincipal`, `UserRepository`, `AuthSessionRepository`, `UserAccount`, and `AuthSession` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.authorization.AuthorizationEngine`, `SessionAuthorizationEngine`, `get_authorization_engine`, and `set_authorization_engine` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.access.AccessControlService`, `ScopedRolePolicy`, `ScopedRolePolicyRegistry`, `ProjectMembershipRepository`, `ScopedAccessGrantRepository`, `ProjectMembership`, and `ScopedAccessGrant` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1602,16 +1617,18 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_platform_access_scopes.py tests/test_architecture_guardrails.py::test_legacy_platform_auth_package_is_removed tests/test_architecture_guardrails.py::test_auth_service_is_orchestrator_only -q`
 - in `conda run -n pmenv`, authorization verification plus legacy-package removal guardrail passes:
   - `pytest tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_auth_module_phase_a.py tests/test_architecture_guardrails.py::test_legacy_platform_authorization_package_is_removed -q`
+- in `conda run -n pmenv`, access verification plus contract/legacy-package guardrails passes:
+  - `pytest tests/test_auth_module_phase_a.py tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_access_package_is_removed tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
 - no Python import statements remain for `core.platform.authorization`
+- no Python import statements remain for `core.platform.access`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
-  - `access`
   - `modules`
   - `org`
   - `party`
