@@ -575,6 +575,12 @@ Completed:
 - auth-specific repository contracts moved out of `core/platform/common/interfaces.py` into `src/core/platform/auth/contracts/auth_repository.py`
 - composition, platform services, runtime packages, module services, UI, tests, persistence, and test path rewrites now use `src.core.platform.auth`
 - the old `core/platform/auth/` source package was deleted after direct import rewrites
+- authorization now lives under `src/core/platform/authorization/`:
+  - `domain/authorization_engine.py`
+  - `application/session_authorization_engine.py`
+- placeholder authorization target files were removed from `src/core/platform/authorization/`
+- platform auth/access helpers and authorization tests now use `src.core.platform.authorization`
+- the old `core/platform/authorization/` source package was deleted after direct import rewrites
 
 Verified:
 
@@ -592,6 +598,7 @@ Verified:
   - direct import of `src.core.platform.exporting.ExportArtifactDraft`, `ExportDefinitionRegistry`, and `ExportRuntime`
   - direct import of `src.core.platform.time.application.TimeService`, `src.core.platform.time.contracts.TimeEntryRepository`, `src.core.platform.time.domain.TimesheetPeriodStatus`, and `src.core.platform.time.application.timesheet_review.TimesheetReviewQueueItem`
   - direct import of `src.core.platform.auth.AuthService`, `UserSessionContext`, `UserSessionPrincipal`, `UserRepository`, `AuthSessionRepository`, `UserAccount`, and `AuthSession`
+  - direct import of `src.core.platform.authorization.AuthorizationEngine`, `SessionAuthorizationEngine`, `get_authorization_engine`, and `set_authorization_engine`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
@@ -600,9 +607,11 @@ Verified:
   - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_time_package_is_removed -q`
   - `pytest tests/test_auth_module_phase_a.py tests/test_auth_validation_and_query.py tests/test_authorization_engine.py tests/test_passwords.py tests/test_phase_b_session_permissions.py -q`
   - `pytest tests/test_service_architecture.py tests/test_platform_access_scopes.py tests/test_architecture_guardrails.py::test_legacy_platform_auth_package_is_removed tests/test_architecture_guardrails.py::test_auth_service_is_orchestrator_only -q`
+  - `pytest tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_auth_module_phase_a.py tests/test_architecture_guardrails.py::test_legacy_platform_authorization_package_is_removed -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
+- no Python import statements remain for `core.platform.authorization`
 
 Known blocker:
 
@@ -611,7 +620,7 @@ Known blocker:
 
 Continue next:
 
-1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `authorization`, `access`, `modules`, `org`, `party`, `approval`, `documents`, `notifications`, and `audit`.
+1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `access`, `modules`, `org`, `party`, `approval`, `documents`, `notifications`, and `audit`.
 2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
 3. Move platform admin/control/settings/shared UI paths.
 4. Update test path strategy and remove path rewrites only after the new paths are complete.

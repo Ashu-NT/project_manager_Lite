@@ -561,6 +561,10 @@ def test_legacy_platform_auth_package_is_removed():
     assert not (ROOT / "core" / "platform" / "auth").exists()
 
 
+def test_legacy_platform_authorization_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "authorization").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from core.platform.authorization import SessionAuthorizationEngine, get_authorization_engine, set_authorization_engine
+from src.core.platform.authorization import SessionAuthorizationEngine, get_authorization_engine, set_authorization_engine
 
 
 @dataclass

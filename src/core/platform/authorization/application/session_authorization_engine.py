@@ -1,76 +1,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from typing import Any, Protocol, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.authorization.domain import AuthorizationEngine
+
+if TYPE_CHECKING:
+    from src.core.platform.auth.domain.session import UserSessionContext
 
 
 _T = TypeVar("_T")
-
-
-class AuthorizationEngine(Protocol):
-    def has_permission(
-        self,
-        user_session: UserSessionContext | None,
-        permission_code: str,
-        *,
-        resource: object | None = None,
-        context: dict[str, Any] | None = None,
-    ) -> bool: ...
-
-    def has_any_permission(
-        self,
-        user_session: UserSessionContext | None,
-        permission_codes: Iterable[str],
-        *,
-        resource: object | None = None,
-        context: dict[str, Any] | None = None,
-    ) -> bool: ...
-
-    def is_admin_session(self, user_session: UserSessionContext | None) -> bool: ...
-
-    def has_scope_permission(
-        self,
-        user_session: UserSessionContext | None,
-        scope_type: str,
-        scope_id: str,
-        permission_code: str,
-        *,
-        resource: object | None = None,
-        context: dict[str, Any] | None = None,
-    ) -> bool: ...
-
-    def scope_ids_for(
-        self,
-        user_session: UserSessionContext | None,
-        scope_type: str,
-        permission_code: str,
-        *,
-        resource: object | None = None,
-        context: dict[str, Any] | None = None,
-    ) -> set[str]: ...
-
-    def is_scope_restricted(
-        self,
-        user_session: UserSessionContext | None,
-        scope_type: str,
-        *,
-        resource: object | None = None,
-        context: dict[str, Any] | None = None,
-    ) -> bool: ...
-
-    def filter_scope_rows(
-        self,
-        rows: Iterable[_T],
-        user_session: UserSessionContext | None,
-        *,
-        scope_type: str,
-        permission_code: str,
-        scope_id_getter: Callable[[_T], str],
-        resource_type: str | None = None,
-        context: dict[str, Any] | None = None,
-    ) -> list[_T]: ...
 
 
 class SessionAuthorizationEngine:
@@ -87,7 +26,7 @@ class SessionAuthorizationEngine:
         permission_code: str,
         *,
         resource: object | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
     ) -> bool:
         del resource, context
         return bool(user_session is not None and user_session.has_permission(permission_code))
@@ -98,7 +37,7 @@ class SessionAuthorizationEngine:
         permission_codes: Iterable[str],
         *,
         resource: object | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
     ) -> bool:
         del resource, context
         return bool(
@@ -118,7 +57,7 @@ class SessionAuthorizationEngine:
         permission_code: str,
         *,
         resource: object | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
     ) -> bool:
         del resource, context
         return bool(
@@ -133,7 +72,7 @@ class SessionAuthorizationEngine:
         permission_code: str,
         *,
         resource: object | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
     ) -> set[str]:
         del resource, context
         if user_session is None:
@@ -146,7 +85,7 @@ class SessionAuthorizationEngine:
         scope_type: str,
         *,
         resource: object | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
     ) -> bool:
         del resource, context
         if user_session is None:
@@ -162,7 +101,7 @@ class SessionAuthorizationEngine:
         permission_code: str,
         scope_id_getter: Callable[[_T], str],
         resource_type: str | None = None,
-        context: dict[str, Any] | None = None,
+        context: dict[str, object] | None = None,
     ) -> list[_T]:
         del resource_type, context
         if not self.has_permission(user_session, permission_code):
@@ -187,7 +126,6 @@ def set_authorization_engine(engine: AuthorizationEngine | None) -> None:
 
 
 __all__ = [
-    "AuthorizationEngine",
     "SessionAuthorizationEngine",
     "get_authorization_engine",
     "set_authorization_engine",

@@ -1563,6 +1563,12 @@ Completed in the clean/no-facade execution:
 - moved auth-specific repository contracts out of `core/platform/common/interfaces.py` into `src/core/platform/auth/contracts/auth_repository.py`
 - rewired composition, platform services, runtime packages, module services, UI, tests, persistence, and test path rewrites to `src.core.platform.auth`
 - deleted the old `core/platform/auth/` package after callers were rewritten
+- split `core/platform/authorization/*` into the real `src/core/platform/authorization/` package:
+  - `domain/authorization_engine.py`
+  - `application/session_authorization_engine.py`
+- deleted placeholder target files from `src/core/platform/authorization/`
+- rewired platform auth/access helpers and authorization tests to `src.core.platform.authorization`
+- deleted the old `core/platform/authorization/` package after callers were rewritten
 
 Verified:
 
@@ -1579,6 +1585,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.exporting.ExportArtifactDraft`, `ExportDefinitionRegistry`, and `ExportRuntime` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.time.application.TimeService`, `src.core.platform.time.contracts.TimeEntryRepository`, `src.core.platform.time.domain.TimesheetPeriodStatus`, and `src.core.platform.time.application.timesheet_review.TimesheetReviewQueueItem` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.auth.AuthService`, `UserSessionContext`, `UserSessionPrincipal`, `UserRepository`, `AuthSessionRepository`, `UserAccount`, and `AuthSession` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.authorization.AuthorizationEngine`, `SessionAuthorizationEngine`, `get_authorization_engine`, and `set_authorization_engine` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1593,15 +1600,17 @@ Verified:
   - `pytest tests/test_auth_module_phase_a.py tests/test_auth_validation_and_query.py tests/test_authorization_engine.py tests/test_passwords.py tests/test_phase_b_session_permissions.py -q`
 - in `conda run -n pmenv`, auth/platform integration verification passes:
   - `pytest tests/test_service_architecture.py tests/test_platform_access_scopes.py tests/test_architecture_guardrails.py::test_legacy_platform_auth_package_is_removed tests/test_architecture_guardrails.py::test_auth_service_is_orchestrator_only -q`
+- in `conda run -n pmenv`, authorization verification plus legacy-package removal guardrail passes:
+  - `pytest tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_auth_module_phase_a.py tests/test_architecture_guardrails.py::test_legacy_platform_authorization_package_is_removed -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
+- no Python import statements remain for `core.platform.authorization`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
-  - `authorization`
   - `access`
   - `modules`
   - `org`

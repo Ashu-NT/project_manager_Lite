@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from core.platform.authorization import get_authorization_engine
+from src.core.platform.authorization import get_authorization_engine
 from core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.auth.domain.session import UserSessionContext
 
