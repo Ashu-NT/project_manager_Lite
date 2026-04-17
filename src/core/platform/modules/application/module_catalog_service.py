@@ -6,16 +6,15 @@ from typing import Callable, Iterable
 from sqlalchemy.orm import Session
 
 from core.platform.org.domain import Organization
-from core.platform.modules.catalog_context import ModuleCatalogContextMixin
-from core.platform.modules.catalog_models import (
-    EnterpriseModule,
-    ModuleCatalogSnapshot,
-    ModuleEntitlement,
-    PlatformCapability,
+from src.core.platform.modules.application.module_catalog_context import (
+    ModuleCatalogContextMixin,
 )
-from core.platform.modules.catalog_mutation import ModuleCatalogMutationMixin
-from core.platform.modules.catalog_query import ModuleCatalogQueryMixin
-from core.platform.modules.defaults import (
+from src.core.platform.modules.application.module_catalog_mutation import (
+    ModuleCatalogMutationMixin,
+)
+from src.core.platform.modules.application.module_catalog_query import ModuleCatalogQueryMixin
+from src.core.platform.modules.contracts import ModuleEntitlementRepository
+from src.core.platform.modules.domain import (
     DEFAULT_ENTERPRISE_MODULES,
     DEFAULT_PLATFORM_CAPABILITIES,
     MODULE_LIFECYCLE_ACTIVE,
@@ -25,12 +24,15 @@ from core.platform.modules.defaults import (
     MODULE_LIFECYCLE_SUSPENDED,
     MODULE_LIFECYCLE_TRIAL,
     MODULE_RUNTIME_ACCESS_STATUSES,
+    EnterpriseModule,
+    ModuleCatalogSnapshot,
+    ModuleEntitlement,
+    PlatformCapability,
     parse_enabled_module_codes,
     parse_licensed_module_codes,
     parse_module_codes,
 )
-from core.platform.modules.module_codes import module_storage_codes, normalize_module_code
-from core.platform.modules.repository import ModuleEntitlementRepository
+from src.core.platform.modules.domain.module_codes import normalize_module_code
 
 
 class ModuleCatalogService(
@@ -128,7 +130,6 @@ __all__ = [
     "MODULE_RUNTIME_ACCESS_STATUSES",
     "PlatformCapability",
     "build_default_module_catalog",
-    "module_storage_codes",
     "normalize_module_code",
     "parse_enabled_module_codes",
     "parse_licensed_module_codes",

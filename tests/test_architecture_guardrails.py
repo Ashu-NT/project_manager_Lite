@@ -569,6 +569,10 @@ def test_legacy_platform_access_package_is_removed():
     assert not (ROOT / "core" / "platform" / "access").exists()
 
 
+def test_legacy_platform_modules_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "modules").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -658,12 +662,12 @@ def test_auth_service_is_orchestrator_only():
 
 
 def test_module_catalog_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "platform" / "modules" / "service.py"
+    service_path = ROOT / "src" / "core" / "platform" / "modules" / "application" / "module_catalog_service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.platform.modules.catalog_context import ModuleCatalogContextMixin" in text
-    assert "from core.platform.modules.catalog_mutation import ModuleCatalogMutationMixin" in text
-    assert "from core.platform.modules.catalog_query import ModuleCatalogQueryMixin" in text
+    assert "from src.core.platform.modules.application.module_catalog_context import (" in text
+    assert "from src.core.platform.modules.application.module_catalog_mutation import (" in text
+    assert "from src.core.platform.modules.application.module_catalog_query import ModuleCatalogQueryMixin" in text
     assert "class ModuleCatalogService(" in text
     assert "def list_modules" not in text
     assert "def set_module_state" not in text
@@ -934,12 +938,18 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/collaboration/inbox.py": 180,
         "core/modules/project_management/services/collaboration/presence.py": 130,
         "core/modules/project_management/services/collaboration/support.py": 160,
-        "core/platform/modules/service.py": 140,
-        "core/platform/modules/catalog_context.py": 100,
-        "core/platform/modules/catalog_models.py": 100,
-        "core/platform/modules/catalog_mutation.py": 190,
-        "core/platform/modules/catalog_query.py": 135,
-        "core/platform/modules/defaults.py": 180,
+        "src/core/platform/modules/application/module_catalog_service.py": 140,
+        "src/core/platform/modules/application/module_catalog_context.py": 100,
+        "src/core/platform/modules/application/module_catalog_mutation.py": 190,
+        "src/core/platform/modules/application/module_catalog_query.py": 135,
+        "src/core/platform/modules/application/authorization.py": 40,
+        "src/core/platform/modules/application/guard.py": 45,
+        "src/core/platform/modules/domain/module_definition.py": 30,
+        "src/core/platform/modules/domain/module_entitlement.py": 80,
+        "src/core/platform/modules/domain/subscription.py": 20,
+        "src/core/platform/modules/domain/defaults.py": 180,
+        "src/core/platform/modules/domain/module_codes.py": 30,
+        "src/core/platform/modules/contracts.py": 45,
         "core/platform/org/service.py": 20,
         "core/platform/org/employee_service.py": 220,
         "core/platform/org/organization_service.py": 240,

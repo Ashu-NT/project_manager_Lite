@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.platform import (
+from src.core.platform.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     ModuleCatalogService,
     parse_enabled_module_codes,

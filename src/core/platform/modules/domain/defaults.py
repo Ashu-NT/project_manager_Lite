@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.modules.catalog_models import EnterpriseModule, PlatformCapability
-from core.platform.modules.module_codes import normalize_module_code
+from src.core.platform.modules.domain.module_codes import normalize_module_code
+from src.core.platform.modules.domain.module_definition import EnterpriseModule, PlatformCapability
 
 MODULE_LIFECYCLE_INACTIVE = "inactive"
 MODULE_LIFECYCLE_ACTIVE = "active"
@@ -114,6 +114,8 @@ DEFAULT_ENTERPRISE_MODULES: tuple[EnterpriseModule, ...] = (
         primary_capabilities=("hr_workflows", "payroll_periods", "payroll_runs", "exports"),
     ),
 )
+
+
 def parse_module_codes(raw_value: str | None) -> set[str]:
     return {
         normalize_module_code(token)

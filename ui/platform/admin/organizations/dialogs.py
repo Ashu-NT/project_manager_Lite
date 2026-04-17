@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.platform.org.domain import Organization
-from core.platform.modules.service import EnterpriseModule
+from src.core.platform.modules import EnterpriseModule
 from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 

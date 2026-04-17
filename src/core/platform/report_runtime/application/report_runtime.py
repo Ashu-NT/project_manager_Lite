@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.common.runtime_access import enforce_runtime_access
 from src.core.platform.exporting import ExportArtifact, ExportArtifactDraft, finalize_artifact
-from core.platform.modules.contracts import SupportsModuleEntitlements
+from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.modules import SupportsModuleEntitlements
 from src.core.platform.runtime_tracking import RuntimeExecutionService
 
 from src.core.platform.report_runtime.application.report_definition_registry import (

@@ -591,6 +591,22 @@ Completed:
 - access-specific repository contracts moved out of `core/platform/common/interfaces.py` into `src/core/platform/access/contracts.py`
 - composition, auth principal building, persistence, platform services, module services, UI, tests, and test path rewrites now use `src.core.platform.access`
 - the old `core/platform/access/` source package was deleted after direct import rewrites
+- modules now live under `src/core/platform/modules/`:
+  - `domain/module_definition.py`
+  - `domain/module_entitlement.py`
+  - `domain/subscription.py`
+  - `domain/defaults.py`
+  - `domain/module_codes.py`
+  - `application/module_catalog_service.py`
+  - `application/module_catalog_context.py`
+  - `application/module_catalog_mutation.py`
+  - `application/module_catalog_query.py`
+  - `application/authorization.py`
+  - `application/guard.py`
+  - `contracts.py`
+- placeholder module target files were removed from `src/core/platform/modules/`
+- entitlement runtime, composition, runtime access helpers, import/export/report runtime, persistence, UI, tests, and module guards now use `src.core.platform.modules`
+- the old `core/platform/modules/` source package was deleted after direct import rewrites
 
 Verified:
 
@@ -610,6 +626,7 @@ Verified:
   - direct import of `src.core.platform.auth.AuthService`, `UserSessionContext`, `UserSessionPrincipal`, `UserRepository`, `AuthSessionRepository`, `UserAccount`, and `AuthSession`
   - direct import of `src.core.platform.authorization.AuthorizationEngine`, `SessionAuthorizationEngine`, `get_authorization_engine`, and `set_authorization_engine`
   - direct import of `src.core.platform.access.AccessControlService`, `ScopedRolePolicy`, `ScopedRolePolicyRegistry`, `ProjectMembershipRepository`, `ScopedAccessGrantRepository`, `ProjectMembership`, and `ScopedAccessGrant`
+  - direct import of `src.core.platform.modules.ModuleCatalogService`, `ModuleEntitlementRepository`, `ModuleEntitlementRecord`, `SupportsModuleEntitlements`, `EnterpriseModule`, `ModuleEntitlement`, and `PlatformCapability`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
@@ -620,11 +637,13 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_platform_access_scopes.py tests/test_architecture_guardrails.py::test_legacy_platform_auth_package_is_removed tests/test_architecture_guardrails.py::test_auth_service_is_orchestrator_only -q`
   - `pytest tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_auth_module_phase_a.py tests/test_architecture_guardrails.py::test_legacy_platform_authorization_package_is_removed -q`
   - `pytest tests/test_auth_module_phase_a.py tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_access_package_is_removed tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only -q`
+  - `pytest tests/test_enterprise_platform_catalog.py tests/test_platform_import_export_report_runtime.py tests/test_architecture_guardrails.py::test_legacy_platform_modules_package_is_removed tests/test_architecture_guardrails.py::test_module_catalog_service_is_orchestrator_only -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
 - no Python import statements remain for `core.platform.authorization`
 - no Python import statements remain for `core.platform.access`
+- no Python import statements remain for `core.platform.modules`
 
 Known blocker:
 
@@ -633,7 +652,7 @@ Known blocker:
 
 Continue next:
 
-1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `modules`, `org`, `party`, `approval`, `documents`, `notifications`, and `audit`.
+1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `org`, `party`, `approval`, `documents`, `notifications`, and `audit`.
 2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
 3. Move platform admin/control/settings/shared UI paths.
 4. Update test path strategy and remove path rewrites only after the new paths are complete.

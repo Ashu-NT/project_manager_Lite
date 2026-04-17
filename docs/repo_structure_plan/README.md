@@ -690,10 +690,16 @@ core/platform/
       module_definition.py
       module_entitlement.py
       subscription.py
+      defaults.py
+      module_codes.py
     application/
-      activate_module.py
-      deactivate_module.py
-      get_runtime_modules.py
+      module_catalog_service.py
+      module_catalog_context.py
+      module_catalog_mutation.py
+      module_catalog_query.py
+      authorization.py
+      guard.py
+    contracts.py
 
   org/
     domain/
@@ -1448,7 +1454,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 - `core/platform/auth/*` becomes `src/core/platform/auth/domain/*`, `application/*`, and `contracts/*`
 - `core/platform/authorization/*` becomes `src/core/platform/authorization/domain/*` and `application/*`
 - `core/platform/access/*` becomes `src/core/platform/access/domain/*`, `application/*`, `contracts.py`, and `authorization.py`
-- `core/platform/modules/*` becomes `src/core/platform/modules/domain/*` and `application/*`
+- `core/platform/modules/*` becomes `src/core/platform/modules/domain/*`, `application/*`, and `contracts.py`
 - `core/platform/org/*` becomes `src/core/platform/org/domain/*` and `application/*`
 - `core/platform/party/*` becomes `src/core/platform/party/domain/*`
 - `core/platform/approval/*` becomes `src/core/platform/approval/domain/*` and `application/*`
@@ -1471,7 +1477,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 
 #### Slice 1 execution status
 
-Updated: 2026-04-16
+Updated: 2026-04-17
 
 Completed in the clean/no-facade execution:
 
@@ -1583,6 +1589,22 @@ Completed in the clean/no-facade execution:
 - moved access-specific repository contracts out of `core/platform/common/interfaces.py` into `src/core/platform/access/contracts.py`
 - rewired composition, auth principal building, persistence, platform services, module services, UI, tests, and test path rewrites to `src.core.platform.access`
 - deleted the old `core/platform/access/` package after callers were rewritten
+- split `core/platform/modules/*` into the real `src/core/platform/modules/` package:
+  - `domain/module_definition.py`
+  - `domain/module_entitlement.py`
+  - `domain/subscription.py`
+  - `domain/defaults.py`
+  - `domain/module_codes.py`
+  - `application/module_catalog_service.py`
+  - `application/module_catalog_context.py`
+  - `application/module_catalog_mutation.py`
+  - `application/module_catalog_query.py`
+  - `application/authorization.py`
+  - `application/guard.py`
+  - `contracts.py`
+- deleted placeholder target files from `src/core/platform/modules/`
+- rewired entitlement runtime, composition, runtime access helpers, import/export/report runtime, persistence, UI, tests, and module guards to `src.core.platform.modules`
+- deleted the old `core/platform/modules/` package after callers were rewritten
 
 Verified:
 
@@ -1601,6 +1623,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.auth.AuthService`, `UserSessionContext`, `UserSessionPrincipal`, `UserRepository`, `AuthSessionRepository`, `UserAccount`, and `AuthSession` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.authorization.AuthorizationEngine`, `SessionAuthorizationEngine`, `get_authorization_engine`, and `set_authorization_engine` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.access.AccessControlService`, `ScopedRolePolicy`, `ScopedRolePolicyRegistry`, `ProjectMembershipRepository`, `ScopedAccessGrantRepository`, `ProjectMembership`, and `ScopedAccessGrant` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.modules.ModuleCatalogService`, `ModuleEntitlementRepository`, `ModuleEntitlementRecord`, `SupportsModuleEntitlements`, `EnterpriseModule`, `ModuleEntitlement`, and `PlatformCapability` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1619,17 +1642,19 @@ Verified:
   - `pytest tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_auth_module_phase_a.py tests/test_architecture_guardrails.py::test_legacy_platform_authorization_package_is_removed -q`
 - in `conda run -n pmenv`, access verification plus contract/legacy-package guardrails passes:
   - `pytest tests/test_auth_module_phase_a.py tests/test_authorization_engine.py tests/test_platform_access_scopes.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_access_package_is_removed tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only -q`
+- in `conda run -n pmenv`, modules verification plus legacy-package/orchestrator guardrails passes:
+  - `pytest tests/test_enterprise_platform_catalog.py tests/test_platform_import_export_report_runtime.py tests/test_architecture_guardrails.py::test_legacy_platform_modules_package_is_removed tests/test_architecture_guardrails.py::test_module_catalog_service_is_orchestrator_only -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
 - no Python import statements remain for `core.platform.authorization`
 - no Python import statements remain for `core.platform.access`
+- no Python import statements remain for `core.platform.modules`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
-  - `modules`
   - `org`
   - `party`
   - `approval`

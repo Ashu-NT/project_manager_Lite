@@ -6,8 +6,12 @@ from typing import Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.modules.module_codes import module_storage_codes, normalize_module_code
-from core.platform.modules.repository import ModuleEntitlementRecord, ModuleEntitlementRepository
+from src.core.platform.modules import (
+    ModuleEntitlementRecord,
+    ModuleEntitlementRepository,
+    module_storage_codes,
+    normalize_module_code,
+)
 from src.infra.persistence.orm.platform.models import ModuleEntitlementORM
 
 

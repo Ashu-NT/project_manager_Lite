@@ -1,1 +1,65 @@
-"""Module entitlement platform capability."""
+from src.core.platform.modules.application.authorization import require_module_enabled
+from src.core.platform.modules.application.guard import ModuleGuardedServiceMixin
+from src.core.platform.modules.application.module_catalog_service import (
+    ModuleCatalogEntry,
+    ModuleCatalogService,
+    build_default_module_catalog,
+)
+from src.core.platform.modules.contracts import (
+    ModuleEntitlementRepository,
+    SupportsModuleEntitlements,
+)
+from src.core.platform.modules.domain import (
+    DEFAULT_ENTERPRISE_MODULES,
+    DEFAULT_PLATFORM_CAPABILITIES,
+    EnterpriseModule,
+    ModuleCatalogSnapshot,
+    ModuleEntitlement,
+    ModuleEntitlementRecord,
+    PlatformCapability,
+    MODULE_LIFECYCLE_ACTIVE,
+    MODULE_LIFECYCLE_EXPIRED,
+    MODULE_LIFECYCLE_INACTIVE,
+    MODULE_LIFECYCLE_STATUSES,
+    MODULE_LIFECYCLE_SUSPENDED,
+    MODULE_LIFECYCLE_TRIAL,
+    MODULE_RUNTIME_ACCESS_STATUSES,
+    default_lifecycle_status,
+    module_storage_codes,
+    normalize_lifecycle_status,
+    normalize_module_code,
+    parse_enabled_module_codes,
+    parse_licensed_module_codes,
+    parse_module_codes,
+)
+
+__all__ = [
+    "DEFAULT_ENTERPRISE_MODULES",
+    "DEFAULT_PLATFORM_CAPABILITIES",
+    "EnterpriseModule",
+    "ModuleCatalogEntry",
+    "ModuleCatalogService",
+    "ModuleCatalogSnapshot",
+    "ModuleEntitlement",
+    "ModuleEntitlementRecord",
+    "ModuleEntitlementRepository",
+    "ModuleGuardedServiceMixin",
+    "MODULE_LIFECYCLE_ACTIVE",
+    "MODULE_LIFECYCLE_EXPIRED",
+    "MODULE_LIFECYCLE_INACTIVE",
+    "MODULE_LIFECYCLE_STATUSES",
+    "MODULE_LIFECYCLE_SUSPENDED",
+    "MODULE_LIFECYCLE_TRIAL",
+    "MODULE_RUNTIME_ACCESS_STATUSES",
+    "PlatformCapability",
+    "SupportsModuleEntitlements",
+    "build_default_module_catalog",
+    "default_lifecycle_status",
+    "module_storage_codes",
+    "normalize_lifecycle_status",
+    "normalize_module_code",
+    "parse_enabled_module_codes",
+    "parse_licensed_module_codes",
+    "parse_module_codes",
+    "require_module_enabled",
+]

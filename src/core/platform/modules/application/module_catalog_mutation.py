@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from core.platform.audit.helpers import record_audit
-from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events
-from core.platform.modules.defaults import (
+from src.core.platform.auth.authorization import require_permission
+from src.core.platform.modules.domain.defaults import (
     MODULE_LIFECYCLE_INACTIVE,
     MODULE_RUNTIME_ACCESS_STATUSES,
     default_lifecycle_status,
     normalize_lifecycle_status,
 )
-from core.platform.modules.repository import ModuleEntitlementRecord
+from src.core.platform.modules.domain.subscription import ModuleEntitlementRecord
 
 
 class ModuleCatalogMutationMixin:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.platform.modules.service import (
+from src.core.platform.modules import (
     EnterpriseModule,
     ModuleCatalogService,
     ModuleEntitlement,

@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from typing import Protocol
+
+from src.core.platform.modules.domain.module_entitlement import ModuleEntitlement
+from src.core.platform.modules.domain.subscription import ModuleEntitlementRecord
 
 
-@dataclass(frozen=True)
-class ModuleEntitlementRecord:
-    module_code: str
-    licensed: bool
-    enabled: bool
-    lifecycle_status: str = "inactive"
+class SupportsModuleEntitlements(Protocol):
+    def get_entitlement(self, module_code: str) -> ModuleEntitlement | None: ...
+
+    def is_enabled(self, module_code: str) -> bool: ...
 
 
 class ModuleEntitlementRepository(ABC):
@@ -36,4 +37,7 @@ class ModuleEntitlementRepository(ABC):
     def upsert(self, record: ModuleEntitlementRecord) -> None: ...
 
 
-__all__ = ["ModuleEntitlementRecord", "ModuleEntitlementRepository"]
+__all__ = [
+    "ModuleEntitlementRepository",
+    "SupportsModuleEntitlements",
+]

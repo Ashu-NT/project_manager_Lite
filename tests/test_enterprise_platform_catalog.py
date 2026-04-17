@@ -3,9 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.platform import build_default_module_catalog
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
-from core.platform.modules.service import DEFAULT_ENTERPRISE_MODULES, ModuleCatalogService
+from src.core.platform.modules import (
+    DEFAULT_ENTERPRISE_MODULES,
+    ModuleCatalogService,
+    build_default_module_catalog,
+)
 from tests.ui_runtime_helpers import make_settings_store
 from src.ui.shell.main_window import MainWindow
 from src.ui.shell.workspaces import build_workspace_definitions
