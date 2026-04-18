@@ -15,7 +15,7 @@ from core.modules.project_management.reporting.renderers.pdf import PdfReportRen
 from core.modules.project_management.services.finance import FinanceService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.reporting.models import GanttTaskBar
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.exporting import (
     ExportArtifact,
     cleanup_temp_artifact,

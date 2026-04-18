@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.time.contracts import (
     TimeEntryRepository,
     TimesheetPeriodRepository,

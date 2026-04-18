@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 
 from src.core.platform.approval import ApprovalService
 from src.core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.time.application.timesheet_review import TimesheetReviewQueueItem
 from core.modules.project_management.services.project import ProjectService
@@ -33,7 +33,7 @@ from ui.modules.project_management.governance.timesheet_review_dialog import Tim
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.platform.control.approvals.presentation import approval_display_label
 from ui.platform.control.approvals.queue import ApprovalQueuePanel
-from ui.platform.settings import MainWindowSettingsStore
+from src.ui.platform.settings import MainWindowSettingsStore
 from ui.platform.shared.guards import make_guarded_slot
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG

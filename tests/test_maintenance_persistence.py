@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_maintenance_services_persist_locations_systems_and_assets_via_service_graph(services):

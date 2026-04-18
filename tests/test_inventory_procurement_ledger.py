@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from tests.ui_runtime_helpers import login_as
 
 

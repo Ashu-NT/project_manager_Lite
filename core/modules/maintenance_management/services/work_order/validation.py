@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from core.modules.maintenance_management.domain import MaintenanceWorkOrderStatus
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 
 class MaintenanceWorkOrderValidationMixin:
     def _validate_work_order_status_transition(

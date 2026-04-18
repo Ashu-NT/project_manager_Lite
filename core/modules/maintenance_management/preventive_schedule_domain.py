@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum
 
-from core.platform.common.ids import generate_id
+from src.core.platform.common.ids import generate_id
 
 
 class MaintenanceSchedulePolicy(str, Enum):

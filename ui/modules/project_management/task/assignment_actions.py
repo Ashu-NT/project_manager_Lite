@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QInputDialog, QMessageBox
 
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.services.project import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService

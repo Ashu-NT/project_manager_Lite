@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import date
 from sqlalchemy.orm import Session
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.interfaces import AssignmentRepository, DependencyRepository, ResourceRepository, TaskRepository
 from core.modules.project_management.domain.task import Task, TaskAssignment
 from core.modules.project_management.services.scheduling.leveling import (

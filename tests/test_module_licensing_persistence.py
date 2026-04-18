@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text
 
-from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from tests.ui_runtime_helpers import make_settings_store
 from src.ui.shell.main_window import MainWindow
 

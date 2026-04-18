@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.services.collaboration import CollaborationService
 from ui.modules.project_management.shared.domain_event_filters import should_refresh_collaboration_workspace
 from ui.platform.shared.styles.style_utils import style_table

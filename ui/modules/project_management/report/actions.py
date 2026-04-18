@@ -1,6 +1,6 @@
 from __future__ import annotations
 from PySide6.QtWidgets import QMessageBox
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from core.modules.project_management.reporting.api import generate_evm_png, generate_excel_report, generate_gantt_png, generate_pdf_report
 from core.modules.project_management.services.finance import FinanceService
 from core.modules.project_management.services.reporting import ReportingService

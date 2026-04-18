@@ -36,7 +36,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceTriggerMode,
 )
 from src.core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org import SiteService
 from ui.modules.maintenance_management.preventive.dialogs import (

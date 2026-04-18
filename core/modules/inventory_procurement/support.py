@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 
 from core.modules.inventory_procurement.domain import StockItem
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.support import normalize_code, normalize_name
 from src.core.platform.party.domain import PartyType
 

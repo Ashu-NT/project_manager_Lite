@@ -14,7 +14,7 @@ from core.modules.project_management.interfaces import (
     ResourceRepository,
     TaskRepository,
 )
-from core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
+from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.platform.approval.application.approval_service import ApprovalService
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext

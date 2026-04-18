@@ -12,7 +12,7 @@ from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
-from ui.platform.settings.main_window_store import MainWindowSettingsStore
+from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
 from ui.platform.shared.guards import (
     can_execute_governed_action,
     has_permission,

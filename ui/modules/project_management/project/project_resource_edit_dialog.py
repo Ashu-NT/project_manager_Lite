@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6 import QtWidgets
 
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.services.project import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from ui.platform.shared.styles.ui_config import UIConfig as CFG, CurrencyType

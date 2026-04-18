@@ -20,7 +20,7 @@ from core.modules.inventory_procurement.services.item_master import ItemMasterSe
 from core.modules.inventory_procurement.services.procurement import ProcurementService, PurchasingService
 from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from core.modules.inventory_procurement.services.stock_control import StockControlService
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.exporting import ensure_output_path, finalize_artifact
 from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 

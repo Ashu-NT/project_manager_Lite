@@ -18,7 +18,7 @@ from core.modules.maintenance_management import (
     MaintenanceAssetService,
 )
 from core.modules.maintenance_management.domain import MaintenanceAssetComponent
-from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.maintenance_management.asset_library.edit_dialogs import MaintenanceAssetComponentEditDialog
 from ui.modules.maintenance_management.shared import (

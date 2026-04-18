@@ -6,7 +6,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from src.core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.modules.project_management.interfaces import (
     AssignmentRepository,
     CalendarEventRepository,
@@ -15,7 +15,7 @@ from core.modules.project_management.interfaces import (
     ProjectRepository,
     TaskRepository,
 )
-from core.platform.common.interfaces import TimeEntryRepository
+from src.core.platform.common.interfaces import TimeEntryRepository
 from core.modules.project_management.domain.project import Project
 from core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.access.authorization import require_project_permission

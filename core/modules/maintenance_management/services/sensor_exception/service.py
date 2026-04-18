@@ -25,7 +25,7 @@ from core.modules.maintenance_management.support import (
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization

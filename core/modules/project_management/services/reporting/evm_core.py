@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Dict, Optional
 
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.interfaces import (
     BaselineRepository,
     CostRepository,

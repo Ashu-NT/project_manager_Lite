@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.auth.domain.session import UserSessionPrincipal
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.time.domain import TimesheetPeriodStatus
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from core.modules.project_management.domain.enums import WorkerType
 from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from tests.ui_runtime_helpers import login_as, wait_until
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog

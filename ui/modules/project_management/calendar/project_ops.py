@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QComboBox, QMessageBox
 
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.scheduling import SchedulingEngine

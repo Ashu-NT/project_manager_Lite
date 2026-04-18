@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from src.infra.persistence.orm.platform.models import TimeEntryORM
 from tests.temp_dirs import cleanup_test_workspace, create_test_workspace

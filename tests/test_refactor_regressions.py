@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from pathlib import Path
 
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from core.modules.project_management.domain.enums import DependencyType
 from infra.modules.project_management.db.task.repository import (
     SqlAlchemyAssignmentRepository,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from core.modules.inventory_procurement.domain import PurchaseOrder, PurchaseOrderLine, ReceiptHeader, ReceiptLine
 from core.modules.inventory_procurement.support import normalize_optional_text
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 
 
 class PurchasingQueryMixin:

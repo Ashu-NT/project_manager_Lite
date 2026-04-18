@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from core.modules.project_management.interfaces import BaselineRepository, TaskRepository
 from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
 from core.modules.project_management.services.reporting.models import BaselineComparisonResult, BaselineComparisonRow

@@ -597,6 +597,19 @@ def test_legacy_platform_audit_package_is_removed():
     assert not (ROOT / "core" / "platform" / "audit").exists()
 
 
+def test_legacy_platform_common_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "common").exists()
+
+
+def test_legacy_platform_data_exchange_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "data_exchange").exists()
+
+
+def test_legacy_platform_settings_ui_package_is_removed():
+    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
+    assert "settings" not in platform_dirs
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -765,10 +778,39 @@ def test_audit_package_exports_service_and_contracts():
     assert "class AuditLogRepository" not in text
 
 
+def test_common_package_exports_shared_utilities():
+    package_path = ROOT / "src" / "core" / "platform" / "common" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.platform.common.exceptions import (" in text
+    assert "from src.core.platform.common.ids import generate_id" in text
+    assert "from src.core.platform.common.service_base import ServiceBase" in text
+    assert "class ServiceBase" not in text
+    assert "def generate_id" not in text
+
+
+def test_data_exchange_package_exports_service():
+    package_path = ROOT / "src" / "core" / "platform" / "data_exchange" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.platform.data_exchange.service import MasterDataExchangeService, MasterDataExportRequest" in text
+    assert "class MasterDataExchangeService" not in text
+    assert "class MasterDataExportRequest" not in text
+
+
+def test_platform_settings_package_exports_store():
+    package_path = ROOT / "src" / "ui" / "platform" / "settings" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.platform.settings.main_window_store import MainWindowSettingsStore" in text
+    assert "class MainWindowSettingsStore" not in text
+
+
 def test_platform_common_interfaces_are_platform_only():
-    interfaces_path = ROOT / "core" / "platform" / "common" / "interfaces.py"
+    interfaces_path = ROOT / "src" / "core" / "platform" / "common" / "interfaces.py"
     text = interfaces_path.read_text(encoding="utf-8", errors="ignore")
 
+    assert "from src.core.platform.time.contracts import TimeEntryRepository, TimesheetPeriodRepository" in text
     assert "core.modules.project_management" not in text
     assert "class ProjectRepository" not in text
     assert "class TaskRepository" not in text

@@ -19,7 +19,7 @@ from src.core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
-from core.platform.data_exchange import MasterDataExchangeService
+from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.org import (
     DepartmentService,
     EmployeeService,

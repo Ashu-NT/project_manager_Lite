@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from core.modules.project_management.domain.project import Project
 from core.modules.project_management.services.project import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService

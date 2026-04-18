@@ -3,7 +3,7 @@ from __future__ import annotations
 import heapq
 from typing import Callable, Dict, List
 
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.domain.task import Task, TaskDependency
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 
 
 def test_department_service_scopes_department_master_data_by_active_organization(services):

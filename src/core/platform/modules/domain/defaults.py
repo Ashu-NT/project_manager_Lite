@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.modules.domain.module_codes import normalize_module_code
 from src.core.platform.modules.domain.module_definition import EnterpriseModule, PlatformCapability
 

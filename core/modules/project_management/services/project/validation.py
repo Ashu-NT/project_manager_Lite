@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from core.modules.project_management.interfaces import ProjectRepository
 
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional
 
-from core.platform.common.ids import generate_id
+from src.core.platform.common.ids import generate_id
 
 
 class EmploymentType(str, Enum):

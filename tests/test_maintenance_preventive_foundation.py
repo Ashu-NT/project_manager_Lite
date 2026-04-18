@@ -23,7 +23,7 @@ from core.modules.maintenance_management.services import (
     MaintenanceTaskStepTemplateService,
     MaintenanceTaskTemplateService,
 )
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.domain import Organization, Site
 from tests.test_maintenance_foundation import (

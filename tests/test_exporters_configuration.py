@@ -9,7 +9,7 @@ from matplotlib.dates import date2num
 from openpyxl import load_workbook
 
 from src.core.platform.auth.domain.session import UserSessionPrincipal
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.domain.enums import CostType, DependencyType
 from core.modules.project_management.reporting import api as reporting_api
 from core.modules.project_management.services.reporting.models import (

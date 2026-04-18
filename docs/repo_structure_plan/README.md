@@ -1314,7 +1314,8 @@ The current repo already has the right high-level concepts, but not yet in the t
 - ORM and repositories are split today between `infra/platform/db/*` and `infra/modules/*/db/*`; the target separates global ORM under `infra/persistence/orm/*` and module-owned persistence adapters inside each module
 - `ui/platform/shell/*` must move to `ui/shell/*`
 - the detailed guide also introduces `ui/shared/*` for reusable desktop presentation helpers; the current repo does not yet have that top-level split
-- `ui/platform/admin/*`, `ui/platform/control/*`, `ui/platform/shared/*`, and `ui/platform/settings/*` must be reorganized under `ui/platform/workspaces`, `ui/platform/dialogs`, and `ui/platform/widgets`
+- `ui/platform/admin/*`, `ui/platform/control/*`, and `ui/platform/shared/*` must be reorganized under `ui/platform/workspaces`, `ui/platform/dialogs`, and `ui/platform/widgets`
+- `ui/platform/settings/*` belongs under `src/ui/platform/settings/*` as platform-owned shell state
 - `ui/modules/*` exists, but the current module UIs are grouped by feature folders like `task`, `project`, `dashboard`, `assets`, `work_orders`, `stock_control`; the target wants a uniform `workspaces`, `dialogs`, `presenters`, `view_models`, and `widgets` pattern
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure
 - tests are currently mostly flat under `tests/`; the target expects grouped test packages under `tests/architecture`, `tests/platform`, `tests/project_management`, `tests/inventory_procurement`, `tests/maintenance`, and `tests/ui`
@@ -1446,6 +1447,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 | `api/http/platform/*` | `src/api/http/platform/*` | keep current platform HTTP adapter under new root |
 | none | `src/api/desktop/runtime.py` and `src/api/desktop/platform/*` | add desktop-facing platform API adapter layer |
 | `ui/platform/shell/*` | `src/ui/shell/*` | move shell app, login, main window, navigation |
+| `ui/platform/settings/*` | `src/ui/platform/settings/*` | move shell-owned persisted desktop settings under the new platform UI root |
 | `ui/platform/admin/*`, `ui/platform/control/*` | `src/ui/platform/workspaces/*` | platform workspaces move under target UI grouping |
 | current platform dialogs | `src/ui/platform/dialogs/*` | consolidate platform-owned dialogs out of workspace folders |
 | cross-cutting UI helpers now under `ui/platform/shared/*` | `src/ui/shared/*` | move reusable widgets, dialogs, formatting, and UI models into the shared presentation layer required by the detailed guide |
@@ -1457,7 +1459,9 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 
 - `core/platform/auth/*` becomes `src/core/platform/auth/domain/*`, `application/*`, and `contracts/*`
 - `core/platform/authorization/*` becomes `src/core/platform/authorization/domain/*` and `application/*`
+- `core/platform/common/*` becomes `src/core/platform/common/exceptions.py`, `ids.py`, `interfaces.py`, `runtime_access.py`, and `service_base.py`
 - `core/platform/access/*` becomes `src/core/platform/access/domain/*`, `application/*`, `contracts.py`, and `authorization.py`
+- `core/platform/data_exchange/*` becomes `src/core/platform/data_exchange/service.py` and `__init__.py`
 - `core/platform/modules/*` becomes `src/core/platform/modules/domain/*`, `application/*`, and `contracts.py`
 - `core/platform/org/*` becomes `src/core/platform/org/domain/*`, `application/*`, `contracts.py`, `support.py`, and `access_policy.py`
 - `core/platform/party/*` becomes `src/core/platform/party/domain/*`, `application/*`, and `contracts.py`
@@ -1669,6 +1673,24 @@ Completed in the clean/no-facade execution:
 - moved `AuditLogRepository` out of `core/platform/common/interfaces.py` into `src/core/platform/audit/contracts.py`
 - rewired composition, persistence, platform services, PM/inventory/maintenance services, UI, tests, and test path rewrites to `src.core.platform.audit`
 - deleted the old `core/platform/audit/` package after callers were rewritten
+- moved the remaining shared platform utilities from `core/platform/common/*` to the real `src/core/platform/common/` package:
+  - `exceptions.py`
+  - `ids.py`
+  - `interfaces.py`
+  - `runtime_access.py`
+  - `service_base.py`
+- rewired platform packages, modules, UI, tests, `main.py`, and path rewrites to `src.core.platform.common`
+- deleted the old `core/platform/common/` package after callers were rewritten
+- moved the remaining platform master-data exchange package from `core/platform/data_exchange/*` to `src/core/platform/data_exchange/`:
+  - `service.py`
+  - `__init__.py`
+- rewired composition, tests, and path rewrites to `src.core.platform.data_exchange`
+- deleted the old `core/platform/data_exchange/` package after callers were rewritten
+- moved `ui/platform/settings/*` to `src/ui/platform/settings/*`:
+  - `__init__.py`
+  - `main_window_store.py`
+- rewired shell, PM UI, support UI, test helpers, and test path rewrites to `src.ui.platform.settings`
+- deleted the old `ui/platform/settings/` package after callers were rewritten
 - removed the stale `core/__init__.py` UI side effect so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -1695,6 +1717,8 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.documents.Document`, `DocumentIntegrationService`, `DocumentLinkRepository`, `DocumentRepository`, `DocumentService`, `DocumentStorageKind`, `DocumentStructure`, `DocumentStructureRepository`, and `DocumentType` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.notifications.DomainChangeEvent`, `DomainEvents`, `Signal`, and `domain_events` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.audit.AuditLogEntry`, `AuditLogRepository`, `AuditService`, and `record_audit` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.common.BusinessRuleError`, `ServiceBase`, `generate_id`, `src.core.platform.common.interfaces.TimeEntryRepository`, `src.core.platform.common.runtime_access.enforce_runtime_access`, `src.core.platform.data_exchange.MasterDataExchangeService`, and `MasterDataExportRequest` passes
+- in `conda run -n pmenv`, direct import of `src.ui.platform.settings.MainWindowSettingsStore` passes
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
@@ -1740,6 +1764,12 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_audit_package_is_removed tests/test_architecture_guardrails.py::test_audit_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_phase_b_audit_log.py tests/test_phase_b_user_admin_ui.py tests/test_domain_event_wiring.py -q`
 - in `conda run -n pmenv`, audit cross-module sweep passes:
   - `pytest tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_phase2_register_import_and_ui.py tests/test_maintenance_execution_foundation.py -q`
+- in `conda run -n pmenv`, common/data-exchange/settings guardrails pass:
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_common_package_is_removed tests/test_architecture_guardrails.py::test_legacy_platform_data_exchange_package_is_removed tests/test_architecture_guardrails.py::test_common_package_exports_shared_utilities tests/test_architecture_guardrails.py::test_data_exchange_package_exports_service tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_architecture_guardrails.py::test_legacy_platform_settings_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_settings_package_exports_store -q`
+- in `conda run -n pmenv`, service graph, shared master-data exchange, settings persistence, shell navigation, and governance UI verification pass:
+  - `pytest tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_governance_tab_mode_toggle_ui.py -q`
+- in `conda run -n pmenv`, cross-module verification after the common/data-exchange/settings cutovers passes:
+  - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_maintenance_foundation.py -q`
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
@@ -1754,18 +1784,21 @@ Verified:
 - no Python import statements remain for `core.platform.documents`
 - no Python import statements remain for `core.platform.notifications`
 - no Python import statements remain for `core.platform.audit`
+- no Python import statements remain for `core.platform.common`
+- no Python import statements remain for `core.platform.data_exchange`
+- no Python import statements remain for `ui.platform.settings`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
-- move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
+- move the remaining platform admin/control/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
 
 Known verification gap:
 
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the audit cutover:
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the common/data-exchange/settings cutovers:
   - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 ### Slice 2: Project Management

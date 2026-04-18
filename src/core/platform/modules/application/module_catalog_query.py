@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.modules.domain.defaults import default_lifecycle_status
 from src.core.platform.modules.domain.module_codes import normalize_module_code
 from src.core.platform.modules.domain.module_entitlement import (

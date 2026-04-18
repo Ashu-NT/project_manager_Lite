@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from core.modules.project_management.domain.project import ProjectResource
 from core.modules.project_management.domain.task import TaskAssignment
 

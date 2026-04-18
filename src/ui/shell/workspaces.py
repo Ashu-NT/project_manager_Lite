@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QWidget
 
 from src.core.platform.auth import UserSessionContext
-from ui.platform.settings import MainWindowSettingsStore
+from src.ui.platform.settings import MainWindowSettingsStore
 from src.ui.shell.common import (
     ShellWorkspaceContext,
     WorkspaceDefinition,

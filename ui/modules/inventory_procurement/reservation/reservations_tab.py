@@ -21,7 +21,7 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from core.modules.inventory_procurement import InventoryService, ItemMasterService, ReservationService
 from core.modules.inventory_procurement.domain import StockReservation, StockReservationStatus
 from src.core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.reservation.reservation_dialogs import (
     ReservationCreateDialog,

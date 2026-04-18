@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List
 from src.core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.task import TaskDependency
 from src.core.platform.approval.policy import is_governance_required

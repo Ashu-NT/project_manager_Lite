@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.auth.domain import UserAccount
 from src.core.platform.auth import AuthService, UserSessionContext
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserCreateDialog, UserEditDialog

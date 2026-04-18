@@ -5,7 +5,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Callable, FrozenSet
 
-from core.platform.common.ids import generate_id
+from src.core.platform.common.ids import generate_id
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
 
 

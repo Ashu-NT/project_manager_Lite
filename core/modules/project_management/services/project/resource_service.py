@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 
 from core.modules.project_management.domain.project import ProjectResource
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from core.modules.project_management.interfaces import ProjectResourceRepository, ResourceRepository
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.access.authorization import require_project_permission

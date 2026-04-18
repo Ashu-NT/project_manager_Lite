@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
-from core.platform.common.exceptions import (
+from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,

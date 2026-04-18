@@ -23,7 +23,7 @@ from core.modules.inventory_procurement.support import (
     validate_transition,
 )
 from src.core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.domain import Organization
 
 

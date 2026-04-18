@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable, TypeVar
 
-from core.platform.common.exceptions import (
+from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     DomainError,

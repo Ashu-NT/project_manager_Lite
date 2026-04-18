@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,

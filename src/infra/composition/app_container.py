@@ -12,7 +12,7 @@ from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
-from core.platform.data_exchange import MasterDataExchangeService
+from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
 from src.core.platform.modules import ModuleCatalogService
 from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService

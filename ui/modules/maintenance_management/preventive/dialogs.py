@@ -16,7 +16,7 @@ from core.modules.maintenance_management.domain import (
     MaintenancePreventivePlanTask,
     MaintenanceTriggerMode,
 )
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from ui.modules.maintenance_management.shared import MaintenanceWorkbenchNavigator, MaintenanceWorkbenchSection, format_timestamp
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
 from ui.platform.shared.guards import make_guarded_slot

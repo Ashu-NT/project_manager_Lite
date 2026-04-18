@@ -21,7 +21,7 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from core.modules.inventory_procurement import InventoryReferenceService, InventoryService
 from core.modules.inventory_procurement.domain import Storeroom
 from src.core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.inventory.storeroom_dialogs import StoreroomEditDialog
 from ui.modules.inventory_procurement.shared.header_support import (

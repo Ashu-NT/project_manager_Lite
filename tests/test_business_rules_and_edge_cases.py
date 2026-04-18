@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 
 

@@ -25,7 +25,7 @@ from infra.platform.update import check_for_updates, default_update_manifest_sou
 from infra.platform.version import get_app_version
 from src.ui.shell.navigation import NavigationEntry, NavigationModule, ShellNavigation
 from src.ui.shell.workspaces import build_workspace_definitions
-from ui.platform.settings import MainWindowSettingsStore
+from src.ui.platform.settings import MainWindowSettingsStore
 from ui.platform.shared.async_job import JobUiConfig, start_async_job
 from ui.platform.shared.styles.theme import apply_app_style
 from ui.platform.shared.styles.theme_refresh import refresh_widget_theme

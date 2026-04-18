@@ -15,7 +15,7 @@ from src.infra.persistence.db.session_factory import SessionLocal
 from src.infra.persistence.migrations.runner import run_migrations
 from src.ui.shell.login import prompt_for_login
 from src.ui.shell.main_window import MainWindow
-from ui.platform.settings import MainWindowSettingsStore
+from src.ui.platform.settings import MainWindowSettingsStore
 from ui.platform.shared.styles.theme import apply_app_style
 
 

@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.auth import AuthService, UserSessionContext, UserSessionPrincipal
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 

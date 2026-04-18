@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Dict, List, Tuple
 
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from core.modules.project_management.interfaces import (
     AssignmentRepository,
     CostRepository,

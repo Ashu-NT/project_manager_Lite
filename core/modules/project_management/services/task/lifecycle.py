@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from src.core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.modules.project_management.interfaces import (
     AssignmentRepository,
     CalendarEventRepository,

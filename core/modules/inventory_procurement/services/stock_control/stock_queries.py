@@ -3,7 +3,7 @@ from __future__ import annotations
 from core.modules.inventory_procurement.domain import StockBalance, StockTransaction
 from core.modules.inventory_procurement.support import normalize_optional_text
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 
 
 class StockControlQueryMixin:

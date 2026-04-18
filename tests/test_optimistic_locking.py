@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 from PySide6.QtWidgets import QDialog
 
-from core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.common.exceptions import ConcurrencyError
 from core.modules.project_management.domain.enums import TaskStatus
 from ui.modules.project_management.cost.actions import CostActionsMixin
 from ui.modules.project_management.project.actions import ProjectActionsMixin

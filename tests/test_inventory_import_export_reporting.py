@@ -7,7 +7,7 @@ import pytest
 from openpyxl import load_workbook
 
 from src.core.platform.auth.domain.session import UserSessionPrincipal
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as
 

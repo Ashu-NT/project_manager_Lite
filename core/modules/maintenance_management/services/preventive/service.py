@@ -40,8 +40,8 @@ from core.modules.maintenance_management.services.work_request.service import Ma
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import NotFoundError
-from core.platform.common.ids import generate_id
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.ids import generate_id
 from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org.domain import Organization, Site

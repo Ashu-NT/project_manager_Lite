@@ -23,7 +23,7 @@ from core.modules.maintenance_management.domain import (
     MaintenancePreventivePlanTask,
     MaintenanceTriggerMode,
 )
-from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.maintenance_management.preventive_library.edit_dialogs import (
     MaintenancePreventivePlanTaskEditDialog,

@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.helpers import record_audit
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.documents.contracts import (

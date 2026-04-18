@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Iterable
 
-from core.platform.common.ids import generate_id
+from src.core.platform.common.ids import generate_id
 
 
 @dataclass

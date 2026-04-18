@@ -5,7 +5,7 @@ from uuid import uuid4
 from core.modules.inventory_procurement.domain import StockBalance, StockItem, StockTransaction, StockTransactionType, Storeroom
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.domain import Organization
 
 

@@ -14,4 +14,5 @@ class ServiceBase:
             self._session.rollback()
             raise exc
 
+
 __all__ = ["ServiceBase"]

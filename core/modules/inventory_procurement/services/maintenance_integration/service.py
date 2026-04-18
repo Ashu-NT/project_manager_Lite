@@ -19,7 +19,7 @@ from core.modules.inventory_procurement.support import (
     normalize_positive_quantity,
     normalize_uom,
 )
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Dict, Tuple
 
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from core.modules.project_management.interfaces import (
     CostRepository,
     ProjectRepository,

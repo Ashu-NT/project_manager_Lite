@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from core.modules.project_management.interfaces import AssignmentRepository, TaskRepository
 from core.modules.project_management.domain.task import Task, TaskAssignment
 from core.modules.project_management.domain.enums import TaskStatus

@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.time.domain import TimesheetPeriod, TimesheetPeriodStatus
 

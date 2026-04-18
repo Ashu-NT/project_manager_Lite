@@ -5,7 +5,7 @@ from typing import Any
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from core.platform.common.exceptions import ConcurrencyError, NotFoundError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 
 
 def update_with_version_check(

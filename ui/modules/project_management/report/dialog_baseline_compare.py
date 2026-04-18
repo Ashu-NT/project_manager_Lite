@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QDialog,
 )
 
-from core.platform.common.exceptions import DomainError
+from src.core.platform.common.exceptions import DomainError
 from core.modules.project_management.services.reporting import ReportingService
 from ui.modules.project_management.report.dialog_helpers import fmt_money_or_dash, setup_dialog_size, soft_brush
 from ui.platform.shared.styles.style_utils import style_table

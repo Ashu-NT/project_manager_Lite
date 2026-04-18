@@ -5,7 +5,7 @@ from typing import TypeVar
 
 from PySide6.QtWidgets import QMessageBox, QWidget
 
-from core.platform.common.exceptions import (
+from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,

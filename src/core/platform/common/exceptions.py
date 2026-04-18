@@ -1,8 +1,7 @@
-# core/platform/common/exceptions.py
-
 class DomainError(Exception):
     """Base class for domain-level errors."""
-    def __init__(self, message: str,*, code: str | None = None):
+
+    def __init__(self, message: str, *, code: str | None = None):
         super().__init__(message)
         self.code = code or self.__class__.__name__
 
@@ -16,8 +15,17 @@ class NotFoundError(DomainError):
 
 
 class BusinessRuleError(DomainError):
-    """Raised when business rules are violated (e.g., circular dependencies)."""
+    """Raised when business rules are violated."""
 
 
 class ConcurrencyError(DomainError):
     """Raised when optimistic locking detects a stale update."""
+
+
+__all__ = [
+    "BusinessRuleError",
+    "ConcurrencyError",
+    "DomainError",
+    "NotFoundError",
+    "ValidationError",
+]

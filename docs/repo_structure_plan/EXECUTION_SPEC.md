@@ -667,6 +667,24 @@ Completed:
 - the audit repository contract moved out of `core/platform/common/interfaces.py` into `src/core/platform/audit/contracts.py`
 - composition, persistence, platform services, PM/inventory/maintenance services, UI, tests, and test path rewrites now use `src.core.platform.audit`
 - the old `core/platform/audit/` source package was deleted after direct import rewrites
+- common now lives under `src/core/platform/common/`:
+  - `exceptions.py`
+  - `ids.py`
+  - `interfaces.py`
+  - `runtime_access.py`
+  - `service_base.py`
+- platform packages, modules, UI, tests, `main.py`, and test path rewrites now use `src.core.platform.common`
+- the old `core/platform/common/` source package was deleted after direct import rewrites
+- data exchange now lives under `src/core/platform/data_exchange/`:
+  - `service.py`
+  - `__init__.py`
+- composition, tests, and test path rewrites now use `src.core.platform.data_exchange`
+- the old `core/platform/data_exchange/` source package was deleted after direct import rewrites
+- settings UI now lives under `src/ui/platform/settings/`:
+  - `__init__.py`
+  - `main_window_store.py`
+- shell, PM UI, support UI, tests, and test path rewrites now use `src.ui.platform.settings`
+- the old `ui/platform/settings/` source package was deleted after direct import rewrites
 - the stale `core/__init__.py` UI bootstrap side effect was removed so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -694,6 +712,8 @@ Verified:
   - direct import of `src.core.platform.documents.Document`, `DocumentIntegrationService`, `DocumentLinkRepository`, `DocumentRepository`, `DocumentService`, `DocumentStorageKind`, `DocumentStructure`, `DocumentStructureRepository`, and `DocumentType`
   - direct import of `src.core.platform.notifications.DomainChangeEvent`, `DomainEvents`, `Signal`, and `domain_events`
   - direct import of `src.core.platform.audit.AuditLogEntry`, `AuditLogRepository`, `AuditService`, and `record_audit`
+  - direct import of `src.core.platform.common.BusinessRuleError`, `ServiceBase`, `generate_id`, `src.core.platform.common.interfaces.TimeEntryRepository`, `src.core.platform.common.runtime_access.enforce_runtime_access`, `src.core.platform.data_exchange.MasterDataExchangeService`, and `MasterDataExportRequest`
+  - direct import of `src.ui.platform.settings.MainWindowSettingsStore`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
@@ -718,6 +738,9 @@ Verified:
   - `pytest tests/test_dashboard_leveling_flow.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py tests/test_inventory_maintenance_material_contracts.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py tests/test_service_architecture.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_audit_package_is_removed tests/test_architecture_guardrails.py::test_audit_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_phase_b_audit_log.py tests/test_phase_b_user_admin_ui.py tests/test_domain_event_wiring.py -q`
   - `pytest tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_phase2_register_import_and_ui.py tests/test_maintenance_execution_foundation.py -q`
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_common_package_is_removed tests/test_architecture_guardrails.py::test_legacy_platform_data_exchange_package_is_removed tests/test_architecture_guardrails.py::test_common_package_exports_shared_utilities tests/test_architecture_guardrails.py::test_data_exchange_package_exports_service tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_architecture_guardrails.py::test_legacy_platform_settings_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_settings_package_exports_store -q`
+  - `pytest tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_governance_tab_mode_toggle_ui.py -q`
+  - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_maintenance_foundation.py -q`
   - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
@@ -731,19 +754,22 @@ Verified:
 - no Python import statements remain for `core.platform.documents`
 - no Python import statements remain for `core.platform.notifications`
 - no Python import statements remain for `core.platform.audit`
+- no Python import statements remain for `core.platform.common`
+- no Python import statements remain for `core.platform.data_exchange`
+- no Python import statements remain for `ui.platform.settings`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 
 Known blocker:
 
 - the default interpreter outside `pmenv` still fails on `reportlab` during full app/test imports because that environment dependency is not installed there
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the audit cutover:
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the common/data-exchange/settings cutovers:
   - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 Continue next:
 
 1. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
-2. Move platform admin/control/settings/shared UI paths.
+2. Move the remaining platform admin/control/shared UI paths.
 3. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
@@ -869,6 +895,7 @@ Clean-cutover tests:
 - platform-owned dialogs to `src/ui/platform/dialogs/`
 - platform-owned widgets to `src/ui/platform/widgets/`
 - reusable pieces to `src/ui/shared/*`
+- shell-owned settings state to `src/ui/platform/settings/*`
 
 `core/modules/project_management/services/*` target:
 

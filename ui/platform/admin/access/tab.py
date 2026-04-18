@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from src.core.platform.access import AccessControlService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,

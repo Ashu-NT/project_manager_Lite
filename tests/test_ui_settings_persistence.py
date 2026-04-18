@@ -6,8 +6,9 @@ from pathlib import Path
 from PySide6.QtCore import QByteArray, QSettings
 
 import main_qt
+import src.ui.shell.app as shell_app
 from src.ui.shell.main_window import MainWindow
-from ui.platform.settings.main_window_store import MainWindowSettingsStore
+from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
 
 
 def _store_with_ini(root: Path):
@@ -113,17 +114,17 @@ def test_main_qt_loads_theme_from_settings_before_app_style(repo_workspace, serv
             calls.append(("show", None, None))
 
     monkeypatch.setenv("PM_SKIP_LOGIN", "1")
-    monkeypatch.setattr(main_qt, "QApplication", _FakeApp)
-    monkeypatch.setattr(main_qt, "QIcon", lambda path: path)
-    monkeypatch.setattr(main_qt, "QFont", lambda family, size: (family, size))
-    monkeypatch.setattr(main_qt, "resource_path", lambda rel_path: rel_path)
-    monkeypatch.setattr(main_qt, "setup_logging", lambda: None)
-    monkeypatch.setattr(main_qt, "build_services", lambda: services)
-    monkeypatch.setattr(main_qt, "MainWindowSettingsStore", lambda: store)
-    monkeypatch.setattr(main_qt, "MainWindow", _FakeMainWindow)
-    monkeypatch.setattr(main_qt.sys, "exit", lambda code: calls.append(("exit", code, None)))
+    monkeypatch.setattr(shell_app, "QApplication", _FakeApp)
+    monkeypatch.setattr(shell_app, "QIcon", lambda path: path)
+    monkeypatch.setattr(shell_app, "QFont", lambda family, size: (family, size))
+    monkeypatch.setattr(shell_app, "resource_path", lambda rel_path: rel_path)
+    monkeypatch.setattr(shell_app, "setup_logging", lambda: None)
+    monkeypatch.setattr(shell_app, "build_services", lambda: services)
+    monkeypatch.setattr(shell_app, "MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(shell_app, "MainWindow", _FakeMainWindow)
     monkeypatch.setattr(
-        "ui.platform.shared.styles.theme.apply_app_style",
+        shell_app,
+        "apply_app_style",
         lambda _app, mode: calls.append(
             (
                 "style",
@@ -170,24 +171,21 @@ def test_main_qt_skip_login_does_not_bypass_unauthenticated_services(
             calls.append(("exec", None, None))
             return 0
 
-    class _FakeLoginDialog:
-        def __init__(self, auth_service, user_session):
-            calls.append(("login", auth_service is anonymous_services["auth_service"], user_session.is_authenticated()))
-
-        def exec(self):
-            calls.append(("login-exec", None, None))
-            return main_qt.QDialog.Rejected
+    def _fake_prompt_for_login(*, auth_service, user_session, parent=None):
+        calls.append(("login", auth_service is anonymous_services["auth_service"], user_session.is_authenticated()))
+        calls.append(("login-exec", None, None))
+        return False
 
     monkeypatch.setenv("PM_SKIP_LOGIN", "1")
-    monkeypatch.setattr(main_qt, "QApplication", _FakeApp)
-    monkeypatch.setattr(main_qt, "QIcon", lambda path: path)
-    monkeypatch.setattr(main_qt, "QFont", lambda family, size: (family, size))
-    monkeypatch.setattr(main_qt, "resource_path", lambda rel_path: rel_path)
-    monkeypatch.setattr(main_qt, "setup_logging", lambda: None)
-    monkeypatch.setattr(main_qt, "build_services", lambda: anonymous_services)
-    monkeypatch.setattr(main_qt, "MainWindowSettingsStore", lambda: store)
-    monkeypatch.setattr(main_qt, "LoginDialog", _FakeLoginDialog)
-    monkeypatch.setattr(main_qt, "MainWindow", lambda _services: calls.append(("window", None, None)))
+    monkeypatch.setattr(shell_app, "QApplication", _FakeApp)
+    monkeypatch.setattr(shell_app, "QIcon", lambda path: path)
+    monkeypatch.setattr(shell_app, "QFont", lambda family, size: (family, size))
+    monkeypatch.setattr(shell_app, "resource_path", lambda rel_path: rel_path)
+    monkeypatch.setattr(shell_app, "setup_logging", lambda: None)
+    monkeypatch.setattr(shell_app, "build_services", lambda: anonymous_services)
+    monkeypatch.setattr(shell_app, "MainWindowSettingsStore", lambda: store)
+    monkeypatch.setattr(shell_app, "prompt_for_login", _fake_prompt_for_login)
+    monkeypatch.setattr(shell_app, "MainWindow", lambda _services: calls.append(("window", None, None)))
 
     main_qt.main()
 

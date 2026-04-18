@@ -18,7 +18,7 @@ from core.modules.inventory_procurement.support import (
     validate_transition,
 )
 from src.core.platform.audit.helpers import record_audit
-from core.platform.common.exceptions import ConcurrencyError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 
 

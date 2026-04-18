@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.runtime_access import enforce_runtime_access
+from src.core.platform.common.runtime_access import enforce_runtime_access
 from src.core.platform.exporting.application.artifact_delivery import finalize_artifact
 from src.core.platform.exporting.application.export_definition_registry import (
     ExportDefinitionRegistry,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import NotFoundError
 from core.modules.project_management.interfaces import (
     AssignmentRepository,
     ProjectRepository,

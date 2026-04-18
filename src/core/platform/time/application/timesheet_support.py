@@ -5,7 +5,7 @@ from datetime import date
 from typing import Protocol
 
 from src.core.platform.auth.authorization import require_any_permission
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.contracts import EmployeeRepository
 from src.core.platform.time.contracts import (
     TimeEntryRepository,

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.notifications.domain_events import domain_events
 

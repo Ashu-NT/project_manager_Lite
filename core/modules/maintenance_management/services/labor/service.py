@@ -4,7 +4,7 @@ from datetime import date
 
 from core.modules.maintenance_management.services.work_order_task import MaintenanceWorkOrderTaskService
 from src.core.platform.auth.authorization import require_any_permission
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.time.application import TimeService
 from src.core.platform.time.domain import TimeEntry

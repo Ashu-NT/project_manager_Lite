@@ -5,7 +5,7 @@ from datetime import date
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDateEdit, QLineEdit, QMessageBox, QTableWidget, QTableWidgetItem
 
-from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.modules.project_management.services.work_calendar import WorkCalendarService
 
 

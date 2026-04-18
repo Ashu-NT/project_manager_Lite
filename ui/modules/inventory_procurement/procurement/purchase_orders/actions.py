@@ -7,7 +7,7 @@ from core.modules.inventory_procurement.services.item_master.service import Item
 from core.modules.inventory_procurement.services.procurement.purchasing_service import PurchasingService
 from core.modules.inventory_procurement.services.procurement.service import ProcurementService
 from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
-from core.platform.common.exceptions import (
+from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
     NotFoundError,

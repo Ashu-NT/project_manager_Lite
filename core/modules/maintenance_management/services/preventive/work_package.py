@@ -13,7 +13,7 @@ from core.modules.maintenance_management.interfaces import (
 )
 from core.modules.maintenance_management.services.work_order_task import MaintenanceWorkOrderTaskService
 from core.modules.maintenance_management.services.work_order_task_step import MaintenanceWorkOrderTaskStepService
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 
 
 @dataclass(frozen=True)

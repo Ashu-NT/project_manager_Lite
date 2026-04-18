@@ -27,7 +27,7 @@ from core.modules.maintenance_management.reporting import (
 from core.modules.maintenance_management.support import normalize_maintenance_code
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.auth.authorization import require_permission
-from core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
 from src.core.platform.org.domain import Organization, Site
 

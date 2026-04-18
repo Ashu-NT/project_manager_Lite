@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QWidget
 
 from src.core.platform.auth import UserSessionContext
 from infra.platform.operational_support import get_operational_support
-from ui.platform.settings import MainWindowSettingsStore
+from src.ui.platform.settings import MainWindowSettingsStore
 from ui.platform.admin.support.diagnostics_flow import SupportDiagnosticsFlowMixin
 from ui.platform.admin.support.telemetry import SupportTelemetryMixin
 from ui.platform.admin.support.ui_layout import SupportUiLayoutMixin

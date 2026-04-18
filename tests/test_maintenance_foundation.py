@@ -34,7 +34,7 @@ from src.core.platform.auth.domain import UserAccount
 from core.modules.maintenance_management.support import coerce_priority, coerce_trigger_mode
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.domain import Organization, Site

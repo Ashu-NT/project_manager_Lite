@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable, TypeVar
 
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.authorization import get_authorization_engine
 

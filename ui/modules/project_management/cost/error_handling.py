@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox
 
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def show_cost_business_rule(parent, exc: BusinessRuleError) -> None:

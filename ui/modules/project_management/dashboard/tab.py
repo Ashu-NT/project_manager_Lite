@@ -34,7 +34,7 @@ from ui.modules.project_management.dashboard.top_bar import DashboardTopBarMixin
 from ui.modules.project_management.dashboard.widgets import ChartWidget, KpiCard
 from ui.modules.project_management.dashboard.workqueue_button import DashboardQueueButton
 from ui.modules.project_management.dashboard.workqueue_actions import DashboardWorkqueueActionsMixin
-from ui.platform.settings.main_window_store import MainWindowSettingsStore
+from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

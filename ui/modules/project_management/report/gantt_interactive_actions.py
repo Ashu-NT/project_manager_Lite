@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 from PySide6.QtWidgets import QMessageBox
 
-from core.platform.common.exceptions import ConcurrencyError
+from src.core.platform.common.exceptions import ConcurrencyError
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 

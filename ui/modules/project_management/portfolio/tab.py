@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 from src.core.platform.auth import UserSessionContext

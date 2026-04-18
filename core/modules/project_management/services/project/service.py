@@ -10,7 +10,7 @@ from core.modules.project_management.interfaces import (
     ProjectRepository,
     TaskRepository,
 )
-from core.platform.common.interfaces import TimeEntryRepository
+from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin

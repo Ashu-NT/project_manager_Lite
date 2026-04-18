@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 
 
 def _create_labor_context(services):

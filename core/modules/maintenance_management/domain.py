@@ -16,7 +16,7 @@ from core.modules.maintenance_management.preventive_schedule_domain import (
     MaintenancePreventivePlanInstance,
     MaintenanceSchedulePolicy,
 )
-from core.platform.common.ids import generate_id
+from src.core.platform.common.ids import generate_id
 
 
 class MaintenanceLifecycleStatus(str, Enum):

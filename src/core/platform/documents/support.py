@@ -3,7 +3,7 @@ from __future__ import annotations
 from mimetypes import guess_type
 from pathlib import Path
 
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.documents.domain import DocumentStorageKind, DocumentType
 
 

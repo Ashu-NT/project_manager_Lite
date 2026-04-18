@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from src.core.platform.notifications.domain_events import domain_events
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
     TaskComment,

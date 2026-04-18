@@ -30,7 +30,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkRequestSourceType,
     MaintenanceWorkRequestStatus,
 )
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 
 
 def normalize_maintenance_code(value: str, *, label: str) -> str:

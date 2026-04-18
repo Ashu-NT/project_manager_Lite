@@ -15,7 +15,7 @@ from core.modules.inventory_procurement.support import (
     normalize_uom,
 )
 from src.core.platform.audit.helpers import record_audit
-from core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.org.domain import Organization
 from src.core.platform.notifications.domain_events import domain_events
 

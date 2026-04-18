@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError
 from tests.ui_runtime_helpers import login_as
 
 

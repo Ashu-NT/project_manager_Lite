@@ -22,7 +22,7 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from core.modules.inventory_procurement import InventoryService, ItemMasterService, StockControlService
 from core.modules.inventory_procurement.domain import StockBalance
 from src.core.platform.auth import UserSessionContext
-from core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.shared.header_support import (
     build_inventory_header_badge_widget,
