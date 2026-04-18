@@ -36,7 +36,7 @@ from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import ValidationError
 from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.domain import Organization, Site
 from src.core.platform.party.domain import Party, PartyType
 from src.core.platform.party.contracts import PartyRepository

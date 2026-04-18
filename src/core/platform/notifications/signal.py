@@ -51,3 +51,6 @@ class Signal(Generic[T]):
         if stale_callbacks:
             with self._lock:
                 self._subscribers = [cb for cb in self._subscribers if cb not in stale_callbacks]
+
+
+__all__ = ["Signal"]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.contracts import (
     DepartmentRepository,
     LinkedEmployeeResource,

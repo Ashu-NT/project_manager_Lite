@@ -12,7 +12,7 @@ from core.modules.project_management.domain.register import (
     as_register_entry_status,
     as_register_entry_type,
 )
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.modules.project_management.interfaces import ProjectRepository, RegisterEntryRepository
 from src.core.platform.access.authorization import require_project_permission

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from core.modules.project_management.domain.enums import WorkerType
 from core.modules.project_management.domain.register import RegisterEntryType
-from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.project.tab import ProjectTab
 from ui.modules.project_management.register.tab import RegisterTab

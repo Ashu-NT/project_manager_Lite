@@ -3,12 +3,12 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.documents.domain import Document, DocumentLink, DocumentStructure
-from core.platform.documents.interfaces import (
+from src.core.platform.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,
 )
+from src.core.platform.documents.domain import Document, DocumentLink, DocumentStructure
 from src.infra.persistence.db.platform.documents.mapper import (
     document_from_orm,
     document_link_from_orm,

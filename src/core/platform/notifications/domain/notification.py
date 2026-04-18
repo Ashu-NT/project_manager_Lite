@@ -1,1 +1,0 @@
-"""Notification domain target module."""

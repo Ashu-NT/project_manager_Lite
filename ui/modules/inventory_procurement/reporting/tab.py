@@ -22,7 +22,7 @@ from core.modules.inventory_procurement import (
 )
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.shared.header_support import (
     build_inventory_header_badge_widget,
     configure_inventory_header_layout,

@@ -6,11 +6,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.org.domain import Organization
-from core.platform.documents.domain import (
+from src.core.platform.notifications.domain_events import domain_events
+from src.core.platform.auth.authorization import require_permission
+from src.core.platform.documents.contracts import (
+    DocumentLinkRepository,
+    DocumentRepository,
+    DocumentStructureRepository,
+)
+from src.core.platform.documents.domain import (
     Document,
     DocumentClassification,
     DocumentLink,
@@ -18,12 +22,7 @@ from core.platform.documents.domain import (
     DocumentStructure,
     DocumentType,
 )
-from core.platform.documents.interfaces import (
-    DocumentLinkRepository,
-    DocumentRepository,
-    DocumentStructureRepository,
-)
-from core.platform.documents.support import (
+from src.core.platform.documents.support import (
     coerce_document_type as _coerce_document_type,
     coerce_storage_kind as _coerce_storage_kind,
     default_file_name as _default_file_name,
@@ -36,7 +35,8 @@ from core.platform.documents.support import (
     normalize_structure_code as _normalize_structure_code,
     normalize_structure_name as _normalize_structure_name,
 )
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.org.domain import Organization
 from src.core.platform.org.support import normalize_code, normalize_name
 
 
@@ -176,7 +176,10 @@ class DocumentService:
         organization = self._active_organization()
         structure = self._structure_repo.get(structure_id)
         if structure is None or structure.organization_id != organization.id:
-            raise NotFoundError("Document structure not found in the active organization.", code="DOCUMENT_STRUCTURE_NOT_FOUND")
+            raise NotFoundError(
+                "Document structure not found in the active organization.",
+                code="DOCUMENT_STRUCTURE_NOT_FOUND",
+            )
         if expected_version is not None and structure.version != expected_version:
             raise ConcurrencyError(
                 "Document structure changed since you opened it. Refresh and try again.",

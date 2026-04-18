@@ -1463,8 +1463,8 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 - `core/platform/org/*` becomes `src/core/platform/org/domain/*`, `application/*`, `contracts.py`, `support.py`, and `access_policy.py`
 - `core/platform/party/*` becomes `src/core/platform/party/domain/*`, `application/*`, and `contracts.py`
 - `core/platform/approval/*` becomes `src/core/platform/approval/domain/*`, `application/*`, `contracts.py`, and `policy.py`
-- `core/platform/documents/*` becomes `src/core/platform/documents/domain/*` and `application/*`
-- `core/platform/notifications/*` becomes `src/core/platform/notifications/domain/*` and `application/*`
+- `core/platform/documents/*` becomes `src/core/platform/documents/domain/*`, `application/*`, `contracts.py`, and `support.py`
+- `core/platform/notifications/*` becomes the real event-hub package under `src/core/platform/notifications/domain_events.py` and `signal.py` until notification workflows are implemented
 - `core/platform/audit/*` becomes `src/core/platform/audit/domain/*` and `application/*`
 - `core/platform/importing/*` becomes `src/core/platform/importing/domain/*` and `application/*`
 - `core/platform/exporting/*` becomes `src/core/platform/exporting/domain/*` and `application/*`
@@ -1644,6 +1644,24 @@ Completed in the clean/no-facade execution:
 - moved the approval repository contract out of `core/platform/common/interfaces.py` into `src/core/platform/approval/contracts.py`
 - rewired composition, persistence, governance UI, PM governance helpers, inventory procurement approval flows, tests, and test path rewrites to `src.core.platform.approval`
 - deleted the old `core/platform/approval/` package after callers were rewritten
+- split `core/platform/documents/*` into the real `src/core/platform/documents/` package:
+  - `domain/document.py`
+  - `domain/document_link.py`
+  - `domain/document_structure.py`
+  - `application/document_service.py`
+  - `application/document_integration_service.py`
+  - `contracts.py`
+  - `support.py`
+- deleted placeholder target files from `src/core/platform/documents/`
+- rewired composition, persistence, PM collaboration, inventory item master, maintenance document services, admin document UI, tests, and test path rewrites to `src.core.platform.documents`
+- deleted the old `core/platform/documents/` package after callers were rewritten
+- moved the live notifications event hub from `core/platform/notifications/*` to the real `src/core/platform/notifications/` package:
+  - `domain_events.py`
+  - `signal.py`
+- deleted placeholder notification target files from `src/core/platform/notifications/`
+- rewired platform services, module services, shell/UI listeners, tests, and test path rewrites to `src.core.platform.notifications.domain_events` and `src.core.platform.notifications.signal`
+- deleted the old `core/platform/notifications/` package after callers were rewritten
+- removed the stale `core/__init__.py` UI side effect so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
 
@@ -1666,6 +1684,9 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.org.DepartmentService`, `EmployeeService`, `OrganizationService`, `SiteService`, `DepartmentRepository`, `EmployeeRepository`, `OrganizationRepository`, `SiteRepository`, `Department`, `Employee`, `EmploymentType`, `Organization`, and `Site` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.party.Party`, `PartyRepository`, `PartyService`, and `PartyType` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.approval.ApprovalRequest`, `ApprovalRepository`, `ApprovalService`, `ApprovalStatus`, `DEFAULT_GOVERNED_ACTIONS`, and `is_governance_required` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.documents.Document`, `DocumentIntegrationService`, `DocumentLinkRepository`, `DocumentRepository`, `DocumentService`, `DocumentStorageKind`, `DocumentStructure`, `DocumentStructureRepository`, and `DocumentType` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.notifications.DomainChangeEvent`, `DomainEvents`, `Signal`, and `domain_events` passes
+- in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1698,8 +1719,14 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_approval_package_is_removed tests/test_architecture_guardrails.py::test_approval_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_governance_tab_mode_toggle_ui.py tests/test_phase_b_approval_workflow.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_domain_event_wiring.py -q`
 - in `conda run -n pmenv`, approval procurement integration verification passes:
   - `pytest tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_ui.py -q`
-- in `conda run -n pmenv`, full architecture guardrails still pass:
-  - `pytest tests/test_architecture_guardrails.py -q`
+- in `conda run -n pmenv`, documents verification plus contract/legacy-package guardrails passes:
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_documents_package_is_removed tests/test_architecture_guardrails.py::test_documents_package_exports_services_and_contracts tests/test_service_architecture.py tests/test_document_admin_ui.py -q`
+- in `conda run -n pmenv`, documents integration verification passes:
+  - `pytest tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py -q`
+- in `conda run -n pmenv`, notifications verification plus legacy-package/event-hub guardrails passes:
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_notifications_package_is_removed tests/test_architecture_guardrails.py::test_notifications_package_exports_event_hub tests/test_domain_events.py tests/test_domain_event_wiring.py -q`
+- in `conda run -n pmenv`, notifications cross-module sweep passes:
+  - `pytest tests/test_dashboard_leveling_flow.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py tests/test_inventory_maintenance_material_contracts.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py tests/test_service_architecture.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -1709,17 +1736,22 @@ Verified:
 - no Python import statements remain for `core.platform.org`
 - no Python import statements remain for `core.platform.party`
 - no Python import statements remain for `core.platform.approval`
+- no Python import statements remain for `core.platform.documents`
+- no Python import statements remain for `core.platform.notifications`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
-  - `documents`
-  - `notifications`
   - `audit`
 - split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
 - move platform admin/control/settings/shared UI into `src/ui/platform/*` and `src/ui/shared/*`
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
+
+Known verification gap:
+
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the notifications cutover:
+  - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 ### Slice 2: Project Management
 

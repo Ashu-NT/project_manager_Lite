@@ -18,7 +18,7 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.domain import Organization
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.org import OrganizationService
 from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
 from ui.platform.admin.shared_header import build_admin_header

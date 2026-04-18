@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.notifications.domain_events import DomainChangeEvent
+from src.core.platform.notifications.domain_events import DomainChangeEvent
 
 
 def should_refresh_collaboration_workspace(event: DomainChangeEvent) -> bool:

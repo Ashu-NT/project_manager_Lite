@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError
 from core.platform.audit.domain import AuditLogEntry
 from core.platform.audit import AuditService

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from core.platform.documents.domain import (
+from src.core.platform.documents.domain import (
     Document,
-    DocumentType,
     DocumentLink,
     DocumentStorageKind,
     DocumentStructure,
+    DocumentType,
 )
 from src.infra.persistence.orm.platform.models import DocumentLinkORM, DocumentORM, DocumentStructureORM
 

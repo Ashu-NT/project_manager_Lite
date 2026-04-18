@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.documents import Document, DocumentStorageKind
+from src.core.platform.documents import Document, DocumentStorageKind
 
 
 _STORAGE_KIND_LABELS = {

@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.domain import Employee
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.org import DepartmentService, EmployeeService, SiteService
 from ui.platform.admin.employees.dialogs import EmployeeEditDialog

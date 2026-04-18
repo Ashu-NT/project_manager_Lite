@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.platform.documents import Document, DocumentStorageKind
+from src.core.platform.documents import Document, DocumentStorageKind
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 
 try:  # pragma: no cover - optional runtime dependency

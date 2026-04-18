@@ -11,7 +11,7 @@ from core.modules.inventory_procurement import (
 )
 from core.modules.inventory_procurement.domain import PurchaseRequisition
 from src.core.platform.auth import UserSessionContext
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.procurement.requisitions.actions import RequisitionsActionsMixin
 from ui.modules.inventory_procurement.procurement.requisitions.surface import RequisitionsSurfaceMixin
 from ui.modules.inventory_procurement.procurement.requisitions.views import RequisitionsViewMixin

@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
-from core.platform.documents.domain import Document, DocumentLink, DocumentStructure
+from src.core.platform.documents.domain import Document, DocumentLink, DocumentStructure
 
 
 class DocumentStructureRepository(ABC):
     @abstractmethod
     def add(self, structure: DocumentStructure) -> None: ...
+
     @abstractmethod
     def update(self, structure: DocumentStructure) -> None: ...
+
     @abstractmethod
-    def get(self, structure_id: str) -> Optional[DocumentStructure]: ...
+    def get(self, structure_id: str) -> DocumentStructure | None: ...
+
     @abstractmethod
-    def get_by_code(self, organization_id: str, structure_code: str) -> Optional[DocumentStructure]: ...
+    def get_by_code(self, organization_id: str, structure_code: str) -> DocumentStructure | None: ...
+
     @abstractmethod
     def list_for_organization(
         self,
@@ -28,12 +31,16 @@ class DocumentStructureRepository(ABC):
 class DocumentRepository(ABC):
     @abstractmethod
     def add(self, document: Document) -> None: ...
+
     @abstractmethod
     def update(self, document: Document) -> None: ...
+
     @abstractmethod
-    def get(self, document_id: str) -> Optional[Document]: ...
+    def get(self, document_id: str) -> Document | None: ...
+
     @abstractmethod
-    def get_by_code(self, organization_id: str, document_code: str) -> Optional[Document]: ...
+    def get_by_code(self, organization_id: str, document_code: str) -> Document | None: ...
+
     @abstractmethod
     def list_for_organization(
         self,
@@ -46,12 +53,22 @@ class DocumentRepository(ABC):
 class DocumentLinkRepository(ABC):
     @abstractmethod
     def add(self, link: DocumentLink) -> None: ...
+
     @abstractmethod
-    def get(self, link_id: str) -> Optional[DocumentLink]: ...
+    def get(self, link_id: str) -> DocumentLink | None: ...
+
     @abstractmethod
     def list_for_document(self, document_id: str) -> list[DocumentLink]: ...
+
     @abstractmethod
-    def list_for_entity(self, organization_id: str, module_code: str, entity_type: str, entity_id: str) -> list[DocumentLink]: ...
+    def list_for_entity(
+        self,
+        organization_id: str,
+        module_code: str,
+        entity_type: str,
+        entity_id: str,
+    ) -> list[DocumentLink]: ...
+
     @abstractmethod
     def list_for_module(
         self,
@@ -60,6 +77,7 @@ class DocumentLinkRepository(ABC):
         *,
         entity_type: str | None = None,
     ) -> list[DocumentLink]: ...
+
     @abstractmethod
     def find_existing(
         self,
@@ -69,9 +87,14 @@ class DocumentLinkRepository(ABC):
         entity_type: str,
         entity_id: str,
         link_role: str,
-    ) -> Optional[DocumentLink]: ...
+    ) -> DocumentLink | None: ...
+
     @abstractmethod
     def delete(self, link_id: str) -> None: ...
 
 
-__all__ = ["DocumentLinkRepository", "DocumentRepository", "DocumentStructureRepository"]
+__all__ = [
+    "DocumentLinkRepository",
+    "DocumentRepository",
+    "DocumentStructureRepository",
+]

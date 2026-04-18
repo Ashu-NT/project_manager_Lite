@@ -26,7 +26,7 @@ from core.modules.maintenance_management import (
 from core.modules.maintenance_management.domain import MaintenancePriority, MaintenanceWorkRequestStatus
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from src.core.platform.org import SiteService
 from ui.modules.maintenance_management.requests.edit_dialogs import (
     MaintenanceRequestConvertDialog,

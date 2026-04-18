@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Iterable
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ValidationError
 from src.core.platform.access.contracts import (
     ProjectMembershipRepository,

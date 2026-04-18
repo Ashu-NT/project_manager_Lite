@@ -27,9 +27,8 @@ from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from core.platform.documents import DocumentIntegrationService, DocumentLink
-from core.platform.documents.domain import Document
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.party import PartyService
 
 

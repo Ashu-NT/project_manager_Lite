@@ -20,7 +20,7 @@ from core.modules.inventory_procurement.support import (
     normalize_uom,
 )
 from core.platform.common.exceptions import ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 
 
 class MaintenanceMaterialService:

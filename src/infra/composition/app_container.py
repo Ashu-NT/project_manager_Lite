@@ -13,7 +13,7 @@ from core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.data_exchange import MasterDataExchangeService
-from core.platform.documents import DocumentService
+from src.core.platform.documents import DocumentService
 from src.core.platform.modules import ModuleCatalogService
 from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from src.core.platform.party import PartyService

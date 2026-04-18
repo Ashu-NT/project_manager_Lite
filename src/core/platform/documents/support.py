@@ -4,7 +4,7 @@ from mimetypes import guess_type
 from pathlib import Path
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.documents.domain import DocumentStorageKind, DocumentType
+from src.core.platform.documents.domain import DocumentStorageKind, DocumentType
 
 
 def normalize_optional_text(value: str | None) -> str:
@@ -18,7 +18,7 @@ def normalize_module_code(value: str) -> str:
     return normalized
 
 
-def normalize_entity_label(value: str, *, code: str, label: str) -> str:
+def normalize_entity_label(value: str | None, *, code: str, label: str) -> str:
     normalized = (value or "").strip()
     if not normalized:
         raise ValidationError(f"{label} is required.", code=code)
@@ -107,11 +107,11 @@ __all__ = [
     "infer_file_name",
     "infer_mime_type",
     "infer_storage_kind",
-    "normalize_object_scope",
     "infer_title",
     "normalize_confidentiality",
     "normalize_entity_label",
     "normalize_module_code",
+    "normalize_object_scope",
     "normalize_optional_text",
     "normalize_structure_code",
     "normalize_structure_name",

@@ -22,7 +22,7 @@ from core.modules.inventory_procurement import ItemCategoryService
 from core.modules.inventory_procurement.domain import InventoryItemCategory
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.item_master.category_dialogs import InventoryItemCategoryEditDialog
 from ui.modules.inventory_procurement.shared.header_support import (
     build_inventory_header_badge_widget,

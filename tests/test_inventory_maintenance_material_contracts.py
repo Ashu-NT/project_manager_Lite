@@ -9,7 +9,7 @@ from core.modules.inventory_procurement.services.maintenance_integration import 
     MaintenanceMaterialAvailabilityStatus,
 )
 from core.platform.common.exceptions import ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.party.domain import PartyType
 
 

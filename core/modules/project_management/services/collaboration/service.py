@@ -13,7 +13,7 @@ from core.modules.project_management.interfaces import (
     TaskPresenceRepository,
     TaskRepository,
 )
-from core.platform.documents import DocumentIntegrationService
+from src.core.platform.documents import DocumentIntegrationService
 from src.core.platform.access.contracts import ProjectMembershipRepository
 from src.core.platform.auth.contracts import UserRepository
 from core.modules.project_management.services.collaboration.comments import CollaborationCommentMixin

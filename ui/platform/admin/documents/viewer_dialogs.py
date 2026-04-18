@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.documents import Document, DocumentLink
+from src.core.platform.documents import Document, DocumentLink
 from ui.platform.admin.documents.preview import DocumentPreviewWidget
 from ui.platform.shared.styles.style_utils import style_table
 from ui.platform.shared.styles.ui_config import UIConfig as CFG

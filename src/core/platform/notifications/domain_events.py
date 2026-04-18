@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field, fields
 from typing import Callable
-from .signal import Signal
+
+from src.core.platform.notifications.signal import Signal
 
 
 @dataclass(frozen=True)
@@ -16,8 +17,7 @@ class DomainChangeEvent:
 
 @dataclass
 class DomainEvents:
-
-    _BRIDGE_SPECS  = (
+    _BRIDGE_SPECS = (
         ("project_changed", "module", "project_management", "project", "project_changed"),
         ("tasks_changed", "module", "project_management", "project_tasks", "tasks_changed"),
         (
@@ -30,13 +30,7 @@ class DomainEvents:
         ("costs_changed", "module", "project_management", "project_costs", "costs_changed"),
         ("resources_changed", "module", "project_management", "resource", "resources_changed"),
         ("baseline_changed", "module", "project_management", "project_baseline", "baseline_changed"),
-        (
-            "approvals_changed",
-            "platform",
-            "platform",
-            "approval_request",
-            "approvals_changed",
-        ),
+        ("approvals_changed", "platform", "platform", "approval_request", "approvals_changed"),
         ("register_changed", "module", "project_management", "register_scope", "register_changed"),
         ("auth_changed", "platform", "platform", "user_account", "auth_changed"),
         ("employees_changed", "platform", "platform", "employee", "employees_changed"),
@@ -112,36 +106,36 @@ class DomainEvents:
             "inventory_maintenance_materials_changed",
         ),
         ("modules_changed", "platform", "platform", "module_runtime", "modules_changed"),
-    )    
-    
-    project_changed: Signal[str] = field(default_factory=Signal)   # project_id
-    tasks_changed: Signal[str] = field(default_factory=Signal)     # project_id
-    timesheet_periods_changed: Signal[str] = field(default_factory=Signal)  # period_id
-    costs_changed: Signal[str] = field(default_factory=Signal)     # project_id
-    resources_changed: Signal[str] = field(default_factory=Signal)  # resource_id
-    baseline_changed: Signal[str] = field(default_factory=Signal)  # project_id
-    approvals_changed: Signal[str] = field(default_factory=Signal)  # approval_request_id
-    register_changed: Signal[str] = field(default_factory=Signal)  # project_id
-    auth_changed: Signal[str] = field(default_factory=Signal)  # user_id
-    employees_changed: Signal[str] = field(default_factory=Signal)  # employee_id
-    organizations_changed: Signal[str] = field(default_factory=Signal)  # organization_id
-    sites_changed: Signal[str] = field(default_factory=Signal)  # site_id
-    departments_changed: Signal[str] = field(default_factory=Signal)  # department_id
-    documents_changed: Signal[str] = field(default_factory=Signal)  # document_id
-    parties_changed: Signal[str] = field(default_factory=Signal)  # party_id
-    access_changed: Signal[str] = field(default_factory=Signal)  # project_id
-    collaboration_changed: Signal[str] = field(default_factory=Signal)  # task_id
-    portfolio_changed: Signal[str] = field(default_factory=Signal)  # entity_id
-    inventory_items_changed: Signal[str] = field(default_factory=Signal)  # item_id
-    inventory_item_categories_changed: Signal[str] = field(default_factory=Signal)  # category_id
-    inventory_storerooms_changed: Signal[str] = field(default_factory=Signal)  # storeroom_id
-    inventory_balances_changed: Signal[str] = field(default_factory=Signal)  # balance_id
-    inventory_reservations_changed: Signal[str] = field(default_factory=Signal)  # reservation_id
-    inventory_requisitions_changed: Signal[str] = field(default_factory=Signal)  # requisition_id
-    inventory_purchase_orders_changed: Signal[str] = field(default_factory=Signal)  # po_id
-    inventory_receipts_changed: Signal[str] = field(default_factory=Signal)  # receipt_id
-    inventory_maintenance_materials_changed: Signal[str] = field(default_factory=Signal)  # maintenance reference key
-    modules_changed: Signal[str] = field(default_factory=Signal)  # module_code
+    )
+
+    project_changed: Signal[str] = field(default_factory=Signal)
+    tasks_changed: Signal[str] = field(default_factory=Signal)
+    timesheet_periods_changed: Signal[str] = field(default_factory=Signal)
+    costs_changed: Signal[str] = field(default_factory=Signal)
+    resources_changed: Signal[str] = field(default_factory=Signal)
+    baseline_changed: Signal[str] = field(default_factory=Signal)
+    approvals_changed: Signal[str] = field(default_factory=Signal)
+    register_changed: Signal[str] = field(default_factory=Signal)
+    auth_changed: Signal[str] = field(default_factory=Signal)
+    employees_changed: Signal[str] = field(default_factory=Signal)
+    organizations_changed: Signal[str] = field(default_factory=Signal)
+    sites_changed: Signal[str] = field(default_factory=Signal)
+    departments_changed: Signal[str] = field(default_factory=Signal)
+    documents_changed: Signal[str] = field(default_factory=Signal)
+    parties_changed: Signal[str] = field(default_factory=Signal)
+    access_changed: Signal[str] = field(default_factory=Signal)
+    collaboration_changed: Signal[str] = field(default_factory=Signal)
+    portfolio_changed: Signal[str] = field(default_factory=Signal)
+    inventory_items_changed: Signal[str] = field(default_factory=Signal)
+    inventory_item_categories_changed: Signal[str] = field(default_factory=Signal)
+    inventory_storerooms_changed: Signal[str] = field(default_factory=Signal)
+    inventory_balances_changed: Signal[str] = field(default_factory=Signal)
+    inventory_reservations_changed: Signal[str] = field(default_factory=Signal)
+    inventory_requisitions_changed: Signal[str] = field(default_factory=Signal)
+    inventory_purchase_orders_changed: Signal[str] = field(default_factory=Signal)
+    inventory_receipts_changed: Signal[str] = field(default_factory=Signal)
+    inventory_maintenance_materials_changed: Signal[str] = field(default_factory=Signal)
+    modules_changed: Signal[str] = field(default_factory=Signal)
     shared_master_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
     domain_changed: Signal[DomainChangeEvent] = field(default_factory=Signal)
 
@@ -156,9 +150,8 @@ class DomainEvents:
         self._wire_bridges()
 
     def _wire_bridges(self) -> None:
-
         for signal_name, category, scope_code, entity_type, source_event in self._BRIDGE_SPECS:
-            signal:Signal = getattr(self, signal_name)
+            signal: Signal[str] = getattr(self, signal_name)
             signal.connect(
                 self._build_bridge(
                     category=category,
@@ -191,5 +184,11 @@ class DomainEvents:
         return _bridge
 
 
-# SINGLE global instance
 domain_events = DomainEvents()
+
+
+__all__ = [
+    "DomainChangeEvent",
+    "DomainEvents",
+    "domain_events",
+]

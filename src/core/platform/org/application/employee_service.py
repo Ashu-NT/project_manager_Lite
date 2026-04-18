@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.org.application.employee_support import (
     build_employee_audit_details,

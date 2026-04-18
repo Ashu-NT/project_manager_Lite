@@ -22,7 +22,7 @@ from core.modules.inventory_procurement import InventoryReferenceService, ItemCa
 from core.modules.inventory_procurement.domain import InventoryItemCategory, StockItem
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.item_master.document_link_dialogs import InventoryItemDocumentLinkDialog
 from ui.modules.inventory_procurement.item_master.item_dialogs import InventoryItemEditDialog
 from ui.modules.inventory_procurement.shared.header_support import (

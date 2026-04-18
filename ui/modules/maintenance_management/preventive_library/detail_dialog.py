@@ -24,7 +24,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceTriggerMode,
 )
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.maintenance_management.preventive_library.edit_dialogs import (
     MaintenancePreventivePlanTaskEditDialog,
 )

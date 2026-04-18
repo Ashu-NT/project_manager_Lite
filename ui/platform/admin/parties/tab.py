@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.party import Party, PartyService
 from ui.platform.admin.parties.dialogs import PartyEditDialog
 from ui.platform.admin.shared_header import build_admin_header

@@ -8,7 +8,7 @@ from src.core.platform.auth.application.auth_service import AuthService as Legac
 from core.platform.audit import AuditService
 from core.platform.audit.service import AuditService as LegacyAuditService
 from core.platform.data_exchange import MasterDataExchangeService
-from core.platform.documents import DocumentService
+from src.core.platform.documents import DocumentService
 from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from src.core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService

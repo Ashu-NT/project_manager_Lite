@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.documents.domain import Document, DocumentStorageKind, DocumentType
+from src.core.platform.documents.domain import Document, DocumentStorageKind, DocumentType
 from ui.platform.admin.documents.dialogs import DocumentEditDialog
 from ui.platform.admin.documents.preview import build_document_preview_state
 from ui.platform.admin.documents.tab import DocumentAdminTab

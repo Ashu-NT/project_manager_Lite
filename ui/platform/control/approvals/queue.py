@@ -19,7 +19,7 @@ from src.core.platform.approval import ApprovalService
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
 from ui.platform.control.approvals.presentation import (

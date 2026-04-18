@@ -585,6 +585,14 @@ def test_legacy_platform_approval_package_is_removed():
     assert not (ROOT / "core" / "platform" / "approval").exists()
 
 
+def test_legacy_platform_documents_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "documents").exists()
+
+
+def test_legacy_platform_notifications_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "notifications").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -718,6 +726,27 @@ def test_approval_package_exports_service_and_contracts():
     assert "from src.core.platform.approval.policy import DEFAULT_GOVERNED_ACTIONS, is_governance_required" in text
     assert "class ApprovalService" not in text
     assert "class ApprovalRepository" not in text
+
+
+def test_documents_package_exports_services_and_contracts():
+    package_path = ROOT / "src" / "core" / "platform" / "documents" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.platform.documents.application import DocumentIntegrationService, DocumentService" in text
+    assert "from src.core.platform.documents.contracts import (" in text
+    assert "from src.core.platform.documents.domain import (" in text
+    assert "class DocumentService" not in text
+    assert "class DocumentRepository" not in text
+
+
+def test_notifications_package_exports_event_hub():
+    package_path = ROOT / "src" / "core" / "platform" / "notifications" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.platform.notifications.domain_events import DomainChangeEvent, DomainEvents, domain_events" in text
+    assert "from src.core.platform.notifications.signal import Signal" in text
+    assert "class DomainEvents" not in text
+    assert "class Signal" not in text
 
 
 def test_platform_common_interfaces_are_platform_only():

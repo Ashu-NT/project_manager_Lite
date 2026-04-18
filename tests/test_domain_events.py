@@ -1,5 +1,5 @@
-from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from core.platform.notifications.signal import Signal
+from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
+from src.core.platform.notifications.signal import Signal
 
 
 def test_domain_event_signal_connect_emit_disconnect():

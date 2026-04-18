@@ -5,7 +5,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from core.modules.project_management.interfaces import (
     AssignmentRepository,

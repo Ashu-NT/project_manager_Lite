@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QWidget
 
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.scheduling import SchedulingEngine

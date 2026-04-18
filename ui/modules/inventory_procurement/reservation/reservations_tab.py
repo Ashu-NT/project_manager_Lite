@@ -22,7 +22,7 @@ from core.modules.inventory_procurement import InventoryService, ItemMasterServi
 from core.modules.inventory_procurement.domain import StockReservation, StockReservationStatus
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ValidationError
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.reservation.reservation_dialogs import (
     ReservationCreateDialog,
     ReservationIssueDialog,

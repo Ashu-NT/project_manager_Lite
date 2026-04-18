@@ -14,8 +14,8 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
-from core.platform.documents import Document, DocumentIntegrationService, DocumentLink, DocumentStructure
-from core.platform.documents.interfaces import (
+from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink, DocumentStructure
+from src.core.platform.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,

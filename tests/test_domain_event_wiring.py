@@ -5,7 +5,7 @@ import pytest
 
 from core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.domain.enums import DependencyType
-from core.platform.notifications.domain_events import domain_events
+from src.core.platform.notifications.domain_events import domain_events
 
 
 def _login_as(services, username: str, password: str) -> None:
