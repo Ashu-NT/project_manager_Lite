@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import AuditLogRepository
-from core.platform.audit.domain import AuditLogEntry
+from src.core.platform.audit.contracts import AuditLogRepository
+from src.core.platform.audit.domain import AuditLogEntry
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
 
@@ -60,7 +60,7 @@ class AuditService:
         *,
         project_id: str | None = None,
         entity_type: str | None = None,
-    ) -> List[AuditLogEntry]:
+    ) -> list[AuditLogEntry]:
         require_permission(self._user_session, "audit.read", operation_label="view audit log")
         return self._audit_repo.list_recent(
             limit=limit,

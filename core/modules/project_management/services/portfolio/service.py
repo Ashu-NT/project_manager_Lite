@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import AuditLogRepository
+from src.core.platform.audit.contracts import AuditLogRepository
 from core.modules.project_management.interfaces import (
     PortfolioIntakeRepository,
     PortfolioProjectDependencyRepository,

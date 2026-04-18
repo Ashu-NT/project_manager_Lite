@@ -593,6 +593,10 @@ def test_legacy_platform_notifications_package_is_removed():
     assert not (ROOT / "core" / "platform" / "notifications").exists()
 
 
+def test_legacy_platform_audit_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "audit").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -749,6 +753,18 @@ def test_notifications_package_exports_event_hub():
     assert "class Signal" not in text
 
 
+def test_audit_package_exports_service_and_contracts():
+    package_path = ROOT / "src" / "core" / "platform" / "audit" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.platform.audit.application import AuditService" in text
+    assert "from src.core.platform.audit.contracts import AuditLogRepository" in text
+    assert "from src.core.platform.audit.domain import AuditLogEntry" in text
+    assert "from src.core.platform.audit.helpers import record_audit" in text
+    assert "class AuditService" not in text
+    assert "class AuditLogRepository" not in text
+
+
 def test_platform_common_interfaces_are_platform_only():
     interfaces_path = ROOT / "core" / "platform" / "common" / "interfaces.py"
     text = interfaces_path.read_text(encoding="utf-8", errors="ignore")
@@ -764,6 +780,7 @@ def test_platform_common_interfaces_are_platform_only():
     assert "class DepartmentRepository" not in text
     assert "class EmployeeRepository" not in text
     assert "class ApprovalRepository" not in text
+    assert "class AuditLogRepository" not in text
 
 
 def test_core_platform_does_not_import_module_contracts():

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.platform.audit.service import AuditService
+from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.org.contracts import EmployeeRepository
 from src.core.platform.time.application.timesheet_entries import TimesheetEntriesMixin

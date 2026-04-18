@@ -5,8 +5,8 @@ from src.core.platform.approval import ApprovalService
 from src.core.platform.approval.application.approval_service import ApprovalService as LegacyApprovalService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.application.auth_service import AuthService as LegacyAuthService
-from core.platform.audit import AuditService
-from core.platform.audit.service import AuditService as LegacyAuditService
+from src.core.platform.audit import AuditService
+from src.core.platform.audit.application.audit_service import AuditService as LegacyAuditService
 from core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
 from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService

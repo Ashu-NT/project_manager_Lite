@@ -5,8 +5,8 @@ from typing import List
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import AuditLogRepository
-from core.platform.audit.domain import AuditLogEntry
+from src.core.platform.audit.contracts import AuditLogRepository
+from src.core.platform.audit.domain import AuditLogEntry
 from src.infra.persistence.db.platform.audit.mapper import audit_from_orm, audit_to_orm
 from src.infra.persistence.orm.platform.models import AuditLogORM
 

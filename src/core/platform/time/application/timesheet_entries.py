@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from core.platform.audit.helpers import record_audit
+from src.core.platform.audit.helpers import record_audit
 from core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.time.contracts import (

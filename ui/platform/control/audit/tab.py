@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
 
 from src.core.platform.notifications.domain_events import domain_events
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.audit.domain import AuditLogEntry
-from core.platform.audit import AuditService
+from src.core.platform.audit.domain import AuditLogEntry
+from src.core.platform.audit import AuditService
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.project import ProjectService

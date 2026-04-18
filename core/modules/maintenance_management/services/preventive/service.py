@@ -38,7 +38,7 @@ from core.modules.maintenance_management.services.work_order_task.service import
 from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
 from core.modules.maintenance_management.services.work_request.service import MaintenanceWorkRequestService
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from core.platform.audit.helpers import record_audit
+from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError
 from core.platform.common.ids import generate_id

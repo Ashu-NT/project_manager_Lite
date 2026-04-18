@@ -19,7 +19,7 @@ from core.platform.common.interfaces import TimeEntryRepository
 from core.modules.project_management.domain.project import Project
 from core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.access.authorization import require_project_permission
-from core.platform.audit.helpers import record_audit
+from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.project.validation import ProjectValidationMixin
 

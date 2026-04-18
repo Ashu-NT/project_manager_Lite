@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.platform.audit.helpers import record_audit
+from src.core.platform.audit.helpers import record_audit
 
 
 def record_assignment_action(

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from core.modules.inventory_procurement.domain import PurchaseRequisitionLineStatus, PurchaseRequisitionStatus
 from core.modules.inventory_procurement.support import REQUISITION_STATUS_TRANSITIONS, validate_transition
 from src.core.platform.approval.domain import ApprovalRequest
-from core.platform.audit.helpers import record_audit
+from src.core.platform.audit.helpers import record_audit
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 

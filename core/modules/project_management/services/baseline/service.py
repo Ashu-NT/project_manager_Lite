@@ -16,7 +16,7 @@ from core.modules.project_management.interfaces import (
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
-from core.platform.audit.helpers import record_audit
+from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import is_admin_session, require_permission
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.scheduling.engine import SchedulingEngine
@@ -121,7 +121,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         proj_cur = (getattr(project, "currency", None) or "").upper().strip()
 
         # -------------------------
-        # Planned labor snapshot (ProjectResource planned_hours × rate)
+        # Planned labor snapshot (ProjectResource planned_hours Ã— rate)
         # - uses PR override rate/currency else Resource defaults
         # - only includes active PR rows
         # - if project currency is set, only counts labor in that currency (no FX here)

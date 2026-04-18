@@ -15,7 +15,7 @@ from src.core.platform.modules import (
 )
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from src.core.platform.approval import ApprovalService
-from core.platform.audit import AuditService
+from src.core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService

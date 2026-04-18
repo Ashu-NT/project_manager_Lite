@@ -47,7 +47,7 @@ from src.core.platform.auth.policy import (
 from src.core.platform.auth.sod import SeparationOfDutiesPolicy, find_separation_of_duties_conflicts
 
 if TYPE_CHECKING:
-    from core.platform.audit.service import AuditService
+    from src.core.platform.audit.application.audit_service import AuditService
 
 
 logger = logging.getLogger(__name__)

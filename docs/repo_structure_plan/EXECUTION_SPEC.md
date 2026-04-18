@@ -658,6 +658,15 @@ Completed:
 - placeholder notification target files were removed from `src/core/platform/notifications/`
 - platform services, module services, shell/UI listeners, tests, and test path rewrites now use `src.core.platform.notifications.domain_events` and `src.core.platform.notifications.signal`
 - the old `core/platform/notifications/` source package was deleted after direct import rewrites
+- audit now lives under `src/core/platform/audit/`:
+  - `domain/audit_entry.py`
+  - `application/audit_service.py`
+  - `contracts.py`
+  - `helpers.py`
+- placeholder audit target files were removed from `src/core/platform/audit/`
+- the audit repository contract moved out of `core/platform/common/interfaces.py` into `src/core/platform/audit/contracts.py`
+- composition, persistence, platform services, PM/inventory/maintenance services, UI, tests, and test path rewrites now use `src.core.platform.audit`
+- the old `core/platform/audit/` source package was deleted after direct import rewrites
 - the stale `core/__init__.py` UI bootstrap side effect was removed so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -684,6 +693,7 @@ Verified:
   - direct import of `src.core.platform.approval.ApprovalRequest`, `ApprovalRepository`, `ApprovalService`, `ApprovalStatus`, `DEFAULT_GOVERNED_ACTIONS`, and `is_governance_required`
   - direct import of `src.core.platform.documents.Document`, `DocumentIntegrationService`, `DocumentLinkRepository`, `DocumentRepository`, `DocumentService`, `DocumentStorageKind`, `DocumentStructure`, `DocumentStructureRepository`, and `DocumentType`
   - direct import of `src.core.platform.notifications.DomainChangeEvent`, `DomainEvents`, `Signal`, and `domain_events`
+  - direct import of `src.core.platform.audit.AuditLogEntry`, `AuditLogRepository`, `AuditService`, and `record_audit`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
@@ -706,6 +716,9 @@ Verified:
   - `pytest tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_notifications_package_is_removed tests/test_architecture_guardrails.py::test_notifications_package_exports_event_hub tests/test_domain_events.py tests/test_domain_event_wiring.py -q`
   - `pytest tests/test_dashboard_leveling_flow.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py tests/test_inventory_maintenance_material_contracts.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py tests/test_service_architecture.py -q`
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_audit_package_is_removed tests/test_architecture_guardrails.py::test_audit_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_phase_b_audit_log.py tests/test_phase_b_user_admin_ui.py tests/test_domain_event_wiring.py -q`
+  - `pytest tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_phase2_register_import_and_ui.py tests/test_maintenance_execution_foundation.py -q`
+  - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -717,20 +730,21 @@ Verified:
 - no Python import statements remain for `core.platform.approval`
 - no Python import statements remain for `core.platform.documents`
 - no Python import statements remain for `core.platform.notifications`
+- no Python import statements remain for `core.platform.audit`
+- all planned `core/platform/*` package splits for Slice 1 are complete
 
 Known blocker:
 
 - the default interpreter outside `pmenv` still fails on `reportlab` during full app/test imports because that environment dependency is not installed there
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the notifications cutover:
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the audit cutover:
   - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 Continue next:
 
-1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `audit`.
-2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
-3. Move platform admin/control/settings/shared UI paths.
-4. Update test path strategy and remove path rewrites only after the new paths are complete.
+1. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
+2. Move platform admin/control/settings/shared UI paths.
+3. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
 

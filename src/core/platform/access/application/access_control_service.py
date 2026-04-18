@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from core.platform.audit.helpers import record_audit
+from src.core.platform.audit.helpers import record_audit
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.access.contracts import (
@@ -22,7 +22,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
 
 if TYPE_CHECKING:
-    from core.platform.audit.service import AuditService
+    from src.core.platform.audit.application.audit_service import AuditService
     from src.core.platform.auth import UserSessionContext
     from src.core.platform.auth.application.auth_service import AuthService
 
