@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from src.core.platform.documents.domain import Document, DocumentStorageKind, DocumentType
-from ui.platform.admin.documents.dialogs import DocumentEditDialog
-from ui.platform.admin.documents.preview import build_document_preview_state
-from ui.platform.admin.documents.tab import DocumentAdminTab
+from src.ui.platform.dialogs.admin.documents.dialogs import DocumentEditDialog
+from src.ui.platform.widgets.document_preview import build_document_preview_state
+from src.ui.platform.workspaces.admin.documents.tab import DocumentAdminTab
 
 
 def test_document_admin_tab_filters_documents_and_shows_selected_metadata(qapp, services, tmp_path):
@@ -100,7 +100,7 @@ def test_document_edit_dialog_browse_populates_local_file_path(qapp, tmp_path, m
     pdf_path = tmp_path / "process-sheet.pdf"
     pdf_path.write_bytes(b"%PDF-1.4\n")
     monkeypatch.setattr(
-        "ui.platform.admin.documents.dialogs.QFileDialog.getOpenFileName",
+        "src.ui.platform.dialogs.admin.documents.dialogs.QFileDialog.getOpenFileName",
         lambda *args, **kwargs: (str(pdf_path), "Documents (*.pdf)"),
     )
 
@@ -157,7 +157,7 @@ def test_document_admin_tab_remove_link_uses_link_selection_dialog(qapp, service
         def exec(self):
             return 1
 
-    import ui.platform.admin.documents.tab as document_tab_module
+    import src.ui.platform.workspaces.admin.documents.tab as document_tab_module
 
     original = document_tab_module.DocumentLinksDialog
     document_tab_module.DocumentLinksDialog = _FakeDialog

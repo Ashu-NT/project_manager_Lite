@@ -10,7 +10,7 @@ from core.modules.project_management.access.policy import (
 )
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
 from PySide6.QtWidgets import QTabWidget
-from ui.platform.admin.access.tab import AccessTab
+from src.ui.platform.workspaces.admin.access.tab import AccessTab
 from src.ui.shell.main_window import MainWindow
 
 

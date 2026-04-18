@@ -40,8 +40,8 @@ from ui.modules.maintenance_management.work_orders.evidence_dialogs import (
     MaintenanceWorkOrderEvidenceLinkDialog,
 )
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
-from ui.platform.admin.documents.viewer_dialogs import DocumentLinksDialog, DocumentPreviewDialog
-from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
+from src.ui.platform.dialogs.documents.viewer_dialogs import DocumentLinksDialog, DocumentPreviewDialog
+from src.ui.platform.widgets.admin_surface import build_admin_surface_card, build_admin_table
 from src.ui.shared.widgets.guards import make_guarded_slot
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 

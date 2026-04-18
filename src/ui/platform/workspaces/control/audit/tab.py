@@ -29,7 +29,7 @@ from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
-from ui.platform.admin.shared_header import build_admin_header
+from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.shared.widgets.guards import make_guarded_slot
 from src.ui.shared.formatting.style_utils import style_table
 from src.ui.shared.formatting.ui_config import UIConfig as CFG

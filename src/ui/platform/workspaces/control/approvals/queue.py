@@ -21,7 +21,7 @@ from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
-from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
+from src.ui.platform.widgets.admin_surface import build_admin_surface_card, build_admin_table
 from src.ui.platform.workspaces.control.approvals.presentation import (
     approval_context_label,
     approval_display_label,

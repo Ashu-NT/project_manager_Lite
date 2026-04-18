@@ -3,12 +3,12 @@ from __future__ import annotations
 from ui.modules.inventory_procurement.inventory.storeroom_dialogs import StoreroomEditDialog
 from ui.modules.inventory_procurement.item_master.category_dialogs import InventoryItemCategoryEditDialog
 from ui.modules.inventory_procurement.item_master.item_dialogs import InventoryItemEditDialog
-from ui.platform.admin.departments.dialogs import DepartmentEditDialog
-from ui.platform.admin.documents.dialogs import DocumentEditDialog
-from ui.platform.admin.employees.dialogs import EmployeeEditDialog
-from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
-from ui.platform.admin.parties.dialogs import PartyEditDialog
-from ui.platform.admin.sites.dialogs import SiteEditDialog
+from src.ui.platform.dialogs.admin.departments.dialogs import DepartmentEditDialog
+from src.ui.platform.dialogs.admin.documents.dialogs import DocumentEditDialog
+from src.ui.platform.dialogs.admin.employees.dialogs import EmployeeEditDialog
+from src.ui.platform.dialogs.admin.organizations.dialogs import OrganizationEditDialog
+from src.ui.platform.dialogs.admin.parties.dialogs import PartyEditDialog
+from src.ui.platform.dialogs.admin.sites.dialogs import SiteEditDialog
 from src.ui.shared.widgets.code_generation import CodeFieldWidget, suggest_generated_code
 
 

@@ -9,7 +9,7 @@ from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 from tests.ui_runtime_helpers import login_as, register_and_login, wait_until
-from ui.platform.admin.access.tab import AccessTab
+from src.ui.platform.workspaces.admin.access.tab import AccessTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.portfolio.tab import PortfolioTab
 from ui.modules.project_management.task.tab import TaskTab

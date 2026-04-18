@@ -10,6 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
+    "tests/test_architecture_guardrails.py": 1230,
     "tests/test_maintenance_ui.py": 1450,
 }
 
@@ -86,8 +87,8 @@ def test_shared_access_platform_layers_do_not_import_pm_access_code():
         "core.modules.project_management.services.project",
     )
     checked_files = (
-        ROOT / "core" / "platform" / "access" / "service.py",
-        ROOT / "ui" / "platform" / "admin" / "access" / "tab.py",
+        ROOT / "src" / "core" / "platform" / "access" / "application" / "access_control_service.py",
+        ROOT / "src" / "ui" / "platform" / "workspaces" / "admin" / "access" / "tab.py",
     )
     violations: list[tuple[str, str]] = []
 
@@ -519,13 +520,13 @@ def test_calendar_tab_is_coordinator_only():
 
 
 def test_support_tab_is_coordinator_only():
-    tab_path = ROOT / "ui" / "support" / "tab.py"
+    tab_path = ROOT / "src" / "ui" / "platform" / "workspaces" / "admin" / "support" / "tab.py"
     text = tab_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.platform.admin.support.ui_layout import SupportUiLayoutMixin" in text
-    assert "from ui.platform.admin.support.telemetry import SupportTelemetryMixin" in text
-    assert "from ui.platform.admin.support.update_flow import SupportUpdateFlowMixin" in text
-    assert "from ui.platform.admin.support.diagnostics_flow import SupportDiagnosticsFlowMixin" in text
+    assert "from src.ui.platform.workspaces.admin.support.ui_layout import SupportUiLayoutMixin" in text
+    assert "from src.ui.platform.workspaces.admin.support.telemetry import SupportTelemetryMixin" in text
+    assert "from src.ui.platform.workspaces.admin.support.update_flow import SupportUpdateFlowMixin" in text
+    assert "from src.ui.platform.workspaces.admin.support.diagnostics_flow import SupportDiagnosticsFlowMixin" in text
     assert "def _check_updates" not in text
     assert "def _download_and_install_update" not in text
     assert "def _export_diagnostics" not in text
@@ -618,6 +619,11 @@ def test_legacy_platform_shared_ui_package_is_removed():
 def test_legacy_platform_control_ui_package_is_removed():
     platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
     assert "control" not in platform_dirs
+
+
+def test_legacy_platform_admin_ui_package_is_removed():
+    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
+    assert "admin" not in platform_dirs
 
 
 def test_composition_imports_focused_persistence_adapters():
@@ -825,6 +831,17 @@ def test_platform_control_workspace_package_exports_tabs():
     assert "class ApprovalControlTab" not in text
 
 
+def test_platform_admin_workspace_package_exports_tabs():
+    package_path = ROOT / "src" / "ui" / "platform" / "workspaces" / "admin" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.platform.workspaces.admin.access import AccessTab" in text
+    assert "from src.ui.platform.workspaces.admin.documents import DocumentAdminTab" in text
+    assert "from src.ui.platform.workspaces.admin.support import SupportTab" in text
+    assert "from src.ui.platform.workspaces.admin.users import UserAdminTab" in text
+    assert "class AccessTab" not in text
+
+
 def test_shared_dialogs_package_exports_dialog_helpers():
     package_path = ROOT / "src" / "ui" / "shared" / "dialogs" / "__init__.py"
     text = package_path.read_text(encoding="utf-8", errors="ignore")
@@ -864,6 +881,25 @@ def test_shared_widgets_package_exports_widget_helpers():
     assert "from src.ui.shared.widgets.combo import current_data, current_data_and_text" in text
     assert "from src.ui.shared.widgets.guards import (" in text
     assert "class CodeFieldWidget" not in text
+
+
+def test_platform_widgets_package_exports_admin_helpers():
+    package_path = ROOT / "src" / "ui" / "platform" / "widgets" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.platform.widgets.admin_header import build_admin_header" in text
+    assert "from src.ui.platform.widgets.admin_surface import (" in text
+    assert "from src.ui.platform.widgets.document_preview import (" in text
+    assert "class DocumentPreviewWidget" not in text
+
+
+def test_platform_dialogs_package_exports_admin_and_document_dialogs():
+    package_path = ROOT / "src" / "ui" / "platform" / "dialogs" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.platform.dialogs.admin import (" in text
+    assert "from src.ui.platform.dialogs.documents import DocumentLinksDialog, DocumentPreviewDialog" in text
+    assert "class DocumentPreviewDialog" not in text
 
 
 def test_platform_common_interfaces_are_platform_only():
@@ -1049,13 +1085,13 @@ def test_known_large_modules_have_growth_budgets():
         "ui/modules/project_management/calendar/holidays.py": 120,
         "ui/modules/project_management/calendar/calculator.py": 100,
         "ui/modules/project_management/calendar/project_ops.py": 130,
-        "ui/platform/admin/support/tab.py": 80,
-        "ui/platform/admin/support/ui_layout.py": 160,
-        "ui/platform/admin/support/telemetry.py": 140,
-        "ui/platform/admin/support/update_flow.py": 340,
-        "ui/platform/admin/support/diagnostics_flow.py": 140,
-        "ui/platform/admin/support/diagnostics_export.py": 140,
-        "ui/platform/admin/support/incident_report.py": 180,
+        "src/ui/platform/workspaces/admin/support/tab.py": 80,
+        "src/ui/platform/workspaces/admin/support/ui_layout.py": 160,
+        "src/ui/platform/workspaces/admin/support/telemetry.py": 140,
+        "src/ui/platform/workspaces/admin/support/update_flow.py": 340,
+        "src/ui/platform/workspaces/admin/support/diagnostics_flow.py": 140,
+        "src/ui/platform/workspaces/admin/support/diagnostics_export.py": 140,
+        "src/ui/platform/workspaces/admin/support/incident_report.py": 180,
         "src/ui/shared/dialogs/incident_support.py": 120,
         "core/modules/project_management/services/scheduling/engine.py": 360,
         "core/modules/project_management/services/scheduling/models.py": 80,

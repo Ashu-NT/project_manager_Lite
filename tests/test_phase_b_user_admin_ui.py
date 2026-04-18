@@ -8,17 +8,17 @@ from src.core.platform.org.domain import Employee
 from core.modules.project_management.domain.task import Task
 from core.modules.project_management.domain.enums import TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
-from ui.platform.admin.employees.dialogs import EmployeeEditDialog
-from ui.platform.admin.employees.tab import EmployeeAdminTab
-from ui.platform.admin.documents.tab import DocumentAdminTab
-from ui.platform.admin.modules.tab import ModuleLicensingTab
-from ui.platform.admin.departments.tab import DepartmentAdminTab
-from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
-from ui.platform.admin.organizations.tab import OrganizationAdminTab
-from ui.platform.admin.parties.tab import PartyAdminTab
-from ui.platform.admin.sites.tab import SiteAdminTab
-from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
-from ui.platform.admin.users.tab import UserAdminTab
+from src.ui.platform.dialogs.admin.employees.dialogs import EmployeeEditDialog
+from src.ui.platform.workspaces.admin.employees.tab import EmployeeAdminTab
+from src.ui.platform.workspaces.admin.documents.tab import DocumentAdminTab
+from src.ui.platform.workspaces.admin.modules.tab import ModuleLicensingTab
+from src.ui.platform.workspaces.admin.departments.tab import DepartmentAdminTab
+from src.ui.platform.dialogs.admin.organizations.dialogs import OrganizationEditDialog
+from src.ui.platform.workspaces.admin.organizations.tab import OrganizationAdminTab
+from src.ui.platform.workspaces.admin.parties.tab import PartyAdminTab
+from src.ui.platform.workspaces.admin.sites.tab import SiteAdminTab
+from src.ui.platform.dialogs.admin.users.dialogs import PasswordResetDialog, UserEditDialog
+from src.ui.platform.workspaces.admin.users.tab import UserAdminTab
 from src.ui.platform.workspaces.control.approvals.tab import ApprovalControlTab
 from src.ui.platform.workspaces.control.audit.tab import AuditLogTab
 from src.ui.shared.dialogs.login_dialog import LoginDialog
@@ -180,7 +180,7 @@ def test_module_licensing_tab_runtime_changes_lifecycle_status(qapp, services, m
     tab.table.selectRow(0)
     tab._sync_actions()
     monkeypatch.setattr(
-        "ui.platform.admin.modules.tab.QInputDialog.getItem",
+        "src.ui.platform.workspaces.admin.modules.tab.QInputDialog.getItem",
         lambda *_args, **_kwargs: ("Suspended", True),
     )
 
@@ -374,7 +374,7 @@ def test_organization_admin_tab_creates_organization_with_initial_module_mix(qap
         def exec(self):
             return QDialog.Accepted
 
-    monkeypatch.setattr("ui.platform.admin.organizations.tab.OrganizationEditDialog", _FakeDialog)
+    monkeypatch.setattr("src.ui.platform.workspaces.admin.organizations.tab.OrganizationEditDialog", _FakeDialog)
     tab = OrganizationAdminTab(
         platform_runtime_application_service=services["platform_runtime_application_service"],
         organization_service=services["organization_service"],
@@ -414,7 +414,7 @@ def test_login_dialog_runtime_toggles_password_and_signs_in(qapp, anonymous_serv
 def test_password_reset_dialog_runtime_validates_match_and_accepts(qapp, monkeypatch):
     warnings: list[str] = []
     monkeypatch.setattr(
-        "ui.platform.admin.users.dialogs.QMessageBox.warning",
+        "src.ui.platform.dialogs.admin.users.dialogs.QMessageBox.warning",
         lambda _parent, _title, message: warnings.append(message),
     )
     dialog = PasswordResetDialog(username="alice")
@@ -437,7 +437,7 @@ def test_password_reset_dialog_runtime_validates_match_and_accepts(qapp, monkeyp
 def test_user_edit_dialog_runtime_validates_email(qapp, monkeypatch):
     warnings: list[str] = []
     monkeypatch.setattr(
-        "ui.platform.admin.users.dialogs.QMessageBox.warning",
+        "src.ui.platform.dialogs.admin.users.dialogs.QMessageBox.warning",
         lambda _parent, _title, message: warnings.append(message),
     )
     dialog = UserEditDialog(username="alice", display_name="Alice", email="alice@example.com")

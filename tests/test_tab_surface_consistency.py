@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QSizePolicy
 
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.calendar.tab import CalendarTab
-from ui.platform.admin.support.tab import SupportTab
+from src.ui.platform.workspaces.admin.support.tab import SupportTab
 from ui.modules.project_management.task.tab import TaskTab
 
 
@@ -48,7 +48,7 @@ def test_support_tab_uses_compact_header_and_updates_badges(
     repo_workspace,
     monkeypatch,
 ):
-    monkeypatch.setattr("ui.platform.admin.support.tab.get_operational_support", lambda: _FakeOperationalSupport())
+    monkeypatch.setattr("src.ui.platform.workspaces.admin.support.tab.get_operational_support", lambda: _FakeOperationalSupport())
     tab = SupportTab(
         settings_store=make_settings_store(repo_workspace, prefix="support-surface"),
         user_session=services["user_session"],

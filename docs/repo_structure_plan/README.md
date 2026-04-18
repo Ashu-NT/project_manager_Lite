@@ -1314,7 +1314,7 @@ The current repo already has the right high-level concepts, but not yet in the t
 - ORM and repositories are split today between `infra/platform/db/*` and `infra/modules/*/db/*`; the target separates global ORM under `infra/persistence/orm/*` and module-owned persistence adapters inside each module
 - `ui/platform/shell/*` must move to `ui/shell/*`
 - the detailed guide introduces `src/ui/shared/*` for reusable desktop presentation helpers; that shared root is now in place
-- `ui/platform/admin/*` still needs to be reorganized under `src/ui/platform/workspaces`, `src/ui/platform/dialogs`, and `src/ui/platform/widgets`
+- platform admin UI now lives under `src/ui/platform/workspaces/admin/*`, `src/ui/platform/dialogs/*`, and `src/ui/platform/widgets/*`; the legacy `ui/platform/admin/*` package has been removed
 - `ui/platform/settings/*` belongs under `src/ui/platform/settings/*` as platform-owned shell state
 - `ui/modules/*` exists, but the current module UIs are grouped by feature folders like `task`, `project`, `dashboard`, `assets`, `work_orders`, `stock_control`; the target wants a uniform `workspaces`, `dialogs`, `presenters`, `view_models`, and `widgets` pattern
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure
@@ -1724,6 +1724,34 @@ Completed in the clean/no-facade execution:
     - `tab.py`
 - rewired shell workspace registration, governance UI, procurement tests, user-admin tests, and test path rewrites to `src.ui.platform.workspaces.control.*`
 - deleted the old `ui/platform/control/` package after callers were rewritten
+- moved the remaining platform admin UI from `ui/platform/admin/*` into the target `src/ui/platform/*` groupings:
+  - workspaces:
+    - `src/ui/platform/workspaces/admin/access/tab.py`
+    - `src/ui/platform/workspaces/admin/departments/tab.py`
+    - `src/ui/platform/workspaces/admin/documents/tab.py`
+    - `src/ui/platform/workspaces/admin/employees/tab.py`
+    - `src/ui/platform/workspaces/admin/modules/tab.py`
+    - `src/ui/platform/workspaces/admin/organizations/tab.py`
+    - `src/ui/platform/workspaces/admin/parties/tab.py`
+    - `src/ui/platform/workspaces/admin/sites/tab.py`
+    - `src/ui/platform/workspaces/admin/support/*.py`
+    - `src/ui/platform/workspaces/admin/users/tab.py`
+  - dialogs:
+    - `src/ui/platform/dialogs/admin/departments/dialogs.py`
+    - `src/ui/platform/dialogs/admin/documents/dialogs.py`
+    - `src/ui/platform/dialogs/admin/documents/structure_dialogs.py`
+    - `src/ui/platform/dialogs/admin/employees/dialogs.py`
+    - `src/ui/platform/dialogs/admin/organizations/dialogs.py`
+    - `src/ui/platform/dialogs/admin/parties/dialogs.py`
+    - `src/ui/platform/dialogs/admin/sites/dialogs.py`
+    - `src/ui/platform/dialogs/admin/users/dialogs.py`
+    - `src/ui/platform/dialogs/documents/viewer_dialogs.py`
+  - widgets:
+    - `src/ui/platform/widgets/admin_header.py`
+    - `src/ui/platform/widgets/admin_surface.py`
+    - `src/ui/platform/widgets/document_preview.py`
+- rewired shell workspace registration, maintenance document previews/viewers, admin tests, architecture guardrails, and test path rewrites to `src.ui.platform.workspaces.admin.*`, `src.ui.platform.dialogs.*`, and `src.ui.platform.widgets.*`
+- deleted the old `ui/platform/admin/` package after callers were rewritten
 - removed the stale `core/__init__.py` UI side effect so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -1754,6 +1782,9 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.ui.platform.settings.MainWindowSettingsStore` passes
 - in `conda run -n pmenv`, direct import of `src.ui.shared.dialogs.LoginDialog`, `start_async_job`, `src.ui.shared.formatting.UIConfig`, `apply_app_style`, `src.ui.shared.models.UndoStack`, and `src.ui.shared.widgets.CodeFieldWidget` passes
 - in `conda run -n pmenv`, direct import of `src.ui.platform.workspaces.control.ApprovalControlTab`, `ApprovalQueuePanel`, `AuditLogTab`, `approval_display_label`, and `approval_context_label` passes
+- in `conda run -n pmenv`, direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab` passes
+- in `conda run -n pmenv`, direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog` passes
+- in `conda run -n pmenv`, direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state` passes
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
@@ -1811,6 +1842,10 @@ Verified:
   - `pytest tests/test_refactor_regressions.py tests/test_pro_set_v1_ui.py tests/test_dashboard_professional_panels.py tests/test_inventory_procurement_ui.py tests/test_main_window_shell_navigation.py tests/test_phase_b_user_admin_ui.py -q`
 - in `conda run -n pmenv`, control workspace guardrails and approval/audit regressions pass:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_control_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_control_workspace_package_exports_tabs tests/test_phase_b_user_admin_ui.py tests/test_inventory_procurement_purchasing.py tests/test_governance_tab_mode_toggle_ui.py -q`
+- in `conda run -n pmenv`, admin workspace/dialog/widget guardrails and admin UI regressions pass:
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_admin_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_admin_workspace_package_exports_tabs tests/test_architecture_guardrails.py::test_platform_widgets_package_exports_admin_helpers tests/test_architecture_guardrails.py::test_platform_dialogs_package_exports_admin_and_document_dialogs tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_tab_surface_consistency.py tests/test_code_generation_ui.py -q`
+- in `conda run -n pmenv`, admin cross-module regressions pass:
+  - `pytest tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py -q`
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
@@ -1830,18 +1865,19 @@ Verified:
 - no Python import statements remain for `ui.platform.settings`
 - no Python import statements remain for `ui.platform.shared`
 - no Python import statements remain for `ui.platform.control`
+- no Python import statements remain for `ui.platform.admin`
 - all planned `core/platform/*` package splits for Slice 1 are complete
+- all planned platform UI regrouping for Slice 1 is complete
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
-- move the remaining platform admin UI into `src/ui/platform/*`
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
 
 Known verification gap:
 
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the shared UI cutover:
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the admin UI cutover:
   - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 ### Slice 2: Project Management

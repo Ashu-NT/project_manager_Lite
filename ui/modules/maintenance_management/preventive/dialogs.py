@@ -18,7 +18,7 @@ from core.modules.maintenance_management.domain import (
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from ui.modules.maintenance_management.shared import MaintenanceWorkbenchNavigator, MaintenanceWorkbenchSection, format_timestamp
-from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
+from src.ui.platform.widgets.admin_surface import build_admin_surface_card, build_admin_table
 from src.ui.shared.widgets.guards import make_guarded_slot
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 

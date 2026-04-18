@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QDialog, QLabel, QTableWidgetItem, QVBoxLayout, QW
 
 from core.modules.maintenance_management import MaintenanceWorkOrderService, MaintenanceWorkRequestService
 from ui.modules.maintenance_management.shared import MaintenanceWorkbenchNavigator, MaintenanceWorkbenchSection, format_timestamp
-from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
+from src.ui.platform.widgets.admin_surface import build_admin_surface_card, build_admin_table
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
