@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.platform.documents import Document, DocumentStorageKind
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 try:  # pragma: no cover - optional runtime dependency
     from PySide6.QtPdf import QPdfDocument

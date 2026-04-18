@@ -20,7 +20,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceSystem,
 )
 from ui.modules.maintenance_management.shared import reset_combo_options
-from ui.platform.shared.code_generation import CodeFieldWidget
+from src.ui.shared.widgets.code_generation import CodeFieldWidget
 
 
 class MaintenanceSystemEditDialog(QDialog):

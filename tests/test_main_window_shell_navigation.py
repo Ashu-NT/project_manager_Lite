@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ui.platform.shared.styles.theme_tokens import DARK_THEME, LIGHT_THEME
+from src.ui.shared.formatting.theme_tokens import DARK_THEME, LIGHT_THEME
 
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from src.ui.shell.main_window import MainWindow

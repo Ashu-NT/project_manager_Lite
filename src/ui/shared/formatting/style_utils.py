@@ -6,8 +6,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableView
 from shiboken6 import isValid
 
-from ui.platform.shared.deferred_call import DeferredCall
-from ui.platform.shared.styles.theme import table_stylesheet
+from src.ui.shared.models.deferred_call import DeferredCall
+from src.ui.shared.formatting.theme import table_stylesheet
 
 
 def _is_qobject_alive(obj) -> bool:

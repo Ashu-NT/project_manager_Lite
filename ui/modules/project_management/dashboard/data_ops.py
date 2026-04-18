@@ -7,7 +7,7 @@ from core.modules.project_management.services.project import ProjectService
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
 from ui.modules.project_management.dashboard.async_actions import run_generate_baseline_async, run_refresh_dashboard_async
 from ui.modules.project_management.dashboard.access import sync_dashboard_baseline_actions
-from ui.platform.shared.combo import current_data_and_text
+from src.ui.shared.widgets.combo import current_data_and_text
 
 
 class DashboardDataOpsMixin:

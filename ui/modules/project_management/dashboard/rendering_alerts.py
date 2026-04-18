@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 from core.modules.project_management.services.reporting.models import ResourceLoadRow
 from core.modules.project_management.services.dashboard import DashboardData
 from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DashboardAlertsRenderingMixin:

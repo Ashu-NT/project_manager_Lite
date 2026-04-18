@@ -13,8 +13,8 @@ from PySide6.QtWidgets import (
 
 from src.core.platform.documents import Document, DocumentLink
 from ui.platform.admin.documents.preview import DocumentPreviewWidget
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DocumentPreviewDialog(QDialog):

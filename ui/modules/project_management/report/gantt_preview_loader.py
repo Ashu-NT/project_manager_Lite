@@ -8,8 +8,8 @@ from pathlib import Path
 from PySide6.QtGui import QPixmap
 
 from core.modules.project_management.reporting.api import generate_gantt_png
-from ui.platform.shared.async_job import JobUiConfig, start_async_job
-from ui.platform.shared.worker_services import service_uses_in_memory_sqlite, worker_service_scope
+from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
+from src.ui.shared.models.worker_services import service_uses_in_memory_sqlite, worker_service_scope
 
 
 def load_gantt_image(dialog) -> None:

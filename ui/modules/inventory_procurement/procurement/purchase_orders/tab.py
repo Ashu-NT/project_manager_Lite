@@ -16,7 +16,7 @@ from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.procurement.purchase_orders.actions import PurchaseOrdersActionsMixin
 from ui.modules.inventory_procurement.procurement.purchase_orders.surface import PurchaseOrdersSurfaceMixin
 from ui.modules.inventory_procurement.procurement.purchase_orders.views import PurchaseOrdersViewMixin
-from ui.platform.shared.guards import has_permission
+from src.ui.shared.widgets.guards import has_permission
 
 
 class PurchaseOrdersTab(

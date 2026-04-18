@@ -22,8 +22,8 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.project_management.services.import_service import DataImportService, ImportFieldSpec, ImportPreview
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 _IMPORT_TYPES = {
     "Projects": "projects",

@@ -4,8 +4,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QSplitter, QVBoxLayout, QWidget
 
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
-from ui.platform.shared.guards import apply_permission_hint
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def _kpi_card(title: str, value: str = "-") -> tuple[QFrame, QLabel]:

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 from ui.modules.project_management.report.gantt_interactive_actions import GanttInteractiveActionsMixin
 from ui.modules.project_management.report.gantt_interactive_bar import _InteractiveGanttBar
 from ui.modules.project_management.report.gantt_interactive_scene import GanttInteractiveSceneMixin
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class GanttInteractiveMixin(GanttInteractiveSceneMixin, GanttInteractiveActionsMixin):

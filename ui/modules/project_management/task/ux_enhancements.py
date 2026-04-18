@@ -7,8 +7,8 @@ from PySide6.QtGui import QKeySequence, QShortcut
 
 from ui.modules.project_management.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.task.presence import format_presence_lines, task_presence_session
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
-from ui.platform.shared.guards import has_permission
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import has_permission
 from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
 
 

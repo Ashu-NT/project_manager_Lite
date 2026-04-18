@@ -24,7 +24,7 @@ from infra.modules.project_management.collaboration_store import TaskCollaborati
 from ui.modules.project_management.task.document_link_dialogs import ProjectManagementDocumentLinkDialog
 from ui.modules.project_management.task.document_labels import format_linked_document_label
 from ui.modules.project_management.task.presence import format_presence_lines
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.mention_text_edit import TaskMentionTextEdit
 
 

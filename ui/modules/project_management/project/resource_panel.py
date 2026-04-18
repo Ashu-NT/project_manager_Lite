@@ -21,9 +21,9 @@ from core.modules.project_management.domain.project import Project
 from core.modules.project_management.services.project import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from ui.modules.project_management.project.dialogs import ProjectResourceEditDialog
-from ui.platform.shared.guards import apply_permission_hint, make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, make_guarded_slot
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class ProjectResourcePanelMixin:

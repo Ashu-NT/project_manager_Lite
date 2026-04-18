@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from core.modules.project_management.domain.enums import TaskStatus
-from ui.platform.shared.undo import UndoCommand
+from src.ui.shared.models.undo import UndoCommand
 
 
 class TaskBulkActionsMixin:

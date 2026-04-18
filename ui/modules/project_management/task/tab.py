@@ -13,12 +13,12 @@ from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
-from ui.platform.shared.guards import (
+from src.ui.shared.widgets.guards import (
     can_execute_governed_action,
     has_permission,
 )
-from ui.platform.shared.undo import UndoStack
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.models.undo import UndoStack
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.assignment_actions import TaskAssignmentActionsMixin
 from ui.modules.project_management.task.dependency_panel import TaskDependencyPanelMixin
 from ui.modules.project_management.task.assignment_panel import TaskAssignmentPanelMixin

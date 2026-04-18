@@ -14,7 +14,7 @@ from ui.modules.maintenance_management.shared import (
     format_timestamp,
 )
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class MaintenanceSensorDetailDialog(QDialog):

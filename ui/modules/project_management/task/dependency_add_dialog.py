@@ -18,8 +18,8 @@ from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.task import Task
 from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.task.dependency_diagnostics import DependencyImpactRow
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.dependency_shared import REL_CURRENT_DEPENDS, REL_OTHER_DEPENDS
 
 

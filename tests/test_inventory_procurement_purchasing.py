@@ -125,7 +125,7 @@ def test_purchase_order_submit_enriches_approval_payload(services):
     assert request.payload["line_count"] == 1
     assert request.payload["total_amount"] == pytest.approx(1200.0)
 
-    from ui.platform.control.approvals.presentation import approval_display_label, approval_context_label
+    from src.ui.platform.workspaces.control.approvals.presentation import approval_display_label, approval_context_label
 
     display_label = approval_display_label(request)
     context_label = approval_context_label(request)

@@ -13,7 +13,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.auth import UserSessionContext
-from ui.platform.shared.incident_support import emit_error_event, message_with_incident
+from src.ui.shared.dialogs.incident_support import emit_error_event, message_with_incident
 
 
 _T = TypeVar("_T")

@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ui.platform.shared.styles.style_utils import style_table
+from src.ui.shared.formatting.style_utils import style_table
 from core.modules.inventory_procurement.domain import PurchaseOrder, PurchaseRequisition
 
 _REQUISITION_PRIORITIES = ("LOW", "NORMAL", "HIGH", "URGENT")

@@ -7,10 +7,10 @@ from infra.modules.project_management.db.task.repository import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
 )
-from ui.platform.shared.styles.theme import base_stylesheet
-from ui.platform.shared.styles.theme import set_theme_mode
-from ui.platform.shared.styles.theme import table_stylesheet
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.theme import base_stylesheet
+from src.ui.shared.formatting.theme import set_theme_mode
+from src.ui.shared.formatting.theme import table_stylesheet
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def test_cost_summary_has_legacy_and_normalized_keys(services):

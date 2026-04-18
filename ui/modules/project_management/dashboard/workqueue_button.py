@@ -7,7 +7,7 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPaintEvent
 from PySide6.QtWidgets import QPushButton
 
 from ui.modules.project_management.dashboard.styles import dashboard_queue_button_style
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 _COUNT_SUFFIX_RE = re.compile(r"^(.+?)\s*\((\d+)\)\s*$")

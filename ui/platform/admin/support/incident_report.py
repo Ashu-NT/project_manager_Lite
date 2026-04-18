@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from infra.platform.diagnostics import DiagnosticsBundleResult, build_diagnostics_bundle
 from infra.platform.operational_support import bind_trace_id
 from infra.platform.path import user_data_dir
-from ui.platform.shared.async_job import JobUiConfig, start_async_job
+from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
 from ui.platform.admin.support.incident_mail import (
     clipboard_email_template,
     compose_incident_email,

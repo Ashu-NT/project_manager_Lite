@@ -31,11 +31,11 @@ from ui.modules.project_management.portfolio.scoring_template_dialog import (
     PortfolioScoringTemplateDialog,
 )
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
-from ui.platform.shared.async_job import JobUiConfig, start_async_job
-from ui.platform.shared.guards import apply_permission_hint, has_permission
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
-from ui.platform.shared.worker_services import service_uses_in_memory_sqlite, worker_service_scope
+from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
+from src.ui.shared.models.worker_services import service_uses_in_memory_sqlite, worker_service_scope
 
 
 class PortfolioTab(QWidget):

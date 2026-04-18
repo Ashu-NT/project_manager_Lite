@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushBu
 
 from core.modules.project_management.domain.enums import CostType
 from core.modules.project_management.domain.resource import Resource
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class ResourceFiltersMixin:

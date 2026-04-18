@@ -18,7 +18,7 @@ from core.modules.project_management.domain.enums import TaskStatus
 from core.modules.project_management.domain.task import Task
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class TaskFiltersMixin:

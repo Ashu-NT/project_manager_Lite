@@ -24,7 +24,7 @@ from core.modules.project_management.domain.register import (
     as_register_entry_status,
     as_register_entry_type,
 )
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class RegisterEntryDialog(QDialog):

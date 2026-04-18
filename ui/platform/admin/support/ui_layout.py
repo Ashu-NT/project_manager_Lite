@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
 )
 
 from ui.platform.admin.support.surface import build_support_header, style_support_button, update_support_header_badges
-from ui.platform.shared.guards import make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class SupportUiLayoutMixin:

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from core.modules.project_management.domain.enums import CostType
-from ui.platform.shared.styles.formatting import currency_symbol_from_code, fmt_currency
+from src.ui.shared.formatting.formatting import currency_symbol_from_code, fmt_currency
 
 
 @dataclass(slots=True)

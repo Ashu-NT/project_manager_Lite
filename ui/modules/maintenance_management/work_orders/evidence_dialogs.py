@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 
 from core.modules.maintenance_management import MaintenanceDocumentService
 from src.core.platform.documents import DocumentStructure, DocumentType
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class MaintenanceWorkOrderEvidenceCaptureDialog(QDialog):

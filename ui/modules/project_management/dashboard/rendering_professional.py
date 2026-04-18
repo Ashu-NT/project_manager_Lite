@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QGroupBox, QTableWidget, QTableWidgetItem
 from core.modules.project_management.domain.register import as_register_entry_severity, as_register_entry_type
 from core.modules.project_management.services.dashboard import DashboardData
 from core.modules.project_management.services.register.models import RegisterProjectSummary
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DashboardProfessionalRenderingMixin:

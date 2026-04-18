@@ -6,8 +6,8 @@ from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from src.ui.shell.main_window import MainWindow
 from ui.modules.project_management.project.tab import ProjectTab
 from ui.modules.project_management.resource.tab import ResourceTab
-from ui.platform.shared import guards as guards_mod
-from ui.platform.shared.guards import can_execute_governed_action, has_permission
+from src.ui.shared.widgets import guards as guards_mod
+from src.ui.shared.widgets.guards import can_execute_governed_action, has_permission
 from ui.modules.project_management.task.tab import TaskTab
 
 

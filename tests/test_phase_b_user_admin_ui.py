@@ -19,9 +19,9 @@ from ui.platform.admin.parties.tab import PartyAdminTab
 from ui.platform.admin.sites.tab import SiteAdminTab
 from ui.platform.admin.users.dialogs import PasswordResetDialog, UserEditDialog
 from ui.platform.admin.users.tab import UserAdminTab
-from ui.platform.control.approvals.tab import ApprovalControlTab
-from ui.platform.control.audit.tab import AuditLogTab
-from ui.platform.shared.auth.login_dialog import LoginDialog
+from src.ui.platform.workspaces.control.approvals.tab import ApprovalControlTab
+from src.ui.platform.workspaces.control.audit.tab import AuditLogTab
+from src.ui.shared.dialogs.login_dialog import LoginDialog
 from src.ui.shell.main_window import MainWindow
 from ui.modules.project_management.task.task_progress_dialog import TaskProgressDialog
 

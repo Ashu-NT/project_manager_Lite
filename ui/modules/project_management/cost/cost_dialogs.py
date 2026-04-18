@@ -19,7 +19,7 @@ from core.modules.project_management.domain.cost import CostItem
 from core.modules.project_management.domain.enums import CostType
 from core.modules.project_management.domain.project import Project
 from core.modules.project_management.domain.task import Task
-from ui.platform.shared.styles.ui_config import UIConfig as CFG, CurrencyType
+from src.ui.shared.formatting.ui_config import UIConfig as CFG, CurrencyType
 
 
 class CostEditDialog(QDialog):

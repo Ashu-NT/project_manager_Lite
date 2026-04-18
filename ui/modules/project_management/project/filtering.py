@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushBu
 
 from core.modules.project_management.domain.enums import ProjectStatus
 from core.modules.project_management.domain.project import Project
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class ProjectFiltersMixin:

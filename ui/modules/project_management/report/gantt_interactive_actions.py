@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from PySide6.QtWidgets import QMessageBox
 
 from src.core.platform.common.exceptions import ConcurrencyError
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class GanttInteractiveActionsMixin:

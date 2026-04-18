@@ -19,7 +19,7 @@ from infra.platform.updater import (
     verify_sha256,
 )
 from infra.platform.version import get_app_version
-from ui.platform.shared.async_job import JobUiConfig, start_async_job
+from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
 
 
 class SupportUpdateFlowMixin:

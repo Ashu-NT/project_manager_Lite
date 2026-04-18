@@ -10,8 +10,8 @@ from ui.platform.admin.parties.tab import PartyAdminTab
 from ui.platform.admin.sites.tab import SiteAdminTab
 from ui.platform.admin.support.tab import SupportTab
 from ui.platform.admin.users.tab import UserAdminTab
-from ui.platform.control.approvals.tab import ApprovalControlTab
-from ui.platform.control.audit.tab import AuditLogTab
+from src.ui.platform.workspaces.control.approvals.tab import ApprovalControlTab
+from src.ui.platform.workspaces.control.audit.tab import AuditLogTab
 from src.ui.shell.common import (
     PLATFORM_MODULE_CODE,
     PLATFORM_MODULE_LABEL,

@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.auth import UserSessionContext
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class PlatformHomeTab(QWidget):

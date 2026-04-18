@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from ui.modules.project_management.dashboard.styles import dashboard_badge_style, dashboard_meta_chip_style, dashboard_summary_style
 from ui.modules.project_management.dashboard.workqueue_button import DashboardQueueButton
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DashboardTopBarMixin:

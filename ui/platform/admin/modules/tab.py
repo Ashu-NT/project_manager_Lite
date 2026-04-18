@@ -19,8 +19,8 @@ from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
-from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission, make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class ModuleLicensingTab(QWidget):

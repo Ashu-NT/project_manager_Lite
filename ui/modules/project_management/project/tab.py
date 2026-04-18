@@ -29,9 +29,9 @@ from ui.modules.project_management.project.import_actions import ProjectImportAc
 from ui.modules.project_management.project.models import ProjectTableModel
 from ui.modules.project_management.project.resource_panel import ProjectResourcePanelMixin
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
-from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission, make_guarded_slot
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 class ProjectTab(
     ProjectImportActionsMixin,

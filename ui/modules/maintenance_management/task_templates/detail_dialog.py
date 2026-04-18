@@ -31,8 +31,8 @@ from ui.modules.maintenance_management.shared import (
 from ui.modules.maintenance_management.task_templates.edit_dialogs import MaintenanceTaskStepTemplateEditDialog
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
-from ui.platform.shared.guards import apply_permission_hint, make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class MaintenanceTaskTemplateDetailDialog(QDialog):

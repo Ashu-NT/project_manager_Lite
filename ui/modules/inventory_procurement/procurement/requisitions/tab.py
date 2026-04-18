@@ -15,7 +15,7 @@ from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.procurement.requisitions.actions import RequisitionsActionsMixin
 from ui.modules.inventory_procurement.procurement.requisitions.surface import RequisitionsSurfaceMixin
 from ui.modules.inventory_procurement.procurement.requisitions.views import RequisitionsViewMixin
-from ui.platform.shared.guards import has_permission
+from src.ui.shared.widgets.guards import has_permission
 
 
 class RequisitionsTab(

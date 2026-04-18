@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QApplication
 
-from ui.platform.shared.styles.theme_stylesheet import base_stylesheet, calendar_stylesheet, table_stylesheet
-from ui.platform.shared.styles.theme_tokens import DARK_THEME, LIGHT_THEME, apply_theme_tokens
+from src.ui.shared.formatting.theme_stylesheet import base_stylesheet, calendar_stylesheet, table_stylesheet
+from src.ui.shared.formatting.theme_tokens import DARK_THEME, LIGHT_THEME, apply_theme_tokens
 
 
 def set_theme_mode(mode: str = "light") -> None:

@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
 from src.core.platform.common.exceptions import DomainError
 from core.modules.project_management.services.reporting import ReportingService
 from ui.modules.project_management.report.dialog_helpers import fmt_money_or_dash, setup_dialog_size, soft_brush
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def _fmt_date(value) -> str:

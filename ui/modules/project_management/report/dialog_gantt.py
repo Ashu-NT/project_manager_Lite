@@ -9,8 +9,8 @@ from core.modules.project_management.services.task import TaskService
 from ui.modules.project_management.report.dialog_helpers import setup_dialog_size
 from ui.modules.project_management.report.gantt_interactive import GanttInteractiveMixin
 from ui.modules.project_management.report.gantt_preview_loader import load_gantt_image
-from ui.platform.shared.guards import apply_permission_hint
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class GanttPreviewDialog(GanttInteractiveMixin, QDialog):

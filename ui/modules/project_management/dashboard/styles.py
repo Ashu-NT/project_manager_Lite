@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def dashboard_card_style() -> str:

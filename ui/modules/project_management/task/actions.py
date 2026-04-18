@@ -11,7 +11,7 @@ from src.core.platform.common.exceptions import (
 from core.modules.project_management.services.project import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
-from ui.platform.shared.incident_support import emit_error_event, message_with_incident
+from src.ui.shared.dialogs.incident_support import emit_error_event, message_with_incident
 from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.task.presence import task_presence_session
 from ui.modules.project_management.task.dialogs import (

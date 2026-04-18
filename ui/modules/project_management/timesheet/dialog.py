@@ -27,9 +27,9 @@ from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetP
 from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
-from ui.platform.shared.guards import has_permission
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import has_permission
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def _period_start(period_date: date) -> date:

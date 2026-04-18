@@ -17,7 +17,7 @@ from core.modules.project_management.domain.enums import CostType, WorkerType
 from core.modules.project_management.domain.resource import Resource
 from src.core.platform.org import EmployeeService
 from ui.modules.project_management.resource.employee_context import employee_option_label, format_employee_context_from_record
-from ui.platform.shared.styles.ui_config import UIConfig as CFG, CurrencyType
+from src.ui.shared.formatting.ui_config import UIConfig as CFG, CurrencyType
 
 
 class ResourceEditDialog(QDialog):

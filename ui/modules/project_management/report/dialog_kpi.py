@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLa
 
 from core.modules.project_management.services.reporting import ReportingService
 from ui.modules.project_management.report.dialog_helpers import metric_card, section_group, setup_dialog_size
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class KPIReportDialog(QDialog):

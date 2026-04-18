@@ -37,8 +37,8 @@ from ui.modules.project_management.dashboard.widgets import KpiCard
 from ui.platform.admin.documents.preview import build_document_preview_state
 from ui.platform.admin.documents.viewer_dialogs import DocumentLinksDialog, DocumentPreviewDialog
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
-from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission, make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 _ENTITY_TYPE_LABELS = {

@@ -19,7 +19,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkRequest,
     MaintenanceWorkRequestSourceType,
 )
-from ui.platform.shared.code_generation import CodeFieldWidget
+from src.ui.shared.widgets.code_generation import CodeFieldWidget
 
 
 class MaintenanceRequestEditDialog(QDialog):

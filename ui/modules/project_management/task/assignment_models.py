@@ -6,7 +6,7 @@ from typing import Optional
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from core.modules.project_management.domain.task import TaskAssignment
-from ui.platform.shared.table_model import horizontal_header_data
+from src.ui.shared.models.table_model import horizontal_header_data
 
 
 @dataclass(frozen=True)

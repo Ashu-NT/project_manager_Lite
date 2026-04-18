@@ -3,8 +3,8 @@ from __future__ import annotations
 from PySide6.QtWidgets import QLabel
 from core.modules.project_management.services.dashboard import DashboardData
 from ui.modules.project_management.dashboard.widgets import ChartWidget, KpiCard
-from ui.platform.shared.styles.formatting import fmt_float, fmt_int, fmt_percent
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.formatting import fmt_float, fmt_int, fmt_percent
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 class DashboardSummaryRenderingMixin:
     conflicts_table: object

@@ -19,8 +19,8 @@ from core.modules.maintenance_management.domain import (
 from src.core.platform.common.exceptions import BusinessRuleError
 from ui.modules.maintenance_management.shared import MaintenanceWorkbenchNavigator, MaintenanceWorkbenchSection, format_timestamp
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
-from ui.platform.shared.guards import make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 @dataclass(frozen=True)

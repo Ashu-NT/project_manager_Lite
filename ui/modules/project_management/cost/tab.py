@@ -18,8 +18,8 @@ from ui.modules.project_management.cost.models import CostTableModel  # noqa: F4
 from ui.modules.project_management.cost.project_flow import CostProjectFlowMixin
 from ui.modules.project_management.cost.surface import CostSurfaceMixin
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
-from ui.platform.shared.deferred_call import DeferredCall
-from ui.platform.shared.guards import can_execute_governed_action
+from src.ui.shared.models.deferred_call import DeferredCall
+from src.ui.shared.widgets.guards import can_execute_governed_action
 
 
 class CostTab(

@@ -5,7 +5,7 @@ from core.modules.project_management.reporting.api import generate_evm_png, gene
 from core.modules.project_management.services.finance import FinanceService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.task import TaskService
-from ui.platform.shared.guards import can_execute_governed_action, has_permission
+from src.ui.shared.widgets.guards import can_execute_governed_action, has_permission
 from ui.modules.project_management.report.action_helpers import ReportActionHelpersMixin
 from ui.modules.project_management.report.dialogs import (
     BaselineCompareDialog,

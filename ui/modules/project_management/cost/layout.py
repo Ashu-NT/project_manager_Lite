@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
 )
 
 from ui.modules.project_management.cost.models import CostTableModel
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class CostLayoutMixin:

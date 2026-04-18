@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QLineEdit
 
 from core.modules.project_management.domain.enums import CostType
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class CostFiltersMixin:

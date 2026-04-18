@@ -8,7 +8,7 @@ from core.modules.project_management.domain.task import Task
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.task import TaskService
 from ui.modules.project_management.task.models import TaskTableModel
-from ui.platform.shared.combo import current_data
+from src.ui.shared.widgets.combo import current_data
 
 
 class TaskProjectFlowMixin:

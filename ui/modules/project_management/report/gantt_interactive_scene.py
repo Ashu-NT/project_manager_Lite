@@ -6,7 +6,7 @@ from PySide6.QtGui import QBrush, QColor, QPen
 from PySide6.QtWidgets import QGraphicsSimpleTextItem
 
 from ui.modules.project_management.report.gantt_interactive_bar import _InteractiveGanttBar
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class GanttInteractiveSceneMixin:

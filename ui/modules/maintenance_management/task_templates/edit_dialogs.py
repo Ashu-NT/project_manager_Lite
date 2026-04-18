@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.maintenance_management.domain import MaintenanceTaskStepTemplate, MaintenanceTemplateStatus
-from ui.platform.shared.code_generation import CodeFieldWidget
+from src.ui.shared.widgets.code_generation import CodeFieldWidget
 
 
 class MaintenanceTaskTemplateEditDialog(QDialog):

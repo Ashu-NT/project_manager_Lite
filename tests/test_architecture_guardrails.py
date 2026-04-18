@@ -610,6 +610,16 @@ def test_legacy_platform_settings_ui_package_is_removed():
     assert "settings" not in platform_dirs
 
 
+def test_legacy_platform_shared_ui_package_is_removed():
+    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
+    assert "shared" not in platform_dirs
+
+
+def test_legacy_platform_control_ui_package_is_removed():
+    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
+    assert "control" not in platform_dirs
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -644,12 +654,12 @@ def test_legacy_common_models_facade_is_removed():
     assert not (ROOT / "core" / "models.py").exists()
 
 
-def test_theme_module_is_facade_only():
-    theme_path = ROOT / "ui" / "styles" / "theme.py"
+def test_shared_theme_module_composes_from_formatting_slices():
+    theme_path = ROOT / "src" / "ui" / "shared" / "formatting" / "theme.py"
     text = theme_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from ui.platform.shared.styles.theme_stylesheet import" in text
-    assert "from ui.platform.shared.styles.theme_tokens import" in text
+    assert "from src.ui.shared.formatting.theme_stylesheet import" in text
+    assert "from src.ui.shared.formatting.theme_tokens import" in text
     assert "def set_theme_mode" in text
     assert "def apply_app_style" in text
     assert "QTableView, QTableWidget" not in text
@@ -804,6 +814,56 @@ def test_platform_settings_package_exports_store():
 
     assert "from src.ui.platform.settings.main_window_store import MainWindowSettingsStore" in text
     assert "class MainWindowSettingsStore" not in text
+
+
+def test_platform_control_workspace_package_exports_tabs():
+    package_path = ROOT / "src" / "ui" / "platform" / "workspaces" / "control" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.platform.workspaces.control.approvals import ApprovalControlTab, ApprovalQueuePanel" in text
+    assert "from src.ui.platform.workspaces.control.audit import AuditLogTab" in text
+    assert "class ApprovalControlTab" not in text
+
+
+def test_shared_dialogs_package_exports_dialog_helpers():
+    package_path = ROOT / "src" / "ui" / "shared" / "dialogs" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.shared.dialogs.async_job import (" in text
+    assert "from src.ui.shared.dialogs.incident_support import (" in text
+    assert "from src.ui.shared.dialogs.login_dialog import LoginDialog" in text
+    assert "class LoginDialog" not in text
+
+
+def test_shared_formatting_package_exports_theme_and_ui_config():
+    package_path = ROOT / "src" / "ui" / "shared" / "formatting" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.shared.formatting.formatting import (" in text
+    assert "from src.ui.shared.formatting.theme import (" in text
+    assert "from src.ui.shared.formatting.ui_config import CurrencyType, UIConfig" in text
+    assert "class UIConfig" not in text
+
+
+def test_shared_models_package_exports_runtime_helpers():
+    package_path = ROOT / "src" / "ui" / "shared" / "models" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.shared.models.deferred_call import DeferredCall" in text
+    assert "from src.ui.shared.models.table_model import horizontal_header_data" in text
+    assert "from src.ui.shared.models.undo import UndoCommand, UndoStack" in text
+    assert "from src.ui.shared.models.worker_services import (" in text
+    assert "class UndoStack" not in text
+
+
+def test_shared_widgets_package_exports_widget_helpers():
+    package_path = ROOT / "src" / "ui" / "shared" / "widgets" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.ui.shared.widgets.code_generation import CodeFieldWidget, suggest_generated_code" in text
+    assert "from src.ui.shared.widgets.combo import current_data, current_data_and_text" in text
+    assert "from src.ui.shared.widgets.guards import (" in text
+    assert "class CodeFieldWidget" not in text
 
 
 def test_platform_common_interfaces_are_platform_only():
@@ -980,9 +1040,9 @@ def test_known_large_modules_have_growth_budgets():
         "ui/modules/project_management/report/dialog_gantt.py": 240,
         "ui/modules/project_management/report/dialog_critical_path.py": 220,
         "ui/modules/project_management/report/dialog_resource_load.py": 240,
-        "ui/platform/shared/styles/theme.py": 80,
-        "ui/platform/shared/styles/theme_tokens.py": 140,
-        "ui/platform/shared/styles/theme_stylesheet.py": 340,
+        "src/ui/shared/formatting/theme.py": 80,
+        "src/ui/shared/formatting/theme_tokens.py": 140,
+        "src/ui/shared/formatting/theme_stylesheet.py": 340,
         "main.py": 580,
         "ui/modules/project_management/calendar/tab.py": 300,
         "ui/modules/project_management/calendar/working_time.py": 120,
@@ -996,7 +1056,7 @@ def test_known_large_modules_have_growth_budgets():
         "ui/platform/admin/support/diagnostics_flow.py": 140,
         "ui/platform/admin/support/diagnostics_export.py": 140,
         "ui/platform/admin/support/incident_report.py": 180,
-        "ui/platform/shared/incident_support.py": 120,
+        "src/ui/shared/dialogs/incident_support.py": 120,
         "core/modules/project_management/services/scheduling/engine.py": 360,
         "core/modules/project_management/services/scheduling/models.py": 80,
         "core/modules/project_management/services/scheduling/graph.py": 180,
@@ -1041,7 +1101,7 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/portfolio/scenarios.py": 240,
         "core/modules/project_management/services/portfolio/support.py": 150,
         "core/modules/project_management/services/portfolio/templates.py": 160,
-        "ui/platform/shared/styles/ui_config.py": 320,
+        "src/ui/shared/formatting/ui_config.py": 320,
         "core/modules/project_management/services/task/service.py": 140,
         "core/modules/project_management/services/project/service.py": 90,
         "core/modules/project_management/services/project/lifecycle.py": 250,

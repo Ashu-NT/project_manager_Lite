@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import QDialog, QFormLayout, QGroupBox, QLabel, QVBoxLayout, QWidget
 
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def metric_card(title: str, value: str, subtitle: str = "", color: str | None = None) -> QWidget:

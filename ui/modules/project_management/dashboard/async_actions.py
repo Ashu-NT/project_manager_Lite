@@ -6,9 +6,9 @@ from PySide6.QtWidgets import QMessageBox, QInputDialog
 
 from src.core.platform.notifications.domain_events import domain_events
 from core.modules.project_management.services.dashboard import PORTFOLIO_SCOPE_ID
-from ui.platform.shared.incident_support import emit_error_event, message_with_incident
-from ui.platform.shared.async_job import CancelToken, JobUiConfig, start_async_job
-from ui.platform.shared.worker_services import worker_service_scope
+from src.ui.shared.dialogs.incident_support import emit_error_event, message_with_incident
+from src.ui.shared.dialogs.async_job import CancelToken, JobUiConfig, start_async_job
+from src.ui.shared.models.worker_services import worker_service_scope
 
 
 @dataclass(slots=True)

@@ -31,12 +31,12 @@ from ui.modules.project_management.dashboard.styles import (
 )
 from ui.modules.project_management.governance.timesheet_review_dialog import TimesheetReviewDialog
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
-from ui.platform.control.approvals.presentation import approval_display_label
-from ui.platform.control.approvals.queue import ApprovalQueuePanel
+from src.ui.platform.workspaces.control.approvals.presentation import approval_display_label
+from src.ui.platform.workspaces.control.approvals.queue import ApprovalQueuePanel
 from src.ui.platform.settings import MainWindowSettingsStore
-from ui.platform.shared.guards import make_guarded_slot
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import make_guarded_slot
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class GovernanceTab(QWidget):

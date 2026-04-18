@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.dashboard import PORTFOLIO_SCOPE_ID
-from ui.platform.shared.guards import apply_permission_hint, can_execute_governed_action, has_permission
+from src.ui.shared.widgets.guards import apply_permission_hint, can_execute_governed_action, has_permission
 
 
 @dataclass(frozen=True)

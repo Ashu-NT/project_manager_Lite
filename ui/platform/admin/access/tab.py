@@ -28,8 +28,8 @@ from ui.modules.project_management.dashboard.styles import (
 )
 from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
-from ui.platform.shared.guards import apply_permission_hint, has_permission
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 ScopeOptionLoader = Callable[[], list[tuple[str, str]]]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ui.platform.shared.async_job import CancelToken, JobCancelledError, _JobRunnable
+from src.ui.shared.dialogs.async_job import CancelToken, JobCancelledError, _JobRunnable
 
 
 class _DeletedEmitter:

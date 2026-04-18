@@ -6,7 +6,7 @@ from typing import Callable
 
 from PySide6.QtWidgets import QHBoxLayout, QLineEdit, QPushButton, QSizePolicy, QWidget
 
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def suggest_generated_code(prefix: str, *hint_values: str) -> str:

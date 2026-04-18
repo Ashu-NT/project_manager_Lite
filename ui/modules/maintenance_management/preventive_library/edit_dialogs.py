@@ -28,7 +28,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceSensorDirection,
     MaintenanceTriggerMode,
 )
-from ui.platform.shared.code_generation import CodeFieldWidget
+from src.ui.shared.widgets.code_generation import CodeFieldWidget
 
 
 class MaintenancePreventivePlanEditDialog(QDialog):

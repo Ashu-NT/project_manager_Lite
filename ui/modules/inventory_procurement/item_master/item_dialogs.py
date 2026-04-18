@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.modules.inventory_procurement.domain import StockItem
-from ui.platform.shared.code_generation import CodeFieldWidget
+from src.ui.shared.widgets.code_generation import CodeFieldWidget
 
 
 _ITEM_STATUSES = ("DRAFT", "ACTIVE", "INACTIVE", "OBSOLETE")

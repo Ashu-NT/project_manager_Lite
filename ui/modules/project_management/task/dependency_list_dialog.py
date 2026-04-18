@@ -16,8 +16,8 @@ from PySide6.QtWidgets import (
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.modules.project_management.domain.task import Task
 from core.modules.project_management.services.task import TaskService
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.dependency_add_dialog import DependencyAddDialog
 from ui.modules.project_management.task.dependency_shared import dependency_direction as _dependency_direction
 

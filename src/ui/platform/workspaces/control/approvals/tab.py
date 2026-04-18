@@ -5,8 +5,8 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget
 from src.core.platform.approval import ApprovalService
 from src.core.platform.auth import UserSessionContext
 from ui.platform.admin.shared_header import build_admin_header
-from ui.platform.control.approvals.queue import ApprovalQueuePanel
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.platform.workspaces.control.approvals.queue import ApprovalQueuePanel
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class ApprovalControlTab(QWidget):

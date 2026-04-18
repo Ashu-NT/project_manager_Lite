@@ -14,7 +14,7 @@ from ui.modules.project_management.calendar.project_ops import CalendarProjectOp
 from ui.modules.project_management.calendar.surface import CalendarSurfaceMixin
 from ui.modules.project_management.calendar.working_time import CalendarWorkingTimeMixin
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event
-from ui.platform.shared.guards import has_permission
+from src.ui.shared.widgets.guards import has_permission
 
 
 class CalendarTab(

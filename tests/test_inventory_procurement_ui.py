@@ -23,7 +23,7 @@ from ui.modules.inventory_procurement.reservation.reservations_tab import Reserv
 from ui.modules.inventory_procurement.stock_control.movements_tab import MovementsTab
 from ui.modules.inventory_procurement.stock_control.stock_tab import StockTab
 from src.ui.shell.main_window import MainWindow
-from ui.platform.shared.styles.theme import base_stylesheet
+from src.ui.shared.formatting.theme import base_stylesheet
 
 
 def _child_labels(item) -> list[str]:

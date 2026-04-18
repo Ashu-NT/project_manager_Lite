@@ -23,8 +23,8 @@ from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from ui.modules.project_management.task.assignment_helpers import show_overallocation_warning_if_any
 from ui.modules.project_management.timesheet.dialog import TimesheetDialog
-from ui.platform.shared.styles.formatting import fmt_percent
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.formatting import fmt_percent
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class AssignmentAddDialog(QDialog):

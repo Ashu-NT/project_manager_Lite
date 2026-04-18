@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QDialog, QWidget
 
 from src.core.platform.auth import AuthService, UserSessionContext
-from ui.platform.shared.auth.login_dialog import LoginDialog
+from src.ui.shared.dialogs.login_dialog import LoginDialog
 
 
 def prompt_for_login(

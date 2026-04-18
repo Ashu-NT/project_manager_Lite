@@ -12,8 +12,8 @@ from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.dashboard.layout_builder import DashboardLayoutDialog
 from ui.modules.project_management.dashboard.tab import DashboardTab
 from ui.modules.project_management.dashboard.widgets import ChartWidget
-from ui.platform.shared.styles.theme_tokens import DARK_THEME, apply_theme_tokens
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.theme_tokens import DARK_THEME, apply_theme_tokens
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def _seed_professional_project(services):

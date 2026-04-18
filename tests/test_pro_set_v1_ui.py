@@ -15,8 +15,8 @@ from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.dashboard.layout_builder import DashboardLayoutDialog
 from ui.modules.project_management.dashboard.tab import DashboardTab
 from ui.modules.project_management.report.dialog_gantt import GanttPreviewDialog
-from ui.platform.shared.styles.theme import set_theme_mode
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.theme import set_theme_mode
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.collaboration_dialog import TaskCollaborationDialog
 from ui.modules.project_management.task.tab import TaskTab
 

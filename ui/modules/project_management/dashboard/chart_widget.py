@@ -10,7 +10,7 @@ from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from ui.modules.project_management.dashboard.styles import dashboard_card_style
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def _dispose_figure(fig: Figure) -> None:

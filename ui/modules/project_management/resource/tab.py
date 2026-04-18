@@ -22,10 +22,10 @@ from ui.modules.project_management.resource.employee_context import build_employ
 from ui.modules.project_management.resource.filtering import ResourceFiltersMixin
 from ui.modules.project_management.resource.flow import ResourceFlowMixin
 from ui.modules.project_management.shared.domain_event_filters import should_refresh_resource_context
-from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission, make_guarded_slot
 from ui.modules.project_management.resource.models import ResourceTableModel
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class ResourceTab(ResourceFlowMixin, ResourceFiltersMixin, ResourceActionsMixin, QWidget):

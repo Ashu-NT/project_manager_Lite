@@ -685,6 +685,39 @@ Completed:
   - `main_window_store.py`
 - shell, PM UI, support UI, tests, and test path rewrites now use `src.ui.platform.settings`
 - the old `ui/platform/settings/` source package was deleted after direct import rewrites
+- shared UI now lives under `src/ui/shared/`:
+  - dialogs:
+    - `async_job.py`
+    - `incident_support.py`
+    - `login_dialog.py`
+  - formatting:
+    - `formatting.py`
+    - `style_utils.py`
+    - `theme.py`
+    - `theme_refresh.py`
+    - `theme_stylesheet.py`
+    - `theme_tokens.py`
+    - `ui_config.py`
+  - models:
+    - `deferred_call.py`
+    - `table_model.py`
+    - `undo.py`
+    - `worker_services.py`
+  - widgets:
+    - `code_generation.py`
+    - `combo.py`
+    - `guards.py`
+- shell, platform admin/control, PM UI, inventory UI, maintenance UI, tests, and test path rewrites now use `src.ui.shared.*`
+- the old `ui/platform/shared/` source package was deleted after direct import rewrites
+- control workspaces now live under `src/ui/platform/workspaces/control/`:
+  - approvals:
+    - `presentation.py`
+    - `queue.py`
+    - `tab.py`
+  - audit:
+    - `tab.py`
+- shell workspace registration, governance UI, procurement tests, user-admin tests, and test path rewrites now use `src.ui.platform.workspaces.control.*`
+- the old `ui/platform/control/` source package was deleted after direct import rewrites
 - the stale `core/__init__.py` UI bootstrap side effect was removed so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -714,6 +747,8 @@ Verified:
   - direct import of `src.core.platform.audit.AuditLogEntry`, `AuditLogRepository`, `AuditService`, and `record_audit`
   - direct import of `src.core.platform.common.BusinessRuleError`, `ServiceBase`, `generate_id`, `src.core.platform.common.interfaces.TimeEntryRepository`, `src.core.platform.common.runtime_access.enforce_runtime_access`, `src.core.platform.data_exchange.MasterDataExchangeService`, and `MasterDataExportRequest`
   - direct import of `src.ui.platform.settings.MainWindowSettingsStore`
+  - direct import of `src.ui.shared.dialogs.LoginDialog`, `start_async_job`, `src.ui.shared.formatting.UIConfig`, `apply_app_style`, `src.ui.shared.models.UndoStack`, and `src.ui.shared.widgets.CodeFieldWidget`
+  - direct import of `src.ui.platform.workspaces.control.ApprovalControlTab`, `ApprovalQueuePanel`, `AuditLogTab`, `approval_display_label`, and `approval_context_label`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
@@ -741,6 +776,9 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_common_package_is_removed tests/test_architecture_guardrails.py::test_legacy_platform_data_exchange_package_is_removed tests/test_architecture_guardrails.py::test_common_package_exports_shared_utilities tests/test_architecture_guardrails.py::test_data_exchange_package_exports_service tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_architecture_guardrails.py::test_legacy_platform_settings_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_settings_package_exports_store -q`
   - `pytest tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_governance_tab_mode_toggle_ui.py -q`
   - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_maintenance_foundation.py -q`
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_shared_ui_package_is_removed tests/test_architecture_guardrails.py::test_shared_dialogs_package_exports_dialog_helpers tests/test_architecture_guardrails.py::test_shared_formatting_package_exports_theme_and_ui_config tests/test_architecture_guardrails.py::test_shared_models_package_exports_runtime_helpers tests/test_architecture_guardrails.py::test_shared_widgets_package_exports_widget_helpers tests/test_async_job_runtime.py tests/test_code_generation_ui.py tests/test_ui_rbac_matrix_and_guards.py -q`
+  - `pytest tests/test_refactor_regressions.py tests/test_pro_set_v1_ui.py tests/test_dashboard_professional_panels.py tests/test_inventory_procurement_ui.py tests/test_main_window_shell_navigation.py tests/test_phase_b_user_admin_ui.py -q`
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_control_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_control_workspace_package_exports_tabs tests/test_phase_b_user_admin_ui.py tests/test_inventory_procurement_purchasing.py tests/test_governance_tab_mode_toggle_ui.py -q`
   - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
@@ -757,19 +795,21 @@ Verified:
 - no Python import statements remain for `core.platform.common`
 - no Python import statements remain for `core.platform.data_exchange`
 - no Python import statements remain for `ui.platform.settings`
+- no Python import statements remain for `ui.platform.shared`
+- no Python import statements remain for `ui.platform.control`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 
 Known blocker:
 
 - the default interpreter outside `pmenv` still fails on `reportlab` during full app/test imports because that environment dependency is not installed there
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the common/data-exchange/settings cutovers:
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the shared UI cutover:
   - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 Continue next:
 
 1. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
-2. Move the remaining platform admin/control/shared UI paths.
+2. Move the remaining platform admin UI paths.
 3. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
@@ -889,13 +929,13 @@ Clean-cutover tests:
 
 - `src/ui/shell/*`
 
-`ui/platform/admin`, `control`, `settings`, and `shared` target:
+`ui/platform/admin` target:
 
 - platform-owned screens to `src/ui/platform/workspaces/`
 - platform-owned dialogs to `src/ui/platform/dialogs/`
 - platform-owned widgets to `src/ui/platform/widgets/`
-- reusable pieces to `src/ui/shared/*`
-- shell-owned settings state to `src/ui/platform/settings/*`
+- reusable pieces now live under `src/ui/shared/*`
+- shell-owned settings state now lives under `src/ui/platform/settings/*`
 
 `core/modules/project_management/services/*` target:
 

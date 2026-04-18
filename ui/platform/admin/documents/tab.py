@@ -41,8 +41,8 @@ from ui.platform.admin.shared_surface import (
     build_admin_toolbar_surface,
 )
 from ui.platform.admin.documents.viewer_dialogs import DocumentLinksDialog, DocumentPreviewDialog
-from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission, make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DocumentAdminTab(QWidget):

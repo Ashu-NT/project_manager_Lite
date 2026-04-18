@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QPushButton, QVBoxLayout
 
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.platform.admin.shared_header import build_admin_header
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 def build_support_header(tab, root: QVBoxLayout) -> None:

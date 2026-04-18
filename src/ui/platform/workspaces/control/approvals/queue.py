@@ -22,13 +22,13 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from ui.platform.admin.shared_surface import build_admin_surface_card, build_admin_table
-from ui.platform.control.approvals.presentation import (
+from src.ui.platform.workspaces.control.approvals.presentation import (
     approval_context_label,
     approval_display_label,
     approval_module_label,
 )
-from ui.platform.shared.guards import apply_permission_hint, make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 SummaryChangedCallback = Callable[[int, str], None]

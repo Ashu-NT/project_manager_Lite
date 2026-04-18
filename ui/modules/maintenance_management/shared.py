@@ -24,7 +24,7 @@ from ui.modules.project_management.dashboard.styles import (
     dashboard_badge_style,
     dashboard_meta_chip_style,
 )
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 @dataclass(frozen=True)

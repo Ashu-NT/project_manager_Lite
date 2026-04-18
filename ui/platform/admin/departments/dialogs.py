@@ -13,8 +13,8 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.platform.org.domain import Department, Site
-from ui.platform.shared.code_generation import CodeFieldWidget
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.code_generation import CodeFieldWidget
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DepartmentEditDialog(QDialog):

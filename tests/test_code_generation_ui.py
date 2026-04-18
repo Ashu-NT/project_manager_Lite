@@ -9,7 +9,7 @@ from ui.platform.admin.employees.dialogs import EmployeeEditDialog
 from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
 from ui.platform.admin.parties.dialogs import PartyEditDialog
 from ui.platform.admin.sites.dialogs import SiteEditDialog
-from ui.platform.shared.code_generation import CodeFieldWidget, suggest_generated_code
+from src.ui.shared.widgets.code_generation import CodeFieldWidget, suggest_generated_code
 
 
 def test_suggest_generated_code_uses_uppercase_prefix_and_name_hint():

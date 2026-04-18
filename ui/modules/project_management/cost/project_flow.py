@@ -18,9 +18,9 @@ from ui.modules.project_management.cost.reload_support import (
     clear_cost_view,
     reload_project_combo,
 )
-from ui.platform.shared.async_job import JobUiConfig, start_async_job
-from ui.platform.shared.combo import current_data
-from ui.platform.shared.worker_services import service_uses_in_memory_sqlite, worker_service_scope
+from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
+from src.ui.shared.widgets.combo import current_data
+from src.ui.shared.models.worker_services import service_uses_in_memory_sqlite, worker_service_scope
 
 
 class CostProjectFlowMixin(CostFiltersMixin):

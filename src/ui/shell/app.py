@@ -16,7 +16,7 @@ from src.infra.persistence.migrations.runner import run_migrations
 from src.ui.shell.login import prompt_for_login
 from src.ui.shell.main_window import MainWindow
 from src.ui.platform.settings import MainWindowSettingsStore
-from ui.platform.shared.styles.theme import apply_app_style
+from src.ui.shared.formatting.theme import apply_app_style
 
 
 def build_services() -> dict[str, object]:

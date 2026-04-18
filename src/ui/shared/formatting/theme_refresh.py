@@ -4,7 +4,7 @@ import re
 
 from PySide6.QtWidgets import QWidget
 
-from ui.platform.shared.styles.theme_tokens import DARK_THEME, LIGHT_THEME
+from src.ui.shared.formatting.theme_tokens import DARK_THEME, LIGHT_THEME
 
 _DECLARATION_RE = re.compile(
     r"(?P<prefix>(?:^|[;{]\s*)(?P<prop>[-A-Za-z]+)\s*:\s*)(?P<value>[^;{}]+)"

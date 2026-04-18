@@ -22,8 +22,8 @@ from src.core.platform.org import SiteService
 from ui.platform.admin.sites.dialogs import SiteEditDialog
 from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
-from ui.platform.shared.guards import apply_permission_hint, has_permission, make_guarded_slot
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.widgets.guards import apply_permission_hint, has_permission, make_guarded_slot
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class SiteAdminTab(QWidget):

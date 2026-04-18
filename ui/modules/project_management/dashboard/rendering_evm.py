@@ -11,8 +11,8 @@ from PySide6.QtWidgets import (
 )
 from core.modules.project_management.services.dashboard import DashboardData
 from ui.modules.project_management.dashboard.evm_rows import build_metric_row, build_status_row
-from ui.platform.shared.styles.formatting import fmt_money, fmt_ratio
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.formatting import fmt_money, fmt_ratio
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DashboardEvmRenderingMixin:

@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (
 
 from core.modules.project_management.services.finance import FinanceAnalyticsRow, FinanceService, FinanceSnapshot
 from ui.modules.project_management.report.dialog_helpers import setup_dialog_size
-from ui.platform.shared.styles.formatting import currency_symbol_from_code, fmt_currency
-from ui.platform.shared.styles.style_utils import style_table
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.formatting import currency_symbol_from_code, fmt_currency
+from src.ui.shared.formatting.style_utils import style_table
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class FinanceReportDialog(QDialog):

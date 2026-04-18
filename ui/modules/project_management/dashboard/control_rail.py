@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_summary_style
-from ui.platform.shared.styles.ui_config import UIConfig as CFG
+from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DashboardControlRailMixin:
