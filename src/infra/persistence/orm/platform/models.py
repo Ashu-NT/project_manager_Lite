@@ -27,7 +27,7 @@ from core.modules.project_management.domain.enums import (
     TaskStatus,
     WorkerType,
 )
-from core.platform.org.domain import EmploymentType
+from src.core.platform.org.domain import EmploymentType
 from core.modules.project_management.domain.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,

@@ -9,7 +9,7 @@ from core.platform.common.exceptions import (
     ValidationError,
 )
 from core.modules.project_management.services.resource import ResourceService
-from core.platform.org import EmployeeService
+from src.core.platform.org import EmployeeService
 from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.resource.dialogs import ResourceEditDialog
 

@@ -6,18 +6,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from src.core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import (
+from core.platform.notifications.domain_events import domain_events
+from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.org.contracts import (
     DepartmentRepository,
     EmployeeRepository,
+    LocationReferenceRepository,
     OrganizationRepository,
     SiteRepository,
 )
-from core.platform.org.domain import Department, Organization
-from core.platform.org.interfaces import LocationReferenceRepository
-from core.platform.notifications.domain_events import domain_events
-from core.platform.org.support import normalize_code, normalize_name
+from src.core.platform.org.domain import Department, Organization
+from src.core.platform.org.support import normalize_code, normalize_name
 
 
 def _normalize_optional_text(value: str | None) -> str:

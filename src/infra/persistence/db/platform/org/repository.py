@@ -5,13 +5,13 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import (
+from src.core.platform.org.contracts import (
     DepartmentRepository,
     EmployeeRepository,
     OrganizationRepository,
     SiteRepository,
 )
-from core.platform.org.domain import Department, Employee, Organization, Site
+from src.core.platform.org.domain import Department, Employee, Organization, Site
 from src.infra.persistence.orm.platform.models import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.infra.persistence.db.platform.org.mapper import (

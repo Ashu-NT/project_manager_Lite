@@ -19,7 +19,7 @@ from core.modules.maintenance_management.reliability_domain import (
 from core.modules.maintenance_management.services import MaintenanceReliabilityService
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from core.platform.common.exceptions import BusinessRuleError
-from core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization, Site
 
 
 class _OrgRepo:

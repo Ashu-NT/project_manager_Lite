@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository
-from core.platform.org.domain import Organization
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.org.domain import Organization
 from core.platform.documents.domain import (
     Document,
     DocumentClassification,
@@ -37,7 +37,7 @@ from core.platform.documents.support import (
     normalize_structure_name as _normalize_structure_name,
 )
 from core.platform.notifications.domain_events import domain_events
-from core.platform.org.support import normalize_code, normalize_name
+from src.core.platform.org.support import normalize_code, normalize_name
 
 
 def _normalize_optional_date(value: date | None) -> date | None:

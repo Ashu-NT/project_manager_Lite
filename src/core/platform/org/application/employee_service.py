@@ -4,24 +4,24 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import (
-    DepartmentRepository,
-    EmployeeRepository,
-    OrganizationRepository,
-    SiteRepository,
-)
-from core.platform.org.domain import Employee, EmploymentType
-from core.platform.org.interfaces import LinkedEmployeeResourceRepository
 from core.platform.notifications.domain_events import domain_events
-from core.platform.org.employee_support import (
+from src.core.platform.auth.authorization import require_permission
+from src.core.platform.org.application.employee_support import (
     build_employee_audit_details,
     resolve_employee_department_reference,
     resolve_employee_site_reference,
     sync_linked_employee_resources,
 )
-from core.platform.org.support import (
+from src.core.platform.org.contracts import (
+    DepartmentRepository,
+    EmployeeRepository,
+    LinkedEmployeeResourceRepository,
+    OrganizationRepository,
+    SiteRepository,
+)
+from src.core.platform.org.domain import Employee, EmploymentType
+from src.core.platform.org.support import (
     coerce_employment_type,
     normalize_email,
     normalize_phone,
@@ -214,5 +214,6 @@ class EmployeeService:
         if employee is None:
             raise NotFoundError("Employee not found.", code="EMPLOYEE_NOT_FOUND")
         return employee
+
 
 __all__ = ["EmployeeService"]

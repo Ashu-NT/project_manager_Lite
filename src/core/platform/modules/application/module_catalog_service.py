@@ -5,7 +5,7 @@ from typing import Callable, Iterable
 
 from sqlalchemy.orm import Session
 
-from core.platform.org.domain import Organization
+from src.core.platform.org.domain import Organization
 from src.core.platform.modules.application.module_catalog_context import (
     ModuleCatalogContextMixin,
 )

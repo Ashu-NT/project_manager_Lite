@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.org.domain import Department, Employee, Organization, Site
+from src.core.platform.org.domain import Department, Employee, Organization, Site
 from src.infra.persistence.orm.platform.models import DepartmentORM, EmployeeORM, OrganizationORM, SiteORM
 
 

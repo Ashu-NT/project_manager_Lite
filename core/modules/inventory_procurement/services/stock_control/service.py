@@ -9,7 +9,7 @@ from core.modules.inventory_procurement.services.stock_control.stock_adjustments
 from core.modules.inventory_procurement.services.stock_control.stock_movements import StockControlMovementMixin
 from core.modules.inventory_procurement.services.stock_control.stock_queries import StockControlQueryMixin
 from core.modules.inventory_procurement.services.stock_control.stock_support import StockControlSupportMixin
-from core.platform.common.interfaces import OrganizationRepository
+from src.core.platform.org.contracts import OrganizationRepository
 
 
 class StockControlService(

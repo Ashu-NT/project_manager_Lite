@@ -23,8 +23,8 @@ from core.modules.inventory_procurement.support import (
 from core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository
-from core.platform.org.domain import Organization
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.org.domain import Organization
 from core.platform.notifications.domain_events import domain_events
 
 

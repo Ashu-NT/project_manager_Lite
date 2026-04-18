@@ -6,7 +6,7 @@ from core.modules.inventory_procurement.domain import StockBalance, StockItem, S
 from core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.org.domain import Organization
+from src.core.platform.org.domain import Organization
 
 
 def build_transaction_number() -> str:

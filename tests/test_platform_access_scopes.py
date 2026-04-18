@@ -7,7 +7,7 @@ from src.core.platform.auth.domain.session import UserSessionContext, UserSessio
 from core.platform.common.exceptions import BusinessRuleError
 from core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from core.modules.project_management.access.policy import resolve_project_scope_permissions
-from core.platform.org.access_policy import resolve_site_scope_permissions
+from src.core.platform.org.access_policy import resolve_site_scope_permissions
 from tests.ui_runtime_helpers import login_as
 
 

@@ -7,7 +7,7 @@ from src.application.runtime.entitlement_runtime import (
     ModuleRuntimeSnapshot,
     resolve_module_runtime_service,
 )
-from core.platform.org import Organization, OrganizationService
+from src.core.platform.org import Organization, OrganizationService
 
 
 @dataclass(frozen=True)

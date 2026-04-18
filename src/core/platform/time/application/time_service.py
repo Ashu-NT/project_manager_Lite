@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from core.platform.audit.service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
-from core.platform.common.interfaces import EmployeeRepository
+from src.core.platform.org.contracts import EmployeeRepository
 from src.core.platform.time.application.timesheet_entries import TimesheetEntriesMixin
 from src.core.platform.time.application.timesheet_periods import TimesheetPeriodsMixin
 from src.core.platform.time.application.timesheet_query import TimesheetQueryMixin

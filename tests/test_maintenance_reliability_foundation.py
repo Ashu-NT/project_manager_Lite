@@ -19,8 +19,8 @@ from core.modules.maintenance_management.services import (
     MaintenanceFailureCodeService,
 )
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from core.platform.common.interfaces import OrganizationRepository
-from core.platform.org.domain import Organization
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.org.domain import Organization
 
 
 class _OrgRepo(OrganizationRepository):

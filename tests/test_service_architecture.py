@@ -9,7 +9,7 @@ from core.platform.audit import AuditService
 from core.platform.audit.service import AuditService as LegacyAuditService
 from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.documents import DocumentService
-from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
+from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.core.platform.time.application import TimeService

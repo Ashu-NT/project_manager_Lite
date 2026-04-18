@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.org import EmployeeService
+from src.core.platform.org import EmployeeService
 
 
 def format_employee_context(*, department: str = "", site_name: str = "") -> str:

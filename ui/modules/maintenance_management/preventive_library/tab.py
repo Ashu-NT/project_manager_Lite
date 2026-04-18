@@ -32,7 +32,7 @@ from core.modules.maintenance_management.domain import (
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from core.platform.org import SiteService
+from src.core.platform.org import SiteService
 from ui.modules.maintenance_management.preventive_library.detail_dialog import (
     MaintenancePreventivePlanLibraryDetailDialog,
 )

@@ -13,7 +13,8 @@ from core.modules.project_management.interfaces import (
     ProjectResourceRepository,
     ResourceRepository,
 )
-from core.platform.common.interfaces import EmployeeRepository, TimeEntryRepository
+from core.platform.common.interfaces import TimeEntryRepository
+from src.core.platform.org.contracts import EmployeeRepository
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.auth.authorization import require_permission
 from core.platform.audit.helpers import record_audit

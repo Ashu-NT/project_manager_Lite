@@ -3,7 +3,7 @@ from __future__ import annotations
 from core.modules.maintenance_management.domain import MaintenanceIntegrationSource
 from core.modules.maintenance_management.interfaces import MaintenanceIntegrationSourceRepository
 from core.modules.maintenance_management.services import MaintenanceIntegrationSourceService
-from core.platform.org.domain import Organization
+from src.core.platform.org.domain import Organization
 from tests.test_maintenance_foundation import _OrgRepo, _user_session
 
 

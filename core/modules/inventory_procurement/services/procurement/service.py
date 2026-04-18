@@ -10,7 +10,7 @@ from core.modules.inventory_procurement.services.procurement.procurement_lifecyc
 from core.modules.inventory_procurement.services.procurement.procurement_queries import ProcurementQueryMixin
 from core.modules.inventory_procurement.services.procurement.procurement_support import ProcurementSupportMixin
 from core.platform.approval import ApprovalService
-from core.platform.common.interfaces import OrganizationRepository
+from src.core.platform.org.contracts import OrganizationRepository
 from core.platform.party import PartyService
 
 

@@ -17,9 +17,9 @@ from PySide6.QtWidgets import (
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.org.domain import Organization
+from src.core.platform.org.domain import Organization
 from core.platform.notifications.domain_events import domain_events
-from core.platform.org import OrganizationService
+from src.core.platform.org import OrganizationService
 from ui.platform.admin.organizations.dialogs import OrganizationEditDialog
 from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.admin.shared_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface

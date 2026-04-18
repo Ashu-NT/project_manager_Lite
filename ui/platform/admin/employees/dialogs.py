@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.org.domain import Employee, EmploymentType
+from src.core.platform.org.domain import Employee, EmploymentType
 from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG
 

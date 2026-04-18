@@ -20,13 +20,19 @@ from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.documents import DocumentIntegrationService, DocumentService
 from core.platform.data_exchange import MasterDataExchangeService
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository
-from core.platform.org.access_policy import (
+from src.core.platform.org import (
+    DepartmentService,
+    EmployeeService,
+    OrganizationRepository,
+    OrganizationService,
+    SiteRepository,
+    SiteService,
+)
+from src.core.platform.org.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,
 )
-from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from core.platform.party.interfaces import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService

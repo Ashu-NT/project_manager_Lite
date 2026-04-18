@@ -25,9 +25,9 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository
+from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization, Site
 from core.platform.party.domain import PartyType
 from core.platform.party.interfaces import PartyRepository
 

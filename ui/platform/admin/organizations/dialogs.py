@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.platform.org.domain import Organization
+from src.core.platform.org.domain import Organization
 from src.core.platform.modules import EnterpriseModule
 from ui.platform.shared.code_generation import CodeFieldWidget
 from ui.platform.shared.styles.ui_config import UIConfig as CFG

@@ -4,7 +4,7 @@ from datetime import date
 
 from PySide6.QtWidgets import QComboBox, QDialog, QLineEdit
 
-from core.platform.org.domain import Employee
+from src.core.platform.org.domain import Employee
 from core.modules.project_management.domain.task import Task
 from core.modules.project_management.domain.enums import TaskStatus
 from tests.ui_runtime_helpers import make_settings_store

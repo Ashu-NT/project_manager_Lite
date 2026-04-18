@@ -51,7 +51,7 @@ from src.core.platform.importing import (
     ImportPreview,
     ImportSummary,
 )
-from core.platform.org import SiteService
+from src.core.platform.org import SiteService
 from core.platform.party import PartyService
 
 

@@ -22,10 +22,10 @@ from core.platform.audit.helpers import record_audit
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository
-from core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.org.domain import Organization, Site
 from core.platform.notifications.domain_events import domain_events
-from core.platform.org import SiteService
+from src.core.platform.org import SiteService
 from core.platform.party import PartyService
 
 

@@ -47,9 +47,9 @@ from core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
 from core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository
+from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization, Site
 
 
 class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
@@ -286,7 +286,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
                 description = source_request.description
             if priority is None:
                 priority = source_request.priority
-            if source_request.source_type.value == "PREVENTIVE_PLAN":
+            source_request_type = getattr(source_request.source_type, "value", source_request.source_type)
+            if source_request_type == "PREVENTIVE_PLAN":
                 is_preventive = True
 
         asset_id, component_id, system_id, location_id = self._resolve_context_references(
@@ -599,7 +600,8 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
         *,
         organization: Organization,
     ) -> None:
-        if source_request.source_type.value != "PREVENTIVE_PLAN":
+        source_request_type = getattr(source_request.source_type, "value", source_request.source_type)
+        if source_request_type != "PREVENTIVE_PLAN":
             return
         if (
             self._preventive_plan_repo is None

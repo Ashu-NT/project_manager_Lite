@@ -15,7 +15,7 @@ from src.core.platform.importing import (
     ImportSourceRow,
     ImportSummary,
 )
-from core.platform.org import SiteService
+from src.core.platform.org import SiteService
 from core.platform.party import PartyService
 from core.platform.party.domain import PartyType
 

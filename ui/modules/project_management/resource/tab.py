@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 from core.platform.notifications.domain_events import domain_events
 from core.modules.project_management.domain.resource import Resource
 from src.core.platform.auth import UserSessionContext
-from core.platform.org import EmployeeService
+from src.core.platform.org import EmployeeService
 from core.modules.project_management.services.resource import ResourceService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.resource.actions import ResourceActionsMixin

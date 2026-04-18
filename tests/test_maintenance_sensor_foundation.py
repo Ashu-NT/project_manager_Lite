@@ -5,7 +5,7 @@ from decimal import Decimal
 from core.modules.maintenance_management.domain import MaintenanceAsset, MaintenanceLocation, MaintenanceSensor, MaintenanceSensorReading
 from core.modules.maintenance_management.interfaces import MaintenanceSensorReadingRepository, MaintenanceSensorRepository
 from core.modules.maintenance_management.services import MaintenanceSensorReadingService, MaintenanceSensorService
-from core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization, Site
 from tests.test_maintenance_foundation import (
     _AssetRepo,
     _ComponentRepo,

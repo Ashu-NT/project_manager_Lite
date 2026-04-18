@@ -5,14 +5,14 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from core.platform.audit.helpers import record_audit
-from src.core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository
-from core.platform.org.domain import Organization, Site
 from core.platform.notifications.domain_events import domain_events
-from core.platform.org.support import normalize_code, normalize_name
+from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
+from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
+from src.core.platform.org.domain import Organization, Site
+from src.core.platform.org.support import normalize_code, normalize_name
 
 
 def _normalize_optional_text(value: str | None) -> str:

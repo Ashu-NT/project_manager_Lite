@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.org.domain import Site
+from src.core.platform.org.domain import Site
 from core.platform.party.domain import Party
 
 

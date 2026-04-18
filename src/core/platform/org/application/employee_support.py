@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from core.platform.common.exceptions import ValidationError
-from core.platform.common.interfaces import (
+from core.platform.notifications.domain_events import domain_events
+from src.core.platform.org.contracts import (
     DepartmentRepository,
+    LinkedEmployeeResource,
+    LinkedEmployeeResourceRepository,
     OrganizationRepository,
     SiteRepository,
 )
-from core.platform.org.domain import Employee
-from core.platform.org.interfaces import LinkedEmployeeResource, LinkedEmployeeResourceRepository
-from core.platform.notifications.domain_events import domain_events
-from core.platform.org.support import employee_contact
+from src.core.platform.org.domain import Employee
+from src.core.platform.org.support import employee_contact
 
 
 def build_employee_audit_details(employee: Employee) -> dict[str, str]:

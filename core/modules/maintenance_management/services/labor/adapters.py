@@ -8,7 +8,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
 )
-from core.platform.common.interfaces import EmployeeRepository, OrganizationRepository
+from src.core.platform.org.contracts import EmployeeRepository, OrganizationRepository
 
 
 @dataclass

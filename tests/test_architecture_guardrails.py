@@ -573,6 +573,10 @@ def test_legacy_platform_modules_package_is_removed():
     assert not (ROOT / "core" / "platform" / "modules").exists()
 
 
+def test_legacy_platform_org_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "org").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -674,14 +678,15 @@ def test_module_catalog_service_is_orchestrator_only():
     assert "def snapshot" not in text
 
 
-def test_org_service_is_facade_only():
-    service_path = ROOT / "core" / "platform" / "org" / "service.py"
-    text = service_path.read_text(encoding="utf-8", errors="ignore")
+def test_org_package_exports_services_and_contracts():
+    package_path = ROOT / "src" / "core" / "platform" / "org" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.platform.org.employee_service import EmployeeService" in text
-    assert "from core.platform.org.organization_service import OrganizationService" in text
-    assert "class EmployeeService" not in text
+    assert "from src.core.platform.org.application import (" in text
+    assert "from src.core.platform.org.contracts import (" in text
+    assert "from src.core.platform.org.domain import (" in text
     assert "class OrganizationService" not in text
+    assert "class OrganizationRepository" not in text
 
 
 def test_platform_common_interfaces_are_platform_only():
@@ -694,6 +699,10 @@ def test_platform_common_interfaces_are_platform_only():
     assert "class BaselineRepository" not in text
     assert "class ProjectMembershipRepository" not in text
     assert "class ScopedAccessGrantRepository" not in text
+    assert "class OrganizationRepository" not in text
+    assert "class SiteRepository" not in text
+    assert "class DepartmentRepository" not in text
+    assert "class EmployeeRepository" not in text
 
 
 def test_core_platform_does_not_import_module_contracts():
@@ -950,10 +959,14 @@ def test_known_large_modules_have_growth_budgets():
         "src/core/platform/modules/domain/defaults.py": 180,
         "src/core/platform/modules/domain/module_codes.py": 30,
         "src/core/platform/modules/contracts.py": 45,
-        "core/platform/org/service.py": 20,
-        "core/platform/org/employee_service.py": 220,
-        "core/platform/org/organization_service.py": 240,
-        "core/platform/org/support.py": 80,
+        "src/core/platform/org/application/organization_service.py": 230,
+        "src/core/platform/org/application/site_service.py": 340,
+        "src/core/platform/org/application/department_service.py": 410,
+        "src/core/platform/org/application/employee_service.py": 220,
+        "src/core/platform/org/application/employee_support.py": 200,
+        "src/core/platform/org/contracts.py": 140,
+        "src/core/platform/org/support.py": 70,
+        "src/core/platform/org/access_policy.py": 60,
         "infra/modules/project_management/db/project/__init__.py": 80,
         "infra/modules/project_management/db/project/mapper.py": 120,
         "infra/modules/project_management/db/project/repository.py": 140,

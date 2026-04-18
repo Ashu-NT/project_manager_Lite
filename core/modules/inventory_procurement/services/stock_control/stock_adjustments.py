@@ -16,7 +16,7 @@ from core.modules.inventory_procurement.support import (
 )
 from core.platform.audit.helpers import record_audit
 from core.platform.common.exceptions import ValidationError
-from core.platform.org.domain import Organization
+from src.core.platform.org.domain import Organization
 from core.platform.notifications.domain_events import domain_events
 
 

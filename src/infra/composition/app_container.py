@@ -15,7 +15,7 @@ from src.core.platform.auth.domain.session import UserSessionContext
 from core.platform.data_exchange import MasterDataExchangeService
 from core.platform.documents import DocumentService
 from src.core.platform.modules import ModuleCatalogService
-from core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
+from src.core.platform.org import DepartmentService, EmployeeService, OrganizationService, SiteService
 from core.platform.party import PartyService
 from src.core.platform.time.application import TimeService
 from src.core.platform.runtime_tracking import RuntimeExecutionService

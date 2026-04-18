@@ -42,9 +42,9 @@ from core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError
 from core.platform.common.ids import generate_id
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository
+from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
 from core.platform.notifications.domain_events import DomainChangeEvent, domain_events
-from core.platform.org.domain import Organization, Site
+from src.core.platform.org.domain import Organization, Site
 
 
 @dataclass(frozen=True)

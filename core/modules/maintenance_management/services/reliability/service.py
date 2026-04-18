@@ -28,8 +28,8 @@ from core.modules.maintenance_management.support import normalize_maintenance_co
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.common.interfaces import OrganizationRepository, SiteRepository
-from core.platform.org.domain import Organization, Site
+from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
+from src.core.platform.org.domain import Organization, Site
 
 _TERMINAL_WORK_ORDER_STATUSES = {
     MaintenanceWorkOrderStatus.COMPLETED,
