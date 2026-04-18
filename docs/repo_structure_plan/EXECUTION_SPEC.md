@@ -746,6 +746,29 @@ Completed:
     - `src/ui/platform/widgets/document_preview.py`
 - shell workspace registration, maintenance document previews/viewers, admin tests, architecture guardrails, and test path rewrites now use `src.ui.platform.workspaces.admin.*`, `src.ui.platform.dialogs.*`, and `src.ui.platform.widgets.*`
 - the old `ui/platform/admin/` source package was deleted after direct import rewrites
+- PM-owned ORM rows now live under `src/infra/persistence/orm/project_management/models.py`:
+  - `ProjectORM`
+  - `TaskORM`
+  - `ResourceORM`
+  - `ProjectResourceORM`
+  - `TaskAssignmentORM`
+  - `TaskDependencyORM`
+  - `CostItemORM`
+  - `CalendarEventORM`
+  - `WorkingCalendarORM`
+  - `HolidayORM`
+  - `ProjectBaselineORM`
+  - `BaselineTaskORM`
+  - `RegisterEntryORM`
+  - `TaskCommentORM`
+  - `TaskPresenceORM`
+  - `PortfolioScoringTemplateORM`
+  - `PortfolioIntakeItemORM`
+  - `PortfolioScenarioORM`
+  - `PortfolioProjectDependencyORM`
+- PM persistence adapters and collaboration storage now import `src.infra.persistence.orm.project_management.models`
+- inventory persistence adapters now import `src.infra.persistence.orm.inventory_procurement.models` directly instead of pulling inventory rows through `src.infra.persistence.orm.platform.models`
+- `src/infra/persistence/orm/__init__.py` now loads all ORM packages directly for metadata registration, and `src/infra/persistence/migrations/env.py` imports the ORM package root instead of the old platform model barrel
 - the stale `core/__init__.py` UI bootstrap side effect was removed so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -780,6 +803,7 @@ Verified:
   - direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab`
   - direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog`
   - direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state`
+  - direct import of `src.infra.persistence.orm.Base`, `src.infra.persistence.orm.project_management.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.infra.persistence.orm.platform.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
@@ -812,6 +836,8 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_control_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_control_workspace_package_exports_tabs tests/test_phase_b_user_admin_ui.py tests/test_inventory_procurement_purchasing.py tests/test_governance_tab_mode_toggle_ui.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_admin_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_admin_workspace_package_exports_tabs tests/test_architecture_guardrails.py::test_platform_widgets_package_exports_admin_helpers tests/test_architecture_guardrails.py::test_platform_dialogs_package_exports_admin_and_document_dialogs tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_tab_surface_consistency.py tests/test_code_generation_ui.py -q`
   - `pytest tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py -q`
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_inventory_persistence_imports_inventory_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages -q`
+  - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
   - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
@@ -831,20 +857,21 @@ Verified:
 - no Python import statements remain for `ui.platform.shared`
 - no Python import statements remain for `ui.platform.control`
 - no Python import statements remain for `ui.platform.admin`
+- no Python import statements remain for `src.infra.persistence.orm.platform.models` under `infra/modules/project_management` or `infra/modules/inventory_procurement`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 - all planned platform UI regrouping for Slice 1 is complete
+- all remaining mixed-ownership ORM rows are out of the platform model aggregate for Slice 1
 
 Known blocker:
 
 - the default interpreter outside `pmenv` still fails on `reportlab` during full app/test imports because that environment dependency is not installed there
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the admin UI cutover:
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the ORM ownership split:
   - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 Continue next:
 
-1. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
-2. Update test path strategy and remove path rewrites only after the new paths are complete.
+1. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
 

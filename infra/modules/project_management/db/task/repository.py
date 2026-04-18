@@ -11,7 +11,7 @@ from core.modules.project_management.interfaces import (
     TaskRepository,
 )
 from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency
-from src.infra.persistence.orm.platform.models import TaskAssignmentORM, TaskDependencyORM, TaskORM
+from src.infra.persistence.orm.project_management.models import TaskAssignmentORM, TaskDependencyORM, TaskORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.task.mapper import (
     assignment_from_orm,

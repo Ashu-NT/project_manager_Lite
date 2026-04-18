@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.modules.project_management.interfaces import ProjectRepository, ProjectResourceRepository
 from core.modules.project_management.domain.project import Project, ProjectResource
-from src.infra.persistence.orm.platform.models import ProjectORM, ProjectResourceORM
+from src.infra.persistence.orm.project_management.models import ProjectORM, ProjectResourceORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from infra.modules.project_management.db.project.mapper import (
     project_from_orm,

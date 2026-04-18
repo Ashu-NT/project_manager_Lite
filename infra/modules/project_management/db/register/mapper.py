@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.modules.project_management.domain.register import RegisterEntry
-from src.infra.persistence.orm.platform.models import RegisterEntryORM
+from src.infra.persistence.orm.project_management.models import RegisterEntryORM
 
 
 def register_entry_to_orm(entry: RegisterEntry) -> RegisterEntryORM:

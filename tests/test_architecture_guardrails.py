@@ -10,7 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1230,
+    "tests/test_architecture_guardrails.py": 1280,
     "tests/test_maintenance_ui.py": 1450,
 }
 
@@ -636,6 +636,51 @@ def test_composition_imports_focused_persistence_adapters():
     assert "from src.infra.persistence.db.platform.auth.repository import" in text
     assert "from src.infra.persistence.db.platform.org.repository import" in text
     assert "from src.infra.persistence.db.platform.time import" in text
+
+
+def test_project_management_persistence_imports_project_management_orm_models():
+    checked_files = [
+        ROOT / "infra" / "modules" / "project_management" / "db" / "project" / "repository.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "task" / "repository.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "resource" / "repository.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "baseline" / "repository.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "cost_calendar" / "repository.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "portfolio" / "repository.py",
+        ROOT / "infra" / "modules" / "project_management" / "db" / "collaboration" / "repository.py",
+    ]
+
+    for path in checked_files:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        assert "from src.infra.persistence.orm.project_management.models import" in text
+        assert "from src.infra.persistence.orm.platform.models import" not in text
+
+
+def test_inventory_persistence_imports_inventory_orm_models():
+    checked_files = [
+        ROOT / "infra" / "modules" / "inventory_procurement" / "db" / "repository.py",
+        ROOT / "infra" / "modules" / "inventory_procurement" / "db" / "mapper.py",
+    ]
+
+    for path in checked_files:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        assert "from src.infra.persistence.orm.inventory_procurement.models import" in text
+        assert "from src.infra.persistence.orm.platform.models import" not in text
+
+
+def test_orm_package_root_loads_all_model_packages():
+    package_path = ROOT / "src" / "infra" / "persistence" / "orm" / "__init__.py"
+    migration_env_path = ROOT / "src" / "infra" / "persistence" / "migrations" / "env.py"
+    package_text = package_path.read_text(encoding="utf-8", errors="ignore")
+    migration_env_text = migration_env_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.infra.persistence.orm.base import Base" in package_text
+    assert "import src.infra.persistence.orm.inventory_procurement.models" in package_text
+    assert "import src.infra.persistence.orm.maintenance.models" in package_text
+    assert "import src.infra.persistence.orm.maintenance.preventive_runtime_models" in package_text
+    assert "import src.infra.persistence.orm.platform.models" in package_text
+    assert "import src.infra.persistence.orm.project_management.models" in package_text
+    assert "from src.infra.persistence.orm import Base" in migration_env_text
+    assert "import src.infra.persistence.orm" in migration_env_text
 
 
 def test_legacy_infra_repository_wrappers_are_removed():

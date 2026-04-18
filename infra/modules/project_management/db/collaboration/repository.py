@@ -14,7 +14,7 @@ from infra.modules.project_management.db.collaboration.mapper import (
     task_comment_to_orm,
     task_presence_from_orm,
 )
-from src.infra.persistence.orm.platform.models import TaskCommentORM, TaskPresenceORM
+from src.infra.persistence.orm.project_management.models import TaskCommentORM, TaskPresenceORM
 
 
 class SqlAlchemyTaskCommentRepository(TaskCommentRepository):

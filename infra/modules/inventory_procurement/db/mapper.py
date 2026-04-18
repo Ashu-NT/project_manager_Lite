@@ -21,7 +21,7 @@ from core.modules.inventory_procurement.domain import (
     StockTransactionType,
     Storeroom,
 )
-from src.infra.persistence.orm.platform.models import (
+from src.infra.persistence.orm.inventory_procurement.models import (
     InventoryItemCategoryORM,
     PurchaseOrderLineORM,
     PurchaseOrderORM,

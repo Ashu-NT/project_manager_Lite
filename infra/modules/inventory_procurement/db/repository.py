@@ -55,7 +55,7 @@ from infra.modules.inventory_procurement.db.mapper import (
     storeroom_from_orm,
     storeroom_to_orm,
 )
-from src.infra.persistence.orm.platform.models import (
+from src.infra.persistence.orm.inventory_procurement.models import (
     InventoryItemCategoryORM,
     PurchaseOrderLineORM,
     PurchaseOrderORM,

@@ -1311,7 +1311,7 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `core/modules/maintenance_management/*` must be renamed to `core/modules/maintenance/*`
 - `infra/platform/service_registration/*` is the current composition root; the target expects `infra/composition/*_registry.py`
 - migrations currently live in `migration/`, not under `infra/persistence/migrations/`
-- ORM and repositories are split today between `infra/platform/db/*` and `infra/modules/*/db/*`; the target separates global ORM under `infra/persistence/orm/*` and module-owned persistence adapters inside each module
+- ORM rows now live under `src/infra/persistence/orm/platform/*`, `project_management/*`, `inventory_procurement/*`, and `maintenance/*`; module repositories are still split between `src/infra/persistence/db/platform/*` and `infra/modules/*/db/*` until the module slices move them under module-owned infrastructure
 - `ui/platform/shell/*` must move to `ui/shell/*`
 - the detailed guide introduces `src/ui/shared/*` for reusable desktop presentation helpers; that shared root is now in place
 - platform admin UI now lives under `src/ui/platform/workspaces/admin/*`, `src/ui/platform/dialogs/*`, and `src/ui/platform/widgets/*`; the legacy `ui/platform/admin/*` package has been removed
@@ -1752,6 +1752,29 @@ Completed in the clean/no-facade execution:
     - `src/ui/platform/widgets/document_preview.py`
 - rewired shell workspace registration, maintenance document previews/viewers, admin tests, architecture guardrails, and test path rewrites to `src.ui.platform.workspaces.admin.*`, `src.ui.platform.dialogs.*`, and `src.ui.platform.widgets.*`
 - deleted the old `ui/platform/admin/` package after callers were rewritten
+- split the remaining mixed-ownership ORM aggregate by moving PM-owned rows into `src/infra/persistence/orm/project_management/models.py`:
+  - `ProjectORM`
+  - `TaskORM`
+  - `ResourceORM`
+  - `ProjectResourceORM`
+  - `TaskAssignmentORM`
+  - `TaskDependencyORM`
+  - `CostItemORM`
+  - `CalendarEventORM`
+  - `WorkingCalendarORM`
+  - `HolidayORM`
+  - `ProjectBaselineORM`
+  - `BaselineTaskORM`
+  - `RegisterEntryORM`
+  - `TaskCommentORM`
+  - `TaskPresenceORM`
+  - `PortfolioScoringTemplateORM`
+  - `PortfolioIntakeItemORM`
+  - `PortfolioScenarioORM`
+  - `PortfolioProjectDependencyORM`
+- rewired PM persistence adapters and collaboration storage to `src.infra.persistence.orm.project_management.models`
+- rewired inventory persistence adapters to `src.infra.persistence.orm.inventory_procurement.models` instead of importing inventory rows through `src.infra.persistence.orm.platform.models`
+- updated `src/infra/persistence/orm/__init__.py` and `src/infra/persistence/migrations/env.py` so metadata loading imports all ORM packages directly rather than relying on the platform model barrel
 - removed the stale `core/__init__.py` UI side effect so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -1785,6 +1808,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab` passes
 - in `conda run -n pmenv`, direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog` passes
 - in `conda run -n pmenv`, direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state` passes
+- in `conda run -n pmenv`, direct import of `src.infra.persistence.orm.Base`, `src.infra.persistence.orm.project_management.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.infra.persistence.orm.platform.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM` passes
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
@@ -1846,6 +1870,10 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_admin_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_admin_workspace_package_exports_tabs tests/test_architecture_guardrails.py::test_platform_widgets_package_exports_admin_helpers tests/test_architecture_guardrails.py::test_platform_dialogs_package_exports_admin_and_document_dialogs tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_tab_surface_consistency.py tests/test_code_generation_ui.py -q`
 - in `conda run -n pmenv`, admin cross-module regressions pass:
   - `pytest tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py -q`
+- in `conda run -n pmenv`, ORM ownership guardrails pass:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_inventory_persistence_imports_inventory_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages -q`
+- in `conda run -n pmenv`, PM/inventory ORM regression verification passes:
+  - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
@@ -1866,18 +1894,19 @@ Verified:
 - no Python import statements remain for `ui.platform.shared`
 - no Python import statements remain for `ui.platform.control`
 - no Python import statements remain for `ui.platform.admin`
+- no Python import statements remain for `src.infra.persistence.orm.platform.models` under `infra/modules/project_management` or `infra/modules/inventory_procurement`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 - all planned platform UI regrouping for Slice 1 is complete
+- all remaining mixed-ownership ORM rows are out of the platform model aggregate for Slice 1
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
-- split the large ORM aggregate further as module slices move ownership into their target infrastructure packages
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
 
 Known verification gap:
 
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the admin UI cutover:
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the ORM ownership split:
   - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
 
 ### Slice 2: Project Management

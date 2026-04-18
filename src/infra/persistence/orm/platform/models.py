@@ -1,145 +1,28 @@
-# src/infra/persistence/orm/platform/models.py
+"""Platform ORM models."""
+
 from __future__ import annotations
-from datetime import date,datetime
+
+from datetime import date, datetime
 from typing import Optional
 
 from sqlalchemy import DateTime
-
 from sqlalchemy import (
-    String,
-    Date,
-    Float,
     Boolean,
-    ForeignKey,
+    Date,
     Enum as SAEnum,
+    Float,
+    ForeignKey,
     Index,
     Integer,
+    String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infra.persistence.orm.base import Base
-from core.modules.project_management.domain.enums import (
-    CostType,
-    DependencyType,
-    ProjectStatus,
-    TaskStatus,
-    WorkerType,
-)
 from src.core.platform.org.domain import EmploymentType
-from core.modules.project_management.domain.register import (
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
-    RegisterEntryType,
-)
 from src.core.platform.time.domain import TimesheetPeriodStatus
-from src.infra.persistence.orm.inventory_procurement.models import (
-    InventoryItemCategoryORM,
-    PurchaseOrderLineORM,
-    PurchaseOrderORM,
-    PurchaseRequisitionLineORM,
-    PurchaseRequisitionORM,
-    ReceiptHeaderORM,
-    ReceiptLineORM,
-    StockBalanceORM,
-    StockItemORM,
-    StockReservationORM,
-    StockTransactionORM,
-    StoreroomORM,
-)
-from src.infra.persistence.orm.maintenance.models import (
-    MaintenanceAssetORM,
-    MaintenanceAssetComponentORM,
-    MaintenanceDowntimeEventORM,
-    MaintenanceFailureCodeORM,
-    MaintenanceIntegrationSourceORM,
-    MaintenanceLocationORM,
-    MaintenanceSensorExceptionORM,
-    MaintenanceSensorORM,
-    MaintenanceSensorReadingORM,
-    MaintenanceSensorSourceMappingORM,
-    MaintenanceWorkOrderMaterialRequirementORM,
-    MaintenanceSystemORM,
-    MaintenanceWorkOrderORM,
-    MaintenanceWorkOrderTaskORM,
-    MaintenanceWorkOrderTaskStepORM,
-    MaintenanceWorkRequestORM,
-)
-from src.infra.persistence.orm.maintenance.preventive_runtime_models import MaintenancePreventivePlanInstanceORM
-
-
-class ProjectORM(Base):
-    __tablename__ = "projects"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[str] = mapped_column(String, default="")
-    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    status: Mapped[ProjectStatus] = mapped_column(
-        SAEnum(ProjectStatus), default=ProjectStatus.PLANNED, nullable=False
-    )
-    
-    client_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    client_contact: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    planned_budget: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    currency: Mapped[Optional[str]] = mapped_column(String(8), nullable=True) #' EUR, USD, etc.'
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-
-
-class TaskORM(Base):
-    __tablename__ = "tasks"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[str] = mapped_column(String, default="")
-    start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    end_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    duration_days: Mapped[Optional[int]] = mapped_column(nullable=True)
-    status: Mapped[TaskStatus] = mapped_column(
-        SAEnum(TaskStatus), default=TaskStatus.TODO, nullable=False
-    )
-    priority: Mapped[int] = mapped_column(default=0)
-
-    percent_complete: Mapped[float] = mapped_column(Float, default=0.0)
-    actual_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    actual_end: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    deadline: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-Index("idx_tasks_project_id", TaskORM.project_id)
-
-class ResourceORM(Base):
-    __tablename__ = "resources"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    role: Mapped[str] = mapped_column(String, default="")
-    hourly_rate: Mapped[float] = mapped_column(Float, default=0.0)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    capacity_percent: Mapped[float] = mapped_column(Float, nullable=False, default=100.0, server_default="100.0")
-    address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    contact: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-    cost_type: Mapped[CostType] = mapped_column(SAEnum(CostType), default=CostType.LABOR, nullable=False)
-    currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    worker_type: Mapped[WorkerType] = mapped_column(
-        SAEnum(WorkerType),
-        nullable=False,
-        default=WorkerType.EXTERNAL,
-        server_default=WorkerType.EXTERNAL.value,
-    )
-    employee_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        ForeignKey("employees.id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+from src.infra.persistence.orm.base import Base
 
 
 class EmployeeORM(Base):
@@ -173,6 +56,12 @@ class EmployeeORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_employees_department", EmployeeORM.department_id)
+Index("idx_employees_site", EmployeeORM.site_id)
+Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
+Index("idx_employees_active", EmployeeORM.is_active)
+
+
 class OrganizationORM(Base):
     __tablename__ = "organizations"
 
@@ -183,6 +72,10 @@ class OrganizationORM(Base):
     base_currency: Mapped[str] = mapped_column(String(8), nullable=False, default="EUR", server_default="EUR")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
+Index("idx_organizations_active", OrganizationORM.is_active)
 
 
 class SiteORM(Base):
@@ -219,6 +112,10 @@ class SiteORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+Index("idx_sites_organization", SiteORM.organization_id)
+Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)
 
 
 class DepartmentORM(Base):
@@ -264,6 +161,14 @@ class DepartmentORM(Base):
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
+
+Index("idx_departments_organization", DepartmentORM.organization_id)
+Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
+Index("idx_departments_site", DepartmentORM.site_id)
+Index("idx_departments_default_location", DepartmentORM.default_location_id)
+Index("idx_departments_manager", DepartmentORM.manager_employee_id)
+
+
 class DocumentStructureORM(Base):
     __tablename__ = "document_structures"
     __table_args__ = (
@@ -290,6 +195,10 @@ class DocumentStructureORM(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
+
+Index("idx_document_structures_organization", DocumentStructureORM.organization_id)
+Index("idx_document_structures_parent", DocumentStructureORM.parent_structure_id)
 
 
 class DocumentORM(Base):
@@ -334,6 +243,11 @@ class DocumentORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_documents_organization", DocumentORM.organization_id)
+Index("idx_documents_structure", DocumentORM.document_structure_id)
+Index("idx_documents_uploaded_by", DocumentORM.uploaded_by_user_id)
+
+
 class DocumentLinkORM(Base):
     __tablename__ = "document_links"
     __table_args__ = (
@@ -362,6 +276,16 @@ class DocumentLinkORM(Base):
     entity_type: Mapped[str] = mapped_column(String(128), nullable=False)
     entity_id: Mapped[str] = mapped_column(String(128), nullable=False)
     link_role: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+
+
+Index("idx_document_links_document", DocumentLinkORM.document_id)
+Index(
+    "idx_document_links_entity",
+    DocumentLinkORM.organization_id,
+    DocumentLinkORM.module_code,
+    DocumentLinkORM.entity_type,
+    DocumentLinkORM.entity_id,
+)
 
 
 class PartyORM(Base):
@@ -398,6 +322,11 @@ class PartyORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_parties_organization", PartyORM.organization_id)
+Index("idx_parties_active", PartyORM.organization_id, PartyORM.is_active)
+Index("idx_parties_type", PartyORM.organization_id, PartyORM.party_type)
+
+
 class ModuleEntitlementORM(Base):
     __tablename__ = "organization_module_entitlements"
 
@@ -418,21 +347,7 @@ class ModuleEntitlementORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
-class TaskAssignmentORM(Base):
-    __tablename__ = "task_assignments"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.id",ondelete="CASCADE"), nullable=False)
-    resource_id: Mapped[str] = mapped_column(String, ForeignKey("resources.id",ondelete="CASCADE"), nullable=False)
-    allocation_percent: Mapped[float] = mapped_column(Float, default=100.0)
-    hours_logged: Mapped[float] = mapped_column(Float, default=0.0)
-    project_resource_id: Mapped[Optional[str]] = mapped_column(
-        String, 
-        ForeignKey("project_resources.id",ondelete="CASCADE"), 
-        nullable=True
-    )
-
-Index("idx_task_assignments_project_resource", TaskAssignmentORM.project_resource_id)
+Index("idx_org_module_entitlements_org", ModuleEntitlementORM.organization_id)
 
 
 class TimeEntryORM(Base):
@@ -515,174 +430,6 @@ class TimesheetPeriodORM(Base):
 
 Index("idx_timesheet_periods_resource", TimesheetPeriodORM.resource_id)
 Index("ux_timesheet_periods_resource_start", TimesheetPeriodORM.resource_id, TimesheetPeriodORM.period_start, unique=True)
-Index("idx_sites_organization", SiteORM.organization_id)
-Index("idx_sites_active", SiteORM.organization_id, SiteORM.is_active)
-Index("idx_employees_department", EmployeeORM.department_id)
-Index("idx_employees_site", EmployeeORM.site_id)
-Index("idx_departments_organization", DepartmentORM.organization_id)
-Index("idx_departments_active", DepartmentORM.organization_id, DepartmentORM.is_active)
-Index("idx_departments_site", DepartmentORM.site_id)
-Index("idx_departments_default_location", DepartmentORM.default_location_id)
-Index("idx_departments_manager", DepartmentORM.manager_employee_id)
-Index("idx_document_structures_organization", DocumentStructureORM.organization_id)
-Index("idx_document_structures_parent", DocumentStructureORM.parent_structure_id)
-Index("idx_documents_organization", DocumentORM.organization_id)
-Index("idx_documents_structure", DocumentORM.document_structure_id)
-Index("idx_documents_uploaded_by", DocumentORM.uploaded_by_user_id)
-Index("idx_document_links_document", DocumentLinkORM.document_id)
-Index("idx_document_links_entity", DocumentLinkORM.organization_id, DocumentLinkORM.module_code, DocumentLinkORM.entity_type, DocumentLinkORM.entity_id)
-Index("idx_parties_organization", PartyORM.organization_id)
-Index("idx_parties_active", PartyORM.organization_id, PartyORM.is_active)
-Index("idx_parties_type", PartyORM.organization_id, PartyORM.party_type)
-
-class TaskDependencyORM(Base):
-    __tablename__ = "task_dependencies"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    predecessor_task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.id",ondelete="CASCADE"), nullable=False)
-    successor_task_id: Mapped[str] = mapped_column(String, ForeignKey("tasks.id",ondelete="CASCADE"), nullable=False)
-    dependency_type: Mapped[DependencyType] = mapped_column(
-        SAEnum(DependencyType), default=DependencyType.FINISH_TO_START, nullable=False
-    )
-    lag_days: Mapped[int] = mapped_column(nullable=False, default=0)
-Index("idx_dep_predecessor", TaskDependencyORM.predecessor_task_id)
-Index("idx_dep_successor", TaskDependencyORM.successor_task_id)
-
-class CostItemORM(Base):
-    __tablename__ = "cost_items"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[str] = mapped_column(String, ForeignKey("projects.id",ondelete="CASCADE"), nullable=False)
-    task_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("tasks.id",ondelete="SET NULL"), nullable=True)
-    description: Mapped[str] = mapped_column(String, nullable=False)
-    cost_type: Mapped[str] = mapped_column(String, nullable=False, default="OVERHEAD")  # e.g. OVERHEAD, LABOR, MATERIAL
-    currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True) #' EUR, USD, etc.'
-    
-    planned_amount: Mapped[float] = mapped_column(Float, nullable=False)
-    committed_amount: Mapped[float] = mapped_column(Float, default=0.0)
-    actual_amount: Mapped[float] = mapped_column(Float, default=0.0)
-    incurred_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    
-Index("idx_costs_project", CostItemORM.project_id)
-Index("idx_costs_task", CostItemORM.task_id)
-Index("idx_costs_type", CostItemORM.cost_type)
-
-class CalendarEventORM(Base):
-    __tablename__ = "calendar_events"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    title: Mapped[str] = mapped_column(String, nullable=False)
-    start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    end_date: Mapped[date] = mapped_column(Date, nullable=False)
-    project_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("projects.id",ondelete="CASCADE"), nullable=True)
-    task_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("tasks.id",ondelete="CASCADE"), nullable=True)
-    all_day: Mapped[bool] = mapped_column(Boolean, default=True)
-    description: Mapped[str] = mapped_column(String, default="")
-    
-Index("idx_clandar_project", CalendarEventORM.project_id)
-Index("idx_calendar_start_end", CalendarEventORM.start_date, CalendarEventORM.end_date )
-
-class WorkingCalendarORM(Base):
-    __tablename__ = "working_calendars"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    # store working days as a comma-separated string, e.g. "0,1,2,3,4"
-    working_days: Mapped[str] = mapped_column(String, nullable=False, default="0,1,2,3,4")
-    hours_per_day: Mapped[float] = mapped_column(Float, default=8.0)
-
-
-class HolidayORM(Base):
-    __tablename__ = "holidays"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    calendar_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("working_calendars.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    date: Mapped[date] = mapped_column(Date, nullable=False)
-    name: Mapped[str] = mapped_column(String, default="")
-
-Index("idx_holiday_calendar_date", HolidayORM.calendar_id, HolidayORM.date)
-
-
-class ProjectBaselineORM(Base):
-    __tablename__ = "project_baselines"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[str] = mapped_column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-Index("idx_baseline_project", ProjectBaselineORM.project_id)
-Index("idx_baseline_created", ProjectBaselineORM.created_at)
-
-class BaselineTaskORM(Base):
-    __tablename__ = "baseline_tasks"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    baseline_id: Mapped[str] = mapped_column(String, ForeignKey("project_baselines.id", ondelete="CASCADE"), nullable=False)
-    task_id: Mapped[str] = mapped_column(String, nullable=False)
-    task_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-    baseline_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    baseline_finish: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    baseline_duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    baseline_planned_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-
-Index("idx_baseline_task_baseline", BaselineTaskORM.baseline_id)
-Index("idx_baseline_task_task", BaselineTaskORM.task_id)
-
-class ProjectResourceORM(Base):
-    __tablename__ = "project_resources"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[str] = mapped_column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
-    resource_id: Mapped[str] = mapped_column(String, ForeignKey("resources.id", ondelete="CASCADE"), nullable=False)
-    
-    hourly_rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    planned_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    
-Index("idx_project_resource_project", ProjectResourceORM.project_id)
-Index("idx_project_resource_resource", ProjectResourceORM.resource_id)
-Index("ux_project_resource_project_resource", ProjectResourceORM.project_id, ProjectResourceORM.resource_id, unique=True)
-
-
-class RegisterEntryORM(Base):
-    __tablename__ = "register_entries"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    project_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    entry_type: Mapped[RegisterEntryType] = mapped_column(SAEnum(RegisterEntryType), nullable=False)
-    title: Mapped[str] = mapped_column(String(256), nullable=False)
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    severity: Mapped[RegisterEntrySeverity] = mapped_column(
-        SAEnum(RegisterEntrySeverity),
-        nullable=False,
-        default=RegisterEntrySeverity.MEDIUM,
-        server_default=RegisterEntrySeverity.MEDIUM.value,
-    )
-    status: Mapped[RegisterEntryStatus] = mapped_column(
-        SAEnum(RegisterEntryStatus),
-        nullable=False,
-        default=RegisterEntryStatus.OPEN,
-        server_default=RegisterEntryStatus.OPEN.value,
-    )
-    owner_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    due_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    impact_summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    response_plan: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 class UserORM(Base):
@@ -721,6 +468,9 @@ class UserORM(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
+Index("idx_users_username", UserORM.username, unique=True)
+
+
 class AuthSessionORM(Base):
     __tablename__ = "auth_sessions"
 
@@ -741,6 +491,11 @@ class AuthSessionORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_auth_sessions_user", AuthSessionORM.user_id)
+Index("idx_auth_sessions_expires", AuthSessionORM.expires_at)
+Index("idx_auth_sessions_revoked", AuthSessionORM.revoked_at)
+
+
 class RoleORM(Base):
     __tablename__ = "roles"
 
@@ -750,12 +505,18 @@ class RoleORM(Base):
     is_system: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
 
 
+Index("idx_roles_name", RoleORM.name, unique=True)
+
+
 class PermissionORM(Base):
     __tablename__ = "permissions"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     code: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(String, nullable=False, default="")
+
+
+Index("idx_permissions_code", PermissionORM.code, unique=True)
 
 
 class UserRoleORM(Base):
@@ -769,6 +530,10 @@ class UserRoleORM(Base):
     role_id: Mapped[str] = mapped_column(String, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
 
 
+Index("idx_user_roles_user", UserRoleORM.user_id)
+Index("idx_user_roles_role", UserRoleORM.role_id)
+
+
 class RolePermissionORM(Base):
     __tablename__ = "role_permissions"
     __table_args__ = (
@@ -778,6 +543,10 @@ class RolePermissionORM(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     role_id: Mapped[str] = mapped_column(String, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
     permission_id: Mapped[str] = mapped_column(String, ForeignKey("permissions.id", ondelete="CASCADE"), nullable=False)
+
+
+Index("idx_role_permissions_role", RolePermissionORM.role_id)
+Index("idx_role_permissions_permission", RolePermissionORM.permission_id)
 
 
 class ProjectMembershipORM(Base):
@@ -807,6 +576,10 @@ class ProjectMembershipORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_project_memberships_project", ProjectMembershipORM.project_id)
+Index("idx_project_memberships_user", ProjectMembershipORM.user_id)
+
+
 class ScopedAccessGrantORM(Base):
     __tablename__ = "scoped_access_grants"
     __table_args__ = (
@@ -831,6 +604,10 @@ class ScopedAccessGrantORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+Index("idx_scoped_access_scope", ScopedAccessGrantORM.scope_type, ScopedAccessGrantORM.scope_id)
+Index("idx_scoped_access_user", ScopedAccessGrantORM.user_id)
+
+
 class AuditLogORM(Base):
     __tablename__ = "audit_logs"
 
@@ -843,6 +620,11 @@ class AuditLogORM(Base):
     entity_id: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     details_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+
+
+Index("idx_audit_logs_occurred_at", AuditLogORM.occurred_at)
+Index("idx_audit_logs_project", AuditLogORM.project_id)
+Index("idx_audit_logs_entity", AuditLogORM.entity_type, AuditLogORM.entity_id)
 
 
 class ApprovalRequestORM(Base):
@@ -862,6 +644,11 @@ class ApprovalRequestORM(Base):
     decided_by_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     decision_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+Index("idx_approval_status", ApprovalRequestORM.status)
+Index("idx_approval_project", ApprovalRequestORM.project_id)
+Index("idx_approval_type", ApprovalRequestORM.request_type)
 
 
 class RuntimeExecutionORM(Base):
@@ -894,180 +681,32 @@ class RuntimeExecutionORM(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
-class TaskCommentORM(Base):
-    __tablename__ = "task_comments"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    task_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("tasks.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    author_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    author_username: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
-    body: Mapped[str] = mapped_column(Text, nullable=False)
-    mentions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
-    mentioned_user_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
-    attachments_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
-    read_by_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
-    read_by_user_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-
-class TaskPresenceORM(Base):
-    __tablename__ = "task_presence"
-    __table_args__ = (
-        UniqueConstraint("task_id", "username", name="ux_task_presence_task_username"),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    task_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("tasks.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    username: Mapped[str] = mapped_column(String(128), nullable=False)
-    display_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
-    activity: Mapped[str] = mapped_column(String(32), nullable=False, default="reviewing", server_default="reviewing")
-    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-
-class PortfolioScoringTemplateORM(Base):
-    __tablename__ = "portfolio_scoring_templates"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
-    summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    strategic_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
-    value_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
-    urgency_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
-    risk_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-
-class PortfolioIntakeItemORM(Base):
-    __tablename__ = "portfolio_intake_items"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    title: Mapped[str] = mapped_column(String(256), nullable=False)
-    sponsor_name: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
-    summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    requested_budget: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
-    requested_capacity_percent: Mapped[float] = mapped_column(
-        Float,
-        nullable=False,
-        default=0.0,
-        server_default="0.0",
-    )
-    target_start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    strategic_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
-    value_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
-    urgency_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
-    risk_score: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
-    scoring_template_id: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
-    scoring_template_name: Mapped[str] = mapped_column(
-        String(256),
-        nullable=False,
-        default="Balanced PMO",
-        server_default="Balanced PMO",
-    )
-    strategic_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=3, server_default="3")
-    value_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
-    urgency_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
-    risk_weight: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="PROPOSED", server_default="PROPOSED")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
-
-
-class PortfolioScenarioORM(Base):
-    __tablename__ = "portfolio_scenarios"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String(256), nullable=False)
-    budget_limit: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    capacity_limit_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    project_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
-    intake_item_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
-    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-
-class PortfolioProjectDependencyORM(Base):
-    __tablename__ = "portfolio_project_dependencies"
-    __table_args__ = (
-        UniqueConstraint(
-            "predecessor_project_id",
-            "successor_project_id",
-            name="ux_portfolio_project_dependencies_pair",
-        ),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    predecessor_project_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    successor_project_id: Mapped[str] = mapped_column(
-        String,
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    dependency_type: Mapped[str] = mapped_column(String(8), nullable=False, default="FS", server_default="FS")
-    summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-
-
-Index("idx_register_entries_project", RegisterEntryORM.project_id)
-Index("idx_register_entries_type", RegisterEntryORM.entry_type)
-Index("idx_register_entries_status", RegisterEntryORM.status)
-Index("idx_register_entries_due", RegisterEntryORM.due_date)
-Index("idx_users_username", UserORM.username, unique=True)
-Index("idx_auth_sessions_user", AuthSessionORM.user_id)
-Index("idx_auth_sessions_expires", AuthSessionORM.expires_at)
-Index("idx_auth_sessions_revoked", AuthSessionORM.revoked_at)
-Index("idx_employees_code", EmployeeORM.employee_code, unique=True)
-Index("idx_employees_active", EmployeeORM.is_active)
-Index("idx_organizations_code", OrganizationORM.organization_code, unique=True)
-Index("idx_organizations_active", OrganizationORM.is_active)
-Index("idx_org_module_entitlements_org", ModuleEntitlementORM.organization_id)
-Index("idx_resources_employee", ResourceORM.employee_id)
-Index("idx_roles_name", RoleORM.name, unique=True)
-Index("idx_permissions_code", PermissionORM.code, unique=True)
-Index("idx_user_roles_user", UserRoleORM.user_id)
-Index("idx_user_roles_role", UserRoleORM.role_id)
-Index("idx_role_permissions_role", RolePermissionORM.role_id)
-Index("idx_role_permissions_permission", RolePermissionORM.permission_id)
-Index("idx_project_memberships_project", ProjectMembershipORM.project_id)
-Index("idx_project_memberships_user", ProjectMembershipORM.user_id)
-Index("idx_scoped_access_scope", ScopedAccessGrantORM.scope_type, ScopedAccessGrantORM.scope_id)
-Index("idx_scoped_access_user", ScopedAccessGrantORM.user_id)
-Index("idx_audit_logs_occurred_at", AuditLogORM.occurred_at)
-Index("idx_audit_logs_project", AuditLogORM.project_id)
-Index("idx_audit_logs_entity", AuditLogORM.entity_type, AuditLogORM.entity_id)
-Index("idx_approval_status", ApprovalRequestORM.status)
-Index("idx_approval_project", ApprovalRequestORM.project_id)
-Index("idx_approval_type", ApprovalRequestORM.request_type)
 Index("idx_runtime_executions_started", RuntimeExecutionORM.started_at)
 Index("idx_runtime_executions_module_status", RuntimeExecutionORM.module_code, RuntimeExecutionORM.status)
 Index("idx_runtime_executions_retry_of", RuntimeExecutionORM.retry_of_execution_id)
-Index("idx_task_comments_task", TaskCommentORM.task_id)
-Index("idx_task_comments_created", TaskCommentORM.created_at)
-Index("idx_task_presence_task", TaskPresenceORM.task_id)
-Index("idx_task_presence_seen", TaskPresenceORM.last_seen_at)
-Index("idx_portfolio_scoring_active", PortfolioScoringTemplateORM.is_active)
-Index("idx_portfolio_scoring_updated", PortfolioScoringTemplateORM.updated_at)
-Index("idx_portfolio_intake_status", PortfolioIntakeItemORM.status)
-Index("idx_portfolio_intake_updated", PortfolioIntakeItemORM.updated_at)
-Index("idx_portfolio_intake_template", PortfolioIntakeItemORM.scoring_template_id)
-Index("idx_portfolio_scenarios_updated", PortfolioScenarioORM.updated_at)
-Index("idx_portfolio_project_dependencies_predecessor", PortfolioProjectDependencyORM.predecessor_project_id)
-Index("idx_portfolio_project_dependencies_successor", PortfolioProjectDependencyORM.successor_project_id)
+
+
+__all__ = [
+    "ApprovalRequestORM",
+    "AuditLogORM",
+    "AuthSessionORM",
+    "DepartmentORM",
+    "DocumentLinkORM",
+    "DocumentORM",
+    "DocumentStructureORM",
+    "EmployeeORM",
+    "ModuleEntitlementORM",
+    "OrganizationORM",
+    "PartyORM",
+    "PermissionORM",
+    "ProjectMembershipORM",
+    "RoleORM",
+    "RolePermissionORM",
+    "RuntimeExecutionORM",
+    "ScopedAccessGrantORM",
+    "SiteORM",
+    "TimeEntryORM",
+    "TimesheetPeriodORM",
+    "UserORM",
+    "UserRoleORM",
+]
