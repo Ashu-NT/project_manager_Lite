@@ -6,7 +6,7 @@ from uuid import uuid4
 from PySide6.QtWidgets import QDialog, QSizePolicy
 from openpyxl import load_workbook
 
-from core.platform.party.domain import PartyType
+from src.core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
 from ui.modules.inventory_procurement.data_exchange.import_dialog import InventoryImportDialog
 from ui.modules.inventory_procurement.data_exchange.tab import InventoryDataExchangeTab

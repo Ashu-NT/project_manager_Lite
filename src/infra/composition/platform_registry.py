@@ -33,8 +33,8 @@ from src.core.platform.org.access_policy import (
     normalize_site_scope_role,
     resolve_site_scope_permissions,
 )
-from core.platform.party import PartyService
-from core.platform.party.interfaces import PartyRepository
+from src.core.platform.party import PartyService
+from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService
 from src.infra.persistence.db.platform.modules import SqlAlchemyModuleEntitlementRepository
 from src.infra.persistence.db.platform.runtime_tracking import SqlAlchemyRuntimeExecutionRepository

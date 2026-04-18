@@ -6,14 +6,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.platform.audit.helpers import record_audit
-from src.core.platform.auth.authorization import require_any_permission, require_permission
 from core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from core.platform.notifications.domain_events import domain_events
+from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.support import normalize_code, normalize_email, normalize_name, normalize_phone
-from core.platform.party.domain import Party, PartyType
-from core.platform.party.interfaces import PartyRepository
+from src.core.platform.party.contracts import PartyRepository
+from src.core.platform.party.domain import Party, PartyType
 
 
 def _normalize_optional_text(value: str | None) -> str:

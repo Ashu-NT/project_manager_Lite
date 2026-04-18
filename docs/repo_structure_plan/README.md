@@ -719,9 +719,10 @@ core/platform/
 
   party/
     domain/
-      employee_party.py
-      vendor_party.py
-      contact.py
+      party.py
+    application/
+      party_service.py
+    contracts.py
 
   approval/
     domain/
@@ -1461,7 +1462,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 - `core/platform/access/*` becomes `src/core/platform/access/domain/*`, `application/*`, `contracts.py`, and `authorization.py`
 - `core/platform/modules/*` becomes `src/core/platform/modules/domain/*`, `application/*`, and `contracts.py`
 - `core/platform/org/*` becomes `src/core/platform/org/domain/*`, `application/*`, `contracts.py`, `support.py`, and `access_policy.py`
-- `core/platform/party/*` becomes `src/core/platform/party/domain/*`
+- `core/platform/party/*` becomes `src/core/platform/party/domain/*`, `application/*`, and `contracts.py`
 - `core/platform/approval/*` becomes `src/core/platform/approval/domain/*` and `application/*`
 - `core/platform/documents/*` becomes `src/core/platform/documents/domain/*` and `application/*`
 - `core/platform/notifications/*` becomes `src/core/platform/notifications/domain/*` and `application/*`
@@ -1627,6 +1628,13 @@ Completed in the clean/no-facade execution:
 - moved org-specific repository contracts out of `core/platform/common/interfaces.py` into `src/core/platform/org/contracts.py`
 - rewired composition, persistence, platform services, module services, UI, tests, and test path rewrites to `src.core.platform.org`
 - deleted the old `core/platform/org/` package after callers were rewritten
+- split `core/platform/party/*` into the real `src/core/platform/party/` package:
+  - `domain/party.py`
+  - `application/party_service.py`
+  - `contracts.py`
+- deleted placeholder target files from `src/core/platform/party/`
+- rewired composition, persistence, platform services, inventory/maintenance services, UI, tests, and test path rewrites to `src.core.platform.party`
+- deleted the old `core/platform/party/` package after callers were rewritten
 
 Verified:
 
@@ -1647,6 +1655,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.access.AccessControlService`, `ScopedRolePolicy`, `ScopedRolePolicyRegistry`, `ProjectMembershipRepository`, `ScopedAccessGrantRepository`, `ProjectMembership`, and `ScopedAccessGrant` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.modules.ModuleCatalogService`, `ModuleEntitlementRepository`, `ModuleEntitlementRecord`, `SupportsModuleEntitlements`, `EnterpriseModule`, `ModuleEntitlement`, and `PlatformCapability` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.org.DepartmentService`, `EmployeeService`, `OrganizationService`, `SiteService`, `DepartmentRepository`, `EmployeeRepository`, `OrganizationRepository`, `SiteRepository`, `Department`, `Employee`, `EmploymentType`, `Organization`, and `Site` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.party.Party`, `PartyRepository`, `PartyService`, and `PartyType` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1671,6 +1680,10 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_phase_b_user_admin_ui.py tests/test_platform_access_scopes.py tests/test_architecture_guardrails.py::test_legacy_platform_org_package_is_removed tests/test_architecture_guardrails.py::test_org_package_exports_services_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only -q`
 - in `conda run -n pmenv`, org maintenance integration verification passes:
   - `pytest tests/test_maintenance_foundation.py tests/test_maintenance_reliability_foundation.py tests/test_maintenance_preventive_foundation.py tests/test_maintenance_phase4_foundation.py tests/test_maintenance_execution_foundation.py tests/test_maintenance_sensor_foundation.py tests/test_maintenance_reliability_analytics.py tests/test_maintenance_integration_foundation.py -q`
+- in `conda run -n pmenv`, party verification plus legacy-package guardrails passes:
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_party_package_is_removed tests/test_architecture_guardrails.py::test_party_package_exports_service_and_contracts tests/test_service_architecture.py -q`
+- in `conda run -n pmenv`, party inventory/maintenance integration verification passes:
+  - `pytest tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_procurement_scaffold.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_code_generation_ui.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -1678,12 +1691,12 @@ Verified:
 - no Python import statements remain for `core.platform.access`
 - no Python import statements remain for `core.platform.modules`
 - no Python import statements remain for `core.platform.org`
+- no Python import statements remain for `core.platform.party`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
-  - `party`
   - `approval`
   - `documents`
   - `notifications`

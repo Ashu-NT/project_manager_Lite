@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.party.domain import Party, PartyType
+from src.core.platform.party.domain import Party, PartyType
 from src.infra.persistence.orm.platform.models import PartyORM
 
 

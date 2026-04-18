@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from core.platform.common.exceptions import NotFoundError, ValidationError
-from core.platform.party.domain import PartyType
+from src.core.platform.party.domain import PartyType
 from tests.ui_runtime_helpers import login_as
 
 

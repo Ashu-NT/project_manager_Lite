@@ -38,8 +38,8 @@ from core.platform.common.exceptions import ValidationError
 from src.core.platform.org.contracts import OrganizationRepository, SiteRepository
 from core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.domain import Organization, Site
-from core.platform.party.domain import Party, PartyType
-from core.platform.party.interfaces import PartyRepository
+from src.core.platform.party.domain import Party, PartyType
+from src.core.platform.party.contracts import PartyRepository
 
 
 class _OrgRepo(OrganizationRepository):

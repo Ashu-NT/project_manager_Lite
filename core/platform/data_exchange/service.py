@@ -16,8 +16,8 @@ from src.core.platform.importing import (
     ImportSummary,
 )
 from src.core.platform.org import SiteService
-from core.platform.party import PartyService
-from core.platform.party.domain import PartyType
+from src.core.platform.party import PartyService
+from src.core.platform.party.domain import PartyType
 
 
 _SITE_FIELDS: tuple[ImportFieldSpec, ...] = (

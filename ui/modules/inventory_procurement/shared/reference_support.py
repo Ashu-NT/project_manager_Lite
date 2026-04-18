@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.org.domain import Site
-from core.platform.party.domain import Party
+from src.core.platform.party.domain import Party
 
 
 def build_site_lookup(rows: list[Site]) -> dict[str, Site]:

@@ -30,7 +30,7 @@ from src.core.platform.org.domain import Organization
 from core.platform.documents import DocumentIntegrationService, DocumentLink
 from core.platform.documents.domain import Document
 from core.platform.notifications.domain_events import domain_events
-from core.platform.party import PartyService
+from src.core.platform.party import PartyService
 
 
 class ItemMasterService:

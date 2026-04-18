@@ -26,7 +26,7 @@ from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization, Site
 from core.platform.notifications.domain_events import domain_events
 from src.core.platform.org import SiteService
-from core.platform.party import PartyService
+from src.core.platform.party import PartyService
 
 
 class InventoryService:

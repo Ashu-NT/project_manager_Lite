@@ -52,7 +52,7 @@ from src.core.platform.importing import (
     ImportSummary,
 )
 from src.core.platform.org import SiteService
-from core.platform.party import PartyService
+from src.core.platform.party import PartyService
 
 
 class InventoryDataExchangeService(

@@ -10,7 +10,7 @@ from core.modules.inventory_procurement.services.maintenance_integration import 
 )
 from core.platform.common.exceptions import ValidationError
 from core.platform.notifications.domain_events import domain_events
-from core.platform.party.domain import PartyType
+from src.core.platform.party.domain import PartyType
 
 
 def _suffix() -> str:

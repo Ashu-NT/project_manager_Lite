@@ -577,6 +577,10 @@ def test_legacy_platform_org_package_is_removed():
     assert not (ROOT / "core" / "platform" / "org").exists()
 
 
+def test_legacy_platform_party_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "party").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -687,6 +691,17 @@ def test_org_package_exports_services_and_contracts():
     assert "from src.core.platform.org.domain import (" in text
     assert "class OrganizationService" not in text
     assert "class OrganizationRepository" not in text
+
+
+def test_party_package_exports_service_and_contracts():
+    package_path = ROOT / "src" / "core" / "platform" / "party" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.platform.party.application import PartyService" in text
+    assert "from src.core.platform.party.contracts import PartyRepository" in text
+    assert "from src.core.platform.party.domain import Party, PartyType" in text
+    assert "class PartyService" not in text
+    assert "class PartyRepository" not in text
 
 
 def test_platform_common_interfaces_are_platform_only():

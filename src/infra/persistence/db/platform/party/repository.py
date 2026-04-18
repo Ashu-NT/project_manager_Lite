@@ -3,8 +3,8 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.platform.party.domain import Party
-from core.platform.party.interfaces import PartyRepository
+from src.core.platform.party.domain import Party
+from src.core.platform.party.contracts import PartyRepository
 from src.infra.persistence.orm.platform.models import PartyORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.infra.persistence.db.platform.party.mapper import party_from_orm, party_to_orm

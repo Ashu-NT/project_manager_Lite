@@ -7,7 +7,7 @@ from core.modules.inventory_procurement.support import BUSINESS_PARTY_TYPES, nor
 from src.core.platform.auth.authorization import require_permission
 from core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.domain import Organization
-from core.platform.party.domain import Party
+from src.core.platform.party.domain import Party
 
 
 def build_requisition_number() -> str:

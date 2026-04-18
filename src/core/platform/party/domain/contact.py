@@ -1,1 +1,0 @@
-"""Contact domain target module."""

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
-from core.platform.party.domain import Party
+from src.core.platform.party.domain import Party
 
 
 class PartyRepository(ABC):
@@ -14,10 +13,10 @@ class PartyRepository(ABC):
     def update(self, party: Party) -> None: ...
 
     @abstractmethod
-    def get(self, party_id: str) -> Optional[Party]: ...
+    def get(self, party_id: str) -> Party | None: ...
 
     @abstractmethod
-    def get_by_code(self, organization_id: str, party_code: str) -> Optional[Party]: ...
+    def get_by_code(self, organization_id: str, party_code: str) -> Party | None: ...
 
     @abstractmethod
     def list_for_organization(
