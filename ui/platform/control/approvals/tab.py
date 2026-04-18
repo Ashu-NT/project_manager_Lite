@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from core.platform.approval import ApprovalService
+from src.core.platform.approval import ApprovalService
 from src.core.platform.auth import UserSessionContext
 from ui.platform.admin.shared_header import build_admin_header
 from ui.platform.control.approvals.queue import ApprovalQueuePanel

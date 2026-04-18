@@ -14,7 +14,7 @@ from src.core.platform.modules import (
     parse_licensed_module_codes,
 )
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
-from core.platform.approval import ApprovalService
+from src.core.platform.approval import ApprovalService
 from core.platform.audit import AuditService
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.domain.session import UserSessionContext

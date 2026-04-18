@@ -5,8 +5,8 @@ from typing import List, Optional
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from core.platform.common.interfaces import ApprovalRepository
-from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from src.core.platform.approval.contracts import ApprovalRepository
+from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.infra.persistence.db.platform.approval.mapper import approval_from_orm, approval_to_orm
 from src.infra.persistence.orm.platform.models import ApprovalRequestORM
 

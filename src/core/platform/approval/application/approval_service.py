@@ -5,13 +5,13 @@ from typing import Callable
 
 from sqlalchemy.orm import Session
 
-from core.platform.notifications.domain_events import domain_events
+from core.platform.audit.service import AuditService
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from core.platform.common.interfaces import ApprovalRepository
-from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from core.platform.notifications.domain_events import domain_events
+from src.core.platform.approval.contracts import ApprovalRepository
+from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
-from core.platform.audit.service import AuditService
 
 ApplyHandler = Callable[[ApprovalRequest], None]
 
@@ -52,7 +52,6 @@ class ApprovalService:
             "approval.request",
             operation_label="request governed change",
         )
-        # Prevent duplicate pending approvals for the same entity
         existing_pending = self._approval_repo.list_by_status(
             ApprovalStatus.PENDING,
             limit=1,
@@ -85,7 +84,6 @@ class ApprovalService:
             self._session.commit()
             domain_events.approvals_changed.emit(request.id)
         else:
-            # Let callers safely reference the pending request inside the same transaction.
             self._session.flush()
         return request
 
@@ -267,4 +265,4 @@ class ApprovalService:
         return details
 
 
-__all__ = ["ApprovalService", "ApplyHandler"]
+__all__ = ["ApplyHandler", "ApprovalService"]

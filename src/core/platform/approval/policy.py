@@ -29,5 +29,4 @@ def is_governance_required(action: str) -> bool:
     return action.strip().lower() in governed_actions
 
 
-__all__ = ["is_governance_required", "DEFAULT_GOVERNED_ACTIONS"]
-
+__all__ = ["DEFAULT_GOVERNED_ACTIONS", "is_governance_required"]

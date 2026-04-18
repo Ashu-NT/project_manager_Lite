@@ -727,12 +727,11 @@ core/platform/
   approval/
     domain/
       approval_request.py
-      approval_step.py
       approval_state.py
     application/
-      submit_for_approval.py
-      approve.py
-      reject.py
+      approval_service.py
+    contracts.py
+    policy.py
 
   documents/
     domain/
@@ -1463,7 +1462,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 - `core/platform/modules/*` becomes `src/core/platform/modules/domain/*`, `application/*`, and `contracts.py`
 - `core/platform/org/*` becomes `src/core/platform/org/domain/*`, `application/*`, `contracts.py`, `support.py`, and `access_policy.py`
 - `core/platform/party/*` becomes `src/core/platform/party/domain/*`, `application/*`, and `contracts.py`
-- `core/platform/approval/*` becomes `src/core/platform/approval/domain/*` and `application/*`
+- `core/platform/approval/*` becomes `src/core/platform/approval/domain/*`, `application/*`, `contracts.py`, and `policy.py`
 - `core/platform/documents/*` becomes `src/core/platform/documents/domain/*` and `application/*`
 - `core/platform/notifications/*` becomes `src/core/platform/notifications/domain/*` and `application/*`
 - `core/platform/audit/*` becomes `src/core/platform/audit/domain/*` and `application/*`
@@ -1635,6 +1634,16 @@ Completed in the clean/no-facade execution:
 - deleted placeholder target files from `src/core/platform/party/`
 - rewired composition, persistence, platform services, inventory/maintenance services, UI, tests, and test path rewrites to `src.core.platform.party`
 - deleted the old `core/platform/party/` package after callers were rewritten
+- split `core/platform/approval/*` into the real `src/core/platform/approval/` package:
+  - `domain/approval_request.py`
+  - `domain/approval_state.py`
+  - `application/approval_service.py`
+  - `contracts.py`
+  - `policy.py`
+- deleted placeholder target files from `src/core/platform/approval/`
+- moved the approval repository contract out of `core/platform/common/interfaces.py` into `src/core/platform/approval/contracts.py`
+- rewired composition, persistence, governance UI, PM governance helpers, inventory procurement approval flows, tests, and test path rewrites to `src.core.platform.approval`
+- deleted the old `core/platform/approval/` package after callers were rewritten
 
 Verified:
 
@@ -1656,6 +1665,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.core.platform.modules.ModuleCatalogService`, `ModuleEntitlementRepository`, `ModuleEntitlementRecord`, `SupportsModuleEntitlements`, `EnterpriseModule`, `ModuleEntitlement`, and `PlatformCapability` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.org.DepartmentService`, `EmployeeService`, `OrganizationService`, `SiteService`, `DepartmentRepository`, `EmployeeRepository`, `OrganizationRepository`, `SiteRepository`, `Department`, `Employee`, `EmploymentType`, `Organization`, and `Site` passes
 - in `conda run -n pmenv`, direct import of `src.core.platform.party.Party`, `PartyRepository`, `PartyService`, and `PartyType` passes
+- in `conda run -n pmenv`, direct import of `src.core.platform.approval.ApprovalRequest`, `ApprovalRepository`, `ApprovalService`, `ApprovalStatus`, `DEFAULT_GOVERNED_ACTIONS`, and `is_governance_required` passes
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
@@ -1684,6 +1694,12 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_party_package_is_removed tests/test_architecture_guardrails.py::test_party_package_exports_service_and_contracts tests/test_service_architecture.py -q`
 - in `conda run -n pmenv`, party inventory/maintenance integration verification passes:
   - `pytest tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_procurement_scaffold.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_code_generation_ui.py -q`
+- in `conda run -n pmenv`, approval verification plus contract/legacy-package guardrails passes:
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_approval_package_is_removed tests/test_architecture_guardrails.py::test_approval_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_governance_tab_mode_toggle_ui.py tests/test_phase_b_approval_workflow.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_domain_event_wiring.py -q`
+- in `conda run -n pmenv`, approval procurement integration verification passes:
+  - `pytest tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_ui.py -q`
+- in `conda run -n pmenv`, full architecture guardrails still pass:
+  - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -1692,12 +1708,12 @@ Verified:
 - no Python import statements remain for `core.platform.modules`
 - no Python import statements remain for `core.platform.org`
 - no Python import statements remain for `core.platform.party`
+- no Python import statements remain for `core.platform.approval`
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
 
 - split the remaining `core/platform/*` packages into the target `domain/`, `application/`, and `contracts/` layout:
-  - `approval`
   - `documents`
   - `notifications`
   - `audit`

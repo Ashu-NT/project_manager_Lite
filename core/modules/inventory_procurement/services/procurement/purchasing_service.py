@@ -19,7 +19,7 @@ from core.modules.inventory_procurement.services.procurement.purchasing_receivin
 from core.modules.inventory_procurement.services.procurement.purchasing_support import PurchasingSupportMixin
 from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from core.modules.inventory_procurement.services.stock_control import StockControlService
-from core.platform.approval import ApprovalService
+from src.core.platform.approval import ApprovalService
 from src.core.platform.org.contracts import OrganizationRepository
 
 

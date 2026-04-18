@@ -631,6 +631,16 @@ Completed:
 - placeholder party target files were removed from `src/core/platform/party/`
 - composition, persistence, platform services, inventory/maintenance services, UI, tests, and test path rewrites now use `src.core.platform.party`
 - the old `core/platform/party/` source package was deleted after direct import rewrites
+- approval now lives under `src/core/platform/approval/`:
+  - `domain/approval_request.py`
+  - `domain/approval_state.py`
+  - `application/approval_service.py`
+  - `contracts.py`
+  - `policy.py`
+- placeholder approval target files were removed from `src/core/platform/approval/`
+- the approval repository contract moved out of `core/platform/common/interfaces.py` into `src/core/platform/approval/contracts.py`
+- composition, persistence, governance UI, PM governance helpers, inventory procurement approval flows, tests, and test path rewrites now use `src.core.platform.approval`
+- the old `core/platform/approval/` source package was deleted after direct import rewrites
 
 Verified:
 
@@ -653,6 +663,7 @@ Verified:
   - direct import of `src.core.platform.modules.ModuleCatalogService`, `ModuleEntitlementRepository`, `ModuleEntitlementRecord`, `SupportsModuleEntitlements`, `EnterpriseModule`, `ModuleEntitlement`, and `PlatformCapability`
   - direct import of `src.core.platform.org.DepartmentService`, `EmployeeService`, `OrganizationService`, `SiteService`, `DepartmentRepository`, `EmployeeRepository`, `OrganizationRepository`, `SiteRepository`, `Department`, `Employee`, `EmploymentType`, `Organization`, and `Site`
   - direct import of `src.core.platform.party.Party`, `PartyRepository`, `PartyService`, and `PartyType`
+  - direct import of `src.core.platform.approval.ApprovalRequest`, `ApprovalRepository`, `ApprovalService`, `ApprovalStatus`, `DEFAULT_GOVERNED_ACTIONS`, and `is_governance_required`
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
@@ -668,6 +679,9 @@ Verified:
   - `pytest tests/test_maintenance_foundation.py tests/test_maintenance_reliability_foundation.py tests/test_maintenance_preventive_foundation.py tests/test_maintenance_phase4_foundation.py tests/test_maintenance_execution_foundation.py tests/test_maintenance_sensor_foundation.py tests/test_maintenance_reliability_analytics.py tests/test_maintenance_integration_foundation.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_party_package_is_removed tests/test_architecture_guardrails.py::test_party_package_exports_service_and_contracts tests/test_service_architecture.py -q`
   - `pytest tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_procurement_scaffold.py tests/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_code_generation_ui.py -q`
+  - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_approval_package_is_removed tests/test_architecture_guardrails.py::test_approval_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_governance_tab_mode_toggle_ui.py tests/test_phase_b_approval_workflow.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_domain_event_wiring.py -q`
+  - `pytest tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_ui.py -q`
+  - `pytest tests/test_architecture_guardrails.py -q`
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -676,6 +690,7 @@ Verified:
 - no Python import statements remain for `core.platform.modules`
 - no Python import statements remain for `core.platform.org`
 - no Python import statements remain for `core.platform.party`
+- no Python import statements remain for `core.platform.approval`
 
 Known blocker:
 
@@ -684,7 +699,7 @@ Known blocker:
 
 Continue next:
 
-1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `approval`, `documents`, `notifications`, and `audit`.
+1. Split the remaining `core/platform/*` packages into `domain/`, `application/`, and `contracts/` without wrappers: `documents`, `notifications`, and `audit`.
 2. Split the large ORM aggregate further as module slices move ownership into their target infrastructure packages.
 3. Move platform admin/control/settings/shared UI paths.
 4. Update test path strategy and remove path rewrites only after the new paths are complete.

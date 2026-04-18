@@ -581,6 +581,10 @@ def test_legacy_platform_party_package_is_removed():
     assert not (ROOT / "core" / "platform" / "party").exists()
 
 
+def test_legacy_platform_approval_package_is_removed():
+    assert not (ROOT / "core" / "platform" / "approval").exists()
+
+
 def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
@@ -704,6 +708,18 @@ def test_party_package_exports_service_and_contracts():
     assert "class PartyRepository" not in text
 
 
+def test_approval_package_exports_service_and_contracts():
+    package_path = ROOT / "src" / "core" / "platform" / "approval" / "__init__.py"
+    text = package_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.platform.approval.application import ApprovalService" in text
+    assert "from src.core.platform.approval.contracts import ApprovalRepository" in text
+    assert "from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus" in text
+    assert "from src.core.platform.approval.policy import DEFAULT_GOVERNED_ACTIONS, is_governance_required" in text
+    assert "class ApprovalService" not in text
+    assert "class ApprovalRepository" not in text
+
+
 def test_platform_common_interfaces_are_platform_only():
     interfaces_path = ROOT / "core" / "platform" / "common" / "interfaces.py"
     text = interfaces_path.read_text(encoding="utf-8", errors="ignore")
@@ -718,6 +734,7 @@ def test_platform_common_interfaces_are_platform_only():
     assert "class SiteRepository" not in text
     assert "class DepartmentRepository" not in text
     assert "class EmployeeRepository" not in text
+    assert "class ApprovalRepository" not in text
 
 
 def test_core_platform_does_not_import_module_contracts():

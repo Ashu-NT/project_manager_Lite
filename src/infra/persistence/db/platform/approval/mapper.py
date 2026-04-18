@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.infra.persistence.orm.platform.models import ApprovalRequestORM
 
 

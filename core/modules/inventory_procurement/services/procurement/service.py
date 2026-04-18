@@ -9,7 +9,7 @@ from core.modules.inventory_procurement.services.procurement.procurement_approva
 from core.modules.inventory_procurement.services.procurement.procurement_lifecycle import ProcurementLifecycleMixin
 from core.modules.inventory_procurement.services.procurement.procurement_queries import ProcurementQueryMixin
 from core.modules.inventory_procurement.services.procurement.procurement_support import ProcurementSupportMixin
-from core.platform.approval import ApprovalService
+from src.core.platform.approval import ApprovalService
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.party import PartyService
 

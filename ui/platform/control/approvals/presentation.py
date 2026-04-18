@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.platform.approval.domain import ApprovalRequest
+from src.core.platform.approval.domain import ApprovalRequest
 
 
 def approval_module_label(request: ApprovalRequest) -> str:

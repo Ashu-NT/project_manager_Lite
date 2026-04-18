@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.platform.approval import ApprovalService
+from src.core.platform.approval import ApprovalService
 from src.core.platform.auth import UserSessionContext
 from core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from core.platform.notifications.domain_events import domain_events

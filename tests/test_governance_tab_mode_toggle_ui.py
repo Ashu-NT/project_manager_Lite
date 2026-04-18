@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 import os
 
-from core.platform.approval.domain import ApprovalStatus
+from src.core.platform.approval.domain import ApprovalStatus
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from ui.modules.project_management.governance.tab import GovernanceTab
 from src.ui.shell.main_window import MainWindow
@@ -18,10 +18,10 @@ def test_governance_tab_runtime_exposes_mode_switch_and_persists_changes(
     project = services["project_service"].create_project("Governance Project")
     request = services["approval_service"].request_change(
         request_type="baseline.create",
-        entity_type="baseline",
-        entity_id="baseline-1",
-        project_id=None,
-        payload={"name": "March Baseline"},
+        entity_type="project_baseline",
+        entity_id=project.id,
+        project_id=project.id,
+        payload={"name": "March Baseline", "project_name": project.name},
     )
 
     store = make_settings_store(repo_workspace, prefix="governance")
