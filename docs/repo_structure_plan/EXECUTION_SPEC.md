@@ -880,7 +880,7 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_auth_module_phase_a.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_runtime_execution_tracking.py -q`
   - `pytest tests/test_architecture_guardrails.py -q`
-  - latest full architecture result after the platform persistence relocation: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
+  - latest full architecture result after the Slice 2 PM project-domain split: 94 passed
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -911,8 +911,10 @@ Known blocker:
 
 - the default interpreter outside `pmenv` still fails on `reportlab` during full app/test imports because that environment dependency is not installed there
 - executing migrations also requires the declared `alembic` dependency to be installed in the active environment
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the ORM ownership split:
-  - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
+
+Resolved:
+
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` now passes after the Slice 2 PM domain package-root cleanup removed the old duplicated task definitions from `core/modules/project_management/domain/__init__.py`
 
 Continue next:
 
@@ -948,6 +950,10 @@ Completed:
 - PM services and PM persistence adapters now import the specific repository contract modules directly
 - the old `core/modules/project_management/interfaces.py` file was deleted after direct import rewrites
 - `contracts/gateways/` remains empty for this pass because the deleted PM interfaces file contained repository contracts only
+- `Project` and `ProjectResource` now live in `src/core/modules/project_management/domain/projects/project.py`
+- PM services, PM persistence, repository contracts, and UI callers now import the project domain model from the new subdomain file directly
+- the old flat `core/modules/project_management/domain/project.py` file was deleted after direct import rewrites
+- `core/modules/project_management/domain/__init__.py` was reduced to a package docstring because no callers import PM domain objects from the package root
 
 Verified:
 
@@ -955,9 +961,11 @@ Verified:
 - direct metadata smoke import confirms PM ORM rows load from split feature ORM files and stay registered in `Base.metadata`
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
 - direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
+- direct import smoke confirms `Project` and `ProjectResource` load from `src.core.modules.project_management.domain.projects.project`
 - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - PM contract split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`, observed 65 passed
-- latest full architecture result after the PM contract split: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
+- PM project-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py -q`, observed 112 passed
+- latest full architecture result after the PM project-domain split: 94 passed
 
 Continue next:
 

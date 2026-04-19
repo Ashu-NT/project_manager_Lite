@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 
-from core.modules.project_management.domain.project import ProjectResource
+from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository

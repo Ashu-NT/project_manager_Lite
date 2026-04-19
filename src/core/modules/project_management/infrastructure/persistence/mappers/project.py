@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.project import Project, ProjectResource
+from src.core.modules.project_management.domain.projects.project import Project, ProjectResource
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM, ProjectResourceORM
 
 

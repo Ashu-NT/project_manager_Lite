@@ -60,6 +60,3 @@ class ProjectResource:
             planned_hours=planned_hours,
             is_active=is_active,
         )
-
-
-__all__ = ["Project", "ProjectResource"]

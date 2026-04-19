@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 
 from core.modules.project_management.domain.cost import CostItem
 from core.modules.project_management.domain.enums import CostType
-from core.modules.project_management.domain.project import Project
+from src.core.modules.project_management.domain.projects.project import Project
 from core.modules.project_management.domain.task import Task
 from src.ui.shared.formatting.ui_config import UIConfig as CFG, CurrencyType
 

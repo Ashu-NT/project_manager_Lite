@@ -18,7 +18,7 @@ from src.core.modules.project_management.contracts.repositories.cost_calendar im
     CostRepository,
 )
 from src.core.platform.common.interfaces import TimeEntryRepository
-from core.modules.project_management.domain.project import Project
+from src.core.modules.project_management.domain.projects.project import Project
 from core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit

@@ -5,7 +5,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QHeaderView, QLabel, QMessageBox, QTableView, QTableWidget, QTableWidgetItem
 
 from core.modules.project_management.domain.enums import CostType
-from core.modules.project_management.domain.project import Project
+from src.core.modules.project_management.domain.projects.project import Project
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService

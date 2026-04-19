@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.project_management.domain.project import Project
+from src.core.modules.project_management.domain.projects.project import Project
 from core.modules.project_management.domain.enums import ProjectStatus
 from src.ui.shared.formatting.ui_config import UIConfig as CFG, CurrencyType
 

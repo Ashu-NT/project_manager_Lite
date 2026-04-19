@@ -1904,9 +1904,9 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_inventory_persistence_imports_inventory_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages -q`
 - in `conda run -n pmenv`, PM/inventory ORM regression verification passes:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
-- in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
+- in `conda run -n pmenv`, full architecture guardrails originally failed only on an existing project-management size budget; this was resolved during the Slice 2 PM domain package-root cleanup:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the platform persistence relocation: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
+  - latest observed result after the PM project-domain split: 94 passed
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -1939,10 +1939,9 @@ Still remaining in Slice 1:
 
 - update test path strategy and remove `tests/path_rewrites.py` only after all required callers are on the new paths
 
-Known verification gap:
+Resolved verification note:
 
-- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` is currently blocked by an existing size-budget guardrail, not by the ORM ownership split:
-  - `core/domain/__init__.py` resolves through `tests/path_rewrites.py` to `core/modules/project_management/domain/__init__.py`, which is now 95 lines against a budget of 70
+- `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` now passes after the Slice 2 PM domain package-root cleanup removed the old duplicated task definitions from `core/modules/project_management/domain/__init__.py`
 
 ### Slice 2: Project Management
 
@@ -2020,6 +2019,10 @@ Completed in the clean/no-facade execution:
 - rewired PM services and PM persistence adapters to import the specific repository contract modules directly
 - deleted the old `core/modules/project_management/interfaces.py` file after callers were rewritten
 - kept `contracts/gateways/` empty for this pass because the deleted source file contained repository contracts only, not gateway contracts
+- moved `Project` and `ProjectResource` from `core/modules/project_management/domain/project.py` into `src/core/modules/project_management/domain/projects/project.py`
+- rewired PM services, PM persistence, contract, and UI callers to import the project domain model from the new subdomain file directly
+- deleted the old flat `core/modules/project_management/domain/project.py` file after callers were rewritten
+- reduced `core/modules/project_management/domain/__init__.py` to a package docstring because no callers import PM domain objects from the package root
 
 Verified:
 
@@ -2027,6 +2030,7 @@ Verified:
 - direct metadata smoke import confirms `ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, and `PortfolioScenarioORM` load from split PM ORM files and remain registered in `Base.metadata`
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
 - direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
+- direct import smoke confirms `Project` and `ProjectResource` load from `src.core.modules.project_management.domain.projects.project`
 - in `conda run -n pmenv`, PM persistence relocation verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - in `conda run -n pmenv`, PM ORM split verification passes:
@@ -2034,9 +2038,12 @@ Verified:
 - in `conda run -n pmenv`, PM contract split verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
   - observed result after the PM contract split: 65 passed
-- in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
+- in `conda run -n pmenv`, PM project-domain split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py -q`
+  - observed result after the PM project-domain split: 112 passed
+- in `conda run -n pmenv`, full architecture guardrails pass:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the PM contract split: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
+  - observed result after the PM project-domain split: 94 passed
 
 Still remaining in Slice 2:
 

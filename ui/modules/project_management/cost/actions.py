@@ -11,7 +11,7 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from core.modules.project_management.domain.cost import CostItem
-from core.modules.project_management.domain.project import Project
+from src.core.modules.project_management.domain.projects.project import Project
 from core.modules.project_management.domain.task import Task
 from core.modules.project_management.services.cost import CostService
 from ui.modules.project_management.cost.cost_dialogs import CostEditDialog
