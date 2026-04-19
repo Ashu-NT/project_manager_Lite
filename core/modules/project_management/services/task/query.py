@@ -4,7 +4,10 @@ from datetime import date
 from typing import List
 
 from src.core.platform.common.exceptions import ValidationError
-from core.modules.project_management.interfaces import AssignmentRepository, TaskRepository
+from src.core.modules.project_management.contracts.repositories.task import (
+    AssignmentRepository,
+    TaskRepository,
+)
 from core.modules.project_management.domain.task import Task, TaskAssignment
 from core.modules.project_management.domain.enums import TaskStatus
 from src.core.platform.access.authorization import require_project_permission

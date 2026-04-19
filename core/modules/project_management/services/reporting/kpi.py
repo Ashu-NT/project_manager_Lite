@@ -4,14 +4,16 @@ from datetime import date, timedelta
 from typing import Dict, List, Tuple
 
 from src.core.platform.common.exceptions import NotFoundError
-from core.modules.project_management.interfaces import (
-    AssignmentRepository,
-    CostRepository,
+from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
-    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.task import (
+    AssignmentRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from core.modules.project_management.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.modules.project_management.services.reporting.models import GanttTaskBar, ProjectKPI, ResourceLoadRow
 from core.modules.project_management.services.scheduling.engine import CPMTaskInfo, SchedulingEngine

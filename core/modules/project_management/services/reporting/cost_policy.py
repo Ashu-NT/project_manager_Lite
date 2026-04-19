@@ -5,12 +5,12 @@ from datetime import date
 from typing import Dict, Tuple
 
 from src.core.platform.common.exceptions import NotFoundError
-from core.modules.project_management.interfaces import (
-    CostRepository,
+from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
-    ResourceRepository,
 )
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from core.modules.project_management.domain.enums import CostType
 from core.modules.project_management.services.reporting.models import CostSourceBreakdown, CostSourceRow
 

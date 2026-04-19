@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
+from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
-    ProjectResourceRepository,
-    ResourceRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from core.modules.project_management.domain.task import TaskAssignment
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission

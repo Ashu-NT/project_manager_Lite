@@ -7,13 +7,15 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.contracts.repositories.cost_calendar import (
     CalendarEventRepository,
     CostRepository,
-    DependencyRepository,
-    ProjectRepository,
-    TaskRepository,
 )
 from src.core.platform.common.interfaces import TimeEntryRepository
 from core.modules.project_management.domain.project import Project

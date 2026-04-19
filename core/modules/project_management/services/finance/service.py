@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.platform.common.exceptions import NotFoundError
-from core.modules.project_management.interfaces import (
-    CostRepository,
+from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
-    ResourceRepository,
-    TaskRepository,
 )
+from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.finance.analytics import build_dimension_analytics, build_source_analytics

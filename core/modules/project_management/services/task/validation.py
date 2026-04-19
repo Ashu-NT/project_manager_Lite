@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
-    ProjectRepository,
-    ResourceRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 
 
 class TaskValidationMixin:

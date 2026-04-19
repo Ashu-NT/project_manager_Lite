@@ -4,15 +4,19 @@ import os
 
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.interfaces import (
-    AssignmentRepository,
-    CalendarEventRepository,
-    CostRepository,
-    DependencyRepository,
+from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
-    ResourceRepository,
+)
+from src.core.modules.project_management.contracts.repositories.task import (
+    AssignmentRepository,
+    DependencyRepository,
     TaskRepository,
+)
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.cost_calendar import (
+    CalendarEventRepository,
+    CostRepository,
 )
 from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.platform.approval.application.approval_service import ApprovalService

@@ -5,14 +5,14 @@ from sqlalchemy.orm import Session
 
 from core.modules.project_management.domain.baseline import ProjectBaseline, BaselineTask
 from core.modules.project_management.domain.enums import CostType
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
-    TaskRepository,
-    CostRepository,
-    BaselineRepository,
     ProjectResourceRepository,
-    ResourceRepository,
 )
+from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission

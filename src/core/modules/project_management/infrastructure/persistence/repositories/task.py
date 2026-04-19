@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,

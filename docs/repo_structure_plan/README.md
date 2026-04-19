@@ -1958,7 +1958,7 @@ Goal: complete the full project management slice before moving to the next modul
 | `core/modules/project_management/services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*` | `src/core/modules/project_management/application/scheduling/*` and `domain/scheduling/*` | fold schedule, calendar, and baseline logic into scheduling |
 | `core/modules/project_management/services/resource/*` | `src/core/modules/project_management/application/resources/*` | move resource allocation/query logic |
 | `core/modules/project_management/services/cost/*` and `services/finance/*` | `src/core/modules/project_management/application/financials/*` and `domain/financials/*` | fold cost/finance into financials |
-| `core/modules/project_management/interfaces.py` | `src/core/modules/project_management/contracts/repositories/*` and `gateways/*` | split repository and gateway contracts |
+| deleted legacy `core/modules/project_management/interfaces.py` | `src/core/modules/project_management/contracts/repositories/{project,task,resource,cost_calendar,baseline,register,collaboration,portfolio}.py` | completed repository contract split; no gateway contracts existed in the source file |
 | `infra/modules/project_management/db/*` | `src/core/modules/project_management/infrastructure/persistence/repositories/*` and `mappers/*` | move PM repositories/mappers/read models under module infrastructure |
 | `core/modules/project_management/reporting/renderers/*` and reporting services | `src/core/modules/project_management/infrastructure/reporting/*` | reporting adapters move into infrastructure |
 | none | `src/core/modules/project_management/api/desktop/*.py` and `api/http/*.py` | create module-local desktop adapters and HTTP routers |
@@ -2016,24 +2016,32 @@ Completed in the clean/no-facade execution:
 - rewired composition, PM persistence internals, test path rewrites, refactor regressions, and architecture guardrails to the new PM infrastructure imports
 - deleted the old `infra/modules/project_management/db/` package after callers were rewritten
 - removed the old PM timesheet/task-timesheet bridge files instead of carrying facade re-exports forward; platform time persistence remains owned by `src/core/platform/infrastructure/persistence/time/`
+- split PM repository contracts from `core/modules/project_management/interfaces.py` into `src/core/modules/project_management/contracts/repositories/{project,task,resource,cost_calendar,baseline,register,collaboration,portfolio}.py`
+- rewired PM services and PM persistence adapters to import the specific repository contract modules directly
+- deleted the old `core/modules/project_management/interfaces.py` file after callers were rewritten
+- kept `contracts/gateways/` empty for this pass because the deleted source file contained repository contracts only, not gateway contracts
 
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec` passes
 - direct metadata smoke import confirms `ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, and `PortfolioScenarioORM` load from split PM ORM files and remain registered in `Base.metadata`
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
+- direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
 - in `conda run -n pmenv`, PM persistence relocation verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - in `conda run -n pmenv`, PM ORM split verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
+- in `conda run -n pmenv`, PM contract split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
+  - observed result after the PM contract split: 65 passed
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the PM ORM split: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
+  - observed result after the PM contract split: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
 
 Still remaining in Slice 2:
 
-- split PM contracts out of `core/modules/project_management/interfaces.py` into module-local `contracts/repositories/*` and `contracts/gateways/*`
 - continue splitting PM domain, services, API adapters, and UI according to the Slice 2 plan before starting another module
+- if real PM gateway boundaries appear during the application/API split, place those contracts under `src/core/modules/project_management/contracts/gateways/*` without facade re-exports
 
 ### Slice 3: Inventory & Procurement
 

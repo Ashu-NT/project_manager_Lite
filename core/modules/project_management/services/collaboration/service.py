@@ -5,11 +5,11 @@ import os
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.contracts import AuditLogRepository
-from core.modules.project_management.interfaces import (
-    ProjectRepository,
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.collaboration import (
     TaskCommentRepository,
     TaskPresenceRepository,
-    TaskRepository,
 )
 from src.core.platform.documents import DocumentIntegrationService
 from src.core.platform.access.contracts import ProjectMembershipRepository

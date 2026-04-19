@@ -923,7 +923,7 @@ Continue next:
 Do:
 
 1. Split PM domain by `projects`, `tasks`, `scheduling`, `resources`, `risk`, and `financials`.
-2. Extract PM contracts from broad interfaces.
+2. Extract PM repository contracts from broad interfaces; create gateway contracts only when real gateway boundaries appear.
 3. Break scheduling engine into graph builder, forward pass, backward pass, critical path, calendars, and baseline comparison.
 4. Convert broad PM services into command/query handlers.
 5. Move PM repositories, read models, and ORM rows under module infrastructure.
@@ -944,19 +944,25 @@ Completed:
 - composition, PM persistence internals, test path rewrites, refactor regressions, and architecture guardrails now use the new PM infrastructure imports
 - the old `infra/modules/project_management/db/` package was deleted after direct import rewrites
 - old PM timesheet/task-timesheet bridge files were removed instead of carried forward as facades; platform time persistence remains under `src/core/platform/infrastructure/persistence/time/`
+- PM repository contracts now live under `src/core/modules/project_management/contracts/repositories/` as `project.py`, `task.py`, `resource.py`, `cost_calendar.py`, `baseline.py`, `register.py`, `collaboration.py`, and `portfolio.py`
+- PM services and PM persistence adapters now import the specific repository contract modules directly
+- the old `core/modules/project_management/interfaces.py` file was deleted after direct import rewrites
+- `contracts/gateways/` remains empty for this pass because the deleted PM interfaces file contained repository contracts only
 
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec`
 - direct metadata smoke import confirms PM ORM rows load from split feature ORM files and stay registered in `Base.metadata`
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
+- direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
 - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
-- latest full architecture result after the PM ORM split: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
+- PM contract split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`, observed 65 passed
+- latest full architecture result after the PM contract split: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
 
 Continue next:
 
-1. Split PM contracts out of `core/modules/project_management/interfaces.py` into module-local `contracts/repositories/*` and `contracts/gateways/*`.
-2. Continue the PM domain, service, API, and UI work before starting another module.
+1. Continue the PM domain, service, API, and UI work before starting another module.
+2. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.
 
 ### Slice 3: Inventory & Procurement
 

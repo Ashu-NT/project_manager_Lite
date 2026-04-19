@@ -5,7 +5,7 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.interfaces import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from core.modules.project_management.domain.resource import Resource
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.infra.persistence.db.optimistic import update_with_version_check

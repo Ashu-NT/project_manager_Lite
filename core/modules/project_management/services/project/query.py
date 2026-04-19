@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List
 
-from core.modules.project_management.interfaces import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from core.modules.project_management.domain.project import Project
 from core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.access.authorization import filter_project_rows, require_project_permission

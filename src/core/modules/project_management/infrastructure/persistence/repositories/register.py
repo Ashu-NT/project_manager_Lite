@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.interfaces import RegisterEntryRepository
+from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
 from core.modules.project_management.domain.register import (
     RegisterEntry,
     RegisterEntrySeverity,

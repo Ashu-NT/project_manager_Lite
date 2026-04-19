@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.interfaces import (
-    CostRepository,
-    ProjectRepository,
-    TaskRepository,
-)
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.cost.lifecycle import CostLifecycleMixin
 from core.modules.project_management.services.cost.query import CostQueryMixin

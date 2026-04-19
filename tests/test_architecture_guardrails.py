@@ -653,6 +653,7 @@ def test_composition_imports_focused_persistence_adapters():
 
 
 def test_project_management_persistence_imports_project_management_orm_models():
+    assert not (ROOT / "core" / "modules" / "project_management" / "interfaces.py").exists()
     assert not (ROOT / "infra" / "modules" / "project_management" / "db").exists()
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "project_management").exists()
     assert not (ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "orm" / "models.py").exists()
@@ -1181,7 +1182,6 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/domain/cost.py": 90,
         "core/modules/project_management/domain/calendar.py": 120,
         "core/modules/project_management/domain/baseline.py": 90,
-        "core/modules/project_management/interfaces.py": 420,
         "core/modules/project_management/services/dashboard/service.py": 170,
         "core/modules/project_management/services/dashboard/models.py": 120,
         "core/modules/project_management/services/dashboard/alerts.py": 180,

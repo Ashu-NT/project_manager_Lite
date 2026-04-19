@@ -4,12 +4,10 @@ from datetime import date
 from typing import Dict, Optional
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from core.modules.project_management.interfaces import (
-    BaselineRepository,
-    CostRepository,
-    ProjectRepository,
-    TaskRepository,
-)
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from core.modules.project_management.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.modules.project_management.services.reporting.models import EarnedValueMetrics
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine

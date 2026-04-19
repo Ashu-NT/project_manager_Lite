@@ -2,7 +2,8 @@ from __future__ import annotations
 from datetime import date
 from sqlalchemy.orm import Session
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from core.modules.project_management.interfaces import AssignmentRepository, DependencyRepository, ResourceRepository, TaskRepository
+import src.core.modules.project_management.contracts.repositories.resource as resource_contracts
+import src.core.modules.project_management.contracts.repositories.task as task_contracts
 from core.modules.project_management.domain.task import Task, TaskAssignment
 from core.modules.project_management.services.scheduling.leveling import (
     build_resource_conflicts,
@@ -17,10 +18,10 @@ from core.modules.project_management.services.scheduling.leveling_models import 
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 class ResourceLevelingMixin:
     _session: Session
-    _task_repo: TaskRepository
-    _dependency_repo: DependencyRepository
-    _assignment_repo: AssignmentRepository | None
-    _resource_repo: ResourceRepository | None
+    _task_repo: task_contracts.TaskRepository
+    _dependency_repo: task_contracts.DependencyRepository
+    _assignment_repo: task_contracts.AssignmentRepository | None
+    _resource_repo: resource_contracts.ResourceRepository | None
     _calendar: WorkCalendarEngine
     _resource_threshold_by_id: dict[str, float]
 

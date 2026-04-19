@@ -3,13 +3,13 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.platform.audit.contracts import AuditLogRepository
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.portfolio import (
     PortfolioIntakeRepository,
     PortfolioProjectDependencyRepository,
     PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
-    ProjectRepository,
-    ResourceRepository,
 )
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.portfolio.dependencies import PortfolioDependencyMixin

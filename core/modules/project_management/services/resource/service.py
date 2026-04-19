@@ -8,11 +8,9 @@ from sqlalchemy.orm import Session
 
 from core.modules.project_management.domain.enums import CostType, WorkerType
 from core.modules.project_management.domain.resource import Resource
-from core.modules.project_management.interfaces import (
-    AssignmentRepository,
-    ProjectResourceRepository,
-    ResourceRepository,
-)
+from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
+from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.org.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError

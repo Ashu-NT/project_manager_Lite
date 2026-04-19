@@ -6,12 +6,12 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
-    ResourceRepository,
     TaskRepository,
 )
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.task import Task, TaskDependency
 from core.modules.project_management.services.scheduling.date_compute import compute_task_dates_common

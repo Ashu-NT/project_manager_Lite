@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.interfaces import (
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
+    DependencyRepository,
+    TaskRepository,
+)
+from src.core.modules.project_management.contracts.repositories.cost_calendar import (
     CalendarEventRepository,
     CostRepository,
-    DependencyRepository,
-    ProjectRepository,
-    TaskRepository,
 )
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.audit.application.audit_service import AuditService
