@@ -17,7 +17,7 @@ from core.modules.project_management.domain.portfolio import (
     PortfolioScoringTemplate,
     PortfolioScenario,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.models import (
+from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
     PortfolioProjectDependencyORM,
     PortfolioScoringTemplateORM,

@@ -655,6 +655,7 @@ def test_composition_imports_focused_persistence_adapters():
 def test_project_management_persistence_imports_project_management_orm_models():
     assert not (ROOT / "infra" / "modules" / "project_management" / "db").exists()
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "project_management").exists()
+    assert not (ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "orm" / "models.py").exists()
     checked_files = [
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "project.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "task.py",
@@ -667,7 +668,8 @@ def test_project_management_persistence_imports_project_management_orm_models():
 
     for path in checked_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
-        assert "from src.core.modules.project_management.infrastructure.persistence.orm.models import" in text
+        assert "from src.core.modules.project_management.infrastructure.persistence.orm.models import" not in text
+        assert "from src.core.modules.project_management.infrastructure.persistence.orm." in text
         assert "from src.core.modules.project_management.infrastructure.persistence.mappers." in text
         assert "from src.infra.persistence.orm.platform.models import" not in text
 
@@ -696,7 +698,8 @@ def test_orm_package_root_loads_all_model_packages():
     assert "import src.infra.persistence.orm.maintenance.models" in package_text
     assert "import src.infra.persistence.orm.maintenance.preventive_runtime_models" in package_text
     assert "import src.core.platform.infrastructure.persistence.orm.models" in package_text
-    assert "import src.core.modules.project_management.infrastructure.persistence.orm.models" in package_text
+    for module in ("project", "resource", "task", "cost_calendar", "baseline", "register", "collaboration", "portfolio"):
+        assert f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}" in package_text
     assert "from src.infra.persistence.orm import Base" in migration_env_text
     assert "import src.infra.persistence.orm" in migration_env_text
 

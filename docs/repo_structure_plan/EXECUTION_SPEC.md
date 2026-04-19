@@ -803,7 +803,7 @@ Completed:
   - `PortfolioIntakeItemORM`
   - `PortfolioScenarioORM`
   - `PortfolioProjectDependencyORM`
-- PM persistence adapters and collaboration storage were first rewired to the temporary `src.infra.persistence.orm.project_management.models` path; they now import `src.core.modules.project_management.infrastructure.persistence.orm.models`
+- PM persistence adapters and collaboration storage were first rewired to the temporary `src.infra.persistence.orm.project_management.models` path; they now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - inventory persistence adapters now import `src.infra.persistence.orm.inventory_procurement.models` directly instead of pulling inventory rows through `src.infra.persistence.orm.platform.models`
 - `src/infra/persistence/orm/__init__.py` now loads all current ORM packages directly for metadata registration, and `src/infra/persistence/migrations/env.py` imports the ORM package root instead of the old platform model barrel; this loader must be adjusted as module ORM rows move to module-local infrastructure
 - the stale `core/__init__.py` UI bootstrap side effect was removed so `src.infra.composition.app_container` imports cleanly in a fresh process again
@@ -840,7 +840,7 @@ Verified:
   - direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab`
   - direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog`
   - direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state`
-  - direct import of `src.infra.persistence.orm.Base`, `src.core.modules.project_management.infrastructure.persistence.orm.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`
+  - direct import of `src.infra.persistence.orm.Base`, PM split ORM files for project/task/resource/baseline/collaboration/portfolio, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`
   - direct metadata smoke import confirms `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` remain registered in `Base.metadata`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support`; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
@@ -936,8 +936,9 @@ Status as of 2026-04-19:
 Completed:
 
 - PM ORM rows now live under `src/core/modules/project_management/infrastructure/persistence/orm/`
-- PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import `src.core.modules.project_management.infrastructure.persistence.orm.models`
+- PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - the old `src/infra/persistence/orm/project_management/` global module ORM package was deleted after direct import rewrites
+- the PM ORM monolith `src/core/modules/project_management/infrastructure/persistence/orm/models.py` was split into `project.py`, `resource.py`, `task.py`, `cost_calendar.py`, `baseline.py`, `register.py`, `collaboration.py`, and `portfolio.py`
 - PM repository implementations now live under `src/core/modules/project_management/infrastructure/persistence/repositories/`
 - PM mapper implementations now live under `src/core/modules/project_management/infrastructure/persistence/mappers/`
 - composition, PM persistence internals, test path rewrites, refactor regressions, and architecture guardrails now use the new PM infrastructure imports
@@ -947,10 +948,10 @@ Completed:
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec`
-- direct metadata smoke import confirms PM ORM rows load from `src.core.modules.project_management.infrastructure.persistence.orm.models` and stay registered in `Base.metadata`
+- direct metadata smoke import confirms PM ORM rows load from split feature ORM files and stay registered in `Base.metadata`
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
 - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
-- latest full architecture result after the PM persistence relocation: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
+- latest full architecture result after the PM ORM split: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
 
 Continue next:
 

@@ -1796,7 +1796,7 @@ Completed in the clean/no-facade execution:
   - `PortfolioIntakeItemORM`
   - `PortfolioScenarioORM`
   - `PortfolioProjectDependencyORM`
-- rewired PM persistence adapters and collaboration storage to the temporary `src.infra.persistence.orm.project_management.models` path during Slice 1; those imports now point at `src.core.modules.project_management.infrastructure.persistence.orm.models`
+- rewired PM persistence adapters and collaboration storage to the temporary `src.infra.persistence.orm.project_management.models` path during Slice 1; those imports now point at split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - rewired inventory persistence adapters to `src.infra.persistence.orm.inventory_procurement.models` instead of importing inventory rows through `src.infra.persistence.orm.platform.models`
 - updated `src/infra/persistence/orm/__init__.py` and `src/infra/persistence/migrations/env.py` so metadata loading imports all current ORM packages directly rather than relying on the platform model barrel; this loader must be adjusted as module ORM rows move to module-local infrastructure
 - removed the stale `core/__init__.py` UI side effect so `src.infra.composition.app_container` imports cleanly in a fresh process again
@@ -1832,7 +1832,7 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab` passes
 - in `conda run -n pmenv`, direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog` passes
 - in `conda run -n pmenv`, direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state` passes
-- in `conda run -n pmenv`, direct import of `src.infra.persistence.orm.Base`, `src.core.modules.project_management.infrastructure.persistence.orm.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM` passes
+- in `conda run -n pmenv`, direct import of `src.infra.persistence.orm.Base`, PM split ORM files for project/task/resource/baseline/collaboration/portfolio, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM` passes
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support` passes; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
 - direct metadata smoke import confirms platform repositories load from `src.core.platform.infrastructure.persistence.*`, and `TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` remain registered in `Base.metadata`
@@ -2000,8 +2000,17 @@ Updated: 2026-04-19
 Completed in the clean/no-facade execution:
 
 - moved PM ORM rows from `src/infra/persistence/orm/project_management/*` into `src/core/modules/project_management/infrastructure/persistence/orm/*`
-- rewired PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails to `src.core.modules.project_management.infrastructure.persistence.orm.models`
+- rewired PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails to split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - deleted the old global `src/infra/persistence/orm/project_management/` package after callers were rewritten
+- split the PM ORM monolith by deleting `src/core/modules/project_management/infrastructure/persistence/orm/models.py` and moving rows into:
+  - `project.py`
+  - `resource.py`
+  - `task.py`
+  - `cost_calendar.py`
+  - `baseline.py`
+  - `register.py`
+  - `collaboration.py`
+  - `portfolio.py`
 - moved PM repository implementations from `infra/modules/project_management/db/*/repository.py` into `src/core/modules/project_management/infrastructure/persistence/repositories/*.py`
 - moved PM mapper implementations from `infra/modules/project_management/db/*/mapper.py` into `src/core/modules/project_management/infrastructure/persistence/mappers/*.py`
 - rewired composition, PM persistence internals, test path rewrites, refactor regressions, and architecture guardrails to the new PM infrastructure imports
@@ -2011,13 +2020,15 @@ Completed in the clean/no-facade execution:
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec` passes
-- direct metadata smoke import confirms `ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, and `PortfolioScenarioORM` load from `src.core.modules.project_management.infrastructure.persistence.orm.models` and remain registered in `Base.metadata`
+- direct metadata smoke import confirms `ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, and `PortfolioScenarioORM` load from split PM ORM files and remain registered in `Base.metadata`
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
 - in `conda run -n pmenv`, PM persistence relocation verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
+- in `conda run -n pmenv`, PM ORM split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the PM persistence relocation: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
+  - observed result after the PM ORM split: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
 
 Still remaining in Slice 2:
 

@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from src.core.platform.notifications.domain_events import domain_events
 from infra.modules.project_management.collaboration_attachments import store_task_comment_attachments
-from src.core.modules.project_management.infrastructure.persistence.orm.models import TaskCommentORM
+from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM
 from src.infra.persistence.db.session_factory import SessionLocal
 
 
