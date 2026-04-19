@@ -12,7 +12,7 @@ from core.modules.project_management.domain.register import (
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.models import RegisterEntryORM
 from src.infra.persistence.db.optimistic import update_with_version_check
-from infra.modules.project_management.db.register.mapper import register_entry_from_orm, register_entry_to_orm
+from src.core.modules.project_management.infrastructure.persistence.mappers.register import register_entry_from_orm, register_entry_to_orm
 
 
 class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):

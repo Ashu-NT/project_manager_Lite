@@ -24,7 +24,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.models i
     PortfolioScenarioORM,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check
-from infra.modules.project_management.db.portfolio.mapper import (
+from src.core.modules.project_management.infrastructure.persistence.mappers.portfolio import (
     portfolio_intake_from_orm,
     portfolio_intake_to_orm,
     portfolio_project_dependency_from_orm,

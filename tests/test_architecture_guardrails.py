@@ -646,27 +646,29 @@ def test_composition_imports_focused_persistence_adapters():
     assert not (ROOT / "src" / "infra" / "persistence" / "db" / "platform").exists()
     assert "from infra.platform.db.repositories import" not in text
     assert "from infra.platform.db.mappers import" not in text
-    assert "from infra.modules.project_management.db.task.repository import" in text
+    assert "from src.core.modules.project_management.infrastructure.persistence.repositories.task import" in text
     assert "from src.core.platform.infrastructure.persistence.auth.repository import" in text
     assert "from src.core.platform.infrastructure.persistence.org.repository import" in text
     assert "from src.core.platform.infrastructure.persistence.time import" in text
 
 
 def test_project_management_persistence_imports_project_management_orm_models():
+    assert not (ROOT / "infra" / "modules" / "project_management" / "db").exists()
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "project_management").exists()
     checked_files = [
-        ROOT / "infra" / "modules" / "project_management" / "db" / "project" / "repository.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "task" / "repository.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "resource" / "repository.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "baseline" / "repository.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "cost_calendar" / "repository.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "portfolio" / "repository.py",
-        ROOT / "infra" / "modules" / "project_management" / "db" / "collaboration" / "repository.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "project.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "task.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "resource.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "baseline.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "cost_calendar.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "portfolio.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "collaboration.py",
     ]
 
     for path in checked_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
         assert "from src.core.modules.project_management.infrastructure.persistence.orm.models import" in text
+        assert "from src.core.modules.project_management.infrastructure.persistence.mappers." in text
         assert "from src.infra.persistence.orm.platform.models import" not in text
 
 
@@ -1244,24 +1246,16 @@ def test_known_large_modules_have_growth_budgets():
         "src/core/platform/org/contracts.py": 140,
         "src/core/platform/org/support.py": 70,
         "src/core/platform/org/access_policy.py": 60,
-        "infra/modules/project_management/db/project/__init__.py": 80,
-        "infra/modules/project_management/db/project/mapper.py": 120,
-        "infra/modules/project_management/db/project/repository.py": 140,
-        "infra/modules/project_management/db/timesheet/__init__.py": 80,
-        "infra/modules/project_management/db/timesheet/mapper.py": 120,
-        "infra/modules/project_management/db/timesheet/repository.py": 180,
-        "infra/modules/project_management/db/task/__init__.py": 80,
-        "infra/modules/project_management/db/task/mapper.py": 180,
-        "infra/modules/project_management/db/task/repository.py": 180,
-        "infra/modules/project_management/db/resource/__init__.py": 60,
-        "infra/modules/project_management/db/resource/mapper.py": 80,
-        "infra/modules/project_management/db/resource/repository.py": 80,
-        "infra/modules/project_management/db/cost_calendar/__init__.py": 90,
-        "infra/modules/project_management/db/cost_calendar/mapper.py": 180,
-        "infra/modules/project_management/db/cost_calendar/repository.py": 180,
-        "infra/modules/project_management/db/baseline/__init__.py": 60,
-        "infra/modules/project_management/db/baseline/mapper.py": 100,
-        "infra/modules/project_management/db/baseline/repository.py": 120,
+        "src/core/modules/project_management/infrastructure/persistence/mappers/project.py": 120,
+        "src/core/modules/project_management/infrastructure/persistence/repositories/project.py": 140,
+        "src/core/modules/project_management/infrastructure/persistence/mappers/task.py": 180,
+        "src/core/modules/project_management/infrastructure/persistence/repositories/task.py": 180,
+        "src/core/modules/project_management/infrastructure/persistence/mappers/resource.py": 80,
+        "src/core/modules/project_management/infrastructure/persistence/repositories/resource.py": 80,
+        "src/core/modules/project_management/infrastructure/persistence/mappers/cost_calendar.py": 180,
+        "src/core/modules/project_management/infrastructure/persistence/repositories/cost_calendar.py": 180,
+        "src/core/modules/project_management/infrastructure/persistence/mappers/baseline.py": 100,
+        "src/core/modules/project_management/infrastructure/persistence/repositories/baseline.py": 120,
     }
 
     breaches = []

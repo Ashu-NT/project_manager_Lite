@@ -9,7 +9,7 @@ from core.modules.project_management.interfaces import ResourceRepository
 from core.modules.project_management.domain.resource import Resource
 from src.core.modules.project_management.infrastructure.persistence.orm.models import ResourceORM
 from src.infra.persistence.db.optimistic import update_with_version_check
-from infra.modules.project_management.db.resource.mapper import resource_from_orm, resource_to_orm
+from src.core.modules.project_management.infrastructure.persistence.mappers.resource import resource_from_orm, resource_to_orm
 
 
 class SqlAlchemyResourceRepository(ResourceRepository):

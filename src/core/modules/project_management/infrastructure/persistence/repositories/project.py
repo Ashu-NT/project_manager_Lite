@@ -9,7 +9,7 @@ from core.modules.project_management.interfaces import ProjectRepository, Projec
 from core.modules.project_management.domain.project import Project, ProjectResource
 from src.core.modules.project_management.infrastructure.persistence.orm.models import ProjectORM, ProjectResourceORM
 from src.infra.persistence.db.optimistic import update_with_version_check
-from infra.modules.project_management.db.project.mapper import (
+from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
     project_from_orm,
     project_resource_from_orm,
     project_resource_to_orm,

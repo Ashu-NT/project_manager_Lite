@@ -1959,7 +1959,7 @@ Goal: complete the full project management slice before moving to the next modul
 | `core/modules/project_management/services/resource/*` | `src/core/modules/project_management/application/resources/*` | move resource allocation/query logic |
 | `core/modules/project_management/services/cost/*` and `services/finance/*` | `src/core/modules/project_management/application/financials/*` and `domain/financials/*` | fold cost/finance into financials |
 | `core/modules/project_management/interfaces.py` | `src/core/modules/project_management/contracts/repositories/*` and `gateways/*` | split repository and gateway contracts |
-| `infra/modules/project_management/db/*` | `src/core/modules/project_management/infrastructure/persistence/*` | move PM repositories/mappers/read models under module infrastructure |
+| `infra/modules/project_management/db/*` | `src/core/modules/project_management/infrastructure/persistence/repositories/*` and `mappers/*` | move PM repositories/mappers/read models under module infrastructure |
 | `core/modules/project_management/reporting/renderers/*` and reporting services | `src/core/modules/project_management/infrastructure/reporting/*` | reporting adapters move into infrastructure |
 | none | `src/core/modules/project_management/api/desktop/*.py` and `api/http/*.py` | create module-local desktop adapters and HTTP routers |
 | `ui/modules/project_management/*` | `src/ui/modules/project_management/workspaces/*`, `dialogs/*`, `presenters/*`, `view_models/*`, `widgets/*` | normalize module UI shape |
@@ -2002,21 +2002,27 @@ Completed in the clean/no-facade execution:
 - moved PM ORM rows from `src/infra/persistence/orm/project_management/*` into `src/core/modules/project_management/infrastructure/persistence/orm/*`
 - rewired PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails to `src.core.modules.project_management.infrastructure.persistence.orm.models`
 - deleted the old global `src/infra/persistence/orm/project_management/` package after callers were rewritten
+- moved PM repository implementations from `infra/modules/project_management/db/*/repository.py` into `src/core/modules/project_management/infrastructure/persistence/repositories/*.py`
+- moved PM mapper implementations from `infra/modules/project_management/db/*/mapper.py` into `src/core/modules/project_management/infrastructure/persistence/mappers/*.py`
+- rewired composition, PM persistence internals, test path rewrites, refactor regressions, and architecture guardrails to the new PM infrastructure imports
+- deleted the old `infra/modules/project_management/db/` package after callers were rewritten
+- removed the old PM timesheet/task-timesheet bridge files instead of carrying facade re-exports forward; platform time persistence remains owned by `src/core/platform/infrastructure/persistence/time/`
 
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec` passes
 - direct metadata smoke import confirms `ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, and `PortfolioScenarioORM` load from `src.core.modules.project_management.infrastructure.persistence.orm.models` and remain registered in `Base.metadata`
-- in `conda run -n pmenv`, PM ORM relocation verification passes:
-  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
+- direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
+- in `conda run -n pmenv`, PM persistence relocation verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the PM ORM relocation: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
+  - observed result after the PM persistence relocation: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
 
 Still remaining in Slice 2:
 
-- move PM repository implementations, mappers, and read models from `infra/modules/project_management/db/*` into `src/core/modules/project_management/infrastructure/persistence/*`
-- split PM domain, contracts, services, API adapters, and UI according to the Slice 2 plan before starting another module
+- split PM contracts out of `core/modules/project_management/interfaces.py` into module-local `contracts/repositories/*` and `contracts/gateways/*`
+- continue splitting PM domain, services, API adapters, and UI according to the Slice 2 plan before starting another module
 
 ### Slice 3: Inventory & Procurement
 

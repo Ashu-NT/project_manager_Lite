@@ -938,18 +938,24 @@ Completed:
 - PM ORM rows now live under `src/core/modules/project_management/infrastructure/persistence/orm/`
 - PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import `src.core.modules.project_management.infrastructure.persistence.orm.models`
 - the old `src/infra/persistence/orm/project_management/` global module ORM package was deleted after direct import rewrites
+- PM repository implementations now live under `src/core/modules/project_management/infrastructure/persistence/repositories/`
+- PM mapper implementations now live under `src/core/modules/project_management/infrastructure/persistence/mappers/`
+- composition, PM persistence internals, test path rewrites, refactor regressions, and architecture guardrails now use the new PM infrastructure imports
+- the old `infra/modules/project_management/db/` package was deleted after direct import rewrites
+- old PM timesheet/task-timesheet bridge files were removed instead of carried forward as facades; platform time persistence remains under `src/core/platform/infrastructure/persistence/time/`
 
 Verified:
 
 - `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec`
 - direct metadata smoke import confirms PM ORM rows load from `src.core.modules.project_management.infrastructure.persistence.orm.models` and stay registered in `Base.metadata`
-- `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
-- latest full architecture result after the PM ORM relocation: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
+- direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
+- `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
+- latest full architecture result after the PM persistence relocation: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
 
 Continue next:
 
-1. Move PM repository implementations, mappers, and read models from `infra/modules/project_management/db/*` into `src/core/modules/project_management/infrastructure/persistence/*`.
-2. Continue the PM slice before starting another module.
+1. Split PM contracts out of `core/modules/project_management/interfaces.py` into module-local `contracts/repositories/*` and `contracts/gateways/*`.
+2. Continue the PM domain, service, API, and UI work before starting another module.
 
 ### Slice 3: Inventory & Procurement
 

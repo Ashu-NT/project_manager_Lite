@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.modules.project_management.interfaces import BaselineRepository
 from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
-from infra.modules.project_management.db.baseline.mapper import (
+from src.core.modules.project_management.infrastructure.persistence.mappers.baseline import (
     baseline_from_orm,
     baseline_task_from_orm,
     baseline_task_to_orm,

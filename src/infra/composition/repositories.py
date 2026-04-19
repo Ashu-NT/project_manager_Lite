@@ -4,29 +4,29 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from infra.modules.project_management.db.collaboration import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration import (
     SqlAlchemyTaskCommentRepository,
     SqlAlchemyTaskPresenceRepository,
 )
-from infra.modules.project_management.db.portfolio import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.portfolio import (
     SqlAlchemyPortfolioIntakeRepository,
     SqlAlchemyPortfolioProjectDependencyRepository,
     SqlAlchemyPortfolioScoringTemplateRepository,
     SqlAlchemyPortfolioScenarioRepository,
 )
-from infra.modules.project_management.db.baseline.repository import SqlAlchemyBaselineRepository
-from infra.modules.project_management.db.cost_calendar.repository import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.baseline import SqlAlchemyBaselineRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.cost_calendar import (
     SqlAlchemyCalendarEventRepository,
     SqlAlchemyCostRepository,
     SqlAlchemyWorkingCalendarRepository,
 )
-from infra.modules.project_management.db.project.repository import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.project import (
     SqlAlchemyProjectRepository,
     SqlAlchemyProjectResourceRepository,
 )
-from infra.modules.project_management.db.register.repository import SqlAlchemyRegisterEntryRepository
-from infra.modules.project_management.db.resource.repository import SqlAlchemyResourceRepository
-from infra.modules.project_management.db.task.repository import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.register import SqlAlchemyRegisterEntryRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.resource import SqlAlchemyResourceRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,

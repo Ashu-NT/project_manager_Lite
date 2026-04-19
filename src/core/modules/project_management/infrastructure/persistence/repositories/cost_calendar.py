@@ -13,7 +13,7 @@ from core.modules.project_management.interfaces import (
 )
 from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
 from core.modules.project_management.domain.cost import CostItem
-from infra.modules.project_management.db.cost_calendar.mapper import (
+from src.core.modules.project_management.infrastructure.persistence.mappers.cost_calendar import (
     calendar_from_orm,
     cost_from_orm,
     cost_to_orm,
