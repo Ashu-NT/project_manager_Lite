@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
 from src.application.runtime.platform_runtime import resolve_platform_runtime_application_service
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.notifications.domain_events import domain_events
-from infra.platform.update import check_for_updates, default_update_manifest_source
-from infra.platform.version import get_app_version
+from src.infra.platform.update import check_for_updates, default_update_manifest_source
+from src.infra.platform.version import get_app_version
 from src.ui.shell.navigation import NavigationEntry, NavigationModule, ShellNavigation
 from src.ui.shell.workspaces import build_workspace_definitions
 from src.ui.platform.settings import MainWindowSettingsStore
@@ -389,4 +389,3 @@ class MainWindow(QMainWindow):
         self._settings_store.save_tab_index(self.tabs.currentIndex())
         self._settings_store.save_geometry(self.saveGeometry())
         super().closeEvent(event)
-

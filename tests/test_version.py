@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from infra.platform import version as version_mod
+from src.infra.platform import version as version_mod
 
 
 def test_get_app_version_prefers_env_override(monkeypatch, tmp_path):

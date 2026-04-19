@@ -5,9 +5,9 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
-from infra.platform.diagnostics import DiagnosticsBundleResult, build_diagnostics_bundle
-from infra.platform.operational_support import bind_trace_id
-from infra.platform.path import user_data_dir
+from src.infra.platform.diagnostics import DiagnosticsBundleResult, build_diagnostics_bundle
+from src.infra.platform.operational_support import bind_trace_id
+from src.infra.platform.path import user_data_dir
 from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
 
 

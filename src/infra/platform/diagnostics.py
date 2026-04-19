@@ -10,9 +10,9 @@ from pathlib import Path
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from infra.platform.operational_support import redact_value
-from infra.platform.path import default_db_path, user_data_dir
-from infra.platform.version import get_app_version
+from src.infra.platform.operational_support import redact_value
+from src.infra.platform.path import default_db_path, user_data_dir
+from src.infra.platform.version import get_app_version
 
 
 @dataclass(frozen=True)

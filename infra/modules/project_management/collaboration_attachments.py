@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from shutil import copy2
 
-from infra.platform.path import user_data_dir
+from src.infra.platform.path import user_data_dir
 
 
 def store_task_comment_attachments(

@@ -8,7 +8,7 @@ from urllib.parse import quote
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 
-from infra.platform.version import get_app_version
+from src.infra.platform.version import get_app_version
 
 
 def has_default_mail_client() -> bool:

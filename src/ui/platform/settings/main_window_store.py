@@ -4,7 +4,7 @@ import json
 
 from PySide6.QtCore import QByteArray, QSettings
 
-from infra.platform.update import default_update_manifest_source
+from src.infra.platform.update import default_update_manifest_source
 
 
 class MainWindowSettingsStore:

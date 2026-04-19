@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 from zipfile import ZipFile
 
-import infra.platform.diagnostics as diagnostics
-from infra.platform.operational_support import (
+import src.infra.platform.diagnostics as diagnostics
+from src.infra.platform.operational_support import (
     REDACTED,
     REDACTED_EMAIL,
     OperationalSupport,

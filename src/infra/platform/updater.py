@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from time import time
 from urllib.parse import urlparse
-from urllib.request import urlopen
+from urllib.request import url2pathname, urlopen
 
 
 def _ps_single_quote(value: str) -> str:
@@ -23,6 +24,14 @@ def _safe_installer_name(url: str) -> str:
     # SECURITY: Sanitize filename to prevent path traversal
     safe_name = "".join(ch for ch in name if ch.isalnum() or ch in "._-")
     return safe_name or "Setup_ProjectManagerLite_update.exe"
+
+
+def _path_from_file_url(source: str) -> Path:
+    parsed = urlparse(source)
+    path_text = url2pathname(parsed.path)
+    if parsed.netloc and parsed.netloc.lower() != "localhost":
+        path_text = f"//{parsed.netloc}{path_text}"
+    return Path(path_text)
 
 
 def sha256_file(path: Path) -> str:
@@ -56,9 +65,9 @@ def download_update_installer(
     if not source:
         raise ValueError("Update URL is required.")
 
-    # SECURITY: Only allow HTTP/HTTPS URLs for downloads
+    # SECURITY: Only allow HTTP/HTTPS downloads and explicit local file sources.
     parsed = urlparse(source)
-    if parsed.scheme not in ("http", "https"):
+    if parsed.scheme not in ("http", "https", "file"):
         raise ValueError(f"Unsupported download URL scheme: {parsed.scheme}")
 
     download_dir.mkdir(parents=True, exist_ok=True)
@@ -67,6 +76,16 @@ def download_update_installer(
 
     if temp_target.exists():
         temp_target.unlink()
+
+    if parsed.scheme == "file":
+        source_path = _path_from_file_url(source)
+        if not source_path.exists():
+            raise FileNotFoundError(f"Installer not found: {source_path}")
+        shutil.copy2(source_path, temp_target)
+        temp_target.replace(target)
+        if progress is not None:
+            progress(100, "Installer copied from local source.")
+        return target
 
     with urlopen(source, timeout=timeout_seconds) as response:  # noqa: S310
         total = int(response.headers.get("Content-Length", "0") or 0)

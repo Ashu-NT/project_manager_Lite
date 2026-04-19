@@ -544,6 +544,19 @@ def test_legacy_platform_db_facades_are_removed():
         assert not path.exists()
 
 
+def test_legacy_infra_platform_runtime_package_is_removed():
+    assert not (ROOT / "infra" / "platform").exists()
+
+    violations: list[str] = []
+    for root in (ROOT / "src", ROOT / "infra" / "modules"):
+        for path in _python_files(root):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            if "from infra.platform" in text or "import infra.platform" in text:
+                violations.append(str(path.relative_to(ROOT)))
+
+    assert not violations, f"Runtime code still imports legacy infra.platform: {violations}"
+
+
 def test_legacy_platform_import_export_packages_are_removed():
     removed = [
         ROOT / "core" / "platform" / "importing",

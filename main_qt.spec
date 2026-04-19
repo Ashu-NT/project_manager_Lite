@@ -21,7 +21,7 @@ a = Analysis(
             str(project_root / "src" / "infra" / "persistence" / "migrations"),
             "src/infra/persistence/migrations",
         ),
-        (str(project_root / "infra" / "platform" / "app_version.txt"), "infra/platform"),
+        (str(project_root / "src" / "infra" / "platform" / "app_version.txt"), "src/infra/platform"),
     ],
     # Ensure stdlib logging.config is included for Alembic env imports
     hiddenimports=hidden + ["logging.config"],

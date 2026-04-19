@@ -7,8 +7,8 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from infra.platform.operational_support import bind_trace_id
-from infra.platform.path import user_data_dir
+from src.infra.platform.operational_support import bind_trace_id
+from src.infra.platform.path import user_data_dir
 from src.ui.shared.dialogs.incident_support import message_with_incident
 
 

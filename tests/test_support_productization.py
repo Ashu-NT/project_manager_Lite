@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from zipfile import ZipFile
 
-from infra.platform.diagnostics import build_diagnostics_bundle
-from infra.platform.update import check_for_updates, default_update_manifest_source
+from src.infra.platform.diagnostics import build_diagnostics_bundle
+from src.infra.platform.update import check_for_updates, default_update_manifest_source
 
 
 def test_check_for_updates_detects_newer_release_from_manifest_file(tmp_path):

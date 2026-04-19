@@ -8,17 +8,17 @@ from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from infra.platform.operational_support import bind_trace_id
-from infra.platform.path import user_data_dir
-from infra.platform.update import UpdateCheckResult, check_for_updates, default_update_manifest_source
-from infra.platform.updater import (
+from src.infra.platform.operational_support import bind_trace_id
+from src.infra.platform.path import user_data_dir
+from src.infra.platform.update import UpdateCheckResult, check_for_updates, default_update_manifest_source
+from src.infra.platform.updater import (
     PreparedUpdateLaunch,
     download_update_installer,
     launch_windows_update_handoff,
     prepare_windows_update_handoff,
     verify_sha256,
 )
-from infra.platform.version import get_app_version
+from src.infra.platform.version import get_app_version
 from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
 
 

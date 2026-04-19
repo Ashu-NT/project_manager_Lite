@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 from sqlalchemy import create_engine
 
-from infra.platform.path import default_db_path
+from src.infra.platform.path import default_db_path
 
 logger = logging.getLogger(__name__)
 

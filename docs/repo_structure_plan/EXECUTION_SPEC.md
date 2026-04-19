@@ -451,7 +451,7 @@ Do not:
 - keep root package wrappers
 - delete live behavior
 
-Status as of 2026-04-18:
+Status as of 2026-04-19:
 
 Completed:
 
@@ -496,6 +496,21 @@ Completed:
   - `infra/platform/db/repositories_org.py`
   - `infra/platform/db/mappers.py`
 - composition registries, module repositories, regression tests, architecture guardrails, and test path rewrites now use direct imports
+- platform runtime/ops utilities now live under `src/infra/platform/`:
+  - `path.py`
+  - `resource.py`
+  - `logging_config.py`
+  - `version.py`
+  - `update.py`
+  - `updater.py`
+  - `diagnostics.py`
+  - `operational_support.py`
+  - `app_version.txt`
+- shell startup, main window update checks, support workspace flows, settings persistence, persistence engine DB path lookup, PM collaboration attachments, tests, and PyInstaller data packaging now use `src.infra.platform.*`
+- `src/infra/platform/resource.py` was adjusted for its deeper `src/` location so assets still resolve from the project root
+- local/offline update support was preserved in the moved update helpers by keeping plain filesystem manifest paths and `file://` installer downloads working
+- the old top-level `infra/platform/` package was deleted after all live files were moved
+- architecture guardrails now prevent reintroducing the legacy `infra/platform/` runtime package or legacy `infra.platform` runtime imports
 - the real shell package now lives under `src/ui/shell/`:
   - `__init__.py`
   - `app.py`
@@ -805,7 +820,9 @@ Verified:
   - direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state`
   - direct import of `src.infra.persistence.orm.Base`, `src.infra.persistence.orm.project_management.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.infra.persistence.orm.platform.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`
   - direct import of `src.infra.composition.app_container.build_service_dict`
+  - direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support`; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
   - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
+  - `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_architecture_guardrails.py::test_legacy_infra_platform_runtime_package_is_removed -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
   - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
@@ -839,6 +856,7 @@ Verified:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_inventory_persistence_imports_inventory_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages -q`
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
   - `pytest tests/test_architecture_guardrails.py -q`
+  - latest full architecture result after the `src.infra.platform` cleanup: 93 passed, 1 failed on the existing `core/domain/__init__.py` line-budget guardrail only
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -857,6 +875,8 @@ Verified:
 - no Python import statements remain for `ui.platform.shared`
 - no Python import statements remain for `ui.platform.control`
 - no Python import statements remain for `ui.platform.admin`
+- no Python runtime import statements remain for `infra.platform`
+- the old top-level `infra/platform/` package path has been deleted
 - no Python import statements remain for `src.infra.persistence.orm.platform.models` under `infra/modules/project_management` or `infra/modules/inventory_procurement`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 - all planned platform UI regrouping for Slice 1 is complete
@@ -976,6 +996,12 @@ Clean-cutover tests:
 
 - convert into `src/infra/composition/*_registry.py`
 - do not leave old bundle builders after the slice is complete
+
+`infra/platform/*` runtime/ops utility target:
+
+- move `path.py`, `resource.py`, `logging_config.py`, `version.py`, `update.py`, `updater.py`, `diagnostics.py`, `operational_support.py`, and `app_version.txt` into `src/infra/platform/`
+- rewrite callers to `src.infra.platform.*`
+- do not keep an `infra.platform` compatibility package
 
 `migration/` target:
 

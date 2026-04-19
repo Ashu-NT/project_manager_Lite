@@ -1444,6 +1444,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 | `infra/platform/db/base.py` | `src/infra/persistence/db/engine.py`, `session_factory.py`, `unit_of_work.py` | split engine/session/UoW responsibilities |
 | `migration/*` | `src/infra/persistence/migrations/*` | move Alembic environment and versions under target tree |
 | `infra/platform/db/*` | `src/infra/persistence/db/*` and `src/infra/persistence/orm/platform/*` | separate db plumbing from ORM models/mappers |
+| `infra/platform/path.py`, `resource.py`, `logging_config.py`, `version.py`, `update.py`, `updater.py`, `diagnostics.py`, `operational_support.py`, `app_version.txt` | `src/infra/platform/*` | move platform-owned runtime/ops utilities and runtime version file |
 | `api/http/platform/*` | `src/api/http/platform/*` | keep current platform HTTP adapter under new root |
 | none | `src/api/desktop/runtime.py` and `src/api/desktop/platform/*` | add desktop-facing platform API adapter layer |
 | `ui/platform/shell/*` | `src/ui/shell/*` | move shell app, login, main window, navigation |
@@ -1485,7 +1486,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 
 #### Slice 1 execution status
 
-Updated: 2026-04-18
+Updated: 2026-04-19
 
 Completed in the clean/no-facade execution:
 
@@ -1514,6 +1515,21 @@ Completed in the clean/no-facade execution:
 - deleted the old `infra/platform/db/` package after callers were rewritten
 - removed `infra/platform/db/repositories.py`, `repositories_org.py`, and `mappers.py` instead of keeping compatibility facades
 - rewired composition registries, module repositories, regression tests, architecture guardrails, and test path rewrites to the new direct imports
+- moved the remaining platform runtime/ops utilities from `infra/platform/*` to `src/infra/platform/*`:
+  - `path.py`
+  - `resource.py`
+  - `logging_config.py`
+  - `version.py`
+  - `update.py`
+  - `updater.py`
+  - `diagnostics.py`
+  - `operational_support.py`
+  - `app_version.txt`
+- rewired shell startup, main window update checks, support workspace flows, settings persistence, persistence engine DB path lookup, PM collaboration attachments, tests, and PyInstaller data packaging to `src.infra.platform.*`
+- fixed `src/infra/platform/resource.py` root discovery after the deeper `src/` move so bundled assets still resolve from the project root
+- preserved local/offline update support in the moved update helpers by keeping plain filesystem manifest paths and `file://` installer downloads working
+- deleted the old top-level `infra/platform/` package after all live files were moved
+- added a guardrail for removing the legacy `infra/platform/` runtime package and legacy `infra.platform` runtime imports
 - moved the real shell package from `ui/platform/shell/*` to `src/ui/shell/*`
 - replaced `src/ui/shell/app.py` and `src/ui/shell/login.py` placeholders with real shell startup and login wiring
 - updated `main_qt.py`, UI tests, and test path rewrites to import from `src.ui.shell`
@@ -1810,7 +1826,10 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state` passes
 - in `conda run -n pmenv`, direct import of `src.infra.persistence.orm.Base`, `src.infra.persistence.orm.project_management.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.infra.persistence.orm.platform.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM` passes
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
+- in `conda run -n pmenv`, direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support` passes; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
+- in `conda run -n pmenv`, operational runtime utility verification passes:
+  - `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_architecture_guardrails.py::test_legacy_infra_platform_runtime_package_is_removed -q`
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
@@ -1876,6 +1895,7 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
+  - observed result after the `src.infra.platform` cleanup: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -1894,6 +1914,8 @@ Verified:
 - no Python import statements remain for `ui.platform.shared`
 - no Python import statements remain for `ui.platform.control`
 - no Python import statements remain for `ui.platform.admin`
+- no Python runtime import statements remain for `infra.platform`
+- the old top-level `infra/platform/` package path has been deleted
 - no Python import statements remain for `src.infra.persistence.orm.platform.models` under `infra/modules/project_management` or `infra/modules/inventory_procurement`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 - all planned platform UI regrouping for Slice 1 is complete

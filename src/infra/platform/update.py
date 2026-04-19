@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import urlopen
+from urllib.request import url2pathname, urlopen
 
 _DEFAULT_UPDATE_MANIFEST_SOURCE = (
     "https://github.com/Ashu-NT/project_manager_Lite/releases/latest/download/release-manifest.json"
@@ -51,13 +51,25 @@ def _is_newer(candidate: str, current: str) -> bool:
     return left > right
 
 
+def _path_from_file_url(source: str) -> Path:
+    parsed = urlparse(source)
+    path_text = url2pathname(parsed.path)
+    if parsed.netloc and parsed.netloc.lower() != "localhost":
+        path_text = f"//{parsed.netloc}{path_text}"
+    return Path(path_text)
+
+
 def _read_manifest_text(source: str) -> str:
     raw = (source or "").strip()
     if not raw:
         raise ValueError("Manifest source is not configured.")
 
+    path = Path(raw)
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+
     parsed = urlparse(raw)
-    # SECURITY: Only allow HTTP/HTTPS and file:// schemes, prevent SSRF
+    # SECURITY: Only allow HTTP/HTTPS and explicit local file sources.
     if parsed.scheme not in ("http", "https", "file"):
         raise ValueError(f"Unsupported manifest source scheme: {parsed.scheme}")
 
@@ -65,16 +77,9 @@ def _read_manifest_text(source: str) -> str:
         with urlopen(raw, timeout=10) as response:  # noqa: S310
             return response.read().decode("utf-8")
     if parsed.scheme == "file":
-        path = Path(parsed.path)
-        # SECURITY: Prevent directory traversal for file:// URLs
-        resolved_path = path.resolve()
-        if not str(resolved_path).startswith(str(path.parent.resolve())):
-            raise ValueError(f"Invalid file path in manifest source: {raw}")
+        path = _path_from_file_url(raw)
         return path.read_text(encoding="utf-8")
 
-    path = Path(raw)
-    if path.exists():
-        return path.read_text(encoding="utf-8")
     raise ValueError(f"Manifest not found: {raw}")
 
 

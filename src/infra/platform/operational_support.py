@@ -15,8 +15,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Iterator, Mapping
 
-from infra.platform.path import user_data_dir
-from infra.platform.version import get_app_version
+from src.infra.platform.path import user_data_dir
+from src.infra.platform.version import get_app_version
 
 REDACTED = "<redacted>"
 REDACTED_EMAIL = "<redacted-email>"

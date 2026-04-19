@@ -5,7 +5,7 @@ from typing import Any
 
 from PySide6.QtWidgets import QWidget
 
-from infra.platform.operational_support import get_operational_support
+from src.infra.platform.operational_support import get_operational_support
 
 
 def resolve_incident_id(parent: QWidget | None = None) -> str:
