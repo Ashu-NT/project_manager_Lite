@@ -1311,7 +1311,9 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `core/modules/maintenance_management/*` must be renamed to `core/modules/maintenance/*`
 - `infra/platform/service_registration/*` is the current composition root; the target expects `infra/composition/*_registry.py`
 - migrations currently live in `migration/`, not under `infra/persistence/migrations/`
-- ORM rows now live under `src/infra/persistence/orm/platform/*`, `project_management/*`, `inventory_procurement/*`, and `maintenance/*`; module repositories are still split between `src/infra/persistence/db/platform/*` and `infra/modules/*/db/*` until the module slices move them under module-owned infrastructure
+- platform ORM rows, repositories, and mappers now live under `src/core/platform/infrastructure/persistence/*`
+- business-module ORM rows currently live under `src/infra/persistence/orm/inventory_procurement/*` and `maintenance/*`; those folders are transitional Slice 1 de-mixing homes, not the final module-owned infrastructure layout
+- platform repositories and mappers now live beside the platform ORM under `src/core/platform/infrastructure/persistence/*`; business-module repositories still use transitional module infrastructure such as `infra/modules/*/db/*` until each module slice moves them under module-owned infrastructure
 - `ui/platform/shell/*` must move to `ui/shell/*`
 - the detailed guide introduces `src/ui/shared/*` for reusable desktop presentation helpers; that shared root is now in place
 - platform admin UI now lives under `src/ui/platform/workspaces/admin/*`, `src/ui/platform/dialogs/*`, and `src/ui/platform/widgets/*`; the legacy `ui/platform/admin/*` package has been removed
@@ -1329,10 +1331,13 @@ The extracted tree is still correct as a structure target, but `me.md` adds impo
    - module-local `api/` contains module-scoped desktop and HTTP adapters
    - top-level `src/api/` contains application-level transport entrypoints, runtime adapters, and channel aggregation
 
-2. The repo should use both global `src/infra/persistence/orm/` and module-local `infrastructure/persistence/`.
+2. The repo should use global `src/infra/persistence/orm/` only for shared SQLAlchemy metadata concerns, and module-local `infrastructure/persistence/` for module-owned persistence.
    Working interpretation:
-   - global `orm/` holds shared ORM bootstrapping and metadata roots
-   - module-local `infrastructure/persistence/` holds module-specific repositories, mappers, and read models
+   - global `orm/` holds `Base` plus the metadata loader/registry used by migrations
+   - module-local `infrastructure/persistence/` holds module-specific ORM rows, repositories, mappers, and read models
+   - existing global module ORM packages such as `src/infra/persistence/orm/inventory_procurement/*` and `maintenance/*` are temporary and must be removed during the owning module slice after rows move to `src/core/modules/<module>/infrastructure/persistence/orm/`
+   - platform-owned rows live under `src/core/platform/infrastructure/persistence/orm/`
+   - platform-owned repositories and mappers live under `src/core/platform/infrastructure/persistence/<area>/`
 
 3. The detailed guide adds a shared desktop UI area that was not explicit in the earlier tree.
    Added instruction:
@@ -1443,7 +1448,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 | `infra/platform/services.py` | `src/infra/composition/app_container.py` | move service graph/container build |
 | `infra/platform/db/base.py` | `src/infra/persistence/db/engine.py`, `session_factory.py`, `unit_of_work.py` | split engine/session/UoW responsibilities |
 | `migration/*` | `src/infra/persistence/migrations/*` | move Alembic environment and versions under target tree |
-| `infra/platform/db/*` | `src/infra/persistence/db/*` and `src/infra/persistence/orm/platform/*` | separate db plumbing from ORM models/mappers |
+| `infra/platform/db/*` | `src/infra/persistence/db/*` and `src/core/platform/infrastructure/persistence/orm/*` | separate db plumbing from platform ORM models/mappers; business-module ORM rows in global folders are transitional only |
 | `infra/platform/path.py`, `resource.py`, `logging_config.py`, `version.py`, `update.py`, `updater.py`, `diagnostics.py`, `operational_support.py`, `app_version.txt` | `src/infra/platform/*` | move platform-owned runtime/ops utilities and runtime version file |
 | `api/http/platform/*` | `src/api/http/platform/*` | keep current platform HTTP adapter under new root |
 | none | `src/api/desktop/runtime.py` and `src/api/desktop/platform/*` | add desktop-facing platform API adapter layer |
@@ -1505,13 +1510,16 @@ Completed in the clean/no-facade execution:
 - moved `migration/*` to `src/infra/persistence/migrations/*`
 - moved `infra/platform/migrate.py` to `src/infra/persistence/migrations/runner.py`
 - updated `main.py`, `main_qt.py`, and `main_qt.spec` to use the new migration runner/assets path
-- moved platform ORM model files out of `infra/platform/db/`:
-  - `models.py` to `src/infra/persistence/orm/platform/models.py`
+- moved platform ORM model files out of `infra/platform/db/`; business-module ORM rows landed in temporary global de-mixing homes until their module slices move them under module-local infrastructure:
+  - `models.py` to `src/infra/persistence/orm/platform/models.py` initially, then to `src/core/platform/infrastructure/persistence/orm/models.py`
   - `inventory_models.py` to `src/infra/persistence/orm/inventory_procurement/models.py`
   - `maintenance_models.py` to `src/infra/persistence/orm/maintenance/models.py`
   - `maintenance_preventive_runtime_models.py` to `src/infra/persistence/orm/maintenance/preventive_runtime_models.py`
+- rewired platform persistence adapters, metadata loading, tests, and timesheet regression checks to platform-owned infrastructure imports under `src.core.platform.infrastructure.persistence`
+- deleted the old global `src/infra/persistence/orm/platform/` package after callers were rewritten
 - moved `infra/platform/db/optimistic.py` to `src/infra/persistence/db/optimistic.py`
-- moved platform persistence adapters to `src/infra/persistence/db/platform/*` for access, approval, audit, auth, documents, modules, org, party, runtime tracking, and time
+- moved platform persistence adapters from `src/infra/persistence/db/platform/*` to `src/core/platform/infrastructure/persistence/*` for access, approval, audit, auth, documents, modules, org, party, runtime tracking, and time
+- deleted the old global `src/infra/persistence/db/platform/` package after callers were rewritten
 - deleted the old `infra/platform/db/` package after callers were rewritten
 - removed `infra/platform/db/repositories.py`, `repositories_org.py`, and `mappers.py` instead of keeping compatibility facades
 - rewired composition registries, module repositories, regression tests, architecture guardrails, and test path rewrites to the new direct imports
@@ -1768,7 +1776,7 @@ Completed in the clean/no-facade execution:
     - `src/ui/platform/widgets/document_preview.py`
 - rewired shell workspace registration, maintenance document previews/viewers, admin tests, architecture guardrails, and test path rewrites to `src.ui.platform.workspaces.admin.*`, `src.ui.platform.dialogs.*`, and `src.ui.platform.widgets.*`
 - deleted the old `ui/platform/admin/` package after callers were rewritten
-- split the remaining mixed-ownership ORM aggregate by moving PM-owned rows into `src/infra/persistence/orm/project_management/models.py`:
+- split the remaining mixed-ownership ORM aggregate by moving PM-owned rows into the temporary Slice 1 de-mixing home `src/infra/persistence/orm/project_management/models.py`; this temporary global PM ORM package was removed in the first Slice 2 persistence cleanup:
   - `ProjectORM`
   - `TaskORM`
   - `ResourceORM`
@@ -1788,9 +1796,9 @@ Completed in the clean/no-facade execution:
   - `PortfolioIntakeItemORM`
   - `PortfolioScenarioORM`
   - `PortfolioProjectDependencyORM`
-- rewired PM persistence adapters and collaboration storage to `src.infra.persistence.orm.project_management.models`
+- rewired PM persistence adapters and collaboration storage to the temporary `src.infra.persistence.orm.project_management.models` path during Slice 1; those imports now point at `src.core.modules.project_management.infrastructure.persistence.orm.models`
 - rewired inventory persistence adapters to `src.infra.persistence.orm.inventory_procurement.models` instead of importing inventory rows through `src.infra.persistence.orm.platform.models`
-- updated `src/infra/persistence/orm/__init__.py` and `src/infra/persistence/migrations/env.py` so metadata loading imports all ORM packages directly rather than relying on the platform model barrel
+- updated `src/infra/persistence/orm/__init__.py` and `src/infra/persistence/migrations/env.py` so metadata loading imports all current ORM packages directly rather than relying on the platform model barrel; this loader must be adjusted as module ORM rows move to module-local infrastructure
 - removed the stale `core/__init__.py` UI side effect so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
 Verified:
@@ -1824,12 +1832,15 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab` passes
 - in `conda run -n pmenv`, direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog` passes
 - in `conda run -n pmenv`, direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state` passes
-- in `conda run -n pmenv`, direct import of `src.infra.persistence.orm.Base`, `src.infra.persistence.orm.project_management.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.infra.persistence.orm.platform.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM` passes
+- in `conda run -n pmenv`, direct import of `src.infra.persistence.orm.Base`, `src.core.modules.project_management.infrastructure.persistence.orm.models.ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, `PortfolioScenarioORM`, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM` passes
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support` passes; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
+- direct metadata smoke import confirms platform repositories load from `src.core.platform.infrastructure.persistence.*`, and `TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` remain registered in `Base.metadata`
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, operational runtime utility verification passes:
   - `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_architecture_guardrails.py::test_legacy_infra_platform_runtime_package_is_removed -q`
+- in `conda run -n pmenv`, platform ORM/repository relocation verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_auth_module_phase_a.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_runtime_execution_tracking.py -q`
 - in `conda run -n pmenv`, targeted architecture guardrail checks for the deleted platform DB facades and focused persistence imports pass
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
@@ -1895,7 +1906,7 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
 - in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the `src.infra.platform` cleanup: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
+  - observed result after the platform persistence relocation: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -1916,10 +1927,12 @@ Verified:
 - no Python import statements remain for `ui.platform.admin`
 - no Python runtime import statements remain for `infra.platform`
 - the old top-level `infra/platform/` package path has been deleted
-- no Python import statements remain for `src.infra.persistence.orm.platform.models` under `infra/modules/project_management` or `infra/modules/inventory_procurement`
+- no Python import statements remain for `src.infra.persistence.db.platform`
+- no Python import statements remain for `src.infra.persistence.orm.platform.models`
 - all planned `core/platform/*` package splits for Slice 1 are complete
 - all planned platform UI regrouping for Slice 1 is complete
 - all remaining mixed-ownership ORM rows are out of the platform model aggregate for Slice 1
+- module-owned ORM rows under `src/infra/persistence/orm/inventory_procurement` and `maintenance` remain transitional and must move to each module's `infrastructure/persistence/orm/` package during its slice
 - the default interpreter used outside `pmenv` is still blocked on `reportlab` for full app/test imports because the environment dependency is not installed there
 
 Still remaining in Slice 1:
@@ -1979,6 +1992,31 @@ Safe handling:
 - `baseline` and `calendar` map into `scheduling`
 - `cost` and `finance` map into `financials`
 - `portfolio`, `register`, `collaboration`, `timesheet`, and import workflows must be assigned final homes before the PM slice is closed
+
+#### Slice 2 execution status
+
+Updated: 2026-04-19
+
+Completed in the clean/no-facade execution:
+
+- moved PM ORM rows from `src/infra/persistence/orm/project_management/*` into `src/core/modules/project_management/infrastructure/persistence/orm/*`
+- rewired PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails to `src.core.modules.project_management.infrastructure.persistence.orm.models`
+- deleted the old global `src/infra/persistence/orm/project_management/` package after callers were rewritten
+
+Verified:
+
+- `python -m compileall -q src infra ui core tests main.py main_qt.py main_qt.spec` passes
+- direct metadata smoke import confirms `ProjectORM`, `TaskORM`, `ResourceORM`, `ProjectBaselineORM`, `TaskCommentORM`, and `PortfolioScenarioORM` load from `src.core.modules.project_management.infrastructure.persistence.orm.models` and remain registered in `Base.metadata`
+- in `conda run -n pmenv`, PM ORM relocation verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
+- in `conda run -n pmenv`, full architecture guardrails still fail only on the existing project-management size budget:
+  - `pytest tests/test_architecture_guardrails.py -q`
+  - observed result after the PM ORM relocation: 93 passed, 1 failed on `core/domain/__init__.py` line budget only
+
+Still remaining in Slice 2:
+
+- move PM repository implementations, mappers, and read models from `infra/modules/project_management/db/*` into `src/core/modules/project_management/infrastructure/persistence/*`
+- split PM domain, contracts, services, API adapters, and UI according to the Slice 2 plan before starting another module
 
 ### Slice 3: Inventory & Procurement
 
@@ -2062,7 +2100,7 @@ Goal: make the repo shape match the uploaded structure without inventing busines
 #### Exact changes
 
 - create `src/core/modules/hr_management/`, `src/core/modules/payroll/`, and `src/core/modules/qhse/` package skeletons
-- create matching ORM folders under `src/infra/persistence/orm/hr_management`, `payroll`, and `qhse`
+- create module-local persistence skeletons under `src/core/modules/hr_management/infrastructure/persistence/`, `src/core/modules/payroll/infrastructure/persistence/`, and `src/core/modules/qhse/infrastructure/persistence/`; do not add new global module ORM row folders without real persistence behavior
 - create matching registries under `src/infra/composition/hr_registry.py`, `payroll_registry.py`, and `qhse_registry.py`
 - create matching API folders under `src/api/desktop/*` and `src/api/http/*`
 - create matching UI folders under `src/ui/modules/*`
@@ -2128,3 +2166,5 @@ This plan now assumes the following unless you later override them:
 2. features not explicitly named in the extracted module trees must be given final homes before their slice is considered complete
 3. top-level `src/api/*` acts as the application transport layer, while module-local `core/modules/*/api/*` holds module-scoped desktop and HTTP adapters
 4. HR becomes the owner of employee master data in the target architecture, while other modules interact through IDs and gateways
+5. `src/infra/persistence/orm/` is a shared SQLAlchemy metadata/root loader, not the final home for module-owned ORM rows; module rows move to each module's `infrastructure/persistence/orm/` during its slice
+6. platform ORM rows live under `src/core/platform/infrastructure/persistence/orm/`, not under the global ORM package

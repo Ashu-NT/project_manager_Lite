@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency
-from src.infra.persistence.orm.project_management.models import TaskAssignmentORM, TaskDependencyORM, TaskORM
+from src.core.modules.project_management.infrastructure.persistence.orm.models import TaskAssignmentORM, TaskDependencyORM, TaskORM
 
 
 def task_to_orm(task: Task) -> TaskORM:

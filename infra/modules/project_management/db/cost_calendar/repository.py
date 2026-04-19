@@ -22,7 +22,7 @@ from infra.modules.project_management.db.cost_calendar.mapper import (
     holiday_from_orm,
     holiday_to_orm,
 )
-from src.infra.persistence.orm.project_management.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
+from src.core.modules.project_management.infrastructure.persistence.orm.models import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

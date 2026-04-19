@@ -643,15 +643,17 @@ def test_composition_imports_focused_persistence_adapters():
     repo_path = ROOT / "src" / "infra" / "composition" / "repositories.py"
     text = repo_path.read_text(encoding="utf-8", errors="ignore")
 
+    assert not (ROOT / "src" / "infra" / "persistence" / "db" / "platform").exists()
     assert "from infra.platform.db.repositories import" not in text
     assert "from infra.platform.db.mappers import" not in text
     assert "from infra.modules.project_management.db.task.repository import" in text
-    assert "from src.infra.persistence.db.platform.auth.repository import" in text
-    assert "from src.infra.persistence.db.platform.org.repository import" in text
-    assert "from src.infra.persistence.db.platform.time import" in text
+    assert "from src.core.platform.infrastructure.persistence.auth.repository import" in text
+    assert "from src.core.platform.infrastructure.persistence.org.repository import" in text
+    assert "from src.core.platform.infrastructure.persistence.time import" in text
 
 
 def test_project_management_persistence_imports_project_management_orm_models():
+    assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "project_management").exists()
     checked_files = [
         ROOT / "infra" / "modules" / "project_management" / "db" / "project" / "repository.py",
         ROOT / "infra" / "modules" / "project_management" / "db" / "task" / "repository.py",
@@ -664,7 +666,7 @@ def test_project_management_persistence_imports_project_management_orm_models():
 
     for path in checked_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
-        assert "from src.infra.persistence.orm.project_management.models import" in text
+        assert "from src.core.modules.project_management.infrastructure.persistence.orm.models import" in text
         assert "from src.infra.persistence.orm.platform.models import" not in text
 
 
@@ -686,12 +688,13 @@ def test_orm_package_root_loads_all_model_packages():
     package_text = package_path.read_text(encoding="utf-8", errors="ignore")
     migration_env_text = migration_env_path.read_text(encoding="utf-8", errors="ignore")
 
+    assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "platform").exists()
     assert "from src.infra.persistence.orm.base import Base" in package_text
     assert "import src.infra.persistence.orm.inventory_procurement.models" in package_text
     assert "import src.infra.persistence.orm.maintenance.models" in package_text
     assert "import src.infra.persistence.orm.maintenance.preventive_runtime_models" in package_text
-    assert "import src.infra.persistence.orm.platform.models" in package_text
-    assert "import src.infra.persistence.orm.project_management.models" in package_text
+    assert "import src.core.platform.infrastructure.persistence.orm.models" in package_text
+    assert "import src.core.modules.project_management.infrastructure.persistence.orm.models" in package_text
     assert "from src.infra.persistence.orm import Base" in migration_env_text
     assert "import src.infra.persistence.orm" in migration_env_text
 

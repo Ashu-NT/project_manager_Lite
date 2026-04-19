@@ -1,4 +1,4 @@
-from src.infra.persistence.db.platform.time.repository import (
+from src.core.platform.infrastructure.persistence.time.repository import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )

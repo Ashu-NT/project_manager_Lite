@@ -31,13 +31,13 @@ from infra.modules.project_management.db.task.repository import (
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
-from src.infra.persistence.db.platform.access import (
+from src.core.platform.infrastructure.persistence.access import (
     SqlAlchemyProjectMembershipRepository,
     SqlAlchemyScopedAccessGrantRepository,
 )
-from src.infra.persistence.db.platform.approval.repository import SqlAlchemyApprovalRepository
-from src.infra.persistence.db.platform.audit.repository import SqlAlchemyAuditLogRepository
-from src.infra.persistence.db.platform.auth.repository import (
+from src.core.platform.infrastructure.persistence.approval.repository import SqlAlchemyApprovalRepository
+from src.core.platform.infrastructure.persistence.audit.repository import SqlAlchemyAuditLogRepository
+from src.core.platform.infrastructure.persistence.auth.repository import (
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
     SqlAlchemyRolePermissionRepository,
@@ -45,19 +45,19 @@ from src.infra.persistence.db.platform.auth.repository import (
     SqlAlchemyUserRepository,
     SqlAlchemyUserRoleRepository,
 )
-from src.infra.persistence.db.platform.documents import (
+from src.core.platform.infrastructure.persistence.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from src.infra.persistence.db.platform.org.repository import (
+from src.core.platform.infrastructure.persistence.org.repository import (
     SqlAlchemyDepartmentRepository,
     SqlAlchemyEmployeeRepository,
     SqlAlchemyOrganizationRepository,
     SqlAlchemySiteRepository,
 )
-from src.infra.persistence.db.platform.party import SqlAlchemyPartyRepository
-from src.infra.persistence.db.platform.time import (
+from src.core.platform.infrastructure.persistence.party import SqlAlchemyPartyRepository
+from src.core.platform.infrastructure.persistence.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )
