@@ -1906,7 +1906,7 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
 - in `conda run -n pmenv`, full architecture guardrails originally failed only on an existing project-management size budget; this was resolved during the Slice 2 PM domain package-root cleanup:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - latest observed result after the PM task-domain split: 94 passed
+  - latest observed result after the PM risk register-domain split: 94 passed
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -2027,6 +2027,21 @@ Completed in the clean/no-facade execution:
 - rewired PM task, scheduling, calendar, reporting, persistence, contract, UI, and focused test callers to import the task domain model from the new subdomain file directly
 - deleted the old flat `core/modules/project_management/domain/task.py` file after callers were rewritten
 - removed the obsolete PM task-domain re-export of platform timesheet objects; platform time domain objects remain owned by `src/core/platform/time/domain/`
+- moved `Resource` from `core/modules/project_management/domain/resource.py` into `src/core/modules/project_management/domain/resources/resource.py`
+- rewired PM resource service, resource persistence, resource contract, resource UI, task assignment UI, and labor-cost UI callers to import the resource domain model from the new subdomain file directly
+- deleted the old flat `core/modules/project_management/domain/resource.py` file after callers were rewritten
+- moved `CostItem` from `core/modules/project_management/domain/cost.py` into `src/core/modules/project_management/domain/financials/cost.py`
+- rewired PM cost services, cost persistence, cost/calendar contract, and cost UI callers to import the cost domain model from the new financials subdomain file directly
+- deleted the old flat `core/modules/project_management/domain/cost.py` file after callers were rewritten
+- moved `CalendarEvent`, `WorkingCalendar`, and `Holiday` from `core/modules/project_management/domain/calendar.py` into `src/core/modules/project_management/domain/scheduling/calendar.py`
+- rewired PM calendar services, work-calendar services, cost/calendar persistence, and cost/calendar contract callers to import the calendar domain model from the new scheduling subdomain file directly
+- deleted the old flat `core/modules/project_management/domain/calendar.py` file after callers were rewritten
+- moved `ProjectBaseline` and `BaselineTask` from `core/modules/project_management/domain/baseline.py` into `src/core/modules/project_management/domain/scheduling/baseline.py`
+- rewired PM baseline service, baseline reporting, baseline persistence, and baseline contract callers to import the baseline domain model from the new scheduling subdomain file directly
+- deleted the old flat `core/modules/project_management/domain/baseline.py` file after callers were rewritten
+- moved `RegisterEntry`, register enums, and register enum normalizers from `core/modules/project_management/domain/register.py` into `src/core/modules/project_management/domain/risk/register.py`
+- rewired PM register services, register persistence, register ORM enum usage, register contract, register UI, dashboard register rendering, and focused tests to import the register domain model from the new risk subdomain file directly
+- deleted the old flat `core/modules/project_management/domain/register.py` file after callers were rewritten
 
 Verified:
 
@@ -2036,6 +2051,11 @@ Verified:
 - direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
 - direct import smoke confirms `Project` and `ProjectResource` load from `src.core.modules.project_management.domain.projects.project`
 - direct import smoke confirms `Task`, `TaskAssignment`, and `TaskDependency` load from `src.core.modules.project_management.domain.tasks.task`
+- direct import smoke confirms `Resource` loads from `src.core.modules.project_management.domain.resources.resource`
+- direct import smoke confirms `CostItem` loads from `src.core.modules.project_management.domain.financials.cost`
+- direct import smoke confirms `CalendarEvent`, `WorkingCalendar`, and `Holiday` load from `src.core.modules.project_management.domain.scheduling.calendar`
+- direct import smoke confirms `ProjectBaseline` and `BaselineTask` load from `src.core.modules.project_management.domain.scheduling.baseline`
+- direct import smoke confirms `RegisterEntry`, `RegisterEntryType`, and `RegisterEntrySeverity` load from `src.core.modules.project_management.domain.risk.register`
 - in `conda run -n pmenv`, PM persistence relocation verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - in `conda run -n pmenv`, PM ORM split verification passes:
@@ -2049,9 +2069,24 @@ Verified:
 - in `conda run -n pmenv`, PM task-domain split verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py tests/test_task_dependency_ux_logic.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_progress_flow.py -q`
   - observed result after the PM task-domain split: 126 passed
+- in `conda run -n pmenv`, PM resource-domain split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py tests/test_resource_leveling_workflow.py tests/test_finance_layer_integration.py tests/test_ui_professional_filters.py -q`
+  - observed result after the PM resource-domain split: 123 passed
+- in `conda run -n pmenv`, PM financial cost-domain split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_finance_layer_integration.py tests/test_currency_defaults.py tests/test_large_scale_performance.py tests/test_exporters_configuration.py tests/test_technical_math_reporting.py tests/test_ui_professional_filters.py -q`
+  - observed result after the PM financial cost-domain split: 95 passed, 1 skipped
+- in `conda run -n pmenv`, PM scheduling calendar-domain split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_technical_math_reporting.py tests/test_large_scale_performance.py -q`
+  - observed result after the PM scheduling calendar-domain split: 81 passed, 1 skipped
+- in `conda run -n pmenv`, PM scheduling baseline-domain split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_baseline_comparison_workflow.py tests/test_business_rules_and_edge_cases.py tests/test_domain_event_wiring.py tests/test_technical_math_reporting.py tests/test_exporters_configuration.py -q`
+  - observed result after the PM scheduling baseline-domain split: 125 passed
+- in `conda run -n pmenv`, PM risk register-domain split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py tests/test_dashboard_professional_panels.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
+  - observed result after the PM risk register-domain split: 69 passed
 - in `conda run -n pmenv`, full architecture guardrails pass:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the PM task-domain split: 94 passed
+  - observed result after the PM risk register-domain split: 94 passed
 
 Still remaining in Slice 2:
 

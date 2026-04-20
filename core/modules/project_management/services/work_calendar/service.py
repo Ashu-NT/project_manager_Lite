@@ -4,7 +4,7 @@ from datetime import date
 from typing import List, Set
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.domain.calendar import WorkingCalendar, Holiday
+from src.core.modules.project_management.domain.scheduling.calendar import WorkingCalendar, Holiday
 from src.core.modules.project_management.contracts.repositories.cost_calendar import WorkingCalendarRepository
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.auth.authorization import require_permission

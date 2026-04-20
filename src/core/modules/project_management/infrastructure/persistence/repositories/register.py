@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
-from core.modules.project_management.domain.register import (
+from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,

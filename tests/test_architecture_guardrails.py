@@ -656,6 +656,11 @@ def test_project_management_persistence_imports_project_management_orm_models():
     assert not (ROOT / "core" / "modules" / "project_management" / "interfaces.py").exists()
     assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "project.py").exists()
     assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "task.py").exists()
+    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "resource.py").exists()
+    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "cost.py").exists()
+    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "calendar.py").exists()
+    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "baseline.py").exists()
+    assert not (ROOT / "core" / "modules" / "project_management" / "domain" / "register.py").exists()
     assert not (ROOT / "infra" / "modules" / "project_management" / "db").exists()
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "project_management").exists()
     assert not (ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "orm" / "models.py").exists()
@@ -1178,10 +1183,6 @@ def test_known_large_modules_have_growth_budgets():
         "core/domain/__init__.py": 70,
         "core/modules/project_management/domain/identifiers.py": 40,
         "core/modules/project_management/domain/enums.py": 90,
-        "core/modules/project_management/domain/resource.py": 80,
-        "core/modules/project_management/domain/cost.py": 90,
-        "core/modules/project_management/domain/calendar.py": 120,
-        "core/modules/project_management/domain/baseline.py": 90,
         "core/modules/project_management/services/dashboard/service.py": 170,
         "core/modules/project_management/services/dashboard/models.py": 120,
         "core/modules/project_management/services/dashboard/alerts.py": 180,

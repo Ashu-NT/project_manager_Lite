@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
-from core.modules.project_management.domain.cost import CostItem
+from src.core.modules.project_management.domain.financials.cost import CostItem
 from core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.ui.shared.models.table_model import horizontal_header_data

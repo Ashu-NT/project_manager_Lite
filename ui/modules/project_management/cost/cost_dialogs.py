@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.project_management.domain.cost import CostItem
+from src.core.modules.project_management.domain.financials.cost import CostItem
 from core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task

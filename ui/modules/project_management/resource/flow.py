@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import QTableView
 
-from core.modules.project_management.domain.resource import Resource
+from src.core.modules.project_management.domain.resources.resource import Resource
 from core.modules.project_management.services.resource import ResourceService
 from ui.modules.project_management.resource.models import ResourceTableModel
 

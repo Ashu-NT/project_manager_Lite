@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Set
 
-from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
-from core.modules.project_management.domain.cost import CostItem
+from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent, Holiday, WorkingCalendar
+from src.core.modules.project_management.domain.financials.cost import CostItem
 from core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import CalendarEventORM, CostItemORM, HolidayORM, WorkingCalendarORM
 

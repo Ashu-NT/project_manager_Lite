@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from core.modules.project_management.domain.resource import Resource
+from src.core.modules.project_management.domain.resources.resource import Resource
 
 
 class ResourceRepository(ABC):

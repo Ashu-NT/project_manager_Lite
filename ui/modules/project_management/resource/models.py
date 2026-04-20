@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
-from core.modules.project_management.domain.resource import Resource
+from src.core.modules.project_management.domain.resources.resource import Resource
 from src.ui.shared.models.table_model import horizontal_header_data
 
 

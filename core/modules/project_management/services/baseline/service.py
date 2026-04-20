@@ -3,7 +3,7 @@ from typing import Optional, Dict, List
 
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.domain.baseline import ProjectBaseline, BaselineTask
+from src.core.modules.project_management.domain.scheduling.baseline import ProjectBaseline, BaselineTask
 from core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,

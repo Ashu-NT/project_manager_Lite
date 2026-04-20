@@ -4,7 +4,7 @@ from datetime import date
 
 from PySide6.QtWidgets import QDialog
 
-from core.modules.project_management.domain.register import RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
+from src.core.modules.project_management.domain.risk.register import RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
 from src.core.platform.notifications.domain_events import domain_events
 from tests.ui_runtime_helpers import make_settings_store
 from src.ui.shell.main_window import MainWindow

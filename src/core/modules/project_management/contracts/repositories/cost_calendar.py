@@ -3,8 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from core.modules.project_management.domain.calendar import CalendarEvent, Holiday, WorkingCalendar
-from core.modules.project_management.domain.cost import CostItem
+from src.core.modules.project_management.domain.scheduling.calendar import CalendarEvent, Holiday, WorkingCalendar
+from src.core.modules.project_management.domain.financials.cost import CostItem
 
 
 class CostRepository(ABC):

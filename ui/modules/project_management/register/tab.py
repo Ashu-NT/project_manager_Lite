@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.modules.project_management.domain.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
-from core.modules.project_management.domain.register import as_register_entry_severity, as_register_entry_status, as_register_entry_type
+from src.core.modules.project_management.domain.risk.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
+from src.core.modules.project_management.domain.risk.register import as_register_entry_severity, as_register_entry_status, as_register_entry_type
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.auth import UserSessionContext

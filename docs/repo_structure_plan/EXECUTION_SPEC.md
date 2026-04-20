@@ -880,7 +880,7 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_auth_module_phase_a.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_runtime_execution_tracking.py -q`
   - `pytest tests/test_architecture_guardrails.py -q`
-  - latest full architecture result after the Slice 2 PM task-domain split: 94 passed
+  - latest full architecture result after the Slice 2 PM risk register-domain split: 94 passed
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -958,6 +958,21 @@ Completed:
 - PM task, scheduling, calendar, reporting, persistence, repository contracts, UI, and focused test callers now import the task domain model from the new subdomain file directly
 - the old flat `core/modules/project_management/domain/task.py` file was deleted after direct import rewrites
 - obsolete PM task-domain re-exports of platform timesheet objects were removed; platform time domain objects remain owned by `src/core/platform/time/domain/`
+- `Resource` now lives in `src/core/modules/project_management/domain/resources/resource.py`
+- PM resource service, resource persistence, repository contracts, resource UI, task assignment UI, and labor-cost UI callers now import the resource domain model from the new subdomain file directly
+- the old flat `core/modules/project_management/domain/resource.py` file was deleted after direct import rewrites
+- `CostItem` now lives in `src/core/modules/project_management/domain/financials/cost.py`
+- PM cost services, cost persistence, cost/calendar repository contracts, and cost UI callers now import the cost domain model from the new financials subdomain file directly
+- the old flat `core/modules/project_management/domain/cost.py` file was deleted after direct import rewrites
+- `CalendarEvent`, `WorkingCalendar`, and `Holiday` now live in `src/core/modules/project_management/domain/scheduling/calendar.py`
+- PM calendar services, work-calendar services, cost/calendar persistence, and cost/calendar repository contracts now import the calendar domain model from the new scheduling subdomain file directly
+- the old flat `core/modules/project_management/domain/calendar.py` file was deleted after direct import rewrites
+- `ProjectBaseline` and `BaselineTask` now live in `src/core/modules/project_management/domain/scheduling/baseline.py`
+- PM baseline service, baseline reporting, baseline persistence, and baseline repository contracts now import the baseline domain model from the new scheduling subdomain file directly
+- the old flat `core/modules/project_management/domain/baseline.py` file was deleted after direct import rewrites
+- `RegisterEntry`, register enums, and register enum normalizers now live in `src/core/modules/project_management/domain/risk/register.py`
+- PM register services, register persistence, register ORM enum usage, register repository contracts, register UI, dashboard register rendering, and focused tests now import the register domain model from the new risk subdomain file directly
+- the old flat `core/modules/project_management/domain/register.py` file was deleted after direct import rewrites
 
 Verified:
 
@@ -967,11 +982,21 @@ Verified:
 - direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
 - direct import smoke confirms `Project` and `ProjectResource` load from `src.core.modules.project_management.domain.projects.project`
 - direct import smoke confirms `Task`, `TaskAssignment`, and `TaskDependency` load from `src.core.modules.project_management.domain.tasks.task`
+- direct import smoke confirms `Resource` loads from `src.core.modules.project_management.domain.resources.resource`
+- direct import smoke confirms `CostItem` loads from `src.core.modules.project_management.domain.financials.cost`
+- direct import smoke confirms `CalendarEvent`, `WorkingCalendar`, and `Holiday` load from `src.core.modules.project_management.domain.scheduling.calendar`
+- direct import smoke confirms `ProjectBaseline` and `BaselineTask` load from `src.core.modules.project_management.domain.scheduling.baseline`
+- direct import smoke confirms `RegisterEntry`, `RegisterEntryType`, and `RegisterEntrySeverity` load from `src.core.modules.project_management.domain.risk.register`
 - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - PM contract split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`, observed 65 passed
 - PM project-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py -q`, observed 112 passed
 - PM task-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py tests/test_task_dependency_ux_logic.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_progress_flow.py -q`, observed 126 passed
-- latest full architecture result after the PM task-domain split: 94 passed
+- PM resource-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py tests/test_resource_leveling_workflow.py tests/test_finance_layer_integration.py tests/test_ui_professional_filters.py -q`, observed 123 passed
+- PM financial cost-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_finance_layer_integration.py tests/test_currency_defaults.py tests/test_large_scale_performance.py tests/test_exporters_configuration.py tests/test_technical_math_reporting.py tests/test_ui_professional_filters.py -q`, observed 95 passed, 1 skipped
+- PM scheduling calendar-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_technical_math_reporting.py tests/test_large_scale_performance.py -q`, observed 81 passed, 1 skipped
+- PM scheduling baseline-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_baseline_comparison_workflow.py tests/test_business_rules_and_edge_cases.py tests/test_domain_event_wiring.py tests/test_technical_math_reporting.py tests/test_exporters_configuration.py -q`, observed 125 passed
+- PM risk register-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py tests/test_dashboard_professional_panels.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`, observed 69 passed
+- latest full architecture result after the PM risk register-domain split: 94 passed
 
 Continue next:
 

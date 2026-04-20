@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from core.modules.project_management.domain.register import (
+from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,

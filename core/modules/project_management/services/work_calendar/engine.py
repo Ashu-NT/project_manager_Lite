@@ -2,7 +2,7 @@
 from datetime import date, timedelta
 from typing import Set
 from src.core.modules.project_management.contracts.repositories.cost_calendar import WorkingCalendarRepository
-from core.modules.project_management.domain.calendar import WorkingCalendar
+from src.core.modules.project_management.domain.scheduling.calendar import WorkingCalendar
 
 
 class WorkCalendarEngine:

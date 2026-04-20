@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.project_management.domain.register import (
+from src.core.modules.project_management.domain.risk.register import (
     RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,

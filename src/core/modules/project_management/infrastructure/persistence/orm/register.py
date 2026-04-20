@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy import Date, DateTime, Enum as SAEnum, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.modules.project_management.domain.register import (
+from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,

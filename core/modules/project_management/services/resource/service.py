@@ -7,7 +7,7 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from core.modules.project_management.domain.enums import CostType, WorkerType
-from core.modules.project_management.domain.resource import Resource
+from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository

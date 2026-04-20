@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
+from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
 from src.core.modules.project_management.infrastructure.persistence.orm.baseline import BaselineTaskORM, ProjectBaselineORM
 
 

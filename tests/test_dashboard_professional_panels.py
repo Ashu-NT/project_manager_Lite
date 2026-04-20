@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 from matplotlib.colors import to_rgba
 
 from core.modules.project_management.domain.enums import TaskStatus
-from core.modules.project_management.domain.register import RegisterEntrySeverity, RegisterEntryType
+from src.core.modules.project_management.domain.risk.register import RegisterEntrySeverity, RegisterEntryType
 from core.modules.project_management.domain.enums import DependencyType
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.dashboard.layout_builder import DashboardLayoutDialog

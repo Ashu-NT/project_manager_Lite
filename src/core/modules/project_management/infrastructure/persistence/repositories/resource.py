@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from core.modules.project_management.domain.resource import Resource
+from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.resource import resource_from_orm, resource_to_orm

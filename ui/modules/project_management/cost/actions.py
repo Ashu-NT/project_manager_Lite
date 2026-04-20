@@ -10,7 +10,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from core.modules.project_management.domain.cost import CostItem
+from src.core.modules.project_management.domain.financials.cost import CostItem
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.services.cost import CostService

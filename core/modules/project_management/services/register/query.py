@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from core.modules.project_management.domain.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
+from src.core.modules.project_management.domain.risk.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository

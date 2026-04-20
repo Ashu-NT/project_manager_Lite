@@ -6,7 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from core.modules.project_management.domain.baseline import BaselineTask, ProjectBaseline
+from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
 from src.core.modules.project_management.infrastructure.persistence.mappers.baseline import (
     baseline_from_orm,
     baseline_task_from_orm,
