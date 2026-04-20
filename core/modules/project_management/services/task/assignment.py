@@ -12,7 +12,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from core.modules.project_management.domain.task import TaskAssignment
+from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.task.assignment_audit import record_assignment_action

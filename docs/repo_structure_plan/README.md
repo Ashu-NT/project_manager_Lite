@@ -1906,7 +1906,7 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
 - in `conda run -n pmenv`, full architecture guardrails originally failed only on an existing project-management size budget; this was resolved during the Slice 2 PM domain package-root cleanup:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - latest observed result after the PM project-domain split: 94 passed
+  - latest observed result after the PM task-domain split: 94 passed
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -2023,6 +2023,10 @@ Completed in the clean/no-facade execution:
 - rewired PM services, PM persistence, contract, and UI callers to import the project domain model from the new subdomain file directly
 - deleted the old flat `core/modules/project_management/domain/project.py` file after callers were rewritten
 - reduced `core/modules/project_management/domain/__init__.py` to a package docstring because no callers import PM domain objects from the package root
+- moved `Task`, `TaskAssignment`, and `TaskDependency` from `core/modules/project_management/domain/task.py` into `src/core/modules/project_management/domain/tasks/task.py`
+- rewired PM task, scheduling, calendar, reporting, persistence, contract, UI, and focused test callers to import the task domain model from the new subdomain file directly
+- deleted the old flat `core/modules/project_management/domain/task.py` file after callers were rewritten
+- removed the obsolete PM task-domain re-export of platform timesheet objects; platform time domain objects remain owned by `src/core/platform/time/domain/`
 
 Verified:
 
@@ -2031,6 +2035,7 @@ Verified:
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
 - direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
 - direct import smoke confirms `Project` and `ProjectResource` load from `src.core.modules.project_management.domain.projects.project`
+- direct import smoke confirms `Task`, `TaskAssignment`, and `TaskDependency` load from `src.core.modules.project_management.domain.tasks.task`
 - in `conda run -n pmenv`, PM persistence relocation verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - in `conda run -n pmenv`, PM ORM split verification passes:
@@ -2041,9 +2046,12 @@ Verified:
 - in `conda run -n pmenv`, PM project-domain split verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py -q`
   - observed result after the PM project-domain split: 112 passed
+- in `conda run -n pmenv`, PM task-domain split verification passes:
+  - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py tests/test_task_dependency_ux_logic.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_progress_flow.py -q`
+  - observed result after the PM task-domain split: 126 passed
 - in `conda run -n pmenv`, full architecture guardrails pass:
   - `pytest tests/test_architecture_guardrails.py -q`
-  - observed result after the PM project-domain split: 94 passed
+  - observed result after the PM task-domain split: 94 passed
 
 Still remaining in Slice 2:
 

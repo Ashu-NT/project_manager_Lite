@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Dict, Optional
 
-from core.modules.project_management.domain.task import Task
+from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.services.scheduling.models import CPMTaskInfo
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 

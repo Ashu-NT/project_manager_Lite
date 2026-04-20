@@ -17,7 +17,7 @@ from src.core.modules.project_management.contracts.repositories.cost_calendar im
     CalendarEventRepository,
     CostRepository,
 )
-from core.modules.project_management.domain.task import Task
+from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.domain.enums import TaskStatus
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit

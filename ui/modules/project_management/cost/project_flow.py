@@ -4,7 +4,7 @@ from typing import Optional
 from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QTableView, QTableWidget
 
 from src.core.modules.project_management.domain.projects.project import Project
-from core.modules.project_management.domain.task import Task
+from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.project import ProjectService
 from core.modules.project_management.services.reporting import ReportingService

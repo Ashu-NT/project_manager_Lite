@@ -12,7 +12,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from core.modules.project_management.domain.task import TaskAssignment
+from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from core.modules.project_management.services.reporting.models import LaborAssignmentRow, LaborPlanActualRow, LaborResourceRow
 
 

@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from core.modules.project_management.domain.identifiers import generate_id
 
@@ -85,11 +84,5 @@ class TaskDependency:
             lag_days=lag_days,
         )
 
-__all__ = [
-    "Task",
-    "TaskAssignment",
-    "TaskDependency",
-    "TimeEntry",
-    "TimesheetPeriod",
-    "TimesheetPeriodStatus",
-]
+
+__all__ = ["Task", "TaskAssignment", "TaskDependency"]

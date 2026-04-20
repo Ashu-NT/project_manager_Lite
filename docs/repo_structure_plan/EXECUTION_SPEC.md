@@ -880,7 +880,7 @@ Verified:
   - `pytest tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_inventory_import_export_reporting.py tests/test_inventory_procurement_foundation.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py -q`
   - `pytest tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_auth_module_phase_a.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_runtime_execution_tracking.py -q`
   - `pytest tests/test_architecture_guardrails.py -q`
-  - latest full architecture result after the Slice 2 PM project-domain split: 94 passed
+  - latest full architecture result after the Slice 2 PM task-domain split: 94 passed
 - no Python import statements remain for `core.platform.importing` or `core.platform.exporting`
 - no Python import statements remain for `core.platform.time`
 - no Python import statements remain for `core.platform.auth`
@@ -954,6 +954,10 @@ Completed:
 - PM services, PM persistence, repository contracts, and UI callers now import the project domain model from the new subdomain file directly
 - the old flat `core/modules/project_management/domain/project.py` file was deleted after direct import rewrites
 - `core/modules/project_management/domain/__init__.py` was reduced to a package docstring because no callers import PM domain objects from the package root
+- `Task`, `TaskAssignment`, and `TaskDependency` now live in `src/core/modules/project_management/domain/tasks/task.py`
+- PM task, scheduling, calendar, reporting, persistence, repository contracts, UI, and focused test callers now import the task domain model from the new subdomain file directly
+- the old flat `core/modules/project_management/domain/task.py` file was deleted after direct import rewrites
+- obsolete PM task-domain re-exports of platform timesheet objects were removed; platform time domain objects remain owned by `src/core/platform/time/domain/`
 
 Verified:
 
@@ -962,10 +966,12 @@ Verified:
 - direct import smoke confirms PM repositories load from `src.core.modules.project_management.infrastructure.persistence.repositories.*`
 - direct import smoke confirms PM repository contracts load from `src.core.modules.project_management.contracts.repositories.*`
 - direct import smoke confirms `Project` and `ProjectResource` load from `src.core.modules.project_management.domain.projects.project`
+- direct import smoke confirms `Task`, `TaskAssignment`, and `TaskDependency` load from `src.core.modules.project_management.domain.tasks.task`
 - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
 - PM contract split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`, observed 65 passed
 - PM project-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py -q`, observed 112 passed
-- latest full architecture result after the PM project-domain split: 94 passed
+- PM task-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_enterprise_pm_foundation.py tests/test_phase_b_user_admin_ui.py tests/test_task_dependency_ux_logic.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_progress_flow.py -q`, observed 126 passed
+- latest full architecture result after the PM task-domain split: 94 passed
 
 Continue next:
 

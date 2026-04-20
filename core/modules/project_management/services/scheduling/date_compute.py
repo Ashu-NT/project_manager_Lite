@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from core.modules.project_management.domain.task import Task, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 
 
 def compute_task_dates_common(

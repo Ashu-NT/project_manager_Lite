@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 from core.modules.project_management.domain.calendar import CalendarEvent
-from core.modules.project_management.domain.task import Task
+from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CalendarEventRepository
 

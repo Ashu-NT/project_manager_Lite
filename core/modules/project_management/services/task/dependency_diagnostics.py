@@ -10,7 +10,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from core.modules.project_management.domain.enums import DependencyType
-from core.modules.project_management.domain.task import Task, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from core.modules.project_management.services.scheduling.date_compute import compute_task_dates_common
 from core.modules.project_management.services.scheduling.graph import build_project_dependency_graph
 from core.modules.project_management.services.scheduling.models import CPMTaskInfo

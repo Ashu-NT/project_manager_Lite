@@ -6,7 +6,7 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from core.modules.project_management.domain.cost import CostItem
 from core.modules.project_management.domain.enums import CostType
-from core.modules.project_management.domain.task import Task
+from src.core.modules.project_management.domain.tasks.task import Task
 from src.ui.shared.models.table_model import horizontal_header_data
 from src.ui.shared.formatting.formatting import fmt_currency, currency_symbol_from_code
 from src.ui.shared.formatting.ui_config import UIConfig as CFG

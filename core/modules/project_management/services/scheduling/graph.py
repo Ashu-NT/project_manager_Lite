@@ -4,7 +4,7 @@ import heapq
 from typing import Callable, Dict, List
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from core.modules.project_management.domain.task import Task, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 
 
 def build_project_dependency_graph(

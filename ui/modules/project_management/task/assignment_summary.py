@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.task import TaskAssignment
+from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 
 
 TaskAssignmentSummary = dict[str, tuple[int, float, float]]

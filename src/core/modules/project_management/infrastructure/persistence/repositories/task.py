@@ -10,7 +10,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
     TaskRepository,
 )
-from core.modules.project_management.domain.task import Task, TaskAssignment, TaskDependency
+from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.task import (
