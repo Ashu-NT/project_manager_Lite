@@ -9,10 +9,10 @@ from src.ui_qml.shell.routes import QmlRoute, build_shell_routes
 
 def test_qml_shell_registry_exposes_main_route():
     registry = build_qml_route_registry()
-    route = registry.get("shell.main")
+    route = registry.get("shell.app")
 
-    assert route.title == "Main Window"
-    assert route.qml_path.name == "MainWindow.qml"
+    assert route.title == "TECHASH Enterprise"
+    assert route.qml_path.name == "App.qml"
     assert route.qml_path.exists()
 
 
@@ -38,8 +38,8 @@ def test_qml_shell_registry_rejects_duplicate_routes(tmp_path: Path):
 def test_qml_shell_navigation_view_models_are_route_shaped():
     items = build_navigation_items(build_shell_routes())
 
-    assert len(items) == 1
-    assert items[0].route_id == "shell.main"
+    assert len(items) == 2
+    assert items[1].route_id == "shell.home"
     assert items[0].module_label == "Shell"
     assert items[0].group_label == "Runtime"
 
@@ -47,7 +47,7 @@ def test_qml_shell_navigation_view_models_are_route_shaped():
 def test_qml_main_window_navigation_uses_registry_routes():
     navigation = build_main_window_navigation(build_qml_route_registry())
 
-    assert [item.title for item in navigation] == ["Main Window"]
+    assert [item.title for item in navigation] == ["QML Home"]
 
 
 def test_qml_login_view_model_is_display_only():

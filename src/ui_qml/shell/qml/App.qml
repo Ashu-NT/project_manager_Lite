@@ -6,7 +6,7 @@ ApplicationWindow {
     width: 1280
     height: 800
     visible: true
-    title: "TECHASH Enterprise"
+    title: shellContext.appTitle
 
     MainWindow {
         anchors.fill: parent

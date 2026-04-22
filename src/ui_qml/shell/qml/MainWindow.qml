@@ -31,12 +31,24 @@ Item {
                 color: "#ffffff"
                 border.color: "#dbe3ef"
 
-                Label {
+                ColumnLayout {
                     anchors.centerIn: parent
-                    text: "QML shell ready for migrated workspaces"
-                    color: "#253047"
-                    font.pixelSize: 22
-                    font.bold: true
+                    spacing: 8
+
+                    Label {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "QML shell ready for migrated workspaces"
+                        color: "#253047"
+                        font.pixelSize: 22
+                        font.bold: true
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "Current route: " + shellContext.currentRouteId
+                        color: "#5d6a7e"
+                        font.pixelSize: 13
+                    }
                 }
             }
         }

@@ -49,6 +49,7 @@ QML scaffold status:
 
 - `src/ui_qml/*` has been created as the final landing zone
 - shell bootstrap foundation exists under `src/ui_qml/shell/*`, including route definitions, a route registry, navigation view-model construction, QML engine loading glue, login view-model state, and valid shell QML components
+- shell bootstrap now separates the top-level QML application route from navigable workspace routes and exposes a `shellContext` object for QML title, navigation, theme, current-route, and user-display bindings
 - shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
 - the scaffold is intentionally not wired into `main_qt.py` yet, so the active QWidget app remains unchanged
 - focused QML shell migration smoke coverage exists in `tests/test_qml_shell_migration.py`
@@ -1405,7 +1406,7 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui/*` currently contains migrated-but-still-Widget desktop UI from the earlier refactor; it is now legacy active UI, not the final presentation target
 - final desktop UI now targets `src/ui_qml/*` with QML rendering, Python presenters, and Python view models
 - `src/ui_qml/*` scaffold is in place for shell, shared, platform, module, and legacy-widget migration buckets
-- `src/ui_qml/shell/*` now has initial shell route/registry/navigation/QML engine glue and QML component placeholders; `main_qt.py` still imports `src.ui.shell.app`
+- `src/ui_qml/shell/*` now has initial shell route/registry/navigation/QML engine glue, a QML-bound `shellContext`, and QML component placeholders; `main_qt.py` still imports `src.ui.shell.app`
 - `src/ui_qml/legacy_widgets/migration_only/*` is the only temporary holding area for QWidget screens during an active migration window
 - old `src/ui/*` Widget folders are deleted screen-by-screen only after the matching QML screen, presenter, view model, route, and tests are complete
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure

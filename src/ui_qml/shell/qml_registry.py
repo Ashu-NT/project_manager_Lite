@@ -25,6 +25,9 @@ class QmlRouteRegistry:
     def list_routes(self) -> list[QmlRoute]:
         return list(self._routes.values())
 
+    def list_navigation_routes(self) -> list[QmlRoute]:
+        return [route for route in self._routes.values() if route.appears_in_navigation]
+
 
 def build_qml_route_registry() -> QmlRouteRegistry:
     return QmlRouteRegistry(build_shell_routes())

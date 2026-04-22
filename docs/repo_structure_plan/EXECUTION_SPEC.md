@@ -492,11 +492,14 @@ QML shell migration status as of 2026-04-22:
 - `src/ui_qml/shell/routes.py` defines QML route metadata and shell QML path resolution
 - `src/ui_qml/shell/qml_registry.py` owns duplicate-safe route registration and route lookup
 - `src/ui_qml/shell/navigation.py` and `main_window.py` build shell navigation view models from registered routes
+- `src/ui_qml/shell/context.py` exposes `shellContext` for QML-safe app title, navigation items, current route, theme mode, and user display name binding
 - `src/ui_qml/shell/qml_engine.py` contains QML engine loading glue
 - `src/ui_qml/shell/login.py` contains initial QML login view-model state
-- `src/ui_qml/shell/qml/*` contains valid shell QML component placeholders
+- `src/ui_qml/shell/qml/*` contains valid shell QML component placeholders bound to `shellContext`
+- `shell.app` is the top-level QML app route and `shell.home` is the first navigable shell workspace placeholder
 - `main_qt.py` still points to `src.ui.shell.app`; the QWidget app remains the active runtime until the QML shell has full parity
 - `tests/test_qml_shell_migration.py` covers the shell route registry, navigation view models, login view-model defaults, and entrypoint safety
+- offscreen QML loading has verified that `App.qml` loads with the exposed `shellContext`
 
 ## API Refactor Rule
 

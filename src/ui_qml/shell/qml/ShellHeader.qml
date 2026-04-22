@@ -14,7 +14,7 @@ Rectangle {
         anchors.rightMargin: 22
 
         Label {
-            text: "TECHASH Enterprise"
+            text: shellContext.appTitle
             color: "#f8fbff"
             font.pixelSize: 22
             font.bold: true
@@ -25,7 +25,7 @@ Rectangle {
         }
 
         Label {
-            text: "QML migration shell"
+            text: shellContext.userDisplayName || "QML migration shell"
             color: "#9fc1ff"
             font.pixelSize: 13
         }

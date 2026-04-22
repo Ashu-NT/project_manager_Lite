@@ -22,22 +22,47 @@ Rectangle {
 
         Label {
             Layout.fillWidth: true
-            text: "Migrated QML workspaces will register routes here."
+            text: "Migrated QML workspaces register routes here."
             color: "#5d6a7e"
             wrapMode: Text.WordWrap
         }
 
-        Rectangle {
-            Layout.fillWidth: true
-            height: 44
-            radius: 12
-            color: "#dceaff"
+        Repeater {
+            model: shellContext.navigationItems
 
-            Label {
-                anchors.centerIn: parent
-                text: "Shell / Runtime"
-                color: "#1f4f93"
-                font.bold: true
+            delegate: Rectangle {
+                required property var modelData
+
+                Layout.fillWidth: true
+                height: 52
+                radius: 14
+                color: modelData.routeId === shellContext.currentRouteId ? "#dceaff" : "#ffffff"
+                border.color: modelData.routeId === shellContext.currentRouteId ? "#8fb8ff" : "#d1ddec"
+
+                Column {
+                    anchors.fill: parent
+                    anchors.leftMargin: 14
+                    anchors.rightMargin: 14
+                    anchors.topMargin: 8
+                    spacing: 2
+
+                    Label {
+                        text: modelData.title
+                        color: "#1f4f93"
+                        font.bold: true
+                    }
+
+                    Label {
+                        text: modelData.moduleLabel + " / " + modelData.groupLabel
+                        color: "#5d6a7e"
+                        font.pixelSize: 11
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: shellContext.selectRoute(modelData.routeId)
+                }
             }
         }
 

@@ -15,6 +15,7 @@ class QmlRoute:
     title: str
     qml_path: Path
     presenter_key: str | None = None
+    appears_in_navigation: bool = True
 
 
 def shell_qml_path(file_name: str) -> Path:
@@ -24,13 +25,22 @@ def shell_qml_path(file_name: str) -> Path:
 def build_shell_routes() -> list[QmlRoute]:
     return [
         QmlRoute(
-            route_id="shell.main",
+            route_id="shell.app",
             module_code="shell",
             module_label="Shell",
             group_label="Runtime",
-            title="Main Window",
+            title="TECHASH Enterprise",
+            qml_path=shell_qml_path("App.qml"),
+            appears_in_navigation=False,
+        ),
+        QmlRoute(
+            route_id="shell.home",
+            module_code="shell",
+            module_label="Shell",
+            group_label="Runtime",
+            title="QML Home",
             qml_path=shell_qml_path("MainWindow.qml"),
-        )
+        ),
     ]
 
 
