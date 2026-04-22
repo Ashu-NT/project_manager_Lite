@@ -532,14 +532,16 @@ Project Management QML route status as of 2026-04-22:
 
 Project Management QML presenter/view-model status as of 2026-04-22:
 
+- `src/core/modules/project_management/api/desktop/workspaces.py` defines the first module-owned PM desktop API surface used by QML routes and presenters
 - `src/ui_qml/modules/project_management/view_models/workspace.py` defines the first PM QML workspace view model
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` defines the first PM QML workspace presenter contract
 - `src/ui_qml/modules/project_management/context.py` exposes `pmWorkspaceCatalog` for QML-safe presenter-backed workspace metadata lookup
 - every registered PM QML route has a matching presenter-backed view model scaffold
 - PM placeholder QML files now bind title, summary, migration status, and legacy-runtime status through `pmWorkspaceCatalog`
-- presenter/catalog scaffolding is still metadata-only and does not call desktop APIs yet
+- presenter/catalog scaffolding now calls the PM workspace desktop API for metadata only; real workflow/query desktop APIs remain pending
 - active PM QWidget screens remain active; no Widget screen has been deleted or replaced
 - `tests/test_qml_project_management_presenters.py` covers route-to-presenter alignment, QML-safe catalog maps, and guards against legacy Widget or infrastructure imports in the PM QML layer
+- `tests/test_project_management_desktop_api.py` covers PM desktop workspace API descriptors and guards against QML or infrastructure imports from the desktop API layer
 
 ## API Refactor Rule
 
@@ -1058,8 +1060,9 @@ Hold status as of 2026-04-22:
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
 - PM QML route placeholders are complete; real PM screen replacement remains pending
-- PM QML presenter/view-model scaffolding is complete for the placeholder route set; desktop API wiring remains pending
+- PM QML presenter/view-model scaffolding is complete for the placeholder route set; workspace metadata now comes from a module desktop API
 - PM QML placeholders now bind to presenter-backed metadata through `pmWorkspaceCatalog`; desktop API wiring and real screen parity remain pending
+- real PM workflow/query desktop APIs remain pending and should be added one migrated screen at a time
 
 Do:
 

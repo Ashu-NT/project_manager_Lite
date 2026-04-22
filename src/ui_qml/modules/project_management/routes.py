@@ -2,22 +2,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.core.modules.project_management.api.desktop import (
+    build_project_management_workspace_desktop_api,
+)
 from src.ui_qml.shell.routes import QmlRoute
 
 
-_WORKSPACE_ROUTES: tuple[tuple[str, str, str], ...] = (
-    ("projects", "Projects", "ProjectsWorkspace.qml"),
-    ("tasks", "Tasks", "TasksWorkspace.qml"),
-    ("scheduling", "Scheduling", "SchedulingWorkspace.qml"),
-    ("resources", "Resources", "ResourcesWorkspace.qml"),
-    ("financials", "Financials", "FinancialsWorkspace.qml"),
-    ("risk", "Risk", "RiskWorkspace.qml"),
-    ("portfolio", "Portfolio", "PortfolioWorkspace.qml"),
-    ("register", "Register", "RegisterWorkspace.qml"),
-    ("collaboration", "Collaboration", "CollaborationWorkspace.qml"),
-    ("timesheets", "Timesheets", "TimesheetsWorkspace.qml"),
-    ("dashboard", "Dashboard", "DashboardWorkspace.qml"),
-)
+_QML_FILE_BY_WORKSPACE_KEY: dict[str, str] = {
+    "projects": "ProjectsWorkspace.qml",
+    "tasks": "TasksWorkspace.qml",
+    "scheduling": "SchedulingWorkspace.qml",
+    "resources": "ResourcesWorkspace.qml",
+    "financials": "FinancialsWorkspace.qml",
+    "risk": "RiskWorkspace.qml",
+    "portfolio": "PortfolioWorkspace.qml",
+    "register": "RegisterWorkspace.qml",
+    "collaboration": "CollaborationWorkspace.qml",
+    "timesheets": "TimesheetsWorkspace.qml",
+    "dashboard": "DashboardWorkspace.qml",
+}
 
 
 def project_management_qml_path(*parts: str) -> Path:
@@ -25,19 +28,22 @@ def project_management_qml_path(*parts: str) -> Path:
 
 
 def build_project_management_routes() -> list[QmlRoute]:
+    desktop_api = build_project_management_workspace_desktop_api()
     return [
         QmlRoute(
-            route_id=f"project_management.{workspace}",
+            route_id=f"project_management.{descriptor.key}",
             module_code="project_management",
             module_label="Project Management",
             group_label="Workspaces",
-            title=title,
+            title=descriptor.title,
             qml_path=project_management_qml_path(
-                "workspaces", workspace, qml_file
+                "workspaces",
+                descriptor.key,
+                _QML_FILE_BY_WORKSPACE_KEY[descriptor.key],
             ),
-            presenter_key=f"project_management.{workspace}",
+            presenter_key=f"project_management.{descriptor.key}",
         )
-        for workspace, title, qml_file in _WORKSPACE_ROUTES
+        for descriptor in desktop_api.list_workspaces()
     ]
 
 

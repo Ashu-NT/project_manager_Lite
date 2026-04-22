@@ -55,6 +55,7 @@ QML scaffold status:
 - project-management QML placeholder workspaces now exist under `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*` and are registered as navigable routes
 - project-management QML presenter/view-model scaffolding now exists under `src/ui_qml/modules/project_management/{presenters,view_models}/*`
 - project-management QML placeholders now bind to presenter-backed workspace metadata through `pmWorkspaceCatalog`
+- project-management desktop API workspace metadata now exists under `src/core/modules/project_management/api/desktop/workspaces.py` and backs the PM QML route/presenter metadata path
 - shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
 - the scaffold is intentionally not wired into `main_qt.py` yet, so the active QWidget app remains unchanged
 - focused QML shell migration smoke coverage exists in `tests/test_qml_shell_migration.py`
@@ -62,6 +63,7 @@ QML scaffold status:
 - focused platform QML route coverage exists in `tests/test_qml_platform_routes.py`
 - focused project-management QML route coverage exists in `tests/test_qml_project_management_routes.py`
 - focused project-management QML presenter/view-model coverage exists in `tests/test_qml_project_management_presenters.py`
+- focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
 
 ## Core Rule
 
@@ -1421,6 +1423,7 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui_qml/modules/project_management/routes.py` registers the PM QML route set named by Slice 2
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` and `view_models/workspace.py` provide the first PM QML presenter/view-model contract without importing legacy widgets or infrastructure
 - `src/ui_qml/modules/project_management/context.py` exposes a QML-safe PM workspace catalog used by PM QML placeholders
+- `src/core/modules/project_management/api/desktop/workspaces.py` now owns PM workspace descriptors used by QML routes and presenters; QML file paths remain owned by `src/ui_qml`
 - `src/ui_qml/legacy_widgets/migration_only/*` is the only temporary holding area for QWidget screens during an active migration window
 - old `src/ui/*` Widget folders are deleted screen-by-screen only after the matching QML screen, presenter, view model, route, and tests are complete
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure
@@ -2112,6 +2115,7 @@ Hold status:
 - PM QML landing-zone placeholders and routes are now in place for every Slice 2 PM workspace; real PM QWidget screen replacement still has not started
 - PM QML presenter/view-model scaffolding is in place for every PM workspace route; desktop API wiring and real screen parity remain pending
 - PM QML placeholders now consume presenter-backed metadata through a QML context object; this is still metadata-only and does not replace PM Widget screens
+- PM QML routes and presenters now consume metadata from the PM module desktop API; workflow/query API wiring remains pending
 
 Completed in the clean/no-facade execution:
 
