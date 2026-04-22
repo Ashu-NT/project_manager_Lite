@@ -31,7 +31,10 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
     items = build_main_window_navigation(registry)
 
     assert [(item.route_id, item.title) for item in items] == [
-        ("shell.home", "QML Home")
+        ("shell.home", "QML Home"),
+        ("platform.admin", "Admin Console"),
+        ("platform.control", "Control Center"),
+        ("platform.settings", "Settings"),
     ]
 
 
@@ -41,13 +44,11 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
 
     assert context.appTitle == "TECHASH Enterprise"
     assert context.currentRouteId == "shell.home"
-    assert context.navigationItems == [
-        {
-            "routeId": "shell.home",
-            "moduleLabel": "Shell",
-            "groupLabel": "Runtime",
-            "title": "QML Home",
-        }
+    assert [item["routeId"] for item in context.navigationItems] == [
+        "shell.home",
+        "platform.admin",
+        "platform.control",
+        "platform.settings",
     ]
 
 

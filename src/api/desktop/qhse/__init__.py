@@ -1,1 +1,0 @@
-"""QHSE desktop API entrypoints."""

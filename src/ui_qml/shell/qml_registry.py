@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from src.ui_qml.platform.routes import build_platform_routes
 from src.ui_qml.shell.routes import QmlRoute, build_shell_routes
 
 
@@ -30,7 +31,7 @@ class QmlRouteRegistry:
 
 
 def build_qml_route_registry() -> QmlRouteRegistry:
-    return QmlRouteRegistry(build_shell_routes())
+    return QmlRouteRegistry([*build_shell_routes(), *build_platform_routes()])
 
 
 __all__ = ["QmlRouteRegistry", "build_qml_route_registry"]

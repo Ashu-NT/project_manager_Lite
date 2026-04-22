@@ -511,6 +511,16 @@ Shared QML primitive status as of 2026-04-22:
 - shell QML imports these shared primitives instead of hard-coded local styling
 - `tests/test_qml_shared_primitives.py` covers the primitive file contract and token alignment
 
+Platform QML route status as of 2026-04-22:
+
+- `src/ui_qml/platform/routes.py` registers QML routes for platform admin, control, and settings workspaces
+- `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` is the admin QML landing zone
+- `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` is the control QML landing zone
+- `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` is the settings QML landing zone
+- these are placeholders only; existing QWidget platform screens remain active until each workflow has QML parity and tests
+- `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
+- offscreen QML loading has verified that the platform placeholder workspaces resolve with the shared QML primitives
+
 ## API Refactor Rule
 
 Create top-level desktop APIs:

@@ -47,7 +47,12 @@ def test_qml_shell_navigation_view_models_are_route_shaped():
 def test_qml_main_window_navigation_uses_registry_routes():
     navigation = build_main_window_navigation(build_qml_route_registry())
 
-    assert [item.title for item in navigation] == ["QML Home"]
+    assert [item.title for item in navigation] == [
+        "QML Home",
+        "Admin Console",
+        "Control Center",
+        "Settings",
+    ]
 
 
 def test_qml_login_view_model_is_display_only():
