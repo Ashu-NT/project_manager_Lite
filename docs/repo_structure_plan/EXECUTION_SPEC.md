@@ -2,7 +2,7 @@
 
 This file is the execution-level companion to `README.md`.
 
-It captures the practical refactor rules from the provided spec, but applies the project decision that the migration must be clean:
+It captures the practical refactor rules from the provided specs, including `PySide6_Widgets_to_QML_Migration_Spec.docx`, but applies the project decision that the migration must be clean:
 
 - no compatibility facades
 - no re-export wrappers
@@ -11,6 +11,13 @@ It captures the practical refactor rules from the provided spec, but applies the
 - each completed slice removes its old paths
 
 When this file and the original downloaded execution spec differ, this file wins for migration mechanics because it reflects the no-facade decision.
+
+For desktop UI migration, `PySide6_Widgets_to_QML_Migration_Spec.docx` wins over older Widget-oriented wording:
+
+- final desktop UI lives under `src/ui_qml/*`
+- active Widget UI under `src/ui/*` remains temporary legacy UI until each screen is migrated
+- old Widget paths are deleted only after the matching QML screen, presenter, view model, route, and tests are complete
+- `src/ui_qml/*` is scaffolded but must not become the active entrypoint until the QML shell is implemented and tested
 
 ## Purpose
 
@@ -42,7 +49,7 @@ It answers:
 Desktop runtime:
 
 ```text
-Qt UI -> top-level desktop API -> module desktop API -> application handler -> domain + contracts -> infrastructure implementation
+QML view -> presenter -> view model -> module desktop API -> application handler -> domain + contracts -> infrastructure implementation
 ```
 
 Future HTTP runtime:
@@ -53,7 +60,8 @@ HTTP router/controller -> top-level HTTP API -> module HTTP API -> application h
 
 Rules:
 
-- UI imports from `src/api/desktop/...`
+- QML-facing presenters import module desktop APIs from `src/core/modules/<module>/api/desktop/...`
+- shell/runtime bootstrap may import a thin aggregation entrypoint from `src/api/desktop/...`
 - shell/runtime bootstrap imports from `src/api/desktop/runtime.py`
 - hosted HTTP bootstrap imports from `src/api/http/...`
 - module-local APIs live under `src/core/modules/<module>/api/...`
@@ -356,46 +364,99 @@ Each registry must:
 
 No business logic belongs in composition.
 
-## UI Refactor Rule
+## QML UI Migration Rule
 
 Target UI structure:
 
 ```text
-src/ui/
+src/ui_qml/
   shell/
+    app.py
+    login.py
+    main_window.py
+    navigation.py
+    qml_engine.py
+    qml_registry.py
+    routes.py
+    qml/
+      App.qml
+      MainWindow.qml
+      LoginDialog.qml
+      ShellHeader.qml
+      ShellDrawer.qml
   shared/
+    qml/
+      controls/
+      dialogs/
+      widgets/
+      layouts/
+      theme/
+    presenters/
+    view_models/
+    models/
+    services/
+    formatting/
   platform/
+    qml/
+      workspaces/
+        admin/
+        control/
+        settings/
+      dialogs/
+      widgets/
+    presenters/
+    view_models/
   modules/
+    <module>/
+      qml/
+        workspaces/
+        dialogs/
+        widgets/
+      presenters/
+      view_models/
+  legacy_widgets/
+    migration_only/
+      adapters/
+      screens/
+      dialogs/
 ```
 
-`src/ui/shell/` holds:
+`src/ui_qml/shell/` holds:
 
 - app bootstrap glue
-- login dialog wiring
-- main window
+- QML engine setup
+- login wiring
+- main window wiring
 - navigation registration
+- QML route registration
 
-`src/ui/shared/` holds:
+`src/ui_qml/shared/` holds:
 
-- reusable widgets
-- reusable dialogs
+- reusable QML controls
+- reusable QML dialogs
+- reusable QML widgets
+- QML layouts and theme assets
+- shared presenters
+- shared view models
 - formatting helpers
 - UI models
+- UI services
 
-`src/ui/platform/` holds:
+`src/ui_qml/platform/` holds:
 
-- platform-owned workspaces
-- platform-owned dialogs
-- platform-owned widgets
+- platform-owned QML workspaces
+- platform-owned QML dialogs
+- platform-owned QML widgets
+- platform presenters and view models
 
-`src/ui/modules/<module>/` must use:
+`src/ui_qml/modules/<module>/` must use:
 
 ```text
-workspaces/
-dialogs/
+qml/workspaces/
+qml/dialogs/
+qml/widgets/
 presenters/
 view_models/
-widgets/
 ```
 
 Presenter priority:
@@ -413,6 +474,18 @@ Examples:
 - `WorkOrderRowViewModel`
 - `TaskBoardCardViewModel`
 - `StockBalanceRowViewModel`
+
+QML migration rules:
+
+- QML renders and binds state only
+- QML must not contain business rules or direct repository/session/ORM access
+- presenters own user intent, loading/error/retry state, navigation, dialog orchestration, and API calls
+- presenters call module-owned desktop APIs, not repositories or handlers directly
+- view models expose display-ready values only
+- old Widget screens under `src/ui/*` remain active only until migrated
+- delete old Widget files screen-by-screen after QML replacement, navigation rewrite, and tests
+- quarantine temporary Widget artifacts only under `src/ui_qml/legacy_widgets/migration_only/*`
+- no permanent Widget/QML mixed screen after a screen slice is complete
 
 ## API Refactor Rule
 
@@ -922,6 +995,14 @@ Continue next:
 
 ### Slice 2: Project Management
 
+Hold status as of 2026-04-22:
+
+- pause Slice 2 backend/domain restructuring until the QML migration plan and scaffold are accepted
+- completed Slice 2 persistence/contracts/domain work remains valid and must not be reverted
+- active Widget UI under `src/ui/*` remains runnable during migration
+- final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
+- old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
+
 Do:
 
 1. Split PM domain by `projects`, `tasks`, `scheduling`, `resources`, `risk`, and `financials`.
@@ -930,8 +1011,9 @@ Do:
 4. Convert broad PM services into command/query handlers.
 5. Move PM repositories, read models, and ORM rows under module infrastructure.
 6. Add PM desktop API adapters.
-7. Add PM presenters and view models.
-8. Rewrite imports and delete old PM paths for the moved code.
+7. Add PM QML workspaces/dialogs/widgets under `src/ui_qml/modules/project_management/qml/*`.
+8. Add PM QML presenters and view models under `src/ui_qml/modules/project_management/{presenters,view_models}/`.
+9. Rewrite imports/navigation and delete old PM Widget paths only after the migrated QML screen passes tests.
 
 Status as of 2026-04-19:
 
@@ -1049,10 +1131,11 @@ Do:
 
 Layer import tests:
 
-- `src/core/**` must not import `src/ui/**`
+- `src/core/**` must not import `src/ui/**` or `src/ui_qml/**`
 - `src/core/**` must not import `src/api/**`
 - `src/core/**` must not import repository implementations
-- `src/ui/**` must not import `src/core/**/infrastructure/**`
+- `src/ui_qml/**` must not import `src/core/**/infrastructure/**`
+- legacy `src/ui/**` must not import `src/core/**/infrastructure/**`
 - `src/api/**` must not import ORM repositories directly
 
 Cross-module isolation tests:
@@ -1111,16 +1194,18 @@ Clean-cutover tests:
 
 `ui/platform/shell/*` target:
 
-- `src/ui/shell/*`
+- historical Widget-era target was `src/ui/shell/*`
+- final QML target is `src/ui_qml/shell/*`
+- keep `src/ui/shell/*` active only until QML shell bootstrap is complete, tested, and entrypoints are switched
 
 `ui/platform/admin` target:
 
-- platform-owned screens to `src/ui/platform/workspaces/admin/`
-- platform-owned entity dialogs to `src/ui/platform/dialogs/admin/`
-- shared document viewers to `src/ui/platform/dialogs/documents/`
-- platform-owned widgets to `src/ui/platform/widgets/`
-- reusable pieces now live under `src/ui/shared/*`
-- shell-owned settings state now lives under `src/ui/platform/settings/*`
+- historical Widget-era platform screens live under `src/ui/platform/*`
+- final platform QML screens target `src/ui_qml/platform/qml/workspaces/{admin,control,settings}/`
+- final platform QML dialogs target `src/ui_qml/platform/qml/dialogs/`
+- final platform QML widgets target `src/ui_qml/platform/qml/widgets/`
+- reusable final QML pieces live under `src/ui_qml/shared/qml/*`
+- delete old Widget paths only after their matching QML screen/dialog/widget is complete and tested
 
 `core/modules/project_management/services/*` target:
 

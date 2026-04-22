@@ -1,0 +1,1 @@
+"""Payroll QML view models."""

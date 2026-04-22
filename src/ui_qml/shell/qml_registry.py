@@ -1,0 +1,1 @@
+"""QML component registry placeholder."""

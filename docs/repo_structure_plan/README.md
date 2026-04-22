@@ -1,21 +1,23 @@
 # Repo Structure Migration Plan
 
-This document captures the exact target structure from `UpdateCodeBaseStructure.md` and a safe execution plan to reach it without breaking the current desktop app, runtime wiring, or test suite.
+This document captures the exact target structure from `UpdateCodeBaseStructure.md`, the QML UI migration target from `PySide6_Widgets_to_QML_Migration_Spec.docx`, and a safe execution plan to reach it without breaking the current desktop app, runtime wiring, or test suite.
 
 This is a planning document only. No runtime code is changed by this step.
 
 ## Instruction Precedence
 
-This README now follows two inputs and one local execution companion:
+This README now follows three inputs and one local execution companion:
 
 1. `UpdateCodeBaseStructure.md` for the target tree and named folders
 2. `me.md` for the detailed architectural rules, folder responsibilities, migration sequence, and refactor guardrails
-3. `EXECUTION_SPEC.md` for the clean, no-facade execution mechanics
+3. `PySide6_Widgets_to_QML_Migration_Spec.docx` for the desktop UI migration from PySide6 Widgets to QML
+4. `EXECUTION_SPEC.md` for the clean, no-facade execution mechanics
 
 When the two documents differ in detail level, this README uses:
 
 - the exact extracted tree from `UpdateCodeBaseStructure.md`
 - the stricter behavioral rules from `me.md`
+- the QML desktop UI target from `PySide6_Widgets_to_QML_Migration_Spec.docx`
 - the clean hard-cutover mechanics from `EXECUTION_SPEC.md`
 
 This means the extracted structure remains visible, but the refactor instructions below are now driven by the more detailed guidance in `me.md`.
@@ -24,7 +26,31 @@ Execution rule:
 
 - use this README as the architecture map
 - use `EXECUTION_SPEC.md` as the execution contract
+- use `PySide6_Widgets_to_QML_Migration_Spec.docx` as the UI migration contract
 - if a downloaded spec suggests temporary facades or compatibility wrappers, ignore that part and follow the clean hard-cutover rule instead
+- if older README wording says `src/ui/*` for final desktop UI, interpret the final target as `src/ui_qml/*`; `src/ui/*` is legacy QWidget UI until each screen is migrated, verified, and deleted
+
+## Active Pivot: QML UI Migration
+
+Slice 2 project-management restructuring is paused as of 2026-04-22 while the desktop UI target is updated from PySide6 Widgets to QML.
+
+New final UI rule:
+
+- final desktop UI lives under `src/ui_qml/*`
+- QML files render and bind state only
+- presenters own UI behavior and orchestration
+- view models expose UI-shaped state only
+- presenters call module-owned desktop APIs under `src/core/modules/<module>/api/desktop/*`
+- `src/ui/*` remains the active legacy QWidget UI only until a screen has a complete QML replacement and regression coverage
+- old QWidget paths are deleted only after their migrated screen is complete, imports/navigation are rewritten, and tests pass
+- no new QWidget screens should be added for migrated modules
+
+QML scaffold status:
+
+- `src/ui_qml/*` has been created as the final landing zone
+- shell placeholder files exist under `src/ui_qml/shell/*` and `src/ui_qml/shell/qml/*`
+- shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
+- the scaffold is intentionally not wired into `main_qt.py` yet, so the active QWidget app remains unchanged
 
 ## Core Rule
 
@@ -196,24 +222,25 @@ Do not put here:
 - deep business rules
 - Qt widget code
 
-#### `src/ui/`
+#### `src/ui_qml/`
 
-This is the desktop presentation layer only.
+This is the final desktop presentation layer.
 
 It should contain:
 
-- main window
-- navigation
-- tabs
-- dialogs
-- widgets
+- QML shell and navigation
+- QML workspaces
+- QML dialogs
+- QML widgets and controls
 - presenters
 - view models
+- UI services
+- formatting helpers
 
 Put here:
 
-- UI rendering
-- user interaction handling
+- QML rendering and binding
+- presenter-owned user interaction handling
 - calling desktop API or application handlers
 - formatting values for display
 
@@ -224,6 +251,19 @@ Do not put here:
 - entitlement logic
 - audit write logic
 - approval engine logic
+- SQLAlchemy sessions
+- QWidget screens as final-state UI
+
+#### `src/ui/`
+
+This is now legacy PySide6 QWidget UI.
+
+Rules:
+
+- keep it runnable until each QML replacement is complete
+- do not add new final-state screens here
+- delete each old QWidget screen only after the matching `src/ui_qml/*` screen is implemented, navigation/imports are rewritten, and tests pass
+- if a temporary Widget quarantine is needed during active migration, place it under `src/ui_qml/legacy_widgets/migration_only/*`
 
 #### `src/tests/`
 
@@ -438,64 +478,106 @@ Module API must not:
 - contain persistence logic
 - contain UI rendering
 
-### UI Instructions
+### QML UI Instructions
 
-The UI should be split by:
+The final desktop UI must be split under `src/ui_qml/` by:
 
 - shell
-- shared widgets and formatting helpers
-- module workspaces
+- shared QML controls, dialogs, widgets, layouts, theme, services, formatting helpers, presenters, view models, and models
+- platform QML workspaces, dialogs, widgets, presenters, and view models
+- module-owned QML workspaces, dialogs, widgets, presenters, and view models
+- temporary legacy QWidget migration buckets
 
-Recommended structure:
+Target structure:
 
 ```text
-ui/
+src/ui_qml/
   shell/
     app.py
+    login.py
     main_window.py
-    login_dialog.py
     navigation.py
+    qml_engine.py
+    qml_registry.py
+    routes.py
+    qml/
+      App.qml
+      MainWindow.qml
+      LoginDialog.qml
+      ShellHeader.qml
+      ShellDrawer.qml
 
   shared/
-    widgets/
-    dialogs/
-    formatting/
+    qml/
+      controls/
+      dialogs/
+      widgets/
+      layouts/
+      theme/
+    presenters/
+    view_models/
     models/
+    services/
+    formatting/
+
+  platform/
+    qml/
+      workspaces/
+        admin/
+        control/
+        settings/
+      dialogs/
+      widgets/
+    presenters/
+    view_models/
 
   modules/
-    maintenance/
-      workspaces/
-      dialogs/
+    <module>/
+      qml/
+        workspaces/
+        dialogs/
+        widgets/
       presenters/
       view_models/
-      widgets/
+
+  legacy_widgets/
+    migration_only/
+      adapters/
+      screens/
+      dialogs/
 ```
 
-`ui/modules/<module>/workspaces/` contains top-level tabs and screens.
+`src/ui_qml/modules/<module>/qml/workspaces/` contains full screens and top-level module workspaces.
 
-Each workspace should:
+Each QML workspace should:
 
 - render UI
-- receive a presenter or desktop API
-- react to user input
-- update the screen
+- bind to presenter/view-model state
+- forward user intent to presenter methods
+- display loading, empty, error, and success states
 
-Each workspace must not:
+Each QML workspace must not:
 
 - create domain entities directly
 - instantiate repositories
 - know SQLAlchemy
+- own business rules in JavaScript
+- call handlers or infrastructure directly
 
-Use presenters when a screen is large or complex, especially for:
+Presenter rules:
 
-- planner screens
-- work-order screens
-- dashboards
-- Gantt or board views
+- presenters call module-owned desktop APIs
+- presenters own loading, error, retry, refresh, navigation, and dialog orchestration state
+- presenters map DTOs into UI-shaped view models
+- presenters must not create repositories, manage transactions, render QML, or mutate domain aggregates directly
 
-View models should be UI-shaped, not domain-shaped.
+View-model rules:
 
-Reusable widgets such as filters, grids, cards, status badges, and date pickers must not contain business logic.
+- view models expose display-ready state only
+- view models may contain labels, formatted dates, formatted money, selection flags, enabled flags, and user-facing status text
+- view models must not call APIs, repositories, handlers, or SQLAlchemy
+
+Reusable QML controls such as filters, cards, tables, badges, toolbars, charts, and date pickers belong in `src/ui_qml/shared/qml/*` and must not contain business logic.
 
 ### Hard Refactor Rules
 
@@ -1262,18 +1344,26 @@ infra/
     logging.py
 ```
 
-### Canonical UI Module Pattern
+### Canonical QML UI Module Pattern
 
 ```text
-ui/modules/<module_name>/
-  workspaces/
-    main_tab.py
-    board_tab.py
-    dashboard_tab.py
-  dialogs/
-    create_dialog.py
-    edit_dialog.py
-    detail_dialog.py
+src/ui_qml/modules/<module_name>/
+  qml/
+    workspaces/
+      main/
+        MainPage.qml
+      board/
+        BoardPage.qml
+      dashboard/
+        DashboardPage.qml
+    dialogs/
+      CreateDialog.qml
+      EditDialog.qml
+      DetailDialog.qml
+    widgets/
+      Filters.qml
+      Grid.qml
+      Cards.qml
   presenters/
     list_presenter.py
     form_presenter.py
@@ -1282,15 +1372,12 @@ ui/modules/<module_name>/
     list_vm.py
     detail_vm.py
     form_vm.py
-  widgets/
-    filters.py
-    grid.py
-    cards.py
 ```
 
 ### Architectural Rules From The Uploaded Spec
 
-- `ui` can depend on `api` or `application`, not on repositories
+- `src/ui_qml` can depend on module desktop APIs and QML-safe presenter/view-model helpers, not on repositories
+- legacy `src/ui` must not receive new final-state screens
 - `api` can depend on `application`, not directly on ORM repositories
 - `application` can depend on `domain` and `contracts`
 - `infrastructure` can implement `contracts`
@@ -1314,11 +1401,11 @@ The current repo already has the right high-level concepts, but not yet in the t
 - platform ORM rows, repositories, and mappers now live under `src/core/platform/infrastructure/persistence/*`
 - business-module ORM rows currently live under `src/infra/persistence/orm/inventory_procurement/*` and `maintenance/*`; those folders are transitional Slice 1 de-mixing homes, not the final module-owned infrastructure layout
 - platform repositories and mappers now live beside the platform ORM under `src/core/platform/infrastructure/persistence/*`; business-module repositories still use transitional module infrastructure such as `infra/modules/*/db/*` until each module slice moves them under module-owned infrastructure
-- `ui/platform/shell/*` must move to `ui/shell/*`
-- the detailed guide introduces `src/ui/shared/*` for reusable desktop presentation helpers; that shared root is now in place
-- platform admin UI now lives under `src/ui/platform/workspaces/admin/*`, `src/ui/platform/dialogs/*`, and `src/ui/platform/widgets/*`; the legacy `ui/platform/admin/*` package has been removed
-- `ui/platform/settings/*` belongs under `src/ui/platform/settings/*` as platform-owned shell state
-- `ui/modules/*` exists, but the current module UIs are grouped by feature folders like `task`, `project`, `dashboard`, `assets`, `work_orders`, `stock_control`; the target wants a uniform `workspaces`, `dialogs`, `presenters`, `view_models`, and `widgets` pattern
+- `src/ui/*` currently contains migrated-but-still-Widget desktop UI from the earlier refactor; it is now legacy active UI, not the final presentation target
+- final desktop UI now targets `src/ui_qml/*` with QML rendering, Python presenters, and Python view models
+- `src/ui_qml/*` scaffold is in place for shell, shared, platform, module, and legacy-widget migration buckets
+- `src/ui_qml/legacy_widgets/migration_only/*` is the only temporary holding area for QWidget screens during an active migration window
+- old `src/ui/*` Widget folders are deleted screen-by-screen only after the matching QML screen, presenter, view model, route, and tests are complete
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure
 - tests are currently mostly flat under `tests/`; the target expects grouped test packages under `tests/architecture`, `tests/platform`, `tests/project_management`, `tests/inventory_procurement`, `tests/maintenance`, and `tests/ui`
 
@@ -1339,10 +1426,11 @@ The extracted tree is still correct as a structure target, but `me.md` adds impo
    - platform-owned rows live under `src/core/platform/infrastructure/persistence/orm/`
    - platform-owned repositories and mappers live under `src/core/platform/infrastructure/persistence/<area>/`
 
-3. The detailed guide adds a shared desktop UI area that was not explicit in the earlier tree.
+3. The QML migration spec replaces the old final `src/ui/*` Widget target with `src/ui_qml/*`.
    Added instruction:
-   - use `src/ui/shared/widgets`, `src/ui/shared/dialogs`, `src/ui/shared/formatting`, and `src/ui/shared/models` for reusable presentation helpers
-   - keep `src/ui/platform/*` for platform-owned workspaces and dialogs
+   - use `src/ui_qml/shared/qml/*`, `src/ui_qml/shared/presenters`, `src/ui_qml/shared/view_models`, `src/ui_qml/shared/services`, and `src/ui_qml/shared/formatting` for reusable presentation assets
+   - keep `src/ui_qml/platform/*` for platform-owned QML workspaces, dialogs, widgets, presenters, and view models
+   - keep `src/ui/*` only as active legacy QWidget UI until each screen is migrated and deleted
 
 4. The detailed guide clarifies business ownership that matters for future modules.
    Added instruction:
@@ -1961,7 +2049,7 @@ Goal: complete the full project management slice before moving to the next modul
 | `infra/modules/project_management/db/*` | `src/core/modules/project_management/infrastructure/persistence/repositories/*` and `mappers/*` | move PM repositories/mappers/read models under module infrastructure |
 | `core/modules/project_management/reporting/renderers/*` and reporting services | `src/core/modules/project_management/infrastructure/reporting/*` | reporting adapters move into infrastructure |
 | none | `src/core/modules/project_management/api/desktop/*.py` and `api/http/*.py` | create module-local desktop adapters and HTTP routers |
-| `ui/modules/project_management/*` | `src/ui/modules/project_management/workspaces/*`, `dialogs/*`, `presenters/*`, `view_models/*`, `widgets/*` | normalize module UI shape |
+| `ui/modules/project_management/*` and active legacy `src/ui/modules/project_management/*` Widget screens | `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*`, `qml/dialogs/*`, `qml/widgets/*`, `presenters/*`, `view_models/*` | migrate PM desktop UI from QWidget screens to QML, presenters, and view models |
 | `ui/platform/shell/project_management/workspaces.py` | shell adapter only | shell registration becomes a thin adapter over the new PM UI workspaces |
 | flat PM tests under `tests/` | `src/tests/project_management/*` | regroup PM tests under target test tree |
 
@@ -1995,6 +2083,14 @@ Safe handling:
 #### Slice 2 execution status
 
 Updated: 2026-04-19
+
+Hold status:
+
+- Slice 2 project-management restructuring is paused as of 2026-04-22 for the QML UI migration pivot
+- do not continue PM domain/application/UI moves until the QML migration plan and scaffold are accepted
+- completed Slice 2 backend/domain work remains valid and should not be reverted
+- active QWidget UI under `src/ui/*` remains runnable until each QML screen is complete and tested
+- final PM desktop UI target is now `src/ui_qml/modules/project_management/*`, not `src/ui/modules/project_management/*`
 
 Completed in the clean/no-facade execution:
 
@@ -2090,7 +2186,9 @@ Verified:
 
 Still remaining in Slice 2:
 
+- keep Slice 2 backend/domain work on hold until the QML migration scaffold and docs are approved
 - continue splitting PM domain, services, API adapters, and UI according to the Slice 2 plan before starting another module
+- migrate PM UI screens to `src/ui_qml/modules/project_management/*` one workspace/dialog at a time; delete old Widget files only after matching QML screens pass tests
 - if real PM gateway boundaries appear during the application/API split, place those contracts under `src/core/modules/project_management/contracts/gateways/*` without facade re-exports
 
 ### Slice 3: Inventory & Procurement
@@ -2109,7 +2207,7 @@ Goal: complete inventory and procurement before maintenance, because maintenance
 | `infra/modules/inventory_procurement/db/*` | `src/core/modules/inventory_procurement/infrastructure/persistence/*` | move repositories/mappers/read models |
 | inventory reporting helpers | `src/core/modules/inventory_procurement/infrastructure/reporting/*` | move reporting adapters |
 | none | `src/core/modules/inventory_procurement/api/desktop/*.py` and `api/http/*.py` | create module-local desktop adapters and HTTP routers |
-| `ui/modules/inventory_procurement/*` | `src/ui/modules/inventory_procurement/workspaces/*`, `dialogs/*`, `presenters/*`, `view_models/*`, `widgets/*` | normalize UI structure |
+| `ui/modules/inventory_procurement/*` and active legacy `src/ui/modules/inventory_procurement/*` Widget screens | `src/ui_qml/modules/inventory_procurement/qml/workspaces/{catalog,inventory,procurement,pricing,dashboard,reservations}/*`, `qml/dialogs/*`, `qml/widgets/*`, `presenters/*`, `view_models/*` | migrate inventory UI from QWidget screens to QML, presenters, and view models |
 | flat inventory tests under `tests/` | `src/tests/inventory_procurement/*` | regroup tests |
 
 #### Detailed guide rules for Inventory & Procurement
@@ -2151,7 +2249,7 @@ Goal: rename `maintenance_management` to `maintenance` and complete the full mai
 | `infra/modules/maintenance_management/db/*` | `src/core/modules/maintenance/infrastructure/persistence/*` | move repositories/mappers/read models |
 | maintenance reporting/import/export helpers | `src/core/modules/maintenance/infrastructure/reporting/*`, `importers/*`, `exporters/*` | move adapters into target infrastructure layout |
 | none | `src/core/modules/maintenance/api/desktop/*.py` and `api/http/*.py` | create module-local desktop adapters and HTTP routers |
-| `ui/modules/maintenance_management/*` | `src/ui/modules/maintenance/workspaces/*`, `dialogs/*`, `presenters/*`, `view_models/*`, `widgets/*` | normalize maintenance UI |
+| `ui/modules/maintenance_management/*` and active legacy `src/ui/modules/maintenance*/*` Widget screens | `src/ui_qml/modules/maintenance/qml/workspaces/{assets,work_requests,work_orders,preventive,reliability,dashboard,planner}/*`, `qml/dialogs/*`, `qml/widgets/*`, `presenters/*`, `view_models/*` | migrate maintenance UI from QWidget screens to QML, presenters, and view models |
 | flat maintenance tests under `tests/` | `src/tests/maintenance/*` | regroup tests |
 
 #### Current maintenance features that are live but not explicitly named in the uploaded maintenance tree
@@ -2178,7 +2276,7 @@ Goal: make the repo shape match the uploaded structure without inventing busines
 - create module-local persistence skeletons under `src/core/modules/hr_management/infrastructure/persistence/`, `src/core/modules/payroll/infrastructure/persistence/`, and `src/core/modules/qhse/infrastructure/persistence/`; do not add new global module ORM row folders without real persistence behavior
 - create matching registries under `src/infra/composition/hr_registry.py`, `payroll_registry.py`, and `qhse_registry.py`
 - create matching API folders under `src/api/desktop/*` and `src/api/http/*`
-- create matching UI folders under `src/ui/modules/*`
+- create matching QML UI folders under `src/ui_qml/modules/*`
 - create matching test package folders under `src/tests/*`
 
 #### Required placeholder subdomains from the detailed guide
