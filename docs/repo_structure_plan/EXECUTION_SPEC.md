@@ -521,6 +521,15 @@ Platform QML route status as of 2026-04-22:
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
 - offscreen QML loading has verified that the platform placeholder workspaces resolve with the shared QML primitives
 
+Project Management QML route status as of 2026-04-22:
+
+- `src/ui_qml/modules/project_management/routes.py` registers the full PM QML route set for the Slice 2 workspace names
+- placeholder QML workspaces exist for `projects`, `tasks`, `scheduling`, `resources`, `financials`, `risk`, `portfolio`, `register`, `collaboration`, `timesheets`, and `dashboard`
+- each placeholder imports the shared QML layout/theme/widget primitives
+- these are landing zones only; active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
+- `tests/test_qml_project_management_routes.py` covers PM route registration and workspace file existence
+- offscreen QML loading has verified that all PM placeholder workspaces resolve with the shared QML primitives
+
 ## API Refactor Rule
 
 Create top-level desktop APIs:
@@ -1037,6 +1046,7 @@ Hold status as of 2026-04-22:
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
+- PM QML route placeholders are complete; real PM screen replacement remains pending
 
 Do:
 

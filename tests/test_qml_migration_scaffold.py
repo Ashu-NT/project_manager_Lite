@@ -52,6 +52,17 @@ def test_qml_main_window_navigation_uses_registry_routes():
         "Admin Console",
         "Control Center",
         "Settings",
+        "Projects",
+        "Tasks",
+        "Scheduling",
+        "Resources",
+        "Financials",
+        "Risk",
+        "Portfolio",
+        "Register",
+        "Collaboration",
+        "Timesheets",
+        "Dashboard",
     ]
 
 

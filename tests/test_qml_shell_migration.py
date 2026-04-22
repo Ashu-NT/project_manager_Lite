@@ -35,6 +35,17 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
         ("platform.admin", "Admin Console"),
         ("platform.control", "Control Center"),
         ("platform.settings", "Settings"),
+        ("project_management.projects", "Projects"),
+        ("project_management.tasks", "Tasks"),
+        ("project_management.scheduling", "Scheduling"),
+        ("project_management.resources", "Resources"),
+        ("project_management.financials", "Financials"),
+        ("project_management.risk", "Risk"),
+        ("project_management.portfolio", "Portfolio"),
+        ("project_management.register", "Register"),
+        ("project_management.collaboration", "Collaboration"),
+        ("project_management.timesheets", "Timesheets"),
+        ("project_management.dashboard", "Dashboard"),
     ]
 
 
@@ -49,6 +60,17 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
         "platform.admin",
         "platform.control",
         "platform.settings",
+        "project_management.projects",
+        "project_management.tasks",
+        "project_management.scheduling",
+        "project_management.resources",
+        "project_management.financials",
+        "project_management.risk",
+        "project_management.portfolio",
+        "project_management.register",
+        "project_management.collaboration",
+        "project_management.timesheets",
+        "project_management.dashboard",
     ]
 
 
