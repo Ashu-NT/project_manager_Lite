@@ -1,22 +1,24 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../../shared/qml/theme" as Theme
 
 Rectangle {
     id: header
     height: 68
-    radius: 20
-    color: "#10233f"
+    radius: Theme.AppTheme.radiusLg
+    color: Theme.AppTheme.accent
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 22
-        anchors.rightMargin: 22
+        anchors.leftMargin: Theme.AppTheme.marginLg
+        anchors.rightMargin: Theme.AppTheme.marginLg
 
         Label {
             text: shellContext.appTitle
-            color: "#f8fbff"
-            font.pixelSize: 22
+            color: "#FFFFFF"
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.titleSize
             font.bold: true
         }
 
@@ -26,8 +28,9 @@ Rectangle {
 
         Label {
             text: shellContext.userDisplayName || "QML migration shell"
-            color: "#9fc1ff"
-            font.pixelSize: 13
+            color: Theme.AppTheme.textOnAccent
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
         }
     }
 }

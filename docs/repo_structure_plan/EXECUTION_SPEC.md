@@ -501,6 +501,16 @@ QML shell migration status as of 2026-04-22:
 - `tests/test_qml_shell_migration.py` covers the shell route registry, navigation view models, login view-model defaults, and entrypoint safety
 - offscreen QML loading has verified that `App.qml` loads with the exposed `shellContext`
 
+Shared QML primitive status as of 2026-04-22:
+
+- `src/ui_qml/shared/qml/theme/AppTheme.qml` defines the first QML token set aligned to the existing Widget `UIConfig` palette
+- `src/ui_qml/shared/qml/theme/qmldir` registers `AppTheme` as a reusable singleton
+- `src/ui_qml/shared/qml/controls/PrimaryButton.qml` provides the first reusable QML action control
+- `src/ui_qml/shared/qml/widgets/MetricCard.qml` provides the first reusable dashboard/status card primitive
+- `src/ui_qml/shared/qml/layouts/WorkspaceFrame.qml` provides the first reusable workspace shell frame with a default content slot
+- shell QML imports these shared primitives instead of hard-coded local styling
+- `tests/test_qml_shared_primitives.py` covers the primitive file contract and token alignment
+
 ## API Refactor Rule
 
 Create top-level desktop APIs:

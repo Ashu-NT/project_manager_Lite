@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import "../../shared/qml/theme" as Theme
 
 ApplicationWindow {
     id: app
@@ -7,6 +8,7 @@ ApplicationWindow {
     height: 800
     visible: true
     title: shellContext.appTitle
+    color: Theme.AppTheme.appBackground
 
     MainWindow {
         anchors.fill: parent

@@ -1,29 +1,33 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../../shared/qml/theme" as Theme
 
 Rectangle {
     id: drawer
-    radius: 22
-    color: "#eef4fb"
-    border.color: "#d1ddec"
+    radius: Theme.AppTheme.radiusLg
+    color: Theme.AppTheme.surfaceAlt
+    border.color: Theme.AppTheme.border
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
-        spacing: 12
+        anchors.margins: Theme.AppTheme.marginLg
+        spacing: Theme.AppTheme.spacingMd
 
         Label {
             text: "Navigation"
-            color: "#253047"
-            font.pixelSize: 20
+            color: Theme.AppTheme.textPrimary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.titleSize
             font.bold: true
         }
 
         Label {
             Layout.fillWidth: true
             text: "Migrated QML workspaces register routes here."
-            color: "#5d6a7e"
+            color: Theme.AppTheme.textSecondary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
             wrapMode: Text.WordWrap
         }
 
@@ -35,9 +39,13 @@ Rectangle {
 
                 Layout.fillWidth: true
                 height: 52
-                radius: 14
-                color: modelData.routeId === shellContext.currentRouteId ? "#dceaff" : "#ffffff"
-                border.color: modelData.routeId === shellContext.currentRouteId ? "#8fb8ff" : "#d1ddec"
+                radius: Theme.AppTheme.radiusMd
+                color: modelData.routeId === shellContext.currentRouteId
+                    ? Theme.AppTheme.accentSoft
+                    : Theme.AppTheme.surface
+                border.color: modelData.routeId === shellContext.currentRouteId
+                    ? Theme.AppTheme.accent
+                    : Theme.AppTheme.border
 
                 Column {
                     anchors.fill: parent
@@ -48,14 +56,16 @@ Rectangle {
 
                     Label {
                         text: modelData.title
-                        color: "#1f4f93"
+                        color: Theme.AppTheme.accent
+                        font.family: Theme.AppTheme.fontFamily
                         font.bold: true
                     }
 
                     Label {
                         text: modelData.moduleLabel + " / " + modelData.groupLabel
-                        color: "#5d6a7e"
-                        font.pixelSize: 11
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
                     }
                 }
 

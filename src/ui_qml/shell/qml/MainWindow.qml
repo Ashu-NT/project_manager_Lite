@@ -1,14 +1,17 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "../../shared/qml/layouts" as LayoutPrimitives
+import "../../shared/qml/theme" as Theme
+import "../../shared/qml/widgets" as Widgets
 
 Item {
     id: root
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
-        spacing: 14
+        anchors.margins: Theme.AppTheme.marginLg
+        spacing: Theme.AppTheme.spacingMd
 
         ShellHeader {
             Layout.fillWidth: true
@@ -17,37 +20,44 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 14
+            spacing: Theme.AppTheme.spacingMd
 
             ShellDrawer {
                 Layout.preferredWidth: 280
                 Layout.fillHeight: true
             }
 
-            Rectangle {
+            LayoutPrimitives.WorkspaceFrame {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: 22
-                color: "#ffffff"
-                border.color: "#dbe3ef"
+                title: "QML shell ready for migrated workspaces"
+                subtitle: "Current route: " + shellContext.currentRouteId
 
                 ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: 8
+                    anchors.fill: parent
+                    spacing: Theme.AppTheme.spacingMd
 
-                    Label {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "QML shell ready for migrated workspaces"
-                        color: "#253047"
-                        font.pixelSize: 22
-                        font.bold: true
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingMd
+
+                        Widgets.MetricCard {
+                            Layout.preferredWidth: 220
+                            label: "Migration mode"
+                            value: "QML"
+                            supportingText: "Widget shell stays active until parity is verified."
+                        }
+
+                        Widgets.MetricCard {
+                            Layout.preferredWidth: 220
+                            label: "Routes"
+                            value: shellContext.navigationItems.length + ""
+                            supportingText: "Navigable QML routes currently registered."
+                        }
                     }
 
-                    Label {
-                        Layout.alignment: Qt.AlignHCenter
-                        text: "Current route: " + shellContext.currentRouteId
-                        color: "#5d6a7e"
-                        font.pixelSize: 13
+                    Item {
+                        Layout.fillHeight: true
                     }
                 }
             }
