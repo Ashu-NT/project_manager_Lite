@@ -5,8 +5,10 @@ import "../../../../../shared/qml/theme" as Theme
 import "../../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
-    title: "Register"
-    subtitle: "QML landing zone for project registers and controlled project records."
+    property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.register")
+
+    title: workspaceModel.title
+    subtitle: workspaceModel.summary
 
     RowLayout {
         anchors.fill: parent
@@ -15,8 +17,8 @@ LayoutPrimitives.WorkspaceFrame {
         Widgets.MetricCard {
             Layout.preferredWidth: 260
             label: "Migration target"
-            value: "Register"
-            supportingText: "Register workflows keep a PM-owned home during the slice."
+            value: workspaceModel.migrationStatus
+            supportingText: workspaceModel.legacyRuntimeStatus
         }
     }
 }

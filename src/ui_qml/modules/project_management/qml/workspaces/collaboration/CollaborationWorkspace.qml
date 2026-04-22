@@ -5,8 +5,10 @@ import "../../../../../shared/qml/theme" as Theme
 import "../../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
-    title: "Collaboration"
-    subtitle: "QML landing zone for notes, shared discussions, import collaboration, and team coordination."
+    property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.collaboration")
+
+    title: workspaceModel.title
+    subtitle: workspaceModel.summary
 
     RowLayout {
         anchors.fill: parent
@@ -15,8 +17,8 @@ LayoutPrimitives.WorkspaceFrame {
         Widgets.MetricCard {
             Layout.preferredWidth: 260
             label: "Migration target"
-            value: "Collab"
-            supportingText: "Collaboration storage remains module-owned and is not called directly from QML."
+            value: workspaceModel.migrationStatus
+            supportingText: workspaceModel.legacyRuntimeStatus
         }
     }
 }

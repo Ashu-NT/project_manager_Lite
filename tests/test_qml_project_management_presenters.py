@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.modules.project_management.presenters import (
     build_project_management_workspace_presenters,
 )
@@ -19,6 +20,30 @@ def test_project_management_workspace_presenters_match_qml_routes() -> None:
         assert view_model.summary
         assert view_model.migration_status == "QML landing zone ready"
         assert view_model.legacy_runtime_status == "Existing QWidget screen remains active"
+
+
+def test_project_management_workspace_catalog_exposes_qml_safe_maps() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    workspace = catalog.workspace("project_management.projects")
+
+    assert workspace == {
+        "routeId": "project_management.projects",
+        "title": "Projects",
+        "summary": "Project lifecycle, ownership, status, and project list workflows.",
+        "migrationStatus": "QML landing zone ready",
+        "legacyRuntimeStatus": "Existing QWidget screen remains active",
+    }
+
+
+def test_project_management_workspace_catalog_returns_empty_unknown_workspace() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    workspace = catalog.workspace("project_management.unknown")
+
+    assert workspace["routeId"] == "project_management.unknown"
+    assert workspace["title"] == ""
+    assert workspace["summary"] == ""
 
 
 def test_project_management_qml_presenters_do_not_import_legacy_widget_or_infra() -> None:

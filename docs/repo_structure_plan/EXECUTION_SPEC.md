@@ -534,10 +534,12 @@ Project Management QML presenter/view-model status as of 2026-04-22:
 
 - `src/ui_qml/modules/project_management/view_models/workspace.py` defines the first PM QML workspace view model
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` defines the first PM QML workspace presenter contract
+- `src/ui_qml/modules/project_management/context.py` exposes `pmWorkspaceCatalog` for QML-safe presenter-backed workspace metadata lookup
 - every registered PM QML route has a matching presenter-backed view model scaffold
-- presenter scaffolding is still metadata-only and does not call desktop APIs yet
+- PM placeholder QML files now bind title, summary, migration status, and legacy-runtime status through `pmWorkspaceCatalog`
+- presenter/catalog scaffolding is still metadata-only and does not call desktop APIs yet
 - active PM QWidget screens remain active; no Widget screen has been deleted or replaced
-- `tests/test_qml_project_management_presenters.py` covers route-to-presenter alignment and guards against legacy Widget or infrastructure imports in the PM QML layer
+- `tests/test_qml_project_management_presenters.py` covers route-to-presenter alignment, QML-safe catalog maps, and guards against legacy Widget or infrastructure imports in the PM QML layer
 
 ## API Refactor Rule
 
@@ -1057,6 +1059,7 @@ Hold status as of 2026-04-22:
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
 - PM QML route placeholders are complete; real PM screen replacement remains pending
 - PM QML presenter/view-model scaffolding is complete for the placeholder route set; desktop API wiring remains pending
+- PM QML placeholders now bind to presenter-backed metadata through `pmWorkspaceCatalog`; desktop API wiring and real screen parity remain pending
 
 Do:
 

@@ -5,8 +5,10 @@ import "../../../../../shared/qml/theme" as Theme
 import "../../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
-    title: "Timesheets"
-    subtitle: "QML landing zone for time entry, review, labor capture, and project time reporting."
+    property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.timesheets")
+
+    title: workspaceModel.title
+    subtitle: workspaceModel.summary
 
     RowLayout {
         anchors.fill: parent
@@ -15,8 +17,8 @@ LayoutPrimitives.WorkspaceFrame {
         Widgets.MetricCard {
             Layout.preferredWidth: 260
             label: "Migration target"
-            value: "Time"
-            supportingText: "Timesheet workflows stay in PM-owned application/API boundaries."
+            value: workspaceModel.migrationStatus
+            supportingText: workspaceModel.legacyRuntimeStatus
         }
     }
 }

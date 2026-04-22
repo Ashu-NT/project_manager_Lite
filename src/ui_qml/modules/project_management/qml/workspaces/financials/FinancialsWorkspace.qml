@@ -5,8 +5,10 @@ import "../../../../../shared/qml/theme" as Theme
 import "../../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
-    title: "Financials"
-    subtitle: "QML landing zone for project cost, labor, baseline budget, and financial reporting workflows."
+    property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.financials")
+
+    title: workspaceModel.title
+    subtitle: workspaceModel.summary
 
     RowLayout {
         anchors.fill: parent
@@ -15,8 +17,8 @@ LayoutPrimitives.WorkspaceFrame {
         Widgets.MetricCard {
             Layout.preferredWidth: 260
             label: "Migration target"
-            value: "Financials"
-            supportingText: "Cost and finance UI maps to the PM financials subdomain."
+            value: workspaceModel.migrationStatus
+            supportingText: workspaceModel.legacyRuntimeStatus
         }
     }
 }

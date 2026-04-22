@@ -5,8 +5,10 @@ import "../../../../../shared/qml/theme" as Theme
 import "../../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
-    title: "Projects"
-    subtitle: "QML landing zone for project lifecycle, status, ownership, and project list workflows."
+    property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.projects")
+
+    title: workspaceModel.title
+    subtitle: workspaceModel.summary
 
     RowLayout {
         anchors.fill: parent
@@ -15,8 +17,8 @@ LayoutPrimitives.WorkspaceFrame {
         Widgets.MetricCard {
             Layout.preferredWidth: 260
             label: "Migration target"
-            value: "Projects"
-            supportingText: "The current QWidget project screens remain active until QML parity is complete."
+            value: workspaceModel.migrationStatus
+            supportingText: workspaceModel.legacyRuntimeStatus
         }
     }
 }
