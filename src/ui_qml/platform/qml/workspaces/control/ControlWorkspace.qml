@@ -5,8 +5,11 @@ import "../../../../shared/qml/theme" as Theme
 import "../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
-    title: "Control Center"
-    subtitle: "QML landing zone for approvals, audit review, runtime visibility, and operational control workflows."
+    property var workspaceModel: platformWorkspaceCatalog.workspace("platform.control")
+    property var runtimeOverview: platformWorkspaceCatalog.runtimeOverview()
+
+    title: workspaceModel.title
+    subtitle: "Runtime visibility and operational control through the platform desktop API."
 
     RowLayout {
         anchors.fill: parent
@@ -14,16 +17,22 @@ LayoutPrimitives.WorkspaceFrame {
 
         Widgets.MetricCard {
             Layout.preferredWidth: 240
-            label: "Migration target"
-            value: "Control"
-            supportingText: "Presenter and view-model wiring will be added per migrated workflow."
+            label: "Platform API"
+            value: runtimeOverview.statusLabel
+            supportingText: workspaceModel.summary
         }
 
-        Widgets.MetricCard {
-            Layout.preferredWidth: 240
-            label: "Runtime"
-            value: "Safe"
-            supportingText: "The current QWidget control screens remain the active implementation."
+        Repeater {
+            model: runtimeOverview.metrics
+
+            delegate: Widgets.MetricCard {
+                required property var modelData
+
+                Layout.preferredWidth: 240
+                label: modelData.label
+                value: modelData.value
+                supportingText: modelData.supportingText
+            }
         }
     }
 }

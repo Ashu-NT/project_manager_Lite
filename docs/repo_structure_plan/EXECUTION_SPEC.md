@@ -517,8 +517,12 @@ Platform QML route status as of 2026-04-22:
 - `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` is the admin QML landing zone
 - `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` is the control QML landing zone
 - `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` is the settings QML landing zone
+- `src/ui_qml/platform/context.py` exposes `platformWorkspaceCatalog` for platform QML binding
+- `src/ui_qml/platform/presenters/runtime_presenter.py` consumes `src.api.desktop.platform.PlatformRuntimeDesktopApi`
+- `src/ui_qml/platform/view_models/runtime.py` defines QML-safe platform runtime overview view models
 - these are placeholders only; existing QWidget platform screens remain active until each workflow has QML parity and tests
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
+- `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected and preview API states
 - offscreen QML loading has verified that the platform placeholder workspaces resolve with the shared QML primitives
 
 Project Management QML route status as of 2026-04-22:

@@ -52,6 +52,7 @@ QML scaffold status:
 - shell bootstrap now separates the top-level QML application route from navigable workspace routes and exposes a `shellContext` object for QML title, navigation, theme, current-route, and user-display bindings
 - shared QML primitives now exist under `src/ui_qml/shared/qml/*`, including `theme/AppTheme.qml`, `controls/PrimaryButton.qml`, `widgets/MetricCard.qml`, and `layouts/WorkspaceFrame.qml`
 - platform QML placeholder workspaces now exist under `src/ui_qml/platform/qml/workspaces/{admin,control,settings}/*` and are registered as navigable routes
+- platform QML workspaces now bind through `platformWorkspaceCatalog`, which is backed by `src/api/desktop/platform/*` when a desktop API registry is connected
 - project-management QML placeholder workspaces now exist under `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*` and are registered as navigable routes
 - project-management QML presenter/view-model scaffolding now exists under `src/ui_qml/modules/project_management/{presenters,view_models}/*`
 - project-management QML placeholders now bind to presenter-backed workspace metadata through `pmWorkspaceCatalog`
@@ -62,6 +63,7 @@ QML scaffold status:
 - focused QML shell migration smoke coverage exists in `tests/test_qml_shell_migration.py`
 - focused shared QML primitive coverage exists in `tests/test_qml_shared_primitives.py`
 - focused platform QML route coverage exists in `tests/test_qml_platform_routes.py`
+- focused platform QML presenter/API coverage exists in `tests/test_qml_platform_presenters.py`
 - focused project-management QML route coverage exists in `tests/test_qml_project_management_routes.py`
 - focused project-management QML presenter/view-model coverage exists in `tests/test_qml_project_management_presenters.py`
 - focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
@@ -1423,6 +1425,7 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui_qml/shell/*` now has initial shell route/registry/navigation/QML engine glue, a QML-bound `shellContext`, and QML component placeholders; `main_qt.py` still imports `src.ui.shell.app`
 - `src/ui_qml/shared/qml/*` now has first-pass reusable QML design primitives aligned to the legacy widget token palette
 - `src/ui_qml/platform/routes.py` registers the first platform QML routes for admin, control, and settings placeholders
+- `src/ui_qml/platform/context.py`, `presenters/runtime_presenter.py`, and `view_models/runtime.py` provide the first platform QML path that consumes the top-level platform desktop API instead of infrastructure
 - `src/ui_qml/modules/project_management/routes.py` registers the PM QML route set named by Slice 2
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` and `view_models/workspace.py` provide the first PM QML presenter/view-model contract without importing legacy widgets or infrastructure
 - `src/ui_qml/modules/project_management/context.py` exposes a QML-safe PM workspace catalog used by PM QML placeholders

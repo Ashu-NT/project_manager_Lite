@@ -5,8 +5,11 @@ import "../../../../shared/qml/theme" as Theme
 import "../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
-    title: "Settings"
-    subtitle: "QML landing zone for shell preferences, theme controls, governance mode, and desktop runtime settings."
+    property var workspaceModel: platformWorkspaceCatalog.workspace("platform.settings")
+    property var runtimeOverview: platformWorkspaceCatalog.runtimeOverview()
+
+    title: workspaceModel.title
+    subtitle: "Shell preferences and runtime settings through QML-safe platform state."
 
     RowLayout {
         anchors.fill: parent
@@ -14,9 +17,9 @@ LayoutPrimitives.WorkspaceFrame {
 
         Widgets.MetricCard {
             Layout.preferredWidth: 240
-            label: "Migration target"
-            value: "Settings"
-            supportingText: "This will replace Widget settings only after QML state persistence is verified."
+            label: "Platform API"
+            value: runtimeOverview.statusLabel
+            supportingText: workspaceModel.summary
         }
 
         Widgets.MetricCard {

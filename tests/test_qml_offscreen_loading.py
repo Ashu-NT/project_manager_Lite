@@ -5,6 +5,7 @@ import os
 from PySide6.QtGui import QGuiApplication
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import (
@@ -30,6 +31,7 @@ def test_registered_qml_routes_load_offscreen() -> None:
     shell_context = build_shell_context(build_main_window_navigation(registry))
 
     expose_context_property(engine, "shellContext", shell_context)
+    expose_context_property(engine, "platformWorkspaceCatalog", PlatformWorkspaceCatalog())
     expose_context_property(engine, "pmWorkspaceCatalog", ProjectManagementWorkspaceCatalog())
 
     for route in registry.list_routes():
