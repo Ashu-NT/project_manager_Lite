@@ -267,7 +267,7 @@ Preferred ORM row placement:
 src/core/modules/<module>/infrastructure/persistence/orm/
 ```
 
-`src/infra/persistence/orm/<module>/` is not the final home for business-module rows. Any existing module folders there are transitional Slice 1 de-mixing locations and must be removed during the owning module slice after rows move into module-local infrastructure. Platform-owned rows live under `src/core/platform/infrastructure/persistence/orm/`; platform-owned repositories and mappers live under `src/core/platform/infrastructure/persistence/<area>/`.
+`src/infra/persistence/orm/<module>/` is not the final home for business-module rows. Any existing module folders there are transitional Slice 1 de-mixing locations and must be removed during the owning module slice after rows move into module-local infrastructure. Platform-owned persistence follows the module pattern under `src/core/platform/infrastructure/persistence/{orm,mappers,repositories}/`.
 
 Preferred domain-to-ORM mapper placement:
 
@@ -533,15 +533,32 @@ Project Management QML route status as of 2026-04-22:
 Project Management QML presenter/view-model status as of 2026-04-22:
 
 - `src/core/modules/project_management/api/desktop/workspaces.py` defines the first module-owned PM desktop API surface used by QML routes and presenters
+- `src/core/modules/project_management/api/desktop/dashboard.py` defines the first PM dashboard desktop API overview contract and KPI descriptor shape
 - `src/ui_qml/modules/project_management/view_models/workspace.py` defines the first PM QML workspace view model
+- `src/ui_qml/modules/project_management/view_models/dashboard.py` defines the first PM dashboard QML overview and metric view models
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` defines the first PM QML workspace presenter contract
+- `src/ui_qml/modules/project_management/presenters/dashboard_presenter.py` maps the PM dashboard desktop API overview into QML-safe view models
 - `src/ui_qml/modules/project_management/context.py` exposes `pmWorkspaceCatalog` for QML-safe presenter-backed workspace metadata lookup
+- `pmWorkspaceCatalog.dashboardOverview()` exposes the read-only dashboard overview map for QML binding
 - every registered PM QML route has a matching presenter-backed view model scaffold
 - PM placeholder QML files now bind title, summary, migration status, and legacy-runtime status through `pmWorkspaceCatalog`
+- `DashboardWorkspace.qml` now renders API-backed read-only KPI cards through the shared QML `MetricCard` primitive
 - presenter/catalog scaffolding now calls the PM workspace desktop API for metadata only; real workflow/query desktop APIs remain pending
+- the dashboard read-only overview API is the first PM screen-specific desktop API contract; live refresh/actions remain pending
 - active PM QWidget screens remain active; no Widget screen has been deleted or replaced
 - `tests/test_qml_project_management_presenters.py` covers route-to-presenter alignment, QML-safe catalog maps, and guards against legacy Widget or infrastructure imports in the PM QML layer
 - `tests/test_project_management_desktop_api.py` covers PM desktop workspace API descriptors and guards against QML or infrastructure imports from the desktop API layer
+
+QML architecture guardrail status as of 2026-04-22:
+
+- `tests/test_qml_architecture_guardrails.py` protects the QML migration dependency direction
+- `tests/test_qml_offscreen_loading.py` loads every registered QML route through `QQmlApplicationEngine` with `QT_QPA_PLATFORM=offscreen`
+- core source under `src/core/**` must not import `src.ui_qml` or legacy `src.ui`
+- QML Python under `src/ui_qml/**` must not import legacy Widget UI, infrastructure, persistence repositories, or `PySide6.QtWidgets`
+- module desktop APIs under `src/core/modules/*/api/desktop/**` must not import `src.ui_qml`
+- QML files must not reference repository, ORM, SQLAlchemy, session, or persistence concepts
+- these guardrails must pass before wiring real QML screens to module desktop APIs
+- registered QML routes must continue loading offscreen before any old Widget screen is deleted
 
 ## API Refactor Rule
 
@@ -621,7 +638,7 @@ Completed:
 - migration execution moved from `infra/platform/migrate.py` to `src/infra/persistence/migrations/runner.py`
 - `main.py`, `main_qt.py`, and `main_qt.spec` now reference the new migration runner/assets path
 - platform ORM model files were moved out of `infra/platform/db/`; business-module ORM rows landed in temporary global de-mixing homes until their module slices move them under module-local infrastructure:
-  - `models.py` initially lived at `src/infra/persistence/orm/platform/models.py`, then moved to `src/core/platform/infrastructure/persistence/orm/models.py`
+  - `models.py` initially lived at `src/infra/persistence/orm/platform/models.py`, then moved to `src/core/platform/infrastructure/persistence/orm/models.py`, and is now split into `src/core/platform/infrastructure/persistence/orm/{access,approval,audit,auth,documents,modules,org,party,runtime_tracking,time}.py`
   - `inventory_models.py` now lives at `src/infra/persistence/orm/inventory_procurement/models.py`
   - `maintenance_models.py` now lives at `src/infra/persistence/orm/maintenance/models.py`
   - `maintenance_preventive_runtime_models.py` now lives at `src/infra/persistence/orm/maintenance/preventive_runtime_models.py`
@@ -682,6 +699,8 @@ Completed:
   - `runtime.py` builds a desktop API registry from the service graph
   - `platform/models.py` defines desktop result envelopes, DTOs, and commands
   - `platform/runtime.py` adapts platform runtime and organization flows for desktop consumers
+- platform UI should communicate through the top-level platform API surface under `src/api/desktop/platform/*` and `src/api/desktop/runtime.py`, not through platform persistence or infrastructure modules
+- `tests/test_platform_persistence_structure.py` verifies platform persistence now matches the module structure with only `persistence/{mappers,orm,repositories}/`
 - `src/ui/shell/app.py` now exposes the desktop API registry and platform runtime desktop adapter in the desktop service map
 - targeted desktop adapter tests were added for platform runtime flows
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
@@ -1063,6 +1082,9 @@ Hold status as of 2026-04-22:
 - PM QML presenter/view-model scaffolding is complete for the placeholder route set; workspace metadata now comes from a module desktop API
 - PM QML placeholders now bind to presenter-backed metadata through `pmWorkspaceCatalog`; desktop API wiring and real screen parity remain pending
 - real PM workflow/query desktop APIs remain pending and should be added one migrated screen at a time
+- QML architecture guardrails are in place and should stay green before any old Widget screen is deleted
+- automated offscreen QML route loading is in place and should stay green before any old Widget screen is deleted
+- PM Dashboard QML has an API-backed read-only KPI overview; live data refresh, project selection, baselines, charts, dialogs, and actions remain on the Widget dashboard until parity is completed
 
 Do:
 

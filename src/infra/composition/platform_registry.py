@@ -36,8 +36,8 @@ from src.core.platform.org.access_policy import (
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService
-from src.core.platform.infrastructure.persistence.modules import SqlAlchemyModuleEntitlementRepository
-from src.core.platform.infrastructure.persistence.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
+from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
+from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
 
 

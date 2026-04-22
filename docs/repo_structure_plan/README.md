@@ -56,6 +56,7 @@ QML scaffold status:
 - project-management QML presenter/view-model scaffolding now exists under `src/ui_qml/modules/project_management/{presenters,view_models}/*`
 - project-management QML placeholders now bind to presenter-backed workspace metadata through `pmWorkspaceCatalog`
 - project-management desktop API workspace metadata now exists under `src/core/modules/project_management/api/desktop/workspaces.py` and backs the PM QML route/presenter metadata path
+- project-management dashboard now has a read-only desktop API overview contract under `src/core/modules/project_management/api/desktop/dashboard.py`, with QML presenter/view-model mapping and Dashboard QML rendering of KPI cards
 - shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
 - the scaffold is intentionally not wired into `main_qt.py` yet, so the active QWidget app remains unchanged
 - focused QML shell migration smoke coverage exists in `tests/test_qml_shell_migration.py`
@@ -64,6 +65,8 @@ QML scaffold status:
 - focused project-management QML route coverage exists in `tests/test_qml_project_management_routes.py`
 - focused project-management QML presenter/view-model coverage exists in `tests/test_qml_project_management_presenters.py`
 - focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
+- focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
+- automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
 
 ## Core Rule
 
@@ -1411,9 +1414,9 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `core/modules/maintenance_management/*` must be renamed to `core/modules/maintenance/*`
 - `infra/platform/service_registration/*` is the current composition root; the target expects `infra/composition/*_registry.py`
 - migrations currently live in `migration/`, not under `infra/persistence/migrations/`
-- platform ORM rows, repositories, and mappers now live under `src/core/platform/infrastructure/persistence/*`
+- platform ORM rows, repositories, and mappers now live under `src/core/platform/infrastructure/persistence/{orm,mappers,repositories}/*`
 - business-module ORM rows currently live under `src/infra/persistence/orm/inventory_procurement/*` and `maintenance/*`; those folders are transitional Slice 1 de-mixing homes, not the final module-owned infrastructure layout
-- platform repositories and mappers now live beside the platform ORM under `src/core/platform/infrastructure/persistence/*`; business-module repositories still use transitional module infrastructure such as `infra/modules/*/db/*` until each module slice moves them under module-owned infrastructure
+- platform repositories and mappers now use the same structure as module persistence: `src/core/platform/infrastructure/persistence/repositories/<area>.py`, `mappers/<area>.py`, and `orm/<area>.py`; business-module repositories still use transitional module infrastructure such as `infra/modules/*/db/*` until each module slice moves them under module-owned infrastructure
 - `src/ui/*` currently contains migrated-but-still-Widget desktop UI from the earlier refactor; it is now legacy active UI, not the final presentation target
 - final desktop UI now targets `src/ui_qml/*` with QML rendering, Python presenters, and Python view models
 - `src/ui_qml/*` scaffold is in place for shell, shared, platform, module, and legacy-widget migration buckets
@@ -1424,6 +1427,9 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` and `view_models/workspace.py` provide the first PM QML presenter/view-model contract without importing legacy widgets or infrastructure
 - `src/ui_qml/modules/project_management/context.py` exposes a QML-safe PM workspace catalog used by PM QML placeholders
 - `src/core/modules/project_management/api/desktop/workspaces.py` now owns PM workspace descriptors used by QML routes and presenters; QML file paths remain owned by `src/ui_qml`
+- `src/core/modules/project_management/api/desktop/dashboard.py`, `src/ui_qml/modules/project_management/presenters/dashboard_presenter.py`, and `view_models/dashboard.py` now define the first real PM dashboard QML read-only overview contract
+- `tests/test_qml_architecture_guardrails.py` now protects the QML migration dependency direction: core cannot import UI, QML Python cannot import legacy widgets or persistence, QML Python cannot use QtWidgets, module desktop APIs cannot import QML, and QML files cannot reference persistence concerns
+- `tests/test_qml_offscreen_loading.py` now loads every registered QML route with `QT_QPA_PLATFORM=offscreen` and the required shell/PM context objects
 - `src/ui_qml/legacy_widgets/migration_only/*` is the only temporary holding area for QWidget screens during an active migration window
 - old `src/ui/*` Widget folders are deleted screen-by-screen only after the matching QML screen, presenter, view model, route, and tests are complete
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure
@@ -1436,7 +1442,7 @@ The extracted tree is still correct as a structure target, but `me.md` adds impo
 1. The repo should use both top-level `src/api/` and module-local `core/modules/<module>/api/`.
    Working interpretation:
    - module-local `api/` contains module-scoped desktop and HTTP adapters
-   - top-level `src/api/` contains application-level transport entrypoints, runtime adapters, and channel aggregation
+   - top-level `src/api/` contains platform application transport entrypoints, runtime adapters, and channel aggregation; platform UI must communicate through this platform API surface instead of direct infrastructure access
 
 2. The repo should use global `src/infra/persistence/orm/` only for shared SQLAlchemy metadata concerns, and module-local `infrastructure/persistence/` for module-owned persistence.
    Working interpretation:
@@ -1444,7 +1450,7 @@ The extracted tree is still correct as a structure target, but `me.md` adds impo
    - module-local `infrastructure/persistence/` holds module-specific ORM rows, repositories, mappers, and read models
    - existing global module ORM packages such as `src/infra/persistence/orm/inventory_procurement/*` and `maintenance/*` are temporary and must be removed during the owning module slice after rows move to `src/core/modules/<module>/infrastructure/persistence/orm/`
    - platform-owned rows live under `src/core/platform/infrastructure/persistence/orm/`
-   - platform-owned repositories and mappers live under `src/core/platform/infrastructure/persistence/<area>/`
+   - platform-owned repositories and mappers live under `src/core/platform/infrastructure/persistence/repositories/<area>.py` and `src/core/platform/infrastructure/persistence/mappers/<area>.py`
 
 3. The QML migration spec replaces the old final `src/ui/*` Widget target with `src/ui_qml/*`.
    Added instruction:
@@ -1619,7 +1625,7 @@ Completed in the clean/no-facade execution:
 - moved `infra/platform/migrate.py` to `src/infra/persistence/migrations/runner.py`
 - updated `main.py`, `main_qt.py`, and `main_qt.spec` to use the new migration runner/assets path
 - moved platform ORM model files out of `infra/platform/db/`; business-module ORM rows landed in temporary global de-mixing homes until their module slices move them under module-local infrastructure:
-  - `models.py` to `src/infra/persistence/orm/platform/models.py` initially, then to `src/core/platform/infrastructure/persistence/orm/models.py`
+  - `models.py` to `src/infra/persistence/orm/platform/models.py` initially, then to `src/core/platform/infrastructure/persistence/orm/models.py`, and now split by platform area under `src/core/platform/infrastructure/persistence/orm/{access,approval,audit,auth,documents,modules,org,party,runtime_tracking,time}.py`
   - `inventory_models.py` to `src/infra/persistence/orm/inventory_procurement/models.py`
   - `maintenance_models.py` to `src/infra/persistence/orm/maintenance/models.py`
   - `maintenance_preventive_runtime_models.py` to `src/infra/persistence/orm/maintenance/preventive_runtime_models.py`
@@ -1943,7 +1949,9 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.infra.persistence.orm.Base`, PM split ORM files for project/task/resource/baseline/collaboration/portfolio, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM` passes
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support` passes; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
-- direct metadata smoke import confirms platform repositories load from `src.core.platform.infrastructure.persistence.*`, and `TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` remain registered in `Base.metadata`
+- direct metadata smoke import confirms platform repositories load from `src.core.platform.infrastructure.persistence.repositories.*`, platform mappers load from `src.core.platform.infrastructure.persistence.mappers.*`, and split platform ORM files keep `TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` registered in `Base.metadata`
+- in `conda run -n pmenv`, platform persistence shape verification passes:
+  - `pytest tests/test_platform_persistence_structure.py -q`
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
 - in `conda run -n pmenv`, operational runtime utility verification passes:
   - `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_architecture_guardrails.py::test_legacy_infra_platform_runtime_package_is_removed -q`
@@ -2116,6 +2124,9 @@ Hold status:
 - PM QML presenter/view-model scaffolding is in place for every PM workspace route; desktop API wiring and real screen parity remain pending
 - PM QML placeholders now consume presenter-backed metadata through a QML context object; this is still metadata-only and does not replace PM Widget screens
 - PM QML routes and presenters now consume metadata from the PM module desktop API; workflow/query API wiring remains pending
+- QML architecture guardrails are now in place before real screen migration begins
+- registered QML routes are now covered by an automated offscreen loading smoke test
+- PM Dashboard QML now renders an API-backed empty/read-only KPI overview; live dashboard refresh/actions remain on the QWidget dashboard until parity is completed
 
 Completed in the clean/no-facade execution:
 
@@ -2365,4 +2376,4 @@ This plan now assumes the following unless you later override them:
 3. top-level `src/api/*` acts as the application transport layer, while module-local `core/modules/*/api/*` holds module-scoped desktop and HTTP adapters
 4. HR becomes the owner of employee master data in the target architecture, while other modules interact through IDs and gateways
 5. `src/infra/persistence/orm/` is a shared SQLAlchemy metadata/root loader, not the final home for module-owned ORM rows; module rows move to each module's `infrastructure/persistence/orm/` during its slice
-6. platform ORM rows live under `src/core/platform/infrastructure/persistence/orm/`, not under the global ORM package
+6. platform persistence follows the module pattern under `src/core/platform/infrastructure/persistence/{orm,mappers,repositories}/`, not old per-service folders or the global ORM package

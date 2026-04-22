@@ -6,19 +6,26 @@ import "../../../../../shared/qml/widgets" as Widgets
 
 LayoutPrimitives.WorkspaceFrame {
     property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.dashboard")
+    property var dashboardOverview: pmWorkspaceCatalog.dashboardOverview()
 
-    title: workspaceModel.title
-    subtitle: workspaceModel.summary
+    title: dashboardOverview.title
+    subtitle: dashboardOverview.subtitle
 
-    RowLayout {
+    Flow {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Widgets.MetricCard {
-            Layout.preferredWidth: 260
-            label: "Migration target"
-            value: workspaceModel.migrationStatus
-            supportingText: workspaceModel.legacyRuntimeStatus
+        Repeater {
+            model: dashboardOverview.metrics
+
+            delegate: Widgets.MetricCard {
+                required property var modelData
+
+                width: 230
+                label: modelData.label
+                value: modelData.value
+                supportingText: modelData.supportingText
+            }
         }
     }
 }

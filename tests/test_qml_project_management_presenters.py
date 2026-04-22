@@ -2,6 +2,7 @@ from pathlib import Path
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.modules.project_management.presenters import (
+    ProjectDashboardPresenter,
     build_project_management_workspace_presenters,
 )
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
@@ -44,6 +45,31 @@ def test_project_management_workspace_catalog_returns_empty_unknown_workspace() 
     assert workspace["routeId"] == "project_management.unknown"
     assert workspace["title"] == ""
     assert workspace["summary"] == ""
+
+
+def test_project_dashboard_presenter_exposes_empty_overview_view_model() -> None:
+    presenter = ProjectDashboardPresenter()
+
+    overview = presenter.build_empty_overview()
+
+    assert overview.title == "Dashboard"
+    assert overview.metrics[0].label == "Tasks"
+    assert overview.metrics[0].value == "0 / 0"
+    assert len(overview.metrics) == 8
+
+
+def test_project_management_workspace_catalog_exposes_dashboard_overview() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    overview = catalog.dashboardOverview()
+
+    assert overview["title"] == "Dashboard"
+    assert len(overview["metrics"]) == 8
+    assert overview["metrics"][0] == {
+        "label": "Tasks",
+        "value": "0 / 0",
+        "supportingText": "Done / Total",
+    }
 
 
 def test_project_management_qml_presenters_do_not_import_legacy_widget_or_infra() -> None:

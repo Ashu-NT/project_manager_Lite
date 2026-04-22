@@ -647,9 +647,9 @@ def test_composition_imports_focused_persistence_adapters():
     assert "from infra.platform.db.repositories import" not in text
     assert "from infra.platform.db.mappers import" not in text
     assert "from src.core.modules.project_management.infrastructure.persistence.repositories.task import" in text
-    assert "from src.core.platform.infrastructure.persistence.auth.repository import" in text
-    assert "from src.core.platform.infrastructure.persistence.org.repository import" in text
-    assert "from src.core.platform.infrastructure.persistence.time import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.auth import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.org import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.time import" in text
 
 
 def test_project_management_persistence_imports_project_management_orm_models():
@@ -705,7 +705,9 @@ def test_orm_package_root_loads_all_model_packages():
     assert "import src.infra.persistence.orm.inventory_procurement.models" in package_text
     assert "import src.infra.persistence.orm.maintenance.models" in package_text
     assert "import src.infra.persistence.orm.maintenance.preventive_runtime_models" in package_text
-    assert "import src.core.platform.infrastructure.persistence.orm.models" in package_text
+    platform_orm_modules = ("org", "documents", "party", "modules", "time", "auth", "access", "audit", "approval", "runtime_tracking")
+    for module in platform_orm_modules:
+        assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
     for module in ("project", "resource", "task", "cost_calendar", "baseline", "register", "collaboration", "portfolio"):
         assert f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}" in package_text
     assert "from src.infra.persistence.orm import Base" in migration_env_text

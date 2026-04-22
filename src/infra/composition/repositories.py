@@ -31,13 +31,13 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
-from src.core.platform.infrastructure.persistence.access import (
+from src.core.platform.infrastructure.persistence.repositories.access import (
     SqlAlchemyProjectMembershipRepository,
     SqlAlchemyScopedAccessGrantRepository,
 )
-from src.core.platform.infrastructure.persistence.approval.repository import SqlAlchemyApprovalRepository
-from src.core.platform.infrastructure.persistence.audit.repository import SqlAlchemyAuditLogRepository
-from src.core.platform.infrastructure.persistence.auth.repository import (
+from src.core.platform.infrastructure.persistence.repositories.approval import SqlAlchemyApprovalRepository
+from src.core.platform.infrastructure.persistence.repositories.audit import SqlAlchemyAuditLogRepository
+from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
     SqlAlchemyRolePermissionRepository,
@@ -45,19 +45,19 @@ from src.core.platform.infrastructure.persistence.auth.repository import (
     SqlAlchemyUserRepository,
     SqlAlchemyUserRoleRepository,
 )
-from src.core.platform.infrastructure.persistence.documents import (
+from src.core.platform.infrastructure.persistence.repositories.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from src.core.platform.infrastructure.persistence.org.repository import (
+from src.core.platform.infrastructure.persistence.repositories.org import (
     SqlAlchemyDepartmentRepository,
     SqlAlchemyEmployeeRepository,
     SqlAlchemyOrganizationRepository,
     SqlAlchemySiteRepository,
 )
-from src.core.platform.infrastructure.persistence.party import SqlAlchemyPartyRepository
-from src.core.platform.infrastructure.persistence.time import (
+from src.core.platform.infrastructure.persistence.repositories.party import SqlAlchemyPartyRepository
+from src.core.platform.infrastructure.persistence.repositories.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )
