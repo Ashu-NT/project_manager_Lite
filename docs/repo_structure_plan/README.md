@@ -48,9 +48,10 @@ New final UI rule:
 QML scaffold status:
 
 - `src/ui_qml/*` has been created as the final landing zone
-- shell placeholder files exist under `src/ui_qml/shell/*` and `src/ui_qml/shell/qml/*`
+- shell bootstrap foundation exists under `src/ui_qml/shell/*`, including route definitions, a route registry, navigation view-model construction, QML engine loading glue, login view-model state, and valid shell QML components
 - shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
 - the scaffold is intentionally not wired into `main_qt.py` yet, so the active QWidget app remains unchanged
+- focused QML shell migration smoke coverage exists in `tests/test_qml_shell_migration.py`
 
 ## Core Rule
 
@@ -1404,6 +1405,7 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui/*` currently contains migrated-but-still-Widget desktop UI from the earlier refactor; it is now legacy active UI, not the final presentation target
 - final desktop UI now targets `src/ui_qml/*` with QML rendering, Python presenters, and Python view models
 - `src/ui_qml/*` scaffold is in place for shell, shared, platform, module, and legacy-widget migration buckets
+- `src/ui_qml/shell/*` now has initial shell route/registry/navigation/QML engine glue and QML component placeholders; `main_qt.py` still imports `src.ui.shell.app`
 - `src/ui_qml/legacy_widgets/migration_only/*` is the only temporary holding area for QWidget screens during an active migration window
 - old `src/ui/*` Widget folders are deleted screen-by-screen only after the matching QML screen, presenter, view model, route, and tests are complete
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure
@@ -2091,6 +2093,7 @@ Hold status:
 - completed Slice 2 backend/domain work remains valid and should not be reverted
 - active QWidget UI under `src/ui/*` remains runnable until each QML screen is complete and tested
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`, not `src/ui/modules/project_management/*`
+- QML shell foundation has started and is verified independently; Slice 2 backend/domain restructuring remains paused until this QML migration checkpoint is accepted
 
 Completed in the clean/no-facade execution:
 
@@ -2186,7 +2189,7 @@ Verified:
 
 Still remaining in Slice 2:
 
-- keep Slice 2 backend/domain work on hold until the QML migration scaffold and docs are approved
+- keep Slice 2 backend/domain work on hold until the QML shell migration checkpoint is approved
 - continue splitting PM domain, services, API adapters, and UI according to the Slice 2 plan before starting another module
 - migrate PM UI screens to `src/ui_qml/modules/project_management/*` one workspace/dialog at a time; delete old Widget files only after matching QML screens pass tests
 - if real PM gateway boundaries appear during the application/API split, place those contracts under `src/core/modules/project_management/contracts/gateways/*` without facade re-exports

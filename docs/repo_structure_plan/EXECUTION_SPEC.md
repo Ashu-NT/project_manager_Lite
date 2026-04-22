@@ -17,7 +17,7 @@ For desktop UI migration, `PySide6_Widgets_to_QML_Migration_Spec.docx` wins over
 - final desktop UI lives under `src/ui_qml/*`
 - active Widget UI under `src/ui/*` remains temporary legacy UI until each screen is migrated
 - old Widget paths are deleted only after the matching QML screen, presenter, view model, route, and tests are complete
-- `src/ui_qml/*` is scaffolded but must not become the active entrypoint until the QML shell is implemented and tested
+- `src/ui_qml/*` is scaffolded and the initial shell route/registry/navigation/QML engine foundation exists, but it must not become the active entrypoint until the QML shell is complete and tested end-to-end
 
 ## Purpose
 
@@ -486,6 +486,17 @@ QML migration rules:
 - delete old Widget files screen-by-screen after QML replacement, navigation rewrite, and tests
 - quarantine temporary Widget artifacts only under `src/ui_qml/legacy_widgets/migration_only/*`
 - no permanent Widget/QML mixed screen after a screen slice is complete
+
+QML shell migration status as of 2026-04-22:
+
+- `src/ui_qml/shell/routes.py` defines QML route metadata and shell QML path resolution
+- `src/ui_qml/shell/qml_registry.py` owns duplicate-safe route registration and route lookup
+- `src/ui_qml/shell/navigation.py` and `main_window.py` build shell navigation view models from registered routes
+- `src/ui_qml/shell/qml_engine.py` contains QML engine loading glue
+- `src/ui_qml/shell/login.py` contains initial QML login view-model state
+- `src/ui_qml/shell/qml/*` contains valid shell QML component placeholders
+- `main_qt.py` still points to `src.ui.shell.app`; the QWidget app remains the active runtime until the QML shell has full parity
+- `tests/test_qml_shell_migration.py` covers the shell route registry, navigation view models, login view-model defaults, and entrypoint safety
 
 ## API Refactor Rule
 
@@ -997,11 +1008,12 @@ Continue next:
 
 Hold status as of 2026-04-22:
 
-- pause Slice 2 backend/domain restructuring until the QML migration plan and scaffold are accepted
+- pause Slice 2 backend/domain restructuring until the QML migration checkpoint is accepted
 - completed Slice 2 persistence/contracts/domain work remains valid and must not be reverted
 - active Widget UI under `src/ui/*` remains runnable during migration
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
+- QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
 
 Do:
 
