@@ -704,9 +704,11 @@ Completed:
   - `platform/models.py` defines desktop result envelopes, DTOs, and commands
   - `platform/runtime.py` adapts platform runtime and organization flows for desktop consumers
 - platform UI should communicate through the top-level platform API surface under `src/api/desktop/platform/*` and `src/api/desktop/runtime.py`, not through platform persistence or infrastructure modules
+- the legacy QWidget Module Licensing screen now consumes `PlatformRuntimeDesktopApi` and `ModuleStatePatchCommand` instead of calling `PlatformRuntimeApplicationService` directly; this is the first platform Widget workflow moved onto the platform API boundary before QML replacement
 - `tests/test_platform_persistence_structure.py` verifies platform persistence now matches the module structure with only `persistence/{mappers,orm,repositories}/`
 - `src/ui/shell/app.py` now exposes the desktop API registry and platform runtime desktop adapter in the desktop service map
 - targeted desktop adapter tests were added for platform runtime flows
+- `tests/test_qml_architecture_guardrails.py` now prevents the Module Licensing tab from drifting back to direct platform application-service access
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`

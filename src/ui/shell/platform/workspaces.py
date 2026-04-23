@@ -229,7 +229,7 @@ def build_platform_administration_workspace_definitions(
             )
         )
 
-    if has_permission(context.user_session, "settings.manage") and context.platform_runtime_application_service is not None:
+    if has_permission(context.user_session, "settings.manage") and context.platform_runtime_desktop_api is not None:
         definitions.append(
             WorkspaceDefinition(
                 module_code=PLATFORM_MODULE_CODE,
@@ -237,7 +237,7 @@ def build_platform_administration_workspace_definitions(
                 group_label="Administration",
                 label="Modules",
                 widget=ModuleLicensingTab(
-                    platform_runtime_application_service=context.platform_runtime_application_service,
+                    platform_runtime_api=context.platform_runtime_desktop_api,
                     user_session=context.user_session,
                     parent=context.parent,
                 ),

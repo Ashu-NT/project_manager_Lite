@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from PySide6.QtWidgets import QWidget
 
+from src.api.desktop.platform import PlatformRuntimeDesktopApi
 from src.application.runtime.platform_runtime import resolve_platform_runtime_application_service
 from src.core.platform.auth import UserSessionContext
 from src.ui.platform.settings import MainWindowSettingsStore
@@ -37,6 +38,7 @@ class ShellWorkspaceContext:
     user_session: UserSessionContext | None
     parent: QWidget | None
     platform_runtime_application_service: object | None
+    platform_runtime_desktop_api: PlatformRuntimeDesktopApi | None
     project_management_enabled: bool
     inventory_procurement_enabled: bool
     maintenance_management_enabled: bool
@@ -58,6 +60,16 @@ def build_shell_workspace_context(
         module_catalog_service=services.get("module_catalog_service"),
         organization_service=services.get("organization_service"),
     )
+    configured_platform_runtime_api = services.get("desktop_platform_runtime_api")
+    platform_runtime_desktop_api = (
+        configured_platform_runtime_api
+        if isinstance(configured_platform_runtime_api, PlatformRuntimeDesktopApi)
+        else None
+    )
+    if platform_runtime_desktop_api is None and platform_runtime_application_service is not None:
+        platform_runtime_desktop_api = PlatformRuntimeDesktopApi(
+            platform_runtime_application_service=platform_runtime_application_service
+        )
     project_management_enabled = not bool(
         platform_runtime_application_service is not None
         and hasattr(platform_runtime_application_service, "is_enabled")
@@ -102,6 +114,7 @@ def build_shell_workspace_context(
         user_session=user_session,
         parent=parent,
         platform_runtime_application_service=platform_runtime_application_service,
+        platform_runtime_desktop_api=platform_runtime_desktop_api,
         project_management_enabled=project_management_enabled,
         inventory_procurement_enabled=inventory_procurement_enabled,
         maintenance_management_enabled=maintenance_management_enabled,

@@ -53,6 +53,7 @@ QML scaffold status:
 - shared QML primitives now exist under `src/ui_qml/shared/qml/*`, including `theme/AppTheme.qml`, `controls/PrimaryButton.qml`, `widgets/MetricCard.qml`, and `layouts/WorkspaceFrame.qml`
 - platform QML placeholder workspaces now exist under `src/ui_qml/platform/qml/workspaces/{admin,control,settings}/*` and are registered as navigable routes
 - platform QML workspaces now bind through `platformWorkspaceCatalog`, which is backed by `src/api/desktop/platform/*` when a desktop API registry is connected
+- the legacy QWidget Module Licensing screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
 - project-management QML placeholder workspaces now exist under `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*` and are registered as navigable routes
 - project-management QML presenter/view-model scaffolding now exists under `src/ui_qml/modules/project_management/{presenters,view_models}/*`
 - project-management QML placeholders now bind to presenter-backed workspace metadata through `pmWorkspaceCatalog`
@@ -1665,6 +1666,8 @@ Completed in the clean/no-facade execution:
   - `runtime.py`
 - wired `src/ui/shell/app.py` to expose the desktop API registry and platform runtime desktop adapter in the desktop service map
 - added targeted desktop adapter tests for platform runtime flows
+- rewired the legacy QWidget Module Licensing screen to consume `PlatformRuntimeDesktopApi` and `ModuleStatePatchCommand` instead of calling `PlatformRuntimeApplicationService` directly
+- added a QML architecture guardrail that keeps the Module Licensing screen on the platform desktop API boundary while the QML replacement is pending
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`

@@ -14,9 +14,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.api.desktop.platform import (
+    DesktopApiError,
+    ModuleEntitlementDto,
+    ModuleStatePatchCommand,
+    PlatformRuntimeDesktopApi,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.ui.platform.widgets.admin_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
 from src.ui.shared.widgets.guards import apply_permission_hint, has_permission, make_guarded_slot
@@ -27,12 +31,13 @@ class ModuleLicensingTab(QWidget):
     def __init__(
         self,
         *,
-        platform_runtime_application_service: PlatformRuntimeApplicationService,
+        platform_runtime_api: PlatformRuntimeDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._platform_runtime_application_service = platform_runtime_application_service
+        self._platform_runtime_api = platform_runtime_api
+        self._entitlements_by_code: dict[str, ModuleEntitlementDto] = {}
         self._user_session = user_session
         self._can_manage_modules = has_permission(self._user_session, "settings.manage")
         self._setup_ui()
@@ -130,7 +135,18 @@ class ModuleLicensingTab(QWidget):
         self._sync_actions()
 
     def reload_modules(self) -> None:
-        entitlements = self._platform_runtime_application_service.list_entitlements()
+        result = self._platform_runtime_api.get_runtime_context()
+        if not result.ok or result.data is None:
+            self._show_api_error(result.error)
+            entitlements: tuple[ModuleEntitlementDto, ...] = ()
+            platform_capability_count = 0
+            context_label = "Install Profile"
+        else:
+            context = result.data
+            entitlements = context.entitlements
+            platform_capability_count = len(context.platform_capabilities)
+            context_label = context.context_label
+        self._entitlements_by_code = {entitlement.module_code: entitlement for entitlement in entitlements}
         self.table.setRowCount(len(entitlements))
         for row_idx, entitlement in enumerate(entitlements):
             capabilities = ", ".join(entitlement.module.primary_capabilities) or "-"
@@ -146,21 +162,14 @@ class ModuleLicensingTab(QWidget):
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 if col == 0:
-                    item.setData(Qt.UserRole, entitlement.code)
+                    item.setData(Qt.UserRole, entitlement.module_code)
                 self.table.setItem(row_idx, col, item)
         self.table.clearSelection()
         licensed_count = sum(1 for entitlement in entitlements if entitlement.licensed)
         runtime_count = sum(1 for entitlement in entitlements if entitlement.runtime_enabled)
         lifecycle_alert_count = sum(1 for entitlement in entitlements if entitlement.lifecycle_alert)
         planned_count = sum(1 for entitlement in entitlements if entitlement.planned)
-        self.platform_base_badge.setText(
-            f"Platform Base: {len(self._platform_runtime_application_service.list_platform_capabilities())} capabilities"
-        )
-        context_label = (
-            self._platform_runtime_application_service.current_context_label()
-            if hasattr(self._platform_runtime_application_service, "current_context_label")
-            else "Install Profile"
-        )
+        self.platform_base_badge.setText(f"Platform Base: {platform_capability_count} capabilities")
         self.context_badge.setText(f"Context: {context_label}")
         self.licensed_badge.setText(f"{licensed_count} licensed")
         self.runtime_badge.setText(f"{runtime_count} runtime")
@@ -180,14 +189,15 @@ class ModuleLicensingTab(QWidget):
                 f"{entitlement.label} is still planned and cannot be licensed yet.",
             )
             return
-        try:
-            self._platform_runtime_application_service.set_module_state(
-                entitlement.code,
+        result = self._platform_runtime_api.patch_module_state(
+            ModuleStatePatchCommand(
+                module_code=entitlement.module_code,
                 licensed=not entitlement.licensed,
                 enabled=entitlement.enabled if entitlement.licensed else False,
             )
-        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Modules", str(exc))
+        )
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_modules()
 
@@ -217,17 +227,18 @@ class ModuleLicensingTab(QWidget):
                 f"{entitlement.label} is {entitlement.lifecycle_label.lower()}. Change its lifecycle status before enabling it.",
             )
             return
-        try:
-            self._platform_runtime_application_service.set_module_state(
-                entitlement.code,
+        result = self._platform_runtime_api.patch_module_state(
+            ModuleStatePatchCommand(
+                module_code=entitlement.module_code,
                 enabled=not entitlement.enabled,
             )
-        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Modules", str(exc))
+        )
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_modules()
 
-    def _selected_entitlement(self):
+    def _selected_entitlement(self) -> ModuleEntitlementDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -235,7 +246,7 @@ class ModuleLicensingTab(QWidget):
         module_code = str(item.data(Qt.UserRole) or "") if item is not None else ""
         if not module_code:
             return None
-        return self._platform_runtime_application_service.get_entitlement(module_code)
+        return self._entitlements_by_code.get(module_code)
 
     def change_status(self) -> None:
         entitlement = self._selected_entitlement()
@@ -273,13 +284,14 @@ class ModuleLicensingTab(QWidget):
         )
         if not accepted or not selected:
             return
-        try:
-            self._platform_runtime_application_service.set_module_state(
-                entitlement.code,
+        result = self._platform_runtime_api.patch_module_state(
+            ModuleStatePatchCommand(
+                module_code=entitlement.module_code,
                 lifecycle_status=selected.strip().lower(),
             )
-        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Modules", str(exc))
+        )
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_modules()
 
@@ -305,6 +317,10 @@ class ModuleLicensingTab(QWidget):
 
     def _on_organizations_changed(self, _organization_id: str) -> None:
         self.reload_modules()
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform runtime API did not return a result."
+        QMessageBox.warning(self, "Modules", message)
 
 
 __all__ = ["ModuleLicensingTab"]
