@@ -33,7 +33,7 @@ def build_platform_home_workspace_definitions(context: ShellWorkspaceContext) ->
             group_label="Shared Services",
             label="Home",
             widget=PlatformHomeTab(
-                platform_runtime_application_service=context.platform_runtime_application_service,  # type: ignore[arg-type]
+                platform_runtime_api=context.platform_runtime_desktop_api,
                 user_session=context.user_session,
                 parent=context.parent,
             ),
@@ -87,8 +87,7 @@ def build_platform_administration_workspace_definitions(
                     group_label="Administration",
                     label="Organizations",
                     widget=OrganizationAdminTab(
-                        platform_runtime_application_service=services["platform_runtime_application_service"],
-                        organization_service=services["organization_service"],
+                        platform_runtime_api=context.platform_runtime_desktop_api,
                         user_session=context.user_session,
                         parent=context.parent,
                     ),

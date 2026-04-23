@@ -12,8 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.org.domain import Organization
-from src.core.platform.modules import EnterpriseModule
+from src.api.desktop.platform import ModuleDto, OrganizationDto
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -22,8 +21,8 @@ class OrganizationEditDialog(QDialog):
     def __init__(
         self,
         parent=None,
-        organization: Organization | None = None,
-        available_modules: list[EnterpriseModule] | tuple[EnterpriseModule, ...] | None = None,
+        organization: OrganizationDto | None = None,
+        available_modules: list[ModuleDto] | tuple[ModuleDto, ...] | None = None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Organization" + (" - Edit" if organization else " - New"))

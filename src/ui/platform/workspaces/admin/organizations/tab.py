@@ -14,12 +14,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.api.desktop.platform import (
+    DesktopApiError,
+    ModuleDto,
+    OrganizationDto,
+    OrganizationProvisionCommand,
+    OrganizationUpdateCommand,
+    PlatformRuntimeDesktopApi,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.domain import Organization
 from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.org import OrganizationService
 from src.ui.platform.dialogs.admin.organizations.dialogs import OrganizationEditDialog
 from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.platform.widgets.admin_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
@@ -30,22 +34,16 @@ from src.ui.shared.formatting.ui_config import UIConfig as CFG
 class OrganizationAdminTab(QWidget):
     def __init__(
         self,
-        organization_service: OrganizationService | None = None,
         *,
-        platform_runtime_application_service: PlatformRuntimeApplicationService | None = None,
+        platform_runtime_api: PlatformRuntimeDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._platform_runtime_application_service = platform_runtime_application_service
-        self._organization_service = organization_service
-        if self._organization_service is None and self._platform_runtime_application_service is not None:
-            self._organization_service = self._platform_runtime_application_service.organization_service
-        if self._organization_service is None:
-            raise RuntimeError("Organization service is required.")
+        self._platform_runtime_api = platform_runtime_api
         self._user_session = user_session
         self._can_manage_organizations = has_permission(self._user_session, "settings.manage")
-        self._rows: list[Organization] = []
+        self._rows: list[OrganizationDto] = []
         self._setup_ui()
         self.reload_organizations()
         domain_events.organizations_changed.connect(self._on_organizations_changed)
@@ -125,13 +123,16 @@ class OrganizationAdminTab(QWidget):
 
     def reload_organizations(self) -> None:
         try:
-            self._rows = self._list_organizations()
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Organizations", str(exc))
-            self._rows = []
+            result = self._platform_runtime_api.list_organizations(active_only=None)
         except Exception as exc:
             QMessageBox.critical(self, "Organizations", f"Failed to load organizations: {exc}")
             self._rows = []
+        else:
+            if result.ok and result.data is not None:
+                self._rows = list(result.data)
+            else:
+                self._show_api_error(result.error)
+                self._rows = []
         self.table.setRowCount(len(self._rows))
         for row, organization in enumerate(self._rows):
             values = (
@@ -160,12 +161,14 @@ class OrganizationAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._create_organization_from_dialog(dlg)
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Organizations", str(exc))
-                continue
+                error = self._create_organization_from_dialog(dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Organizations", f"Failed to create organization: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_organizations()
@@ -180,7 +183,7 @@ class OrganizationAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._update_organization(
+                error = self._update_organization(
                     organization.id,
                     organization_code=dlg.organization_code,
                     display_name=dlg.display_name,
@@ -189,14 +192,16 @@ class OrganizationAdminTab(QWidget):
                     is_active=dlg.is_active,
                     expected_version=organization.version,
                 )
-            except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Organizations", str(exc))
-                if isinstance(exc, ConcurrencyError):
-                    self.reload_organizations()
-                    return
-                continue
             except Exception as exc:
                 QMessageBox.critical(self, "Organizations", f"Failed to update organization: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category == "conflict":
+                    self.reload_organizations()
+                    return
+                if error.category == "validation":
+                    continue
                 return
             break
         self.reload_organizations()
@@ -209,16 +214,16 @@ class OrganizationAdminTab(QWidget):
         if organization.is_active:
             return
         try:
-            self._set_active_organization(organization.id)
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-            QMessageBox.warning(self, "Organizations", str(exc))
-            return
+            error = self._set_active_organization(organization.id)
         except Exception as exc:
             QMessageBox.critical(self, "Organizations", f"Failed to set active organization: {exc}")
             return
+        if error is not None:
+            self._show_api_error(error)
+            return
         self.reload_organizations()
 
-    def _selected_organization(self) -> Organization | None:
+    def _selected_organization(self) -> OrganizationDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -246,34 +251,23 @@ class OrganizationAdminTab(QWidget):
             and not organization.is_active
         )
 
-    def _update_header_badges(self, rows: list[Organization]) -> None:
+    def _update_header_badges(self, rows: list[OrganizationDto]) -> None:
         active = next((row.display_name for row in rows if row.is_active), "No active")
         self.organization_count_badge.setText(f"{len(rows)} organizations")
         self.organization_active_badge.setText(active)
 
-    def _list_organizations(self) -> list[Organization]:
-        if self._platform_runtime_application_service is not None:
-            return self._platform_runtime_application_service.list_organizations()
-        return self._organization_service.list_organizations()
-
-    def _create_organization_from_dialog(self, dlg: OrganizationEditDialog) -> None:
-        if self._platform_runtime_application_service is not None:
-            self._platform_runtime_application_service.provision_organization(
+    def _create_organization_from_dialog(self, dlg: OrganizationEditDialog) -> DesktopApiError | None:
+        result = self._platform_runtime_api.provision_organization(
+            OrganizationProvisionCommand(
                 organization_code=dlg.organization_code,
                 display_name=dlg.display_name,
                 timezone_name=dlg.timezone_name,
                 base_currency=dlg.base_currency,
                 is_active=dlg.is_active,
-                initial_module_codes=dlg.initial_module_codes,
+                initial_module_codes=tuple(dlg.initial_module_codes),
             )
-            return
-        self._organization_service.create_organization(
-            organization_code=dlg.organization_code,
-            display_name=dlg.display_name,
-            timezone_name=dlg.timezone_name,
-            base_currency=dlg.base_currency,
-            is_active=dlg.is_active,
         )
+        return None if result.ok else result.error
 
     def _update_organization(
         self,
@@ -285,10 +279,10 @@ class OrganizationAdminTab(QWidget):
         base_currency: str | None = None,
         is_active: bool | None = None,
         expected_version: int | None = None,
-    ) -> Organization:
-        if self._platform_runtime_application_service is not None:
-            return self._platform_runtime_application_service.update_organization(
-                organization_id,
+    ) -> DesktopApiError | None:
+        result = self._platform_runtime_api.update_organization(
+            OrganizationUpdateCommand(
+                organization_id=organization_id,
                 organization_code=organization_code,
                 display_name=display_name,
                 timezone_name=timezone_name,
@@ -296,25 +290,23 @@ class OrganizationAdminTab(QWidget):
                 is_active=is_active,
                 expected_version=expected_version,
             )
-        return self._organization_service.update_organization(
-            organization_id,
-            organization_code=organization_code,
-            display_name=display_name,
-            timezone_name=timezone_name,
-            base_currency=base_currency,
-            is_active=is_active,
-            expected_version=expected_version,
         )
+        return None if result.ok else result.error
 
-    def _set_active_organization(self, organization_id: str) -> Organization:
-        if self._platform_runtime_application_service is not None:
-            return self._platform_runtime_application_service.set_active_organization(organization_id)
-        return self._organization_service.set_active_organization(organization_id)
+    def _set_active_organization(self, organization_id: str) -> DesktopApiError | None:
+        result = self._platform_runtime_api.set_active_organization(organization_id)
+        return None if result.ok else result.error
 
-    def _available_modules_for_create(self):
-        if self._platform_runtime_application_service is None:
-            return ()
-        return tuple(self._platform_runtime_application_service.list_modules())
+    def _available_modules_for_create(self) -> tuple[ModuleDto, ...]:
+        result = self._platform_runtime_api.list_modules()
+        if result.ok and result.data is not None:
+            return result.data
+        self._show_api_error(result.error)
+        return ()
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform runtime API did not return a result."
+        QMessageBox.warning(self, "Organizations", message)
 
 
 __all__ = ["OrganizationAdminTab"]

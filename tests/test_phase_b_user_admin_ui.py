@@ -200,8 +200,9 @@ def test_module_licensing_tab_runtime_changes_lifecycle_status(qapp, services, m
 
 def test_organization_admin_tab_runtime_bootstraps_default_profile(qapp, services):
     tab = OrganizationAdminTab(
-        platform_runtime_application_service=services["platform_runtime_application_service"],
-        organization_service=services["organization_service"],
+        platform_runtime_api=PlatformRuntimeDesktopApi(
+            platform_runtime_application_service=services["platform_runtime_application_service"]
+        ),
         user_session=services["user_session"],
     )
 
@@ -216,8 +217,15 @@ def test_organization_admin_tab_runtime_bootstraps_default_profile(qapp, service
 
 
 def test_organization_edit_dialog_defaults_initial_module_selection(qapp, services):
+    platform_runtime_api = PlatformRuntimeDesktopApi(
+        platform_runtime_application_service=services["platform_runtime_application_service"]
+    )
+    modules_result = platform_runtime_api.list_modules()
+    assert modules_result.ok is True
+    assert modules_result.data is not None
+
     dialog = OrganizationEditDialog(
-        available_modules=services["platform_runtime_application_service"].list_modules(),
+        available_modules=modules_result.data,
     )
 
     assert dialog.initial_module_codes == ["project_management"]
@@ -381,8 +389,9 @@ def test_organization_admin_tab_creates_organization_with_initial_module_mix(qap
 
     monkeypatch.setattr("src.ui.platform.workspaces.admin.organizations.tab.OrganizationEditDialog", _FakeDialog)
     tab = OrganizationAdminTab(
-        platform_runtime_application_service=services["platform_runtime_application_service"],
-        organization_service=services["organization_service"],
+        platform_runtime_api=PlatformRuntimeDesktopApi(
+            platform_runtime_application_service=services["platform_runtime_application_service"]
+        ),
         user_session=services["user_session"],
     )
 

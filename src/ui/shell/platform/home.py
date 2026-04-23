@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.api.desktop.platform import PlatformRuntimeDesktopApi
 from src.core.platform.auth import UserSessionContext
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -11,12 +11,12 @@ class PlatformHomeTab(QWidget):
     def __init__(
         self,
         *,
-        platform_runtime_application_service: PlatformRuntimeApplicationService | None = None,
+        platform_runtime_api: PlatformRuntimeDesktopApi | None = None,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._platform_runtime_application_service = platform_runtime_application_service
+        self._platform_runtime_api = platform_runtime_api
         self._user_session = user_session
         self._setup_ui()
 
@@ -62,45 +62,38 @@ class PlatformHomeTab(QWidget):
         root.addStretch(1)
 
     def _summary_values(self) -> dict[str, str]:
-        if self._platform_runtime_application_service is None:
+        if self._platform_runtime_api is None:
             return {
                 "platform_base": "Users, access, audit, approvals, employees, documents, inbox, notifications, settings.",
                 "licensed": "Project Management",
                 "available": "None",
                 "planned": "Inventory & Procurement, Maintenance Management, QHSE, HR Management",
             }
-        if hasattr(self._platform_runtime_application_service, "snapshot"):
-            context_snapshot = self._platform_runtime_application_service.snapshot()
-            snapshot = context_snapshot.module_snapshot
-            platform_base = ", ".join(capability.label for capability in snapshot.platform_capabilities) or "None"
-            entitlement_by_code = {
-                entitlement.code: entitlement
-                for entitlement in snapshot.entitlements
+        result = self._platform_runtime_api.get_runtime_context()
+        if not result.ok or result.data is None:
+            return {
+                "platform_base": "Unavailable",
+                "licensed": "Unavailable",
+                "available": "Unavailable",
+                "planned": "Unavailable",
             }
-            licensed = ", ".join(
-                (
-                    f"{module.label} ({entitlement_by_code[module.code].lifecycle_label})"
-                    if entitlement_by_code.get(module.code) is not None
-                    and entitlement_by_code[module.code].lifecycle_alert
-                    else module.label
-                )
-                for module in snapshot.licensed_modules
-            ) or "None"
-            available = ", ".join(module.label for module in snapshot.available_modules) or "None"
-            planned = ", ".join(module.label for module in snapshot.planned_modules) or "None"
-        else:
-            platform_base = ", ".join(
-                capability.label for capability in self._platform_runtime_application_service.list_platform_capabilities()
-            ) or "None"
-            licensed = ", ".join(
-                module.label for module in self._platform_runtime_application_service.list_licensed_modules()
-            ) or "None"
-            available = ", ".join(
-                module.label for module in self._platform_runtime_application_service.list_available_modules()
-            ) or "None"
-            planned = ", ".join(
-                module.label for module in self._platform_runtime_application_service.list_planned_modules()
-            ) or "None"
+        context = result.data
+        platform_base = ", ".join(capability.label for capability in context.platform_capabilities) or "None"
+        entitlement_by_code = {
+            entitlement.module_code: entitlement
+            for entitlement in context.entitlements
+        }
+        licensed = ", ".join(
+            (
+                f"{module.label} ({entitlement_by_code[module.code].lifecycle_label})"
+                if entitlement_by_code.get(module.code) is not None
+                and entitlement_by_code[module.code].lifecycle_alert
+                else module.label
+            )
+            for module in context.licensed_modules
+        ) or "None"
+        available = ", ".join(module.label for module in context.available_modules) or "None"
+        planned = ", ".join(module.label for module in context.planned_modules) or "None"
         return {
             "platform_base": platform_base,
             "licensed": licensed,

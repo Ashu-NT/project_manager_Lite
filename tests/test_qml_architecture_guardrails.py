@@ -9,6 +9,10 @@ SRC_ROOT = ROOT / "src"
 UI_QML_ROOT = SRC_ROOT / "ui_qml"
 CORE_ROOT = SRC_ROOT / "core"
 LEGACY_PLATFORM_MODULE_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "modules" / "tab.py"
+LEGACY_PLATFORM_ORGANIZATION_TAB = (
+    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "organizations" / "tab.py"
+)
+LEGACY_PLATFORM_HOME_TAB = SRC_ROOT / "ui" / "shell" / "platform" / "home.py"
 
 
 def _python_files(root: Path):
@@ -102,6 +106,23 @@ def test_qml_files_do_not_reference_repositories_or_orm() -> None:
 
 def test_legacy_platform_modules_tab_uses_desktop_api_boundary() -> None:
     text = LEGACY_PLATFORM_MODULE_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformRuntimeDesktopApi" in text
+    assert "PlatformRuntimeApplicationService" not in text
+    assert "_platform_runtime_application_service" not in text
+
+
+def test_legacy_platform_organizations_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_ORGANIZATION_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformRuntimeDesktopApi" in text
+    assert "PlatformRuntimeApplicationService" not in text
+    assert "OrganizationService" not in text
+    assert "_organization_service" not in text
+
+
+def test_legacy_platform_home_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_HOME_TAB.read_text(encoding="utf-8", errors="ignore")
 
     assert "PlatformRuntimeDesktopApi" in text
     assert "PlatformRuntimeApplicationService" not in text
