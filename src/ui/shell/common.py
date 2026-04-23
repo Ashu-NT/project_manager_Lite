@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import QWidget
 
 from src.api.desktop.platform import (
+    PlatformAccessDesktopApi,
+    PlatformApprovalDesktopApi,
+    PlatformAuditDesktopApi,
     PlatformDocumentDesktopApi,
     PlatformDepartmentDesktopApi,
     PlatformEmployeeDesktopApi,
@@ -15,6 +18,9 @@ from src.api.desktop.platform import (
     PlatformUserDesktopApi,
 )
 from src.application.runtime.platform_runtime import resolve_platform_runtime_application_service
+from src.core.platform.access import AccessControlService
+from src.core.platform.approval import ApprovalService
+from src.core.platform.audit import AuditService
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.auth.application import AuthService
 from src.core.platform.documents import DocumentService
@@ -54,6 +60,9 @@ class ShellWorkspaceContext:
     platform_site_desktop_api: PlatformSiteDesktopApi | None
     platform_department_desktop_api: PlatformDepartmentDesktopApi | None
     platform_employee_desktop_api: PlatformEmployeeDesktopApi | None
+    platform_access_desktop_api: PlatformAccessDesktopApi | None
+    platform_approval_desktop_api: PlatformApprovalDesktopApi | None
+    platform_audit_desktop_api: PlatformAuditDesktopApi | None
     platform_document_desktop_api: PlatformDocumentDesktopApi | None
     platform_party_desktop_api: PlatformPartyDesktopApi | None
     platform_user_desktop_api: PlatformUserDesktopApi | None
@@ -106,6 +115,24 @@ def build_shell_workspace_context(
         if isinstance(configured_platform_employee_api, PlatformEmployeeDesktopApi)
         else None
     )
+    configured_platform_access_api = services.get("desktop_platform_access_api")
+    platform_access_desktop_api = (
+        configured_platform_access_api
+        if isinstance(configured_platform_access_api, PlatformAccessDesktopApi)
+        else None
+    )
+    configured_platform_approval_api = services.get("desktop_platform_approval_api")
+    platform_approval_desktop_api = (
+        configured_platform_approval_api
+        if isinstance(configured_platform_approval_api, PlatformApprovalDesktopApi)
+        else None
+    )
+    configured_platform_audit_api = services.get("desktop_platform_audit_api")
+    platform_audit_desktop_api = (
+        configured_platform_audit_api
+        if isinstance(configured_platform_audit_api, PlatformAuditDesktopApi)
+        else None
+    )
     configured_platform_document_api = services.get("desktop_platform_document_api")
     platform_document_desktop_api = (
         configured_platform_document_api
@@ -127,6 +154,14 @@ def build_shell_workspace_context(
     site_service = services.get("site_service")
     department_service = services.get("department_service")
     employee_service = services.get("employee_service")
+    access_service = services.get("access_service")
+    approval_service = services.get("approval_service")
+    audit_service = services.get("audit_service")
+    project_service = services.get("project_service")
+    task_service = services.get("task_service")
+    resource_service = services.get("resource_service")
+    cost_service = services.get("cost_service")
+    baseline_service = services.get("baseline_service")
     document_service = services.get("document_service")
     party_service = services.get("party_service")
     auth_service = services.get("auth_service")
@@ -138,6 +173,19 @@ def build_shell_workspace_context(
         )
     if platform_employee_desktop_api is None and isinstance(employee_service, EmployeeService):
         platform_employee_desktop_api = PlatformEmployeeDesktopApi(employee_service=employee_service)
+    if platform_access_desktop_api is None and isinstance(access_service, AccessControlService):
+        platform_access_desktop_api = PlatformAccessDesktopApi(access_service=access_service)
+    if platform_approval_desktop_api is None and isinstance(approval_service, ApprovalService):
+        platform_approval_desktop_api = PlatformApprovalDesktopApi(approval_service=approval_service)
+    if platform_audit_desktop_api is None and isinstance(audit_service, AuditService):
+        platform_audit_desktop_api = PlatformAuditDesktopApi(
+            audit_service=audit_service,
+            project_service=project_service if hasattr(project_service, "list_projects") else None,
+            task_service=task_service if hasattr(task_service, "list_tasks_for_project") else None,
+            resource_service=resource_service if hasattr(resource_service, "list_resources") else None,
+            cost_service=cost_service if hasattr(cost_service, "list_cost_items_for_project") else None,
+            baseline_service=baseline_service if hasattr(baseline_service, "list_baselines") else None,
+        )
     if platform_document_desktop_api is None and isinstance(document_service, DocumentService):
         platform_document_desktop_api = PlatformDocumentDesktopApi(document_service=document_service)
     if platform_party_desktop_api is None and isinstance(party_service, PartyService):
@@ -163,6 +211,11 @@ def build_shell_workspace_context(
     access_scope_type_choices: list[tuple[str, str]] = [("Project", "project")]
     access_scope_option_loaders: dict[str, ScopeOptionsLoader] = {}
     access_scope_disabled_hints: dict[str, str] = {}
+    if project_service is not None and hasattr(project_service, "list_projects"):
+        access_scope_option_loaders["project"] = lambda: [
+            (project.name, project.id)
+            for project in project_service.list_projects()
+        ]
     if platform_site_desktop_api is not None and has_any_permission(user_session, "site.read", "settings.manage"):
         access_scope_type_choices.append(("Site", "site"))
         access_scope_option_loaders["site"] = lambda: _load_site_scope_options(platform_site_desktop_api)
@@ -188,6 +241,9 @@ def build_shell_workspace_context(
         platform_site_desktop_api=platform_site_desktop_api,
         platform_department_desktop_api=platform_department_desktop_api,
         platform_employee_desktop_api=platform_employee_desktop_api,
+        platform_access_desktop_api=platform_access_desktop_api,
+        platform_approval_desktop_api=platform_approval_desktop_api,
+        platform_audit_desktop_api=platform_audit_desktop_api,
         platform_document_desktop_api=platform_document_desktop_api,
         platform_party_desktop_api=platform_party_desktop_api,
         platform_user_desktop_api=platform_user_desktop_api,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from src.core.platform.approval import ApprovalService
+from src.api.desktop.platform import PlatformApprovalDesktopApi
 from src.core.platform.auth import UserSessionContext
 from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.platform.workspaces.control.approvals.queue import ApprovalQueuePanel
@@ -13,12 +13,12 @@ class ApprovalControlTab(QWidget):
     def __init__(
         self,
         *,
-        approval_service: ApprovalService,
+        platform_approval_api: PlatformApprovalDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._approval_service = approval_service
+        self._platform_approval_api = platform_approval_api
         self._user_session = user_session
         self._can_decide = bool(user_session is not None and user_session.has_permission("approval.decide"))
         self._can_view = bool(
@@ -51,7 +51,7 @@ class ApprovalControlTab(QWidget):
         )
 
         self.queue_panel = ApprovalQueuePanel(
-            approval_service=self._approval_service,
+            platform_approval_api=self._platform_approval_api,
             user_session=self._user_session,
             summary_changed=self._on_summary_changed,
             parent=self,

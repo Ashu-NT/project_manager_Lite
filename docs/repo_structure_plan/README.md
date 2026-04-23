@@ -1679,9 +1679,15 @@ Completed in the clean/no-facade execution:
 - rewired the legacy QWidget Departments screen to consume `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `DepartmentCreateCommand`, and `DepartmentUpdateCommand` instead of calling `DepartmentService` or `SiteService` directly
 - rewired the legacy QWidget Employees screen to consume `PlatformEmployeeDesktopApi`, `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `EmployeeCreateCommand`, and `EmployeeUpdateCommand` instead of calling `EmployeeService`, `SiteService`, or `DepartmentService` directly
 - added focused `src/api/desktop/platform/{document,party,user}.py` adapters and rewired the legacy QWidget Documents, Parties, and Users screens to consume `PlatformDocumentDesktopApi`, `PlatformPartyDesktopApi`, and `PlatformUserDesktopApi` instead of calling `DocumentService`, `PartyService`, or `AuthService` directly
+- added focused `src/api/desktop/platform/{access,approval,audit}.py` adapters plus split `src/api/desktop/platform/models/{access,approval,audit}.py` DTO/command files so the platform API surface stays split by workflow instead of growing new dump files
+- extended `PlatformUserDesktopApi` with account-security actions so the Security workspace stays on the user desktop API boundary for unlock and session-revocation flows
+- rewired the legacy QWidget Access and Security screens to consume `PlatformAccessDesktopApi`, `PlatformUserDesktopApi`, and shell-provided scope loaders instead of calling `AccessControlService`, `AuthService`, or `ProjectService` directly
+- rewired the legacy QWidget Approvals and Audit screens to consume `PlatformApprovalDesktopApi` and `PlatformAuditDesktopApi` instead of calling `ApprovalService`, `AuditService`, or PM display-resolution services directly
+- moved audit display resolution into `PlatformAuditDesktopApi`, so the audit widget now renders resolved project/entity/detail labels without reaching into PM services
 - rewired the document structure manager, document preview/dialog flow, and document link management to stay on the document desktop API boundary
-- wired the desktop API registry and shell context to expose `desktop_platform_site_api`, `desktop_platform_department_api`, `desktop_platform_employee_api`, `desktop_platform_document_api`, `desktop_platform_party_api`, and `desktop_platform_user_api`
-- added QML architecture guardrails that keep Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Documents, Parties, and Users on the platform desktop API boundary while their QML replacements are pending
+- wired the desktop API registry and shell context to expose `desktop_platform_site_api`, `desktop_platform_department_api`, `desktop_platform_employee_api`, `desktop_platform_access_api`, `desktop_platform_approval_api`, `desktop_platform_audit_api`, `desktop_platform_document_api`, `desktop_platform_party_api`, and `desktop_platform_user_api`
+- updated the shared PM governance approval queue integration to hand `ApprovalQueuePanel` a `PlatformApprovalDesktopApi`, keeping the shared queue on one contract even before the PM module slice is migrated
+- added QML architecture guardrails that keep Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Access, Approvals, Audit, Documents, Parties, and Users on the platform desktop API boundary while their QML replacements are pending
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`
@@ -1973,6 +1979,10 @@ Verified:
 - in `conda run -n pmenv`, platform persistence shape verification passes:
   - `pytest tests/test_platform_persistence_structure.py -q`
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
+- in `conda run -n pmenv`, platform control desktop API and migrated widget verification passes:
+  - `pytest tests/test_platform_control_desktop_api.py tests/test_phase_b_user_admin_ui.py tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_qml_architecture_guardrails.py -q`
+- in `conda run -n pmenv`, broader platform desktop API + shell regression verification passes:
+  - `pytest tests/test_platform_admin_desktop_api.py tests/test_platform_control_desktop_api.py tests/test_platform_org_desktop_api.py tests/test_platform_runtime_desktop_api.py tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_main_window_shell_navigation.py tests/test_qml_architecture_guardrails.py tests/test_architecture_guardrails.py -q`
 - in `conda run -n pmenv`, operational runtime utility verification passes:
   - `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_architecture_guardrails.py::test_legacy_infra_platform_runtime_package_is_removed -q`
 - in `conda run -n pmenv`, platform ORM/repository relocation verification passes:

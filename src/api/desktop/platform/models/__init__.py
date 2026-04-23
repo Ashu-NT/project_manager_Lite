@@ -1,3 +1,13 @@
+from src.api.desktop.platform.models.access import (
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantDto,
+    ScopedAccessGrantRemoveCommand,
+)
+from src.api.desktop.platform.models.approval import (
+    ApprovalDecisionCommand,
+    ApprovalRequestDto,
+)
+from src.api.desktop.platform.models.audit import AuditLogEntryDto
 from src.api.desktop.platform.models.common import DesktopApiError, DesktopApiResult
 from src.api.desktop.platform.models.document import (
     DocumentCreateCommand,
@@ -41,8 +51,13 @@ from src.api.desktop.platform.models.user import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
+from src.core.platform.approval.domain import ApprovalStatus
 
 __all__ = [
+    "ApprovalDecisionCommand",
+    "ApprovalRequestDto",
+    "ApprovalStatus",
+    "AuditLogEntryDto",
     "DepartmentCreateCommand",
     "DepartmentDto",
     "DepartmentLocationReferenceDto",
@@ -72,6 +87,9 @@ __all__ = [
     "PlatformCapabilityDto",
     "PlatformRuntimeContextDto",
     "RoleDto",
+    "ScopedAccessGrantAssignCommand",
+    "ScopedAccessGrantDto",
+    "ScopedAccessGrantRemoveCommand",
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",

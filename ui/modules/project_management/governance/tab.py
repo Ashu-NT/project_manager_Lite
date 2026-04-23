@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.api.desktop.platform import PlatformApprovalDesktopApi
 from src.core.platform.approval import ApprovalService
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
@@ -51,7 +52,7 @@ class GovernanceTab(QWidget):
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._approval_service = approval_service
+        self._platform_approval_api = PlatformApprovalDesktopApi(approval_service=approval_service)
         self._project_service = project_service
         self._timesheet_service = timesheet_service
         self._user_session = user_session
@@ -173,7 +174,7 @@ class GovernanceTab(QWidget):
         approvals_layout.addWidget(controls)
 
         self.approval_queue = ApprovalQueuePanel(
-            approval_service=self._approval_service,
+            platform_approval_api=self._platform_approval_api,
             user_session=self._user_session,
             summary_changed=self._update_header_badges,
             entity_type_filter=[

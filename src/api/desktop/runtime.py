@@ -4,6 +4,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from src.api.desktop.platform import (
+    PlatformAccessDesktopApi,
+    PlatformApprovalDesktopApi,
+    PlatformAuditDesktopApi,
+)
+from src.api.desktop.platform import (
     PlatformDocumentDesktopApi,
     PlatformDepartmentDesktopApi,
     PlatformEmployeeDesktopApi,
@@ -16,6 +21,9 @@ from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
 )
+from src.core.platform.access import AccessControlService
+from src.core.platform.approval import ApprovalService
+from src.core.platform.audit import AuditService
 from src.core.platform.auth.application import AuthService
 from src.core.platform.documents import DocumentService
 from src.core.platform.org import DepartmentService, EmployeeService, SiteService
@@ -28,6 +36,9 @@ class DesktopApiRegistry:
     platform_site: PlatformSiteDesktopApi
     platform_department: PlatformDepartmentDesktopApi
     platform_employee: PlatformEmployeeDesktopApi
+    platform_access: PlatformAccessDesktopApi
+    platform_approval: PlatformApprovalDesktopApi
+    platform_audit: PlatformAuditDesktopApi
     platform_document: PlatformDocumentDesktopApi
     platform_party: PlatformPartyDesktopApi
     platform_user: PlatformUserDesktopApi
@@ -51,6 +62,15 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     employee_service = services.get("employee_service")
     if not isinstance(employee_service, EmployeeService):
         raise RuntimeError("Platform employee service is not configured.")
+    access_service = services.get("access_service")
+    if not isinstance(access_service, AccessControlService):
+        raise RuntimeError("Platform access service is not configured.")
+    approval_service = services.get("approval_service")
+    if not isinstance(approval_service, ApprovalService):
+        raise RuntimeError("Platform approval service is not configured.")
+    audit_service = services.get("audit_service")
+    if not isinstance(audit_service, AuditService):
+        raise RuntimeError("Platform audit service is not configured.")
     document_service = services.get("document_service")
     if not isinstance(document_service, DocumentService):
         raise RuntimeError("Platform document service is not configured.")
@@ -60,6 +80,11 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     auth_service = services.get("auth_service")
     if not isinstance(auth_service, AuthService):
         raise RuntimeError("Platform auth service is not configured.")
+    project_service = services.get("project_service")
+    task_service = services.get("task_service")
+    resource_service = services.get("resource_service")
+    cost_service = services.get("cost_service")
+    baseline_service = services.get("baseline_service")
     return DesktopApiRegistry(
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
@@ -70,6 +95,20 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         platform_employee=PlatformEmployeeDesktopApi(
             employee_service=employee_service,
+        ),
+        platform_access=PlatformAccessDesktopApi(
+            access_service=access_service,
+        ),
+        platform_approval=PlatformApprovalDesktopApi(
+            approval_service=approval_service,
+        ),
+        platform_audit=PlatformAuditDesktopApi(
+            audit_service=audit_service,
+            project_service=project_service,
+            task_service=task_service,
+            resource_service=resource_service,
+            cost_service=cost_service,
+            baseline_service=baseline_service,
         ),
         platform_document=PlatformDocumentDesktopApi(
             document_service=document_service,

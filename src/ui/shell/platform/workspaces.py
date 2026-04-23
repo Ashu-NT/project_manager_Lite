@@ -44,7 +44,6 @@ def build_platform_home_workspace_definitions(context: ShellWorkspaceContext) ->
 def build_platform_administration_workspace_definitions(
     context: ShellWorkspaceContext,
 ) -> list[WorkspaceDefinition]:
-    services = context.services
     definitions: list[WorkspaceDefinition] = []
 
     if has_any_permission(context.user_session, "auth.read", "auth.manage"):
@@ -149,9 +148,8 @@ def build_platform_administration_workspace_definitions(
                 group_label="Administration",
                 label="Access",
                 widget=AccessTab(
-                    access_service=services["access_service"],
-                    auth_service=services["auth_service"],
-                    project_service=services["project_service"],
+                    platform_access_api=context.platform_access_desktop_api,
+                    platform_user_api=context.platform_user_desktop_api,
                     scope_type_choices=context.access_scope_type_choices,
                     scope_option_loaders=context.access_scope_option_loaders,
                     scope_disabled_hints=context.access_scope_disabled_hints,
@@ -171,9 +169,8 @@ def build_platform_administration_workspace_definitions(
                 group_label="Administration",
                 label="Security",
                 widget=AccessTab(
-                    access_service=services["access_service"],
-                    auth_service=services["auth_service"],
-                    project_service=services["project_service"],
+                    platform_access_api=context.platform_access_desktop_api,
+                    platform_user_api=context.platform_user_desktop_api,
                     show_access_tab=False,
                     show_security_tab=True,
                     user_session=context.user_session,
@@ -190,7 +187,7 @@ def build_platform_administration_workspace_definitions(
                 group_label="Control",
                 label="Approvals",
                 widget=ApprovalControlTab(
-                    approval_service=services["approval_service"],
+                    platform_approval_api=context.platform_approval_desktop_api,
                     user_session=context.user_session,
                     parent=context.parent,
                 ),
@@ -205,12 +202,8 @@ def build_platform_administration_workspace_definitions(
                 group_label="Control",
                 label="Audit",
                 widget=AuditLogTab(
-                    audit_service=services["audit_service"],
-                    project_service=services["project_service"],
-                    task_service=services["task_service"],
-                    resource_service=services["resource_service"],
-                    cost_service=services["cost_service"],
-                    baseline_service=services["baseline_service"],
+                    platform_audit_api=context.platform_audit_desktop_api,
+                    parent=context.parent,
                 ),
             )
         )

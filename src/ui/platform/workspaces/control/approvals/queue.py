@@ -15,18 +15,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.platform.approval import ApprovalService
-from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from src.api.desktop.platform import (
+    ApprovalDecisionCommand,
+    ApprovalRequestDto,
+    ApprovalStatus,
+    DesktopApiError,
+    PlatformApprovalDesktopApi,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from src.ui.platform.widgets.admin_surface import build_admin_surface_card, build_admin_table
-from src.ui.platform.workspaces.control.approvals.presentation import (
-    approval_context_label,
-    approval_display_label,
-    approval_module_label,
-)
 from src.ui.shared.widgets.guards import apply_permission_hint, make_guarded_slot
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -38,18 +37,18 @@ class ApprovalQueuePanel(QWidget):
     def __init__(
         self,
         *,
-        approval_service: ApprovalService,
+        platform_approval_api: PlatformApprovalDesktopApi,
         user_session: UserSessionContext | None = None,
         summary_changed: SummaryChangedCallback | None = None,
         entity_type_filter: str | list[str] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self._approval_service = approval_service
+        self._platform_approval_api = platform_approval_api
         self._user_session = user_session
         self._summary_changed = summary_changed
         self._entity_type_filter = entity_type_filter
-        self._rows: list[ApprovalRequest] = []
+        self._rows: list[ApprovalRequestDto] = []
         self._can_view_approvals = bool(
             user_session is not None
             and (
@@ -140,18 +139,11 @@ class ApprovalQueuePanel(QWidget):
             return
         selected = self.status_combo.currentData()
         try:
-            self._rows = self._approval_service.list_requests(
+            result = self._platform_approval_api.list_requests(
                 status=selected,
                 limit=500,
-                entity_type=self._entity_type_filter
+                entity_type=self._entity_type_filter,
             )
-        except (BusinessRuleError, NotFoundError, ValueError) as exc:
-            QMessageBox.warning(self, "Approvals", str(exc))
-            self._rows = []
-            self.table.setRowCount(0)
-            self._emit_summary()
-            self._sync_buttons()
-            return
         except Exception as exc:
             QMessageBox.critical(self, "Approvals", f"Failed to load requests:\n{exc}")
             self._rows = []
@@ -159,15 +151,23 @@ class ApprovalQueuePanel(QWidget):
             self._emit_summary()
             self._sync_buttons()
             return
+        if not result.ok or result.data is None:
+            self._show_api_error(result.error)
+            self._rows = []
+            self.table.setRowCount(0)
+            self._emit_summary()
+            self._sync_buttons()
+            return
+        self._rows = list(result.data)
 
         self.table.setRowCount(len(self._rows))
         for row, request in enumerate(self._rows):
             values = (
                 request.requested_at.strftime("%Y-%m-%d %H:%M"),
                 request.status.value,
-                approval_module_label(request),
-                approval_display_label(request),
-                approval_context_label(request),
+                request.module_label,
+                request.display_label,
+                request.context_label,
                 request.requested_by_username or "system",
                 request.decision_note or "",
             )
@@ -189,9 +189,14 @@ class ApprovalQueuePanel(QWidget):
         if not ok:
             return
         try:
-            self._approval_service.approve_and_apply(request_id, note=note or None)
-        except (BusinessRuleError, NotFoundError, ValueError) as exc:
-            QMessageBox.warning(self, "Approvals", str(exc))
+            result = self._platform_approval_api.approve_and_apply(
+                ApprovalDecisionCommand(request_id=request_id, note=note or None)
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Approvals", f"Failed to approve request:\n{exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_requests()
 
@@ -203,9 +208,14 @@ class ApprovalQueuePanel(QWidget):
         if not ok:
             return
         try:
-            self._approval_service.reject(request_id, note=note or None)
-        except (BusinessRuleError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Approvals", str(exc))
+            result = self._platform_approval_api.reject(
+                ApprovalDecisionCommand(request_id=request_id, note=note or None)
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Approvals", f"Failed to reject request:\n{exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_requests()
 
@@ -230,6 +240,10 @@ class ApprovalQueuePanel(QWidget):
     def _emit_summary(self) -> None:
         if self._summary_changed is not None:
             self._summary_changed(len(self._rows), self.current_status_label())
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform approval API did not return a result."
+        QMessageBox.warning(self, "Approvals", message)
 
     def _on_approvals_changed(self, _request_id: str) -> None:
         self.reload_requests()

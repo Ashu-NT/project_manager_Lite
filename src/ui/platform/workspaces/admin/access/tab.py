@@ -17,10 +17,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.platform.access import AccessControlService
-from src.core.platform.auth import AuthService
+from src.api.desktop.platform import (
+    DesktopApiError,
+    PlatformAccessDesktopApi,
+    PlatformUserDesktopApi,
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantRemoveCommand,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
@@ -39,9 +43,8 @@ class AccessTab(QWidget):
     def __init__(
         self,
         *,
-        access_service: AccessControlService,
-        auth_service: AuthService,
-        project_service: object | None = None,
+        platform_access_api: PlatformAccessDesktopApi,
+        platform_user_api: PlatformUserDesktopApi,
         scope_type_choices: tuple[tuple[str, str], ...] | None = None,
         scope_option_loaders: dict[str, ScopeOptionLoader] | None = None,
         scope_disabled_hints: dict[str, str] | None = None,
@@ -53,16 +56,13 @@ class AccessTab(QWidget):
         super().__init__(parent)
         if not show_access_tab and not show_security_tab:
             raise ValueError("AccessTab requires at least one visible section.")
-        self._access_service = access_service
-        self._auth_service = auth_service
-        self._project_service = project_service
+        self._platform_access_api = platform_access_api
+        self._platform_user_api = platform_user_api
         self._user_session = user_session
         self._show_access_tab = bool(show_access_tab)
         self._show_security_tab = bool(show_security_tab)
         self._scope_type_choices = scope_type_choices or (("Project", "project"),)
         self._scope_option_loaders = dict(scope_option_loaders or {})
-        if "project" not in self._scope_option_loaders and self._project_service is not None:
-            self._scope_option_loaders["project"] = self._load_project_scope_options
         self._scope_disabled_hints = dict(scope_disabled_hints or {})
         self._scope_disabled_hints.setdefault(
             "project",
@@ -272,10 +272,11 @@ class AccessTab(QWidget):
         users = []
         try:
             if self._can_view_user_security:
-                users = self._auth_service.list_users()
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Access Control", str(exc))
-            return
+                users_result = self._platform_user_api.list_users()
+                if not users_result.ok or users_result.data is None:
+                    self._show_api_error(users_result.error)
+                    return
+                users = list(users_result.data)
         except Exception as exc:
             QMessageBox.critical(self, "Access Control", f"Failed to load access data:\n{exc}")
             return
@@ -309,10 +310,19 @@ class AccessTab(QWidget):
             self._sync_membership_controls()
             return
         try:
-            rows = self._access_service.list_scope_grants(scope_type, scope_id)
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Access Control", str(exc))
+            rows_result = self._platform_access_api.list_scope_grants(
+                scope_type=scope_type,
+                scope_id=scope_id,
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Access Control", f"Failed to load scope grants:\n{exc}")
             return
+        if not rows_result.ok or rows_result.data is None:
+            self._show_api_error(rows_result.error)
+            self.membership_table.setRowCount(0)
+            self._sync_membership_controls()
+            return
+        rows = list(rows_result.data)
         self.membership_table.setRowCount(len(rows))
         for row_idx, grant in enumerate(rows):
             user = self._user_by_id.get(grant.user_id)
@@ -357,14 +367,19 @@ class AccessTab(QWidget):
             QMessageBox.information(self, "Access Control", "Select a scope and user first.")
             return
         try:
-            self._access_service.assign_scope_grant(
-                scope_type=scope_type,
-                scope_id=scope_id,
-                user_id=user_id,
-                scope_role=scope_role,
+            result = self._platform_access_api.assign_scope_grant(
+                ScopedAccessGrantAssignCommand(
+                    scope_type=scope_type,
+                    scope_id=scope_id,
+                    user_id=user_id,
+                    scope_role=scope_role,
+                )
             )
-        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Access Control", str(exc))
+        except Exception as exc:
+            QMessageBox.critical(self, "Access Control", f"Failed to assign membership:\n{exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self._reload_memberships()
 
@@ -380,9 +395,18 @@ class AccessTab(QWidget):
         if not scope_id or not user_id:
             return
         try:
-            self._access_service.remove_scope_grant(scope_type=scope_type, scope_id=scope_id, user_id=user_id)
-        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Access Control", str(exc))
+            result = self._platform_access_api.remove_scope_grant(
+                ScopedAccessGrantRemoveCommand(
+                    scope_type=scope_type,
+                    scope_id=scope_id,
+                    user_id=user_id,
+                )
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Access Control", f"Failed to remove membership:\n{exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self._reload_memberships()
 
@@ -403,9 +427,12 @@ class AccessTab(QWidget):
         if not user_id:
             return
         try:
-            self._auth_service.unlock_user_account(user_id)
-        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Access Control", str(exc))
+            result = self._platform_user_api.unlock_user_account(user_id)
+        except Exception as exc:
+            QMessageBox.critical(self, "Access Control", f"Failed to unlock user:\n{exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_data()
 
@@ -426,9 +453,15 @@ class AccessTab(QWidget):
         if not user_id:
             return
         try:
-            self._auth_service.revoke_user_sessions(user_id, note="Revoked from Account Security workspace.")
-        except (BusinessRuleError, ValidationError, NotFoundError) as exc:
-            QMessageBox.warning(self, "Access Control", str(exc))
+            result = self._platform_user_api.revoke_user_sessions(
+                user_id,
+                note="Revoked from Account Security workspace.",
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Access Control", f"Failed to revoke sessions:\n{exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_data()
 
@@ -444,9 +477,17 @@ class AccessTab(QWidget):
         scope_type = self._current_scope_type()
         self.role_combo.clear()
         try:
-            role_choices = self._access_service.list_scope_role_choices(scope_type)
-        except ValidationError:
+            role_choices_result = self._platform_access_api.list_scope_role_choices(scope_type)
+        except Exception as exc:
+            QMessageBox.critical(self, "Access Control", f"Failed to load scope roles:\n{exc}")
+            role_choices_result = None
+        if role_choices_result is None:
+            role_choices: tuple[str, ...] = ()
+        elif not role_choices_result.ok or role_choices_result.data is None:
+            self._show_api_error(role_choices_result.error)
             role_choices = ()
+        else:
+            role_choices = tuple(role_choices_result.data)
         for role_name in role_choices:
             self.role_combo.addItem(role_name.replace("_", " ").title(), userData=role_name)
         if selected_role:
@@ -464,15 +505,12 @@ class AccessTab(QWidget):
         if self._can_manage_memberships and loader is not None:
             try:
                 options = loader()
-            except BusinessRuleError as exc:
-                if exc.code == "MODULE_DISABLED":
+            except Exception as exc:
+                if getattr(exc, "code", "") == "MODULE_DISABLED":
                     scope_available = False
                 else:
                     QMessageBox.warning(self, "Access Control", str(exc))
                     return
-            except Exception as exc:
-                QMessageBox.critical(self, "Access Control", f"Failed to load scope options:\n{exc}")
-                return
         self._scope_availability[scope_type] = scope_available
         self.scope_combo.blockSignals(True)
         self.scope_combo.clear()
@@ -517,13 +555,9 @@ class AccessTab(QWidget):
     def _current_scope_type(self) -> str:
         return str(self.scope_type_combo.currentData() or "project").strip().lower() or "project"
 
-    def _load_project_scope_options(self) -> list[tuple[str, str]]:
-        if self._project_service is None or not hasattr(self._project_service, "list_projects"):
-            return []
-        return [
-            (project.name, project.id)
-            for project in self._project_service.list_projects()
-        ]
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform desktop API did not return a result."
+        QMessageBox.warning(self, "Access Control", message)
 
 
 __all__ = ["AccessTab"]

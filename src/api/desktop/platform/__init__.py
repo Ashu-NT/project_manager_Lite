@@ -1,4 +1,8 @@
 from src.api.desktop.platform.models import (
+    ApprovalDecisionCommand,
+    ApprovalRequestDto,
+    ApprovalStatus,
+    AuditLogEntryDto,
     DepartmentCreateCommand,
     DepartmentDto,
     DepartmentLocationReferenceDto,
@@ -28,6 +32,9 @@ from src.api.desktop.platform.models import (
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
     RoleDto,
+    ScopedAccessGrantAssignCommand,
+    ScopedAccessGrantDto,
+    ScopedAccessGrantRemoveCommand,
     SiteCreateCommand,
     SiteDto,
     SiteUpdateCommand,
@@ -36,6 +43,9 @@ from src.api.desktop.platform.models import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
+from src.api.desktop.platform.access import PlatformAccessDesktopApi
+from src.api.desktop.platform.approval import PlatformApprovalDesktopApi
+from src.api.desktop.platform.audit import PlatformAuditDesktopApi
 from src.api.desktop.platform.document import PlatformDocumentDesktopApi
 from src.api.desktop.platform.department import PlatformDepartmentDesktopApi
 from src.api.desktop.platform.employee import PlatformEmployeeDesktopApi
@@ -45,6 +55,10 @@ from src.api.desktop.platform.site import PlatformSiteDesktopApi
 from src.api.desktop.platform.user import PlatformUserDesktopApi
 
 __all__ = [
+    "ApprovalDecisionCommand",
+    "ApprovalRequestDto",
+    "ApprovalStatus",
+    "AuditLogEntryDto",
     "DepartmentCreateCommand",
     "DepartmentDto",
     "DepartmentLocationReferenceDto",
@@ -72,6 +86,9 @@ __all__ = [
     "PartyDto",
     "PartyUpdateCommand",
     "PlatformCapabilityDto",
+    "PlatformAccessDesktopApi",
+    "PlatformApprovalDesktopApi",
+    "PlatformAuditDesktopApi",
     "PlatformDocumentDesktopApi",
     "PlatformPartyDesktopApi",
     "PlatformRuntimeContextDto",
@@ -81,6 +98,9 @@ __all__ = [
     "PlatformSiteDesktopApi",
     "PlatformUserDesktopApi",
     "RoleDto",
+    "ScopedAccessGrantAssignCommand",
+    "ScopedAccessGrantDto",
+    "ScopedAccessGrantRemoveCommand",
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",

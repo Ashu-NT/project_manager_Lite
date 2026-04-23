@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
+from src.api.desktop.platform import PlatformAccessDesktopApi, PlatformUserDesktopApi
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.modules.project_management.domain.enums import DependencyType
@@ -13,6 +14,23 @@ from src.ui.platform.workspaces.admin.access.tab import AccessTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
 from ui.modules.project_management.portfolio.tab import PortfolioTab
 from ui.modules.project_management.task.tab import TaskTab
+
+
+def _platform_access_api(services) -> PlatformAccessDesktopApi:
+    return PlatformAccessDesktopApi(access_service=services["access_service"])
+
+
+def _platform_user_api(services) -> PlatformUserDesktopApi:
+    return PlatformUserDesktopApi(auth_service=services["auth_service"])
+
+
+def _access_scope_option_loaders(services):
+    return {
+        "project": lambda: [
+            (project.name, project.id)
+            for project in services["project_service"].list_projects()
+        ]
+    }
 
 
 def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch):
@@ -429,9 +447,9 @@ def test_access_tab_shows_memberships_and_security_runtime(qapp, services):
     access.assign_project_membership(project_id=project.id, user_id=user.id, scope_role="viewer")
 
     tab = AccessTab(
-        access_service=access,
-        auth_service=auth,
-        project_service=services["project_service"],
+        platform_access_api=_platform_access_api(services),
+        platform_user_api=_platform_user_api(services),
+        scope_option_loaders=_access_scope_option_loaders(services),
         user_session=services["user_session"],
     )
 
@@ -447,9 +465,9 @@ def test_access_tab_auto_refreshes_for_user_and_membership_events(qapp, services
     access = services["access_service"]
     project = services["project_service"].create_project("Access Events Project")
     tab = AccessTab(
-        access_service=access,
-        auth_service=auth,
-        project_service=services["project_service"],
+        platform_access_api=_platform_access_api(services),
+        platform_user_api=_platform_user_api(services),
+        scope_option_loaders=_access_scope_option_loaders(services),
         user_session=services["user_session"],
     )
 
@@ -468,9 +486,9 @@ def test_access_tab_auto_refreshes_for_user_and_membership_events(qapp, services
 def test_access_tab_switches_to_platform_only_state_when_pm_module_disabled(qapp, services):
     project = services["project_service"].create_project("Access Disabled Project")
     tab = AccessTab(
-        access_service=services["access_service"],
-        auth_service=services["auth_service"],
-        project_service=services["project_service"],
+        platform_access_api=_platform_access_api(services),
+        platform_user_api=_platform_user_api(services),
+        scope_option_loaders=_access_scope_option_loaders(services),
         user_session=services["user_session"],
     )
 

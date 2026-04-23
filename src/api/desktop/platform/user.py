@@ -83,6 +83,25 @@ class PlatformUserDesktopApi:
             lambda: self._reset_password_and_get_user(command)
         )
 
+    def unlock_user_account(self, user_id: str) -> DesktopApiResult[UserDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_user(
+                self._auth_service.unlock_user_account(user_id)
+            )
+        )
+
+    def revoke_user_sessions(
+        self,
+        user_id: str,
+        *,
+        note: str = "",
+    ) -> DesktopApiResult[UserDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_user(
+                self._auth_service.revoke_user_sessions(user_id, note=note)
+            )
+        )
+
     @staticmethod
     def _serialize_role(role: Role) -> RoleDto:
         return RoleDto(

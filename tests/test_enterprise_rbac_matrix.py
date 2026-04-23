@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from src.api.desktop.platform import PlatformAccessDesktopApi, PlatformUserDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
@@ -12,6 +13,23 @@ from tests.ui_runtime_helpers import login_as, make_settings_store, register_and
 from PySide6.QtWidgets import QTabWidget
 from src.ui.platform.workspaces.admin.access.tab import AccessTab
 from src.ui.shell.main_window import MainWindow
+
+
+def _platform_access_api(services) -> PlatformAccessDesktopApi:
+    return PlatformAccessDesktopApi(access_service=services["access_service"])
+
+
+def _platform_user_api(services) -> PlatformUserDesktopApi:
+    return PlatformUserDesktopApi(auth_service=services["auth_service"])
+
+
+def _access_scope_option_loaders(services):
+    return {
+        "project": lambda: [
+            (project.name, project.id)
+            for project in services["project_service"].list_projects()
+        ]
+    }
 
 
 def test_security_and_payroll_roles_expose_expected_permissions(services):
@@ -131,9 +149,9 @@ def test_access_tab_security_admin_mode_keeps_security_controls_without_membersh
     login_as(services, "security-ui-user", "StrongPass123")
 
     tab = AccessTab(
-        access_service=services["access_service"],
-        auth_service=services["auth_service"],
-        project_service=services["project_service"],
+        platform_access_api=_platform_access_api(services),
+        platform_user_api=_platform_user_api(services),
+        scope_option_loaders=_access_scope_option_loaders(services),
         user_session=services["user_session"],
     )
 
@@ -154,9 +172,9 @@ def test_access_tab_security_only_mode_renders_security_workspace(qapp, services
     login_as(services, "security-only-user", "StrongPass123")
 
     tab = AccessTab(
-        access_service=services["access_service"],
-        auth_service=services["auth_service"],
-        project_service=services["project_service"],
+        platform_access_api=_platform_access_api(services),
+        platform_user_api=_platform_user_api(services),
+        scope_option_loaders=_access_scope_option_loaders(services),
         show_access_tab=False,
         show_security_tab=True,
         user_session=services["user_session"],
@@ -176,9 +194,9 @@ def test_access_tab_one_panel_modes_hide_inactive_surface_widgets(qapp, services
 
     login_as(services, "single-surface-access", "StrongPass123")
     access_only = AccessTab(
-        access_service=services["access_service"],
-        auth_service=services["auth_service"],
-        project_service=services["project_service"],
+        platform_access_api=_platform_access_api(services),
+        platform_user_api=_platform_user_api(services),
+        scope_option_loaders=_access_scope_option_loaders(services),
         show_access_tab=True,
         show_security_tab=False,
         user_session=services["user_session"],
@@ -194,9 +212,9 @@ def test_access_tab_one_panel_modes_hide_inactive_surface_widgets(qapp, services
 
     login_as(services, "single-surface-security", "StrongPass123")
     security_only = AccessTab(
-        access_service=services["access_service"],
-        auth_service=services["auth_service"],
-        project_service=services["project_service"],
+        platform_access_api=_platform_access_api(services),
+        platform_user_api=_platform_user_api(services),
+        scope_option_loaders=_access_scope_option_loaders(services),
         show_access_tab=False,
         show_security_tab=True,
         user_session=services["user_session"],

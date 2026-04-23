@@ -717,10 +717,16 @@ Completed:
 - the legacy QWidget Documents screen now consumes `PlatformDocumentDesktopApi` plus document/document-structure/link command DTOs instead of calling `DocumentService` directly
 - the legacy QWidget Parties screen now consumes `PlatformPartyDesktopApi`, `PartyCreateCommand`, and `PartyUpdateCommand` instead of calling `PartyService` directly
 - the legacy QWidget Users screen now consumes `PlatformUserDesktopApi`, `UserCreateCommand`, `UserUpdateCommand`, and `UserPasswordResetCommand` instead of calling `AuthService` directly
+- focused `src/api/desktop/platform/{access,approval,audit}.py` adapters plus split `src/api/desktop/platform/models/{access,approval,audit}.py` files now own the platform access-control, approval-queue, and audit desktop contracts
+- `PlatformUserDesktopApi` now also owns unlock-user and revoke-user-sessions actions so the Security workspace stays on the user desktop API boundary
+- the legacy QWidget Access and Security screens now consume `PlatformAccessDesktopApi`, `PlatformUserDesktopApi`, and shell-provided scope loaders instead of calling `AccessControlService`, `AuthService`, or `ProjectService` directly
+- the legacy QWidget Approvals screen now consumes `PlatformApprovalDesktopApi` instead of calling `ApprovalService` directly
+- the legacy QWidget Audit screen now consumes `PlatformAuditDesktopApi`; audit label/detail resolution moved into the desktop API so the widget no longer calls `AuditService`, `ProjectService`, `TaskService`, `ResourceService`, `CostService`, or `BaselineService` directly
 - the document structure manager, document preview flow, and linked-record dialog now stay on the document desktop API boundary
 - `tests/test_platform_persistence_structure.py` verifies platform persistence now matches the module structure with only `persistence/{mappers,orm,repositories}/`
 - `src/ui/shell/app.py` now exposes the desktop API registry and platform runtime desktop adapter in the desktop service map
-- `src/ui/shell/app.py` and shell workspace context now expose separate site, department, employee, document, party, and user platform desktop adapters in the desktop service map
+- `src/ui/shell/app.py` and shell workspace context now expose separate site, department, employee, access, approval, audit, document, party, and user platform desktop adapters in the desktop service map
+- the PM governance tab now wraps its governed-change queue with `PlatformApprovalDesktopApi` before handing it to the shared approval queue component, keeping the shared queue on the same contract
 - targeted desktop adapter tests were added for platform runtime flows
 - targeted desktop adapter tests were added for platform document, party, and user flows
 - `tests/test_qml_architecture_guardrails.py` now prevents Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Documents, Parties, and Users from drifting back to direct platform service access
@@ -1005,15 +1011,17 @@ Verified:
   - direct import of `src.core.platform.common.BusinessRuleError`, `ServiceBase`, `generate_id`, `src.core.platform.common.interfaces.TimeEntryRepository`, `src.core.platform.common.runtime_access.enforce_runtime_access`, `src.core.platform.data_exchange.MasterDataExchangeService`, and `MasterDataExportRequest`
   - direct import of `src.ui.platform.settings.MainWindowSettingsStore`
   - direct import of `src.ui.shared.dialogs.LoginDialog`, `start_async_job`, `src.ui.shared.formatting.UIConfig`, `apply_app_style`, `src.ui.shared.models.UndoStack`, and `src.ui.shared.widgets.CodeFieldWidget`
-  - direct import of `src.ui.platform.workspaces.control.ApprovalControlTab`, `ApprovalQueuePanel`, `AuditLogTab`, `approval_display_label`, and `approval_context_label`
-  - direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab`
+- direct import of `src.ui.platform.workspaces.control.ApprovalControlTab`, `ApprovalQueuePanel`, `AuditLogTab`, `approval_display_label`, and `approval_context_label`
+- direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab`
   - direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog`
   - direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state`
   - direct import of `src.infra.persistence.orm.Base`, PM split ORM files for project/task/resource/baseline/collaboration/portfolio, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`
   - direct metadata smoke import confirms `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` remain registered in `Base.metadata`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support`; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
-  - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
+- `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
+- `pytest tests/test_platform_control_desktop_api.py tests/test_phase_b_user_admin_ui.py tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_qml_architecture_guardrails.py -q`
+- `pytest tests/test_platform_admin_desktop_api.py tests/test_platform_control_desktop_api.py tests/test_platform_org_desktop_api.py tests/test_platform_runtime_desktop_api.py tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_main_window_shell_navigation.py tests/test_qml_architecture_guardrails.py tests/test_architecture_guardrails.py -q`
   - `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_architecture_guardrails.py::test_legacy_infra_platform_runtime_package_is_removed -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters -q`
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`

@@ -24,6 +24,14 @@ LEGACY_PLATFORM_DOCUMENT_TAB = (
     SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "documents" / "tab.py"
 )
 LEGACY_PLATFORM_PARTY_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "parties" / "tab.py"
+LEGACY_PLATFORM_ACCESS_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "access" / "tab.py"
+LEGACY_PLATFORM_APPROVAL_TAB = (
+    SRC_ROOT / "ui" / "platform" / "workspaces" / "control" / "approvals" / "tab.py"
+)
+LEGACY_PLATFORM_APPROVAL_QUEUE = (
+    SRC_ROOT / "ui" / "platform" / "workspaces" / "control" / "approvals" / "queue.py"
+)
+LEGACY_PLATFORM_AUDIT_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "control" / "audit" / "tab.py"
 LEGACY_PLATFORM_HOME_TAB = SRC_ROOT / "ui" / "shell" / "platform" / "home.py"
 
 
@@ -196,3 +204,40 @@ def test_legacy_platform_parties_tab_uses_desktop_api_boundary() -> None:
     assert "PlatformPartyDesktopApi" in text
     assert "PartyService" not in text
     assert "_party_service" not in text
+
+
+def test_legacy_platform_access_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_ACCESS_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformAccessDesktopApi" in text
+    assert "PlatformUserDesktopApi" in text
+    assert "AccessControlService" not in text
+    assert "AuthService" not in text
+    assert "_access_service" not in text
+    assert "_auth_service" not in text
+
+
+def test_legacy_platform_approvals_tab_uses_desktop_api_boundary() -> None:
+    tab_text = LEGACY_PLATFORM_APPROVAL_TAB.read_text(encoding="utf-8", errors="ignore")
+    queue_text = LEGACY_PLATFORM_APPROVAL_QUEUE.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformApprovalDesktopApi" in tab_text
+    assert "ApprovalService" not in tab_text
+    assert "_approval_service" not in tab_text
+    assert "PlatformApprovalDesktopApi" in queue_text
+    assert "ApprovalService" not in queue_text
+    assert "_approval_service" not in queue_text
+
+
+def test_legacy_platform_audit_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_AUDIT_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformAuditDesktopApi" in text
+    assert "AuditService" not in text
+    assert "ProjectService" not in text
+    assert "TaskService" not in text
+    assert "ResourceService" not in text
+    assert "CostService" not in text
+    assert "BaselineService" not in text
+    assert "_audit_service" not in text
+    assert "_project_service" not in text

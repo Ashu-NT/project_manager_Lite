@@ -5,7 +5,10 @@ from datetime import date
 from PySide6.QtWidgets import QComboBox, QDialog, QLineEdit
 
 from src.api.desktop.platform import (
+    PlatformApprovalDesktopApi,
+    PlatformAuditDesktopApi,
     PlatformDocumentDesktopApi,
+    PlatformAccessDesktopApi,
     EmployeeDto,
     PlatformDepartmentDesktopApi,
     PlatformEmployeeDesktopApi,
@@ -57,6 +60,25 @@ def _platform_party_api(services):
 
 def _platform_user_api(services):
     return PlatformUserDesktopApi(auth_service=services["auth_service"])
+
+
+def _platform_access_api(services):
+    return PlatformAccessDesktopApi(access_service=services["access_service"])
+
+
+def _platform_approval_api(services):
+    return PlatformApprovalDesktopApi(approval_service=services["approval_service"])
+
+
+def _platform_audit_api(services):
+    return PlatformAuditDesktopApi(
+        audit_service=services["audit_service"],
+        project_service=services["project_service"],
+        task_service=services["task_service"],
+        resource_service=services["resource_service"],
+        cost_service=services["cost_service"],
+        baseline_service=services["baseline_service"],
+    )
 
 
 def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, repo_workspace, monkeypatch):
@@ -113,12 +135,7 @@ def test_user_admin_tab_runtime_enables_edit_and_reset_actions_after_selection(q
 def test_audit_log_tab_runtime_uses_compact_header_and_updates_badges(qapp, services):
     project = services["project_service"].create_project("Audit Header Project")
     tab = AuditLogTab(
-        audit_service=services["audit_service"],
-        project_service=services["project_service"],
-        task_service=services["task_service"],
-        resource_service=services["resource_service"],
-        cost_service=services["cost_service"],
-        baseline_service=services["baseline_service"],
+        platform_audit_api=_platform_audit_api(services),
     )
 
     assert tab.table.rowCount() >= 1
@@ -140,7 +157,7 @@ def test_approval_control_tab_runtime_uses_shared_queue_badges(qapp, services):
     )
 
     tab = ApprovalControlTab(
-        approval_service=services["approval_service"],
+        platform_approval_api=_platform_approval_api(services),
         user_session=services["user_session"],
     )
 
@@ -155,12 +172,7 @@ def test_approval_control_tab_runtime_uses_shared_queue_badges(qapp, services):
 def test_audit_log_tab_refreshes_when_module_entitlements_change(qapp, services):
     services["project_service"].create_project("Audit Module Toggle Project")
     tab = AuditLogTab(
-        audit_service=services["audit_service"],
-        project_service=services["project_service"],
-        task_service=services["task_service"],
-        resource_service=services["resource_service"],
-        cost_service=services["cost_service"],
-        baseline_service=services["baseline_service"],
+        platform_audit_api=_platform_audit_api(services),
     )
     starting_rows = tab.table.rowCount()
 
