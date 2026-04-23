@@ -1673,13 +1673,15 @@ Completed in the clean/no-facade execution:
 - rewired the legacy QWidget Platform Home screen to consume `PlatformRuntimeDesktopApi.get_runtime_context()` instead of platform runtime application-service snapshot/list calls
 - rewired the legacy QWidget Module Licensing screen to consume `PlatformRuntimeDesktopApi` and `ModuleStatePatchCommand` instead of calling `PlatformRuntimeApplicationService` directly
 - rewired the legacy QWidget Organizations screen to consume `PlatformRuntimeDesktopApi`, `OrganizationProvisionCommand`, and `OrganizationUpdateCommand` instead of calling `OrganizationService` or `PlatformRuntimeApplicationService` directly
-- split platform desktop API DTOs and commands out of the old monolithic `src/api/desktop/platform/models.py` into `src/api/desktop/platform/models/{common,organization,runtime,site,department,employee}.py`
+- split platform desktop API DTOs and commands out of the old monolithic `src/api/desktop/platform/models.py` into `src/api/desktop/platform/models/{common,organization,runtime,site,department,employee,document,party,user}.py`
 - split the old broad platform org desktop adapter into focused `src/api/desktop/platform/{site,department,employee}.py` adapters
 - rewired the legacy QWidget Sites screen to consume `PlatformSiteDesktopApi`, `SiteCreateCommand`, and `SiteUpdateCommand` instead of calling `SiteService` directly
 - rewired the legacy QWidget Departments screen to consume `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `DepartmentCreateCommand`, and `DepartmentUpdateCommand` instead of calling `DepartmentService` or `SiteService` directly
 - rewired the legacy QWidget Employees screen to consume `PlatformEmployeeDesktopApi`, `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `EmployeeCreateCommand`, and `EmployeeUpdateCommand` instead of calling `EmployeeService`, `SiteService`, or `DepartmentService` directly
-- wired the desktop API registry and shell context to expose `desktop_platform_site_api`, `desktop_platform_department_api`, and `desktop_platform_employee_api`
-- added QML architecture guardrails that keep Platform Home, Module Licensing, Organizations, Sites, Departments, and Employees on the platform desktop API boundary while their QML replacements are pending
+- added focused `src/api/desktop/platform/{document,party,user}.py` adapters and rewired the legacy QWidget Documents, Parties, and Users screens to consume `PlatformDocumentDesktopApi`, `PlatformPartyDesktopApi`, and `PlatformUserDesktopApi` instead of calling `DocumentService`, `PartyService`, or `AuthService` directly
+- rewired the document structure manager, document preview/dialog flow, and document link management to stay on the document desktop API boundary
+- wired the desktop API registry and shell context to expose `desktop_platform_site_api`, `desktop_platform_department_api`, `desktop_platform_employee_api`, `desktop_platform_document_api`, `desktop_platform_party_api`, and `desktop_platform_user_api`
+- added QML architecture guardrails that keep Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Documents, Parties, and Users on the platform desktop API boundary while their QML replacements are pending
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`

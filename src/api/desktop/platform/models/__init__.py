@@ -1,4 +1,14 @@
 from src.api.desktop.platform.models.common import DesktopApiError, DesktopApiResult
+from src.api.desktop.platform.models.document import (
+    DocumentCreateCommand,
+    DocumentDto,
+    DocumentLinkCreateCommand,
+    DocumentLinkDto,
+    DocumentStructureCreateCommand,
+    DocumentStructureDto,
+    DocumentStructureUpdateCommand,
+    DocumentUpdateCommand,
+)
 from src.api.desktop.platform.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
@@ -15,6 +25,7 @@ from src.api.desktop.platform.models.organization import (
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )
+from src.api.desktop.platform.models.party import PartyCreateCommand, PartyDto, PartyUpdateCommand
 from src.api.desktop.platform.models.runtime import (
     ModuleDto,
     ModuleEntitlementDto,
@@ -23,6 +34,13 @@ from src.api.desktop.platform.models.runtime import (
     PlatformRuntimeContextDto,
 )
 from src.api.desktop.platform.models.site import SiteCreateCommand, SiteDto, SiteUpdateCommand
+from src.api.desktop.platform.models.user import (
+    RoleDto,
+    UserCreateCommand,
+    UserDto,
+    UserPasswordResetCommand,
+    UserUpdateCommand,
+)
 
 __all__ = [
     "DepartmentCreateCommand",
@@ -31,6 +49,14 @@ __all__ = [
     "DepartmentUpdateCommand",
     "DesktopApiError",
     "DesktopApiResult",
+    "DocumentCreateCommand",
+    "DocumentDto",
+    "DocumentLinkCreateCommand",
+    "DocumentLinkDto",
+    "DocumentStructureCreateCommand",
+    "DocumentStructureDto",
+    "DocumentStructureUpdateCommand",
+    "DocumentUpdateCommand",
     "EmployeeCreateCommand",
     "EmployeeDto",
     "EmployeeUpdateCommand",
@@ -40,9 +66,17 @@ __all__ = [
     "OrganizationDto",
     "OrganizationProvisionCommand",
     "OrganizationUpdateCommand",
+    "PartyCreateCommand",
+    "PartyDto",
+    "PartyUpdateCommand",
     "PlatformCapabilityDto",
     "PlatformRuntimeContextDto",
+    "RoleDto",
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",
+    "UserCreateCommand",
+    "UserDto",
+    "UserPasswordResetCommand",
+    "UserUpdateCommand",
 ]

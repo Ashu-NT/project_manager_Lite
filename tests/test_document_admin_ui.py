@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.api.desktop.platform import PlatformDocumentDesktopApi
 from src.core.platform.documents.domain import Document, DocumentStorageKind, DocumentType
 from src.ui.platform.dialogs.admin.documents.dialogs import DocumentEditDialog
 from src.ui.platform.widgets.document_preview import build_document_preview_state
@@ -44,7 +45,7 @@ def test_document_admin_tab_filters_documents_and_shows_selected_metadata(qapp, 
     )
 
     tab = DocumentAdminTab(
-        document_service=services["document_service"],
+        platform_document_api=PlatformDocumentDesktopApi(document_service=services["document_service"]),
         user_session=services["user_session"],
     )
     qapp.processEvents()
@@ -145,7 +146,7 @@ def test_document_admin_tab_remove_link_uses_link_selection_dialog(qapp, service
     )
 
     tab = DocumentAdminTab(
-        document_service=services["document_service"],
+        platform_document_api=PlatformDocumentDesktopApi(document_service=services["document_service"]),
         user_session=services["user_session"],
     )
     qapp.processEvents()

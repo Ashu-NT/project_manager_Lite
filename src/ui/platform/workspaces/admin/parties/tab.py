@@ -14,10 +14,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.api.desktop.platform import (
+    DesktopApiError,
+    PartyCreateCommand,
+    PartyDto,
+    PartyUpdateCommand,
+    PlatformPartyDesktopApi,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.party import Party, PartyService
 from src.ui.platform.dialogs.admin.parties.dialogs import PartyEditDialog
 from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.platform.widgets.admin_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
@@ -28,15 +33,16 @@ from src.ui.shared.formatting.ui_config import UIConfig as CFG
 class PartyAdminTab(QWidget):
     def __init__(
         self,
-        party_service: PartyService,
+        *,
+        platform_party_api: PlatformPartyDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._party_service = party_service
+        self._platform_party_api = platform_party_api
         self._user_session = user_session
         self._can_manage_parties = has_permission(self._user_session, "settings.manage")
-        self._rows: list[Party] = []
+        self._rows: list[PartyDto] = []
         self._setup_ui()
         self.reload_parties()
         domain_events.parties_changed.connect(self._on_parties_changed)
@@ -98,18 +104,23 @@ class PartyAdminTab(QWidget):
 
     def reload_parties(self) -> None:
         try:
-            context = self._party_service.get_context_organization()
-            self._rows = self._party_service.list_parties()
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Parties", str(exc))
-            context_label = "-"
-            self._rows = []
+            context_result = self._platform_party_api.get_context()
+            parties_result = self._platform_party_api.list_parties()
         except Exception as exc:
             QMessageBox.critical(self, "Parties", f"Failed to load parties: {exc}")
             context_label = "-"
             self._rows = []
         else:
-            context_label = context.display_name
+            if context_result.ok and context_result.data is not None:
+                context_label = context_result.data.display_name
+            else:
+                self._show_api_error(context_result.error)
+                context_label = "-"
+            if parties_result.ok and parties_result.data is not None:
+                self._rows = list(parties_result.data)
+            else:
+                self._show_api_error(parties_result.error)
+                self._rows = []
         self.table.setRowCount(len(self._rows))
         for row, party in enumerate(self._rows):
             values = (
@@ -135,22 +146,14 @@ class PartyAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._party_service.create_party(
-                    party_code=dlg.party_code,
-                    party_name=dlg.party_name,
-                    party_type=dlg.party_type,
-                    legal_name=dlg.legal_name,
-                    contact_name=dlg.contact_name,
-                    country=dlg.country,
-                    city=dlg.city,
-                    notes=dlg.notes,
-                    is_active=dlg.is_active,
-                )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Parties", str(exc))
-                continue
+                error = self._create_party_from_dialog(dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Parties", f"Failed to create party: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_parties()
@@ -165,27 +168,17 @@ class PartyAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._party_service.update_party(
-                    party.id,
-                    party_code=dlg.party_code,
-                    party_name=dlg.party_name,
-                    party_type=dlg.party_type,
-                    legal_name=dlg.legal_name,
-                    contact_name=dlg.contact_name,
-                    country=dlg.country,
-                    city=dlg.city,
-                    notes=dlg.notes,
-                    is_active=dlg.is_active,
-                    expected_version=party.version,
-                )
-            except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Parties", str(exc))
-                if isinstance(exc, ConcurrencyError):
-                    self.reload_parties()
-                    return
-                continue
+                error = self._update_party_from_dialog(party, dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Parties", f"Failed to update party: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category == "conflict":
+                    self.reload_parties()
+                    return
+                if error.category == "validation":
+                    continue
                 return
             break
         self.reload_parties()
@@ -196,20 +189,22 @@ class PartyAdminTab(QWidget):
             QMessageBox.information(self, "Parties", "Please select a party.")
             return
         try:
-            self._party_service.update_party(
-                party.id,
-                is_active=not party.is_active,
-                expected_version=party.version,
+            result = self._platform_party_api.update_party(
+                PartyUpdateCommand(
+                    party_id=party.id,
+                    is_active=not party.is_active,
+                    expected_version=party.version,
+                )
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-            QMessageBox.warning(self, "Parties", str(exc))
-            return
         except Exception as exc:
             QMessageBox.critical(self, "Parties", f"Failed to update party: {exc}")
             return
+        if not result.ok:
+            self._show_api_error(result.error)
+            return
         self.reload_parties()
 
-    def _selected_party(self) -> Party | None:
+    def _selected_party(self) -> PartyDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -222,11 +217,49 @@ class PartyAdminTab(QWidget):
                 return party
         return None
 
-    def _update_header_badges(self, rows: list[Party], *, context_label: str) -> None:
+    def _update_header_badges(self, rows: list[PartyDto], *, context_label: str) -> None:
         active_count = sum(1 for row in rows if row.is_active)
         self.party_context_badge.setText(f"Context: {context_label}")
         self.party_count_badge.setText(f"{len(rows)} parties")
         self.party_active_badge.setText(f"{active_count} active")
+
+    def _create_party_from_dialog(self, dlg: PartyEditDialog) -> DesktopApiError | None:
+        result = self._platform_party_api.create_party(
+            PartyCreateCommand(
+                party_code=dlg.party_code,
+                party_name=dlg.party_name,
+                party_type=dlg.party_type,
+                legal_name=dlg.legal_name,
+                contact_name=dlg.contact_name,
+                country=dlg.country,
+                city=dlg.city,
+                notes=dlg.notes,
+                is_active=dlg.is_active,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _update_party_from_dialog(self, party: PartyDto, dlg: PartyEditDialog) -> DesktopApiError | None:
+        result = self._platform_party_api.update_party(
+            PartyUpdateCommand(
+                party_id=party.id,
+                party_code=dlg.party_code,
+                party_name=dlg.party_name,
+                party_type=dlg.party_type,
+                legal_name=dlg.legal_name,
+                contact_name=dlg.contact_name,
+                country=dlg.country,
+                city=dlg.city,
+                notes=dlg.notes,
+                is_active=dlg.is_active,
+                expected_version=party.version,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform party API did not return a result."
+        QMessageBox.warning(self, "Parties", message)
 
     def _on_parties_changed(self, _party_id: str) -> None:
         self.reload_parties()

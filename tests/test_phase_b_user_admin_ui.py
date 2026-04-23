@@ -5,11 +5,14 @@ from datetime import date
 from PySide6.QtWidgets import QComboBox, QDialog, QLineEdit
 
 from src.api.desktop.platform import (
+    PlatformDocumentDesktopApi,
     EmployeeDto,
     PlatformDepartmentDesktopApi,
     PlatformEmployeeDesktopApi,
+    PlatformPartyDesktopApi,
     PlatformRuntimeDesktopApi,
     PlatformSiteDesktopApi,
+    PlatformUserDesktopApi,
 )
 from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.domain.enums import TaskStatus
@@ -44,6 +47,18 @@ def _platform_employee_api(services):
     return PlatformEmployeeDesktopApi(employee_service=services["employee_service"])
 
 
+def _platform_document_api(services):
+    return PlatformDocumentDesktopApi(document_service=services["document_service"])
+
+
+def _platform_party_api(services):
+    return PlatformPartyDesktopApi(party_service=services["party_service"])
+
+
+def _platform_user_api(services):
+    return PlatformUserDesktopApi(auth_service=services["auth_service"])
+
+
 def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, repo_workspace, monkeypatch):
     store = make_settings_store(repo_workspace, prefix="main-window-admin")
     monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
@@ -74,7 +89,7 @@ def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, 
 
 def test_user_admin_tab_runtime_enables_edit_and_reset_actions_after_selection(qapp, services):
     tab = UserAdminTab(
-        auth_service=services["auth_service"],
+        platform_user_api=_platform_user_api(services),
         user_session=services["user_session"],
     )
 
@@ -307,7 +322,7 @@ def test_department_admin_tab_shows_default_location_reference(qapp, services):
 
 def test_document_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
     tab = DocumentAdminTab(
-        document_service=services["document_service"],
+        platform_document_api=_platform_document_api(services),
         user_session=services["user_session"],
     )
 
@@ -324,7 +339,7 @@ def test_document_admin_tab_runtime_bootstraps_active_org_context(qapp, services
 
 def test_party_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
     tab = PartyAdminTab(
-        party_service=services["party_service"],
+        platform_party_api=_platform_party_api(services),
         user_session=services["user_session"],
     )
 

@@ -6,14 +6,20 @@ from dataclasses import dataclass
 from PySide6.QtWidgets import QWidget
 
 from src.api.desktop.platform import (
+    PlatformDocumentDesktopApi,
     PlatformDepartmentDesktopApi,
     PlatformEmployeeDesktopApi,
+    PlatformPartyDesktopApi,
     PlatformRuntimeDesktopApi,
     PlatformSiteDesktopApi,
+    PlatformUserDesktopApi,
 )
 from src.application.runtime.platform_runtime import resolve_platform_runtime_application_service
 from src.core.platform.auth import UserSessionContext
+from src.core.platform.auth.application import AuthService
+from src.core.platform.documents import DocumentService
 from src.core.platform.org import DepartmentService, EmployeeService, SiteService
+from src.core.platform.party import PartyService
 from src.ui.platform.settings import MainWindowSettingsStore
 
 PLATFORM_MODULE_CODE = "platform"
@@ -48,6 +54,9 @@ class ShellWorkspaceContext:
     platform_site_desktop_api: PlatformSiteDesktopApi | None
     platform_department_desktop_api: PlatformDepartmentDesktopApi | None
     platform_employee_desktop_api: PlatformEmployeeDesktopApi | None
+    platform_document_desktop_api: PlatformDocumentDesktopApi | None
+    platform_party_desktop_api: PlatformPartyDesktopApi | None
+    platform_user_desktop_api: PlatformUserDesktopApi | None
     project_management_enabled: bool
     inventory_procurement_enabled: bool
     maintenance_management_enabled: bool
@@ -97,9 +106,30 @@ def build_shell_workspace_context(
         if isinstance(configured_platform_employee_api, PlatformEmployeeDesktopApi)
         else None
     )
+    configured_platform_document_api = services.get("desktop_platform_document_api")
+    platform_document_desktop_api = (
+        configured_platform_document_api
+        if isinstance(configured_platform_document_api, PlatformDocumentDesktopApi)
+        else None
+    )
+    configured_platform_party_api = services.get("desktop_platform_party_api")
+    platform_party_desktop_api = (
+        configured_platform_party_api
+        if isinstance(configured_platform_party_api, PlatformPartyDesktopApi)
+        else None
+    )
+    configured_platform_user_api = services.get("desktop_platform_user_api")
+    platform_user_desktop_api = (
+        configured_platform_user_api
+        if isinstance(configured_platform_user_api, PlatformUserDesktopApi)
+        else None
+    )
     site_service = services.get("site_service")
     department_service = services.get("department_service")
     employee_service = services.get("employee_service")
+    document_service = services.get("document_service")
+    party_service = services.get("party_service")
+    auth_service = services.get("auth_service")
     if platform_site_desktop_api is None and isinstance(site_service, SiteService):
         platform_site_desktop_api = PlatformSiteDesktopApi(site_service=site_service)
     if platform_department_desktop_api is None and isinstance(department_service, DepartmentService):
@@ -108,6 +138,12 @@ def build_shell_workspace_context(
         )
     if platform_employee_desktop_api is None and isinstance(employee_service, EmployeeService):
         platform_employee_desktop_api = PlatformEmployeeDesktopApi(employee_service=employee_service)
+    if platform_document_desktop_api is None and isinstance(document_service, DocumentService):
+        platform_document_desktop_api = PlatformDocumentDesktopApi(document_service=document_service)
+    if platform_party_desktop_api is None and isinstance(party_service, PartyService):
+        platform_party_desktop_api = PlatformPartyDesktopApi(party_service=party_service)
+    if platform_user_desktop_api is None and isinstance(auth_service, AuthService):
+        platform_user_desktop_api = PlatformUserDesktopApi(auth_service=auth_service)
     project_management_enabled = not bool(
         platform_runtime_application_service is not None
         and hasattr(platform_runtime_application_service, "is_enabled")
@@ -152,6 +188,9 @@ def build_shell_workspace_context(
         platform_site_desktop_api=platform_site_desktop_api,
         platform_department_desktop_api=platform_department_desktop_api,
         platform_employee_desktop_api=platform_employee_desktop_api,
+        platform_document_desktop_api=platform_document_desktop_api,
+        platform_party_desktop_api=platform_party_desktop_api,
+        platform_user_desktop_api=platform_user_desktop_api,
         project_management_enabled=project_management_enabled,
         inventory_procurement_enabled=inventory_procurement_enabled,
         maintenance_management_enabled=maintenance_management_enabled,

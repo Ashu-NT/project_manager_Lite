@@ -12,13 +12,14 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.party import Party, PartyType
+from src.api.desktop.platform import PartyDto
+from src.core.platform.party.domain import PartyType
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class PartyEditDialog(QDialog):
-    def __init__(self, parent=None, party: Party | None = None):
+    def __init__(self, parent=None, party: PartyDto | None = None):
         super().__init__(parent)
         self.setWindowTitle("Party" + (" - Edit" if party else " - New"))
 

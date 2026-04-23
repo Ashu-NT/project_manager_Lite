@@ -15,9 +15,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.auth.domain import UserAccount
-from src.core.platform.auth import AuthService, UserSessionContext
+from src.api.desktop.platform import (
+    DesktopApiError,
+    PlatformUserDesktopApi,
+    RoleDto,
+    UserCreateCommand,
+    UserDto,
+    UserPasswordResetCommand,
+    UserUpdateCommand,
+)
+from src.core.platform.auth import UserSessionContext
 from src.ui.platform.dialogs.admin.users.dialogs import PasswordResetDialog, UserCreateDialog, UserEditDialog
 from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.platform.widgets.admin_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
@@ -28,15 +35,17 @@ from src.ui.shared.formatting.ui_config import UIConfig as CFG
 class UserAdminTab(QWidget):
     def __init__(
         self,
-        auth_service: AuthService,
+        *,
+        platform_user_api: PlatformUserDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._auth_service = auth_service
+        self._platform_user_api = platform_user_api
         self._user_session = user_session
         self._can_manage_users = has_permission(self._user_session, "auth.manage")
-        self._rows: list[UserAccount] = []
+        self._rows: list[UserDto] = []
+        self._roles: list[RoleDto] = []
         self._setup_ui()
         self.reload_users()
 
@@ -143,21 +152,28 @@ class UserAdminTab(QWidget):
         self._sync_actions()
 
     def reload_users(self) -> None:
-        role_cache: dict[str, set[str]] = {}
         try:
-            self._rows = self._auth_service.list_users()
-            for user in self._rows:
-                role_cache[user.id] = self._auth_service.get_user_role_names(user.id)
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Users", str(exc))
+            users_result = self._platform_user_api.list_users()
+            roles_result = self._platform_user_api.list_roles()
+        except Exception as exc:
+            QMessageBox.critical(self, "Users", f"Failed to load users: {exc}")
             self._rows = []
+            self._roles = []
             self.table.setRowCount(0)
             self._update_header_badges([])
             self._sync_actions()
             return
-        except Exception as exc:
-            QMessageBox.critical(self, "Users", f"Failed to load users: {exc}")
+        if not users_result.ok or users_result.data is None:
+            self._show_api_error(users_result.error)
             self._rows = []
+        else:
+            self._rows = list(users_result.data)
+        if not roles_result.ok or roles_result.data is None:
+            self._show_api_error(roles_result.error)
+            self._roles = []
+        else:
+            self._roles = list(roles_result.data)
+        if not self._rows and (not users_result.ok or users_result.data is None):
             self.table.setRowCount(0)
             self._update_header_badges([])
             self._sync_actions()
@@ -169,7 +185,7 @@ class UserAdminTab(QWidget):
                 user.display_name or "",
                 user.email or "",
                 "Yes" if user.is_active else "No",
-                ", ".join(sorted(role_cache[user.id])) or "-",
+                ", ".join(sorted(user.role_names)) or "-",
             )
             for col, value in enumerate(values):
                 item = QTableWidgetItem(value)
@@ -181,7 +197,7 @@ class UserAdminTab(QWidget):
         self._update_header_badges(self._rows)
         self._sync_actions()
 
-    def _selected_user(self) -> UserAccount | None:
+    def _selected_user(self) -> UserDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -195,35 +211,27 @@ class UserAdminTab(QWidget):
         return None
 
     def create_user(self) -> None:
-        try:
-            role_names = [role.name for role in self._auth_service.list_roles()]
-        except (ValidationError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Users", str(exc))
-            return
-        except Exception as exc:
-            QMessageBox.critical(self, "Users", f"Failed to load roles: {exc}")
-            return
-
-        dlg = UserCreateDialog(role_names=sorted(role_names), parent=self)
+        dlg = UserCreateDialog(role_names=sorted(role.name for role in self._roles), parent=self)
         while True:
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._auth_service.register_user(
-                    username=dlg.username,
-                    raw_password=dlg.password,
-                    display_name=dlg.display_name,
-                    email=dlg.email,
-                    role_names=[dlg.role_name],
+                result = self._platform_user_api.create_user(
+                    UserCreateCommand(
+                        username=dlg.username,
+                        password=dlg.password,
+                        display_name=dlg.display_name,
+                        email=dlg.email,
+                        role_names=(dlg.role_name,),
+                    )
                 )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Users", str(exc))
-                continue
-            except BusinessRuleError as exc:
-                QMessageBox.warning(self, "Users", str(exc))
-                return
             except Exception as exc:
                 QMessageBox.critical(self, "Users", f"Failed to create user: {exc}")
+                return
+            if not result.ok:
+                self._show_api_error(result.error)
+                if result.error is not None and result.error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_users()
@@ -244,20 +252,21 @@ class UserAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._auth_service.update_user_profile(
-                    user.id,
-                    username=dlg.username,
-                    display_name=dlg.display_name,
-                    email=dlg.email,
+                result = self._platform_user_api.update_user(
+                    UserUpdateCommand(
+                        user_id=user.id,
+                        username=dlg.username,
+                        display_name=dlg.display_name,
+                        email=dlg.email,
+                    )
                 )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Users", str(exc))
-                continue
-            except (NotFoundError, BusinessRuleError) as exc:
-                QMessageBox.warning(self, "Users", str(exc))
-                return
             except Exception as exc:
                 QMessageBox.critical(self, "Users", f"Failed to edit user: {exc}")
+                return
+            if not result.ok:
+                self._show_api_error(result.error)
+                if result.error is not None and result.error.category == "validation":
+                    continue
                 return
             break
         self.reload_users()
@@ -266,7 +275,7 @@ class UserAdminTab(QWidget):
         user = self._selected_user()
         if not user:
             return
-        role_names = [role.name for role in self._auth_service.list_roles()]
+        role_names = [role.name for role in self._roles]
         role_name, ok = QInputDialog.getItem(
             self,
             "Assign Role",
@@ -277,9 +286,12 @@ class UserAdminTab(QWidget):
         if not ok:
             return
         try:
-            self._auth_service.assign_role(user.id, role_name)
-        except (ValidationError, NotFoundError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Users", str(exc))
+            result = self._platform_user_api.assign_role(user.id, role_name)
+        except Exception as exc:
+            QMessageBox.critical(self, "Users", f"Failed to assign role: {exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_users()
 
@@ -287,7 +299,7 @@ class UserAdminTab(QWidget):
         user = self._selected_user()
         if not user:
             return
-        user_roles = sorted(self._auth_service.get_user_role_names(user.id))
+        user_roles = sorted(user.role_names)
         if not user_roles:
             QMessageBox.information(self, "Users", "User has no roles to revoke.")
             return
@@ -301,9 +313,12 @@ class UserAdminTab(QWidget):
         if not ok:
             return
         try:
-            self._auth_service.revoke_role(user.id, role_name)
-        except (ValidationError, NotFoundError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Users", str(exc))
+            result = self._platform_user_api.revoke_role(user.id, role_name)
+        except Exception as exc:
+            QMessageBox.critical(self, "Users", f"Failed to revoke role: {exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_users()
 
@@ -312,9 +327,12 @@ class UserAdminTab(QWidget):
         if not user:
             return
         try:
-            self._auth_service.set_user_active(user.id, not user.is_active)
-        except (NotFoundError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Users", str(exc))
+            result = self._platform_user_api.set_user_active(user.id, not user.is_active)
+        except Exception as exc:
+            QMessageBox.critical(self, "Users", f"Failed to update user: {exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_users()
 
@@ -328,15 +346,19 @@ class UserAdminTab(QWidget):
                 return
             new_password = dlg.password
             try:
-                self._auth_service.reset_user_password(user.id, new_password)
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Users", str(exc))
-                continue
-            except (NotFoundError, BusinessRuleError) as exc:
-                QMessageBox.warning(self, "Users", str(exc))
-                return
+                result = self._platform_user_api.reset_password(
+                    UserPasswordResetCommand(
+                        user_id=user.id,
+                        new_password=new_password,
+                    )
+                )
             except Exception as exc:
                 QMessageBox.critical(self, "Users", f"Failed to reset password: {exc}")
+                return
+            if not result.ok:
+                self._show_api_error(result.error)
+                if result.error is not None and result.error.category == "validation":
+                    continue
                 return
             QMessageBox.information(self, "Users", f"Password reset for '{user.username}'.")
             return
@@ -350,10 +372,14 @@ class UserAdminTab(QWidget):
         self.btn_reset_password.setEnabled(self._can_manage_users and has_user)
         self.btn_toggle_active.setEnabled(self._can_manage_users and has_user)
 
-    def _update_header_badges(self, rows: list[UserAccount]) -> None:
+    def _update_header_badges(self, rows: list[UserDto]) -> None:
         active_count = sum(1 for row in rows if row.is_active)
         self.user_count_badge.setText(f"{len(rows)} users")
         self.user_active_badge.setText(f"{active_count} active")
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform user API did not return a result."
+        QMessageBox.warning(self, "Users", message)
 
 
 __all__ = ["UserAdminTab"]

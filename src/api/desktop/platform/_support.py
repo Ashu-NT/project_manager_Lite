@@ -10,6 +10,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
+from src.core.platform.org.domain import Organization
 
 _ResultT = TypeVar("_ResultT")
 
@@ -37,7 +38,7 @@ def serialize_domain_error(exc: DomainError) -> DesktopApiError:
     )
 
 
-def serialize_organization(organization) -> OrganizationDto:
+def serialize_organization(organization: Organization) -> OrganizationDto:
     return OrganizationDto(
         id=organization.id,
         organization_code=organization.organization_code,

@@ -15,7 +15,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.documents import Document, DocumentStorageKind, DocumentStructure, DocumentType
+from src.api.desktop.platform import DocumentDto, DocumentStructureDto
+from src.core.platform.documents import DocumentStorageKind, DocumentType
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -26,8 +27,8 @@ class DocumentEditDialog(QDialog):
     def __init__(
         self,
         parent=None,
-        document: Document | None = None,
-        structures: list[DocumentStructure] | None = None,
+        document: DocumentDto | None = None,
+        structures: list[DocumentStructureDto] | None = None,
     ):
         super().__init__(parent)
         self._structures = list(structures or [])

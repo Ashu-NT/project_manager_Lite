@@ -10,7 +10,7 @@ from src.api.desktop.platform.models import (
     OrganizationDto,
 )
 from src.core.platform.org import DepartmentService
-
+from src.core.platform.org.domain import Department
 
 class PlatformDepartmentDesktopApi:
     """Desktop-facing adapter for platform department master data."""
@@ -92,7 +92,7 @@ class PlatformDepartmentDesktopApi:
         )
 
     @staticmethod
-    def _serialize_department(department) -> DepartmentDto:
+    def _serialize_department(department: Department) -> DepartmentDto:
         return DepartmentDto(
             id=department.id,
             organization_id=department.organization_id,

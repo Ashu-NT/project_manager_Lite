@@ -19,6 +19,11 @@ LEGACY_PLATFORM_DEPARTMENT_TAB = (
 LEGACY_PLATFORM_EMPLOYEE_TAB = (
     SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "employees" / "tab.py"
 )
+LEGACY_PLATFORM_USER_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "users" / "tab.py"
+LEGACY_PLATFORM_DOCUMENT_TAB = (
+    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "documents" / "tab.py"
+)
+LEGACY_PLATFORM_PARTY_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "parties" / "tab.py"
 LEGACY_PLATFORM_HOME_TAB = SRC_ROOT / "ui" / "shell" / "platform" / "home.py"
 
 
@@ -167,3 +172,27 @@ def test_legacy_platform_employees_tab_uses_desktop_api_boundary() -> None:
     assert "_employee_service" not in text
     assert "_department_service" not in text
     assert "_site_service" not in text
+
+
+def test_legacy_platform_users_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_USER_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformUserDesktopApi" in text
+    assert "AuthService" not in text
+    assert "_auth_service" not in text
+
+
+def test_legacy_platform_documents_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_DOCUMENT_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformDocumentDesktopApi" in text
+    assert "DocumentService" not in text
+    assert "_document_service" not in text
+
+
+def test_legacy_platform_parties_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_PARTY_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformPartyDesktopApi" in text
+    assert "PartyService" not in text
+    assert "_party_service" not in text

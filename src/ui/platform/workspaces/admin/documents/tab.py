@@ -22,9 +22,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.api.desktop.platform import (
+    DesktopApiError,
+    DocumentCreateCommand,
+    DocumentDto,
+    DocumentLinkCreateCommand,
+    DocumentLinkDto,
+    DocumentStructureDto,
+    DocumentUpdateCommand,
+    PlatformDocumentDesktopApi,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.documents import Document, DocumentLink, DocumentService, DocumentStructure, DocumentType
+from src.core.platform.documents import DocumentType
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
@@ -48,19 +57,20 @@ from src.ui.shared.formatting.ui_config import UIConfig as CFG
 class DocumentAdminTab(QWidget):
     def __init__(
         self,
-        document_service: DocumentService,
+        *,
+        platform_document_api: PlatformDocumentDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._document_service = document_service
+        self._platform_document_api = platform_document_api
         self._user_session = user_session
         self._can_manage_documents = has_permission(self._user_session, "settings.manage")
         self._context_label = "-"
-        self._all_rows: list[Document] = []
-        self._rows: list[Document] = []
-        self._link_rows: list[DocumentLink] = []
-        self._structure_rows: list[DocumentStructure] = []
+        self._all_rows: list[DocumentDto] = []
+        self._rows: list[DocumentDto] = []
+        self._link_rows: list[DocumentLinkDto] = []
+        self._structure_rows: list[DocumentStructureDto] = []
         self._detail_labels: dict[str, QLabel] = {}
         self._setup_ui()
         self.reload_documents()
@@ -277,13 +287,16 @@ class DocumentAdminTab(QWidget):
 
     def _reload_document_structures(self) -> None:
         try:
-            self._structure_rows = self._document_service.list_document_structures(active_only=None)
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Documents", str(exc))
-            self._structure_rows = []
+            result = self._platform_document_api.list_document_structures(active_only=None)
         except Exception as exc:
             QMessageBox.critical(self, "Documents", f"Failed to load document structures: {exc}")
             self._structure_rows = []
+        else:
+            if result.ok and result.data is not None:
+                self._structure_rows = list(result.data)
+            else:
+                self._show_api_error(result.error)
+                self._structure_rows = []
         self._refresh_structure_filter()
 
     def _refresh_structure_filter(self) -> None:
@@ -307,17 +320,23 @@ class DocumentAdminTab(QWidget):
         selected_id = self._selected_document_id()
         self._reload_document_structures()
         try:
-            context = self._document_service.get_context_organization()
-            self._all_rows = self._document_service.list_documents()
-            self._context_label = context.display_name
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Documents", str(exc))
-            self._context_label = "-"
-            self._all_rows = []
+            context_result = self._platform_document_api.get_context()
+            documents_result = self._platform_document_api.list_documents()
         except Exception as exc:
             QMessageBox.critical(self, "Documents", f"Failed to load documents: {exc}")
             self._context_label = "-"
             self._all_rows = []
+        else:
+            if context_result.ok and context_result.data is not None:
+                self._context_label = context_result.data.display_name
+            else:
+                self._show_api_error(context_result.error)
+                self._context_label = "-"
+            if documents_result.ok and documents_result.data is not None:
+                self._all_rows = list(documents_result.data)
+            else:
+                self._show_api_error(documents_result.error)
+                self._all_rows = []
         self._apply_document_filters(selected_id=selected_id)
 
     def create_document(self) -> None:
@@ -326,25 +345,14 @@ class DocumentAdminTab(QWidget):
             if dialog.exec() != QDialog.Accepted:
                 return
             try:
-                self._document_service.create_document(
-                    document_code=dialog.document_code,
-                    title=dialog.title,
-                    document_type=dialog.document_type,
-                    document_structure_id=dialog.document_structure_id,
-                    storage_kind=dialog.storage_kind,
-                    storage_uri=dialog.storage_uri,
-                    file_name=dialog.file_name,
-                    business_version_label=dialog.business_version_label,
-                    source_system=dialog.source_system,
-                    confidentiality_level=dialog.confidentiality_level,
-                    notes=dialog.notes,
-                    is_active=dialog.is_active,
-                )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Documents", str(exc))
-                continue
+                error = self._create_document_from_dialog(dialog)
             except Exception as exc:
                 QMessageBox.critical(self, "Documents", f"Failed to create document: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_documents()
@@ -359,30 +367,17 @@ class DocumentAdminTab(QWidget):
             if dialog.exec() != QDialog.Accepted:
                 return
             try:
-                self._document_service.update_document(
-                    document.id,
-                    document_code=dialog.document_code,
-                    title=dialog.title,
-                    document_type=dialog.document_type,
-                    document_structure_id=dialog.document_structure_id or "",
-                    storage_kind=dialog.storage_kind,
-                    storage_uri=dialog.storage_uri,
-                    file_name=dialog.file_name,
-                    business_version_label=dialog.business_version_label,
-                    source_system=dialog.source_system,
-                    confidentiality_level=dialog.confidentiality_level,
-                    notes=dialog.notes,
-                    is_active=dialog.is_active,
-                    expected_version=document.version,
-                )
-            except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Documents", str(exc))
-                if isinstance(exc, ConcurrencyError):
-                    self.reload_documents()
-                    return
-                continue
+                error = self._update_document_from_dialog(document, dialog)
             except Exception as exc:
                 QMessageBox.critical(self, "Documents", f"Failed to update document: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category == "conflict":
+                    self.reload_documents()
+                    return
+                if error.category == "validation":
+                    continue
                 return
             break
         self.reload_documents()
@@ -393,21 +388,26 @@ class DocumentAdminTab(QWidget):
             QMessageBox.information(self, "Documents", "Please select a document.")
             return
         try:
-            self._document_service.update_document(
-                document.id,
-                is_active=not document.is_active,
-                expected_version=document.version,
+            result = self._platform_document_api.update_document(
+                DocumentUpdateCommand(
+                    document_id=document.id,
+                    is_active=not document.is_active,
+                    expected_version=document.version,
+                )
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-            QMessageBox.warning(self, "Documents", str(exc))
-            return
         except Exception as exc:
             QMessageBox.critical(self, "Documents", f"Failed to update document: {exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self.reload_documents()
 
     def manage_structures(self) -> None:
-        dialog = DocumentStructureManagerDialog(document_service=self._document_service, parent=self)
+        dialog = DocumentStructureManagerDialog(
+            platform_document_api=self._platform_document_api,
+            parent=self,
+        )
         dialog.exec()
         self.reload_documents()
 
@@ -421,18 +421,14 @@ class DocumentAdminTab(QWidget):
             if dialog.exec() != QDialog.Accepted:
                 return
             try:
-                self._document_service.add_link(
-                    document_id=document.id,
-                    module_code=dialog.module_code,
-                    entity_type=dialog.entity_type,
-                    entity_id=dialog.entity_id,
-                    link_role=dialog.link_role,
-                )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Documents", str(exc))
-                continue
+                error = self._add_link_from_dialog(document, dialog)
             except Exception as exc:
                 QMessageBox.critical(self, "Documents", f"Failed to link document: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self._reload_links_for_selected_document()
@@ -453,12 +449,12 @@ class DocumentAdminTab(QWidget):
             QMessageBox.information(self, "Documents", "Please select a document link.")
             return
         try:
-            self._document_service.remove_link(link.id)
-        except (ValidationError, NotFoundError, BusinessRuleError) as exc:
-            QMessageBox.warning(self, "Documents", str(exc))
-            return
+            result = self._platform_document_api.remove_link(link.id)
         except Exception as exc:
             QMessageBox.critical(self, "Documents", f"Failed to remove document link: {exc}")
+            return
+        if not result.ok:
+            self._show_api_error(result.error)
             return
         self._reload_links_for_selected_document()
 
@@ -550,17 +546,20 @@ class DocumentAdminTab(QWidget):
             self._sync_actions()
             return
         try:
-            self._link_rows = self._document_service.list_links(document.id)
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Documents", str(exc))
-            self._link_rows = []
+            result = self._platform_document_api.list_links(document.id)
         except Exception as exc:
             QMessageBox.critical(self, "Documents", f"Failed to load document links: {exc}")
             self._link_rows = []
+        else:
+            if result.ok and result.data is not None:
+                self._link_rows = list(result.data)
+            else:
+                self._show_api_error(result.error)
+                self._link_rows = []
         self._render_detail(document)
         self._sync_actions()
 
-    def _render_detail(self, document: Document | None) -> None:
+    def _render_detail(self, document: DocumentDto | None) -> None:
         if document is None:
             self.selected_document_title.setText("Select a document")
             self.selected_document_summary.setText("Document metadata, preview state, and linked records will appear here.")
@@ -617,7 +616,7 @@ class DocumentAdminTab(QWidget):
         item = self.table.item(row, 0)
         return str(item.data(Qt.UserRole) or "") if item is not None else None
 
-    def _selected_document(self) -> Document | None:
+    def _selected_document(self) -> DocumentDto | None:
         selected_id = self._selected_document_id()
         if not selected_id:
             return None
@@ -626,7 +625,7 @@ class DocumentAdminTab(QWidget):
                 return document
         return None
 
-    def _structure_by_id(self, structure_id: str | None) -> DocumentStructure | None:
+    def _structure_by_id(self, structure_id: str | None) -> DocumentStructureDto | None:
         normalized = str(structure_id or "").strip()
         if not normalized:
             return None
@@ -670,6 +669,70 @@ class DocumentAdminTab(QWidget):
             return
         dialog = DocumentLinksDialog(document=document, links=self._link_rows, parent=self)
         dialog.exec()
+
+    def _create_document_from_dialog(self, dialog: DocumentEditDialog) -> DesktopApiError | None:
+        result = self._platform_document_api.create_document(
+            DocumentCreateCommand(
+                document_code=dialog.document_code,
+                title=dialog.title,
+                document_type=dialog.document_type,
+                document_structure_id=dialog.document_structure_id,
+                storage_kind=dialog.storage_kind,
+                storage_uri=dialog.storage_uri,
+                file_name=dialog.file_name,
+                business_version_label=dialog.business_version_label,
+                source_system=dialog.source_system,
+                confidentiality_level=dialog.confidentiality_level,
+                notes=dialog.notes,
+                is_active=dialog.is_active,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _update_document_from_dialog(
+        self,
+        document: DocumentDto,
+        dialog: DocumentEditDialog,
+    ) -> DesktopApiError | None:
+        result = self._platform_document_api.update_document(
+            DocumentUpdateCommand(
+                document_id=document.id,
+                document_code=dialog.document_code,
+                title=dialog.title,
+                document_type=dialog.document_type,
+                document_structure_id=dialog.document_structure_id or "",
+                storage_kind=dialog.storage_kind,
+                storage_uri=dialog.storage_uri,
+                file_name=dialog.file_name,
+                business_version_label=dialog.business_version_label,
+                source_system=dialog.source_system,
+                confidentiality_level=dialog.confidentiality_level,
+                notes=dialog.notes,
+                is_active=dialog.is_active,
+                expected_version=document.version,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _add_link_from_dialog(
+        self,
+        document: DocumentDto,
+        dialog: DocumentLinkEditDialog,
+    ) -> DesktopApiError | None:
+        result = self._platform_document_api.add_link(
+            DocumentLinkCreateCommand(
+                document_id=document.id,
+                module_code=dialog.module_code,
+                entity_type=dialog.entity_type,
+                entity_id=dialog.entity_id,
+                link_role=dialog.link_role,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform document API did not return a result."
+        QMessageBox.warning(self, "Documents", message)
 
     @staticmethod
     def _make_card(object_name: str, *, alt: bool) -> QWidget:

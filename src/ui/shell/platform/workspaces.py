@@ -55,8 +55,9 @@ def build_platform_administration_workspace_definitions(
                 group_label="Administration",
                 label="Users",
                 widget=UserAdminTab(
-                    auth_service=services["auth_service"],
+                    platform_user_api=context.platform_user_desktop_api,
                     user_session=context.user_session,
+                    parent=context.parent,
                 ),
             )
         )
@@ -121,7 +122,7 @@ def build_platform_administration_workspace_definitions(
                     group_label="Administration",
                     label="Documents",
                     widget=DocumentAdminTab(
-                        document_service=services["document_service"],
+                        platform_document_api=context.platform_document_desktop_api,
                         user_session=context.user_session,
                         parent=context.parent,
                     ),
@@ -132,7 +133,7 @@ def build_platform_administration_workspace_definitions(
                     group_label="Administration",
                     label="Parties",
                     widget=PartyAdminTab(
-                        party_service=services["party_service"],
+                        platform_party_api=context.platform_party_desktop_api,
                         user_session=context.user_session,
                         parent=context.parent,
                     ),

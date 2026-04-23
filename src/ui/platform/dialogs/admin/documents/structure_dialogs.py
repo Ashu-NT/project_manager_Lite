@@ -19,8 +19,14 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.documents import DocumentService, DocumentStructure, DocumentType
+from src.api.desktop.platform import (
+    DesktopApiError,
+    DocumentStructureCreateCommand,
+    DocumentStructureDto,
+    DocumentStructureUpdateCommand,
+    PlatformDocumentDesktopApi,
+)
+from src.core.platform.documents import DocumentType
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -44,8 +50,8 @@ class DocumentStructureEditDialog(QDialog):
     def __init__(
         self,
         *,
-        structures: list[DocumentStructure],
-        structure: DocumentStructure | None = None,
+        structures: list[DocumentStructureDto],
+        structure: DocumentStructureDto | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -177,10 +183,10 @@ class DocumentStructureEditDialog(QDialog):
 
 
 class DocumentStructureManagerDialog(QDialog):
-    def __init__(self, *, document_service: DocumentService, parent=None) -> None:
+    def __init__(self, *, platform_document_api: PlatformDocumentDesktopApi, parent=None) -> None:
         super().__init__(parent)
-        self._document_service = document_service
-        self._rows: list[DocumentStructure] = []
+        self._platform_document_api = platform_document_api
+        self._rows: list[DocumentStructureDto] = []
         self.setWindowTitle("Document Structures")
         self.resize(880, 520)
         self._setup_ui()
@@ -245,13 +251,16 @@ class DocumentStructureManagerDialog(QDialog):
 
     def reload_structures(self) -> None:
         try:
-            self._rows = self._document_service.list_document_structures(active_only=None)
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Document Structures", str(exc))
-            self._rows = []
+            result = self._platform_document_api.list_document_structures(active_only=None)
         except Exception as exc:
             QMessageBox.critical(self, "Document Structures", f"Failed to load document structures: {exc}")
             self._rows = []
+        else:
+            if result.ok and result.data is not None:
+                self._rows = list(result.data)
+            else:
+                self._show_api_error(result.error)
+                self._rows = []
         by_id = {row.id: row for row in self._rows}
         self.table.setRowCount(len(self._rows))
         for row_index, structure in enumerate(self._rows):
@@ -281,22 +290,26 @@ class DocumentStructureManagerDialog(QDialog):
             if dialog.exec() != QDialog.Accepted:
                 return
             try:
-                self._document_service.create_document_structure(
-                    structure_code=dialog.structure_code,
-                    name=dialog.name,
-                    description=dialog.description,
-                    parent_structure_id=dialog.parent_structure_id,
-                    object_scope=dialog.object_scope,
-                    default_document_type=dialog.default_document_type,
-                    sort_order=dialog.sort_order,
-                    is_active=dialog.is_active,
-                    notes=dialog.notes,
+                result = self._platform_document_api.create_document_structure(
+                    DocumentStructureCreateCommand(
+                        structure_code=dialog.structure_code,
+                        name=dialog.name,
+                        description=dialog.description,
+                        parent_structure_id=dialog.parent_structure_id,
+                        object_scope=dialog.object_scope,
+                        default_document_type=dialog.default_document_type,
+                        sort_order=dialog.sort_order,
+                        is_active=dialog.is_active,
+                        notes=dialog.notes,
+                    )
                 )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Document Structures", str(exc))
-                continue
             except Exception as exc:
                 QMessageBox.critical(self, "Document Structures", f"Failed to create structure: {exc}")
+                return
+            if not result.ok:
+                self._show_api_error(result.error)
+                if result.error is not None and result.error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_structures()
@@ -311,27 +324,31 @@ class DocumentStructureManagerDialog(QDialog):
             if dialog.exec() != QDialog.Accepted:
                 return
             try:
-                self._document_service.update_document_structure(
-                    structure.id,
-                    structure_code=dialog.structure_code,
-                    name=dialog.name,
-                    description=dialog.description,
-                    parent_structure_id=dialog.parent_structure_id or "",
-                    object_scope=dialog.object_scope,
-                    default_document_type=dialog.default_document_type,
-                    sort_order=dialog.sort_order,
-                    is_active=dialog.is_active,
-                    notes=dialog.notes,
-                    expected_version=structure.version,
+                result = self._platform_document_api.update_document_structure(
+                    DocumentStructureUpdateCommand(
+                        structure_id=structure.id,
+                        structure_code=dialog.structure_code,
+                        name=dialog.name,
+                        description=dialog.description,
+                        parent_structure_id=dialog.parent_structure_id or "",
+                        object_scope=dialog.object_scope,
+                        default_document_type=dialog.default_document_type,
+                        sort_order=dialog.sort_order,
+                        is_active=dialog.is_active,
+                        notes=dialog.notes,
+                        expected_version=structure.version,
+                    )
                 )
-            except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Document Structures", str(exc))
-                if isinstance(exc, ConcurrencyError):
-                    self.reload_structures()
-                    return
-                continue
             except Exception as exc:
                 QMessageBox.critical(self, "Document Structures", f"Failed to update structure: {exc}")
+                return
+            if not result.ok:
+                self._show_api_error(result.error)
+                if result.error is not None and result.error.category == "conflict":
+                    self.reload_structures()
+                    return
+                if result.error is not None and result.error.category == "validation":
+                    continue
                 return
             break
         self.reload_structures()
@@ -342,20 +359,22 @@ class DocumentStructureManagerDialog(QDialog):
             QMessageBox.information(self, "Document Structures", "Please select a structure.")
             return
         try:
-            self._document_service.update_document_structure(
-                structure.id,
-                is_active=not structure.is_active,
-                expected_version=structure.version,
+            result = self._platform_document_api.update_document_structure(
+                DocumentStructureUpdateCommand(
+                    structure_id=structure.id,
+                    is_active=not structure.is_active,
+                    expected_version=structure.version,
+                )
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-            QMessageBox.warning(self, "Document Structures", str(exc))
-            return
         except Exception as exc:
             QMessageBox.critical(self, "Document Structures", f"Failed to update structure: {exc}")
             return
+        if not result.ok:
+            self._show_api_error(result.error)
+            return
         self.reload_structures()
 
-    def _selected_structure(self) -> DocumentStructure | None:
+    def _selected_structure(self) -> DocumentStructureDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -370,6 +389,10 @@ class DocumentStructureManagerDialog(QDialog):
         has_selection = self._selected_structure() is not None
         self.btn_edit.setEnabled(has_selection)
         self.btn_toggle_active.setEnabled(has_selection)
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform document API did not return a result."
+        QMessageBox.warning(self, "Document Structures", message)
 
 
 __all__ = ["DocumentStructureEditDialog", "DocumentStructureManagerDialog"]

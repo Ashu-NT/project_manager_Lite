@@ -11,14 +11,14 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.documents import Document, DocumentLink
+from src.api.desktop.platform import DocumentDto, DocumentLinkDto
 from src.ui.platform.widgets.document_preview import DocumentPreviewWidget
 from src.ui.shared.formatting.style_utils import style_table
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class DocumentPreviewDialog(QDialog):
-    def __init__(self, document: Document, parent=None):
+    def __init__(self, document: DocumentDto, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"Document Preview - {document.document_code}")
         self.resize(960, 720)
@@ -42,8 +42,8 @@ class DocumentLinksDialog(QDialog):
     def __init__(
         self,
         *,
-        document: Document,
-        links: list[DocumentLink],
+        document: DocumentDto,
+        links: list[DocumentLinkDto],
         selection_mode: bool = False,
         parent=None,
     ):
@@ -114,7 +114,7 @@ class DocumentLinksDialog(QDialog):
         self.accept()
 
     @property
-    def selected_link(self) -> DocumentLink | None:
+    def selected_link(self) -> DocumentLinkDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None

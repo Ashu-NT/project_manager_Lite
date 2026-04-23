@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.platform.documents import Document, DocumentStorageKind
+from src.api.desktop.platform import DocumentDto
+from src.core.platform.documents import DocumentStorageKind
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 try:  # pragma: no cover - optional runtime dependency
@@ -38,7 +39,7 @@ class DocumentPreviewState:
     preview_as_pdf: bool = False
 
 
-def build_document_preview_state(document: Document | None) -> DocumentPreviewState:
+def build_document_preview_state(document: DocumentDto | None) -> DocumentPreviewState:
     if document is None:
         return DocumentPreviewState(
             status_label="No document selected",
@@ -109,7 +110,7 @@ def build_document_preview_state(document: Document | None) -> DocumentPreviewSt
 class DocumentPreviewWidget(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._document: Document | None = None
+        self._document: DocumentDto | None = None
         self._preview_state = build_document_preview_state(None)
         self._pdf_document = QPdfDocument(self) if _PDF_RUNTIME_AVAILABLE else None
         self._pdf_view = QPdfView(self) if _PDF_RUNTIME_AVAILABLE else None
@@ -169,7 +170,7 @@ class DocumentPreviewWidget(QWidget):
         self.open_button.clicked.connect(self.open_document)
         root.addWidget(self.open_button, 0, Qt.AlignLeft)
 
-    def set_document(self, document: Document | None) -> None:
+    def set_document(self, document: DocumentDto | None) -> None:
         self._document = document
         self._preview_state = build_document_preview_state(document)
         self.status_label.setText(self._preview_state.status_label)
@@ -216,7 +217,7 @@ class DocumentPreviewWidget(QWidget):
             )
 
     @staticmethod
-    def _build_open_url(document: Document, state: DocumentPreviewState) -> QUrl | None:
+    def _build_open_url(document: DocumentDto, state: DocumentPreviewState) -> QUrl | None:
         if document.storage_kind == DocumentStorageKind.FILE_PATH and state.local_file is not None:
             return QUrl.fromLocalFile(str(state.local_file))
         if document.storage_kind == DocumentStorageKind.EXTERNAL_URL and document.storage_uri.strip():
@@ -224,7 +225,7 @@ class DocumentPreviewWidget(QWidget):
         return None
 
     @staticmethod
-    def _build_placeholder_text(document: Document | None, state: DocumentPreviewState) -> str:
+    def _build_placeholder_text(document: DocumentDto | None, state: DocumentPreviewState) -> str:
         if document is None:
             return "Choose a document from the library table to review its preview state."
         lines = [

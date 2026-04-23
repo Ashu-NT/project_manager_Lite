@@ -712,11 +712,18 @@ Completed:
 - `PlatformDepartmentDesktopApi` now owns department DTOs/commands and department location-reference lookup for default maintenance locations
 - the legacy QWidget Departments screen now consumes `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `DepartmentCreateCommand`, and `DepartmentUpdateCommand` instead of calling `DepartmentService` or `SiteService` directly
 - the legacy QWidget Employees screen now consumes `PlatformEmployeeDesktopApi`, `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `EmployeeCreateCommand`, and `EmployeeUpdateCommand` instead of calling `EmployeeService`, `SiteService`, or `DepartmentService` directly
+- platform desktop API DTOs and commands now live in split files under `src/api/desktop/platform/models/{common,organization,runtime,site,department,employee,document,party,user}.py`
+- focused `src/api/desktop/platform/{document,party,user}.py` adapters now own the admin document, party, and user desktop contracts
+- the legacy QWidget Documents screen now consumes `PlatformDocumentDesktopApi` plus document/document-structure/link command DTOs instead of calling `DocumentService` directly
+- the legacy QWidget Parties screen now consumes `PlatformPartyDesktopApi`, `PartyCreateCommand`, and `PartyUpdateCommand` instead of calling `PartyService` directly
+- the legacy QWidget Users screen now consumes `PlatformUserDesktopApi`, `UserCreateCommand`, `UserUpdateCommand`, and `UserPasswordResetCommand` instead of calling `AuthService` directly
+- the document structure manager, document preview flow, and linked-record dialog now stay on the document desktop API boundary
 - `tests/test_platform_persistence_structure.py` verifies platform persistence now matches the module structure with only `persistence/{mappers,orm,repositories}/`
 - `src/ui/shell/app.py` now exposes the desktop API registry and platform runtime desktop adapter in the desktop service map
-- `src/ui/shell/app.py` and shell workspace context now expose separate site, department, and employee platform desktop adapters in the desktop service map
+- `src/ui/shell/app.py` and shell workspace context now expose separate site, department, employee, document, party, and user platform desktop adapters in the desktop service map
 - targeted desktop adapter tests were added for platform runtime flows
-- `tests/test_qml_architecture_guardrails.py` now prevents Platform Home, Module Licensing, Organizations, Sites, Departments, and Employees from drifting back to direct platform service access
+- targeted desktop adapter tests were added for platform document, party, and user flows
+- `tests/test_qml_architecture_guardrails.py` now prevents Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Documents, Parties, and Users from drifting back to direct platform service access
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`
