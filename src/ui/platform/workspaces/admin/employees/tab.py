@@ -14,11 +14,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.domain import Employee
+from src.api.desktop.platform import (
+    DesktopApiError,
+    EmployeeCreateCommand,
+    EmployeeDto,
+    EmployeeUpdateCommand,
+    PlatformDepartmentDesktopApi,
+    PlatformEmployeeDesktopApi,
+    PlatformSiteDesktopApi,
+)
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.org import DepartmentService, EmployeeService, SiteService
 from src.ui.platform.dialogs.admin.employees.dialogs import EmployeeEditDialog
 from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.platform.widgets.admin_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
@@ -29,20 +35,21 @@ from src.ui.shared.formatting.ui_config import UIConfig as CFG
 class EmployeeAdminTab(QWidget):
     def __init__(
         self,
-        employee_service: EmployeeService,
-        site_service: SiteService | None = None,
-        department_service: DepartmentService | None = None,
+        *,
+        platform_employee_api: PlatformEmployeeDesktopApi,
+        platform_site_api: PlatformSiteDesktopApi,
+        platform_department_api: PlatformDepartmentDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._employee_service = employee_service
-        self._site_service = site_service
-        self._department_service = department_service
+        self._platform_employee_api = platform_employee_api
+        self._platform_site_api = platform_site_api
+        self._platform_department_api = platform_department_api
         self._user_session = user_session
         self._can_manage_employees = has_permission(self._user_session, "employee.manage")
         self._can_manage_settings = has_permission(self._user_session, "settings.manage")
-        self._rows: list[Employee] = []
+        self._rows: list[EmployeeDto] = []
         self._site_options: list[tuple[str, str]] = []
         self._department_options: list[tuple[str, str]] = []
         self._reference_status_text = "Shared refs: unavailable"
@@ -151,13 +158,16 @@ class EmployeeAdminTab(QWidget):
 
     def reload_employees(self) -> None:
         try:
-            self._rows = self._employee_service.list_employees()
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Employees", str(exc))
-            self._rows = []
+            result = self._platform_employee_api.list_employees()
         except Exception as exc:
             QMessageBox.critical(self, "Employees", f"Failed to load employees: {exc}")
             self._rows = []
+        else:
+            if result.ok and result.data is not None:
+                self._rows = list(result.data)
+            else:
+                self._show_api_error(result.error)
+                self._rows = []
         self.table.setRowCount(len(self._rows))
         for row, employee in enumerate(self._rows):
             contact = employee.email or employee.phone or "-"
@@ -167,7 +177,7 @@ class EmployeeAdminTab(QWidget):
                 employee.department or "",
                 getattr(employee, "site_name", "") or "",
                 employee.title or "",
-                employee.employment_type.value.replace("_", " ").title(),
+                employee.employment_type.replace("_", " ").title(),
                 contact,
                 "Yes" if employee.is_active else "No",
             )
@@ -192,24 +202,14 @@ class EmployeeAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._employee_service.create_employee(
-                    employee_code=dlg.employee_code,
-                    full_name=dlg.full_name,
-                    department_id=dlg.department_id,
-                    department=dlg.department,
-                    site_id=dlg.site_id,
-                    site_name=dlg.site_name,
-                    title=dlg.title,
-                    employment_type=dlg.employment_type,
-                    email=dlg.email,
-                    phone=dlg.phone,
-                    is_active=dlg.is_active,
-                )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Employees", str(exc))
-                continue
+                error = self._create_employee_from_dialog(dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Employees", f"Failed to create employee: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_employees()
@@ -230,29 +230,17 @@ class EmployeeAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._employee_service.update_employee(
-                    employee.id,
-                    employee_code=dlg.employee_code,
-                    full_name=dlg.full_name,
-                    department_id=dlg.department_id,
-                    department=dlg.department,
-                    site_id=dlg.site_id,
-                    site_name=dlg.site_name,
-                    title=dlg.title,
-                    employment_type=dlg.employment_type,
-                    email=dlg.email,
-                    phone=dlg.phone,
-                    is_active=dlg.is_active,
-                    expected_version=employee.version,
-                )
-            except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Employees", str(exc))
-                if isinstance(exc, ConcurrencyError):
-                    self.reload_employees()
-                    return
-                continue
+                error = self._update_employee_from_dialog(employee, dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Employees", f"Failed to update employee: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category == "conflict":
+                    self.reload_employees()
+                    return
+                if error.category == "validation":
+                    continue
                 return
             break
         self.reload_employees()
@@ -263,20 +251,22 @@ class EmployeeAdminTab(QWidget):
             QMessageBox.information(self, "Employees", "Please select an employee.")
             return
         try:
-            self._employee_service.update_employee(
-                employee.id,
-                is_active=not employee.is_active,
-                expected_version=employee.version,
+            result = self._platform_employee_api.update_employee(
+                EmployeeUpdateCommand(
+                    employee_id=employee.id,
+                    is_active=not employee.is_active,
+                    expected_version=employee.version,
+                )
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-            QMessageBox.warning(self, "Employees", str(exc))
-            return
         except Exception as exc:
             QMessageBox.critical(self, "Employees", f"Failed to update employee: {exc}")
             return
+        if not result.ok:
+            self._show_api_error(result.error)
+            return
         self.reload_employees()
 
-    def _selected_employee(self) -> Employee | None:
+    def _selected_employee(self) -> EmployeeDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -303,7 +293,7 @@ class EmployeeAdminTab(QWidget):
         self.btn_open_sites.setEnabled(self._can_manage_settings)
         self.btn_open_departments.setEnabled(self._can_manage_settings)
 
-    def _update_header_badges(self, rows: list[Employee]) -> None:
+    def _update_header_badges(self, rows: list[EmployeeDto]) -> None:
         active_count = sum(1 for row in rows if row.is_active)
         self.employee_count_badge.setText(f"{len(rows)} employees")
         self.employee_active_badge.setText(f"{active_count} active")
@@ -312,9 +302,7 @@ class EmployeeAdminTab(QWidget):
     def _reload_reference_options(self, *, show_feedback: bool) -> None:
         self._site_options = self._load_site_options(show_feedback=show_feedback)
         self._department_options = self._load_department_options(show_feedback=show_feedback)
-        if self._site_service is None and self._department_service is None:
-            self._reference_status_text = "Shared refs: unavailable"
-        elif not self._can_manage_settings and not self._site_options and not self._department_options:
+        if not self._can_manage_settings and not self._site_options and not self._department_options:
             self._reference_status_text = "Shared refs: limited access"
         else:
             self._reference_status_text = (
@@ -324,28 +312,76 @@ class EmployeeAdminTab(QWidget):
             self.employee_reference_badge.setText(self._reference_status_text)
 
     def _load_site_options(self, *, show_feedback: bool) -> list[tuple[str, str]]:
-        if self._site_service is None:
-            return []
         try:
-            return [(site.name, site.id) for site in self._site_service.list_sites(active_only=True)]
-        except BusinessRuleError:
-            return []
+            result = self._platform_site_api.list_sites(active_only=True)
         except Exception as exc:
             if show_feedback:
                 QMessageBox.warning(self, "Employees", f"Unable to load shared sites: {exc}")
             return []
+        if result.ok and result.data is not None:
+            return [(site.name, site.id) for site in result.data]
+        if show_feedback:
+            self._show_api_error(result.error)
+        return []
 
     def _load_department_options(self, *, show_feedback: bool) -> list[tuple[str, str]]:
-        if self._department_service is None:
-            return []
         try:
-            return [(department.name, department.id) for department in self._department_service.list_departments(active_only=True)]
-        except BusinessRuleError:
-            return []
+            result = self._platform_department_api.list_departments(active_only=True)
         except Exception as exc:
             if show_feedback:
                 QMessageBox.warning(self, "Employees", f"Unable to load shared departments: {exc}")
             return []
+        if result.ok and result.data is not None:
+            return [(department.name, department.id) for department in result.data]
+        if show_feedback:
+            self._show_api_error(result.error)
+        return []
+
+    def _create_employee_from_dialog(self, dlg: EmployeeEditDialog) -> DesktopApiError | None:
+        result = self._platform_employee_api.create_employee(
+            EmployeeCreateCommand(
+                employee_code=dlg.employee_code,
+                full_name=dlg.full_name,
+                department_id=dlg.department_id,
+                department=dlg.department,
+                site_id=dlg.site_id,
+                site_name=dlg.site_name,
+                title=dlg.title,
+                employment_type=dlg.employment_type,
+                email=dlg.email,
+                phone=dlg.phone,
+                is_active=dlg.is_active,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _update_employee_from_dialog(
+        self,
+        employee: EmployeeDto,
+        dlg: EmployeeEditDialog,
+    ) -> DesktopApiError | None:
+        result = self._platform_employee_api.update_employee(
+            EmployeeUpdateCommand(
+                employee_id=employee.id,
+                employee_code=dlg.employee_code,
+                full_name=dlg.full_name,
+                department_id=dlg.department_id,
+                department=dlg.department,
+                site_id=dlg.site_id,
+                site_name=dlg.site_name,
+                title=dlg.title,
+                employment_type=dlg.employment_type,
+                email=dlg.email,
+                phone=dlg.phone,
+                is_active=dlg.is_active,
+                expected_version=employee.version,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform employee API did not return a result."
+        QMessageBox.warning(self, "Employees", message)
 
     def _open_sites_workspace(self) -> None:
         self._open_workspace("Sites")

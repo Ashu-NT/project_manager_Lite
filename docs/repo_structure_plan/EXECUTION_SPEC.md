@@ -701,16 +701,22 @@ Completed:
 - the old `ui/platform/shell/` source package was deleted after direct import rewrites
 - desktop runtime/platform API now lives under `src/api/desktop/`:
   - `runtime.py` builds a desktop API registry from the service graph
-  - `platform/models.py` defines desktop result envelopes, DTOs, and commands
+  - `platform/models/*` defines desktop result envelopes, DTOs, and commands split by concern
   - `platform/runtime.py` adapts platform runtime and organization flows for desktop consumers
 - platform UI should communicate through the top-level platform API surface under `src/api/desktop/platform/*` and `src/api/desktop/runtime.py`, not through platform persistence or infrastructure modules
 - the legacy QWidget Platform Home screen now consumes `PlatformRuntimeDesktopApi.get_runtime_context()` instead of calling platform runtime application-service snapshot/list methods directly
 - the legacy QWidget Module Licensing screen now consumes `PlatformRuntimeDesktopApi` and `ModuleStatePatchCommand` instead of calling `PlatformRuntimeApplicationService` directly; this is the first platform Widget workflow moved onto the platform API boundary before QML replacement
 - the legacy QWidget Organizations screen now consumes `PlatformRuntimeDesktopApi`, `OrganizationProvisionCommand`, and `OrganizationUpdateCommand` instead of calling `OrganizationService` or `PlatformRuntimeApplicationService` directly
+- the old broad platform org desktop adapter was split into focused `src/api/desktop/platform/{site,department,employee}.py` adapters
+- the legacy QWidget Sites screen now consumes `PlatformSiteDesktopApi`, `SiteCreateCommand`, and `SiteUpdateCommand` instead of calling `SiteService` directly
+- `PlatformDepartmentDesktopApi` now owns department DTOs/commands and department location-reference lookup for default maintenance locations
+- the legacy QWidget Departments screen now consumes `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `DepartmentCreateCommand`, and `DepartmentUpdateCommand` instead of calling `DepartmentService` or `SiteService` directly
+- the legacy QWidget Employees screen now consumes `PlatformEmployeeDesktopApi`, `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `EmployeeCreateCommand`, and `EmployeeUpdateCommand` instead of calling `EmployeeService`, `SiteService`, or `DepartmentService` directly
 - `tests/test_platform_persistence_structure.py` verifies platform persistence now matches the module structure with only `persistence/{mappers,orm,repositories}/`
 - `src/ui/shell/app.py` now exposes the desktop API registry and platform runtime desktop adapter in the desktop service map
+- `src/ui/shell/app.py` and shell workspace context now expose separate site, department, and employee platform desktop adapters in the desktop service map
 - targeted desktop adapter tests were added for platform runtime flows
-- `tests/test_qml_architecture_guardrails.py` now prevents Platform Home, Module Licensing, and Organizations from drifting back to direct platform service access
+- `tests/test_qml_architecture_guardrails.py` now prevents Platform Home, Module Licensing, Organizations, Sites, Departments, and Employees from drifting back to direct platform service access
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`

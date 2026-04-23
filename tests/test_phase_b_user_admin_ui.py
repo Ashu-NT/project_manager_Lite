@@ -4,8 +4,13 @@ from datetime import date
 
 from PySide6.QtWidgets import QComboBox, QDialog, QLineEdit
 
-from src.api.desktop.platform import PlatformRuntimeDesktopApi
-from src.core.platform.org.domain import Employee
+from src.api.desktop.platform import (
+    EmployeeDto,
+    PlatformDepartmentDesktopApi,
+    PlatformEmployeeDesktopApi,
+    PlatformRuntimeDesktopApi,
+    PlatformSiteDesktopApi,
+)
 from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.domain.enums import TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
@@ -25,6 +30,18 @@ from src.ui.platform.workspaces.control.audit.tab import AuditLogTab
 from src.ui.shared.dialogs.login_dialog import LoginDialog
 from src.ui.shell.main_window import MainWindow
 from ui.modules.project_management.task.task_progress_dialog import TaskProgressDialog
+
+
+def _platform_site_api(services):
+    return PlatformSiteDesktopApi(site_service=services["site_service"])
+
+
+def _platform_department_api(services):
+    return PlatformDepartmentDesktopApi(department_service=services["department_service"])
+
+
+def _platform_employee_api(services):
+    return PlatformEmployeeDesktopApi(employee_service=services["employee_service"])
 
 
 def test_main_window_exposes_admin_tabs_for_auth_manage_runtime(qapp, services, repo_workspace, monkeypatch):
@@ -233,7 +250,7 @@ def test_organization_edit_dialog_defaults_initial_module_selection(qapp, servic
 
 def test_site_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
     tab = SiteAdminTab(
-        site_service=services["site_service"],
+        platform_site_api=_platform_site_api(services),
         user_session=services["user_session"],
     )
 
@@ -249,7 +266,8 @@ def test_site_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
 
 def test_department_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
     tab = DepartmentAdminTab(
-        department_service=services["department_service"],
+        platform_department_api=_platform_department_api(services),
+        platform_site_api=_platform_site_api(services),
         user_session=services["user_session"],
     )
 
@@ -278,8 +296,8 @@ def test_department_admin_tab_shows_default_location_reference(qapp, services):
     )
 
     tab = DepartmentAdminTab(
-        department_service=services["department_service"],
-        site_service=services["site_service"],
+        platform_department_api=_platform_department_api(services),
+        platform_site_api=_platform_site_api(services),
         user_session=services["user_session"],
     )
 
@@ -322,9 +340,9 @@ def test_party_admin_tab_runtime_bootstraps_active_org_context(qapp, services):
 
 def test_employee_admin_tab_runtime_bootstraps_shared_reference_badge_and_links(qapp, services):
     tab = EmployeeAdminTab(
-        employee_service=services["employee_service"],
-        site_service=services["site_service"],
-        department_service=services["department_service"],
+        platform_employee_api=_platform_employee_api(services),
+        platform_site_api=_platform_site_api(services),
+        platform_department_api=_platform_department_api(services),
         user_session=services["user_session"],
     )
 
@@ -344,11 +362,20 @@ def test_employee_admin_tab_runtime_bootstraps_shared_reference_badge_and_links(
 
 
 def test_employee_edit_dialog_prefers_shared_reference_selectors_but_keeps_legacy_text(qapp):
-    employee = Employee.create(
+    employee = EmployeeDto(
+        id="employee-1",
         employee_code="EMP-1",
         full_name="Alex Example",
+        department_id=None,
         department="Legacy Department",
+        site_id=None,
         site_name="Legacy Site",
+        title="",
+        employment_type="FULL_TIME",
+        email=None,
+        phone=None,
+        is_active=True,
+        version=1,
     )
     dialog = EmployeeEditDialog(
         employee=employee,

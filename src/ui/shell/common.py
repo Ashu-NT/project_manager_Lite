@@ -5,9 +5,15 @@ from dataclasses import dataclass
 
 from PySide6.QtWidgets import QWidget
 
-from src.api.desktop.platform import PlatformRuntimeDesktopApi
+from src.api.desktop.platform import (
+    PlatformDepartmentDesktopApi,
+    PlatformEmployeeDesktopApi,
+    PlatformRuntimeDesktopApi,
+    PlatformSiteDesktopApi,
+)
 from src.application.runtime.platform_runtime import resolve_platform_runtime_application_service
 from src.core.platform.auth import UserSessionContext
+from src.core.platform.org import DepartmentService, EmployeeService, SiteService
 from src.ui.platform.settings import MainWindowSettingsStore
 
 PLATFORM_MODULE_CODE = "platform"
@@ -39,6 +45,9 @@ class ShellWorkspaceContext:
     parent: QWidget | None
     platform_runtime_application_service: object | None
     platform_runtime_desktop_api: PlatformRuntimeDesktopApi | None
+    platform_site_desktop_api: PlatformSiteDesktopApi | None
+    platform_department_desktop_api: PlatformDepartmentDesktopApi | None
+    platform_employee_desktop_api: PlatformEmployeeDesktopApi | None
     project_management_enabled: bool
     inventory_procurement_enabled: bool
     maintenance_management_enabled: bool
@@ -70,6 +79,35 @@ def build_shell_workspace_context(
         platform_runtime_desktop_api = PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service
         )
+    configured_platform_site_api = services.get("desktop_platform_site_api")
+    platform_site_desktop_api = (
+        configured_platform_site_api
+        if isinstance(configured_platform_site_api, PlatformSiteDesktopApi)
+        else None
+    )
+    configured_platform_department_api = services.get("desktop_platform_department_api")
+    platform_department_desktop_api = (
+        configured_platform_department_api
+        if isinstance(configured_platform_department_api, PlatformDepartmentDesktopApi)
+        else None
+    )
+    configured_platform_employee_api = services.get("desktop_platform_employee_api")
+    platform_employee_desktop_api = (
+        configured_platform_employee_api
+        if isinstance(configured_platform_employee_api, PlatformEmployeeDesktopApi)
+        else None
+    )
+    site_service = services.get("site_service")
+    department_service = services.get("department_service")
+    employee_service = services.get("employee_service")
+    if platform_site_desktop_api is None and isinstance(site_service, SiteService):
+        platform_site_desktop_api = PlatformSiteDesktopApi(site_service=site_service)
+    if platform_department_desktop_api is None and isinstance(department_service, DepartmentService):
+        platform_department_desktop_api = PlatformDepartmentDesktopApi(
+            department_service=department_service,
+        )
+    if platform_employee_desktop_api is None and isinstance(employee_service, EmployeeService):
+        platform_employee_desktop_api = PlatformEmployeeDesktopApi(employee_service=employee_service)
     project_management_enabled = not bool(
         platform_runtime_application_service is not None
         and hasattr(platform_runtime_application_service, "is_enabled")
@@ -89,13 +127,9 @@ def build_shell_workspace_context(
     access_scope_type_choices: list[tuple[str, str]] = [("Project", "project")]
     access_scope_option_loaders: dict[str, ScopeOptionsLoader] = {}
     access_scope_disabled_hints: dict[str, str] = {}
-    site_service = services.get("site_service")
-    if site_service is not None and has_any_permission(user_session, "site.read", "settings.manage"):
+    if platform_site_desktop_api is not None and has_any_permission(user_session, "site.read", "settings.manage"):
         access_scope_type_choices.append(("Site", "site"))
-        access_scope_option_loaders["site"] = lambda: [
-            (f"{site.site_code} - {site.name}", site.id)
-            for site in site_service.list_sites(active_only=None)
-        ]
+        access_scope_option_loaders["site"] = lambda: _load_site_scope_options(platform_site_desktop_api)
     inventory_service = services.get("inventory_service")
     if inventory_procurement_enabled and has_any_permission(user_session, "inventory.read", "inventory.manage"):
         if inventory_service is not None and hasattr(inventory_service, "list_storerooms"):
@@ -115,6 +149,9 @@ def build_shell_workspace_context(
         parent=parent,
         platform_runtime_application_service=platform_runtime_application_service,
         platform_runtime_desktop_api=platform_runtime_desktop_api,
+        platform_site_desktop_api=platform_site_desktop_api,
+        platform_department_desktop_api=platform_department_desktop_api,
+        platform_employee_desktop_api=platform_employee_desktop_api,
         project_management_enabled=project_management_enabled,
         inventory_procurement_enabled=inventory_procurement_enabled,
         maintenance_management_enabled=maintenance_management_enabled,
@@ -133,6 +170,16 @@ def has_any_permission(
     *permission_codes: str,
 ) -> bool:
     return any(has_permission(user_session, permission_code) for permission_code in permission_codes)
+
+
+def _load_site_scope_options(platform_site_desktop_api: PlatformSiteDesktopApi) -> list[tuple[str, str]]:
+    result = platform_site_desktop_api.list_sites(active_only=None)
+    if not result.ok or result.data is None:
+        return []
+    return [
+        (f"{site.site_code} - {site.name}", site.id)
+        for site in result.data
+    ]
 
 
 __all__ = [

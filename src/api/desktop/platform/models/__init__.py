@@ -1,29 +1,28 @@
-from src.api.desktop.platform.models import (
+from src.api.desktop.platform.models.common import DesktopApiError, DesktopApiResult
+from src.api.desktop.platform.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
     DepartmentLocationReferenceDto,
     DepartmentUpdateCommand,
-    DesktopApiError,
-    DesktopApiResult,
+)
+from src.api.desktop.platform.models.employee import (
     EmployeeCreateCommand,
     EmployeeDto,
     EmployeeUpdateCommand,
-    ModuleDto,
-    ModuleEntitlementDto,
-    ModuleStatePatchCommand,
+)
+from src.api.desktop.platform.models.organization import (
     OrganizationDto,
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
+)
+from src.api.desktop.platform.models.runtime import (
+    ModuleDto,
+    ModuleEntitlementDto,
+    ModuleStatePatchCommand,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
-    SiteCreateCommand,
-    SiteDto,
-    SiteUpdateCommand,
 )
-from src.api.desktop.platform.department import PlatformDepartmentDesktopApi
-from src.api.desktop.platform.employee import PlatformEmployeeDesktopApi
-from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
-from src.api.desktop.platform.site import PlatformSiteDesktopApi
+from src.api.desktop.platform.models.site import SiteCreateCommand, SiteDto, SiteUpdateCommand
 
 __all__ = [
     "DepartmentCreateCommand",
@@ -43,10 +42,6 @@ __all__ = [
     "OrganizationUpdateCommand",
     "PlatformCapabilityDto",
     "PlatformRuntimeContextDto",
-    "PlatformDepartmentDesktopApi",
-    "PlatformEmployeeDesktopApi",
-    "PlatformRuntimeDesktopApi",
-    "PlatformSiteDesktopApi",
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",

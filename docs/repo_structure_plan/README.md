@@ -56,6 +56,8 @@ QML scaffold status:
 - the legacy QWidget Platform Home screen has been moved onto the same `src/api/desktop/platform/*` API boundary while the QML shell remains pending
 - the legacy QWidget Module Licensing screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
 - the legacy QWidget Organizations screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
+- the legacy QWidget Sites screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
+- the legacy QWidget Departments and Employees screens have been moved onto the same `src/api/desktop/platform/*` API boundary while they wait for full QML replacement
 - project-management QML placeholder workspaces now exist under `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*` and are registered as navigable routes
 - project-management QML presenter/view-model scaffolding now exists under `src/ui_qml/modules/project_management/{presenters,view_models}/*`
 - project-management QML placeholders now bind to presenter-backed workspace metadata through `pmWorkspaceCatalog`
@@ -1671,7 +1673,13 @@ Completed in the clean/no-facade execution:
 - rewired the legacy QWidget Platform Home screen to consume `PlatformRuntimeDesktopApi.get_runtime_context()` instead of platform runtime application-service snapshot/list calls
 - rewired the legacy QWidget Module Licensing screen to consume `PlatformRuntimeDesktopApi` and `ModuleStatePatchCommand` instead of calling `PlatformRuntimeApplicationService` directly
 - rewired the legacy QWidget Organizations screen to consume `PlatformRuntimeDesktopApi`, `OrganizationProvisionCommand`, and `OrganizationUpdateCommand` instead of calling `OrganizationService` or `PlatformRuntimeApplicationService` directly
-- added QML architecture guardrails that keep Platform Home, Module Licensing, and Organizations on the platform desktop API boundary while their QML replacements are pending
+- split platform desktop API DTOs and commands out of the old monolithic `src/api/desktop/platform/models.py` into `src/api/desktop/platform/models/{common,organization,runtime,site,department,employee}.py`
+- split the old broad platform org desktop adapter into focused `src/api/desktop/platform/{site,department,employee}.py` adapters
+- rewired the legacy QWidget Sites screen to consume `PlatformSiteDesktopApi`, `SiteCreateCommand`, and `SiteUpdateCommand` instead of calling `SiteService` directly
+- rewired the legacy QWidget Departments screen to consume `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `DepartmentCreateCommand`, and `DepartmentUpdateCommand` instead of calling `DepartmentService` or `SiteService` directly
+- rewired the legacy QWidget Employees screen to consume `PlatformEmployeeDesktopApi`, `PlatformDepartmentDesktopApi`, `PlatformSiteDesktopApi`, `EmployeeCreateCommand`, and `EmployeeUpdateCommand` instead of calling `EmployeeService`, `SiteService`, or `DepartmentService` directly
+- wired the desktop API registry and shell context to expose `desktop_platform_site_api`, `desktop_platform_department_api`, and `desktop_platform_employee_api`
+- added QML architecture guardrails that keep Platform Home, Module Licensing, Organizations, Sites, Departments, and Employees on the platform desktop API boundary while their QML replacements are pending
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`

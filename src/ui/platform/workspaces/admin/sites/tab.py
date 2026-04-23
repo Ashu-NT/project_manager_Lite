@@ -14,11 +14,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.api.desktop.platform import (
+    DesktopApiError,
+    PlatformSiteDesktopApi,
+    SiteCreateCommand,
+    SiteDto,
+    SiteUpdateCommand,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.domain import Site
 from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.org import SiteService
 from src.ui.platform.dialogs.admin.sites.dialogs import SiteEditDialog
 from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.platform.widgets.admin_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
@@ -29,15 +33,16 @@ from src.ui.shared.formatting.ui_config import UIConfig as CFG
 class SiteAdminTab(QWidget):
     def __init__(
         self,
-        site_service: SiteService,
+        *,
+        platform_site_api: PlatformSiteDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._site_service = site_service
+        self._platform_site_api = platform_site_api
         self._user_session = user_session
         self._can_manage_sites = has_permission(self._user_session, "settings.manage")
-        self._rows: list[Site] = []
+        self._rows: list[SiteDto] = []
         self._setup_ui()
         self.reload_sites()
         domain_events.sites_changed.connect(self._on_sites_changed)
@@ -99,18 +104,23 @@ class SiteAdminTab(QWidget):
 
     def reload_sites(self) -> None:
         try:
-            context = self._site_service.get_context_organization()
-            self._rows = self._site_service.list_sites()
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Sites", str(exc))
-            context_label = "-"
-            self._rows = []
+            context_result = self._platform_site_api.get_context()
+            sites_result = self._platform_site_api.list_sites()
         except Exception as exc:
             QMessageBox.critical(self, "Sites", f"Failed to load sites: {exc}")
             context_label = "-"
             self._rows = []
         else:
-            context_label = context.display_name
+            if context_result.ok and context_result.data is not None:
+                context_label = context_result.data.display_name
+            else:
+                self._show_api_error(context_result.error)
+                context_label = "-"
+            if sites_result.ok and sites_result.data is not None:
+                self._rows = list(sites_result.data)
+            else:
+                self._show_api_error(sites_result.error)
+                self._rows = []
         self.table.setRowCount(len(self._rows))
         for row, site in enumerate(self._rows):
             values = (
@@ -136,24 +146,14 @@ class SiteAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._site_service.create_site(
-                    site_code=dlg.site_code,
-                    name=dlg.name,
-                    description=dlg.description,
-                    city=dlg.city,
-                    country=dlg.country,
-                    timezone_name=dlg.timezone_name,
-                    currency_code=dlg.currency_code,
-                    site_type=dlg.site_type,
-                    status=dlg.status,
-                    notes=dlg.notes,
-                    is_active=dlg.is_active,
-                )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Sites", str(exc))
-                continue
+                error = self._create_site_from_dialog(dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Sites", f"Failed to create site: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_sites()
@@ -168,29 +168,17 @@ class SiteAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._site_service.update_site(
-                    site.id,
-                    site_code=dlg.site_code,
-                    name=dlg.name,
-                    description=dlg.description,
-                    city=dlg.city,
-                    country=dlg.country,
-                    timezone_name=dlg.timezone_name,
-                    currency_code=dlg.currency_code,
-                    site_type=dlg.site_type,
-                    status=dlg.status,
-                    notes=dlg.notes,
-                    is_active=dlg.is_active,
-                    expected_version=site.version,
-                )
-            except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Sites", str(exc))
-                if isinstance(exc, ConcurrencyError):
-                    self.reload_sites()
-                    return
-                continue
+                error = self._update_site_from_dialog(site, dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Sites", f"Failed to update site: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category == "conflict":
+                    self.reload_sites()
+                    return
+                if error.category == "validation":
+                    continue
                 return
             break
         self.reload_sites()
@@ -201,20 +189,22 @@ class SiteAdminTab(QWidget):
             QMessageBox.information(self, "Sites", "Please select a site.")
             return
         try:
-            self._site_service.update_site(
-                site.id,
-                is_active=not site.is_active,
-                expected_version=site.version,
+            result = self._platform_site_api.update_site(
+                SiteUpdateCommand(
+                    site_id=site.id,
+                    is_active=not site.is_active,
+                    expected_version=site.version,
+                )
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-            QMessageBox.warning(self, "Sites", str(exc))
-            return
         except Exception as exc:
             QMessageBox.critical(self, "Sites", f"Failed to update site: {exc}")
             return
+        if not result.ok:
+            self._show_api_error(result.error)
+            return
         self.reload_sites()
 
-    def _selected_site(self) -> Site | None:
+    def _selected_site(self) -> SiteDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -227,11 +217,53 @@ class SiteAdminTab(QWidget):
                 return site
         return None
 
-    def _update_header_badges(self, rows: list[Site], *, context_label: str) -> None:
+    def _update_header_badges(self, rows: list[SiteDto], *, context_label: str) -> None:
         active_count = sum(1 for row in rows if row.is_active)
         self.site_context_badge.setText(f"Context: {context_label}")
         self.site_count_badge.setText(f"{len(rows)} sites")
         self.site_active_badge.setText(f"{active_count} active")
+
+    def _create_site_from_dialog(self, dlg: SiteEditDialog) -> DesktopApiError | None:
+        result = self._platform_site_api.create_site(
+            SiteCreateCommand(
+                site_code=dlg.site_code,
+                name=dlg.name,
+                description=dlg.description,
+                city=dlg.city,
+                country=dlg.country,
+                timezone_name=dlg.timezone_name,
+                currency_code=dlg.currency_code,
+                site_type=dlg.site_type,
+                status=dlg.status,
+                notes=dlg.notes,
+                is_active=dlg.is_active,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _update_site_from_dialog(self, site: SiteDto, dlg: SiteEditDialog) -> DesktopApiError | None:
+        result = self._platform_site_api.update_site(
+            SiteUpdateCommand(
+                site_id=site.id,
+                site_code=dlg.site_code,
+                name=dlg.name,
+                description=dlg.description,
+                city=dlg.city,
+                country=dlg.country,
+                timezone_name=dlg.timezone_name,
+                currency_code=dlg.currency_code,
+                site_type=dlg.site_type,
+                status=dlg.status,
+                notes=dlg.notes,
+                is_active=dlg.is_active,
+                expected_version=site.version,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform site API did not return a result."
+        QMessageBox.warning(self, "Sites", message)
 
     def _on_sites_changed(self, _site_id: str) -> None:
         self.reload_sites()
@@ -247,4 +279,3 @@ class SiteAdminTab(QWidget):
 
 
 __all__ = ["SiteAdminTab"]
-

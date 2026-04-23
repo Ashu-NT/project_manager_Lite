@@ -26,6 +26,9 @@ def build_services() -> dict[str, object]:
     desktop_api_registry = build_desktop_api_registry(services)
     services["desktop_api_registry"] = desktop_api_registry
     services["desktop_platform_runtime_api"] = desktop_api_registry.platform_runtime
+    services["desktop_platform_site_api"] = desktop_api_registry.platform_site
+    services["desktop_platform_department_api"] = desktop_api_registry.platform_department
+    services["desktop_platform_employee_api"] = desktop_api_registry.platform_employee
     return services
 
 

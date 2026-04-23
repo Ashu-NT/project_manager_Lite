@@ -13,9 +13,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.org.domain import Employee, EmploymentType
+from src.api.desktop.platform import EmployeeDto
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
+
+EMPLOYMENT_TYPE_CHOICES = ("FULL_TIME", "PART_TIME", "TEMPORARY")
 
 
 def _current_reference_id(combo: QComboBox) -> str | None:
@@ -74,7 +76,7 @@ class EmployeeEditDialog(QDialog):
     def __init__(
         self,
         parent=None,
-        employee: Employee | None = None,
+        employee: EmployeeDto | None = None,
         *,
         department_options: list[tuple[str, str]] | None = None,
         site_options: list[tuple[str, str]] | None = None,
@@ -110,8 +112,11 @@ class EmployeeEditDialog(QDialog):
             combo.setMinimumWidth(CFG.INPUT_MIN_WIDTH)
 
         self.employment_type_combo = QComboBox()
-        for employment_type in EmploymentType:
-            self.employment_type_combo.addItem(employment_type.value.replace("_", " ").title(), userData=employment_type)
+        for employment_type in EMPLOYMENT_TYPE_CHOICES:
+            self.employment_type_combo.addItem(
+                employment_type.replace("_", " ").title(),
+                userData=employment_type,
+            )
         self.employment_type_combo.setSizePolicy(CFG.INPUT_POLICY)
         self.employment_type_combo.setFixedHeight(CFG.INPUT_HEIGHT)
 
@@ -219,8 +224,8 @@ class EmployeeEditDialog(QDialog):
         return self.title_edit.text().strip()
 
     @property
-    def employment_type(self) -> EmploymentType:
-        return self.employment_type_combo.currentData() or EmploymentType.FULL_TIME
+    def employment_type(self) -> str:
+        return self.employment_type_combo.currentData() or "FULL_TIME"
 
     @property
     def email(self) -> str:

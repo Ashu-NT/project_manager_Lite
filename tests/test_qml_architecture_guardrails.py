@@ -12,6 +12,13 @@ LEGACY_PLATFORM_MODULE_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admi
 LEGACY_PLATFORM_ORGANIZATION_TAB = (
     SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "organizations" / "tab.py"
 )
+LEGACY_PLATFORM_SITE_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "sites" / "tab.py"
+LEGACY_PLATFORM_DEPARTMENT_TAB = (
+    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "departments" / "tab.py"
+)
+LEGACY_PLATFORM_EMPLOYEE_TAB = (
+    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "employees" / "tab.py"
+)
 LEGACY_PLATFORM_HOME_TAB = SRC_ROOT / "ui" / "shell" / "platform" / "home.py"
 
 
@@ -127,3 +134,36 @@ def test_legacy_platform_home_uses_desktop_api_boundary() -> None:
     assert "PlatformRuntimeDesktopApi" in text
     assert "PlatformRuntimeApplicationService" not in text
     assert "_platform_runtime_application_service" not in text
+
+
+def test_legacy_platform_sites_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_SITE_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformSiteDesktopApi" in text
+    assert "SiteService" not in text
+    assert "_site_service" not in text
+
+
+def test_legacy_platform_departments_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_DEPARTMENT_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformDepartmentDesktopApi" in text
+    assert "PlatformSiteDesktopApi" in text
+    assert "DepartmentService" not in text
+    assert "SiteService" not in text
+    assert "_department_service" not in text
+    assert "_site_service" not in text
+
+
+def test_legacy_platform_employees_tab_uses_desktop_api_boundary() -> None:
+    text = LEGACY_PLATFORM_EMPLOYEE_TAB.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlatformEmployeeDesktopApi" in text
+    assert "PlatformDepartmentDesktopApi" in text
+    assert "PlatformSiteDesktopApi" in text
+    assert "EmployeeService" not in text
+    assert "DepartmentService" not in text
+    assert "SiteService" not in text
+    assert "_employee_service" not in text
+    assert "_department_service" not in text
+    assert "_site_service" not in text

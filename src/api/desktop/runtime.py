@@ -3,16 +3,25 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from src.api.desktop.platform import PlatformRuntimeDesktopApi
+from src.api.desktop.platform import (
+    PlatformDepartmentDesktopApi,
+    PlatformEmployeeDesktopApi,
+    PlatformRuntimeDesktopApi,
+    PlatformSiteDesktopApi,
+)
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
 )
+from src.core.platform.org import DepartmentService, EmployeeService, SiteService
 
 
 @dataclass(frozen=True)
 class DesktopApiRegistry:
     platform_runtime: PlatformRuntimeDesktopApi
+    platform_site: PlatformSiteDesktopApi
+    platform_department: PlatformDepartmentDesktopApi
+    platform_employee: PlatformEmployeeDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -24,10 +33,26 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     )
     if not isinstance(platform_runtime_application_service, PlatformRuntimeApplicationService):
         raise RuntimeError("Platform runtime application service is not configured.")
+    site_service = services.get("site_service")
+    if not isinstance(site_service, SiteService):
+        raise RuntimeError("Platform site service is not configured.")
+    department_service = services.get("department_service")
+    if not isinstance(department_service, DepartmentService):
+        raise RuntimeError("Platform department service is not configured.")
+    employee_service = services.get("employee_service")
+    if not isinstance(employee_service, EmployeeService):
+        raise RuntimeError("Platform employee service is not configured.")
     return DesktopApiRegistry(
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
-        )
+        ),
+        platform_site=PlatformSiteDesktopApi(site_service=site_service),
+        platform_department=PlatformDepartmentDesktopApi(
+            department_service=department_service,
+        ),
+        platform_employee=PlatformEmployeeDesktopApi(
+            employee_service=employee_service,
+        ),
     )
 
 

@@ -14,11 +14,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.api.desktop.platform import (
+    DepartmentCreateCommand,
+    DepartmentDto,
+    DepartmentLocationReferenceDto,
+    DepartmentUpdateCommand,
+    DesktopApiError,
+    PlatformDepartmentDesktopApi,
+    PlatformSiteDesktopApi,
+    SiteDto,
+)
 from src.core.platform.auth import UserSessionContext
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.domain import Department
 from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.org import DepartmentService, SiteService
 from src.ui.platform.dialogs.admin.departments.dialogs import DepartmentEditDialog
 from src.ui.platform.widgets.admin_header import build_admin_header
 from src.ui.platform.widgets.admin_surface import ToolbarButtonSpec, build_admin_table, build_admin_toolbar_surface
@@ -29,17 +36,20 @@ from src.ui.shared.formatting.ui_config import UIConfig as CFG
 class DepartmentAdminTab(QWidget):
     def __init__(
         self,
-        department_service: DepartmentService,
-        site_service: SiteService | None = None,
+        *,
+        platform_department_api: PlatformDepartmentDesktopApi,
+        platform_site_api: PlatformSiteDesktopApi,
         user_session: UserSessionContext | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
-        self._department_service = department_service
-        self._site_service = site_service
+        self._platform_department_api = platform_department_api
+        self._platform_site_api = platform_site_api
         self._user_session = user_session
         self._can_manage_departments = has_permission(self._user_session, "settings.manage")
-        self._rows: list[Department] = []
+        self._rows: list[DepartmentDto] = []
+        self._sites: list[SiteDto] = []
+        self._locations: list[DepartmentLocationReferenceDto] = []
         self._site_lookup: dict[str, str] = {}
         self._location_lookup: dict[str, str] = {}
         self._setup_ui()
@@ -112,24 +122,30 @@ class DepartmentAdminTab(QWidget):
 
     def reload_departments(self) -> None:
         try:
-            context = self._department_service.get_context_organization()
-            self._rows = self._department_service.list_departments()
-            self._site_lookup = self._load_site_lookup()
-            self._location_lookup = self._load_location_lookup()
-        except BusinessRuleError as exc:
-            QMessageBox.warning(self, "Departments", str(exc))
-            context_label = "-"
-            self._rows = []
-            self._site_lookup = {}
-            self._location_lookup = {}
+            context_result = self._platform_department_api.get_context()
+            departments_result = self._platform_department_api.list_departments()
+            sites_result = self._platform_site_api.list_sites(active_only=True)
+            locations_result = self._platform_department_api.list_location_references(active_only=True)
         except Exception as exc:
             QMessageBox.critical(self, "Departments", f"Failed to load departments: {exc}")
             context_label = "-"
             self._rows = []
+            self._sites = []
+            self._locations = []
             self._site_lookup = {}
             self._location_lookup = {}
         else:
-            context_label = context.display_name
+            context_label = context_result.data.display_name if context_result.ok and context_result.data else "-"
+            if not context_result.ok:
+                self._show_api_error(context_result.error)
+            self._rows = list(departments_result.data or ()) if departments_result.ok else []
+            self._sites = list(sites_result.data or ()) if sites_result.ok else []
+            self._locations = list(locations_result.data or ()) if locations_result.ok else []
+            for result in (departments_result, sites_result, locations_result):
+                if not result.ok:
+                    self._show_api_error(result.error)
+            self._site_lookup = self._load_site_lookup()
+            self._location_lookup = self._load_location_lookup()
         self.table.setRowCount(len(self._rows))
         for row, department in enumerate(self._rows):
             values = (
@@ -161,23 +177,14 @@ class DepartmentAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._department_service.create_department(
-                    department_code=dlg.department_code,
-                    name=dlg.name,
-                    description=dlg.description,
-                    site_id=dlg.site_id,
-                    default_location_id=dlg.default_location_id,
-                    parent_department_id=dlg.parent_department_id,
-                    department_type=dlg.department_type,
-                    cost_center_code=dlg.cost_center_code,
-                    notes=dlg.notes,
-                    is_active=dlg.is_active,
-                )
-            except ValidationError as exc:
-                QMessageBox.warning(self, "Departments", str(exc))
-                continue
+                error = self._create_department_from_dialog(dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Departments", f"Failed to create department: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category in {"validation", "conflict"}:
+                    continue
                 return
             break
         self.reload_departments()
@@ -198,28 +205,17 @@ class DepartmentAdminTab(QWidget):
             if dlg.exec() != QDialog.Accepted:
                 return
             try:
-                self._department_service.update_department(
-                    department.id,
-                    department_code=dlg.department_code,
-                    name=dlg.name,
-                    description=dlg.description,
-                    site_id=dlg.site_id,
-                    default_location_id=dlg.default_location_id,
-                    parent_department_id=dlg.parent_department_id,
-                    department_type=dlg.department_type,
-                    cost_center_code=dlg.cost_center_code,
-                    notes=dlg.notes,
-                    is_active=dlg.is_active,
-                    expected_version=department.version,
-                )
-            except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-                QMessageBox.warning(self, "Departments", str(exc))
-                if isinstance(exc, ConcurrencyError):
-                    self.reload_departments()
-                    return
-                continue
+                error = self._update_department_from_dialog(department, dlg)
             except Exception as exc:
                 QMessageBox.critical(self, "Departments", f"Failed to update department: {exc}")
+                return
+            if error is not None:
+                self._show_api_error(error)
+                if error.category == "conflict":
+                    self.reload_departments()
+                    return
+                if error.category == "validation":
+                    continue
                 return
             break
         self.reload_departments()
@@ -230,20 +226,22 @@ class DepartmentAdminTab(QWidget):
             QMessageBox.information(self, "Departments", "Please select a department.")
             return
         try:
-            self._department_service.update_department(
-                department.id,
-                is_active=not department.is_active,
-                expected_version=department.version,
+            result = self._platform_department_api.update_department(
+                DepartmentUpdateCommand(
+                    department_id=department.id,
+                    is_active=not department.is_active,
+                    expected_version=department.version,
+                )
             )
-        except (ValidationError, NotFoundError, BusinessRuleError, ConcurrencyError) as exc:
-            QMessageBox.warning(self, "Departments", str(exc))
-            return
         except Exception as exc:
             QMessageBox.critical(self, "Departments", f"Failed to update department: {exc}")
             return
+        if not result.ok:
+            self._show_api_error(result.error)
+            return
         self.reload_departments()
 
-    def _selected_department(self) -> Department | None:
+    def _selected_department(self) -> DepartmentDto | None:
         row = self.table.currentRow()
         if row < 0:
             return None
@@ -256,34 +254,70 @@ class DepartmentAdminTab(QWidget):
                 return department
         return None
 
-    def _update_header_badges(self, rows: list[Department], *, context_label: str) -> None:
+    def _update_header_badges(self, rows: list[DepartmentDto], *, context_label: str) -> None:
         active_count = sum(1 for row in rows if row.is_active)
         self.department_context_badge.setText(f"Context: {context_label}")
         self.department_count_badge.setText(f"{len(rows)} departments")
         self.department_active_badge.setText(f"{active_count} active")
 
-    def _available_sites(self):
-        if self._site_service is None:
-            return []
-        try:
-            return self._site_service.list_sites(active_only=True)
-        except BusinessRuleError:
-            return []
+    def _available_sites(self) -> list[SiteDto]:
+        return self._sites
 
     def _load_site_lookup(self) -> dict[str, str]:
         return {site.id: site.site_code for site in self._available_sites()}
 
-    def _available_locations(self):
-        try:
-            return self._department_service.list_available_location_references(active_only=True)
-        except BusinessRuleError:
-            return []
+    def _available_locations(self) -> list[DepartmentLocationReferenceDto]:
+        return self._locations
 
     def _load_location_lookup(self) -> dict[str, str]:
         return {
             row.id: f"{row.location_code} - {row.name}"
             for row in self._available_locations()
         }
+
+    def _create_department_from_dialog(self, dlg: DepartmentEditDialog) -> DesktopApiError | None:
+        result = self._platform_department_api.create_department(
+            DepartmentCreateCommand(
+                department_code=dlg.department_code,
+                name=dlg.name,
+                description=dlg.description,
+                site_id=dlg.site_id,
+                default_location_id=dlg.default_location_id,
+                parent_department_id=dlg.parent_department_id,
+                department_type=dlg.department_type,
+                cost_center_code=dlg.cost_center_code,
+                notes=dlg.notes,
+                is_active=dlg.is_active,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _update_department_from_dialog(
+        self,
+        department: DepartmentDto,
+        dlg: DepartmentEditDialog,
+    ) -> DesktopApiError | None:
+        result = self._platform_department_api.update_department(
+            DepartmentUpdateCommand(
+                department_id=department.id,
+                department_code=dlg.department_code,
+                name=dlg.name,
+                description=dlg.description,
+                site_id=dlg.site_id,
+                default_location_id=dlg.default_location_id,
+                parent_department_id=dlg.parent_department_id,
+                department_type=dlg.department_type,
+                cost_center_code=dlg.cost_center_code,
+                notes=dlg.notes,
+                is_active=dlg.is_active,
+                expected_version=department.version,
+            )
+        )
+        return None if result.ok else result.error
+
+    def _show_api_error(self, error: DesktopApiError | None) -> None:
+        message = error.message if error is not None else "The platform department API did not return a result."
+        QMessageBox.warning(self, "Departments", message)
 
     def _on_departments_changed(self, _department_id: str) -> None:
         self.reload_departments()

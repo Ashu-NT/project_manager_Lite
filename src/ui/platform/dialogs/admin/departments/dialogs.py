@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.org.domain import Department, Site
+from src.api.desktop.platform import DepartmentDto, DepartmentLocationReferenceDto, SiteDto
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -21,11 +21,11 @@ class DepartmentEditDialog(QDialog):
     def __init__(
         self,
         parent=None,
-        department: Department | None = None,
+        department: DepartmentDto | None = None,
         *,
-        sites: list[Site] | None = None,
-        parent_departments: list[Department] | None = None,
-        location_options: list[object] | None = None,
+        sites: list[SiteDto] | None = None,
+        parent_departments: list[DepartmentDto] | None = None,
+        location_options: list[DepartmentLocationReferenceDto] | None = None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Department" + (" - Edit" if department else " - New"))

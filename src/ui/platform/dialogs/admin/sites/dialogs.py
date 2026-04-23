@@ -11,13 +11,13 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.core.platform.org.domain import Site
+from src.api.desktop.platform import SiteDto
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
 class SiteEditDialog(QDialog):
-    def __init__(self, parent=None, site: Site | None = None):
+    def __init__(self, parent=None, site: SiteDto | None = None):
         super().__init__(parent)
         self.setWindowTitle("Site" + (" - Edit" if site else " - New"))
 
