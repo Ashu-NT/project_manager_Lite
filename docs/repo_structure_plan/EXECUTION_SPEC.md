@@ -525,6 +525,7 @@ Platform QML route status as of 2026-04-24:
 - `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` is the control QML landing zone
 - `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` is the settings QML landing zone
 - `src/ui_qml/platform/context.py` exposes `platformWorkspaceCatalog` for platform QML binding
+- `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,plugins.qmltypes}` plus `src/ui_qml/platform/qml_type_registration.py` now expose typed platform controller classes to QML tooling and runtime
 - `src/ui_qml/platform/presenters/runtime_presenter.py` consumes `src.api.desktop.platform.PlatformRuntimeDesktopApi`
 - `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py` now compose grouped platform admin/control/settings overview state from split platform desktop APIs
 - `src/ui_qml/platform/view_models/{runtime,workspace}.py` defines QML-safe platform runtime and grouped workspace overview view models
@@ -583,7 +584,7 @@ QML architecture guardrail status as of 2026-04-24:
 - QML files must not use parent-relative import paths; named-module imports are now enforced for reusable QML
 - these guardrails must pass before wiring real QML screens to module desktop APIs
 - registered QML routes must continue loading offscreen before any old Widget screen is deleted
-- the latest broader QML verification batch passes with `59 passed`, the focused platform/QML batch passes with `46 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
+- the latest broader QML verification batch passes with `61 passed`, the focused platform/QML batch passes with `48 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
 
 ## API Refactor Rule
 
@@ -763,6 +764,7 @@ Completed:
 - `src/ui_qml/platform/access_workspace_state.py`, `src/ui_qml/platform/presenters/access_workspace_presenter.py`, and `src/ui_qml/platform/qml/Platform/Widgets/AccessSecurityPanel.qml` now move scoped access and account-security workflows onto the QML side through a separate controller-owned state surface
 - `src/ui_qml/platform/qml/Platform/Dialogs/{ApprovalDecisionDialog,ModuleLifecycleDialog}.qml` now provide QML-side decision-note and lifecycle selection flows, and `RecordListCard.qml` now exposes a tertiary action slot so those workflows do not force page-specific list widgets
 - `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` now routes approve/reject through `approveRequestWithNote()` and `rejectRequestWithNote()`, while `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` now routes lifecycle changes through `changeModuleLifecycleStatus()`
+- `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,plugins.qmltypes}` plus `src/ui_qml/platform/qml_type_registration.py` now provide typed runtime/tooling registration for `PlatformWorkspaceCatalog`, `PlatformAdminWorkspaceController`, `PlatformAdminAccessWorkspaceController`, `PlatformControlWorkspaceController`, and `PlatformSettingsWorkspaceController`, and the active platform QML files no longer declare controller properties as generic `QtObject`
 - support and document preview/link/structure management remain on the Widget side for now; do not delete those Widget files yet
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`

@@ -15,14 +15,14 @@ from src.ui_qml.platform.presenters.party_catalog_presenter import PlatformParty
 from src.ui_qml.platform.presenters.site_catalog_presenter import PlatformSiteCatalogPresenter
 from src.ui_qml.platform.presenters.user_catalog_presenter import PlatformUserCatalogPresenter
 from src.ui_qml.platform.workspace_state import (
-    _BasePlatformWorkspaceController,
+    PlatformWorkspaceControllerBase,
     serialize_action_list,
     serialize_operation_result,
     serialize_workspace_overview,
 )
 
 
-class PlatformAdminWorkspaceController(_BasePlatformWorkspaceController):
+class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     organizationsChanged = Signal()
     sitesChanged = Signal()
     departmentsChanged = Signal()

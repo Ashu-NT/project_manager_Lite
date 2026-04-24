@@ -6,13 +6,13 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.platform.presenters.access_workspace_presenter import PlatformAccessWorkspacePresenter
 from src.ui_qml.platform.workspace_state import (
-    _BasePlatformWorkspaceController,
+    PlatformWorkspaceControllerBase,
     serialize_action_list,
     serialize_operation_result,
 )
 
 
-class PlatformAdminAccessWorkspaceController(_BasePlatformWorkspaceController):
+class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
     scopeTypeOptionsChanged = Signal()
     selectedScopeTypeChanged = Signal()
     scopeOptionsChanged = Signal()

@@ -4,22 +4,26 @@ import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
+import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Dialogs 1.0 as PlatformDialogs
 import Platform.Widgets 1.0 as PlatformWidgets
 
 AppLayouts.WorkspaceFrame {
-    property var workspaceModel: platformWorkspaceCatalog
-        ? platformWorkspaceCatalog.workspace("platform.admin")
+    id: root
+
+    property PlatformControllers.PlatformWorkspaceCatalog platformCatalog: platformWorkspaceCatalog
+    property var workspaceModel: root.platformCatalog
+        ? root.platformCatalog.workspace("platform.admin")
         : ({
             "routeId": "platform.admin",
             "title": "Admin Console",
             "summary": ""
         })
-    property QtObject workspaceController: platformWorkspaceCatalog
-        ? platformWorkspaceCatalog.adminWorkspace
+    property PlatformControllers.PlatformAdminWorkspaceController workspaceController: root.platformCatalog
+        ? root.platformCatalog.adminWorkspace
         : null
-    property QtObject accessController: platformWorkspaceCatalog
-        ? platformWorkspaceCatalog.adminAccessWorkspace
+    property PlatformControllers.PlatformAdminAccessWorkspaceController accessController: root.platformCatalog
+        ? root.platformCatalog.adminAccessWorkspace
         : null
     property var organizationCatalog: workspaceController
         ? workspaceController.organizations

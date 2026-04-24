@@ -5,7 +5,6 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.platform.presenters import (
-    PlatformAdminWorkspacePresenter,
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
     PlatformSettingsCatalogPresenter,
@@ -89,7 +88,7 @@ def serialize_operation_result(
     }
 
 
-class _BasePlatformWorkspaceController(QObject):
+class PlatformWorkspaceControllerBase(QObject):
     overviewChanged = Signal()
     isLoadingChanged = Signal()
     isBusyChanged = Signal()
@@ -188,30 +187,7 @@ class _BasePlatformWorkspaceController(QObject):
         self._operation_result = value
         self.operationResultChanged.emit()
 
-
-class PlatformAdminWorkspaceController(_BasePlatformWorkspaceController):
-    def __init__(
-        self,
-        *,
-        presenter: PlatformAdminWorkspacePresenter,
-        parent: QObject | None = None,
-    ) -> None:
-        super().__init__(parent)
-        self._presenter = presenter
-        self.refresh()
-
-    @Slot()
-    def refresh(self) -> None:
-        self._set_is_loading(True)
-        self._set_error_message("")
-        overview = serialize_workspace_overview(self._presenter.build_overview())
-        self._set_overview(overview)
-        has_content = bool(overview.get("metrics") or overview.get("sections"))
-        self._set_empty_state("" if has_content else "No platform administration data is available yet.")
-        self._set_is_loading(False)
-
-
-class PlatformControlWorkspaceController(_BasePlatformWorkspaceController):
+class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     approvalQueueChanged = Signal()
     auditFeedChanged = Signal()
 
@@ -361,7 +337,7 @@ class PlatformControlWorkspaceController(_BasePlatformWorkspaceController):
         self.auditFeedChanged.emit()
 
 
-class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
+class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
     moduleEntitlementsChanged = Signal()
     organizationProfilesChanged = Signal()
     lifecycleOptionsChanged = Signal()
@@ -551,7 +527,7 @@ class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
 
 
 __all__ = [
-    "PlatformAdminWorkspaceController",
+    "PlatformWorkspaceControllerBase",
     "PlatformControlWorkspaceController",
     "PlatformSettingsWorkspaceController",
     "serialize_action_item",

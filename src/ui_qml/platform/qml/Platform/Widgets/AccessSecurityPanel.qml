@@ -3,11 +3,12 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import Platform.Controllers 1.0 as PlatformControllers
 
 ColumnLayout {
     id: root
 
-    property QtObject controller: null
+    property PlatformControllers.PlatformAdminAccessWorkspaceController controller: null
 
     function indexOfOption(options, value) {
         for (let index = 0; index < options.length; index += 1) {
@@ -55,10 +56,10 @@ ColumnLayout {
         }
 
         Button {
-            enabled: root.controller ? !root.controller.isBusy : false
+            enabled: root.controller !== null ? !root.controller.isBusy : false
             text: "Refresh"
             onClicked: {
-                if (root.controller) {
+                if (root.controller !== null) {
                     root.controller.refresh()
                 }
             }
@@ -67,10 +68,10 @@ ColumnLayout {
 
     WorkspaceStateBanner {
         Layout.fillWidth: true
-        isLoading: root.controller ? root.controller.isLoading : false
-        isBusy: root.controller ? root.controller.isBusy : false
-        errorMessage: root.controller ? root.controller.errorMessage : ""
-        feedbackMessage: root.controller ? root.controller.feedbackMessage : ""
+        isLoading: root.controller !== null ? root.controller.isLoading : false
+        isBusy: root.controller !== null ? root.controller.isBusy : false
+        errorMessage: root.controller !== null ? root.controller.errorMessage : ""
+        feedbackMessage: root.controller !== null ? root.controller.feedbackMessage : ""
     }
 
     Rectangle {
@@ -95,15 +96,15 @@ ColumnLayout {
                     id: scopeTypeCombo
 
                     Layout.fillWidth: true
-                    enabled: root.controller ? !root.controller.isBusy : false
-                    model: root.controller ? root.controller.scopeTypeOptions : []
+                    enabled: root.controller !== null ? !root.controller.isBusy : false
+                    model: root.controller !== null ? root.controller.scopeTypeOptions : []
                     textRole: "label"
                     currentIndex: root.indexOfOption(
-                        root.controller ? root.controller.scopeTypeOptions : [],
-                        root.controller ? root.controller.selectedScopeType : ""
+                        root.controller !== null ? root.controller.scopeTypeOptions : [],
+                        root.controller !== null ? root.controller.selectedScopeType : ""
                     )
                     onActivated: {
-                        if (root.controller) {
+                        if (root.controller !== null) {
                             root.controller.setScopeType(root.optionValue(root.controller.scopeTypeOptions, currentIndex))
                         }
                     }
@@ -113,15 +114,15 @@ ColumnLayout {
                     id: scopeCombo
 
                     Layout.fillWidth: true
-                    enabled: root.controller ? !root.controller.isBusy : false
-                    model: root.controller ? root.controller.scopeOptions : []
+                    enabled: root.controller !== null ? !root.controller.isBusy : false
+                    model: root.controller !== null ? root.controller.scopeOptions : []
                     textRole: "label"
                     currentIndex: root.indexOfOption(
-                        root.controller ? root.controller.scopeOptions : [],
-                        root.controller ? root.controller.selectedScopeId : ""
+                        root.controller !== null ? root.controller.scopeOptions : [],
+                        root.controller !== null ? root.controller.selectedScopeId : ""
                     )
                     onActivated: {
-                        if (root.controller) {
+                        if (root.controller !== null) {
                             root.controller.setScopeId(root.optionValue(root.controller.scopeOptions, currentIndex))
                         }
                     }
@@ -131,15 +132,15 @@ ColumnLayout {
                     id: userCombo
 
                     Layout.fillWidth: true
-                    enabled: root.controller ? !root.controller.isBusy : false
-                    model: root.controller ? root.controller.userOptions : []
+                    enabled: root.controller !== null ? !root.controller.isBusy : false
+                    model: root.controller !== null ? root.controller.userOptions : []
                     textRole: "label"
                     currentIndex: root.indexOfOption(
-                        root.controller ? root.controller.userOptions : [],
-                        root.controller ? root.controller.selectedUserId : ""
+                        root.controller !== null ? root.controller.userOptions : [],
+                        root.controller !== null ? root.controller.selectedUserId : ""
                     )
                     onActivated: {
-                        if (root.controller) {
+                        if (root.controller !== null) {
                             root.controller.setSelectedUserId(root.optionValue(root.controller.userOptions, currentIndex))
                         }
                     }
@@ -149,25 +150,25 @@ ColumnLayout {
                     id: roleCombo
 
                     Layout.fillWidth: true
-                    enabled: root.controller ? !root.controller.isBusy : false
-                    model: root.controller ? root.controller.roleOptions : []
+                    enabled: root.controller !== null ? !root.controller.isBusy : false
+                    model: root.controller !== null ? root.controller.roleOptions : []
                     textRole: "label"
                     currentIndex: root.indexOfOption(
-                        root.controller ? root.controller.roleOptions : [],
-                        root.controller ? root.controller.selectedRole : ""
+                        root.controller !== null ? root.controller.roleOptions : [],
+                        root.controller !== null ? root.controller.selectedRole : ""
                     )
                     onActivated: {
-                        if (root.controller) {
+                        if (root.controller !== null) {
                             root.controller.setSelectedRole(root.optionValue(root.controller.roleOptions, currentIndex))
                         }
                     }
                 }
 
                 AppControls.PrimaryButton {
-                    enabled: root.controller ? !root.controller.isBusy : false
+                    enabled: root.controller !== null ? !root.controller.isBusy : false
                     text: "Assign"
                     onClicked: {
-                        if (root.controller) {
+                        if (root.controller !== null) {
                             root.controller.assignMembership()
                         }
                     }
@@ -176,7 +177,7 @@ ColumnLayout {
 
             Label {
                 Layout.fillWidth: true
-                text: root.controller ? root.controller.scopeHint : ""
+                text: root.controller !== null ? root.controller.scopeHint : ""
                 color: Theme.AppTheme.textSecondary
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize
@@ -193,14 +194,14 @@ ColumnLayout {
 
         RecordListCard {
             Layout.fillWidth: true
-            title: root.controller ? (root.controller.scopeGrants.title || "Scoped Access") : "Scoped Access"
-            subtitle: root.controller ? (root.controller.scopeGrants.subtitle || "") : ""
-            emptyState: root.controller ? (root.controller.scopeGrants.emptyState || "") : ""
-            items: root.controller ? (root.controller.scopeGrants.items || []) : []
-            actionsEnabled: root.controller ? !root.controller.isBusy : false
+            title: root.controller !== null ? (root.controller.scopeGrants.title || "Scoped Access") : "Scoped Access"
+            subtitle: root.controller !== null ? (root.controller.scopeGrants.subtitle || "") : ""
+            emptyState: root.controller !== null ? (root.controller.scopeGrants.emptyState || "") : ""
+            items: root.controller !== null ? (root.controller.scopeGrants.items || []) : []
+            actionsEnabled: root.controller !== null ? !root.controller.isBusy : false
             primaryActionLabel: "Remove"
             onPrimaryActionRequested: function(itemId) {
-                if (root.controller) {
+                if (root.controller !== null) {
                     root.controller.removeMembership(itemId)
                 }
             }
@@ -208,22 +209,22 @@ ColumnLayout {
 
         RecordListCard {
             Layout.fillWidth: true
-            title: root.controller ? (root.controller.securityUsers.title || "Security") : "Security"
-            subtitle: root.controller ? (root.controller.securityUsers.subtitle || "") : ""
-            emptyState: root.controller ? (root.controller.securityUsers.emptyState || "") : ""
-            items: root.controller ? (root.controller.securityUsers.items || []) : []
-            actionsEnabled: root.controller ? !root.controller.isBusy : false
+            title: root.controller !== null ? (root.controller.securityUsers.title || "Security") : "Security"
+            subtitle: root.controller !== null ? (root.controller.securityUsers.subtitle || "") : ""
+            emptyState: root.controller !== null ? (root.controller.securityUsers.emptyState || "") : ""
+            items: root.controller !== null ? (root.controller.securityUsers.items || []) : []
+            actionsEnabled: root.controller !== null ? !root.controller.isBusy : false
             primaryActionLabel: "Unlock"
             secondaryActionLabel: "Revoke Sessions"
 
             onPrimaryActionRequested: function(itemId) {
-                if (root.controller) {
+                if (root.controller !== null) {
                     root.controller.unlockUser(itemId)
                 }
             }
 
             onSecondaryActionRequested: function(itemId) {
-                if (root.controller) {
+                if (root.controller !== null) {
                     root.controller.revokeSessions(itemId)
                 }
             }

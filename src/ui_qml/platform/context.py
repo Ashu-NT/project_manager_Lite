@@ -102,20 +102,20 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._route_by_id = {route.route_id: route for route in build_platform_routes()}
 
-    @Property(QObject, constant=True)
-    def adminWorkspace(self) -> QObject:
+    @Property(PlatformAdminWorkspaceController, constant=True)
+    def adminWorkspace(self) -> PlatformAdminWorkspaceController:
         return self._admin_workspace
 
-    @Property(QObject, constant=True)
-    def adminAccessWorkspace(self) -> QObject:
+    @Property(PlatformAdminAccessWorkspaceController, constant=True)
+    def adminAccessWorkspace(self) -> PlatformAdminAccessWorkspaceController:
         return self._admin_access_workspace
 
-    @Property(QObject, constant=True)
-    def controlWorkspace(self) -> QObject:
+    @Property(PlatformControlWorkspaceController, constant=True)
+    def controlWorkspace(self) -> PlatformControlWorkspaceController:
         return self._control_workspace
 
-    @Property(QObject, constant=True)
-    def settingsWorkspace(self) -> QObject:
+    @Property(PlatformSettingsWorkspaceController, constant=True)
+    def settingsWorkspace(self) -> PlatformSettingsWorkspaceController:
         return self._settings_workspace
 
     @Slot(str, result="QVariantMap")

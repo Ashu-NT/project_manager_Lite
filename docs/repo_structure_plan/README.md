@@ -57,6 +57,7 @@ QML scaffold status:
 - platform QML workspaces now bind through `platformWorkspaceCatalog`, which is backed by `src/api/desktop/platform/*` when a desktop API registry is connected
 - platform QML admin/control/settings workspaces now render grouped presenter-backed overviews, using split platform desktop APIs for runtime, organization master data, approvals, and audit flows
 - platform admin/control/settings now bind through controller-owned workspace state in `src/ui_qml/platform/workspace_state.py`; QML pages no longer own `refreshWorkspace()` orchestration or page-local feedback state
+- platform controller types are now exposed to QML through the typed module `src/ui_qml/platform/qml/Platform/Controllers/*`, with runtime registration in `src/ui_qml/platform/qml_type_registration.py`; workspace pages no longer declare controller objects as generic `QtObject`
 - platform `admin` now uses a dedicated `src/ui_qml/platform/admin_workspace_state.py` controller plus split catalog presenters for organizations, sites, departments, employees, users, parties, and documents
 - platform `admin` now exposes real QML organization/site/department/employee/user/party/document panels with controller-owned create, edit, toggle-active, set-active, role, and password-reset orchestration through `src/api/desktop/platform/*`
 - platform `admin` now also exposes scoped access and account-security workflows through `src/ui_qml/platform/access_workspace_state.py`, `src/ui_qml/platform/presenters/access_workspace_presenter.py`, and `src/ui_qml/platform/qml/Platform/Widgets/AccessSecurityPanel.qml`
@@ -87,7 +88,7 @@ QML scaffold status:
 - focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
 - focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
 - automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
-- the latest broader QML verification batch passes with `59 passed`, the focused platform/QML batch passes with `46 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
+- the latest broader QML verification batch passes with `61 passed`, the focused platform/QML batch passes with `48 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
 
 ## Core Rule
 
@@ -1726,6 +1727,7 @@ Completed in the clean/no-facade execution:
 - added `src/ui_qml/platform/access_workspace_state.py`, `src/ui_qml/platform/presenters/access_workspace_presenter.py`, and `src/ui_qml/platform/qml/Platform/Widgets/AccessSecurityPanel.qml` so `platform.admin` now owns scoped access grants and account-security actions through a separate controller instead of growing `admin_workspace_state.py` into another dump file
 - upgraded `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` with `ApprovalDecisionDialog.qml` and controller-owned `approveRequestWithNote()` / `rejectRequestWithNote()` flows so approval decision notes now live on the QML side
 - upgraded `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` with `ModuleLifecycleDialog.qml`, controller-owned lifecycle options, and `changeModuleLifecycleStatus()` so module lifecycle changes now live on the QML side without putting lifecycle rules into QML
+- added `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,plugins.qmltypes}` plus `src/ui_qml/platform/qml_type_registration.py`, typed `PlatformWorkspaceCatalog` controller properties in `src/ui_qml/platform/context.py`, and rewired the active platform QML pages/widgets to consume typed controller properties instead of generic `QtObject`
 - kept support and document preview/link/structure management on the legacy QWidget side for now; those workflows are still pending before old Widget files can be deleted
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`

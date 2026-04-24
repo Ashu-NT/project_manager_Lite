@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+import shutil
+import subprocess
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -137,6 +139,56 @@ def test_qml_files_do_not_use_parent_relative_imports() -> None:
                 violations.append(f"{path.relative_to(ROOT)}:{lineno}")
 
     assert not violations, f"QML files use parent relative imports: {violations}"
+
+
+def test_qml_workspace_controller_properties_use_typed_controller_types() -> None:
+    violations: list[str] = []
+
+    for path in UI_QML_ROOT.rglob("*.qml"):
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8", errors="ignore").splitlines(),
+            start=1,
+        ):
+            stripped = line.strip()
+            if not stripped.startswith("property QtObject "):
+                continue
+            if "controller" in stripped.lower():
+                violations.append(f"{path.relative_to(ROOT)}:{lineno}:{stripped}")
+
+    assert not violations, f"QML controller properties still use generic QtObject: {violations}"
+
+
+def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
+    qmllint_path = shutil.which("pyside6-qmllint")
+    if qmllint_path is None:
+        return
+
+    import_paths = [
+        str(UI_QML_ROOT / "shared" / "qml"),
+        str(UI_QML_ROOT / "platform" / "qml"),
+        str(UI_QML_ROOT / "modules" / "project_management" / "qml"),
+    ]
+    targets = [
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "admin" / "AdminWorkspace.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "control" / "ControlWorkspace.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "settings" / "SettingsWorkspace.qml",
+        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Widgets" / "AccessSecurityPanel.qml",
+    ]
+    command = [qmllint_path]
+    for import_path in import_paths:
+        command.extend(["-I", import_path])
+    command.extend(str(path) for path in targets)
+
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(ROOT),
+    )
+    output = "\n".join(part for part in (result.stdout, result.stderr) if part)
+
+    assert 'type "QObject"' not in output, output
 
 
 def test_legacy_platform_modules_tab_uses_desktop_api_boundary() -> None:

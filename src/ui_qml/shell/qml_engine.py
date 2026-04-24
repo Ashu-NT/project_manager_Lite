@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 from PySide6.QtQml import QQmlApplicationEngine
 
+from src.ui_qml.platform.qml_type_registration import register_platform_qml_types
 
 UI_QML_ROOT = Path(__file__).resolve().parents[1]
 QML_IMPORT_ROOTS = (
@@ -14,6 +15,7 @@ QML_IMPORT_ROOTS = (
 
 
 def create_qml_engine() -> QQmlApplicationEngine:
+    register_platform_qml_types()
     engine = QQmlApplicationEngine()
     for import_root in QML_IMPORT_ROOTS:
         if import_root.exists():
