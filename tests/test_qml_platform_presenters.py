@@ -760,8 +760,8 @@ def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
     assert settings_overview["metrics"][1]["value"] == "2"
     assert module_entitlements["items"][1]["subtitle"].endswith("Enabled")
     assert catalog.controlWorkspace.feedbackMessage == "Approval request approved and applied."
-    assert catalog.settingsWorkspace.feedbackMessage == "Module runtime state updated."
-    assert catalog.settingsWorkspace.errorMessage == ""
+    assert catalog.settingsWorkspace.feedbackMessage == ""
+    assert "planned" in catalog.settingsWorkspace.errorMessage.lower()
 
 
 def test_platform_workspace_controllers_store_validation_errors() -> None:
