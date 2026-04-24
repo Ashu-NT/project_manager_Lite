@@ -9,9 +9,11 @@ from src.api.desktop.platform.models import (
     ApprovalStatus,
     AuditLogEntryDto,
     DepartmentDto,
+    DepartmentLocationReferenceDto,
     DesktopApiError,
     DesktopApiResult,
     DocumentDto,
+    DocumentStructureDto,
     EmployeeDto,
     ModuleDto,
     ModuleEntitlementDto,
@@ -19,6 +21,7 @@ from src.api.desktop.platform.models import (
     PartyDto,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
+    RoleDto,
     SiteDto,
     UserDto,
 )
@@ -31,6 +34,7 @@ def _organization(
     organization_id: str,
     code: str,
     display_name: str,
+    is_active: bool = True,
 ) -> OrganizationDto:
     return OrganizationDto(
         id=organization_id,
@@ -38,7 +42,7 @@ def _organization(
         display_name=display_name,
         timezone_name="UTC",
         base_currency="EUR",
-        is_active=True,
+        is_active=is_active,
         version=1,
     )
 
@@ -62,10 +66,15 @@ def _module(
 
 class _FakePlatformRuntimeApi:
     def __init__(self) -> None:
-        self._organizations = (
+        self._organizations: list[OrganizationDto] = [
             _organization(organization_id="org-1", code="ORG", display_name="TechAsh"),
-            _organization(organization_id="org-2", code="OPS", display_name="Operations"),
-        )
+            _organization(
+                organization_id="org-2",
+                code="OPS",
+                display_name="Operations",
+                is_active=False,
+            ),
+        ]
         self._modules = (
             _module(code="project_management", label="Project Management", description="Projects"),
             _module(code="maintenance", label="Maintenance", description="Assets"),
@@ -118,10 +127,11 @@ class _FakePlatformRuntimeApi:
         self._rebuild_runtime_context()
 
     def _rebuild_runtime_context(self) -> None:
+        active_organization = next((row for row in self._organizations if row.is_active), None)
         self._runtime_context = PlatformRuntimeContextDto(
             context_label="Enterprise Runtime",
             shell_summary="2 modules licensed",
-            active_organization=self._organizations[0],
+            active_organization=active_organization,
             platform_capabilities=(
                 PlatformCapabilityDto(
                     code="approval",
@@ -145,10 +155,92 @@ class _FakePlatformRuntimeApi:
         *,
         active_only: bool | None = None,
     ) -> DesktopApiResult[tuple[OrganizationDto, ...]]:
-        return DesktopApiResult(ok=True, data=self._organizations)
+        rows = self._organizations
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        return DesktopApiResult(ok=True, data=tuple(rows))
 
     def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
         return DesktopApiResult(ok=True, data=self._modules)
+
+    def provision_organization(self, command) -> DesktopApiResult[OrganizationDto]:
+        if any(row.organization_code == command.organization_code for row in self._organizations):
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="organization_exists",
+                    message=f"Organization code '{command.organization_code}' already exists.",
+                    category="conflict",
+                ),
+            )
+        if command.is_active:
+            self._organizations = [replace(row, is_active=False) for row in self._organizations]
+        organization = OrganizationDto(
+            id=f"org-{len(self._organizations) + 1}",
+            organization_code=command.organization_code,
+            display_name=command.display_name,
+            timezone_name=command.timezone_name,
+            base_currency=command.base_currency,
+            is_active=command.is_active,
+            version=1,
+        )
+        self._organizations.append(organization)
+        self._rebuild_runtime_context()
+        return DesktopApiResult(ok=True, data=organization)
+
+    def update_organization(self, command) -> DesktopApiResult[OrganizationDto]:
+        for index, row in enumerate(self._organizations):
+            if row.id != command.organization_id:
+                continue
+            if command.is_active:
+                self._organizations = [
+                    replace(existing, is_active=False)
+                    if existing.id != command.organization_id
+                    else existing
+                    for existing in self._organizations
+                ]
+                row = self._organizations[index]
+            updated = replace(
+                row,
+                organization_code=command.organization_code or row.organization_code,
+                display_name=command.display_name or row.display_name,
+                timezone_name=command.timezone_name or row.timezone_name,
+                base_currency=command.base_currency or row.base_currency,
+                is_active=row.is_active if command.is_active is None else command.is_active,
+                version=row.version + 1,
+            )
+            self._organizations[index] = updated
+            self._rebuild_runtime_context()
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="organization_not_found",
+                message=f"Organization '{command.organization_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+    def set_active_organization(self, organization_id: str) -> DesktopApiResult[OrganizationDto]:
+        updated: OrganizationDto | None = None
+        next_rows: list[OrganizationDto] = []
+        for row in self._organizations:
+            new_row = replace(row, is_active=row.id == organization_id)
+            next_rows.append(new_row)
+            if new_row.id == organization_id:
+                updated = new_row
+        if updated is None:
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="organization_not_found",
+                    message=f"Organization '{organization_id}' was not found.",
+                    category="not_found",
+                ),
+            )
+        self._organizations = next_rows
+        self._rebuild_runtime_context()
+        return DesktopApiResult(ok=True, data=updated)
 
     def patch_module_state(self, command) -> DesktopApiResult[ModuleEntitlementDto]:
         for index, entitlement in enumerate(self._entitlements):
@@ -183,6 +275,581 @@ class _FakePlatformRuntimeApi:
             error=DesktopApiError(
                 code="module_not_found",
                 message=f"Module '{command.module_code}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformSiteApi:
+    def __init__(self, *, runtime_api: _FakePlatformRuntimeApi, rows: tuple[SiteDto, ...]) -> None:
+        self._runtime_api = runtime_api
+        self._rows = list(rows)
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
+
+    def list_sites(self, *, active_only: bool | None = None) -> DesktopApiResult[tuple[SiteDto, ...]]:
+        rows = self._rows
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def create_site(self, command) -> DesktopApiResult[SiteDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
+        site = SiteDto(
+            id=f"site-{len(self._rows) + 1}",
+            organization_id=active_organization.id if active_organization is not None else "org-1",
+            site_code=command.site_code,
+            name=command.name,
+            description=command.description,
+            country=command.country,
+            region="",
+            city=command.city,
+            address_line_1="",
+            address_line_2="",
+            postal_code="",
+            timezone=command.timezone_name,
+            currency_code=command.currency_code,
+            site_type=command.site_type,
+            status=command.status,
+            default_calendar_id="",
+            default_language="en",
+            is_active=command.is_active,
+            notes=command.notes,
+            version=1,
+        )
+        self._rows.append(site)
+        return DesktopApiResult(ok=True, data=site)
+
+    def update_site(self, command) -> DesktopApiResult[SiteDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != command.site_id:
+                continue
+            updated = replace(
+                row,
+                site_code=command.site_code or row.site_code,
+                name=command.name or row.name,
+                description=row.description if command.description is None else command.description,
+                city=row.city if command.city is None else command.city,
+                country=row.country if command.country is None else command.country,
+                timezone=row.timezone if command.timezone_name is None else command.timezone_name,
+                currency_code=row.currency_code if command.currency_code is None else command.currency_code,
+                site_type=row.site_type if command.site_type is None else command.site_type,
+                status=row.status if command.status is None else command.status,
+                notes=row.notes if command.notes is None else command.notes,
+                is_active=row.is_active if command.is_active is None else command.is_active,
+                version=row.version + 1,
+            )
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="site_not_found",
+                message=f"Site '{command.site_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformDepartmentApi:
+    def __init__(
+        self,
+        *,
+        runtime_api: _FakePlatformRuntimeApi,
+        site_api: _FakePlatformSiteApi,
+        rows: tuple[DepartmentDto, ...],
+        location_rows: tuple[DepartmentLocationReferenceDto, ...],
+    ) -> None:
+        self._runtime_api = runtime_api
+        self._site_api = site_api
+        self._rows = list(rows)
+        self._location_rows = list(location_rows)
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
+
+    def list_departments(
+        self,
+        *,
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[tuple[DepartmentDto, ...]]:
+        rows = self._rows
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def list_location_references(
+        self,
+        *,
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[tuple[DepartmentLocationReferenceDto, ...]]:
+        rows = self._location_rows
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def create_department(self, command) -> DesktopApiResult[DepartmentDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
+        department = DepartmentDto(
+            id=f"dep-{len(self._rows) + 1}",
+            organization_id=active_organization.id if active_organization is not None else "org-1",
+            department_code=command.department_code,
+            name=command.name,
+            description=command.description,
+            site_id=command.site_id,
+            default_location_id=command.default_location_id,
+            parent_department_id=command.parent_department_id,
+            department_type=command.department_type,
+            cost_center_code=command.cost_center_code,
+            manager_employee_id=None,
+            is_active=command.is_active,
+            notes=command.notes,
+            version=1,
+        )
+        self._rows.append(department)
+        return DesktopApiResult(ok=True, data=department)
+
+    def update_department(self, command) -> DesktopApiResult[DepartmentDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != command.department_id:
+                continue
+            updated = replace(
+                row,
+                department_code=command.department_code or row.department_code,
+                name=command.name or row.name,
+                description=row.description if command.description is None else command.description,
+                site_id=row.site_id if command.site_id is None else command.site_id,
+                default_location_id=(
+                    row.default_location_id
+                    if command.default_location_id is None
+                    else command.default_location_id
+                ),
+                parent_department_id=(
+                    row.parent_department_id
+                    if command.parent_department_id is None
+                    else command.parent_department_id
+                ),
+                department_type=row.department_type if command.department_type is None else command.department_type,
+                cost_center_code=(
+                    row.cost_center_code
+                    if command.cost_center_code is None
+                    else command.cost_center_code
+                ),
+                is_active=row.is_active if command.is_active is None else command.is_active,
+                notes=row.notes if command.notes is None else command.notes,
+                version=row.version + 1,
+            )
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="department_not_found",
+                message=f"Department '{command.department_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformEmployeeApi:
+    def __init__(self, rows: tuple[EmployeeDto, ...]) -> None:
+        self._rows = list(rows)
+
+    def list_employees(
+        self,
+        *,
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[tuple[EmployeeDto, ...]]:
+        rows = self._rows
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def create_employee(self, command) -> DesktopApiResult[EmployeeDto]:
+        employee = EmployeeDto(
+            id=f"emp-{len(self._rows) + 1}",
+            employee_code=command.employee_code,
+            full_name=command.full_name,
+            department_id=command.department_id,
+            department=command.department,
+            site_id=command.site_id,
+            site_name=command.site_name,
+            title=command.title,
+            employment_type=command.employment_type,
+            email=command.email,
+            phone=command.phone,
+            is_active=command.is_active,
+            version=1,
+        )
+        self._rows.append(employee)
+        return DesktopApiResult(ok=True, data=employee)
+
+    def update_employee(self, command) -> DesktopApiResult[EmployeeDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != command.employee_id:
+                continue
+            updated = replace(
+                row,
+                employee_code=command.employee_code or row.employee_code,
+                full_name=command.full_name or row.full_name,
+                department_id=row.department_id if command.department_id is None else command.department_id,
+                department=row.department if command.department is None else command.department,
+                site_id=row.site_id if command.site_id is None else command.site_id,
+                site_name=row.site_name if command.site_name is None else command.site_name,
+                title=row.title if command.title is None else command.title,
+                employment_type=(
+                    row.employment_type
+                    if command.employment_type is None
+                    else command.employment_type
+                ),
+                email=row.email if command.email is None else command.email,
+                phone=row.phone if command.phone is None else command.phone,
+                is_active=row.is_active if command.is_active is None else command.is_active,
+                version=row.version + 1,
+            )
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="employee_not_found",
+                message=f"Employee '{command.employee_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformUserApi:
+    def __init__(self, rows: tuple[UserDto, ...], roles: tuple[RoleDto, ...]) -> None:
+        self._rows = list(rows)
+        self._roles = roles
+
+    def list_users(self) -> DesktopApiResult[tuple[UserDto, ...]]:
+        return DesktopApiResult(ok=True, data=tuple(self._rows))
+
+    def list_roles(self) -> DesktopApiResult[tuple[RoleDto, ...]]:
+        return DesktopApiResult(ok=True, data=self._roles)
+
+    def create_user(self, command) -> DesktopApiResult[UserDto]:
+        if any(row.username == command.username for row in self._rows):
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="user_exists",
+                    message=f"User '{command.username}' already exists.",
+                    category="conflict",
+                ),
+            )
+        user = UserDto(
+            id=f"user-{len(self._rows) + 1}",
+            username=command.username,
+            display_name=command.display_name,
+            email=command.email,
+            identity_provider=None,
+            federated_subject=None,
+            is_active=command.is_active,
+            failed_login_attempts=0,
+            locked_until=None,
+            last_login_at=None,
+            last_login_auth_method=None,
+            last_login_device_label=None,
+            session_expires_at=None,
+            session_timeout_minutes_override=None,
+            must_change_password=False,
+            version=1,
+            role_names=tuple(sorted(command.role_names)),
+        )
+        self._rows.append(user)
+        return DesktopApiResult(ok=True, data=user)
+
+    def update_user(self, command) -> DesktopApiResult[UserDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != command.user_id:
+                continue
+            updated = replace(
+                row,
+                username=command.username or row.username,
+                display_name=row.display_name if command.display_name is None else command.display_name,
+                email=row.email if command.email is None else command.email,
+                version=row.version + 1,
+            )
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="user_not_found",
+                message=f"User '{command.user_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+    def assign_role(self, user_id: str, role_name: str) -> DesktopApiResult[UserDto]:
+        return self._update_roles(user_id, add=role_name)
+
+    def revoke_role(self, user_id: str, role_name: str) -> DesktopApiResult[UserDto]:
+        return self._update_roles(user_id, remove=role_name)
+
+    def set_user_active(self, user_id: str, is_active: bool) -> DesktopApiResult[UserDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != user_id:
+                continue
+            updated = replace(row, is_active=is_active, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="user_not_found",
+                message=f"User '{user_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+    def reset_password(self, command) -> DesktopApiResult[UserDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != command.user_id:
+                continue
+            updated = replace(row, must_change_password=False, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="user_not_found",
+                message=f"User '{command.user_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+    def _update_roles(
+        self,
+        user_id: str,
+        *,
+        add: str | None = None,
+        remove: str | None = None,
+    ) -> DesktopApiResult[UserDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != user_id:
+                continue
+            role_names = set(row.role_names)
+            if add:
+                role_names.add(add)
+            if remove:
+                role_names.discard(remove)
+            updated = replace(row, role_names=tuple(sorted(role_names)), version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="user_not_found",
+                message=f"User '{user_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformPartyApi:
+    def __init__(self, *, runtime_api: _FakePlatformRuntimeApi, rows: tuple[PartyDto, ...]) -> None:
+        self._runtime_api = runtime_api
+        self._rows = list(rows)
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
+
+    def list_parties(
+        self,
+        *,
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[tuple[PartyDto, ...]]:
+        rows = self._rows
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def create_party(self, command) -> DesktopApiResult[PartyDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
+        party = PartyDto(
+            id=f"party-{len(self._rows) + 1}",
+            organization_id=active_organization.id if active_organization is not None else "org-1",
+            party_code=command.party_code,
+            party_name=command.party_name,
+            party_type=command.party_type,
+            legal_name=command.legal_name,
+            contact_name=command.contact_name,
+            email=command.email or "",
+            phone=command.phone or "",
+            country=command.country,
+            city=command.city,
+            address_line_1=command.address_line_1,
+            address_line_2=command.address_line_2,
+            postal_code=command.postal_code,
+            website=command.website,
+            tax_registration_number=command.tax_registration_number,
+            external_reference=command.external_reference,
+            is_active=command.is_active,
+            created_at=None,
+            updated_at=None,
+            notes=command.notes,
+            version=1,
+        )
+        self._rows.append(party)
+        return DesktopApiResult(ok=True, data=party)
+
+    def update_party(self, command) -> DesktopApiResult[PartyDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != command.party_id:
+                continue
+            updated = replace(
+                row,
+                party_code=row.party_code if command.party_code is None else command.party_code,
+                party_name=row.party_name if command.party_name is None else command.party_name,
+                party_type=row.party_type if command.party_type is None else command.party_type,
+                legal_name=row.legal_name if command.legal_name is None else command.legal_name,
+                contact_name=row.contact_name if command.contact_name is None else command.contact_name,
+                email=row.email if command.email is None else command.email,
+                phone=row.phone if command.phone is None else command.phone,
+                country=row.country if command.country is None else command.country,
+                city=row.city if command.city is None else command.city,
+                address_line_1=row.address_line_1 if command.address_line_1 is None else command.address_line_1,
+                address_line_2=row.address_line_2 if command.address_line_2 is None else command.address_line_2,
+                postal_code=row.postal_code if command.postal_code is None else command.postal_code,
+                website=row.website if command.website is None else command.website,
+                tax_registration_number=(
+                    row.tax_registration_number
+                    if command.tax_registration_number is None
+                    else command.tax_registration_number
+                ),
+                external_reference=(
+                    row.external_reference
+                    if command.external_reference is None
+                    else command.external_reference
+                ),
+                is_active=row.is_active if command.is_active is None else command.is_active,
+                notes=row.notes if command.notes is None else command.notes,
+                version=row.version + 1,
+            )
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="party_not_found",
+                message=f"Party '{command.party_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformDocumentApi:
+    def __init__(
+        self,
+        *,
+        runtime_api: _FakePlatformRuntimeApi,
+        rows: tuple[DocumentDto, ...],
+        structure_rows: tuple[DocumentStructureDto, ...],
+    ) -> None:
+        self._runtime_api = runtime_api
+        self._rows = list(rows)
+        self._structure_rows = list(structure_rows)
+
+    def get_context(self) -> DesktopApiResult[OrganizationDto]:
+        return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
+
+    def list_documents(
+        self,
+        *,
+        active_only: bool | None = None,
+    ) -> DesktopApiResult[tuple[DocumentDto, ...]]:
+        rows = self._rows
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def list_document_structures(
+        self,
+        *,
+        active_only: bool | None = None,
+        object_scope: str | None = None,
+    ) -> DesktopApiResult[tuple[DocumentStructureDto, ...]]:
+        rows = self._structure_rows
+        if active_only is not None:
+            rows = [row for row in rows if row.is_active == active_only]
+        if object_scope is not None:
+            rows = [row for row in rows if row.object_scope == object_scope]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def create_document(self, command) -> DesktopApiResult[DocumentDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
+        document = DocumentDto(
+            id=f"doc-{len(self._rows) + 1}",
+            organization_id=active_organization.id if active_organization is not None else "org-1",
+            document_code=command.document_code,
+            title=command.title,
+            document_type=command.document_type,
+            document_structure_id=command.document_structure_id,
+            storage_kind=command.storage_kind,
+            storage_uri=command.storage_uri,
+            file_name=command.file_name,
+            mime_type=command.mime_type,
+            source_system=command.source_system,
+            uploaded_at=command.uploaded_at,
+            uploaded_by_user_id=command.uploaded_by_user_id,
+            effective_date=command.effective_date,
+            review_date=command.review_date,
+            confidentiality_level=command.confidentiality_level,
+            business_version_label=command.business_version_label,
+            is_current=command.is_current,
+            notes=command.notes,
+            is_active=command.is_active,
+            version=1,
+        )
+        self._rows.append(document)
+        return DesktopApiResult(ok=True, data=document)
+
+    def update_document(self, command) -> DesktopApiResult[DocumentDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != command.document_id:
+                continue
+            updated = replace(
+                row,
+                document_code=row.document_code if command.document_code is None else command.document_code,
+                title=row.title if command.title is None else command.title,
+                document_type=row.document_type if command.document_type is None else command.document_type,
+                document_structure_id=(
+                    row.document_structure_id
+                    if command.document_structure_id is None
+                    else command.document_structure_id
+                ),
+                storage_kind=row.storage_kind if command.storage_kind is None else command.storage_kind,
+                storage_uri=row.storage_uri if command.storage_uri is None else command.storage_uri,
+                file_name=row.file_name if command.file_name is None else command.file_name,
+                mime_type=row.mime_type if command.mime_type is None else command.mime_type,
+                source_system=row.source_system if command.source_system is None else command.source_system,
+                confidentiality_level=(
+                    row.confidentiality_level
+                    if command.confidentiality_level is None
+                    else command.confidentiality_level
+                ),
+                business_version_label=(
+                    row.business_version_label
+                    if command.business_version_label is None
+                    else command.business_version_label
+                ),
+                is_current=row.is_current if command.is_current is None else command.is_current,
+                notes=row.notes if command.notes is None else command.notes,
+                is_active=row.is_active if command.is_active is None else command.is_active,
+                version=row.version + 1,
+            )
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="document_not_found",
+                message=f"Document '{command.document_id}' was not found.",
                 category="not_found",
             ),
         )
@@ -232,12 +899,6 @@ class _FakePlatformAuditApi:
 
     def list_recent(self, *, limit: int = 25) -> DesktopApiResult[tuple[AuditLogEntryDto, ...]]:
         return DesktopApiResult(ok=True, data=self._rows[:limit])
-
-
-def _result(rows):
-    return DesktopApiResult(ok=True, data=tuple(rows))
-
-
 def _build_connected_platform_registry() -> SimpleNamespace:
     runtime_api = _FakePlatformRuntimeApi()
     site_rows = (
@@ -320,6 +981,24 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             version=1,
         ),
     )
+    location_rows = (
+        DepartmentLocationReferenceDto(
+            id="loc-1",
+            organization_id="org-1",
+            site_id="site-1",
+            location_code="BLD-A",
+            name="Building A",
+            is_active=True,
+        ),
+        DepartmentLocationReferenceDto(
+            id="loc-2",
+            organization_id="org-1",
+            site_id="site-2",
+            location_code="YARD-1",
+            name="Main Yard",
+            is_active=True,
+        ),
+    )
     employee_rows = (
         EmployeeDto(
             id="emp-1",
@@ -350,6 +1029,28 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             phone=None,
             is_active=False,
             version=1,
+        ),
+    )
+    site_api = _FakePlatformSiteApi(runtime_api=runtime_api, rows=site_rows)
+    department_api = _FakePlatformDepartmentApi(
+        runtime_api=runtime_api,
+        site_api=site_api,
+        rows=department_rows,
+        location_rows=location_rows,
+    )
+    employee_api = _FakePlatformEmployeeApi(employee_rows)
+    role_rows = (
+        RoleDto(
+            id="role-1",
+            name="admin",
+            description="Platform administrators",
+            is_system=True,
+        ),
+        RoleDto(
+            id="role-2",
+            name="viewer",
+            description="Read-only observers",
+            is_system=False,
         ),
     )
     user_rows = (
@@ -392,6 +1093,37 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             role_names=("viewer",),
         ),
     )
+    user_api = _FakePlatformUserApi(user_rows, role_rows)
+    document_structure_rows = (
+        DocumentStructureDto(
+            id="structure-1",
+            organization_id="org-1",
+            structure_code="POL",
+            name="Policies",
+            description="Policy documents",
+            parent_structure_id=None,
+            object_scope="GENERAL",
+            default_document_type="POLICY",
+            sort_order=1,
+            is_active=True,
+            notes="",
+            version=1,
+        ),
+        DocumentStructureDto(
+            id="structure-2",
+            organization_id="org-1",
+            structure_code="PROC",
+            name="Procedures",
+            description="Procedure documents",
+            parent_structure_id=None,
+            object_scope="GENERAL",
+            default_document_type="PROCEDURE",
+            sort_order=2,
+            is_active=True,
+            notes="",
+            version=1,
+        ),
+    )
     document_rows = (
         DocumentDto(
             id="doc-1",
@@ -399,7 +1131,7 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             document_code="DOC-001",
             title="Governance Charter",
             document_type="GENERAL",
-            document_structure_id=None,
+            document_structure_id="structure-1",
             storage_kind="FILE_PATH",
             storage_uri="/docs/doc-1.pdf",
             file_name="doc-1.pdf",
@@ -422,7 +1154,7 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             document_code="DOC-002",
             title="Archived Procedure",
             document_type="GENERAL",
-            document_structure_id=None,
+            document_structure_id="structure-2",
             storage_kind="FILE_PATH",
             storage_uri="/docs/doc-2.pdf",
             file_name="doc-2.pdf",
@@ -439,6 +1171,11 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             is_active=True,
             version=1,
         ),
+    )
+    document_api = _FakePlatformDocumentApi(
+        runtime_api=runtime_api,
+        rows=document_rows,
+        structure_rows=document_structure_rows,
     )
     party_rows = (
         PartyDto(
@@ -490,6 +1227,7 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             version=1,
         ),
     )
+    party_api = _FakePlatformPartyApi(runtime_api=runtime_api, rows=party_rows)
     approval_rows = (
         ApprovalRequestDto(
             id="approval-1",
@@ -562,18 +1300,12 @@ def _build_connected_platform_registry() -> SimpleNamespace:
 
     return SimpleNamespace(
         platform_runtime=runtime_api,
-        platform_site=SimpleNamespace(list_sites=lambda *, active_only=None: _result(site_rows)),
-        platform_department=SimpleNamespace(
-            list_departments=lambda *, active_only=None: _result(department_rows)
-        ),
-        platform_employee=SimpleNamespace(
-            list_employees=lambda *, active_only=None: _result(employee_rows)
-        ),
-        platform_user=SimpleNamespace(list_users=lambda: _result(user_rows)),
-        platform_document=SimpleNamespace(
-            list_documents=lambda *, active_only=None: _result(document_rows)
-        ),
-        platform_party=SimpleNamespace(list_parties=lambda *, active_only=None: _result(party_rows)),
+        platform_site=site_api,
+        platform_department=department_api,
+        platform_employee=employee_api,
+        platform_user=user_api,
+        platform_document=document_api,
+        platform_party=party_api,
         platform_approval=_FakePlatformApprovalApi(approval_rows),
         platform_audit=_FakePlatformAuditApi(audit_rows),
     )
@@ -716,12 +1448,56 @@ def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() 
     assert organization_profiles["items"][0]["statusLabel"] == "Active"
 
 
+def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    organizations = catalog.adminWorkspace.organizations
+    sites = catalog.adminWorkspace.sites
+    departments = catalog.adminWorkspace.departments
+    employees = catalog.adminWorkspace.employees
+    users = catalog.adminWorkspace.users
+    parties = catalog.adminWorkspace.parties
+    documents = catalog.adminWorkspace.documents
+
+    assert organizations["title"] == "Organizations"
+    assert organizations["items"][0]["title"] == "TechAsh"
+    assert organizations["items"][1]["canSecondaryAction"] is True
+
+    assert sites["title"] == "Sites"
+    assert sites["items"][0]["title"] == "Berlin Campus"
+
+    assert departments["title"] == "Departments"
+    assert departments["items"][0]["supportingText"] == "Site: Berlin Campus | Location: No default location"
+
+    assert employees["title"] == "Employees"
+    assert employees["items"][0]["metaText"].startswith("Full Time")
+
+    assert users["title"] == "Users"
+    assert users["items"][0]["supportingText"] == "Admin"
+
+    assert parties["title"] == "Parties"
+    assert parties["items"][0]["subtitle"] == "SUP-001 | Supplier"
+
+    assert documents["title"] == "Documents"
+    assert documents["items"][0]["supportingText"] == "POL - Policies | Version 1.0 | Current"
+
+    assert len(catalog.adminWorkspace.organizationEditorOptions["moduleOptions"]) == 3
+    assert len(catalog.adminWorkspace.departmentEditorOptions["siteOptions"]) == 1
+    assert len(catalog.adminWorkspace.departmentEditorOptions["locationOptions"]) == 2
+    assert len(catalog.adminWorkspace.employeeEditorOptions["departmentOptions"]) == 1
+    assert len(catalog.adminWorkspace.userEditorOptions["roleOptions"]) == 2
+    assert len(catalog.adminWorkspace.partyEditorOptions["typeOptions"]) >= 3
+    assert len(catalog.adminWorkspace.documentEditorOptions["structureOptions"]) == 2
+
+
 def test_platform_workspace_controllers_hold_common_state_fields() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
 
     assert catalog.adminWorkspace.isLoading is False
     assert catalog.adminWorkspace.isBusy is False
     assert catalog.adminWorkspace.errorMessage == ""
+    assert catalog.adminWorkspace.organizations["items"][0]["title"] == "TechAsh"
+    assert catalog.adminWorkspace.users["items"][0]["title"] == "Ada Lovelace"
     assert catalog.controlWorkspace.feedbackMessage == ""
     assert catalog.settingsWorkspace.emptyState == ""
     assert catalog.controlWorkspace.approvalQueue["items"][0]["title"] == "Change Budget"
@@ -764,6 +1540,162 @@ def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
     assert "planned" in catalog.settingsWorkspace.errorMessage.lower()
 
 
+def test_platform_workspace_catalog_runs_admin_actions() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    organization_result = catalog.adminWorkspace.createOrganization(
+        {
+            "organizationCode": "QML",
+            "displayName": "QML Labs",
+            "timezoneName": "Europe/Berlin",
+            "baseCurrency": "EUR",
+            "isActive": False,
+            "initialModuleCodes": ["project_management"],
+        }
+    )
+    activate_result = catalog.adminWorkspace.setActiveOrganization("org-2")
+    site_result = catalog.adminWorkspace.createSite(
+        {
+            "siteCode": "HAM",
+            "name": "Hamburg Hub",
+            "description": "Logistics hub",
+            "city": "Hamburg",
+            "country": "DE",
+            "timezoneName": "Europe/Berlin",
+            "currencyCode": "EUR",
+            "siteType": "office",
+            "status": "active",
+            "notes": "",
+            "isActive": True,
+        }
+    )
+    department_result = catalog.adminWorkspace.toggleDepartmentActive("dep-2")
+    employee_result = catalog.adminWorkspace.createEmployee(
+        {
+            "employeeCode": "E-003",
+            "fullName": "Katherine Johnson",
+            "departmentId": "dep-1",
+            "departmentName": "Engineering",
+            "siteId": "site-1",
+            "siteName": "Berlin Campus",
+            "title": "Analyst",
+            "employmentType": "FULL_TIME",
+            "email": "katherine@example.com",
+            "phone": "555-0100",
+            "isActive": True,
+        }
+    )
+    user_result = catalog.adminWorkspace.createUser(
+        {
+            "username": "katherine",
+            "displayName": "Katherine Johnson",
+            "email": "katherine@example.com",
+            "password": "secret",
+            "roleNames": ["viewer"],
+            "isActive": True,
+        }
+    )
+    party_result = catalog.adminWorkspace.createParty(
+        {
+            "partyCode": "VEN-100",
+            "partyName": "Orbit Supply",
+            "partyType": "VENDOR",
+            "contactName": "Helen Morris",
+            "email": "orbit@example.com",
+            "country": "DE",
+            "city": "Munich",
+            "isActive": True,
+        }
+    )
+    document_result = catalog.adminWorkspace.createDocument(
+        {
+            "documentCode": "DOC-003",
+            "title": "Safety Policy",
+            "documentType": "POLICY",
+            "documentStructureId": "structure-1",
+            "storageKind": "FILE_PATH",
+            "storageUri": "/docs/doc-3.pdf",
+            "fileName": "doc-3.pdf",
+            "mimeType": "application/pdf",
+            "sourceSystem": "desktop",
+            "confidentialityLevel": "internal",
+            "businessVersionLabel": "2.0",
+            "isCurrent": True,
+            "isActive": True,
+        }
+    )
+
+    assert organization_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Organization created.",
+    }
+    assert activate_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Organization activated.",
+    }
+    assert site_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Site created.",
+    }
+    assert department_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Department active state updated.",
+    }
+    assert employee_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Employee created.",
+    }
+    assert user_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "User created.",
+    }
+    assert party_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Party created.",
+    }
+    assert document_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Document created.",
+    }
+
+    organization_titles = [item["title"] for item in catalog.adminWorkspace.organizations["items"]]
+    site_titles = [item["title"] for item in catalog.adminWorkspace.sites["items"]]
+    employee_titles = [item["title"] for item in catalog.adminWorkspace.employees["items"]]
+    user_titles = [item["title"] for item in catalog.adminWorkspace.users["items"]]
+    party_titles = [item["title"] for item in catalog.adminWorkspace.parties["items"]]
+    document_titles = [item["title"] for item in catalog.adminWorkspace.documents["items"]]
+    department_by_id = {
+        item["id"]: item
+        for item in catalog.adminWorkspace.departments["items"]
+    }
+
+    assert "QML Labs" in organization_titles
+    assert catalog.adminWorkspace.organizations["items"][1]["statusLabel"] == "Active"
+    assert "Hamburg Hub" in site_titles
+    assert department_by_id["dep-2"]["statusLabel"] == "Active"
+    assert "Katherine Johnson" in employee_titles
+    assert "Katherine Johnson" in user_titles
+    assert "Orbit Supply" in party_titles
+    assert "Safety Policy" in document_titles
+    assert catalog.adminWorkspace.feedbackMessage == "Document created."
+
+
 def test_platform_workspace_controllers_store_validation_errors() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
 
@@ -773,3 +1705,53 @@ def test_platform_workspace_controllers_store_validation_errors() -> None:
     assert result["category"] == "validation"
     assert "planned" in result["message"].lower()
     assert "planned" in catalog.settingsWorkspace.errorMessage.lower()
+
+
+def test_platform_workspace_catalog_updates_extended_admin_actions() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    update_user_result = catalog.adminWorkspace.updateUser(
+        {
+            "userId": "user-2",
+            "username": "grace",
+            "displayName": "Grace Hopper",
+            "email": "grace@example.com",
+            "password": "updated-secret",
+            "roleNames": ["admin"],
+            "currentRoleNames": ["viewer"],
+            "isActive": True,
+            "currentIsActive": False,
+        }
+    )
+    toggle_party_result = catalog.adminWorkspace.togglePartyActive("party-2")
+    toggle_document_result = catalog.adminWorkspace.toggleDocumentActive("doc-2")
+
+    assert update_user_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "User updated.",
+    }
+    assert toggle_party_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Party active state updated.",
+    }
+    assert toggle_document_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Document active state updated.",
+    }
+
+    user_by_id = {item["id"]: item for item in catalog.adminWorkspace.users["items"]}
+    party_by_id = {item["id"]: item for item in catalog.adminWorkspace.parties["items"]}
+    document_by_id = {item["id"]: item for item in catalog.adminWorkspace.documents["items"]}
+
+    assert user_by_id["user-2"]["statusLabel"] == "Locked"
+    assert user_by_id["user-2"]["state"]["isActive"] is True
+    assert user_by_id["user-2"]["supportingText"] == "Admin"
+    assert party_by_id["party-2"]["statusLabel"] == "Active"
+    assert document_by_id["doc-2"]["state"]["isActive"] is False
+    assert catalog.adminWorkspace.feedbackMessage == "Document active state updated."

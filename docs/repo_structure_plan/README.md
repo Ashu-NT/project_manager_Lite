@@ -57,9 +57,13 @@ QML scaffold status:
 - platform QML workspaces now bind through `platformWorkspaceCatalog`, which is backed by `src/api/desktop/platform/*` when a desktop API registry is connected
 - platform QML admin/control/settings workspaces now render grouped presenter-backed overviews, using split platform desktop APIs for runtime, organization master data, approvals, and audit flows
 - platform admin/control/settings now bind through controller-owned workspace state in `src/ui_qml/platform/workspace_state.py`; QML pages no longer own `refreshWorkspace()` orchestration or page-local feedback state
+- platform `admin` now uses a dedicated `src/ui_qml/platform/admin_workspace_state.py` controller plus split catalog presenters for organizations, sites, departments, employees, users, parties, and documents
+- platform `admin` now exposes real QML organization/site/department/employee/user/party/document panels with controller-owned create, edit, toggle-active, set-active, role, and password-reset orchestration through `src/api/desktop/platform/*`
 - platform `control` now exposes a QML approval queue with approve/reject actions plus a QML audit feed, all through `platformWorkspaceCatalog` and split platform desktop APIs
 - platform `settings` now exposes a QML module entitlement surface with license/enable toggles plus organization-profile visibility, all through `platformWorkspaceCatalog` and `PlatformRuntimeDesktopApi`
-- platform QML widgets now live under the named module `src/ui_qml/platform/qml/Platform/Widgets/*`, including `OverviewSectionCard.qml`, `RecordListCard.qml`, and `WorkspaceStateBanner.qml`
+- access/security, support, document preview/link/structure management, lifecycle-status changes, and approval decision-note entry remain on the legacy QWidget side for now; those widget files should not be deleted yet
+- platform QML widgets now live under the named module `src/ui_qml/platform/qml/Platform/Widgets/*`, including `OverviewSectionCard.qml`, `RecordListCard.qml`, `WorkspaceStateBanner.qml`, and `AdminCatalogPanel.qml`
+- platform QML dialogs now live under the named module `src/ui_qml/platform/qml/Platform/Dialogs/*`, including focused editor dialogs for organizations, sites, departments, employees, users, parties, and documents
 - QML imports now use named modules with stable aliases instead of deep parent-relative paths; the active convention is `Theme`, `AppLayouts`, `AppWidgets`, `AppControls`, and `PlatformWidgets`
 - the legacy QWidget Platform Home screen has been moved onto the same `src/api/desktop/platform/*` API boundary while the QML shell remains pending
 - the legacy QWidget Module Licensing screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
@@ -82,7 +86,7 @@ QML scaffold status:
 - focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
 - focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
 - automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
-- the latest focused QML verification batch passes with `50 passed`, including named-module imports, offscreen route loading, and architecture guardrails
+- the latest broader QML verification batch passes with `58 passed`, the focused platform/QML batch passes with `45 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
 
 ## Core Rule
 
@@ -1451,7 +1455,7 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui_qml/shell/*` now has route/registry/navigation/QML engine glue, a QML-bound `shellContext`, a routed `MainWindow.qml` host, and a dedicated `HomeWorkspace.qml` landing route; `main_qt.py` still imports `src.ui.shell.app`
 - `src/ui_qml/shared/qml/*` now has first-pass reusable QML design primitives aligned to the legacy widget token palette
 - `src/ui_qml/platform/routes.py` registers platform QML routes for admin, control, and settings, and `src/ui_qml/platform/context.py` now exposes grouped overview maps for those workspaces
-- `src/ui_qml/platform/presenters/{runtime,admin_presenter,control_presenter,settings_presenter,control_queue_presenter,settings_catalog_presenter}.py`, `src/ui_qml/platform/view_models/{runtime,workspace}.py`, and `src/ui_qml/platform/qml/Platform/Widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner}.qml` now provide grouped overview, action-list, and workspace-state surfaces for platform QML
+- `src/ui_qml/platform/presenters/{runtime,admin_presenter,control_presenter,settings_presenter,control_queue_presenter,settings_catalog_presenter,organization_catalog_presenter,site_catalog_presenter,department_catalog_presenter,employee_catalog_presenter}.py`, `src/ui_qml/platform/view_models/{runtime,workspace}.py`, `src/ui_qml/platform/admin_workspace_state.py`, and `src/ui_qml/platform/qml/Platform/{Widgets,Dialogs}/*` now provide grouped overview, admin master-data actions, dialogs, action-list, and workspace-state surfaces for platform QML
 - `src/ui_qml/modules/project_management/routes.py` registers the PM QML route set named by Slice 2
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` and `view_models/workspace.py` provide the first PM QML presenter/view-model contract without importing legacy widgets or infrastructure
 - `src/ui_qml/modules/project_management/context.py` exposes a QML-safe PM workspace catalog used by PM QML placeholders
@@ -1714,9 +1718,11 @@ Completed in the clean/no-facade execution:
 - upgraded the platform QML surface beyond placeholders by adding grouped admin/control/settings presenters under `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py`, grouped view models under `src/ui_qml/platform/view_models/workspace.py`, reusable section cards under `src/ui_qml/platform/qml/Platform/Widgets/OverviewSectionCard.qml`, and grouped desktop-API-backed overview serialization in `src/ui_qml/platform/context.py`
 - added `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` so `platform.control` and `platform.settings` can expose action-list data without growing the overview presenters into dump files
 - extended `src/ui_qml/platform/context.py` with QML-safe `approvalQueue()`, `auditFeed()`, `moduleEntitlements()`, `organizationProfiles()`, `approveRequest()`, `rejectRequest()`, `toggleModuleLicensed()`, and `toggleModuleEnabled()` methods
+- added `src/ui_qml/platform/admin_workspace_state.py` plus `src/ui_qml/platform/presenters/{organization_catalog_presenter,site_catalog_presenter,department_catalog_presenter,employee_catalog_presenter}.py` so `platform.admin` can own real org/site/department/employee workflows without turning the overview presenter into a dump file
 - upgraded `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` from overview-only to a real approval/audit surface, and upgraded `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` from overview-only to a real module-entitlement/runtime-settings surface
-- added `src/ui_qml/platform/qml/Platform/Widgets/RecordListCard.qml` for reusable action-list rendering across the migrated platform QML workspaces
-- kept lifecycle-status changes, organization/site/department/employee CRUD, users/documents/parties/access/support, and any approval decision-note entry on the legacy QWidget side for now; those workflows are still pending before old Widget files can be deleted
+- added `src/ui_qml/platform/presenters/{user_catalog_presenter,party_catalog_presenter,document_catalog_presenter}.py` so `platform.admin` can extend the same controller-owned pattern to users, parties, and documents without growing `admin_workspace_state.py` into API-specific orchestration code
+- upgraded `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` from the first org/site/department/employee surface into a broader admin QML surface for organizations, sites, departments, employees, users, parties, and documents, backed by `src/ui_qml/platform/qml/Platform/Widgets/AdminCatalogPanel.qml` and `src/ui_qml/platform/qml/Platform/Dialogs/{OrganizationEditorDialog,SiteEditorDialog,DepartmentEditorDialog,EmployeeEditorDialog,UserEditorDialog,PartyEditorDialog,DocumentEditorDialog}.qml`
+- kept access/security, support, document preview/link/structure management, lifecycle-status changes, and any approval decision-note entry on the legacy QWidget side for now; those workflows are still pending before old Widget files can be deleted
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`

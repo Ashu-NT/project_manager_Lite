@@ -33,10 +33,12 @@ Rectangle {
 
         ColumnLayout {
             Layout.fillWidth: true
+            visible: root.title.length > 0 || root.subtitle.length > 0
             spacing: Theme.AppTheme.spacingXs
 
             Label {
                 Layout.fillWidth: true
+                visible: root.title.length > 0
                 text: root.title
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
@@ -70,6 +72,10 @@ Rectangle {
 
             delegate: Rectangle {
                 required property var modelData
+                property string statusText: String(modelData.statusLabel || "")
+                property string subtitleText: String(modelData.subtitle || "")
+                property string supportingTextValue: String(modelData.supportingText || "")
+                property string metaTextValue: String(modelData.metaText || "")
 
                 Layout.fillWidth: true
                 radius: Theme.AppTheme.radiusMd
@@ -99,7 +105,7 @@ Rectangle {
                         }
 
                         Rectangle {
-                            visible: modelData.statusLabel.length > 0
+                            visible: statusText.length > 0
                             radius: Theme.AppTheme.radiusMd
                             color: Theme.AppTheme.accentSoft
                             border.color: Theme.AppTheme.accent
@@ -110,7 +116,7 @@ Rectangle {
                                 id: statusLabel
 
                                 anchors.centerIn: parent
-                                text: modelData.statusLabel
+                                text: statusText
                                 color: Theme.AppTheme.accent
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
@@ -121,8 +127,8 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: modelData.subtitle.length > 0
-                        text: modelData.subtitle
+                        visible: subtitleText.length > 0
+                        text: subtitleText
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -131,8 +137,8 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: modelData.supportingText.length > 0
-                        text: modelData.supportingText
+                        visible: supportingTextValue.length > 0
+                        text: supportingTextValue
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -141,8 +147,8 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: modelData.metaText.length > 0
-                        text: modelData.metaText
+                        visible: metaTextValue.length > 0
+                        text: metaTextValue
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize

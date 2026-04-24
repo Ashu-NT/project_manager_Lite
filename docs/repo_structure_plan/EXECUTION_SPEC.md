@@ -529,14 +529,17 @@ Platform QML route status as of 2026-04-24:
 - `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py` now compose grouped platform admin/control/settings overview state from split platform desktop APIs
 - `src/ui_qml/platform/view_models/{runtime,workspace}.py` defines QML-safe platform runtime and grouped workspace overview view models
 - `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` now compose real control/settings action-list data from split platform desktop APIs without growing the overview presenters into dump files
-- `src/ui_qml/platform/workspace_state.py` now owns common admin/control/settings workspace state plus action and refresh sequencing, so QML pages stay render-only
-- `src/ui_qml/platform/qml/Platform/Widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner}.qml` provide reusable grouped overview, action-list, and workspace-state rendering for the platform workspaces
+- `src/ui_qml/platform/workspace_state.py` now owns common control/settings workspace state plus action and refresh sequencing, while `src/ui_qml/platform/admin_workspace_state.py` owns the admin workspace master-data state, editor options, and mutations
+- `src/ui_qml/platform/presenters/{organization_catalog_presenter,site_catalog_presenter,department_catalog_presenter,employee_catalog_presenter,user_catalog_presenter,party_catalog_presenter,document_catalog_presenter}.py` now provide the split admin QML workflow presenters for organization/site/department/employee/user/party/document actions
+- `src/ui_qml/platform/qml/Platform/Widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner,AdminCatalogPanel}.qml` provide reusable grouped overview, action-list, workspace-state, and admin catalog rendering for the platform workspaces
+- `src/ui_qml/platform/qml/Platform/Dialogs/{OrganizationEditorDialog,SiteEditorDialog,DepartmentEditorDialog,EmployeeEditorDialog,UserEditorDialog,PartyEditorDialog,DocumentEditorDialog}.qml` provide focused QML dialogs for the current migrated platform admin workflows
+- `platform.admin` now exposes a real QML organization/site/department/employee/user/party/document surface with create, edit, toggle-active, set-active, role, and password-reset flows
 - `platform.control` now exposes a real QML approval queue with approve/reject actions plus a real QML audit feed
 - `platform.settings` now exposes a real QML module-entitlement surface with license/enable toggles plus organization-profile visibility
 - platform admin/control/settings QML no longer uses page-local `refreshWorkspace()` JavaScript or page-local feedback orchestration
-- lifecycle-status changes, organization/site/department/employee CRUD, users/documents/parties/access/support, and approval decision-note entry still remain on the legacy QWidget side until their QML workflows reach parity
+- access/security, support, document preview/link/structure management, lifecycle-status changes, and approval decision-note entry still remain on the legacy QWidget side until their QML workflows reach parity
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
-- `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, action-list, and control/settings action states
+- `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, admin master-data action lists, admin mutations, and control/settings action states
 - offscreen QML loading has verified that the platform workspaces resolve with the shared QML primitives
 
 Project Management QML route status as of 2026-04-22:
@@ -578,7 +581,7 @@ QML architecture guardrail status as of 2026-04-24:
 - QML files must not use parent-relative import paths; named-module imports are now enforced for reusable QML
 - these guardrails must pass before wiring real QML screens to module desktop APIs
 - registered QML routes must continue loading offscreen before any old Widget screen is deleted
-- the latest focused QML verification batch passes with `50 passed`
+- the latest broader QML verification batch passes with `58 passed`, the focused platform/QML batch passes with `45 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
 
 ## API Refactor Rule
 
@@ -753,7 +756,9 @@ Completed:
 - `src/ui_qml/platform/context.py` now exposes QML-safe `approvalQueue()`, `auditFeed()`, `moduleEntitlements()`, `organizationProfiles()`, `approveRequest()`, `rejectRequest()`, `toggleModuleLicensed()`, and `toggleModuleEnabled()` methods
 - `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` now renders a real approval queue and audit feed, and `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` now renders real module-entitlement and organization-profile surfaces
 - `src/ui_qml/platform/qml/Platform/Widgets/RecordListCard.qml` now provides reusable action-list rendering for migrated platform QML workflows
-- lifecycle-status changes, org master-data CRUD, users/documents/parties/access/support, and approval notes remain on the Widget side for now; do not delete those Widget files yet
+- `src/ui_qml/platform/presenters/{user_catalog_presenter,party_catalog_presenter,document_catalog_presenter}.py` now extend the same split admin-workflow pattern to users, parties, and documents
+- `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` now renders real organization/site/department/employee/user/party/document QML surfaces, and `src/ui_qml/platform/qml/Platform/Dialogs/{UserEditorDialog,PartyEditorDialog,DocumentEditorDialog}.qml` provide the new editor dialogs for that slice
+- access/security, support, document preview/link/structure management, lifecycle-status changes, and approval notes remain on the Widget side for now; do not delete those Widget files yet
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`

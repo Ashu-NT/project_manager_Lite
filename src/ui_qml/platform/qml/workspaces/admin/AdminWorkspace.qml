@@ -1,62 +1,555 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
+import Platform.Dialogs 1.0 as PlatformDialogs
 import Platform.Widgets 1.0 as PlatformWidgets
 
 AppLayouts.WorkspaceFrame {
-    property var workspaceModel: platformWorkspaceCatalog.workspace("platform.admin")
-    property QtObject workspaceController: platformWorkspaceCatalog.adminWorkspace
+    property var workspaceModel: platformWorkspaceCatalog
+        ? platformWorkspaceCatalog.workspace("platform.admin")
+        : ({
+            "routeId": "platform.admin",
+            "title": "Admin Console",
+            "summary": ""
+        })
+    property QtObject workspaceController: platformWorkspaceCatalog
+        ? platformWorkspaceCatalog.adminWorkspace
+        : null
+    property var organizationCatalog: workspaceController
+        ? workspaceController.organizations
+        : ({
+            "title": "Organizations",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
+    property var siteCatalog: workspaceController
+        ? workspaceController.sites
+        : ({
+            "title": "Sites",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
+    property var departmentCatalog: workspaceController
+        ? workspaceController.departments
+        : ({
+            "title": "Departments",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
+    property var employeeCatalog: workspaceController
+        ? workspaceController.employees
+        : ({
+            "title": "Employees",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
+    property var userCatalog: workspaceController
+        ? workspaceController.users
+        : ({
+            "title": "Users",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
+    property var partyCatalog: workspaceController
+        ? workspaceController.parties
+        : ({
+            "title": "Parties",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
+    property var documentCatalog: workspaceController
+        ? workspaceController.documents
+        : ({
+            "title": "Documents",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
 
-    title: workspaceController.overview.title || workspaceModel.title
-    subtitle: workspaceController.overview.subtitle
-
-    ColumnLayout {
-        anchors.fill: parent
-        spacing: Theme.AppTheme.spacingMd
-
-        PlatformWidgets.WorkspaceStateBanner {
-            Layout.fillWidth: true
-            isLoading: workspaceController.isLoading
-            isBusy: workspaceController.isBusy
-            errorMessage: workspaceController.errorMessage
-            feedbackMessage: workspaceController.feedbackMessage
+    function catalogItemById(catalog, itemId) {
+        const items = catalog.items || []
+        for (let index = 0; index < items.length; index += 1) {
+            if (items[index].id === itemId) {
+                return items[index]
+            }
         }
+        return null
+    }
 
-        Flow {
-            Layout.fillWidth: true
+    function openOrganizationCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        organizationDialog.openForCreate(
+            workspaceController.organizationEditorOptions.moduleOptions || []
+        )
+    }
+
+    function openOrganizationEdit(itemId) {
+        const item = catalogItemById(organizationCatalog, itemId)
+        if (item === null) {
+            return
+        }
+        organizationDialog.openForEdit(item.state || {})
+    }
+
+    function openSiteCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        siteDialog.openForCreate()
+    }
+
+    function openSiteEdit(itemId) {
+        const item = catalogItemById(siteCatalog, itemId)
+        if (item === null) {
+            return
+        }
+        siteDialog.openForEdit(item.state || {})
+    }
+
+    function openDepartmentCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        departmentDialog.openForCreate(workspaceController.departmentEditorOptions || {})
+    }
+
+    function openDepartmentEdit(itemId) {
+        const item = catalogItemById(departmentCatalog, itemId)
+        if (item === null) {
+            return
+        }
+        departmentDialog.openForEdit(item.state || {}, workspaceController.departmentEditorOptions || {})
+    }
+
+    function openEmployeeCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        employeeDialog.openForCreate(workspaceController.employeeEditorOptions || {})
+    }
+
+    function openEmployeeEdit(itemId) {
+        const item = catalogItemById(employeeCatalog, itemId)
+        if (item === null) {
+            return
+        }
+        employeeDialog.openForEdit(item.state || {}, workspaceController.employeeEditorOptions || {})
+    }
+
+    function openUserCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        userDialog.openForCreate(workspaceController.userEditorOptions || {})
+    }
+
+    function openUserEdit(itemId) {
+        const item = catalogItemById(userCatalog, itemId)
+        if (item === null) {
+            return
+        }
+        userDialog.openForEdit(item.state || {}, workspaceController.userEditorOptions || {})
+    }
+
+    function openPartyCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        partyDialog.openForCreate(workspaceController.partyEditorOptions || {})
+    }
+
+    function openPartyEdit(itemId) {
+        const item = catalogItemById(partyCatalog, itemId)
+        if (item === null) {
+            return
+        }
+        partyDialog.openForEdit(item.state || {}, workspaceController.partyEditorOptions || {})
+    }
+
+    function openDocumentCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        documentDialog.openForCreate(workspaceController.documentEditorOptions || {})
+    }
+
+    function openDocumentEdit(itemId) {
+        const item = catalogItemById(documentCatalog, itemId)
+        if (item === null) {
+            return
+        }
+        documentDialog.openForEdit(item.state || {}, workspaceController.documentEditorOptions || {})
+    }
+
+    title: workspaceController ? (workspaceController.overview.title || workspaceModel.title) : workspaceModel.title
+    subtitle: workspaceController ? workspaceController.overview.subtitle : ""
+
+    Flickable {
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: contentColumn.implicitHeight
+        clip: true
+
+        ColumnLayout {
+            id: contentColumn
+
+            width: parent.width
             spacing: Theme.AppTheme.spacingMd
 
-            Repeater {
-                model: workspaceController.overview.metrics || []
+            PlatformWidgets.WorkspaceStateBanner {
+                Layout.fillWidth: true
+                isLoading: workspaceController ? workspaceController.isLoading : false
+                isBusy: workspaceController ? workspaceController.isBusy : false
+                errorMessage: workspaceController ? workspaceController.errorMessage : ""
+                feedbackMessage: workspaceController ? workspaceController.feedbackMessage : ""
+            }
 
-                delegate: AppWidgets.MetricCard {
-                    required property var modelData
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingMd
 
-                    width: 210
-                    label: modelData.label
-                    value: modelData.value
-                    supportingText: modelData.supportingText
+                Repeater {
+                    model: workspaceController ? (workspaceController.overview.metrics || []) : []
+
+                    delegate: AppWidgets.MetricCard {
+                        required property var modelData
+
+                        width: 210
+                        label: modelData.label
+                        value: modelData.value
+                        supportingText: modelData.supportingText
+                    }
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: width > 1500 ? 3 : (width > 960 ? 2 : 1)
+                columnSpacing: Theme.AppTheme.spacingMd
+                rowSpacing: Theme.AppTheme.spacingMd
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: organizationCatalog.title || "Organizations"
+                    summary: organizationCatalog.subtitle || ""
+                    catalog: organizationCatalog
+                    createActionLabel: "New Organization"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Set Active"
+
+                    onCreateRequested: openOrganizationCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openOrganizationEdit(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.setActiveOrganization(itemId)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: siteCatalog.title || "Sites"
+                    summary: siteCatalog.subtitle || ""
+                    catalog: siteCatalog
+                    createActionLabel: "New Site"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Toggle Active"
+
+                    onCreateRequested: openSiteCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openSiteEdit(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.toggleSiteActive(itemId)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: departmentCatalog.title || "Departments"
+                    summary: departmentCatalog.subtitle || ""
+                    catalog: departmentCatalog
+                    createActionLabel: "New Department"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Toggle Active"
+
+                    onCreateRequested: openDepartmentCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openDepartmentEdit(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.toggleDepartmentActive(itemId)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: employeeCatalog.title || "Employees"
+                    summary: employeeCatalog.subtitle || ""
+                    catalog: employeeCatalog
+                    createActionLabel: "New Employee"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Toggle Active"
+
+                    onCreateRequested: openEmployeeCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openEmployeeEdit(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.toggleEmployeeActive(itemId)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: userCatalog.title || "Users"
+                    summary: userCatalog.subtitle || ""
+                    catalog: userCatalog
+                    createActionLabel: "New User"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Toggle Active"
+
+                    onCreateRequested: openUserCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openUserEdit(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.toggleUserActive(itemId)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: partyCatalog.title || "Parties"
+                    summary: partyCatalog.subtitle || ""
+                    catalog: partyCatalog
+                    createActionLabel: "New Party"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Toggle Active"
+
+                    onCreateRequested: openPartyCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openPartyEdit(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.togglePartyActive(itemId)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: documentCatalog.title || "Documents"
+                    summary: documentCatalog.subtitle || ""
+                    catalog: documentCatalog
+                    createActionLabel: "New Document"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Toggle Active"
+
+                    onCreateRequested: openDocumentCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openDocumentEdit(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.toggleDocumentActive(itemId)
+                        }
+                    }
+                }
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingMd
+
+                Repeater {
+                    model: workspaceController ? (workspaceController.overview.sections || []) : []
+
+                    delegate: PlatformWidgets.OverviewSectionCard {
+                        required property var modelData
+
+                        width: 320
+                        title: modelData.title
+                        rows: modelData.rows
+                        emptyState: modelData.emptyState
+                    }
                 }
             }
         }
+    }
 
-        Flow {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
+    PlatformDialogs.OrganizationEditorDialog {
+        id: organizationDialog
 
-            Repeater {
-                model: workspaceController.overview.sections || []
+        parent: Overlay.overlay
 
-                delegate: PlatformWidgets.OverviewSectionCard {
-                    required property var modelData
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createOrganization(payload)
+                : workspaceController.updateOrganization(payload)
+            if (result.ok) {
+                organizationDialog.close()
+            }
+        }
+    }
 
-                    width: 320
-                    title: modelData.title
-                    rows: modelData.rows
-                    emptyState: modelData.emptyState
-                }
+    PlatformDialogs.SiteEditorDialog {
+        id: siteDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createSite(payload)
+                : workspaceController.updateSite(payload)
+            if (result.ok) {
+                siteDialog.close()
+            }
+        }
+    }
+
+    PlatformDialogs.DepartmentEditorDialog {
+        id: departmentDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createDepartment(payload)
+                : workspaceController.updateDepartment(payload)
+            if (result.ok) {
+                departmentDialog.close()
+            }
+        }
+    }
+
+    PlatformDialogs.EmployeeEditorDialog {
+        id: employeeDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createEmployee(payload)
+                : workspaceController.updateEmployee(payload)
+            if (result.ok) {
+                employeeDialog.close()
+            }
+        }
+    }
+
+    PlatformDialogs.UserEditorDialog {
+        id: userDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createUser(payload)
+                : workspaceController.updateUser(payload)
+            if (result.ok) {
+                userDialog.close()
+            }
+        }
+    }
+
+    PlatformDialogs.PartyEditorDialog {
+        id: partyDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createParty(payload)
+                : workspaceController.updateParty(payload)
+            if (result.ok) {
+                partyDialog.close()
+            }
+        }
+    }
+
+    PlatformDialogs.DocumentEditorDialog {
+        id: documentDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createDocument(payload)
+                : workspaceController.updateDocument(payload)
+            if (result.ok) {
+                documentDialog.close()
             }
         }
     }

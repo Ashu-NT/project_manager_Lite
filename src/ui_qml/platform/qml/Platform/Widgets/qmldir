@@ -1,4 +1,5 @@
 module Platform.Widgets
+AdminCatalogPanel 1.0 AdminCatalogPanel.qml
 OverviewSectionCard 1.0 OverviewSectionCard.qml
 RecordListCard 1.0 RecordListCard.qml
 WorkspaceStateBanner 1.0 WorkspaceStateBanner.qml

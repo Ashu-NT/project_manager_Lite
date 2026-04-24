@@ -1,0 +1,8 @@
+module Platform.Dialogs
+DepartmentEditorDialog 1.0 DepartmentEditorDialog.qml
+DocumentEditorDialog 1.0 DocumentEditorDialog.qml
+EmployeeEditorDialog 1.0 EmployeeEditorDialog.qml
+OrganizationEditorDialog 1.0 OrganizationEditorDialog.qml
+PartyEditorDialog 1.0 PartyEditorDialog.qml
+SiteEditorDialog 1.0 SiteEditorDialog.qml
+UserEditorDialog 1.0 UserEditorDialog.qml

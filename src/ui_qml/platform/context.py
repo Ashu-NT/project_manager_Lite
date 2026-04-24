@@ -3,17 +3,24 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 
 from src.api.desktop.platform import PlatformRuntimeDesktopApi
+from src.ui_qml.platform.admin_workspace_state import PlatformAdminWorkspaceController
 from src.ui_qml.platform.presenters import (
     PlatformAdminWorkspacePresenter,
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
+    PlatformDepartmentCatalogPresenter,
+    PlatformDocumentCatalogPresenter,
+    PlatformEmployeeCatalogPresenter,
+    PlatformOrganizationCatalogPresenter,
+    PlatformPartyCatalogPresenter,
     PlatformRuntimePresenter,
     PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
+    PlatformSiteCatalogPresenter,
+    PlatformUserCatalogPresenter,
 )
 from src.ui_qml.platform.routes import build_platform_routes
 from src.ui_qml.platform.workspace_state import (
-    PlatformAdminWorkspaceController,
     PlatformControlWorkspaceController,
     PlatformSettingsWorkspaceController,
 )
@@ -31,14 +38,20 @@ class PlatformWorkspaceCatalog(QObject):
         if desktop_api_registry is not None:
             runtime_api = getattr(desktop_api_registry, "platform_runtime", None) or desktop_api
         self._runtime_presenter = PlatformRuntimePresenter(runtime_api)
-        admin_presenter = PlatformAdminWorkspacePresenter(
+        site_api = getattr(desktop_api_registry, "platform_site", None)
+        department_api = getattr(desktop_api_registry, "platform_department", None)
+        employee_api = getattr(desktop_api_registry, "platform_employee", None)
+        user_api = getattr(desktop_api_registry, "platform_user", None)
+        document_api = getattr(desktop_api_registry, "platform_document", None)
+        party_api = getattr(desktop_api_registry, "platform_party", None)
+        admin_overview_presenter = PlatformAdminWorkspacePresenter(
             runtime_api=runtime_api,
-            site_api=getattr(desktop_api_registry, "platform_site", None),
-            department_api=getattr(desktop_api_registry, "platform_department", None),
-            employee_api=getattr(desktop_api_registry, "platform_employee", None),
-            user_api=getattr(desktop_api_registry, "platform_user", None),
-            document_api=getattr(desktop_api_registry, "platform_document", None),
-            party_api=getattr(desktop_api_registry, "platform_party", None),
+            site_api=site_api,
+            department_api=department_api,
+            employee_api=employee_api,
+            user_api=user_api,
+            document_api=document_api,
+            party_api=party_api,
         )
         control_presenter = PlatformControlWorkspacePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),
@@ -51,7 +64,21 @@ class PlatformWorkspaceCatalog(QObject):
         settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
         settings_catalog_presenter = PlatformSettingsCatalogPresenter(runtime_api=runtime_api)
         self._admin_workspace = PlatformAdminWorkspaceController(
-            presenter=admin_presenter,
+            overview_presenter=admin_overview_presenter,
+            organization_presenter=PlatformOrganizationCatalogPresenter(runtime_api=runtime_api),
+            site_presenter=PlatformSiteCatalogPresenter(site_api=site_api),
+            department_presenter=PlatformDepartmentCatalogPresenter(
+                department_api=department_api,
+                site_api=site_api,
+            ),
+            employee_presenter=PlatformEmployeeCatalogPresenter(
+                employee_api=employee_api,
+                site_api=site_api,
+                department_api=department_api,
+            ),
+            user_presenter=PlatformUserCatalogPresenter(user_api=user_api),
+            party_presenter=PlatformPartyCatalogPresenter(party_api=party_api),
+            document_presenter=PlatformDocumentCatalogPresenter(document_api=document_api),
             parent=self,
         )
         self._control_workspace = PlatformControlWorkspaceController(
