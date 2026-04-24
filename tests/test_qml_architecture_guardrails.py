@@ -124,6 +124,21 @@ def test_qml_files_do_not_reference_repositories_or_orm() -> None:
     assert not violations, f"QML files reference persistence concerns: {violations}"
 
 
+def test_qml_files_do_not_use_parent_relative_imports() -> None:
+    violations: list[str] = []
+
+    for path in UI_QML_ROOT.rglob("*.qml"):
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8", errors="ignore").splitlines(),
+            start=1,
+        ):
+            stripped = line.strip()
+            if stripped.startswith('import "') and "../" in stripped:
+                violations.append(f"{path.relative_to(ROOT)}:{lineno}")
+
+    assert not violations, f"QML files use parent relative imports: {violations}"
+
+
 def test_legacy_platform_modules_tab_uses_desktop_api_boundary() -> None:
     text = LEGACY_PLATFORM_MODULE_TAB.read_text(encoding="utf-8", errors="ignore")
 

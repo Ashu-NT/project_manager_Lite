@@ -1,10 +1,10 @@
 import QtQuick
 import QtQuick.Layouts
-import "../../../../../shared/qml/layouts" as LayoutPrimitives
-import "../../../../../shared/qml/theme" as Theme
-import "../../../../../shared/qml/widgets" as Widgets
+import App.Layouts 1.0 as AppLayouts
+import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-LayoutPrimitives.WorkspaceFrame {
+AppLayouts.WorkspaceFrame {
     property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.portfolio")
 
     title: workspaceModel.title
@@ -14,7 +14,7 @@ LayoutPrimitives.WorkspaceFrame {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
 
-        Widgets.MetricCard {
+        AppWidgets.MetricCard {
             Layout.preferredWidth: 260
             label: "Migration target"
             value: workspaceModel.migrationStatus

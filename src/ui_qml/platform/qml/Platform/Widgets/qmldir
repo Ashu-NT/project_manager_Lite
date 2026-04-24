@@ -1,0 +1,4 @@
+module Platform.Widgets
+OverviewSectionCard 1.0 OverviewSectionCard.qml
+RecordListCard 1.0 RecordListCard.qml
+WorkspaceStateBanner 1.0 WorkspaceStateBanner.qml

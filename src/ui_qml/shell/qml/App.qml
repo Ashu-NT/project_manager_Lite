@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "../../shared/qml/theme" as Theme
+import App.Theme 1.0 as Theme
 
 ApplicationWindow {
     id: app

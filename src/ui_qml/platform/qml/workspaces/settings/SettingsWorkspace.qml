@@ -1,11 +1,11 @@
 import QtQuick
 import QtQuick.Layouts
-import "../../../../shared/qml/layouts" as LayoutPrimitives
-import "../../../../shared/qml/theme" as Theme
-import "../../../../shared/qml/widgets" as Widgets
-import "../../widgets" as PlatformWidgets
+import App.Layouts 1.0 as AppLayouts
+import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
+import Platform.Widgets 1.0 as PlatformWidgets
 
-LayoutPrimitives.WorkspaceFrame {
+AppLayouts.WorkspaceFrame {
     property var workspaceModel: platformWorkspaceCatalog.workspace("platform.settings")
     property QtObject workspaceController: platformWorkspaceCatalog.settingsWorkspace
 
@@ -31,7 +31,7 @@ LayoutPrimitives.WorkspaceFrame {
                 Repeater {
                     model: workspaceController.overview.metrics || []
 
-                    delegate: Widgets.MetricCard {
+                    delegate: AppWidgets.MetricCard {
                         required property var modelData
 
                         width: 210
@@ -46,14 +46,14 @@ LayoutPrimitives.WorkspaceFrame {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingMd
 
-                Widgets.MetricCard {
+                AppWidgets.MetricCard {
                     Layout.preferredWidth: 240
                     label: "Theme"
                     value: shellContext.themeMode
                     supportingText: "Theme state is exposed through shellContext for QML binding."
                 }
 
-                Widgets.MetricCard {
+                AppWidgets.MetricCard {
                     Layout.preferredWidth: 240
                     label: "Platform API"
                     value: workspaceController.overview.statusLabel || ""

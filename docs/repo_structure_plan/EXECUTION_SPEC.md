@@ -386,11 +386,12 @@ src/ui_qml/
       ShellDrawer.qml
   shared/
     qml/
-      controls/
-      dialogs/
-      widgets/
-      layouts/
-      theme/
+      App/
+        Controls/
+        Dialogs/
+        Widgets/
+        Layouts/
+        Theme/
     presenters/
     view_models/
     models/
@@ -398,6 +399,8 @@ src/ui_qml/
     formatting/
   platform/
     qml/
+      Platform/
+        Widgets/
       workspaces/
         admin/
         control/
@@ -479,9 +482,12 @@ QML migration rules:
 
 - QML renders and binds state only
 - QML must not contain business rules or direct repository/session/ORM access
-- presenters own user intent, loading/error/retry state, navigation, dialog orchestration, and API calls
+- presenters or workspace-controller/catalog objects own user intent, loading/busy/error/feedback state, refresh, mutation sequencing, navigation, dialog orchestration, and API calls
 - presenters call module-owned desktop APIs, not repositories or handlers directly
 - view models expose display-ready values only
+- reusable QML must be exposed through `qmldir`-backed named modules, not parent-relative imports
+- shared reusable QML uses `App.*` namespaces and platform reusable QML uses `Platform.*` namespaces
+- keep aliases consistent in active files: `Theme`, `AppLayouts`, `AppWidgets`, `AppControls`, and `PlatformWidgets`
 - old Widget screens under `src/ui/*` remain active only until migrated
 - delete old Widget files screen-by-screen after QML replacement, navigation rewrite, and tests
 - quarantine temporary Widget artifacts only under `src/ui_qml/legacy_widgets/migration_only/*`
@@ -493,7 +499,7 @@ QML shell migration status as of 2026-04-24:
 - `src/ui_qml/shell/qml_registry.py` owns duplicate-safe route registration and route lookup
 - `src/ui_qml/shell/navigation.py` and `main_window.py` build shell navigation view models from registered routes
 - `src/ui_qml/shell/context.py` exposes `shellContext` for QML-safe app title, navigation items, current route, theme mode, and user display name binding
-- `src/ui_qml/shell/qml_engine.py` contains QML engine loading glue
+- `src/ui_qml/shell/qml_engine.py` now registers shared/platform/module QML import roots so named modules resolve during runtime and offscreen loading
 - `src/ui_qml/shell/login.py` contains initial QML login view-model state
 - `src/ui_qml/shell/qml/*` contains valid shell QML component placeholders bound to `shellContext`
 - `src/ui_qml/shell/qml/MainWindow.qml` now hosts the selected registered workspace through a `Loader` bound to `shellContext.currentRouteSource`
@@ -502,14 +508,14 @@ QML shell migration status as of 2026-04-24:
 - `tests/test_qml_shell_migration.py` covers the shell route registry, route-source navigation metadata, login view-model defaults, and entrypoint safety
 - offscreen QML loading has verified that `App.qml` loads with the exposed `shellContext`
 
-Shared QML primitive status as of 2026-04-22:
+Shared QML primitive status as of 2026-04-24:
 
-- `src/ui_qml/shared/qml/theme/AppTheme.qml` defines the first QML token set aligned to the existing Widget `UIConfig` palette
-- `src/ui_qml/shared/qml/theme/qmldir` registers `AppTheme` as a reusable singleton
-- `src/ui_qml/shared/qml/controls/PrimaryButton.qml` provides the first reusable QML action control
-- `src/ui_qml/shared/qml/widgets/MetricCard.qml` provides the first reusable dashboard/status card primitive
-- `src/ui_qml/shared/qml/layouts/WorkspaceFrame.qml` provides the first reusable workspace shell frame with a default content slot
-- shell QML imports these shared primitives instead of hard-coded local styling
+- `src/ui_qml/shared/qml/App/Theme/AppTheme.qml` defines the first QML token set aligned to the existing Widget `UIConfig` palette
+- `src/ui_qml/shared/qml/App/{Theme,Controls,Widgets,Layouts}/qmldir` now define stable named modules for `App.Theme`, `App.Controls`, `App.Widgets`, and `App.Layouts`
+- `src/ui_qml/shared/qml/App/Controls/PrimaryButton.qml` provides the first reusable QML action control
+- `src/ui_qml/shared/qml/App/Widgets/MetricCard.qml` provides the first reusable dashboard/status card primitive
+- `src/ui_qml/shared/qml/App/Layouts/WorkspaceFrame.qml` provides the first reusable workspace shell frame with a default content slot
+- shell, platform, and current PM QML now import these shared primitives through named modules instead of deep parent-relative paths
 - `tests/test_qml_shared_primitives.py` covers the primitive file contract and token alignment
 
 Platform QML route status as of 2026-04-24:
@@ -523,9 +529,11 @@ Platform QML route status as of 2026-04-24:
 - `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py` now compose grouped platform admin/control/settings overview state from split platform desktop APIs
 - `src/ui_qml/platform/view_models/{runtime,workspace}.py` defines QML-safe platform runtime and grouped workspace overview view models
 - `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` now compose real control/settings action-list data from split platform desktop APIs without growing the overview presenters into dump files
-- `src/ui_qml/platform/qml/widgets/{OverviewSectionCard,RecordListCard}.qml` provide reusable grouped overview and action-list rendering for the platform workspaces
+- `src/ui_qml/platform/workspace_state.py` now owns common admin/control/settings workspace state plus action and refresh sequencing, so QML pages stay render-only
+- `src/ui_qml/platform/qml/Platform/Widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner}.qml` provide reusable grouped overview, action-list, and workspace-state rendering for the platform workspaces
 - `platform.control` now exposes a real QML approval queue with approve/reject actions plus a real QML audit feed
 - `platform.settings` now exposes a real QML module-entitlement surface with license/enable toggles plus organization-profile visibility
+- platform admin/control/settings QML no longer uses page-local `refreshWorkspace()` JavaScript or page-local feedback orchestration
 - lifecycle-status changes, organization/site/department/employee CRUD, users/documents/parties/access/support, and approval decision-note entry still remain on the legacy QWidget side until their QML workflows reach parity
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
 - `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, action-list, and control/settings action states
@@ -559,7 +567,7 @@ Project Management QML presenter/view-model status as of 2026-04-22:
 - `tests/test_qml_project_management_presenters.py` covers route-to-presenter alignment, QML-safe catalog maps, and guards against legacy Widget or infrastructure imports in the PM QML layer
 - `tests/test_project_management_desktop_api.py` covers PM desktop workspace API descriptors and guards against QML or infrastructure imports from the desktop API layer
 
-QML architecture guardrail status as of 2026-04-22:
+QML architecture guardrail status as of 2026-04-24:
 
 - `tests/test_qml_architecture_guardrails.py` protects the QML migration dependency direction
 - `tests/test_qml_offscreen_loading.py` loads every registered QML route through `QQmlApplicationEngine` with `QT_QPA_PLATFORM=offscreen`
@@ -567,8 +575,10 @@ QML architecture guardrail status as of 2026-04-22:
 - QML Python under `src/ui_qml/**` must not import legacy Widget UI, infrastructure, persistence repositories, or `PySide6.QtWidgets`
 - module desktop APIs under `src/core/modules/*/api/desktop/**` must not import `src.ui_qml`
 - QML files must not reference repository, ORM, SQLAlchemy, session, or persistence concepts
+- QML files must not use parent-relative import paths; named-module imports are now enforced for reusable QML
 - these guardrails must pass before wiring real QML screens to module desktop APIs
 - registered QML routes must continue loading offscreen before any old Widget screen is deleted
+- the latest focused QML verification batch passes with `50 passed`
 
 ## API Refactor Rule
 
@@ -738,11 +748,11 @@ Completed:
 - `tests/test_qml_architecture_guardrails.py` now prevents Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Documents, Parties, and Users from drifting back to direct platform service access
 - `src/ui_qml/shell/context.py` and `src/ui_qml/shell/navigation.py` now expose QML-safe route-source metadata, and `src/ui_qml/shell/qml/MainWindow.qml` now hosts the selected registered workspace through a `Loader`
 - `shell.home` now points at `src/ui_qml/shell/qml/HomeWorkspace.qml` so the routed shell no longer recursively loads `MainWindow.qml`
-- `src/ui_qml/platform/context.py` now composes grouped admin/control/settings overview maps from split platform desktop APIs, backed by `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py`, `src/ui_qml/platform/view_models/workspace.py`, and `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml`
+- `src/ui_qml/platform/context.py` now composes grouped admin/control/settings overview maps from split platform desktop APIs, backed by `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py`, `src/ui_qml/platform/view_models/workspace.py`, and `src/ui_qml/platform/qml/Platform/Widgets/OverviewSectionCard.qml`
 - `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` now provide the first real control/settings QML workflow presenters for approval actions, audit feeds, and module-entitlement toggles
 - `src/ui_qml/platform/context.py` now exposes QML-safe `approvalQueue()`, `auditFeed()`, `moduleEntitlements()`, `organizationProfiles()`, `approveRequest()`, `rejectRequest()`, `toggleModuleLicensed()`, and `toggleModuleEnabled()` methods
 - `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` now renders a real approval queue and audit feed, and `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` now renders real module-entitlement and organization-profile surfaces
-- `src/ui_qml/platform/qml/widgets/RecordListCard.qml` now provides reusable action-list rendering for migrated platform QML workflows
+- `src/ui_qml/platform/qml/Platform/Widgets/RecordListCard.qml` now provides reusable action-list rendering for migrated platform QML workflows
 - lifecycle-status changes, org master-data CRUD, users/documents/parties/access/support, and approval notes remain on the Widget side for now; do not delete those Widget files yet
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
@@ -1342,8 +1352,8 @@ Clean-cutover tests:
 - historical Widget-era platform screens live under `src/ui/platform/*`
 - final platform QML screens target `src/ui_qml/platform/qml/workspaces/{admin,control,settings}/`
 - final platform QML dialogs target `src/ui_qml/platform/qml/dialogs/`
-- final platform QML widgets target `src/ui_qml/platform/qml/widgets/`
-- reusable final QML pieces live under `src/ui_qml/shared/qml/*`
+- final platform reusable QML widgets target `src/ui_qml/platform/qml/Platform/Widgets/`
+- reusable final QML pieces live under `src/ui_qml/shared/qml/App/*`
 - delete old Widget paths only after their matching QML screen/dialog/widget is complete and tested
 
 `core/modules/project_management/services/*` target:

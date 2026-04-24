@@ -1,10 +1,10 @@
 import QtQuick
 import QtQuick.Layouts
-import "../../../../../shared/qml/layouts" as LayoutPrimitives
-import "../../../../../shared/qml/theme" as Theme
-import "../../../../../shared/qml/widgets" as Widgets
+import App.Layouts 1.0 as AppLayouts
+import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-LayoutPrimitives.WorkspaceFrame {
+AppLayouts.WorkspaceFrame {
     property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.dashboard")
     property var dashboardOverview: pmWorkspaceCatalog.dashboardOverview()
 
@@ -18,7 +18,7 @@ LayoutPrimitives.WorkspaceFrame {
         Repeater {
             model: dashboardOverview.metrics
 
-            delegate: Widgets.MetricCard {
+            delegate: AppWidgets.MetricCard {
                 required property var modelData
 
                 width: 230

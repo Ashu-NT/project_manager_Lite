@@ -5,6 +5,7 @@ import pytest
 from src.ui_qml.shell.context import build_shell_context
 from src.ui_qml.shell.login import LoginViewModel
 from src.ui_qml.shell.main_window import build_main_window_navigation
+from src.ui_qml.shell.qml_engine import QML_IMPORT_ROOTS
 from src.ui_qml.shell.qml_registry import QmlRouteRegistry, build_qml_route_registry
 from src.ui_qml.shell.routes import build_shell_routes
 
@@ -93,6 +94,14 @@ def test_qml_login_view_model_keeps_empty_credentials_by_default() -> None:
     assert view_model.password == ""
     assert view_model.error_message == ""
     assert not view_model.is_busy
+
+
+def test_qml_engine_registers_named_import_roots() -> None:
+    import_roots = {path.resolve() for path in QML_IMPORT_ROOTS}
+
+    assert Path("src/ui_qml/shared/qml").resolve() in import_roots
+    assert Path("src/ui_qml/platform/qml").resolve() in import_roots
+    assert Path("src/ui_qml/modules/project_management/qml").resolve() in import_roots
 
 
 def test_qml_shell_does_not_replace_widget_entrypoint_yet() -> None:

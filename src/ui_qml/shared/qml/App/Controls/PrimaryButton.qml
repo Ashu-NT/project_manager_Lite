@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import "../theme" as Theme
+import App.Theme 1.0 as Theme
 
 Button {
     id: control

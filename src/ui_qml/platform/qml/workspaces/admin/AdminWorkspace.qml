@@ -1,11 +1,11 @@
 import QtQuick
 import QtQuick.Layouts
-import "../../../../shared/qml/layouts" as LayoutPrimitives
-import "../../../../shared/qml/theme" as Theme
-import "../../../../shared/qml/widgets" as Widgets
-import "../../widgets" as PlatformWidgets
+import App.Layouts 1.0 as AppLayouts
+import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
+import Platform.Widgets 1.0 as PlatformWidgets
 
-LayoutPrimitives.WorkspaceFrame {
+AppLayouts.WorkspaceFrame {
     property var workspaceModel: platformWorkspaceCatalog.workspace("platform.admin")
     property QtObject workspaceController: platformWorkspaceCatalog.adminWorkspace
 
@@ -31,7 +31,7 @@ LayoutPrimitives.WorkspaceFrame {
             Repeater {
                 model: workspaceController.overview.metrics || []
 
-                delegate: Widgets.MetricCard {
+                delegate: AppWidgets.MetricCard {
                     required property var modelData
 
                     width: 210

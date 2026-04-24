@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../../../shared/qml/controls" as SharedControls
-import "../../../shared/qml/theme" as Theme
+import App.Controls 1.0 as AppControls
+import App.Theme 1.0 as Theme
 
 Rectangle {
     id: root
@@ -154,7 +154,7 @@ Rectangle {
                         visible: root.primaryActionLabel.length > 0 || root.secondaryActionLabel.length > 0
                         spacing: Theme.AppTheme.spacingSm
 
-                        SharedControls.PrimaryButton {
+                        AppControls.PrimaryButton {
                             visible: root.primaryActionLabel.length > 0 && modelData.canPrimaryAction
                             enabled: root.actionsEnabled
                             text: root.primaryActionLabel
@@ -162,7 +162,7 @@ Rectangle {
                             onClicked: root.primaryActionRequested(modelData.id)
                         }
 
-                        SharedControls.PrimaryButton {
+                        AppControls.PrimaryButton {
                             visible: root.secondaryActionLabel.length > 0 && modelData.canSecondaryAction
                             enabled: root.actionsEnabled
                             text: root.secondaryActionLabel

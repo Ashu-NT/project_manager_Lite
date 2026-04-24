@@ -1,0 +1,2 @@
+module App.Controls
+PrimaryButton 1.0 PrimaryButton.qml

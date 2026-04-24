@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../../../shared/qml/theme" as Theme
+import App.Theme 1.0 as Theme
 
 Rectangle {
     id: root
