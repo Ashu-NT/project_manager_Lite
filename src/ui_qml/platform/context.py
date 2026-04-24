@@ -3,8 +3,10 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 
 from src.api.desktop.platform import PlatformRuntimeDesktopApi
+from src.ui_qml.platform.access_workspace_state import PlatformAdminAccessWorkspaceController
 from src.ui_qml.platform.admin_workspace_state import PlatformAdminWorkspaceController
 from src.ui_qml.platform.presenters import (
+    PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
@@ -81,6 +83,13 @@ class PlatformWorkspaceCatalog(QObject):
             document_presenter=PlatformDocumentCatalogPresenter(document_api=document_api),
             parent=self,
         )
+        self._admin_access_workspace = PlatformAdminAccessWorkspaceController(
+            presenter=PlatformAccessWorkspacePresenter(
+                access_api=getattr(desktop_api_registry, "platform_access", None),
+                user_api=user_api,
+            ),
+            parent=self,
+        )
         self._control_workspace = PlatformControlWorkspaceController(
             overview_presenter=control_presenter,
             queue_presenter=control_queue_presenter,
@@ -96,6 +105,10 @@ class PlatformWorkspaceCatalog(QObject):
     @Property(QObject, constant=True)
     def adminWorkspace(self) -> QObject:
         return self._admin_workspace
+
+    @Property(QObject, constant=True)
+    def adminAccessWorkspace(self) -> QObject:
+        return self._admin_access_workspace
 
     @Property(QObject, constant=True)
     def controlWorkspace(self) -> QObject:

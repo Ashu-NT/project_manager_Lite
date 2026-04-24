@@ -85,11 +85,30 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     resource_service = services.get("resource_service")
     cost_service = services.get("cost_service")
     baseline_service = services.get("baseline_service")
+    inventory_service = services.get("inventory_service")
+    platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
+    access_scope_type_choices: list[tuple[str, str]] = []
+    access_scope_option_loaders: dict[str, object] = {}
+    access_scope_disabled_hints: dict[str, str] = {}
+    if project_service is not None and hasattr(project_service, "list_projects"):
+        access_scope_type_choices.append(("Project", "project"))
+        access_scope_option_loaders["project"] = lambda: [
+            (project.name, project.id)
+            for project in project_service.list_projects()
+        ]
+    access_scope_type_choices.append(("Site", "site"))
+    access_scope_option_loaders["site"] = lambda: _load_site_scope_options(platform_site_api)
+    if inventory_service is not None and hasattr(inventory_service, "list_storerooms"):
+        access_scope_type_choices.append(("Storeroom", "storeroom"))
+        access_scope_option_loaders["storeroom"] = lambda: [
+            (f"{storeroom.storeroom_code} - {storeroom.name}", storeroom.id)
+            for storeroom in inventory_service.list_storerooms()
+        ]
     return DesktopApiRegistry(
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
         ),
-        platform_site=PlatformSiteDesktopApi(site_service=site_service),
+        platform_site=platform_site_api,
         platform_department=PlatformDepartmentDesktopApi(
             department_service=department_service,
         ),
@@ -98,6 +117,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         platform_access=PlatformAccessDesktopApi(
             access_service=access_service,
+            scope_type_choices=tuple(access_scope_type_choices),
+            scope_option_loaders=access_scope_option_loaders,
+            scope_disabled_hints=access_scope_disabled_hints,
         ),
         platform_approval=PlatformApprovalDesktopApi(
             approval_service=approval_service,
@@ -120,6 +142,16 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             auth_service=auth_service,
         ),
     )
+
+
+def _load_site_scope_options(platform_site_desktop_api: PlatformSiteDesktopApi) -> list[tuple[str, str]]:
+    result = platform_site_desktop_api.list_sites(active_only=None)
+    if not result.ok or result.data is None:
+        return []
+    return [
+        (f"{site.site_code} - {site.name}", site.id)
+        for site in result.data
+    ]
 
 
 __all__ = ["DesktopApiRegistry", "build_desktop_api_registry"]

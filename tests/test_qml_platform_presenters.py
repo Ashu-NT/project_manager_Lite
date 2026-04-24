@@ -22,7 +22,10 @@ from src.api.desktop.platform.models import (
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
     RoleDto,
+    ScopedAccessGrantDto,
     SiteDto,
+    ScopeTargetDto,
+    ScopeTypeChoiceDto,
     UserDto,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -623,6 +626,38 @@ class _FakePlatformUserApi:
             ),
         )
 
+    def unlock_user_account(self, user_id: str) -> DesktopApiResult[UserDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != user_id:
+                continue
+            updated = replace(row, locked_until=None, failed_login_attempts=0, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="user_not_found",
+                message=f"User '{user_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+    def revoke_user_sessions(self, user_id: str, *, note: str = "") -> DesktopApiResult[UserDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != user_id:
+                continue
+            updated = replace(row, session_expires_at=None, version=row.version + 1)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="user_not_found",
+                message=f"User '{user_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
     def _update_roles(
         self,
         user_id: str,
@@ -853,6 +888,87 @@ class _FakePlatformDocumentApi:
                 category="not_found",
             ),
         )
+
+
+class _FakePlatformAccessApi:
+    def __init__(
+        self,
+        *,
+        scope_types: tuple[ScopeTypeChoiceDto, ...],
+        scope_targets: dict[str, tuple[ScopeTargetDto, ...]],
+        grants: tuple[ScopedAccessGrantDto, ...],
+    ) -> None:
+        self._scope_types = scope_types
+        self._scope_targets = dict(scope_targets)
+        self._grants = list(grants)
+
+    def list_scope_types(self) -> DesktopApiResult[tuple[ScopeTypeChoiceDto, ...]]:
+        return DesktopApiResult(ok=True, data=self._scope_types)
+
+    def list_scope_targets(self, scope_type: str) -> DesktopApiResult[tuple[ScopeTargetDto, ...]]:
+        return DesktopApiResult(ok=True, data=self._scope_targets.get(scope_type, ()))
+
+    def list_scope_role_choices(self, scope_type: str) -> DesktopApiResult[tuple[str, ...]]:
+        if scope_type == "storeroom":
+            return DesktopApiResult(ok=True, data=("viewer", "planner"))
+        return DesktopApiResult(ok=True, data=("viewer", "manager"))
+
+    def list_scope_grants(
+        self,
+        *,
+        scope_type: str,
+        scope_id: str,
+    ) -> DesktopApiResult[tuple[ScopedAccessGrantDto, ...]]:
+        rows = [
+            row
+            for row in self._grants
+            if row.scope_type == scope_type and row.scope_id == scope_id
+        ]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def assign_scope_grant(self, command) -> DesktopApiResult[ScopedAccessGrantDto]:
+        for index, row in enumerate(self._grants):
+            if (
+                row.scope_type == command.scope_type
+                and row.scope_id == command.scope_id
+                and row.user_id == command.user_id
+            ):
+                updated = replace(row, scope_role=command.scope_role)
+                self._grants[index] = updated
+                return DesktopApiResult(ok=True, data=updated)
+        grant = ScopedAccessGrantDto(
+            id=f"grant-{len(self._grants) + 1}",
+            scope_type=command.scope_type,
+            scope_id=command.scope_id,
+            user_id=command.user_id,
+            scope_role=command.scope_role,
+            permission_codes=(f"{command.scope_type}.{command.scope_role}",),
+            created_at=datetime(2026, 4, 24, 10, 0, 0),
+        )
+        self._grants.append(grant)
+        return DesktopApiResult(ok=True, data=grant)
+
+    def remove_scope_grant(self, command) -> DesktopApiResult[None]:
+        original_count = len(self._grants)
+        self._grants = [
+            row
+            for row in self._grants
+            if not (
+                row.scope_type == command.scope_type
+                and row.scope_id == command.scope_id
+                and row.user_id == command.user_id
+            )
+        ]
+        if len(self._grants) == original_count:
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="grant_not_found",
+                    message="Scope grant was not found.",
+                    category="not_found",
+                ),
+            )
+        return DesktopApiResult(ok=True, data=None)
 
 
 class _FakePlatformApprovalApi:
@@ -1086,7 +1202,7 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             last_login_at=None,
             last_login_auth_method=None,
             last_login_device_label=None,
-            session_expires_at=None,
+            session_expires_at=datetime(2026, 4, 24, 12, 0, 0),
             session_timeout_minutes_override=None,
             must_change_password=True,
             version=1,
@@ -1094,6 +1210,58 @@ def _build_connected_platform_registry() -> SimpleNamespace:
         ),
     )
     user_api = _FakePlatformUserApi(user_rows, role_rows)
+    access_scope_types = (
+        ScopeTypeChoiceDto(label="Project", value="project", enabled=True, supporting_text=""),
+        ScopeTypeChoiceDto(label="Site", value="site", enabled=True, supporting_text=""),
+        ScopeTypeChoiceDto(
+            label="Storeroom",
+            value="storeroom",
+            enabled=False,
+            supporting_text="Inventory & Procurement is disabled. Enable it before managing storeroom access.",
+        ),
+    )
+    access_scope_targets = {
+        "project": (
+            ScopeTargetDto(
+                id="project-1",
+                label="Project Apollo",
+                scope_type="project",
+            ),
+        ),
+        "site": (
+            ScopeTargetDto(
+                id="site-1",
+                label="BER - Berlin Campus",
+                scope_type="site",
+            ),
+        ),
+        "storeroom": (),
+    }
+    access_grants = (
+        ScopedAccessGrantDto(
+            id="grant-1",
+            scope_type="project",
+            scope_id="project-1",
+            user_id="user-1",
+            scope_role="manager",
+            permission_codes=("project.manage", "project.read"),
+            created_at=datetime(2026, 4, 24, 8, 15, 0),
+        ),
+        ScopedAccessGrantDto(
+            id="grant-2",
+            scope_type="site",
+            scope_id="site-1",
+            user_id="user-2",
+            scope_role="viewer",
+            permission_codes=("site.read",),
+            created_at=datetime(2026, 4, 24, 8, 45, 0),
+        ),
+    )
+    access_api = _FakePlatformAccessApi(
+        scope_types=access_scope_types,
+        scope_targets=access_scope_targets,
+        grants=access_grants,
+    )
     document_structure_rows = (
         DocumentStructureDto(
             id="structure-1",
@@ -1303,6 +1471,7 @@ def _build_connected_platform_registry() -> SimpleNamespace:
         platform_site=site_api,
         platform_department=department_api,
         platform_employee=employee_api,
+        platform_access=access_api,
         platform_user=user_api,
         platform_document=document_api,
         platform_party=party_api,
@@ -1458,6 +1627,7 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     users = catalog.adminWorkspace.users
     parties = catalog.adminWorkspace.parties
     documents = catalog.adminWorkspace.documents
+    access_workspace = catalog.adminAccessWorkspace
 
     assert organizations["title"] == "Organizations"
     assert organizations["items"][0]["title"] == "TechAsh"
@@ -1488,6 +1658,9 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     assert len(catalog.adminWorkspace.userEditorOptions["roleOptions"]) == 2
     assert len(catalog.adminWorkspace.partyEditorOptions["typeOptions"]) >= 3
     assert len(catalog.adminWorkspace.documentEditorOptions["structureOptions"]) == 2
+    assert len(access_workspace.scopeTypeOptions) == 3
+    assert access_workspace.scopeGrants["items"][0]["title"] == "Ada Lovelace"
+    assert access_workspace.securityUsers["items"][1]["statusLabel"] == "Locked"
 
 
 def test_platform_workspace_controllers_hold_common_state_fields() -> None:
@@ -1498,6 +1671,7 @@ def test_platform_workspace_controllers_hold_common_state_fields() -> None:
     assert catalog.adminWorkspace.errorMessage == ""
     assert catalog.adminWorkspace.organizations["items"][0]["title"] == "TechAsh"
     assert catalog.adminWorkspace.users["items"][0]["title"] == "Ada Lovelace"
+    assert catalog.adminAccessWorkspace.scopeHint.startswith("Assign scoped access")
     assert catalog.controlWorkspace.feedbackMessage == ""
     assert catalog.settingsWorkspace.emptyState == ""
     assert catalog.controlWorkspace.approvalQueue["items"][0]["title"] == "Change Budget"
@@ -1755,3 +1929,48 @@ def test_platform_workspace_catalog_updates_extended_admin_actions() -> None:
     assert party_by_id["party-2"]["statusLabel"] == "Active"
     assert document_by_id["doc-2"]["state"]["isActive"] is False
     assert catalog.adminWorkspace.feedbackMessage == "Document active state updated."
+
+
+def test_platform_workspace_catalog_runs_access_security_actions() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    catalog.adminAccessWorkspace.setScopeType("site")
+    assign_result = catalog.adminAccessWorkspace.assignMembership()
+    remove_result = catalog.adminAccessWorkspace.removeMembership("user-2")
+    unlock_result = catalog.adminAccessWorkspace.unlockUser("user-2")
+    revoke_result = catalog.adminAccessWorkspace.revokeSessions("user-2")
+
+    assert assign_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Access grant assigned.",
+    }
+    assert remove_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Access grant removed.",
+    }
+    assert unlock_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "User account unlocked.",
+    }
+    assert revoke_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "User sessions revoked.",
+    }
+
+    grants = catalog.adminAccessWorkspace.scopeGrants
+    security_users = {
+        item["id"]: item
+        for item in catalog.adminAccessWorkspace.securityUsers["items"]
+    }
+
+    assert [item["title"] for item in grants["items"]] == ["Ada Lovelace"]
+    assert security_users["user-2"]["statusLabel"] == "Inactive"
+    assert catalog.adminAccessWorkspace.feedbackMessage == "User sessions revoked."

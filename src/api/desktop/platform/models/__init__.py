@@ -2,6 +2,8 @@ from src.api.desktop.platform.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantDto,
     ScopedAccessGrantRemoveCommand,
+    ScopeTargetDto,
+    ScopeTypeChoiceDto,
 )
 from src.api.desktop.platform.models.approval import (
     ApprovalDecisionCommand,
@@ -90,6 +92,8 @@ __all__ = [
     "ScopedAccessGrantAssignCommand",
     "ScopedAccessGrantDto",
     "ScopedAccessGrantRemoveCommand",
+    "ScopeTargetDto",
+    "ScopeTypeChoiceDto",
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",

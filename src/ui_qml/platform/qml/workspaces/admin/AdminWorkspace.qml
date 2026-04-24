@@ -18,6 +18,9 @@ AppLayouts.WorkspaceFrame {
     property QtObject workspaceController: platformWorkspaceCatalog
         ? platformWorkspaceCatalog.adminWorkspace
         : null
+    property QtObject accessController: platformWorkspaceCatalog
+        ? platformWorkspaceCatalog.adminAccessWorkspace
+        : null
     property var organizationCatalog: workspaceController
         ? workspaceController.organizations
         : ({
@@ -406,6 +409,11 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
                 }
+            }
+
+            PlatformWidgets.AccessSecurityPanel {
+                Layout.fillWidth: true
+                controller: accessController
             }
 
             Flow {
