@@ -20,12 +20,10 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     app = QGuiApplication(argv or sys.argv)
     registry = build_qml_route_registry()
     shell_context = build_shell_context(build_main_window_navigation(registry))
-    platform_runtime_api = (
-        getattr(desktop_api_registry, "platform_runtime", None)
-        if desktop_api_registry is not None
-        else None
+    platform_workspace_catalog = PlatformWorkspaceCatalog(
+        getattr(desktop_api_registry, "platform_runtime", None) if desktop_api_registry is not None else None,
+        desktop_api_registry=desktop_api_registry,
     )
-    platform_workspace_catalog = PlatformWorkspaceCatalog(platform_runtime_api)
     pm_workspace_catalog = ProjectManagementWorkspaceCatalog()
     engine = create_qml_engine()
     expose_context_property(engine, "shellContext", shell_context)

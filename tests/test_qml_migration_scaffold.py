@@ -40,6 +40,7 @@ def test_qml_shell_navigation_view_models_are_route_shaped():
 
     assert len(items) == 2
     assert items[1].route_id == "shell.home"
+    assert items[1].qml_source.endswith("HomeWorkspace.qml")
     assert items[0].module_label == "Shell"
     assert items[0].group_label == "Runtime"
 

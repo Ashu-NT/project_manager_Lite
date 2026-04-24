@@ -14,7 +14,7 @@ def test_qml_shell_routes_point_to_existing_qml_files() -> None:
 
     assert [route.route_id for route in routes] == ["shell.app", "shell.home"]
     assert routes[0].qml_path.name == "App.qml"
-    assert routes[1].qml_path.name == "MainWindow.qml"
+    assert routes[1].qml_path.name == "HomeWorkspace.qml"
     assert all(route.qml_path.exists() for route in routes)
 
 
@@ -52,9 +52,11 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
 def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
     registry = build_qml_route_registry()
     context = build_shell_context(build_main_window_navigation(registry))
+    route_by_id = {route.route_id: route for route in registry.list_navigation_routes()}
 
     assert context.appTitle == "TECHASH Enterprise"
     assert context.currentRouteId == "shell.home"
+    assert context.currentRouteSource == route_by_id["shell.home"].qml_path.as_uri()
     assert [item["routeId"] for item in context.navigationItems] == [
         "shell.home",
         "platform.admin",
@@ -72,6 +74,16 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
         "project_management.timesheets",
         "project_management.dashboard",
     ]
+    assert context.navigationItems[0]["qmlSource"] == route_by_id["shell.home"].qml_path.as_uri()
+
+    context.selectRoute("platform.admin")
+
+    assert context.currentRouteId == "platform.admin"
+    assert context.currentRouteSource == route_by_id["platform.admin"].qml_path.as_uri()
+
+    context.selectRoute("platform.unknown")
+
+    assert context.currentRouteId == "platform.admin"
 
 
 def test_qml_login_view_model_keeps_empty_credentials_by_default() -> None:

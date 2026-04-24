@@ -487,7 +487,7 @@ QML migration rules:
 - quarantine temporary Widget artifacts only under `src/ui_qml/legacy_widgets/migration_only/*`
 - no permanent Widget/QML mixed screen after a screen slice is complete
 
-QML shell migration status as of 2026-04-22:
+QML shell migration status as of 2026-04-24:
 
 - `src/ui_qml/shell/routes.py` defines QML route metadata and shell QML path resolution
 - `src/ui_qml/shell/qml_registry.py` owns duplicate-safe route registration and route lookup
@@ -496,9 +496,10 @@ QML shell migration status as of 2026-04-22:
 - `src/ui_qml/shell/qml_engine.py` contains QML engine loading glue
 - `src/ui_qml/shell/login.py` contains initial QML login view-model state
 - `src/ui_qml/shell/qml/*` contains valid shell QML component placeholders bound to `shellContext`
-- `shell.app` is the top-level QML app route and `shell.home` is the first navigable shell workspace placeholder
+- `src/ui_qml/shell/qml/MainWindow.qml` now hosts the selected registered workspace through a `Loader` bound to `shellContext.currentRouteSource`
+- `shell.app` is the top-level QML app route and `shell.home` now points at `HomeWorkspace.qml`, not back at `MainWindow.qml`, so the shell can host routed workspaces without recursive loading
 - `main_qt.py` still points to `src.ui.shell.app`; the QWidget app remains the active runtime until the QML shell has full parity
-- `tests/test_qml_shell_migration.py` covers the shell route registry, navigation view models, login view-model defaults, and entrypoint safety
+- `tests/test_qml_shell_migration.py` covers the shell route registry, route-source navigation metadata, login view-model defaults, and entrypoint safety
 - offscreen QML loading has verified that `App.qml` loads with the exposed `shellContext`
 
 Shared QML primitive status as of 2026-04-22:
@@ -511,7 +512,7 @@ Shared QML primitive status as of 2026-04-22:
 - shell QML imports these shared primitives instead of hard-coded local styling
 - `tests/test_qml_shared_primitives.py` covers the primitive file contract and token alignment
 
-Platform QML route status as of 2026-04-22:
+Platform QML route status as of 2026-04-24:
 
 - `src/ui_qml/platform/routes.py` registers QML routes for platform admin, control, and settings workspaces
 - `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` is the admin QML landing zone
@@ -519,11 +520,13 @@ Platform QML route status as of 2026-04-22:
 - `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` is the settings QML landing zone
 - `src/ui_qml/platform/context.py` exposes `platformWorkspaceCatalog` for platform QML binding
 - `src/ui_qml/platform/presenters/runtime_presenter.py` consumes `src.api.desktop.platform.PlatformRuntimeDesktopApi`
-- `src/ui_qml/platform/view_models/runtime.py` defines QML-safe platform runtime overview view models
-- these are placeholders only; existing QWidget platform screens remain active until each workflow has QML parity and tests
+- `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py` now compose grouped platform admin/control/settings overview state from split platform desktop APIs
+- `src/ui_qml/platform/view_models/{runtime,workspace}.py` defines QML-safe platform runtime and grouped workspace overview view models
+- `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml` provides reusable grouped overview rendering for the platform workspaces
+- these are now grouped overview surfaces rather than plain placeholders; existing QWidget platform screens still remain active until each workflow has QML parity and tests
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
-- `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected and preview API states
-- offscreen QML loading has verified that the platform placeholder workspaces resolve with the shared QML primitives
+- `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, and direct-runtime-fallback states
+- offscreen QML loading has verified that the platform workspaces resolve with the shared QML primitives
 
 Project Management QML route status as of 2026-04-22:
 
@@ -730,6 +733,9 @@ Completed:
 - targeted desktop adapter tests were added for platform runtime flows
 - targeted desktop adapter tests were added for platform document, party, and user flows
 - `tests/test_qml_architecture_guardrails.py` now prevents Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Documents, Parties, and Users from drifting back to direct platform service access
+- `src/ui_qml/shell/context.py` and `src/ui_qml/shell/navigation.py` now expose QML-safe route-source metadata, and `src/ui_qml/shell/qml/MainWindow.qml` now hosts the selected registered workspace through a `Loader`
+- `shell.home` now points at `src/ui_qml/shell/qml/HomeWorkspace.qml` so the routed shell no longer recursively loads `MainWindow.qml`
+- `src/ui_qml/platform/context.py` now composes grouped admin/control/settings overview maps from split platform desktop APIs, backed by `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py`, `src/ui_qml/platform/view_models/workspace.py`, and `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml`
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`
@@ -1019,6 +1025,11 @@ Verified:
   - direct metadata smoke import confirms `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` remain registered in `Base.metadata`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support`; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
+- `python -m compileall -q src/ui_qml tests/test_qml_shell_migration.py tests/test_qml_platform_presenters.py tests/test_qml_platform_routes.py tests/test_qml_offscreen_loading.py tests/test_qml_migration_scaffold.py`
+- `pytest tests/test_qml_shell_migration.py tests/test_qml_shared_primitives.py tests/test_qml_project_management_routes.py tests/test_qml_project_management_presenters.py tests/test_qml_platform_routes.py tests/test_qml_platform_presenters.py tests/test_qml_offscreen_loading.py tests/test_qml_migration_scaffold.py tests/test_qml_architecture_guardrails.py -q`
+  - observed result after the QML shell/platform overview checkpoint: 47 passed
+- `pytest tests/test_main_window_shell_navigation.py -q`
+  - observed result after the QML shell/platform overview checkpoint: 7 passed
 - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
 - `pytest tests/test_platform_control_desktop_api.py tests/test_phase_b_user_admin_ui.py tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_qml_architecture_guardrails.py -q`
 - `pytest tests/test_platform_admin_desktop_api.py tests/test_platform_control_desktop_api.py tests/test_platform_org_desktop_api.py tests/test_platform_runtime_desktop_api.py tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_main_window_shell_navigation.py tests/test_qml_architecture_guardrails.py tests/test_architecture_guardrails.py -q`
@@ -1107,6 +1118,7 @@ Hold status as of 2026-04-22:
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
+- the platform-first QML checkpoint now has a routed shell host plus grouped platform admin/control/settings overviews backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
 - PM QML route placeholders are complete; real PM screen replacement remains pending
 - PM QML presenter/view-model scaffolding is complete for the placeholder route set; workspace metadata now comes from a module desktop API
 - PM QML placeholders now bind to presenter-backed metadata through `pmWorkspaceCatalog`; desktop API wiring and real screen parity remain pending

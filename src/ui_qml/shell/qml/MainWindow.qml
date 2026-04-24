@@ -1,9 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../../shared/qml/layouts" as LayoutPrimitives
 import "../../shared/qml/theme" as Theme
-import "../../shared/qml/widgets" as Widgets
 
 Item {
     id: root
@@ -27,38 +25,18 @@ Item {
                 Layout.fillHeight: true
             }
 
-            LayoutPrimitives.WorkspaceFrame {
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: "QML shell ready for migrated workspaces"
-                subtitle: "Current route: " + shellContext.currentRouteId
+                radius: Theme.AppTheme.radiusLg
+                color: Theme.AppTheme.surface
+                border.color: Theme.AppTheme.border
 
-                ColumnLayout {
+                Loader {
+                    id: workspaceLoader
                     anchors.fill: parent
-                    spacing: Theme.AppTheme.spacingMd
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.AppTheme.spacingMd
-
-                        Widgets.MetricCard {
-                            Layout.preferredWidth: 220
-                            label: "Migration mode"
-                            value: "QML"
-                            supportingText: "Widget shell stays active until parity is verified."
-                        }
-
-                        Widgets.MetricCard {
-                            Layout.preferredWidth: 220
-                            label: "Routes"
-                            value: shellContext.navigationItems.length + ""
-                            supportingText: "Navigable QML routes currently registered."
-                        }
-                    }
-
-                    Item {
-                        Layout.fillHeight: true
-                    }
+                    anchors.margins: Theme.AppTheme.marginLg
+                    source: shellContext.currentRouteSource
                 }
             }
         }

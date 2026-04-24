@@ -11,6 +11,7 @@ class NavigationItemViewModel:
     module_label: str
     group_label: str
     title: str
+    qml_source: str
 
 
 def build_navigation_items(routes: list[QmlRoute]) -> list[NavigationItemViewModel]:
@@ -20,6 +21,7 @@ def build_navigation_items(routes: list[QmlRoute]) -> list[NavigationItemViewMod
             module_label=route.module_label,
             group_label=route.group_label,
             title=route.title,
+            qml_source=route.qml_path.as_uri(),
         )
         for route in routes
     ]

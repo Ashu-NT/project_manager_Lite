@@ -8,6 +8,7 @@ from src.ui_qml.shell.navigation import NavigationItemViewModel
 class ShellContext(QObject):
     appTitleChanged = Signal()
     currentRouteIdChanged = Signal()
+    currentRouteSourceChanged = Signal()
     navigationItemsChanged = Signal()
     themeModeChanged = Signal()
     userDisplayNameChanged = Signal()
@@ -28,6 +29,10 @@ class ShellContext(QObject):
         self._current_route_id = current_route_id
         self._theme_mode = theme_mode
         self._user_display_name = user_display_name
+        self._navigation_item_by_route_id = {
+            item.route_id: item
+            for item in navigation_items
+        }
 
     @Property(str, notify=appTitleChanged)
     def appTitle(self) -> str:
@@ -37,6 +42,13 @@ class ShellContext(QObject):
     def currentRouteId(self) -> str:
         return self._current_route_id
 
+    @Property(str, notify=currentRouteSourceChanged)
+    def currentRouteSource(self) -> str:
+        item = self._navigation_item_by_route_id.get(self._current_route_id)
+        if item is None:
+            return ""
+        return item.qml_source
+
     @Property("QVariantList", notify=navigationItemsChanged)
     def navigationItems(self) -> list[dict[str, str]]:
         return [
@@ -45,6 +57,7 @@ class ShellContext(QObject):
                 "moduleLabel": item.module_label,
                 "groupLabel": item.group_label,
                 "title": item.title,
+                "qmlSource": item.qml_source,
             }
             for item in self._navigation_items
         ]
@@ -67,6 +80,7 @@ class ShellContext(QObject):
             return
         self._current_route_id = route_id
         self.currentRouteIdChanged.emit()
+        self.currentRouteSourceChanged.emit()
 
 
 def build_shell_context(navigation_items: list[NavigationItemViewModel]) -> ShellContext:

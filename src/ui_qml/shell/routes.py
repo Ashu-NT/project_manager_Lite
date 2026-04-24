@@ -39,7 +39,7 @@ def build_shell_routes() -> list[QmlRoute]:
             module_label="Shell",
             group_label="Runtime",
             title="QML Home",
-            qml_path=shell_qml_path("MainWindow.qml"),
+            qml_path=shell_qml_path("HomeWorkspace.qml"),
         ),
     ]
 

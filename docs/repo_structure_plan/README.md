@@ -50,9 +50,12 @@ QML scaffold status:
 - `src/ui_qml/*` has been created as the final landing zone
 - shell bootstrap foundation exists under `src/ui_qml/shell/*`, including route definitions, a route registry, navigation view-model construction, QML engine loading glue, login view-model state, and valid shell QML components
 - shell bootstrap now separates the top-level QML application route from navigable workspace routes and exposes a `shellContext` object for QML title, navigation, theme, current-route, and user-display bindings
+- shell bootstrap now loads the selected registered workspace inside `MainWindow.qml` through a `Loader` bound to `shellContext.currentRouteSource`; `shell.home` now targets `HomeWorkspace.qml` so the shell can host routed workspaces without recursive self-loading
 - shared QML primitives now exist under `src/ui_qml/shared/qml/*`, including `theme/AppTheme.qml`, `controls/PrimaryButton.qml`, `widgets/MetricCard.qml`, and `layouts/WorkspaceFrame.qml`
-- platform QML placeholder workspaces now exist under `src/ui_qml/platform/qml/workspaces/{admin,control,settings}/*` and are registered as navigable routes
+- platform QML workspaces now exist under `src/ui_qml/platform/qml/workspaces/{admin,control,settings}/*` and are registered as navigable routes
 - platform QML workspaces now bind through `platformWorkspaceCatalog`, which is backed by `src/api/desktop/platform/*` when a desktop API registry is connected
+- platform QML admin/control/settings workspaces now render grouped presenter-backed overviews, using split platform desktop APIs for runtime, organization master data, approvals, and audit flows
+- platform QML widgets now include `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml` for reusable grouped overview rendering
 - the legacy QWidget Platform Home screen has been moved onto the same `src/api/desktop/platform/*` API boundary while the QML shell remains pending
 - the legacy QWidget Module Licensing screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
 - the legacy QWidget Organizations screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
@@ -1427,10 +1430,10 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui/*` currently contains migrated-but-still-Widget desktop UI from the earlier refactor; it is now legacy active UI, not the final presentation target
 - final desktop UI now targets `src/ui_qml/*` with QML rendering, Python presenters, and Python view models
 - `src/ui_qml/*` scaffold is in place for shell, shared, platform, module, and legacy-widget migration buckets
-- `src/ui_qml/shell/*` now has initial shell route/registry/navigation/QML engine glue, a QML-bound `shellContext`, and QML component placeholders; `main_qt.py` still imports `src.ui.shell.app`
+- `src/ui_qml/shell/*` now has route/registry/navigation/QML engine glue, a QML-bound `shellContext`, a routed `MainWindow.qml` host, and a dedicated `HomeWorkspace.qml` landing route; `main_qt.py` still imports `src.ui.shell.app`
 - `src/ui_qml/shared/qml/*` now has first-pass reusable QML design primitives aligned to the legacy widget token palette
-- `src/ui_qml/platform/routes.py` registers the first platform QML routes for admin, control, and settings placeholders
-- `src/ui_qml/platform/context.py`, `presenters/runtime_presenter.py`, and `view_models/runtime.py` provide the first platform QML path that consumes the top-level platform desktop API instead of infrastructure
+- `src/ui_qml/platform/routes.py` registers platform QML routes for admin, control, and settings, and `src/ui_qml/platform/context.py` now exposes grouped overview maps for those workspaces
+- `src/ui_qml/platform/presenters/{runtime,admin_presenter,control_presenter,settings_presenter}.py`, `src/ui_qml/platform/view_models/{runtime,workspace}.py`, and `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml` provide the first real platform QML overview surface beyond placeholders
 - `src/ui_qml/modules/project_management/routes.py` registers the PM QML route set named by Slice 2
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` and `view_models/workspace.py` provide the first PM QML presenter/view-model contract without importing legacy widgets or infrastructure
 - `src/ui_qml/modules/project_management/context.py` exposes a QML-safe PM workspace catalog used by PM QML placeholders
@@ -1613,7 +1616,7 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 
 #### Slice 1 execution status
 
-Updated: 2026-04-19
+Updated: 2026-04-24
 
 Completed in the clean/no-facade execution:
 
@@ -1688,6 +1691,9 @@ Completed in the clean/no-facade execution:
 - wired the desktop API registry and shell context to expose `desktop_platform_site_api`, `desktop_platform_department_api`, `desktop_platform_employee_api`, `desktop_platform_access_api`, `desktop_platform_approval_api`, `desktop_platform_audit_api`, `desktop_platform_document_api`, `desktop_platform_party_api`, and `desktop_platform_user_api`
 - updated the shared PM governance approval queue integration to hand `ApprovalQueuePanel` a `PlatformApprovalDesktopApi`, keeping the shared queue on one contract even before the PM module slice is migrated
 - added QML architecture guardrails that keep Platform Home, Module Licensing, Organizations, Sites, Departments, Employees, Access, Approvals, Audit, Documents, Parties, and Users on the platform desktop API boundary while their QML replacements are pending
+- extended `src/ui_qml/shell/context.py` and `src/ui_qml/shell/navigation.py` to expose QML-safe route-source metadata, and rewired `src/ui_qml/shell/qml/MainWindow.qml` to host the selected registered workspace through a `Loader`
+- split the navigable shell landing route onto `src/ui_qml/shell/qml/HomeWorkspace.qml` so `shell.home` no longer points back at `MainWindow.qml`
+- upgraded the platform QML surface beyond placeholders by adding grouped admin/control/settings presenters under `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py`, grouped view models under `src/ui_qml/platform/view_models/workspace.py`, reusable section cards under `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml`, and grouped desktop-API-backed overview serialization in `src/ui_qml/platform/context.py`
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`
@@ -1976,6 +1982,9 @@ Verified:
 - in `conda run -n pmenv`, direct import of `src.infra.composition.app_container.build_service_dict` passes again after removing the stale `core/__init__.py` side effect
 - in `conda run -n pmenv`, direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support` passes; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
 - direct metadata smoke import confirms platform repositories load from `src.core.platform.infrastructure.persistence.repositories.*`, platform mappers load from `src.core.platform.infrastructure.persistence.mappers.*`, and split platform ORM files keep `TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` registered in `Base.metadata`
+- `python -m compileall -q src/ui_qml tests/test_qml_shell_migration.py tests/test_qml_platform_presenters.py tests/test_qml_platform_routes.py tests/test_qml_offscreen_loading.py tests/test_qml_migration_scaffold.py` passes
+- in `conda run -n pmenv`, `pytest tests/test_qml_shell_migration.py tests/test_qml_shared_primitives.py tests/test_qml_project_management_routes.py tests/test_qml_project_management_presenters.py tests/test_qml_platform_routes.py tests/test_qml_platform_presenters.py tests/test_qml_offscreen_loading.py tests/test_qml_migration_scaffold.py tests/test_qml_architecture_guardrails.py -q` passes with 47 passed
+- in `conda run -n pmenv`, `pytest tests/test_main_window_shell_navigation.py -q` passes with 7 passed
 - in `conda run -n pmenv`, platform persistence shape verification passes:
   - `pytest tests/test_platform_persistence_structure.py -q`
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes
@@ -2150,6 +2159,7 @@ Hold status:
 - active QWidget UI under `src/ui/*` remains runnable until each QML screen is complete and tested
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`, not `src/ui/modules/project_management/*`
 - QML shell foundation has started and is verified independently; Slice 2 backend/domain restructuring remains paused until this QML migration checkpoint is accepted
+- the platform-first QML checkpoint now has a routed shell host plus grouped platform admin/control/settings overviews backed by split platform desktop APIs; full workflow parity and QWidget deletion still remain pending
 - PM QML landing-zone placeholders and routes are now in place for every Slice 2 PM workspace; real PM QWidget screen replacement still has not started
 - PM QML presenter/view-model scaffolding is in place for every PM workspace route; desktop API wiring and real screen parity remain pending
 - PM QML placeholders now consume presenter-backed metadata through a QML context object; this is still metadata-only and does not replace PM Widget screens
