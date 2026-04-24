@@ -1602,6 +1602,7 @@ def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() 
     assert approval_queue["title"] == "Approval Queue"
     assert approval_queue["items"][0]["title"] == "Change Budget"
     assert approval_queue["items"][0]["canPrimaryAction"] is True
+    assert approval_queue["items"][0]["state"]["decisionNote"] == ""
     assert approval_queue["items"][1]["canPrimaryAction"] is False
 
     assert audit_feed["title"] == "Recent Audit Feed"
@@ -1610,7 +1611,9 @@ def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() 
     assert module_entitlements["title"] == "Module Entitlements"
     assert module_entitlements["items"][0]["title"] == "Project Management"
     assert module_entitlements["items"][0]["canPrimaryAction"] is True
+    assert module_entitlements["items"][0]["canTertiaryAction"] is True
     assert module_entitlements["items"][2]["canPrimaryAction"] is False
+    assert module_entitlements["items"][2]["canTertiaryAction"] is False
 
     assert organization_profiles["title"] == "Organization Profiles"
     assert organization_profiles["items"][0]["title"] == "TechAsh"
@@ -1674,6 +1677,7 @@ def test_platform_workspace_controllers_hold_common_state_fields() -> None:
     assert catalog.adminAccessWorkspace.scopeHint.startswith("Assign scoped access")
     assert catalog.controlWorkspace.feedbackMessage == ""
     assert catalog.settingsWorkspace.emptyState == ""
+    assert len(catalog.settingsWorkspace.lifecycleOptions) == 4
     assert catalog.controlWorkspace.approvalQueue["items"][0]["title"] == "Change Budget"
     assert catalog.settingsWorkspace.moduleEntitlements["items"][0]["title"] == "Project Management"
 
@@ -1681,9 +1685,9 @@ def test_platform_workspace_controllers_hold_common_state_fields() -> None:
 def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
 
-    approve_result = catalog.approveRequest("approval-1")
+    approve_result = catalog.approveRequestWithNote("approval-1", "Budget aligned with governance.")
     enable_result = catalog.toggleModuleEnabled("maintenance")
-    planned_result = catalog.toggleModuleLicensed("inventory")
+    lifecycle_result = catalog.changeModuleLifecycleStatus("project_management", "suspended")
 
     assert approve_result == {
         "ok": True,
@@ -1697,21 +1701,37 @@ def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
         "code": "",
         "message": "Module runtime state updated.",
     }
-    assert planned_result["ok"] is False
-    assert planned_result["category"] == "validation"
-    assert "planned" in planned_result["message"].lower()
+    assert lifecycle_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Module lifecycle status updated.",
+    }
 
     approval_queue = catalog.approvalQueue()
     settings_overview = catalog.settingsOverview()
     module_entitlements = catalog.moduleEntitlements()
+    project_management = {
+        item["id"]: item
+        for item in module_entitlements["items"]
+    }["project_management"]
+    maintenance = {
+        item["id"]: item
+        for item in module_entitlements["items"]
+    }["maintenance"]
 
     assert approval_queue["items"][0]["statusLabel"] == "Approved"
     assert approval_queue["items"][0]["canPrimaryAction"] is False
-    assert settings_overview["metrics"][1]["value"] == "2"
-    assert module_entitlements["items"][1]["subtitle"].endswith("Enabled")
+    assert approval_queue["items"][0]["state"]["decisionNote"] == "Budget aligned with governance."
+    assert "Decision note: Budget aligned with governance." in approval_queue["items"][0]["metaText"]
+    assert settings_overview["metrics"][1]["value"] == "1"
+    assert maintenance["subtitle"].endswith("Enabled")
+    assert project_management["statusLabel"] == "Suspended"
+    assert project_management["state"]["runtimeEnabled"] is False
+    assert project_management["canSecondaryAction"] is False
     assert catalog.controlWorkspace.feedbackMessage == "Approval request approved and applied."
-    assert catalog.settingsWorkspace.feedbackMessage == ""
-    assert "planned" in catalog.settingsWorkspace.errorMessage.lower()
+    assert catalog.settingsWorkspace.feedbackMessage == "Module lifecycle status updated."
+    assert catalog.settingsWorkspace.errorMessage == ""
 
 
 def test_platform_workspace_catalog_runs_admin_actions() -> None:

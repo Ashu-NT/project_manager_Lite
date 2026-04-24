@@ -47,24 +47,7 @@ class PlatformControlQueuePresenter:
             title="Approval Queue",
             subtitle="Approve or reject governed changes from the QML control workspace.",
             empty_state="No approval requests are available yet.",
-            items=tuple(
-                PlatformWorkspaceActionItemViewModel(
-                    id=row.id,
-                    title=row.display_label or row.request_type.replace("_", " ").title(),
-                    status_label=row.status.value.title(),
-                    subtitle=row.context_label or row.module_label or row.entity_type.replace("_", " ").title(),
-                    supporting_text=(
-                        f"{row.module_label} | requested by {row.requested_by_username or 'system'}"
-                    ).strip(),
-                    meta_text=self._format_timestamp(row.requested_at),
-                    can_primary_action=row.status == ApprovalStatus.PENDING,
-                    can_secondary_action=row.status == ApprovalStatus.PENDING,
-                    state={
-                        "status": row.status.value,
-                    },
-                )
-                for row in result.data
-            ),
+            items=tuple(self.serialize_approval_item(row) for row in result.data),
         )
 
     def build_audit_feed(self) -> PlatformWorkspaceActionListViewModel:
@@ -104,15 +87,41 @@ class PlatformControlQueuePresenter:
             ),
         )
 
-    def approve_request(self, request_id: str) -> DesktopApiResult[object]:
+    def approve_request(self, request_id: str, note: str | None = None) -> DesktopApiResult[object]:
         if self._approval_api is None:
             return self._preview_error("Platform approval API is not connected in this QML preview.")
-        return self._approval_api.approve_and_apply(ApprovalDecisionCommand(request_id=request_id))
+        return self._approval_api.approve_and_apply(
+            ApprovalDecisionCommand(request_id=request_id, note=(note or "").strip() or None)
+        )
 
-    def reject_request(self, request_id: str) -> DesktopApiResult[object]:
+    def reject_request(self, request_id: str, note: str | None = None) -> DesktopApiResult[object]:
         if self._approval_api is None:
             return self._preview_error("Platform approval API is not connected in this QML preview.")
-        return self._approval_api.reject(ApprovalDecisionCommand(request_id=request_id))
+        return self._approval_api.reject(
+            ApprovalDecisionCommand(request_id=request_id, note=(note or "").strip() or None)
+        )
+
+    def serialize_approval_item(self, row) -> PlatformWorkspaceActionItemViewModel:
+        note_text = str(row.decision_note or "").strip()
+        meta_parts = [self._format_timestamp(row.requested_at)]
+        if note_text:
+            meta_parts.append(f"Decision note: {note_text}")
+        return PlatformWorkspaceActionItemViewModel(
+            id=row.id,
+            title=row.display_label or row.request_type.replace("_", " ").title(),
+            status_label=row.status.value.title(),
+            subtitle=row.context_label or row.module_label or row.entity_type.replace("_", " ").title(),
+            supporting_text=(
+                f"{row.module_label} | requested by {row.requested_by_username or 'system'}"
+            ).strip(),
+            meta_text=" | ".join(part for part in meta_parts if part),
+            can_primary_action=row.status == ApprovalStatus.PENDING,
+            can_secondary_action=row.status == ApprovalStatus.PENDING,
+            state={
+                "status": row.status.value,
+                "decisionNote": note_text,
+            },
+        )
 
     @staticmethod
     def _format_timestamp(value: datetime | None) -> str:

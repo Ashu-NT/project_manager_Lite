@@ -17,6 +17,15 @@ class PlatformSettingsCatalogPresenter:
     def __init__(self, *, runtime_api: PlatformRuntimeDesktopApi | None = None) -> None:
         self._runtime_api = runtime_api
 
+    @staticmethod
+    def lifecycle_options() -> tuple[dict[str, str], ...]:
+        return (
+            {"label": "Active", "value": "active"},
+            {"label": "Trial", "value": "trial"},
+            {"label": "Suspended", "value": "suspended"},
+            {"label": "Expired", "value": "expired"},
+        )
+
     def build_module_entitlements(self) -> PlatformWorkspaceActionListViewModel:
         if self._runtime_api is None:
             return PlatformWorkspaceActionListViewModel(
@@ -63,6 +72,7 @@ class PlatformSettingsCatalogPresenter:
                             and entitlement.lifecycle_status in {"suspended", "expired"}
                         )
                     ),
+                    can_tertiary_action=not entitlement.planned and entitlement.licensed,
                     state={
                         "licensed": entitlement.licensed,
                         "enabled": entitlement.enabled,
@@ -150,6 +160,36 @@ class PlatformSettingsCatalogPresenter:
             ModuleStatePatchCommand(
                 module_code=entitlement.module_code,
                 enabled=not entitlement.enabled,
+            )
+        )
+
+    def change_module_lifecycle_status(
+        self,
+        module_code: str,
+        lifecycle_status: str,
+    ) -> DesktopApiResult[object]:
+        entitlement_result = self._find_entitlement(module_code)
+        if not entitlement_result.ok or entitlement_result.data is None:
+            return entitlement_result
+        entitlement = entitlement_result.data
+        if entitlement.planned:
+            return self._validation_error(
+                f"{entitlement.label} is still planned and does not have an active lifecycle yet."
+            )
+        if not entitlement.licensed:
+            return self._validation_error(
+                f"{entitlement.label} must be licensed before its lifecycle can change."
+            )
+        normalized_status = (lifecycle_status or "").strip().lower()
+        allowed_statuses = {option["value"] for option in self.lifecycle_options()}
+        if normalized_status not in allowed_statuses:
+            return self._validation_error(
+                f"Lifecycle status '{lifecycle_status}' is not supported for {entitlement.label}."
+            )
+        return self._runtime_api.patch_module_state(
+            ModuleStatePatchCommand(
+                module_code=entitlement.module_code,
+                lifecycle_status=normalized_status,
             )
         )
 

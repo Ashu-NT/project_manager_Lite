@@ -59,11 +59,12 @@ QML scaffold status:
 - platform admin/control/settings now bind through controller-owned workspace state in `src/ui_qml/platform/workspace_state.py`; QML pages no longer own `refreshWorkspace()` orchestration or page-local feedback state
 - platform `admin` now uses a dedicated `src/ui_qml/platform/admin_workspace_state.py` controller plus split catalog presenters for organizations, sites, departments, employees, users, parties, and documents
 - platform `admin` now exposes real QML organization/site/department/employee/user/party/document panels with controller-owned create, edit, toggle-active, set-active, role, and password-reset orchestration through `src/api/desktop/platform/*`
-- platform `control` now exposes a QML approval queue with approve/reject actions plus a QML audit feed, all through `platformWorkspaceCatalog` and split platform desktop APIs
-- platform `settings` now exposes a QML module entitlement surface with license/enable toggles plus organization-profile visibility, all through `platformWorkspaceCatalog` and `PlatformRuntimeDesktopApi`
-- access/security, support, document preview/link/structure management, lifecycle-status changes, and approval decision-note entry remain on the legacy QWidget side for now; those widget files should not be deleted yet
+- platform `admin` now also exposes scoped access and account-security workflows through `src/ui_qml/platform/access_workspace_state.py`, `src/ui_qml/platform/presenters/access_workspace_presenter.py`, and `src/ui_qml/platform/qml/Platform/Widgets/AccessSecurityPanel.qml`
+- platform `control` now exposes a QML approval queue with approve/reject actions, decision-note entry, and a QML audit feed, all through `platformWorkspaceCatalog` and split platform desktop APIs
+- platform `settings` now exposes a QML module entitlement surface with license toggles, enable toggles, lifecycle-status changes, plus organization-profile visibility, all through `platformWorkspaceCatalog` and `PlatformRuntimeDesktopApi`
+- support and document preview/link/structure management remain on the legacy QWidget side for now; those widget files should not be deleted yet
 - platform QML widgets now live under the named module `src/ui_qml/platform/qml/Platform/Widgets/*`, including `OverviewSectionCard.qml`, `RecordListCard.qml`, `WorkspaceStateBanner.qml`, and `AdminCatalogPanel.qml`
-- platform QML dialogs now live under the named module `src/ui_qml/platform/qml/Platform/Dialogs/*`, including focused editor dialogs for organizations, sites, departments, employees, users, parties, and documents
+- platform QML dialogs now live under the named module `src/ui_qml/platform/qml/Platform/Dialogs/*`, including focused editor dialogs for organizations, sites, departments, employees, users, parties, and documents plus `ApprovalDecisionDialog.qml` and `ModuleLifecycleDialog.qml`
 - QML imports now use named modules with stable aliases instead of deep parent-relative paths; the active convention is `Theme`, `AppLayouts`, `AppWidgets`, `AppControls`, and `PlatformWidgets`
 - the legacy QWidget Platform Home screen has been moved onto the same `src/api/desktop/platform/*` API boundary while the QML shell remains pending
 - the legacy QWidget Module Licensing screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
@@ -86,7 +87,7 @@ QML scaffold status:
 - focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
 - focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
 - automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
-- the latest broader QML verification batch passes with `58 passed`, the focused platform/QML batch passes with `45 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
+- the latest broader QML verification batch passes with `59 passed`, the focused platform/QML batch passes with `46 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
 
 ## Core Rule
 
@@ -1722,7 +1723,10 @@ Completed in the clean/no-facade execution:
 - upgraded `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` from overview-only to a real approval/audit surface, and upgraded `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` from overview-only to a real module-entitlement/runtime-settings surface
 - added `src/ui_qml/platform/presenters/{user_catalog_presenter,party_catalog_presenter,document_catalog_presenter}.py` so `platform.admin` can extend the same controller-owned pattern to users, parties, and documents without growing `admin_workspace_state.py` into API-specific orchestration code
 - upgraded `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` from the first org/site/department/employee surface into a broader admin QML surface for organizations, sites, departments, employees, users, parties, and documents, backed by `src/ui_qml/platform/qml/Platform/Widgets/AdminCatalogPanel.qml` and `src/ui_qml/platform/qml/Platform/Dialogs/{OrganizationEditorDialog,SiteEditorDialog,DepartmentEditorDialog,EmployeeEditorDialog,UserEditorDialog,PartyEditorDialog,DocumentEditorDialog}.qml`
-- kept access/security, support, document preview/link/structure management, lifecycle-status changes, and any approval decision-note entry on the legacy QWidget side for now; those workflows are still pending before old Widget files can be deleted
+- added `src/ui_qml/platform/access_workspace_state.py`, `src/ui_qml/platform/presenters/access_workspace_presenter.py`, and `src/ui_qml/platform/qml/Platform/Widgets/AccessSecurityPanel.qml` so `platform.admin` now owns scoped access grants and account-security actions through a separate controller instead of growing `admin_workspace_state.py` into another dump file
+- upgraded `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` with `ApprovalDecisionDialog.qml` and controller-owned `approveRequestWithNote()` / `rejectRequestWithNote()` flows so approval decision notes now live on the QML side
+- upgraded `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` with `ModuleLifecycleDialog.qml`, controller-owned lifecycle options, and `changeModuleLifecycleStatus()` so module lifecycle changes now live on the QML side without putting lifecycle rules into QML
+- kept support and document preview/link/structure management on the legacy QWidget side for now; those workflows are still pending before old Widget files can be deleted
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`

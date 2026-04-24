@@ -184,6 +184,16 @@ class PlatformWorkspaceCatalog(QObject):
         self._control_workspace.rejectRequest(request_id)
         return dict(self._control_workspace.operationResult)
 
+    @Slot(str, str, result="QVariantMap")
+    def approveRequestWithNote(self, request_id: str, note: str) -> dict[str, object]:
+        self._control_workspace.approveRequestWithNote(request_id, note)
+        return dict(self._control_workspace.operationResult)
+
+    @Slot(str, str, result="QVariantMap")
+    def rejectRequestWithNote(self, request_id: str, note: str) -> dict[str, object]:
+        self._control_workspace.rejectRequestWithNote(request_id, note)
+        return dict(self._control_workspace.operationResult)
+
     @Slot(str, result="QVariantMap")
     def toggleModuleLicensed(self, module_code: str) -> dict[str, object]:
         self._settings_workspace.toggleModuleLicensed(module_code)
@@ -192,6 +202,11 @@ class PlatformWorkspaceCatalog(QObject):
     @Slot(str, result="QVariantMap")
     def toggleModuleEnabled(self, module_code: str) -> dict[str, object]:
         self._settings_workspace.toggleModuleEnabled(module_code)
+        return dict(self._settings_workspace.operationResult)
+
+    @Slot(str, str, result="QVariantMap")
+    def changeModuleLifecycleStatus(self, module_code: str, lifecycle_status: str) -> dict[str, object]:
+        self._settings_workspace.changeModuleLifecycleStatus(module_code, lifecycle_status)
         return dict(self._settings_workspace.operationResult)
 
 

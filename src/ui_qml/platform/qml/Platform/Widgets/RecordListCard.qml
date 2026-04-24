@@ -12,13 +12,16 @@ Rectangle {
     property string emptyState: ""
     property string primaryActionLabel: ""
     property string secondaryActionLabel: ""
+    property string tertiaryActionLabel: ""
     property bool primaryDanger: false
     property bool secondaryDanger: false
+    property bool tertiaryDanger: false
     property bool actionsEnabled: true
     property var items: []
 
     signal primaryActionRequested(string itemId)
     signal secondaryActionRequested(string itemId)
+    signal tertiaryActionRequested(string itemId)
 
     radius: Theme.AppTheme.radiusLg
     color: Theme.AppTheme.surface
@@ -157,7 +160,9 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        visible: root.primaryActionLabel.length > 0 || root.secondaryActionLabel.length > 0
+                        visible: root.primaryActionLabel.length > 0
+                            || root.secondaryActionLabel.length > 0
+                            || root.tertiaryActionLabel.length > 0
                         spacing: Theme.AppTheme.spacingSm
 
                         AppControls.PrimaryButton {
@@ -174,6 +179,14 @@ Rectangle {
                             text: root.secondaryActionLabel
                             danger: root.secondaryDanger
                             onClicked: root.secondaryActionRequested(modelData.id)
+                        }
+
+                        AppControls.PrimaryButton {
+                            visible: root.tertiaryActionLabel.length > 0 && modelData.canTertiaryAction
+                            enabled: root.actionsEnabled
+                            text: root.tertiaryActionLabel
+                            danger: root.tertiaryDanger
+                            onClicked: root.tertiaryActionRequested(modelData.id)
                         }
 
                         Item {

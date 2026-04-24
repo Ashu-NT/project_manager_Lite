@@ -49,20 +49,22 @@ def serialize_action_list(list_view_model) -> dict[str, object]:
         "title": list_view_model.title,
         "subtitle": list_view_model.subtitle,
         "emptyState": list_view_model.empty_state,
-        "items": [
-            {
-                "id": item.id,
-                "title": item.title,
-                "statusLabel": item.status_label,
-                "subtitle": item.subtitle,
-                "supportingText": item.supporting_text,
-                "metaText": item.meta_text,
-                "canPrimaryAction": item.can_primary_action,
-                "canSecondaryAction": item.can_secondary_action,
-                "state": dict(item.state),
-            }
-            for item in list_view_model.items
-        ],
+        "items": [serialize_action_item(item) for item in list_view_model.items],
+    }
+
+
+def serialize_action_item(item) -> dict[str, object]:
+    return {
+        "id": item.id,
+        "title": item.title,
+        "statusLabel": item.status_label,
+        "subtitle": item.subtitle,
+        "supportingText": item.supporting_text,
+        "metaText": item.meta_text,
+        "canPrimaryAction": item.can_primary_action,
+        "canSecondaryAction": item.can_secondary_action,
+        "canTertiaryAction": item.can_tertiary_action,
+        "state": dict(item.state),
     }
 
 
@@ -248,58 +250,62 @@ class PlatformControlWorkspaceController(_BasePlatformWorkspaceController):
 
     @Slot(str)
     def approveRequest(self, request_id: str) -> None:
+        self.approveRequestWithNote(request_id, "")
+
+    @Slot(str, str)
+    def approveRequestWithNote(self, request_id: str, note: str) -> None:
         self._apply_request_action(
             request_id=request_id,
+            note=note,
             operation=self._queue_presenter.approve_request,
             success_message="Approval request approved and applied.",
-            new_status="Approved",
         )
 
     @Slot(str)
     def rejectRequest(self, request_id: str) -> None:
+        self.rejectRequestWithNote(request_id, "")
+
+    @Slot(str, str)
+    def rejectRequestWithNote(self, request_id: str, note: str) -> None:
         self._apply_request_action(
             request_id=request_id,
+            note=note,
             operation=self._queue_presenter.reject_request,
             success_message="Approval request rejected.",
-            new_status="Rejected",
         )
 
     def _apply_request_action(
         self,
         *,
         request_id: str,
+        note: str,
         operation,
         success_message: str,
-        new_status: str,
     ) -> None:
         normalized_id = request_id.strip()
         if not normalized_id:
             return
         self._set_is_busy(True)
         self._set_error_message("")
-        result = operation(normalized_id)
+        result = operation(normalized_id, note)
         payload = serialize_operation_result(result, success_message=success_message)
         self._set_operation_result(payload)
-        if payload["ok"]:
+        if payload["ok"] and getattr(result, "data", None) is not None:
             self._set_feedback_message(str(payload["message"]))
-            self._apply_request_update(request_id=normalized_id, new_status=new_status)
+            self._apply_request_update(result.data)
         else:
             self._set_feedback_message("")
             self._set_error_message(str(payload["message"]))
         self._set_is_busy(False)
 
-    def _apply_request_update(self, *, request_id: str, new_status: str) -> None:
+    def _apply_request_update(self, request) -> None:
         items = [dict(item) for item in self._approval_queue.get("items", [])]
         updated = False
-        for item in items:
-            if item.get("id") != request_id:
+        serialized_item = serialize_action_item(self._queue_presenter.serialize_approval_item(request))
+        for index, item in enumerate(items):
+            if item.get("id") != request.id:
                 continue
-            item["statusLabel"] = new_status
-            item["canPrimaryAction"] = False
-            item["canSecondaryAction"] = False
-            state = dict(item.get("state") or {})
-            state["status"] = new_status.lower()
-            item["state"] = state
+            items[index] = serialized_item
             updated = True
             break
         if not updated:
@@ -358,6 +364,7 @@ class PlatformControlWorkspaceController(_BasePlatformWorkspaceController):
 class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
     moduleEntitlementsChanged = Signal()
     organizationProfilesChanged = Signal()
+    lifecycleOptionsChanged = Signal()
 
     def __init__(
         self,
@@ -371,6 +378,7 @@ class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
         self._catalog_presenter = catalog_presenter
         self._module_entitlements: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._organization_profiles: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._lifecycle_options = [dict(option) for option in self._catalog_presenter.lifecycle_options()]
         self.refresh()
 
     @Property("QVariantMap", notify=moduleEntitlementsChanged)
@@ -380,6 +388,10 @@ class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
     @Property("QVariantMap", notify=organizationProfilesChanged)
     def organizationProfiles(self) -> dict[str, object]:
         return self._organization_profiles
+
+    @Property("QVariantList", notify=lifecycleOptionsChanged)
+    def lifecycleOptions(self) -> list[dict[str, str]]:
+        return self._lifecycle_options
 
     @Slot()
     def refresh(self) -> None:
@@ -406,6 +418,17 @@ class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
             module_code=module_code,
             operation=self._catalog_presenter.toggle_module_enabled,
             success_message="Module runtime state updated.",
+        )
+
+    @Slot(str, str)
+    def changeModuleLifecycleStatus(self, module_code: str, lifecycle_status: str) -> None:
+        self._apply_entitlement_action(
+            module_code=module_code,
+            operation=lambda normalized_code: self._catalog_presenter.change_module_lifecycle_status(
+                normalized_code,
+                lifecycle_status,
+            ),
+            success_message="Module lifecycle status updated.",
         )
 
     def _apply_entitlement_action(
@@ -451,7 +474,7 @@ class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
     def _update_settings_metrics(self) -> None:
         items = self._module_entitlements.get("items", [])
         licensed_count = sum(1 for item in items if bool((item.get("state") or {}).get("licensed")))
-        enabled_count = sum(1 for item in items if bool((item.get("state") or {}).get("enabled")))
+        enabled_count = sum(1 for item in items if bool((item.get("state") or {}).get("runtimeEnabled")))
         planned_count = sum(1 for item in items if bool((item.get("state") or {}).get("planned")))
         metrics = [
             {
@@ -504,6 +527,7 @@ class PlatformSettingsWorkspaceController(_BasePlatformWorkspaceController):
                     and entitlement.lifecycle_status in {"suspended", "expired"}
                 )
             ),
+            "canTertiaryAction": not entitlement.planned and entitlement.licensed,
             "state": {
                 "licensed": entitlement.licensed,
                 "enabled": entitlement.enabled,
@@ -530,6 +554,7 @@ __all__ = [
     "PlatformAdminWorkspaceController",
     "PlatformControlWorkspaceController",
     "PlatformSettingsWorkspaceController",
+    "serialize_action_item",
     "serialize_action_list",
     "serialize_operation_result",
     "serialize_workspace_overview",

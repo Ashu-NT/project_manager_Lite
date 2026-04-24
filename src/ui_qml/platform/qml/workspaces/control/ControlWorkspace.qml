@@ -3,11 +3,22 @@ import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
+import Platform.Dialogs 1.0 as PlatformDialogs
 import Platform.Widgets 1.0 as PlatformWidgets
 
 AppLayouts.WorkspaceFrame {
     property var workspaceModel: platformWorkspaceCatalog.workspace("platform.control")
     property QtObject workspaceController: platformWorkspaceCatalog.controlWorkspace
+
+    function approvalItemById(itemId) {
+        const items = workspaceController.approvalQueue.items || []
+        for (let index = 0; index < items.length; index += 1) {
+            if (items[index].id === itemId) {
+                return items[index]
+            }
+        }
+        return null
+    }
 
     title: workspaceController.overview.title || workspaceModel.title
     subtitle: workspaceController.overview.subtitle
@@ -62,11 +73,17 @@ AppLayouts.WorkspaceFrame {
                 secondaryDanger: true
 
                 onPrimaryActionRequested: function(itemId) {
-                    workspaceController.approveRequest(itemId)
+                    const item = approvalItemById(itemId)
+                    if (item !== null) {
+                        decisionDialog.openForDecision("approve", item)
+                    }
                 }
 
                 onSecondaryActionRequested: function(itemId) {
-                    workspaceController.rejectRequest(itemId)
+                    const item = approvalItemById(itemId)
+                    if (item !== null) {
+                        decisionDialog.openForDecision("reject", item)
+                    }
                 }
             }
 
@@ -77,6 +94,19 @@ AppLayouts.WorkspaceFrame {
                 emptyState: workspaceController.auditFeed.emptyState || ""
                 items: workspaceController.auditFeed.items || []
             }
+        }
+    }
+
+    PlatformDialogs.ApprovalDecisionDialog {
+        id: decisionDialog
+
+        onDecisionConfirmed: function(mode, requestId, note) {
+            if (mode === "reject") {
+                workspaceController.rejectRequestWithNote(requestId, note)
+            } else {
+                workspaceController.approveRequestWithNote(requestId, note)
+            }
+            close()
         }
     }
 }

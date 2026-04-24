@@ -39,6 +39,7 @@ class PlatformWorkspaceActionItemViewModel:
     meta_text: str = ""
     can_primary_action: bool = False
     can_secondary_action: bool = False
+    can_tertiary_action: bool = False
     state: dict[str, Any] = field(default_factory=dict)
 
 

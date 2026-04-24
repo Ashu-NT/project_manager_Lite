@@ -3,11 +3,22 @@ import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
+import Platform.Dialogs 1.0 as PlatformDialogs
 import Platform.Widgets 1.0 as PlatformWidgets
 
 AppLayouts.WorkspaceFrame {
     property var workspaceModel: platformWorkspaceCatalog.workspace("platform.settings")
     property QtObject workspaceController: platformWorkspaceCatalog.settingsWorkspace
+
+    function moduleItemById(itemId) {
+        const items = workspaceController.moduleEntitlements.items || []
+        for (let index = 0; index < items.length; index += 1) {
+            if (items[index].id === itemId) {
+                return items[index]
+            }
+        }
+        return null
+    }
 
     title: workspaceController.overview.title || workspaceModel.title
     subtitle: workspaceController.overview.subtitle
@@ -78,6 +89,7 @@ AppLayouts.WorkspaceFrame {
                 actionsEnabled: !workspaceController.isBusy
                 primaryActionLabel: "Toggle License"
                 secondaryActionLabel: "Toggle Enabled"
+                tertiaryActionLabel: "Change Status"
 
                 onPrimaryActionRequested: function(itemId) {
                     workspaceController.toggleModuleLicensed(itemId)
@@ -85,6 +97,13 @@ AppLayouts.WorkspaceFrame {
 
                 onSecondaryActionRequested: function(itemId) {
                     workspaceController.toggleModuleEnabled(itemId)
+                }
+
+                onTertiaryActionRequested: function(itemId) {
+                    const item = moduleItemById(itemId)
+                    if (item !== null) {
+                        lifecycleDialog.openForItem(item, workspaceController.lifecycleOptions || [])
+                    }
                 }
             }
 
@@ -113,6 +132,15 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
             }
+        }
+    }
+
+    PlatformDialogs.ModuleLifecycleDialog {
+        id: lifecycleDialog
+
+        onStatusConfirmed: function(moduleCode, lifecycleStatus) {
+            workspaceController.changeModuleLifecycleStatus(moduleCode, lifecycleStatus)
+            close()
         }
     }
 }
