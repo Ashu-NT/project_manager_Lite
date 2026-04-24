@@ -522,10 +522,13 @@ Platform QML route status as of 2026-04-24:
 - `src/ui_qml/platform/presenters/runtime_presenter.py` consumes `src.api.desktop.platform.PlatformRuntimeDesktopApi`
 - `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py` now compose grouped platform admin/control/settings overview state from split platform desktop APIs
 - `src/ui_qml/platform/view_models/{runtime,workspace}.py` defines QML-safe platform runtime and grouped workspace overview view models
-- `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml` provides reusable grouped overview rendering for the platform workspaces
-- these are now grouped overview surfaces rather than plain placeholders; existing QWidget platform screens still remain active until each workflow has QML parity and tests
+- `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` now compose real control/settings action-list data from split platform desktop APIs without growing the overview presenters into dump files
+- `src/ui_qml/platform/qml/widgets/{OverviewSectionCard,RecordListCard}.qml` provide reusable grouped overview and action-list rendering for the platform workspaces
+- `platform.control` now exposes a real QML approval queue with approve/reject actions plus a real QML audit feed
+- `platform.settings` now exposes a real QML module-entitlement surface with license/enable toggles plus organization-profile visibility
+- lifecycle-status changes, organization/site/department/employee CRUD, users/documents/parties/access/support, and approval decision-note entry still remain on the legacy QWidget side until their QML workflows reach parity
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
-- `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, and direct-runtime-fallback states
+- `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, action-list, and control/settings action states
 - offscreen QML loading has verified that the platform workspaces resolve with the shared QML primitives
 
 Project Management QML route status as of 2026-04-22:
@@ -736,6 +739,11 @@ Completed:
 - `src/ui_qml/shell/context.py` and `src/ui_qml/shell/navigation.py` now expose QML-safe route-source metadata, and `src/ui_qml/shell/qml/MainWindow.qml` now hosts the selected registered workspace through a `Loader`
 - `shell.home` now points at `src/ui_qml/shell/qml/HomeWorkspace.qml` so the routed shell no longer recursively loads `MainWindow.qml`
 - `src/ui_qml/platform/context.py` now composes grouped admin/control/settings overview maps from split platform desktop APIs, backed by `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py`, `src/ui_qml/platform/view_models/workspace.py`, and `src/ui_qml/platform/qml/widgets/OverviewSectionCard.qml`
+- `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` now provide the first real control/settings QML workflow presenters for approval actions, audit feeds, and module-entitlement toggles
+- `src/ui_qml/platform/context.py` now exposes QML-safe `approvalQueue()`, `auditFeed()`, `moduleEntitlements()`, `organizationProfiles()`, `approveRequest()`, `rejectRequest()`, `toggleModuleLicensed()`, and `toggleModuleEnabled()` methods
+- `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` now renders a real approval queue and audit feed, and `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` now renders real module-entitlement and organization-profile surfaces
+- `src/ui_qml/platform/qml/widgets/RecordListCard.qml` now provides reusable action-list rendering for migrated platform QML workflows
+- lifecycle-status changes, org master-data CRUD, users/documents/parties/access/support, and approval notes remain on the Widget side for now; do not delete those Widget files yet
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`
@@ -1030,6 +1038,13 @@ Verified:
   - observed result after the QML shell/platform overview checkpoint: 47 passed
 - `pytest tests/test_main_window_shell_navigation.py -q`
   - observed result after the QML shell/platform overview checkpoint: 7 passed
+- `python -m compileall -q src/ui_qml tests/test_qml_platform_presenters.py tests/test_qml_platform_routes.py tests/test_qml_offscreen_loading.py tests/test_qml_shell_migration.py tests/test_qml_migration_scaffold.py`
+- `pytest tests/test_qml_platform_presenters.py tests/test_qml_platform_routes.py tests/test_qml_offscreen_loading.py tests/test_qml_shell_migration.py tests/test_qml_migration_scaffold.py tests/test_qml_architecture_guardrails.py -q`
+  - observed result after the control/settings workflow checkpoint: 38 passed
+- `pytest tests/test_qml_shell_migration.py tests/test_qml_shared_primitives.py tests/test_qml_project_management_routes.py tests/test_qml_project_management_presenters.py tests/test_qml_platform_routes.py tests/test_qml_platform_presenters.py tests/test_qml_offscreen_loading.py tests/test_qml_migration_scaffold.py tests/test_qml_architecture_guardrails.py -q`
+  - observed result after the control/settings workflow checkpoint: 49 passed
+- `pytest tests/test_main_window_shell_navigation.py -q`
+  - observed result after the control/settings workflow checkpoint: 7 passed
 - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
 - `pytest tests/test_platform_control_desktop_api.py tests/test_phase_b_user_admin_ui.py tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_qml_architecture_guardrails.py -q`
 - `pytest tests/test_platform_admin_desktop_api.py tests/test_platform_control_desktop_api.py tests/test_platform_org_desktop_api.py tests/test_platform_runtime_desktop_api.py tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_main_window_shell_navigation.py tests/test_qml_architecture_guardrails.py tests/test_architecture_guardrails.py -q`
@@ -1118,7 +1133,7 @@ Hold status as of 2026-04-22:
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
-- the platform-first QML checkpoint now has a routed shell host plus grouped platform admin/control/settings overviews backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
+- the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
 - PM QML route placeholders are complete; real PM screen replacement remains pending
 - PM QML presenter/view-model scaffolding is complete for the placeholder route set; workspace metadata now comes from a module desktop API
 - PM QML placeholders now bind to presenter-backed metadata through `pmWorkspaceCatalog`; desktop API wiring and real screen parity remain pending

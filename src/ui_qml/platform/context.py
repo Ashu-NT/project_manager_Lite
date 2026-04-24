@@ -1,15 +1,22 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import Property, QObject, Slot
 
 from src.api.desktop.platform import PlatformRuntimeDesktopApi
 from src.ui_qml.platform.presenters import (
     PlatformAdminWorkspacePresenter,
+    PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
     PlatformRuntimePresenter,
+    PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
 )
 from src.ui_qml.platform.routes import build_platform_routes
+from src.ui_qml.platform.workspace_state import (
+    PlatformAdminWorkspaceController,
+    PlatformControlWorkspaceController,
+    PlatformSettingsWorkspaceController,
+)
 
 
 class PlatformWorkspaceCatalog(QObject):
@@ -24,7 +31,7 @@ class PlatformWorkspaceCatalog(QObject):
         if desktop_api_registry is not None:
             runtime_api = getattr(desktop_api_registry, "platform_runtime", None) or desktop_api
         self._runtime_presenter = PlatformRuntimePresenter(runtime_api)
-        self._admin_presenter = PlatformAdminWorkspacePresenter(
+        admin_presenter = PlatformAdminWorkspacePresenter(
             runtime_api=runtime_api,
             site_api=getattr(desktop_api_registry, "platform_site", None),
             department_api=getattr(desktop_api_registry, "platform_department", None),
@@ -33,12 +40,43 @@ class PlatformWorkspaceCatalog(QObject):
             document_api=getattr(desktop_api_registry, "platform_document", None),
             party_api=getattr(desktop_api_registry, "platform_party", None),
         )
-        self._control_presenter = PlatformControlWorkspacePresenter(
+        control_presenter = PlatformControlWorkspacePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),
             audit_api=getattr(desktop_api_registry, "platform_audit", None),
         )
-        self._settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
+        control_queue_presenter = PlatformControlQueuePresenter(
+            approval_api=getattr(desktop_api_registry, "platform_approval", None),
+            audit_api=getattr(desktop_api_registry, "platform_audit", None),
+        )
+        settings_presenter = PlatformSettingsWorkspacePresenter(runtime_api=runtime_api)
+        settings_catalog_presenter = PlatformSettingsCatalogPresenter(runtime_api=runtime_api)
+        self._admin_workspace = PlatformAdminWorkspaceController(
+            presenter=admin_presenter,
+            parent=self,
+        )
+        self._control_workspace = PlatformControlWorkspaceController(
+            overview_presenter=control_presenter,
+            queue_presenter=control_queue_presenter,
+            parent=self,
+        )
+        self._settings_workspace = PlatformSettingsWorkspaceController(
+            overview_presenter=settings_presenter,
+            catalog_presenter=settings_catalog_presenter,
+            parent=self,
+        )
         self._route_by_id = {route.route_id: route for route in build_platform_routes()}
+
+    @Property(QObject, constant=True)
+    def adminWorkspace(self) -> QObject:
+        return self._admin_workspace
+
+    @Property(QObject, constant=True)
+    def controlWorkspace(self) -> QObject:
+        return self._control_workspace
+
+    @Property(QObject, constant=True)
+    def settingsWorkspace(self) -> QObject:
+        return self._settings_workspace
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:
@@ -70,46 +108,51 @@ class PlatformWorkspaceCatalog(QObject):
 
     @Slot(result="QVariantMap")
     def adminOverview(self) -> dict[str, object]:
-        return self._serialize_workspace_overview(self._admin_presenter.build_overview())
+        return dict(self._admin_workspace.overview)
 
     @Slot(result="QVariantMap")
     def controlOverview(self) -> dict[str, object]:
-        return self._serialize_workspace_overview(self._control_presenter.build_overview())
+        return dict(self._control_workspace.overview)
 
     @Slot(result="QVariantMap")
     def settingsOverview(self) -> dict[str, object]:
-        return self._serialize_workspace_overview(self._settings_presenter.build_overview())
+        return dict(self._settings_workspace.overview)
 
-    @staticmethod
-    def _serialize_workspace_overview(overview) -> dict[str, object]:
-        return {
-            "title": overview.title,
-            "subtitle": overview.subtitle,
-            "statusLabel": overview.status_label,
-            "metrics": [
-                {
-                    "label": metric.label,
-                    "value": metric.value,
-                    "supportingText": metric.supporting_text,
-                }
-                for metric in overview.metrics
-            ],
-            "sections": [
-                {
-                    "title": section.title,
-                    "emptyState": section.empty_state,
-                    "rows": [
-                        {
-                            "label": row.label,
-                            "value": row.value,
-                            "supportingText": row.supporting_text,
-                        }
-                        for row in section.rows
-                    ],
-                }
-                for section in overview.sections
-            ],
-        }
+    @Slot(result="QVariantMap")
+    def approvalQueue(self) -> dict[str, object]:
+        return dict(self._control_workspace.approvalQueue)
+
+    @Slot(result="QVariantMap")
+    def auditFeed(self) -> dict[str, object]:
+        return dict(self._control_workspace.auditFeed)
+
+    @Slot(result="QVariantMap")
+    def moduleEntitlements(self) -> dict[str, object]:
+        return dict(self._settings_workspace.moduleEntitlements)
+
+    @Slot(result="QVariantMap")
+    def organizationProfiles(self) -> dict[str, object]:
+        return dict(self._settings_workspace.organizationProfiles)
+
+    @Slot(str, result="QVariantMap")
+    def approveRequest(self, request_id: str) -> dict[str, object]:
+        self._control_workspace.approveRequest(request_id)
+        return dict(self._control_workspace.operationResult)
+
+    @Slot(str, result="QVariantMap")
+    def rejectRequest(self, request_id: str) -> dict[str, object]:
+        self._control_workspace.rejectRequest(request_id)
+        return dict(self._control_workspace.operationResult)
+
+    @Slot(str, result="QVariantMap")
+    def toggleModuleLicensed(self, module_code: str) -> dict[str, object]:
+        self._settings_workspace.toggleModuleLicensed(module_code)
+        return dict(self._settings_workspace.operationResult)
+
+    @Slot(str, result="QVariantMap")
+    def toggleModuleEnabled(self, module_code: str) -> dict[str, object]:
+        self._settings_workspace.toggleModuleEnabled(module_code)
+        return dict(self._settings_workspace.operationResult)
 
 
 __all__ = ["PlatformWorkspaceCatalog"]

@@ -7,48 +7,75 @@ import "../../widgets" as PlatformWidgets
 
 LayoutPrimitives.WorkspaceFrame {
     property var workspaceModel: platformWorkspaceCatalog.workspace("platform.control")
-    property var overview: platformWorkspaceCatalog.controlOverview()
+    property QtObject workspaceController: platformWorkspaceCatalog.controlWorkspace
 
-    title: overview.title || workspaceModel.title
-    subtitle: overview.subtitle
+    title: workspaceController.overview.title || workspaceModel.title
+    subtitle: workspaceController.overview.subtitle
 
-    ColumnLayout {
+    Flickable {
         anchors.fill: parent
-        spacing: Theme.AppTheme.spacingMd
+        contentWidth: width
+        contentHeight: contentColumn.implicitHeight
+        clip: true
 
-        Flow {
-            Layout.fillWidth: true
+        ColumnLayout {
+            id: contentColumn
+
+            width: parent.width
             spacing: Theme.AppTheme.spacingMd
 
-            Repeater {
-                model: overview.metrics
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingMd
 
-                delegate: Widgets.MetricCard {
-                    required property var modelData
+                Repeater {
+                    model: workspaceController.overview.metrics || []
 
-                    width: 210
-                    label: modelData.label
-                    value: modelData.value
-                    supportingText: modelData.supportingText
+                    delegate: Widgets.MetricCard {
+                        required property var modelData
+
+                        width: 210
+                        label: modelData.label
+                        value: modelData.value
+                        supportingText: modelData.supportingText
+                    }
                 }
             }
-        }
 
-        Flow {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
+            PlatformWidgets.WorkspaceStateBanner {
+                Layout.fillWidth: true
+                isLoading: workspaceController.isLoading
+                isBusy: workspaceController.isBusy
+                errorMessage: workspaceController.errorMessage
+                feedbackMessage: workspaceController.feedbackMessage
+            }
 
-            Repeater {
-                model: overview.sections
+            PlatformWidgets.RecordListCard {
+                Layout.fillWidth: true
+                title: workspaceController.approvalQueue.title || "Approval Queue"
+                subtitle: workspaceController.approvalQueue.subtitle || ""
+                emptyState: workspaceController.approvalQueue.emptyState || ""
+                items: workspaceController.approvalQueue.items || []
+                actionsEnabled: !workspaceController.isBusy
+                primaryActionLabel: "Approve"
+                secondaryActionLabel: "Reject"
+                secondaryDanger: true
 
-                delegate: PlatformWidgets.OverviewSectionCard {
-                    required property var modelData
-
-                    width: 360
-                    title: modelData.title
-                    rows: modelData.rows
-                    emptyState: modelData.emptyState
+                onPrimaryActionRequested: function(itemId) {
+                    workspaceController.approveRequest(itemId)
                 }
+
+                onSecondaryActionRequested: function(itemId) {
+                    workspaceController.rejectRequest(itemId)
+                }
+            }
+
+            PlatformWidgets.RecordListCard {
+                Layout.fillWidth: true
+                title: workspaceController.auditFeed.title || "Recent Audit Feed"
+                subtitle: workspaceController.auditFeed.subtitle || ""
+                emptyState: workspaceController.auditFeed.emptyState || ""
+                items: workspaceController.auditFeed.items || []
             }
         }
     }

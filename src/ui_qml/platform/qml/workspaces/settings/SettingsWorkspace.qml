@@ -7,66 +7,110 @@ import "../../widgets" as PlatformWidgets
 
 LayoutPrimitives.WorkspaceFrame {
     property var workspaceModel: platformWorkspaceCatalog.workspace("platform.settings")
-    property var overview: platformWorkspaceCatalog.settingsOverview()
+    property QtObject workspaceController: platformWorkspaceCatalog.settingsWorkspace
 
-    title: overview.title || workspaceModel.title
-    subtitle: overview.subtitle
+    title: workspaceController.overview.title || workspaceModel.title
+    subtitle: workspaceController.overview.subtitle
 
-    ColumnLayout {
+    Flickable {
         anchors.fill: parent
-        spacing: Theme.AppTheme.spacingMd
+        contentWidth: width
+        contentHeight: contentColumn.implicitHeight
+        clip: true
 
-        Flow {
-            Layout.fillWidth: true
+        ColumnLayout {
+            id: contentColumn
+
+            width: parent.width
             spacing: Theme.AppTheme.spacingMd
 
-            Repeater {
-                model: overview.metrics
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingMd
 
-                delegate: Widgets.MetricCard {
-                    required property var modelData
+                Repeater {
+                    model: workspaceController.overview.metrics || []
 
-                    width: 210
-                    label: modelData.label
-                    value: modelData.value
-                    supportingText: modelData.supportingText
+                    delegate: Widgets.MetricCard {
+                        required property var modelData
+
+                        width: 210
+                        label: modelData.label
+                        value: modelData.value
+                        supportingText: modelData.supportingText
+                    }
                 }
             }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingMd
 
-            Widgets.MetricCard {
-                Layout.preferredWidth: 240
-                label: "Theme"
-                value: shellContext.themeMode
-                supportingText: "Theme state is exposed through shellContext for QML binding."
+                Widgets.MetricCard {
+                    Layout.preferredWidth: 240
+                    label: "Theme"
+                    value: shellContext.themeMode
+                    supportingText: "Theme state is exposed through shellContext for QML binding."
+                }
+
+                Widgets.MetricCard {
+                    Layout.preferredWidth: 240
+                    label: "Platform API"
+                    value: workspaceController.overview.statusLabel || ""
+                    supportingText: workspaceModel.summary
+                }
             }
 
-            Widgets.MetricCard {
-                Layout.preferredWidth: 240
-                label: "Platform API"
-                value: overview.statusLabel
-                supportingText: workspaceModel.summary
+            PlatformWidgets.WorkspaceStateBanner {
+                Layout.fillWidth: true
+                isLoading: workspaceController.isLoading
+                isBusy: workspaceController.isBusy
+                errorMessage: workspaceController.errorMessage
+                feedbackMessage: workspaceController.feedbackMessage
             }
-        }
 
-        Flow {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
+            PlatformWidgets.RecordListCard {
+                Layout.fillWidth: true
+                title: workspaceController.moduleEntitlements.title || "Module Entitlements"
+                subtitle: workspaceController.moduleEntitlements.subtitle || ""
+                emptyState: workspaceController.moduleEntitlements.emptyState || ""
+                items: workspaceController.moduleEntitlements.items || []
+                actionsEnabled: !workspaceController.isBusy
+                primaryActionLabel: "Toggle License"
+                secondaryActionLabel: "Toggle Enabled"
 
-            Repeater {
-                model: overview.sections
+                onPrimaryActionRequested: function(itemId) {
+                    workspaceController.toggleModuleLicensed(itemId)
+                }
 
-                delegate: PlatformWidgets.OverviewSectionCard {
-                    required property var modelData
+                onSecondaryActionRequested: function(itemId) {
+                    workspaceController.toggleModuleEnabled(itemId)
+                }
+            }
 
-                    width: 320
-                    title: modelData.title
-                    rows: modelData.rows
-                    emptyState: modelData.emptyState
+            PlatformWidgets.RecordListCard {
+                Layout.fillWidth: true
+                title: workspaceController.organizationProfiles.title || "Organization Profiles"
+                subtitle: workspaceController.organizationProfiles.subtitle || ""
+                emptyState: workspaceController.organizationProfiles.emptyState || ""
+                items: workspaceController.organizationProfiles.items || []
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingMd
+
+                Repeater {
+                    model: workspaceController.overview.sections || []
+
+                    delegate: PlatformWidgets.OverviewSectionCard {
+                        required property var modelData
+
+                        width: 320
+                        title: modelData.title
+                        rows: modelData.rows
+                        emptyState: modelData.emptyState
+                    }
                 }
             }
         }

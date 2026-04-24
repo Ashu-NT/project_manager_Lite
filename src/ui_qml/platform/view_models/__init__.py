@@ -4,6 +4,8 @@ from src.ui_qml.platform.view_models.runtime import (
     PlatformRuntimeOverviewViewModel,
 )
 from src.ui_qml.platform.view_models.workspace import (
+    PlatformWorkspaceActionItemViewModel,
+    PlatformWorkspaceActionListViewModel,
     PlatformWorkspaceOverviewViewModel,
     PlatformWorkspaceRowViewModel,
     PlatformWorkspaceSectionViewModel,
@@ -12,6 +14,8 @@ from src.ui_qml.platform.view_models.workspace import (
 __all__ = [
     "PlatformMetricViewModel",
     "PlatformRuntimeOverviewViewModel",
+    "PlatformWorkspaceActionItemViewModel",
+    "PlatformWorkspaceActionListViewModel",
     "PlatformWorkspaceOverviewViewModel",
     "PlatformWorkspaceRowViewModel",
     "PlatformWorkspaceSectionViewModel",

@@ -7,21 +7,29 @@ import "../../widgets" as PlatformWidgets
 
 LayoutPrimitives.WorkspaceFrame {
     property var workspaceModel: platformWorkspaceCatalog.workspace("platform.admin")
-    property var overview: platformWorkspaceCatalog.adminOverview()
+    property QtObject workspaceController: platformWorkspaceCatalog.adminWorkspace
 
-    title: overview.title || workspaceModel.title
-    subtitle: overview.subtitle
+    title: workspaceController.overview.title || workspaceModel.title
+    subtitle: workspaceController.overview.subtitle
 
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingMd
+
+        PlatformWidgets.WorkspaceStateBanner {
+            Layout.fillWidth: true
+            isLoading: workspaceController.isLoading
+            isBusy: workspaceController.isBusy
+            errorMessage: workspaceController.errorMessage
+            feedbackMessage: workspaceController.feedbackMessage
+        }
 
         Flow {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingMd
 
             Repeater {
-                model: overview.metrics
+                model: workspaceController.overview.metrics || []
 
                 delegate: Widgets.MetricCard {
                     required property var modelData
@@ -39,7 +47,7 @@ LayoutPrimitives.WorkspaceFrame {
             spacing: Theme.AppTheme.spacingMd
 
             Repeater {
-                model: overview.sections
+                model: workspaceController.overview.sections || []
 
                 delegate: PlatformWidgets.OverviewSectionCard {
                     required property var modelData

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 
@@ -8,10 +9,12 @@ from src.api.desktop.platform.models import (
     ApprovalStatus,
     AuditLogEntryDto,
     DepartmentDto,
+    DesktopApiError,
     DesktopApiResult,
     DocumentDto,
     EmployeeDto,
     ModuleDto,
+    ModuleEntitlementDto,
     OrganizationDto,
     PartyDto,
     PlatformCapabilityDto,
@@ -68,6 +71,53 @@ class _FakePlatformRuntimeApi:
             _module(code="maintenance", label="Maintenance", description="Assets"),
             _module(code="inventory", label="Inventory", description="Stock", stage="planned"),
         )
+        self._entitlements: list[ModuleEntitlementDto] = [
+            ModuleEntitlementDto(
+                module_code="project_management",
+                label="Project Management",
+                stage="active",
+                licensed=True,
+                enabled=True,
+                runtime_enabled=True,
+                lifecycle_status="active",
+                lifecycle_label="Active",
+                lifecycle_alert=None,
+                available_to_license=True,
+                planned=False,
+                module=self._modules[0],
+            ),
+            ModuleEntitlementDto(
+                module_code="maintenance",
+                label="Maintenance",
+                stage="active",
+                licensed=True,
+                enabled=False,
+                runtime_enabled=False,
+                lifecycle_status="active",
+                lifecycle_label="Active",
+                lifecycle_alert=None,
+                available_to_license=True,
+                planned=False,
+                module=self._modules[1],
+            ),
+            ModuleEntitlementDto(
+                module_code="inventory",
+                label="Inventory",
+                stage="planned",
+                licensed=False,
+                enabled=False,
+                runtime_enabled=False,
+                lifecycle_status="planned",
+                lifecycle_label="Planned",
+                lifecycle_alert=None,
+                available_to_license=False,
+                planned=True,
+                module=self._modules[2],
+            ),
+        ]
+        self._rebuild_runtime_context()
+
+    def _rebuild_runtime_context(self) -> None:
         self._runtime_context = PlatformRuntimeContextDto(
             context_label="Enterprise Runtime",
             shell_summary="2 modules licensed",
@@ -80,11 +130,11 @@ class _FakePlatformRuntimeApi:
                     always_on=True,
                 ),
             ),
-            entitlements=(),
-            enabled_modules=(self._modules[0],),
-            licensed_modules=(self._modules[0], self._modules[1]),
+            entitlements=tuple(self._entitlements),
+            enabled_modules=tuple(item.module for item in self._entitlements if item.enabled),
+            licensed_modules=tuple(item.module for item in self._entitlements if item.licensed),
             available_modules=self._modules,
-            planned_modules=(self._modules[2],),
+            planned_modules=tuple(item.module for item in self._entitlements if item.planned),
         )
 
     def get_runtime_context(self) -> DesktopApiResult[PlatformRuntimeContextDto]:
@@ -99,6 +149,89 @@ class _FakePlatformRuntimeApi:
 
     def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
         return DesktopApiResult(ok=True, data=self._modules)
+
+    def patch_module_state(self, command) -> DesktopApiResult[ModuleEntitlementDto]:
+        for index, entitlement in enumerate(self._entitlements):
+            if entitlement.module_code != command.module_code:
+                continue
+            licensed = entitlement.licensed if command.licensed is None else command.licensed
+            enabled = entitlement.enabled if command.enabled is None else command.enabled
+            lifecycle_status = (
+                entitlement.lifecycle_status
+                if command.lifecycle_status is None
+                else command.lifecycle_status
+            )
+            if not licensed:
+                enabled = False
+            runtime_enabled = enabled and lifecycle_status not in {"suspended", "expired"}
+            lifecycle_label = lifecycle_status.title()
+            lifecycle_alert = None if lifecycle_status in {"active", "trial", "planned"} else lifecycle_label
+            updated = replace(
+                entitlement,
+                licensed=licensed,
+                enabled=enabled,
+                runtime_enabled=runtime_enabled,
+                lifecycle_status=lifecycle_status,
+                lifecycle_label=lifecycle_label,
+                lifecycle_alert=lifecycle_alert,
+            )
+            self._entitlements[index] = updated
+            self._rebuild_runtime_context()
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="module_not_found",
+                message=f"Module '{command.module_code}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformApprovalApi:
+    def __init__(self, rows: tuple[ApprovalRequestDto, ...]) -> None:
+        self._rows = list(rows)
+
+    def list_requests(
+        self,
+        *,
+        status=None,
+        limit: int = 50,
+    ) -> DesktopApiResult[tuple[ApprovalRequestDto, ...]]:
+        rows = self._rows
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
+        return DesktopApiResult(ok=True, data=tuple(rows[:limit]))
+
+    def approve_and_apply(self, command) -> DesktopApiResult[ApprovalRequestDto]:
+        return self._update_status(command.request_id, ApprovalStatus.APPROVED, command.note)
+
+    def reject(self, command) -> DesktopApiResult[ApprovalRequestDto]:
+        return self._update_status(command.request_id, ApprovalStatus.REJECTED, command.note)
+
+    def _update_status(self, request_id: str, status: ApprovalStatus, note: str | None) -> DesktopApiResult[ApprovalRequestDto]:
+        for index, row in enumerate(self._rows):
+            if row.id != request_id:
+                continue
+            updated = replace(row, status=status, decision_note=note)
+            self._rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="request_not_found",
+                message=f"Approval request '{request_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+
+class _FakePlatformAuditApi:
+    def __init__(self, rows: tuple[AuditLogEntryDto, ...]) -> None:
+        self._rows = rows
+
+    def list_recent(self, *, limit: int = 25) -> DesktopApiResult[tuple[AuditLogEntryDto, ...]]:
+        return DesktopApiResult(ok=True, data=self._rows[:limit])
 
 
 def _result(rows):
@@ -368,6 +501,8 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             module_label="Project Management",
             context_label="Project Apollo",
             display_label="Change Budget",
+            requested_by_username="ada",
+            requested_at=datetime(2026, 4, 24, 7, 30, 0),
         ),
         ApprovalRequestDto(
             id="approval-2",
@@ -379,6 +514,8 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             module_label="Project Management",
             context_label="Project Apollo",
             display_label="Publish Baseline",
+            requested_by_username="grace",
+            requested_at=datetime(2026, 4, 24, 8, 0, 0),
         ),
         ApprovalRequestDto(
             id="approval-3",
@@ -390,6 +527,8 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             module_label="Project Management",
             context_label="Project Apollo",
             display_label="Scope Change",
+            requested_by_username="grace",
+            requested_at=datetime(2026, 4, 24, 8, 30, 0),
         ),
     )
     audit_rows = (
@@ -435,10 +574,8 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             list_documents=lambda *, active_only=None: _result(document_rows)
         ),
         platform_party=SimpleNamespace(list_parties=lambda *, active_only=None: _result(party_rows)),
-        platform_approval=SimpleNamespace(
-            list_requests=lambda *, status=None, limit=50: _result(approval_rows)
-        ),
-        platform_audit=SimpleNamespace(list_recent=lambda *, limit=25: _result(audit_rows)),
+        platform_approval=_FakePlatformApprovalApi(approval_rows),
+        platform_audit=_FakePlatformAuditApi(audit_rows),
     )
 
 
@@ -551,3 +688,88 @@ def test_platform_workspace_catalog_exposes_grouped_platform_overviews() -> None
     assert settings["sections"][0]["rows"][0]["label"] == "TechAsh"
     assert settings["sections"][1]["rows"][0]["label"] == "Project Management"
     assert settings["sections"][2]["rows"][0]["supportingText"] == "Governed approval workflows"
+
+
+def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    approval_queue = catalog.approvalQueue()
+    audit_feed = catalog.auditFeed()
+    module_entitlements = catalog.moduleEntitlements()
+    organization_profiles = catalog.organizationProfiles()
+
+    assert approval_queue["title"] == "Approval Queue"
+    assert approval_queue["items"][0]["title"] == "Change Budget"
+    assert approval_queue["items"][0]["canPrimaryAction"] is True
+    assert approval_queue["items"][1]["canPrimaryAction"] is False
+
+    assert audit_feed["title"] == "Recent Audit Feed"
+    assert audit_feed["items"][0]["statusLabel"] == "Project"
+
+    assert module_entitlements["title"] == "Module Entitlements"
+    assert module_entitlements["items"][0]["title"] == "Project Management"
+    assert module_entitlements["items"][0]["canPrimaryAction"] is True
+    assert module_entitlements["items"][2]["canPrimaryAction"] is False
+
+    assert organization_profiles["title"] == "Organization Profiles"
+    assert organization_profiles["items"][0]["title"] == "TechAsh"
+    assert organization_profiles["items"][0]["statusLabel"] == "Active"
+
+
+def test_platform_workspace_controllers_hold_common_state_fields() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    assert catalog.adminWorkspace.isLoading is False
+    assert catalog.adminWorkspace.isBusy is False
+    assert catalog.adminWorkspace.errorMessage == ""
+    assert catalog.controlWorkspace.feedbackMessage == ""
+    assert catalog.settingsWorkspace.emptyState == ""
+    assert catalog.controlWorkspace.approvalQueue["items"][0]["title"] == "Change Budget"
+    assert catalog.settingsWorkspace.moduleEntitlements["items"][0]["title"] == "Project Management"
+
+
+def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    approve_result = catalog.approveRequest("approval-1")
+    enable_result = catalog.toggleModuleEnabled("maintenance")
+    planned_result = catalog.toggleModuleLicensed("inventory")
+
+    assert approve_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Approval request approved and applied.",
+    }
+    assert enable_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Module runtime state updated.",
+    }
+    assert planned_result["ok"] is False
+    assert planned_result["category"] == "validation"
+    assert "planned" in planned_result["message"].lower()
+
+    approval_queue = catalog.approvalQueue()
+    settings_overview = catalog.settingsOverview()
+    module_entitlements = catalog.moduleEntitlements()
+
+    assert approval_queue["items"][0]["statusLabel"] == "Approved"
+    assert approval_queue["items"][0]["canPrimaryAction"] is False
+    assert settings_overview["metrics"][1]["value"] == "2"
+    assert module_entitlements["items"][1]["subtitle"].endswith("Enabled")
+    assert catalog.controlWorkspace.feedbackMessage == "Approval request approved and applied."
+    assert catalog.settingsWorkspace.feedbackMessage == "Module runtime state updated."
+    assert catalog.settingsWorkspace.errorMessage == ""
+
+
+def test_platform_workspace_controllers_store_validation_errors() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    result = catalog.toggleModuleLicensed("inventory")
+
+    assert result["ok"] is False
+    assert result["category"] == "validation"
+    assert "planned" in result["message"].lower()
+    assert "planned" in catalog.settingsWorkspace.errorMessage.lower()
