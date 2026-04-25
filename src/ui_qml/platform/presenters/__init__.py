@@ -7,6 +7,9 @@ from src.ui_qml.platform.presenters.department_catalog_presenter import (
     PlatformDepartmentCatalogPresenter,
 )
 from src.ui_qml.platform.presenters.document_catalog_presenter import PlatformDocumentCatalogPresenter
+from src.ui_qml.platform.presenters.document_management_presenter import (
+    PlatformDocumentManagementPresenter,
+)
 from src.ui_qml.platform.presenters.employee_catalog_presenter import PlatformEmployeeCatalogPresenter
 from src.ui_qml.platform.presenters.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
@@ -25,6 +28,7 @@ __all__ = [
     "PlatformControlWorkspacePresenter",
     "PlatformDepartmentCatalogPresenter",
     "PlatformDocumentCatalogPresenter",
+    "PlatformDocumentManagementPresenter",
     "PlatformEmployeeCatalogPresenter",
     "PlatformOrganizationCatalogPresenter",
     "PlatformPartyCatalogPresenter",

@@ -14,7 +14,9 @@ ColumnLayout {
     property bool actionsEnabled: true
     property string primaryActionLabel: ""
     property string secondaryActionLabel: ""
+    property string tertiaryActionLabel: ""
     property bool secondaryDanger: false
+    property bool tertiaryDanger: false
     property var catalog: ({
         "emptyState": "",
         "items": []
@@ -23,6 +25,7 @@ ColumnLayout {
     signal createRequested()
     signal primaryActionRequested(string itemId)
     signal secondaryActionRequested(string itemId)
+    signal tertiaryActionRequested(string itemId)
 
     spacing: Theme.AppTheme.spacingSm
 
@@ -71,7 +74,9 @@ ColumnLayout {
         actionsEnabled: root.actionsEnabled
         primaryActionLabel: root.primaryActionLabel
         secondaryActionLabel: root.secondaryActionLabel
+        tertiaryActionLabel: root.tertiaryActionLabel
         secondaryDanger: root.secondaryDanger
+        tertiaryDanger: root.tertiaryDanger
 
         onPrimaryActionRequested: function(itemId) {
             root.primaryActionRequested(itemId)
@@ -79,6 +84,10 @@ ColumnLayout {
 
         onSecondaryActionRequested: function(itemId) {
             root.secondaryActionRequested(itemId)
+        }
+
+        onTertiaryActionRequested: function(itemId) {
+            root.tertiaryActionRequested(itemId)
         }
     }
 }

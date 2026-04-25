@@ -2,6 +2,8 @@ module Platform.Dialogs
 ApprovalDecisionDialog 1.0 ApprovalDecisionDialog.qml
 DepartmentEditorDialog 1.0 DepartmentEditorDialog.qml
 DocumentEditorDialog 1.0 DocumentEditorDialog.qml
+DocumentLinkEditorDialog 1.0 DocumentLinkEditorDialog.qml
+DocumentStructureEditorDialog 1.0 DocumentStructureEditorDialog.qml
 EmployeeEditorDialog 1.0 EmployeeEditorDialog.qml
 ModuleLifecycleDialog 1.0 ModuleLifecycleDialog.qml
 OrganizationEditorDialog 1.0 OrganizationEditorDialog.qml

@@ -13,6 +13,7 @@ from src.api.desktop.platform.models import (
     DesktopApiError,
     DesktopApiResult,
     DocumentDto,
+    DocumentLinkDto,
     DocumentStructureDto,
     EmployeeDto,
     ModuleDto,
@@ -785,10 +786,12 @@ class _FakePlatformDocumentApi:
         runtime_api: _FakePlatformRuntimeApi,
         rows: tuple[DocumentDto, ...],
         structure_rows: tuple[DocumentStructureDto, ...],
+        link_rows: tuple[DocumentLinkDto, ...] = (),
     ) -> None:
         self._runtime_api = runtime_api
         self._rows = list(rows)
         self._structure_rows = list(structure_rows)
+        self._link_rows = list(link_rows)
 
     def get_context(self) -> DesktopApiResult[OrganizationDto]:
         return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
@@ -888,6 +891,93 @@ class _FakePlatformDocumentApi:
                 category="not_found",
             ),
         )
+
+    def create_document_structure(self, command) -> DesktopApiResult[DocumentStructureDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
+        structure = DocumentStructureDto(
+            id=f"structure-{len(self._structure_rows) + 1}",
+            organization_id=active_organization.id if active_organization is not None else "org-1",
+            structure_code=command.structure_code,
+            name=command.name,
+            description=command.description,
+            parent_structure_id=command.parent_structure_id,
+            object_scope=command.object_scope,
+            default_document_type=command.default_document_type,
+            sort_order=command.sort_order,
+            is_active=command.is_active,
+            notes=command.notes,
+            version=1,
+        )
+        self._structure_rows.append(structure)
+        return DesktopApiResult(ok=True, data=structure)
+
+    def update_document_structure(self, command) -> DesktopApiResult[DocumentStructureDto]:
+        for index, row in enumerate(self._structure_rows):
+            if row.id != command.structure_id:
+                continue
+            updated = replace(
+                row,
+                structure_code=row.structure_code if command.structure_code is None else command.structure_code,
+                name=row.name if command.name is None else command.name,
+                description=row.description if command.description is None else command.description,
+                parent_structure_id=(
+                    row.parent_structure_id
+                    if command.parent_structure_id is None
+                    else command.parent_structure_id
+                ),
+                object_scope=row.object_scope if command.object_scope is None else command.object_scope,
+                default_document_type=(
+                    row.default_document_type
+                    if command.default_document_type is None
+                    else command.default_document_type
+                ),
+                sort_order=row.sort_order if command.sort_order is None else command.sort_order,
+                is_active=row.is_active if command.is_active is None else command.is_active,
+                notes=row.notes if command.notes is None else command.notes,
+                version=row.version + 1,
+            )
+            self._structure_rows[index] = updated
+            return DesktopApiResult(ok=True, data=updated)
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code="document_structure_not_found",
+                message=f"Document structure '{command.structure_id}' was not found.",
+                category="not_found",
+            ),
+        )
+
+    def list_links(self, document_id: str) -> DesktopApiResult[tuple[DocumentLinkDto, ...]]:
+        rows = [row for row in self._link_rows if row.document_id == document_id]
+        return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def add_link(self, command) -> DesktopApiResult[DocumentLinkDto]:
+        active_organization = self._runtime_api.get_runtime_context().data.active_organization
+        link = DocumentLinkDto(
+            id=f"link-{len(self._link_rows) + 1}",
+            organization_id=active_organization.id if active_organization is not None else "org-1",
+            document_id=command.document_id,
+            module_code=command.module_code,
+            entity_type=command.entity_type,
+            entity_id=command.entity_id,
+            link_role=command.link_role,
+        )
+        self._link_rows.append(link)
+        return DesktopApiResult(ok=True, data=link)
+
+    def remove_link(self, link_id: str) -> DesktopApiResult[None]:
+        original_count = len(self._link_rows)
+        self._link_rows = [row for row in self._link_rows if row.id != link_id]
+        if len(self._link_rows) == original_count:
+            return DesktopApiResult(
+                ok=False,
+                error=DesktopApiError(
+                    code="document_link_not_found",
+                    message=f"Document link '{link_id}' was not found.",
+                    category="not_found",
+                ),
+            )
+        return DesktopApiResult(ok=True, data=None)
 
 
 class _FakePlatformAccessApi:
@@ -1340,10 +1430,31 @@ def _build_connected_platform_registry() -> SimpleNamespace:
             version=1,
         ),
     )
+    document_link_rows = (
+        DocumentLinkDto(
+            id="link-1",
+            organization_id="org-1",
+            document_id="doc-1",
+            module_code="project_management",
+            entity_type="task",
+            entity_id="task-42",
+            link_role="attachment",
+        ),
+        DocumentLinkDto(
+            id="link-2",
+            organization_id="org-1",
+            document_id="doc-1",
+            module_code="maintenance",
+            entity_type="asset",
+            entity_id="asset-7",
+            link_role="reference",
+        ),
+    )
     document_api = _FakePlatformDocumentApi(
         runtime_api=runtime_api,
         rows=document_rows,
         structure_rows=document_structure_rows,
+        link_rows=document_link_rows,
     )
     party_rows = (
         PartyDto(
@@ -1630,6 +1741,10 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     users = catalog.adminWorkspace.users
     parties = catalog.adminWorkspace.parties
     documents = catalog.adminWorkspace.documents
+    selected_document = catalog.adminWorkspace.selectedDocument
+    document_preview = catalog.adminWorkspace.documentPreview
+    document_links = catalog.adminWorkspace.documentLinks
+    document_structures = catalog.adminWorkspace.documentStructures
     access_workspace = catalog.adminAccessWorkspace
 
     assert organizations["title"] == "Organizations"
@@ -1653,6 +1768,15 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
 
     assert documents["title"] == "Documents"
     assert documents["items"][0]["supportingText"] == "POL - Policies | Version 1.0 | Current"
+    assert selected_document["title"] == "Governance Charter"
+    assert selected_document["badges"][2]["value"] == "Local file missing"
+    assert document_preview["statusLabel"] == "Local file missing"
+    assert document_preview["canOpen"] is False
+    assert document_links["title"] == "Linked Records"
+    assert len(document_links["items"]) == 2
+    assert document_links["items"][0]["statusLabel"] == "Attachment"
+    assert document_structures["title"] == "Document Structures"
+    assert document_structures["items"][0]["title"] == "Policies"
 
     assert len(catalog.adminWorkspace.organizationEditorOptions["moduleOptions"]) == 3
     assert len(catalog.adminWorkspace.departmentEditorOptions["siteOptions"]) == 1
@@ -1661,6 +1785,7 @@ def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     assert len(catalog.adminWorkspace.userEditorOptions["roleOptions"]) == 2
     assert len(catalog.adminWorkspace.partyEditorOptions["typeOptions"]) >= 3
     assert len(catalog.adminWorkspace.documentEditorOptions["structureOptions"]) == 2
+    assert len(catalog.adminWorkspace.documentStructureEditorOptions["parentOptions"]) == 2
     assert len(access_workspace.scopeTypeOptions) == 3
     assert access_workspace.scopeGrants["items"][0]["title"] == "Ada Lovelace"
     assert access_workspace.securityUsers["items"][1]["statusLabel"] == "Locked"
@@ -1949,6 +2074,108 @@ def test_platform_workspace_catalog_updates_extended_admin_actions() -> None:
     assert party_by_id["party-2"]["statusLabel"] == "Active"
     assert document_by_id["doc-2"]["state"]["isActive"] is False
     assert catalog.adminWorkspace.feedbackMessage == "Document active state updated."
+
+
+def test_platform_workspace_catalog_can_switch_document_focus() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    catalog.adminWorkspace.selectDocument("doc-2")
+
+    assert catalog.adminWorkspace.selectedDocument["title"] == "Archived Procedure"
+    assert catalog.adminWorkspace.selectedDocument["summary"].endswith("0 linked records")
+    assert catalog.adminWorkspace.documentLinks["items"] == []
+    assert catalog.adminWorkspace.documentLinks["emptyState"] == "No linked records yet."
+    assert catalog.adminWorkspace.documentPreview["statusLabel"] == "Local file missing"
+
+
+def test_platform_workspace_catalog_runs_document_management_actions() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    create_structure_result = catalog.adminWorkspace.createDocumentStructure(
+        {
+            "structureCode": "CERT",
+            "name": "Certificates",
+            "description": "Compliance certificates",
+            "parentStructureId": "",
+            "objectScope": "GENERAL",
+            "defaultDocumentType": "CERTIFICATE",
+            "sortOrder": 3,
+            "notes": "",
+            "isActive": True,
+        }
+    )
+    update_structure_result = catalog.adminWorkspace.updateDocumentStructure(
+        {
+            "structureId": "structure-2",
+            "expectedVersion": 1,
+            "structureCode": "PROC",
+            "name": "Operating Procedures",
+            "description": "Procedure documents",
+            "parentStructureId": "",
+            "objectScope": "GENERAL",
+            "defaultDocumentType": "PROCEDURE",
+            "sortOrder": 2,
+            "notes": "",
+            "isActive": True,
+        }
+    )
+    toggle_structure_result = catalog.adminWorkspace.toggleDocumentStructureActive("structure-2")
+    catalog.adminWorkspace.selectDocument("doc-2")
+    add_link_result = catalog.adminWorkspace.addDocumentLink(
+        {
+            "documentId": "doc-2",
+            "moduleCode": "inventory_procurement",
+            "entityType": "item",
+            "entityId": "item-9",
+            "linkRole": "reference",
+        }
+    )
+    remove_link_result = catalog.adminWorkspace.removeDocumentLink(
+        catalog.adminWorkspace.documentLinks["items"][0]["id"]
+    )
+
+    assert create_structure_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Document structure created.",
+    }
+    assert update_structure_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Document structure updated.",
+    }
+    assert toggle_structure_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Document structure active state updated.",
+    }
+    assert add_link_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Document link added.",
+    }
+    assert remove_link_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Document link removed.",
+    }
+
+    structure_titles = [item["title"] for item in catalog.adminWorkspace.documentStructures["items"]]
+    structure_by_id = {
+        item["id"]: item
+        for item in catalog.adminWorkspace.documentStructures["items"]
+    }
+
+    assert "Certificates" in structure_titles
+    assert structure_by_id["structure-2"]["title"] == "Operating Procedures"
+    assert structure_by_id["structure-2"]["statusLabel"] == "Inactive"
+    assert catalog.adminWorkspace.documentLinks["items"] == []
+    assert catalog.adminWorkspace.feedbackMessage == "Document link removed."
 
 
 def test_platform_workspace_catalog_runs_access_security_actions() -> None:

@@ -12,6 +12,7 @@ from src.ui_qml.platform.presenters import (
     PlatformControlWorkspacePresenter,
     PlatformDepartmentCatalogPresenter,
     PlatformDocumentCatalogPresenter,
+    PlatformDocumentManagementPresenter,
     PlatformEmployeeCatalogPresenter,
     PlatformOrganizationCatalogPresenter,
     PlatformPartyCatalogPresenter,
@@ -81,6 +82,7 @@ class PlatformWorkspaceCatalog(QObject):
             user_presenter=PlatformUserCatalogPresenter(user_api=user_api),
             party_presenter=PlatformPartyCatalogPresenter(party_api=party_api),
             document_presenter=PlatformDocumentCatalogPresenter(document_api=document_api),
+            document_management_presenter=PlatformDocumentManagementPresenter(document_api=document_api),
             parent=self,
         )
         self._admin_access_workspace = PlatformAdminAccessWorkspaceController(

@@ -1,6 +1,7 @@
 module Platform.Widgets
 AccessSecurityPanel 1.0 AccessSecurityPanel.qml
 AdminCatalogPanel 1.0 AdminCatalogPanel.qml
+DocumentDetailPanel 1.0 DocumentDetailPanel.qml
 OverviewSectionCard 1.0 OverviewSectionCard.qml
 RecordListCard 1.0 RecordListCard.qml
 WorkspaceStateBanner 1.0 WorkspaceStateBanner.qml

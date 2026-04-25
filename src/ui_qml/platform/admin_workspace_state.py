@@ -7,6 +7,9 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from src.ui_qml.platform.presenters.admin_presenter import PlatformAdminWorkspacePresenter
 from src.ui_qml.platform.presenters.department_catalog_presenter import PlatformDepartmentCatalogPresenter
 from src.ui_qml.platform.presenters.document_catalog_presenter import PlatformDocumentCatalogPresenter
+from src.ui_qml.platform.presenters.document_management_presenter import (
+    PlatformDocumentManagementPresenter,
+)
 from src.ui_qml.platform.presenters.employee_catalog_presenter import PlatformEmployeeCatalogPresenter
 from src.ui_qml.platform.presenters.organization_catalog_presenter import (
     PlatformOrganizationCatalogPresenter,
@@ -30,12 +33,17 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     usersChanged = Signal()
     partiesChanged = Signal()
     documentsChanged = Signal()
+    selectedDocumentChanged = Signal()
+    documentPreviewChanged = Signal()
+    documentLinksChanged = Signal()
+    documentStructuresChanged = Signal()
     organizationEditorOptionsChanged = Signal()
     departmentEditorOptionsChanged = Signal()
     employeeEditorOptionsChanged = Signal()
     userEditorOptionsChanged = Signal()
     partyEditorOptionsChanged = Signal()
     documentEditorOptionsChanged = Signal()
+    documentStructureEditorOptionsChanged = Signal()
 
     def __init__(
         self,
@@ -48,6 +56,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         user_presenter: PlatformUserCatalogPresenter,
         party_presenter: PlatformPartyCatalogPresenter,
         document_presenter: PlatformDocumentCatalogPresenter,
+        document_management_presenter: PlatformDocumentManagementPresenter,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -59,6 +68,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._user_presenter = user_presenter
         self._party_presenter = party_presenter
         self._document_presenter = document_presenter
+        self._document_management_presenter = document_management_presenter
         self._organizations: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._sites: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._departments: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -66,6 +76,24 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._users: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._parties: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._documents: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._selected_document: dict[str, object] = {
+            "hasSelection": False,
+            "documentId": "",
+            "title": "Select a document",
+            "summary": "",
+            "badges": [],
+            "metadataRows": [],
+            "notes": "",
+        }
+        self._document_preview: dict[str, object] = {
+            "statusLabel": "No document selected",
+            "summary": "",
+            "canOpen": False,
+            "openLabel": "Open Source",
+            "openTargetUrl": "",
+        }
+        self._document_links: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._document_structures: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._organization_editor_options: dict[str, object] = {"moduleOptions": []}
         self._department_editor_options: dict[str, object] = {
             "siteOptions": [],
@@ -83,6 +111,12 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             "structureOptions": [],
             "storageKindOptions": [],
         }
+        self._document_structure_editor_options: dict[str, object] = {
+            "parentOptions": [],
+            "objectScopeOptions": [],
+            "defaultTypeOptions": [],
+        }
+        self._selected_document_id = ""
         self.refresh()
 
     @Property("QVariantMap", notify=organizationsChanged)
@@ -113,6 +147,22 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def documents(self) -> dict[str, object]:
         return self._documents
 
+    @Property("QVariantMap", notify=selectedDocumentChanged)
+    def selectedDocument(self) -> dict[str, object]:
+        return self._selected_document
+
+    @Property("QVariantMap", notify=documentPreviewChanged)
+    def documentPreview(self) -> dict[str, object]:
+        return self._document_preview
+
+    @Property("QVariantMap", notify=documentLinksChanged)
+    def documentLinks(self) -> dict[str, object]:
+        return self._document_links
+
+    @Property("QVariantMap", notify=documentStructuresChanged)
+    def documentStructures(self) -> dict[str, object]:
+        return self._document_structures
+
     @Property("QVariantMap", notify=organizationEditorOptionsChanged)
     def organizationEditorOptions(self) -> dict[str, object]:
         return self._organization_editor_options
@@ -137,6 +187,10 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def documentEditorOptions(self) -> dict[str, object]:
         return self._document_editor_options
 
+    @Property("QVariantMap", notify=documentStructureEditorOptionsChanged)
+    def documentStructureEditorOptions(self) -> dict[str, object]:
+        return self._document_structure_editor_options
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -149,6 +203,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._refresh_users()
         self._refresh_parties()
         self._refresh_documents()
+        self._refresh_document_management()
         self._refresh_empty_state()
         self._set_is_loading(False)
 
@@ -339,6 +394,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             operation=lambda: self._document_presenter.create_document(dict(payload)),
             success_message="Document created.",
             on_success=self._refresh_after_document_change,
+            success_result_handler=self._select_document_from_result,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -347,6 +403,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             operation=lambda: self._document_presenter.update_document(dict(payload)),
             success_message="Document updated.",
             on_success=self._refresh_after_document_change,
+            success_result_handler=self._select_document_from_result,
         )
 
     @Slot(str, result="QVariantMap")
@@ -362,6 +419,65 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             ),
             success_message="Document active state updated.",
             on_success=self._refresh_after_document_change,
+            success_result_handler=self._select_document_from_result,
+        )
+
+    @Slot(str)
+    def selectDocument(self, document_id: str) -> None:
+        normalized_id = document_id.strip()
+        if not normalized_id:
+            return
+        self._selected_document_id = normalized_id
+        self._refresh_document_focus()
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_mutation(
+            operation=lambda: self._document_management_presenter.create_document_structure(dict(payload)),
+            success_message="Document structure created.",
+            on_success=self._refresh_after_document_structure_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_mutation(
+            operation=lambda: self._document_management_presenter.update_document_structure(dict(payload)),
+            success_message="Document structure updated.",
+            on_success=self._refresh_after_document_structure_change,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def toggleDocumentStructureActive(self, structure_id: str) -> dict[str, object]:
+        state = self._find_item_state(self._document_structures, structure_id)
+        if state is None:
+            return dict(self.operationResult)
+        return self._run_mutation(
+            operation=lambda: self._document_management_presenter.toggle_document_structure_active(
+                structure_id=structure_id,
+                is_active=bool(state.get("isActive")),
+                expected_version=self._to_int(state.get("version")),
+            ),
+            success_message="Document structure active state updated.",
+            on_success=self._refresh_after_document_structure_change,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addDocumentLink(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._run_mutation(
+            operation=lambda: self._document_management_presenter.add_document_link(dict(payload)),
+            success_message="Document link added.",
+            on_success=self._refresh_after_document_link_change,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def removeDocumentLink(self, link_id: str) -> dict[str, object]:
+        normalized_id = link_id.strip()
+        if not normalized_id:
+            return dict(self.operationResult)
+        return self._run_mutation(
+            operation=lambda: self._document_management_presenter.remove_document_link(normalized_id),
+            success_message="Document link removed.",
+            on_success=self._refresh_after_document_link_change,
         )
 
     def _run_mutation(
@@ -370,6 +486,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         operation: Callable[[], object],
         success_message: str,
         on_success: Callable[[], None],
+        success_result_handler: Callable[[object], None] | None = None,
     ) -> dict[str, object]:
         self._set_is_busy(True)
         self._set_error_message("")
@@ -378,6 +495,8 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._set_operation_result(payload)
         if payload["ok"]:
             self._set_feedback_message(str(payload["message"]))
+            if success_result_handler is not None:
+                success_result_handler(result)
             on_success()
         else:
             self._set_feedback_message("")
@@ -428,6 +547,16 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def _refresh_after_document_change(self) -> None:
         self._refresh_overview()
         self._refresh_documents()
+        self._refresh_document_management()
+        self._refresh_empty_state()
+
+    def _refresh_after_document_structure_change(self) -> None:
+        self._refresh_documents()
+        self._refresh_document_management()
+        self._refresh_empty_state()
+
+    def _refresh_after_document_link_change(self) -> None:
+        self._refresh_document_focus()
         self._refresh_empty_state()
 
     def _refresh_overview(self) -> None:
@@ -490,6 +619,24 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             }
         )
 
+    def _refresh_document_management(self) -> None:
+        self._refresh_document_structures()
+        self._refresh_document_focus()
+
+    def _refresh_document_structures(self) -> None:
+        catalog, editor_options = self._document_management_presenter.build_structure_management()
+        self._set_document_structures(serialize_action_list(catalog))
+        self._set_document_structure_editor_options(editor_options)
+
+    def _refresh_document_focus(self) -> None:
+        selected_document_id, detail, preview, links = self._document_management_presenter.build_document_focus(
+            self._selected_document_id
+        )
+        self._selected_document_id = selected_document_id
+        self._set_selected_document(detail)
+        self._set_document_preview(preview)
+        self._set_document_links(serialize_action_list(links))
+
     def _refresh_empty_state(self) -> None:
         has_items = any(
             catalog.get("items")
@@ -547,6 +694,30 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         self._documents = documents
         self.documentsChanged.emit()
 
+    def _set_selected_document(self, selected_document: dict[str, object]) -> None:
+        if selected_document == self._selected_document:
+            return
+        self._selected_document = selected_document
+        self.selectedDocumentChanged.emit()
+
+    def _set_document_preview(self, preview: dict[str, object]) -> None:
+        if preview == self._document_preview:
+            return
+        self._document_preview = preview
+        self.documentPreviewChanged.emit()
+
+    def _set_document_links(self, links: dict[str, object]) -> None:
+        if links == self._document_links:
+            return
+        self._document_links = links
+        self.documentLinksChanged.emit()
+
+    def _set_document_structures(self, structures: dict[str, object]) -> None:
+        if structures == self._document_structures:
+            return
+        self._document_structures = structures
+        self.documentStructuresChanged.emit()
+
     def _set_organization_editor_options(self, options: dict[str, object]) -> None:
         if options == self._organization_editor_options:
             return
@@ -582,6 +753,18 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             return
         self._document_editor_options = options
         self.documentEditorOptionsChanged.emit()
+
+    def _set_document_structure_editor_options(self, options: dict[str, object]) -> None:
+        if options == self._document_structure_editor_options:
+            return
+        self._document_structure_editor_options = options
+        self.documentStructureEditorOptionsChanged.emit()
+
+    def _select_document_from_result(self, result: object) -> None:
+        data = getattr(result, "data", None)
+        document_id = str(getattr(data, "id", "") or "").strip()
+        if document_id:
+            self._selected_document_id = document_id
 
     @staticmethod
     def _find_item_state(catalog: dict[str, object], item_id: str) -> dict[str, Any] | None:

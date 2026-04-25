@@ -28,12 +28,17 @@ Module {
         Property { name: "users"; type: "QVariantMap"; isReadonly: true }
         Property { name: "parties"; type: "QVariantMap"; isReadonly: true }
         Property { name: "documents"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedDocument"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentPreview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentLinks"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentStructures"; type: "QVariantMap"; isReadonly: true }
         Property { name: "organizationEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "departmentEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "employeeEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "userEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "partyEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Property { name: "documentEditorOptions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "documentStructureEditorOptions"; type: "QVariantMap"; isReadonly: true }
         Method { name: "refresh" }
         Method { name: "createOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateOrganization"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
@@ -56,6 +61,12 @@ Module {
         Method { name: "createDocument"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateDocument"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "toggleDocumentActive"; type: "QVariantMap"; Parameter { name: "documentId"; type: "QString" } }
+        Method { name: "selectDocument"; Parameter { name: "documentId"; type: "QString" } }
+        Method { name: "createDocumentStructure"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateDocumentStructure"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleDocumentStructureActive"; type: "QVariantMap"; Parameter { name: "structureId"; type: "QString" } }
+        Method { name: "addDocumentLink"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "removeDocumentLink"; type: "QVariantMap"; Parameter { name: "linkId"; type: "QString" } }
     }
 
     Component {

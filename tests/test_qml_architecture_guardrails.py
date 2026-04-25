@@ -173,6 +173,9 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "platform" / "qml" / "workspaces" / "control" / "ControlWorkspace.qml",
         UI_QML_ROOT / "platform" / "qml" / "workspaces" / "settings" / "SettingsWorkspace.qml",
         UI_QML_ROOT / "platform" / "qml" / "Platform" / "Widgets" / "AccessSecurityPanel.qml",
+        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Widgets" / "DocumentDetailPanel.qml",
+        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Dialogs" / "DocumentLinkEditorDialog.qml",
+        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Dialogs" / "DocumentStructureEditorDialog.qml",
     ]
     command = [qmllint_path]
     for import_path in import_paths:

@@ -532,15 +532,17 @@ Platform QML route status as of 2026-04-24:
 - `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` now compose real control/settings action-list data from split platform desktop APIs without growing the overview presenters into dump files
 - `src/ui_qml/platform/workspace_state.py` now owns common control/settings workspace state plus action and refresh sequencing, while `src/ui_qml/platform/admin_workspace_state.py` and `src/ui_qml/platform/access_workspace_state.py` own the admin workspace master-data state, scoped-access state, editor options, and mutations
 - `src/ui_qml/platform/presenters/{organization_catalog_presenter,site_catalog_presenter,department_catalog_presenter,employee_catalog_presenter,user_catalog_presenter,party_catalog_presenter,document_catalog_presenter}.py` now provide the split admin QML workflow presenters for organization/site/department/employee/user/party/document actions
+- `src/ui_qml/platform/presenters/document_management_presenter.py` now owns document focus, preview-state, linked-record, and structure-management presentation logic so those workflows do not bloat the document catalog presenter or the QML file
 - `src/ui_qml/platform/presenters/access_workspace_presenter.py` now provides the split admin QML scoped-access and account-security presenter
-- `src/ui_qml/platform/qml/Platform/Widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner,AdminCatalogPanel}.qml` provide reusable grouped overview, action-list, workspace-state, and admin catalog rendering for the platform workspaces
-- `src/ui_qml/platform/qml/Platform/Dialogs/{OrganizationEditorDialog,SiteEditorDialog,DepartmentEditorDialog,EmployeeEditorDialog,UserEditorDialog,PartyEditorDialog,DocumentEditorDialog,ApprovalDecisionDialog,ModuleLifecycleDialog}.qml` provide focused QML dialogs for the current migrated platform workflows
+- `src/ui_qml/platform/qml/Platform/Widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner,AdminCatalogPanel,DocumentDetailPanel}.qml` provide reusable grouped overview, action-list, workspace-state, admin catalog, and document-detail rendering for the platform workspaces
+- `src/ui_qml/platform/qml/Platform/Dialogs/{OrganizationEditorDialog,SiteEditorDialog,DepartmentEditorDialog,EmployeeEditorDialog,UserEditorDialog,PartyEditorDialog,DocumentEditorDialog,DocumentLinkEditorDialog,DocumentStructureEditorDialog,ApprovalDecisionDialog,ModuleLifecycleDialog}.qml` provide focused QML dialogs for the current migrated platform workflows
 - `platform.admin` now exposes a real QML organization/site/department/employee/user/party/document surface with create, edit, toggle-active, set-active, role, and password-reset flows
+- `platform.admin` now also exposes a real QML selected-document surface with preview/open state, linked-record actions, and document-structure management through controller-owned state/actions
 - `platform.admin` now also exposes a real QML scoped-access and account-security surface
 - `platform.control` now exposes a real QML approval queue with approve/reject actions, decision-note entry, and a real QML audit feed
 - `platform.settings` now exposes a real QML module-entitlement surface with license/enable toggles, lifecycle-status changes, plus organization-profile visibility
 - platform admin/control/settings QML no longer uses page-local `refreshWorkspace()` JavaScript or page-local feedback orchestration
-- support and document preview/link/structure management still remain on the legacy QWidget side until their QML workflows reach parity
+- support still remains on the legacy QWidget side until its QML workflow reaches parity
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
 - `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, admin master-data action lists, admin mutations, and control/settings action states
 - offscreen QML loading has verified that the platform workspaces resolve with the shared QML primitives
@@ -584,7 +586,7 @@ QML architecture guardrail status as of 2026-04-24:
 - QML files must not use parent-relative import paths; named-module imports are now enforced for reusable QML
 - these guardrails must pass before wiring real QML screens to module desktop APIs
 - registered QML routes must continue loading offscreen before any old Widget screen is deleted
-- the latest broader QML verification batch passes with `61 passed`, the focused platform/QML batch passes with `48 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
+- the latest broader QML verification batch passes with `63 passed`, the focused platform/QML batch passes with `41 passed`, and the shell/navigation scaffold regression batch passes with `14 passed`
 
 ## API Refactor Rule
 
@@ -765,7 +767,9 @@ Completed:
 - `src/ui_qml/platform/qml/Platform/Dialogs/{ApprovalDecisionDialog,ModuleLifecycleDialog}.qml` now provide QML-side decision-note and lifecycle selection flows, and `RecordListCard.qml` now exposes a tertiary action slot so those workflows do not force page-specific list widgets
 - `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` now routes approve/reject through `approveRequestWithNote()` and `rejectRequestWithNote()`, while `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` now routes lifecycle changes through `changeModuleLifecycleStatus()`
 - `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,plugins.qmltypes}` plus `src/ui_qml/platform/qml_type_registration.py` now provide typed runtime/tooling registration for `PlatformWorkspaceCatalog`, `PlatformAdminWorkspaceController`, `PlatformAdminAccessWorkspaceController`, `PlatformControlWorkspaceController`, and `PlatformSettingsWorkspaceController`, and the active platform QML files no longer declare controller properties as generic `QtObject`
-- support and document preview/link/structure management remain on the Widget side for now; do not delete those Widget files yet
+- `src/ui_qml/platform/presenters/document_management_presenter.py`, `src/ui_qml/platform/admin_workspace_state.py`, and `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` now move document preview-state, linked-record, and structure-management workflows onto the QML side with controller-owned refresh and mutation orchestration
+- `src/ui_qml/platform/qml/Platform/Widgets/DocumentDetailPanel.qml` plus `src/ui_qml/platform/qml/Platform/Dialogs/{DocumentLinkEditorDialog,DocumentStructureEditorDialog}.qml` now replace the missing advanced document-admin QML surface without putting workflow logic back into QML
+- support remains on the Widget side for now; do not delete those Widget files yet
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`

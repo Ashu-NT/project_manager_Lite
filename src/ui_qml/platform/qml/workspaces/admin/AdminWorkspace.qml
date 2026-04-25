@@ -81,6 +81,42 @@ AppLayouts.WorkspaceFrame {
             "emptyState": "",
             "items": []
         })
+    property var selectedDocument: workspaceController
+        ? workspaceController.selectedDocument
+        : ({
+            "hasSelection": false,
+            "documentId": "",
+            "title": "Select a document",
+            "summary": "",
+            "badges": [],
+            "metadataRows": [],
+            "notes": ""
+        })
+    property var documentPreviewState: workspaceController
+        ? workspaceController.documentPreview
+        : ({
+            "statusLabel": "No document selected",
+            "summary": "",
+            "canOpen": false,
+            "openLabel": "Open Source",
+            "openTargetUrl": ""
+        })
+    property var documentLinkCatalog: workspaceController
+        ? workspaceController.documentLinks
+        : ({
+            "title": "Linked Records",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
+    property var documentStructureCatalog: workspaceController
+        ? workspaceController.documentStructures
+        : ({
+            "title": "Document Structures",
+            "subtitle": "",
+            "emptyState": "",
+            "items": []
+        })
 
     function catalogItemById(catalog, itemId) {
         const items = catalog.items || []
@@ -191,12 +227,45 @@ AppLayouts.WorkspaceFrame {
         documentDialog.openForCreate(workspaceController.documentEditorOptions || {})
     }
 
+    function inspectDocument(itemId) {
+        if (workspaceController === null) {
+            return
+        }
+        workspaceController.selectDocument(itemId)
+    }
+
     function openDocumentEdit(itemId) {
         const item = catalogItemById(documentCatalog, itemId)
         if (item === null) {
             return
         }
+        inspectDocument(itemId)
         documentDialog.openForEdit(item.state || {}, workspaceController.documentEditorOptions || {})
+    }
+
+    function openDocumentStructureCreate() {
+        if (workspaceController === null) {
+            return
+        }
+        documentStructureDialog.openForCreate(workspaceController.documentStructureEditorOptions || {})
+    }
+
+    function openDocumentStructureEdit(itemId) {
+        const item = catalogItemById(documentStructureCatalog, itemId)
+        if (item === null || workspaceController === null) {
+            return
+        }
+        documentStructureDialog.openForEdit(
+            item.state || {},
+            workspaceController.documentStructureEditorOptions || {}
+        )
+    }
+
+    function openDocumentLinkCreate() {
+        if (workspaceController === null || !selectedDocument.hasSelection) {
+            return
+        }
+        documentLinkDialog.openForCreate(selectedDocument.documentId || "")
     }
 
     title: workspaceController ? (workspaceController.overview.title || workspaceModel.title) : workspaceModel.title
@@ -398,18 +467,90 @@ AppLayouts.WorkspaceFrame {
                     createActionLabel: "New Document"
                     createEnabled: workspaceController ? !workspaceController.isBusy : false
                     actionsEnabled: workspaceController ? !workspaceController.isBusy : false
-                    primaryActionLabel: "Edit"
-                    secondaryActionLabel: "Toggle Active"
+                    primaryActionLabel: "Inspect"
+                    secondaryActionLabel: "Edit"
+                    tertiaryActionLabel: "Toggle Active"
 
                     onCreateRequested: openDocumentCreate()
 
                     onPrimaryActionRequested: function(itemId) {
+                        inspectDocument(itemId)
+                    }
+
+                    onSecondaryActionRequested: function(itemId) {
                         openDocumentEdit(itemId)
+                    }
+
+                    onTertiaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.toggleDocumentActive(itemId)
+                        }
+                    }
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: width > 1480 ? 3 : 1
+                columnSpacing: Theme.AppTheme.spacingMd
+                rowSpacing: Theme.AppTheme.spacingMd
+
+                PlatformWidgets.DocumentDetailPanel {
+                    Layout.fillWidth: true
+                    Layout.columnSpan: width > 1480 ? 1 : 1
+                    details: selectedDocument
+                    previewState: documentPreviewState
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+
+                    onOpenRequested: function(targetUrl) {
+                        if (targetUrl && targetUrl.length > 0) {
+                            Qt.openUrlExternally(targetUrl)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: documentLinkCatalog.title || "Linked Records"
+                    summary: documentLinkCatalog.subtitle || ""
+                    catalog: documentLinkCatalog
+                    createActionLabel: "Add Link"
+                    createEnabled: workspaceController
+                        ? (!workspaceController.isBusy && selectedDocument.hasSelection)
+                        : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    secondaryActionLabel: "Remove Link"
+                    secondaryDanger: true
+
+                    onCreateRequested: openDocumentLinkCreate()
+
+                    onSecondaryActionRequested: function(itemId) {
+                        if (workspaceController !== null) {
+                            workspaceController.removeDocumentLink(itemId)
+                        }
+                    }
+                }
+
+                PlatformWidgets.AdminCatalogPanel {
+                    Layout.fillWidth: true
+                    title: documentStructureCatalog.title || "Document Structures"
+                    summary: documentStructureCatalog.subtitle || ""
+                    catalog: documentStructureCatalog
+                    createActionLabel: "New Structure"
+                    createEnabled: workspaceController ? !workspaceController.isBusy : false
+                    actionsEnabled: workspaceController ? !workspaceController.isBusy : false
+                    primaryActionLabel: "Edit"
+                    secondaryActionLabel: "Toggle Active"
+
+                    onCreateRequested: openDocumentStructureCreate()
+
+                    onPrimaryActionRequested: function(itemId) {
+                        openDocumentStructureEdit(itemId)
                     }
 
                     onSecondaryActionRequested: function(itemId) {
                         if (workspaceController !== null) {
-                            workspaceController.toggleDocumentActive(itemId)
+                            workspaceController.toggleDocumentStructureActive(itemId)
                         }
                     }
                 }
@@ -562,6 +703,40 @@ AppLayouts.WorkspaceFrame {
                 : workspaceController.updateDocument(payload)
             if (result.ok) {
                 documentDialog.close()
+            }
+        }
+    }
+
+    PlatformDialogs.DocumentLinkEditorDialog {
+        id: documentLinkDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = workspaceController.addDocumentLink(payload)
+            if (result.ok) {
+                documentLinkDialog.close()
+            }
+        }
+    }
+
+    PlatformDialogs.DocumentStructureEditorDialog {
+        id: documentStructureDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? workspaceController.createDocumentStructure(payload)
+                : workspaceController.updateDocumentStructure(payload)
+            if (result.ok) {
+                documentStructureDialog.close()
             }
         }
     }

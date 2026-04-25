@@ -27,6 +27,7 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_SHARED_ROOT / "Widgets" / "qmldir": "module App.Widgets",
         QML_SHARED_ROOT / "Layouts" / "qmldir": "module App.Layouts",
         QML_PLATFORM_ROOT / "Controllers" / "qmldir": "module Platform.Controllers",
+        QML_PLATFORM_ROOT / "Dialogs" / "qmldir": "module Platform.Dialogs",
         QML_PLATFORM_ROOT / "Widgets" / "qmldir": "module Platform.Widgets",
     }
 
@@ -38,8 +39,12 @@ def test_qml_platform_widgets_module_exists() -> None:
     expected_files = [
         QML_PLATFORM_ROOT / "Controllers" / "qmldir",
         QML_PLATFORM_ROOT / "Controllers" / "plugins.qmltypes",
+        QML_PLATFORM_ROOT / "Dialogs" / "qmldir",
+        QML_PLATFORM_ROOT / "Dialogs" / "DocumentLinkEditorDialog.qml",
+        QML_PLATFORM_ROOT / "Dialogs" / "DocumentStructureEditorDialog.qml",
         QML_PLATFORM_ROOT / "Widgets" / "OverviewSectionCard.qml",
         QML_PLATFORM_ROOT / "Widgets" / "RecordListCard.qml",
+        QML_PLATFORM_ROOT / "Widgets" / "DocumentDetailPanel.qml",
         QML_PLATFORM_ROOT / "Widgets" / "WorkspaceStateBanner.qml",
         QML_PLATFORM_ROOT / "Widgets" / "qmldir",
     ]

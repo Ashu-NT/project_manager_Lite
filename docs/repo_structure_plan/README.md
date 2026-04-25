@@ -60,12 +60,13 @@ QML scaffold status:
 - platform controller types are now exposed to QML through the typed module `src/ui_qml/platform/qml/Platform/Controllers/*`, with runtime registration in `src/ui_qml/platform/qml_type_registration.py`; workspace pages no longer declare controller objects as generic `QtObject`
 - platform `admin` now uses a dedicated `src/ui_qml/platform/admin_workspace_state.py` controller plus split catalog presenters for organizations, sites, departments, employees, users, parties, and documents
 - platform `admin` now exposes real QML organization/site/department/employee/user/party/document panels with controller-owned create, edit, toggle-active, set-active, role, and password-reset orchestration through `src/api/desktop/platform/*`
+- platform `admin` now also exposes controller-owned document focus, preview-state, linked-record, and document-structure workflows through `src/ui_qml/platform/presenters/document_management_presenter.py`, `src/ui_qml/platform/qml/Platform/Widgets/DocumentDetailPanel.qml`, and focused document link/structure dialogs under `src/ui_qml/platform/qml/Platform/Dialogs/*`
 - platform `admin` now also exposes scoped access and account-security workflows through `src/ui_qml/platform/access_workspace_state.py`, `src/ui_qml/platform/presenters/access_workspace_presenter.py`, and `src/ui_qml/platform/qml/Platform/Widgets/AccessSecurityPanel.qml`
 - platform `control` now exposes a QML approval queue with approve/reject actions, decision-note entry, and a QML audit feed, all through `platformWorkspaceCatalog` and split platform desktop APIs
 - platform `settings` now exposes a QML module entitlement surface with license toggles, enable toggles, lifecycle-status changes, plus organization-profile visibility, all through `platformWorkspaceCatalog` and `PlatformRuntimeDesktopApi`
-- support and document preview/link/structure management remain on the legacy QWidget side for now; those widget files should not be deleted yet
+- support remains on the legacy QWidget side for now; the old support widget files should not be deleted yet
 - platform QML widgets now live under the named module `src/ui_qml/platform/qml/Platform/Widgets/*`, including `OverviewSectionCard.qml`, `RecordListCard.qml`, `WorkspaceStateBanner.qml`, and `AdminCatalogPanel.qml`
-- platform QML dialogs now live under the named module `src/ui_qml/platform/qml/Platform/Dialogs/*`, including focused editor dialogs for organizations, sites, departments, employees, users, parties, and documents plus `ApprovalDecisionDialog.qml` and `ModuleLifecycleDialog.qml`
+- platform QML dialogs now live under the named module `src/ui_qml/platform/qml/Platform/Dialogs/*`, including focused editor dialogs for organizations, sites, departments, employees, users, parties, documents, document links, and document structures plus `ApprovalDecisionDialog.qml` and `ModuleLifecycleDialog.qml`
 - QML imports now use named modules with stable aliases instead of deep parent-relative paths; the active convention is `Theme`, `AppLayouts`, `AppWidgets`, `AppControls`, and `PlatformWidgets`
 - the legacy QWidget Platform Home screen has been moved onto the same `src/api/desktop/platform/*` API boundary while the QML shell remains pending
 - the legacy QWidget Module Licensing screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
@@ -88,7 +89,7 @@ QML scaffold status:
 - focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
 - focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
 - automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
-- the latest broader QML verification batch passes with `61 passed`, the focused platform/QML batch passes with `48 passed`, and the shell/navigation scaffold regression batch passes with `12 passed`
+- the latest broader QML verification batch passes with `63 passed`, the focused platform/QML batch passes with `41 passed`, and the shell/navigation scaffold regression batch passes with `14 passed`
 
 ## Core Rule
 
@@ -1728,7 +1729,9 @@ Completed in the clean/no-facade execution:
 - upgraded `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` with `ApprovalDecisionDialog.qml` and controller-owned `approveRequestWithNote()` / `rejectRequestWithNote()` flows so approval decision notes now live on the QML side
 - upgraded `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` with `ModuleLifecycleDialog.qml`, controller-owned lifecycle options, and `changeModuleLifecycleStatus()` so module lifecycle changes now live on the QML side without putting lifecycle rules into QML
 - added `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,plugins.qmltypes}` plus `src/ui_qml/platform/qml_type_registration.py`, typed `PlatformWorkspaceCatalog` controller properties in `src/ui_qml/platform/context.py`, and rewired the active platform QML pages/widgets to consume typed controller properties instead of generic `QtObject`
-- kept support and document preview/link/structure management on the legacy QWidget side for now; those workflows are still pending before old Widget files can be deleted
+- added `src/ui_qml/platform/presenters/document_management_presenter.py`, extended `src/ui_qml/platform/admin_workspace_state.py` with selected-document/preview/link/structure state, and upgraded `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` so document preview-state, linked-record management, and structure management now live on the QML side through controller-owned actions
+- added `src/ui_qml/platform/qml/Platform/Widgets/DocumentDetailPanel.qml` plus `src/ui_qml/platform/qml/Platform/Dialogs/{DocumentLinkEditorDialog,DocumentStructureEditorDialog}.qml` so the document admin slice no longer depends on the legacy widget document dialogs for those workflows
+- kept support on the legacy QWidget side for now; that workflow is still pending before old Widget files can be deleted
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`
