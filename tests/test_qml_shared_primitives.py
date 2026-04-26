@@ -2,7 +2,10 @@ from pathlib import Path
 
 
 QML_SHARED_ROOT = Path("src/ui_qml/shared/qml/App")
-QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml/Platform")
+QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml")
+QML_PLATFORM_CONTROLLERS = Path("src/ui_qml/platform/qml/controllers")
+QML_PLATFORM_DIALOGS = Path("src/ui_qml/platform/qml/dialogs")
+QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/widgets")
 
 
 def test_qml_shared_theme_primitives_exist() -> None:
@@ -26,9 +29,9 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_SHARED_ROOT / "Controls" / "qmldir": "module App.Controls",
         QML_SHARED_ROOT / "Widgets" / "qmldir": "module App.Widgets",
         QML_SHARED_ROOT / "Layouts" / "qmldir": "module App.Layouts",
-        QML_PLATFORM_ROOT / "Controllers" / "qmldir": "module Platform.Controllers",
-        QML_PLATFORM_ROOT / "Dialogs" / "qmldir": "module Platform.Dialogs",
-        QML_PLATFORM_ROOT / "Widgets" / "qmldir": "module Platform.Widgets",
+        QML_PLATFORM_CONTROLLERS / "qmldir": "module Platform.Controllers",
+        QML_PLATFORM_DIALOGS / "qmldir": "module Platform.Dialogs",
+        QML_PLATFORM_WIDGETS / "qmldir": "module Platform.Widgets",
     }
 
     for path, module_name in expected_modules.items():
@@ -37,16 +40,16 @@ def test_qml_modules_declare_stable_namespaces() -> None:
 
 def test_qml_platform_widgets_module_exists() -> None:
     expected_files = [
-        QML_PLATFORM_ROOT / "Controllers" / "qmldir",
-        QML_PLATFORM_ROOT / "Controllers" / "plugins.qmltypes",
-        QML_PLATFORM_ROOT / "Dialogs" / "qmldir",
-        QML_PLATFORM_ROOT / "Dialogs" / "DocumentLinkEditorDialog.qml",
-        QML_PLATFORM_ROOT / "Dialogs" / "DocumentStructureEditorDialog.qml",
-        QML_PLATFORM_ROOT / "Widgets" / "OverviewSectionCard.qml",
-        QML_PLATFORM_ROOT / "Widgets" / "RecordListCard.qml",
-        QML_PLATFORM_ROOT / "Widgets" / "DocumentDetailPanel.qml",
-        QML_PLATFORM_ROOT / "Widgets" / "WorkspaceStateBanner.qml",
-        QML_PLATFORM_ROOT / "Widgets" / "qmldir",
+        QML_PLATFORM_CONTROLLERS / "qmldir",
+        QML_PLATFORM_CONTROLLERS / "plugins.qmltypes",
+        QML_PLATFORM_DIALOGS / "qmldir",
+        QML_PLATFORM_DIALOGS / "DocumentLinkEditorDialog.qml",
+        QML_PLATFORM_DIALOGS / "DocumentStructureEditorDialog.qml",
+        QML_PLATFORM_WIDGETS / "OverviewSectionCard.qml",
+        QML_PLATFORM_WIDGETS / "RecordListCard.qml",
+        QML_PLATFORM_WIDGETS / "DocumentDetailPanel.qml",
+        QML_PLATFORM_WIDGETS / "WorkspaceStateBanner.qml",
+        QML_PLATFORM_WIDGETS / "qmldir",
     ]
 
     assert all(path.exists() for path in expected_files)
