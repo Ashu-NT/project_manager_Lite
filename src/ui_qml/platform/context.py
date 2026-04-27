@@ -3,8 +3,12 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 
 from src.api.desktop.platform import PlatformRuntimeDesktopApi
-from src.ui_qml.platform.access_workspace_state import PlatformAdminAccessWorkspaceController
-from src.ui_qml.platform.admin_workspace_state import PlatformAdminWorkspaceController
+from src.ui_qml.platform.controllers.admin import (
+    PlatformAdminAccessWorkspaceController,
+    PlatformAdminWorkspaceController,
+)
+from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
+from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
 from src.ui_qml.platform.presenters import (
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
@@ -23,10 +27,6 @@ from src.ui_qml.platform.presenters import (
     PlatformUserCatalogPresenter,
 )
 from src.ui_qml.platform.routes import build_platform_routes
-from src.ui_qml.platform.workspace_state import (
-    PlatformControlWorkspaceController,
-    PlatformSettingsWorkspaceController,
-)
 
 
 class PlatformWorkspaceCatalog(QObject):
