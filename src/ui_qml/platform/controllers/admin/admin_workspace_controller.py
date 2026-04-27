@@ -18,6 +18,15 @@ from src.ui_qml.platform.presenters.party_catalog_presenter import PlatformParty
 from src.ui_qml.platform.presenters.site_catalog_presenter import PlatformSiteCatalogPresenter
 from src.ui_qml.platform.presenters.user_catalog_presenter import PlatformUserCatalogPresenter
 
+from .department_controller import PlatformDepartmentController
+from .document_controller import PlatformDocumentController
+from .document_structure_controller import PlatformDocumentStructureController
+from .employee_controller import PlatformEmployeeController
+from .organization_controller import PlatformOrganizationController
+from .party_controller import PlatformPartyController
+from .site_controller import PlatformSiteController
+from .user_controller import PlatformUserController
+
 from ..common import (
     PlatformWorkspaceControllerBase,
     run_mutation,
@@ -64,13 +73,21 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._organization_presenter = organization_presenter
+        self._organization_controller = PlatformOrganizationController(organization_presenter)
         self._site_presenter = site_presenter
+        self._site_controller = PlatformSiteController(site_presenter)
         self._department_presenter = department_presenter
+        self._department_controller = PlatformDepartmentController(department_presenter)
         self._employee_presenter = employee_presenter
+        self._employee_controller = PlatformEmployeeController(employee_presenter)
         self._user_presenter = user_presenter
+        self._user_controller = PlatformUserController(user_presenter)
         self._party_presenter = party_presenter
+        self._party_controller = PlatformPartyController(party_presenter)
         self._document_presenter = document_presenter
+        self._document_controller = PlatformDocumentController(document_presenter)
         self._document_management_presenter = document_management_presenter
+        self._document_structure_controller = PlatformDocumentStructureController(document_management_presenter)
         self._organizations: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._sites: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._departments: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -211,279 +228,328 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot("QVariantMap", result="QVariantMap")
     def createOrganization(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._organization_presenter.create_organization(dict(payload)),
-            success_message="Organization created.",
-            on_success=self._refresh_after_organization_change,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_operation_result=self._set_operation_result,
-            set_feedback_message=self._set_feedback_message,
+        return self._organization_controller.create_organization(
+            payload,
+            self._refresh_after_organization_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateOrganization(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._organization_presenter.update_organization(dict(payload)),
-            success_message="Organization updated.",
-            on_success=self._refresh_after_organization_change,
+        return self._organization_controller.update_organization(
+            payload,
+            self._refresh_after_organization_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def setActiveOrganization(self, organization_id: str) -> dict[str, object]:
-        normalized_id = organization_id.strip()
-        if not normalized_id:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._organization_presenter.set_active_organization(normalized_id),
-            success_message="Organization activated.",
-            on_success=self._refresh_after_organization_change,
+        return self._organization_controller.set_active_organization(
+            organization_id,
+            self._refresh_after_organization_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createSite(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._site_presenter.create_site(dict(payload)),
-            success_message="Site created.",
-            on_success=self._refresh_after_site_change,
+        return self._site_controller.create_site(
+            payload,
+            self._refresh_after_site_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateSite(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._site_presenter.update_site(dict(payload)),
-            success_message="Site updated.",
-            on_success=self._refresh_after_site_change,
+        return self._site_controller.update_site(
+            payload,
+            self._refresh_after_site_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def toggleSiteActive(self, site_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._sites, site_id)
-        if state is None:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._site_presenter.toggle_site_active(
-                site_id=site_id,
-                is_active=bool(state.get("isActive")),
-                expected_version=self._to_int(state.get("version")),
-            ),
-            success_message="Site active state updated.",
-            on_success=self._refresh_after_site_change,
+        return self._site_controller.toggle_site_active(
+            site_id,
+            self._sites,
+            self._refresh_after_site_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
+            self._find_item_state,
+            self._to_int,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDepartment(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._department_presenter.create_department(dict(payload)),
-            success_message="Department created.",
-            on_success=self._refresh_after_department_change,
+        return self._department_controller.create_department(
+            payload,
+            self._refresh_after_department_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateDepartment(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._department_presenter.update_department(dict(payload)),
-            success_message="Department updated.",
-            on_success=self._refresh_after_department_change,
+        return self._department_controller.update_department(
+            payload,
+            self._refresh_after_department_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def toggleDepartmentActive(self, department_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._departments, department_id)
-        if state is None:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._department_presenter.toggle_department_active(
-                department_id=department_id,
-                is_active=bool(state.get("isActive")),
-                expected_version=self._to_int(state.get("version")),
-            ),
-            success_message="Department active state updated.",
-            on_success=self._refresh_after_department_change,
+        return self._department_controller.toggle_department_active(
+            department_id,
+            self._departments,
+            self._refresh_after_department_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
+            self._find_item_state,
+            self._to_int,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createEmployee(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._employee_presenter.create_employee(dict(payload)),
-            success_message="Employee created.",
-            on_success=self._refresh_after_employee_change,
+        return self._employee_controller.create_employee(
+            payload,
+            self._refresh_after_employee_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateEmployee(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._employee_presenter.update_employee(dict(payload)),
-            success_message="Employee updated.",
-            on_success=self._refresh_after_employee_change,
+        return self._employee_controller.update_employee(
+            payload,
+            self._refresh_after_employee_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def toggleEmployeeActive(self, employee_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._employees, employee_id)
-        if state is None:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._employee_presenter.toggle_employee_active(
-                employee_id=employee_id,
-                is_active=bool(state.get("isActive")),
-                expected_version=self._to_int(state.get("version")),
-            ),
-            success_message="Employee active state updated.",
-            on_success=self._refresh_after_employee_change,
+        return self._employee_controller.toggle_employee_active(
+            employee_id,
+            self._employees,
+            self._refresh_after_employee_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
+            self._find_item_state,
+            self._to_int,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createUser(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._user_presenter.create_user(dict(payload)),
-            success_message="User created.",
-            on_success=self._refresh_after_user_change,
+        return self._user_controller.create_user(
+            payload,
+            self._refresh_after_user_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateUser(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._user_presenter.update_user(dict(payload)),
-            success_message="User updated.",
-            on_success=self._refresh_after_user_change,
+        return self._user_controller.update_user(
+            payload,
+            self._refresh_after_user_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def toggleUserActive(self, user_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._users, user_id)
-        if state is None:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._user_presenter.toggle_user_active(
-                user_id=user_id,
-                is_active=bool(state.get("isActive")),
-            ),
-            success_message="User active state updated.",
-            on_success=self._refresh_after_user_change,
+        return self._user_controller.toggle_user_active(
+            user_id,
+            self._users,
+            self._refresh_after_user_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
+            self._find_item_state,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createParty(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._party_presenter.create_party(dict(payload)),
-            success_message="Party created.",
-            on_success=self._refresh_after_party_change,
+        return self._party_controller.create_party(
+            payload,
+            self._refresh_after_party_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateParty(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._party_presenter.update_party(dict(payload)),
-            success_message="Party updated.",
-            on_success=self._refresh_after_party_change,
+        return self._party_controller.update_party(
+            payload,
+            self._refresh_after_party_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def togglePartyActive(self, party_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._parties, party_id)
-        if state is None:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._party_presenter.toggle_party_active(
-                party_id=party_id,
-                is_active=bool(state.get("isActive")),
-                expected_version=self._to_int(state.get("version")),
-            ),
-            success_message="Party active state updated.",
-            on_success=self._refresh_after_party_change,
+        return self._party_controller.toggle_party_active(
+            party_id,
+            self._parties,
+            self._refresh_after_party_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
+            self._find_item_state,
+            self._to_int,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDocument(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._document_presenter.create_document(dict(payload)),
-            success_message="Document created.",
-            on_success=self._refresh_after_document_change,
-            success_result_handler=self._select_document_from_result,
+        return self._document_controller.create_document(
+            payload,
+            self._refresh_after_document_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self._select_document_from_result,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateDocument(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._document_presenter.update_document(dict(payload)),
-            success_message="Document updated.",
-            on_success=self._refresh_after_document_change,
-            success_result_handler=self._select_document_from_result,
+        return self._document_controller.update_document(
+            payload,
+            self._refresh_after_document_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self._select_document_from_result,
         )
 
     @Slot(str, result="QVariantMap")
     def toggleDocumentActive(self, document_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._documents, document_id)
-        if state is None:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._document_presenter.toggle_document_active(
-                document_id=document_id,
-                is_active=bool(state.get("isActive")),
-                expected_version=self._to_int(state.get("version")),
-            ),
-            success_message="Document active state updated.",
-            on_success=self._refresh_after_document_change,
-            success_result_handler=self._select_document_from_result,
+        return self._document_controller.toggle_document_active(
+            document_id,
+            self._documents,
+            self._refresh_after_document_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
+            self._find_item_state,
+            self._to_int,
+            self._select_document_from_result,
         )
 
     @Slot(str)
     def selectDocument(self, document_id: str) -> None:
-        normalized_id = document_id.strip()
-        if not normalized_id:
-            return
-        self._selected_document_id = normalized_id
-        self._refresh_document_focus()
+        self._document_controller.select_document(
+            document_id,
+            lambda id: setattr(self, '_selected_document_id', id),
+            self._refresh_document_focus,
+        )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._document_management_presenter.create_document_structure(dict(payload)),
-            success_message="Document structure created.",
-            on_success=self._refresh_after_document_structure_change,
+        return self._document_structure_controller.create_document_structure(
+            payload,
+            self._refresh_after_document_structure_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._document_management_presenter.update_document_structure(dict(payload)),
-            success_message="Document structure updated.",
-            on_success=self._refresh_after_document_structure_change,
+        return self._document_structure_controller.update_document_structure(
+            payload,
+            self._refresh_after_document_structure_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def toggleDocumentStructureActive(self, structure_id: str) -> dict[str, object]:
-        state = self._find_item_state(self._document_structures, structure_id)
-        if state is None:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._document_management_presenter.toggle_document_structure_active(
-                structure_id=structure_id,
-                is_active=bool(state.get("isActive")),
-                expected_version=self._to_int(state.get("version")),
-            ),
-            success_message="Document structure active state updated.",
-            on_success=self._refresh_after_document_structure_change,
+        return self._document_structure_controller.toggle_document_structure_active(
+            structure_id,
+            self._document_structures,
+            self._refresh_after_document_structure_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
+            self._find_item_state,
+            self._to_int,
         )
 
     @Slot("QVariantMap", result="QVariantMap")
     def addDocumentLink(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._run_mutation(
-            operation=lambda: self._document_management_presenter.add_document_link(dict(payload)),
-            success_message="Document link added.",
-            on_success=self._refresh_after_document_link_change,
+        return self._document_structure_controller.add_document_link(
+            payload,
+            self._refresh_after_document_link_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
         )
 
     @Slot(str, result="QVariantMap")
     def removeDocumentLink(self, link_id: str) -> dict[str, object]:
-        normalized_id = link_id.strip()
-        if not normalized_id:
-            return dict(self.operationResult)
-        return self._run_mutation(
-            operation=lambda: self._document_management_presenter.remove_document_link(normalized_id),
-            success_message="Document link removed.",
-            on_success=self._refresh_after_document_link_change,
+        return self._document_structure_controller.remove_document_link(
+            link_id,
+            self._refresh_after_document_link_change,
+            self._set_is_busy,
+            self._set_error_message,
+            self._set_operation_result,
+            self._set_feedback_message,
+            self.operationResult,
         )
 
     def _run_mutation(
