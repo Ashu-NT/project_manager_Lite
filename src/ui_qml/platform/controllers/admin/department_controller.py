@@ -19,10 +19,19 @@ class PlatformDepartmentController(QObject):
         super().__init__(parent)
         self._presenter = presenter
         self._departments: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._department_editor_options: dict[str, object] = {}
+        self._department_editor_options: dict[str, object] = {
+            "siteOptions": [],
+            "locationOptions": [],
+            "parentOptions": [],
+        }
         self._is_busy = False
         self._error_message = ""
-        self._operation_result: dict[str, object] = {"success": False}
+        self._operation_result: dict[str, object] = {
+            "ok": True,
+            "category": "",
+            "code": "",
+            "message": "",
+        }
         self._feedback_message = ""
 
     @Property("QVariantMap", notify=departmentsChanged)
@@ -85,7 +94,7 @@ class PlatformDepartmentController(QObject):
             return None
         for item in items_list:
             if isinstance(item, dict) and item.get("id") == item_id:
-                return item
+                return dict(item.get("state") or {})
         return None
 
     def _to_int(self, value: object) -> int | None:

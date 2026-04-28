@@ -21,10 +21,15 @@ class PlatformOrganizationController(QObject):
         super().__init__(parent)
         self._presenter = presenter
         self._organizations: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._organization_editor_options: dict[str, object] = {}
+        self._organization_editor_options: dict[str, object] = {"moduleOptions": []}
         self._is_busy = False
         self._error_message = ""
-        self._operation_result: dict[str, object] = {"success": False}
+        self._operation_result: dict[str, object] = {
+            "ok": True,
+            "category": "",
+            "code": "",
+            "message": "",
+        }
         self._feedback_message = ""
 
     @Property("QVariantMap", notify=organizationsChanged)

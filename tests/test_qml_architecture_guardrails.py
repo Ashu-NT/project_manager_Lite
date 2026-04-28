@@ -35,6 +35,12 @@ LEGACY_PLATFORM_APPROVAL_QUEUE = (
 )
 LEGACY_PLATFORM_AUDIT_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "control" / "audit" / "tab.py"
 LEGACY_PLATFORM_HOME_TAB = SRC_ROOT / "ui" / "shell" / "platform" / "home.py"
+PLATFORM_ADMIN_CONSOLE_CONTROLLER = (
+    UI_QML_ROOT / "platform" / "controllers" / "admin" / "admin_console_controller.py"
+)
+STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER = (
+    UI_QML_ROOT / "platform" / "controllers" / "admin" / "admin_workspace_controller.py"
+)
 
 
 def _python_files(root: Path):
@@ -156,6 +162,11 @@ def test_qml_workspace_controller_properties_use_typed_controller_types() -> Non
                 violations.append(f"{path.relative_to(ROOT)}:{lineno}:{stripped}")
 
     assert not violations, f"QML controller properties still use generic QtObject: {violations}"
+
+
+def test_platform_admin_workspace_controller_uses_split_entrypoint() -> None:
+    assert PLATFORM_ADMIN_CONSOLE_CONTROLLER.exists()
+    assert not STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER.exists()
 
 
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:

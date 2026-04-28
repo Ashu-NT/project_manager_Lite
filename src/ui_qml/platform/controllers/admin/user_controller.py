@@ -19,10 +19,15 @@ class PlatformUserController(QObject):
         super().__init__(parent)
         self._presenter = presenter
         self._users: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
-        self._user_editor_options: dict[str, object] = {}
+        self._user_editor_options: dict[str, object] = {"roleOptions": []}
         self._is_busy = False
         self._error_message = ""
-        self._operation_result: dict[str, object] = {"success": False}
+        self._operation_result: dict[str, object] = {
+            "ok": True,
+            "category": "",
+            "code": "",
+            "message": "",
+        }
         self._feedback_message = ""
 
     @Property("QVariantMap", notify=usersChanged)
@@ -85,7 +90,7 @@ class PlatformUserController(QObject):
             return None
         for item in items_list:
             if isinstance(item, dict) and item.get("id") == item_id:
-                return item
+                return dict(item.get("state") or {})
         return None
 
     @Slot()
@@ -118,10 +123,13 @@ class PlatformUserController(QObject):
 
     @Slot(str, result="QVariantMap")
     def toggleUserActive(self, user_id: str) -> dict[str, object]:
+        state = self._find_item_state(self._users, user_id)
+        if state is None:
+            return dict(self.operationResult)
         return run_mutation(
             operation=lambda: self._presenter.toggle_user_active(
                 user_id=user_id,
-                is_active=True,
+                is_active=bool(state.get("isActive")),
             ),
             success_message="User active state updated.",
             on_success=self.refresh,
@@ -133,6 +141,11 @@ class PlatformUserController(QObject):
 
     def _refresh_users(self) -> None:
         self._set_users(serialize_action_list(self._presenter.build_catalog()))
+        self._set_user_editor_options(
+            {
+                "roleOptions": list(self._presenter.build_role_options()),
+            }
+        )
 
 
 __all__ = ["PlatformUserController"]

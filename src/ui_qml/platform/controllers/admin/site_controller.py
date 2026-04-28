@@ -20,7 +20,12 @@ class PlatformSiteController(QObject):
         self._sites: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._is_busy = False
         self._error_message = ""
-        self._operation_result: dict[str, object] = {"success": False}
+        self._operation_result: dict[str, object] = {
+            "ok": True,
+            "category": "",
+            "code": "",
+            "message": "",
+        }
         self._feedback_message = ""
 
     @Property("QVariantMap", notify=sitesChanged)
@@ -74,7 +79,7 @@ class PlatformSiteController(QObject):
             return None
         for item in items_list:
             if isinstance(item, dict) and item.get("id") == item_id:
-                return item
+                return dict(item.get("state") or {})
         return None
 
     def _to_int(self, value: object) -> int | None:

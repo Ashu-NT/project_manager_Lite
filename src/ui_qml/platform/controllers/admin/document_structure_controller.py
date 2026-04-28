@@ -9,6 +9,7 @@ from ..common import run_mutation, serialize_action_list
 
 class PlatformDocumentStructureController(QObject):
     documentStructuresChanged = Signal()
+    documentStructureEditorOptionsChanged = Signal()
     isBusyChanged = Signal()
     errorMessageChanged = Signal()
     operationResultChanged = Signal()
@@ -18,14 +19,28 @@ class PlatformDocumentStructureController(QObject):
         super().__init__(parent)
         self._presenter = presenter
         self._document_structures: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._document_structure_editor_options: dict[str, object] = {
+            "parentOptions": [],
+            "objectScopeOptions": [],
+            "defaultTypeOptions": [],
+        }
         self._is_busy = False
         self._error_message = ""
-        self._operation_result: dict[str, object] = {"success": False}
+        self._operation_result: dict[str, object] = {
+            "ok": True,
+            "category": "",
+            "code": "",
+            "message": "",
+        }
         self._feedback_message = ""
 
     @Property("QVariantMap", notify=documentStructuresChanged)
     def documentStructures(self) -> dict[str, object]:
         return self._document_structures
+
+    @Property("QVariantMap", notify=documentStructureEditorOptionsChanged)
+    def documentStructureEditorOptions(self) -> dict[str, object]:
+        return self._document_structure_editor_options
 
     @Property(bool, notify=isBusyChanged)
     def isBusy(self) -> bool:
@@ -43,49 +58,11 @@ class PlatformDocumentStructureController(QObject):
     def feedbackMessage(self) -> str:
         return self._feedback_message
 
-    def _set_document_structures(self, value: dict[str, object]) -> None:
-        if self._document_structures != value:
-            self._document_structures = value
-            self.documentStructuresChanged.emit()
-
-    def _set_is_busy(self, value: bool) -> None:
-        if self._is_busy != value:
-            self._is_busy = value
-            self.isBusyChanged.emit()
-
-    def _set_error_message(self, value: str) -> None:
-        if self._error_message != value:
-            self._error_message = value
-            self.errorMessageChanged.emit()
-
-    def _set_operation_result(self, value: dict[str, object]) -> None:
-        if self._operation_result != value:
-            self._operation_result = value
-            self.operationResultChanged.emit()
-
-    def _set_feedback_message(self, value: str) -> None:
-        if self._feedback_message != value:
-            self._feedback_message = value
-            self.feedbackMessageChanged.emit()
-
-    def _find_item_state(self, items: dict[str, object], item_id: str) -> dict[str, object] | None:
-        items_list = items.get("items", [])
-        if not isinstance(items_list, list):
-            return None
-        for item in items_list:
-            if isinstance(item, dict) and item.get("id") == item_id:
-                return item
-        return None
-
-    def _to_int(self, value: object) -> int | None:
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            return None
-
     @Slot()
     def refresh(self) -> None:
-        self._refresh_document_structures()
+        catalog, editor_options = self._presenter.build_structure_management()
+        self._set_document_structures(serialize_action_list(catalog))
+        self._set_document_structure_editor_options(dict(editor_options))
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDocumentStructure(self, payload: dict[str, object]) -> dict[str, object]:
@@ -130,35 +107,52 @@ class PlatformDocumentStructureController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot("QVariantMap", result="QVariantMap")
-    def addDocumentLink(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.add_document_link(dict(payload)),
-            success_message="Document link added.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_operation_result=self._set_operation_result,
-            set_feedback_message=self._set_feedback_message,
-        )
+    def _set_document_structures(self, value: dict[str, object]) -> None:
+        if self._document_structures != value:
+            self._document_structures = value
+            self.documentStructuresChanged.emit()
 
-    @Slot(str, result="QVariantMap")
-    def removeDocumentLink(self, link_id: str) -> dict[str, object]:
-        normalized_id = link_id.strip()
+    def _set_document_structure_editor_options(self, value: dict[str, object]) -> None:
+        if self._document_structure_editor_options != value:
+            self._document_structure_editor_options = value
+            self.documentStructureEditorOptionsChanged.emit()
+
+    def _set_is_busy(self, value: bool) -> None:
+        if self._is_busy != value:
+            self._is_busy = value
+            self.isBusyChanged.emit()
+
+    def _set_error_message(self, value: str) -> None:
+        if self._error_message != value:
+            self._error_message = value
+            self.errorMessageChanged.emit()
+
+    def _set_operation_result(self, value: dict[str, object]) -> None:
+        if self._operation_result != value:
+            self._operation_result = value
+            self.operationResultChanged.emit()
+
+    def _set_feedback_message(self, value: str) -> None:
+        if self._feedback_message != value:
+            self._feedback_message = value
+            self.feedbackMessageChanged.emit()
+
+    @staticmethod
+    def _find_item_state(items: dict[str, object], item_id: str) -> dict[str, object] | None:
+        normalized_id = item_id.strip()
         if not normalized_id:
-            return dict(self.operationResult)
-        return run_mutation(
-            operation=lambda: self._presenter.remove_document_link(normalized_id),
-            success_message="Document link removed.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_operation_result=self._set_operation_result,
-            set_feedback_message=self._set_feedback_message,
-        )
+            return None
+        for item in items.get("items", []):
+            if isinstance(item, dict) and item.get("id") == normalized_id:
+                return dict(item.get("state") or {})
+        return None
 
-    def _refresh_document_structures(self) -> None:
-        self._set_document_structures(serialize_action_list(self._presenter.build_document_structure_catalog()))
+    @staticmethod
+    def _to_int(value: object) -> int | None:
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return None
 
 
 __all__ = ["PlatformDocumentStructureController"]
