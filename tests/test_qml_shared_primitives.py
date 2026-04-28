@@ -2,10 +2,11 @@ from pathlib import Path
 
 
 QML_SHARED_ROOT = Path("src/ui_qml/shared/qml/App")
+QML_SHELL_CONTEXT = Path("src/ui_qml/shell/qml/Shell/Context")
 QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml")
-QML_PLATFORM_CONTROLLERS = Path("src/ui_qml/platform/qml/controllers")
-QML_PLATFORM_DIALOGS = Path("src/ui_qml/platform/qml/dialogs")
-QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/widgets")
+QML_PLATFORM_CONTROLLERS = Path("src/ui_qml/platform/qml/Platform/Controllers")
+QML_PLATFORM_DIALOGS = Path("src/ui_qml/platform/qml/Platform/Dialogs")
+QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
 
 
 def test_qml_shared_theme_primitives_exist() -> None:
@@ -18,6 +19,8 @@ def test_qml_shared_theme_primitives_exist() -> None:
         QML_SHARED_ROOT / "Widgets" / "qmldir",
         QML_SHARED_ROOT / "Layouts" / "WorkspaceFrame.qml",
         QML_SHARED_ROOT / "Layouts" / "qmldir",
+        QML_SHELL_CONTEXT / "qmldir",
+        QML_SHELL_CONTEXT / "plugins.qmltypes",
     ]
 
     assert all(path.exists() for path in expected_files)
@@ -29,6 +32,7 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_SHARED_ROOT / "Controls" / "qmldir": "module App.Controls",
         QML_SHARED_ROOT / "Widgets" / "qmldir": "module App.Widgets",
         QML_SHARED_ROOT / "Layouts" / "qmldir": "module App.Layouts",
+        QML_SHELL_CONTEXT / "qmldir": "module Shell.Context",
         QML_PLATFORM_CONTROLLERS / "qmldir": "module Platform.Controllers",
         QML_PLATFORM_DIALOGS / "qmldir": "module Platform.Dialogs",
         QML_PLATFORM_WIDGETS / "qmldir": "module Platform.Widgets",
@@ -41,7 +45,12 @@ def test_qml_modules_declare_stable_namespaces() -> None:
 def test_qml_platform_widgets_module_exists() -> None:
     expected_files = [
         QML_PLATFORM_CONTROLLERS / "qmldir",
-        QML_PLATFORM_CONTROLLERS / "plugins.qmltypes",
+        QML_PLATFORM_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
+        QML_PLATFORM_CONTROLLERS / "typeinfo" / "common.fragment",
+        QML_PLATFORM_CONTROLLERS / "typeinfo" / "admin.fragment",
+        QML_PLATFORM_CONTROLLERS / "typeinfo" / "control.fragment",
+        QML_PLATFORM_CONTROLLERS / "typeinfo" / "settings.fragment",
+        QML_PLATFORM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         QML_PLATFORM_DIALOGS / "qmldir",
         QML_PLATFORM_DIALOGS / "DocumentLinkEditorDialog.qml",
         QML_PLATFORM_DIALOGS / "DocumentStructureEditorDialog.qml",

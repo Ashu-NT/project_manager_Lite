@@ -10,7 +10,6 @@ from src.ui_qml.shell.context import build_shell_context
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import (
     create_qml_engine,
-    expose_context_property,
     load_qml,
 )
 from src.ui_qml.shell.qml_registry import build_qml_route_registry
@@ -27,14 +26,18 @@ def _ensure_qgui_application() -> QGuiApplication:
 def test_registered_qml_routes_load_offscreen() -> None:
     _ensure_qgui_application()
     registry = build_qml_route_registry()
-    engine = create_qml_engine()
     shell_context = build_shell_context(build_main_window_navigation(registry))
-
-    expose_context_property(engine, "shellContext", shell_context)
-    expose_context_property(engine, "platformWorkspaceCatalog", PlatformWorkspaceCatalog())
-    expose_context_property(engine, "pmWorkspaceCatalog", ProjectManagementWorkspaceCatalog())
+    platform_catalog = PlatformWorkspaceCatalog()
+    pm_catalog = ProjectManagementWorkspaceCatalog()
 
     for route in registry.list_routes():
-        load_qml(engine, route.qml_path)
-
-    assert len(engine.rootObjects()) == len(registry.list_routes())
+        engine = create_qml_engine()
+        initial_properties = None
+        if route.route_id == "shell.app":
+            initial_properties = {
+                "shellModel": shell_context,
+                "platformCatalog": platform_catalog,
+                "pmCatalog": pm_catalog,
+            }
+        load_qml(engine, route.qml_path, initial_properties=initial_properties)
+        assert len(engine.rootObjects()) == 1

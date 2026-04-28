@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -158,8 +159,12 @@ Dialog {
                     model: moduleModel
 
                     delegate: CheckBox {
-                        text: model.label
-                        checked: model.selected
+                        required property int index
+                        required property string label
+                        required property bool selected
+
+                        text: label
+                        checked: selected
                         onToggled: moduleModel.setProperty(index, "selected", checked)
                     }
                 }

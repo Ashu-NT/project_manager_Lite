@@ -44,6 +44,7 @@ Rectangle {
             model: root.rows
 
             delegate: Rectangle {
+                id: sectionRow
                 required property var modelData
 
                 Layout.fillWidth: true
@@ -59,7 +60,7 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        text: modelData.label
+                        text: sectionRow.modelData.label
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.bodySize
@@ -69,7 +70,7 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        text: modelData.value
+                        text: sectionRow.modelData.value
                         color: Theme.AppTheme.accent
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -79,7 +80,7 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        text: modelData.supportingText
+                        text: sectionRow.modelData.supportingText
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize

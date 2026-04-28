@@ -1,0 +1,2 @@
+module Shell.Context
+typeinfo plugins.qmltypes

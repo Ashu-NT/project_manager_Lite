@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtQml import qmlRegisterModule, qmlRegisterUncreatableType
 
+from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.controllers.admin import (
     PlatformAdminAccessWorkspaceController,
     PlatformAdminWorkspaceController,

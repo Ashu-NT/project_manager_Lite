@@ -5,10 +5,19 @@ import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 
 AppLayouts.WorkspaceFrame {
-    property var workspaceModel: pmWorkspaceCatalog.workspace("project_management.timesheets")
+    id: root
+    property var pmCatalog: null
+    property var workspaceModel: root.pmCatalog
+        ? root.pmCatalog.workspace("project_management.timesheets")
+        : ({
+            "title": "Timesheets",
+            "summary": "",
+            "migrationStatus": "Placeholder",
+            "legacyRuntimeStatus": "Legacy QWidget timesheets workspace remains active."
+        })
 
-    title: workspaceModel.title
-    subtitle: workspaceModel.summary
+    title: root.workspaceModel.title
+    subtitle: root.workspaceModel.summary
 
     RowLayout {
         anchors.fill: parent
@@ -17,8 +26,8 @@ AppLayouts.WorkspaceFrame {
         AppWidgets.MetricCard {
             Layout.preferredWidth: 260
             label: "Migration target"
-            value: workspaceModel.migrationStatus
-            supportingText: workspaceModel.legacyRuntimeStatus
+            value: root.workspaceModel.migrationStatus
+            supportingText: root.workspaceModel.legacyRuntimeStatus
         }
     }
 }

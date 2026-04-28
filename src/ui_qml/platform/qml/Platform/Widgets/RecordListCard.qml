@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -74,11 +75,12 @@ Rectangle {
             model: root.items
 
             delegate: Rectangle {
+                id: recordCardDelegate
                 required property var modelData
-                property string statusText: String(modelData.statusLabel || "")
-                property string subtitleText: String(modelData.subtitle || "")
-                property string supportingTextValue: String(modelData.supportingText || "")
-                property string metaTextValue: String(modelData.metaText || "")
+                property string statusText: String(recordCardDelegate.modelData.statusLabel || "")
+                property string subtitleText: String(recordCardDelegate.modelData.subtitle || "")
+                property string supportingTextValue: String(recordCardDelegate.modelData.supportingText || "")
+                property string metaTextValue: String(recordCardDelegate.modelData.metaText || "")
 
                 Layout.fillWidth: true
                 radius: Theme.AppTheme.radiusMd
@@ -99,7 +101,7 @@ Rectangle {
 
                         Label {
                             Layout.fillWidth: true
-                            text: modelData.title
+                            text: recordCardDelegate.modelData.title
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.bodySize
@@ -108,7 +110,7 @@ Rectangle {
                         }
 
                         Rectangle {
-                            visible: statusText.length > 0
+                            visible: recordCardDelegate.statusText.length > 0
                             radius: Theme.AppTheme.radiusMd
                             color: Theme.AppTheme.accentSoft
                             border.color: Theme.AppTheme.accent
@@ -119,7 +121,7 @@ Rectangle {
                                 id: statusLabel
 
                                 anchors.centerIn: parent
-                                text: statusText
+                                text: recordCardDelegate.statusText
                                 color: Theme.AppTheme.accent
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
@@ -130,8 +132,8 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: subtitleText.length > 0
-                        text: subtitleText
+                        visible: recordCardDelegate.subtitleText.length > 0
+                        text: recordCardDelegate.subtitleText
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -140,8 +142,8 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: supportingTextValue.length > 0
-                        text: supportingTextValue
+                        visible: recordCardDelegate.supportingTextValue.length > 0
+                        text: recordCardDelegate.supportingTextValue
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -150,8 +152,8 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: metaTextValue.length > 0
-                        text: metaTextValue
+                        visible: recordCardDelegate.metaTextValue.length > 0
+                        text: recordCardDelegate.metaTextValue
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -166,27 +168,27 @@ Rectangle {
                         spacing: Theme.AppTheme.spacingSm
 
                         AppControls.PrimaryButton {
-                            visible: root.primaryActionLabel.length > 0 && modelData.canPrimaryAction
+                            visible: root.primaryActionLabel.length > 0 && recordCardDelegate.modelData.canPrimaryAction
                             enabled: root.actionsEnabled
                             text: root.primaryActionLabel
                             danger: root.primaryDanger
-                            onClicked: root.primaryActionRequested(modelData.id)
+                            onClicked: root.primaryActionRequested(recordCardDelegate.modelData.id)
                         }
 
                         AppControls.PrimaryButton {
-                            visible: root.secondaryActionLabel.length > 0 && modelData.canSecondaryAction
+                            visible: root.secondaryActionLabel.length > 0 && recordCardDelegate.modelData.canSecondaryAction
                             enabled: root.actionsEnabled
                             text: root.secondaryActionLabel
                             danger: root.secondaryDanger
-                            onClicked: root.secondaryActionRequested(modelData.id)
+                            onClicked: root.secondaryActionRequested(recordCardDelegate.modelData.id)
                         }
 
                         AppControls.PrimaryButton {
-                            visible: root.tertiaryActionLabel.length > 0 && modelData.canTertiaryAction
+                            visible: root.tertiaryActionLabel.length > 0 && recordCardDelegate.modelData.canTertiaryAction
                             enabled: root.actionsEnabled
                             text: root.tertiaryActionLabel
                             danger: root.tertiaryDanger
-                            onClicked: root.tertiaryActionRequested(modelData.id)
+                            onClicked: root.tertiaryActionRequested(recordCardDelegate.modelData.id)
                         }
 
                         Item {

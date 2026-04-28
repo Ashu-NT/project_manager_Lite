@@ -1,10 +1,14 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import Platform.Controllers 1.0 as PlatformControllers
+import Shell.Context 1.0 as ShellContexts
 import App.Theme 1.0 as Theme
 
 Item {
     id: root
+    property ShellContexts.ShellContext shellModel
+    property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
+    property var pmCatalog: null
 
     ColumnLayout {
         anchors.fill: parent
@@ -13,6 +17,7 @@ Item {
 
         ShellHeader {
             Layout.fillWidth: true
+            shellModel: root.shellModel
         }
 
         RowLayout {
@@ -23,6 +28,7 @@ Item {
             ShellDrawer {
                 Layout.preferredWidth: 280
                 Layout.fillHeight: true
+                shellModel: root.shellModel
             }
 
             Rectangle {
@@ -36,7 +42,22 @@ Item {
                     id: workspaceLoader
                     anchors.fill: parent
                     anchors.margins: Theme.AppTheme.marginLg
-                    source: shellContext.currentRouteSource
+                    source: root.shellModel ? root.shellModel.currentRouteSource : ""
+
+                    onLoaded: {
+                        if (item === null) {
+                            return
+                        }
+                        if ("shellModel" in item) {
+                            item.shellModel = root.shellModel
+                        }
+                        if ("platformCatalog" in item) {
+                            item.platformCatalog = root.platformCatalog
+                        }
+                        if ("pmCatalog" in item) {
+                            item.pmCatalog = root.pmCatalog
+                        }
+                    }
                 }
             }
         }

@@ -1,0 +1,13 @@
+    Component {
+        name: "PlatformControlWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "PlatformWorkspaceControllerBase"
+        exports: ["Platform.Controllers/PlatformControlWorkspaceController 1.0"]
+        Property { name: "approvalQueue"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "auditFeed"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "approveRequest"; Parameter { name: "requestId"; type: "QString" } }
+        Method { name: "approveRequestWithNote"; Parameter { name: "requestId"; type: "QString" } Parameter { name: "note"; type: "QString" } }
+        Method { name: "rejectRequest"; Parameter { name: "requestId"; type: "QString" } }
+        Method { name: "rejectRequestWithNote"; Parameter { name: "requestId"; type: "QString" } Parameter { name: "note"; type: "QString" } }
+    }

@@ -67,6 +67,7 @@ Rectangle {
                 model: root.details.badges || []
 
                 delegate: Rectangle {
+                    id: badgeChip
                     required property var modelData
 
                     radius: Theme.AppTheme.radiusMd
@@ -79,7 +80,7 @@ Rectangle {
                         id: badgeLabel
 
                         anchors.centerIn: parent
-                        text: String(modelData.label || "") + ": " + String(modelData.value || "")
+                        text: String(badgeChip.modelData.label || "") + ": " + String(badgeChip.modelData.value || "")
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -167,6 +168,7 @@ Rectangle {
                 model: root.details.metadataRows || []
 
                 delegate: ColumnLayout {
+                    id: metadataColumn
                     required property var modelData
 
                     Layout.fillWidth: true
@@ -174,7 +176,7 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        text: modelData.label || ""
+                        text: metadataColumn.modelData.label || ""
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -183,7 +185,7 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        text: modelData.value || "-"
+                        text: metadataColumn.modelData.value || "-"
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize

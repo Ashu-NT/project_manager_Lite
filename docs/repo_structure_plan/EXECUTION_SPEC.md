@@ -521,21 +521,22 @@ Shared QML primitive status as of 2026-04-24:
 Platform QML route status as of 2026-04-24:
 
 - `src/ui_qml/platform/routes.py` registers QML routes for platform admin, control, and settings workspaces
-- `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` is the admin QML landing zone
-- `src/ui_qml/platform/qml/workspaces/control/ControlWorkspace.qml` is the control QML landing zone
-- `src/ui_qml/platform/qml/workspaces/settings/SettingsWorkspace.qml` is the settings QML landing zone
-- `src/ui_qml/platform/context.py` exposes `platformWorkspaceCatalog` for platform QML binding
-- `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,plugins.qmltypes}` plus `src/ui_qml/platform/qml_type_registration.py` now expose typed platform controller classes to QML tooling and runtime
+- `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml`, `control/ControlWorkspace.qml`, and `settings/SettingsWorkspace.qml` are now thin entry wrappers over split workspace pages
+- `src/ui_qml/platform/qml/workspaces/admin/{AdminConsolePage,AdminMetricsSection,AdminCatalogGrid,AdminDocumentSection,AdminOverviewSections,AdminDialogHost}.qml` now own the split platform-admin QML surface
+- `src/ui_qml/platform/qml/workspaces/control/{ControlWorkspacePage,ControlMetricsSection,ApprovalQueueSection,AuditFeedSection}.qml` now own the split platform-control QML surface
+- `src/ui_qml/platform/qml/workspaces/settings/{SettingsWorkspacePage,SettingsMetricsSection,SettingsRuntimeSection,ModuleEntitlementsSection,OrganizationProfilesSection,SettingsOverviewSections}.qml` now own the split platform-settings QML surface
+- `src/ui_qml/platform/context.py` still exposes `PlatformWorkspaceCatalog`, but the shell now injects that object onto loaded workspaces instead of leaving the workspace pages to reach for a raw global context property
+- `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,typeinfo/*}` plus `src/ui_qml/platform/qml_type_registration.py` now expose typed platform controller classes to QML tooling and runtime, and the grouped `typeinfo/*.fragment` files keep the metadata maintainable
 - `src/ui_qml/platform/presenters/runtime_presenter.py` consumes `src.api.desktop.platform.PlatformRuntimeDesktopApi`
 - `src/ui_qml/platform/presenters/{admin_presenter,control_presenter,settings_presenter}.py` now compose grouped platform admin/control/settings overview state from split platform desktop APIs
 - `src/ui_qml/platform/view_models/{runtime,workspace}.py` defines QML-safe platform runtime and grouped workspace overview view models
 - `src/ui_qml/platform/presenters/{control_queue_presenter,settings_catalog_presenter}.py` now compose real control/settings action-list data from split platform desktop APIs without growing the overview presenters into dump files
-- `src/ui_qml/platform/workspace_state.py` now owns common control/settings workspace state plus action and refresh sequencing, while `src/ui_qml/platform/admin_workspace_state.py` and `src/ui_qml/platform/access_workspace_state.py` own the admin workspace master-data state, scoped-access state, editor options, and mutations
+- grouped controller classes under `src/ui_qml/platform/controllers/{common,admin,control,settings}/*` now own common workspace state plus action and refresh sequencing; the old top-level `workspace_state.py`, `admin_workspace_state.py`, and `access_workspace_state.py` are no longer the active structure
 - `src/ui_qml/platform/presenters/{organization_catalog_presenter,site_catalog_presenter,department_catalog_presenter,employee_catalog_presenter,user_catalog_presenter,party_catalog_presenter,document_catalog_presenter}.py` now provide the split admin QML workflow presenters for organization/site/department/employee/user/party/document actions
 - `src/ui_qml/platform/presenters/document_management_presenter.py` now owns document focus, preview-state, linked-record, and structure-management presentation logic so those workflows do not bloat the document catalog presenter or the QML file
 - `src/ui_qml/platform/presenters/access_workspace_presenter.py` now provides the split admin QML scoped-access and account-security presenter
-- `src/ui_qml/platform/qml/widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner,AdminCatalogPanel,DocumentDetailPanel}.qml` provide reusable grouped overview, action-list, workspace-state, admin catalog, and document-detail rendering for the platform workspaces
-- `src/ui_qml/platform/qml/dialogs/{OrganizationEditorDialog,SiteEditorDialog,DepartmentEditorDialog,EmployeeEditorDialog,UserEditorDialog,PartyEditorDialog,DocumentEditorDialog,DocumentLinkEditorDialog,DocumentStructureEditorDialog,ApprovalDecisionDialog,ModuleLifecycleDialog}.qml` provide focused QML dialogs for the current migrated platform workflows
+- `src/ui_qml/platform/qml/Platform/Widgets/{OverviewSectionCard,RecordListCard,WorkspaceStateBanner,AdminCatalogPanel,DocumentDetailPanel}.qml` provide reusable grouped overview, action-list, workspace-state, admin catalog, and document-detail rendering for the platform workspaces
+- `src/ui_qml/platform/qml/Platform/Dialogs/{OrganizationEditorDialog,SiteEditorDialog,DepartmentEditorDialog,EmployeeEditorDialog,UserEditorDialog,PartyEditorDialog,DocumentEditorDialog,DocumentLinkEditorDialog,DocumentStructureEditorDialog,ApprovalDecisionDialog,ModuleLifecycleDialog}.qml` provide focused QML dialogs for the current migrated platform workflows
 - `platform.admin` now exposes a real QML organization/site/department/employee/user/party/document surface with create, edit, toggle-active, set-active, role, and password-reset flows
 - `platform.admin` now also exposes a real QML selected-document surface with preview/open state, linked-record actions, and document-structure management through controller-owned state/actions
 - `platform.admin` now also exposes a real QML scoped-access and account-security surface
@@ -545,7 +546,9 @@ Platform QML route status as of 2026-04-24:
 - support still remains on the legacy QWidget side until its QML workflow reaches parity
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
 - `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, admin master-data action lists, admin mutations, and control/settings action states
-- offscreen QML loading has verified that the platform workspaces resolve with the shared QML primitives
+- `src/ui_qml/shell/qml/Shell/Context/{qmldir,plugins.qmltypes}` plus `src/ui_qml/shell/qml_type_registration.py` now expose a typed shell runtime surface for `shellModel`
+- `App.qml` now receives `shellModel`, `platformCatalog`, and `pmCatalog` through initial properties, and `MainWindow.qml` injects those runtime objects onto loaded workspace roots
+- offscreen QML loading has verified that the platform workspaces resolve with the shared QML primitives and the new runtime-injection pattern
 
 Project Management QML route status as of 2026-04-22:
 
@@ -553,6 +556,7 @@ Project Management QML route status as of 2026-04-22:
 - placeholder QML workspaces exist for `projects`, `tasks`, `scheduling`, `resources`, `financials`, `risk`, `portfolio`, `register`, `collaboration`, `timesheets`, and `dashboard`
 - each placeholder imports the shared QML layout/theme/widget primitives
 - these are landing zones only; active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
+- the PM placeholder pages now receive `pmCatalog` through the shell loader instead of reading `pmWorkspaceCatalog` as a raw global context binding
 - `tests/test_qml_project_management_routes.py` covers PM route registration and workspace file existence
 - offscreen QML loading has verified that all PM placeholder workspaces resolve with the shared QML primitives
 

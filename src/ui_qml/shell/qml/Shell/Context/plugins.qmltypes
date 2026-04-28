@@ -1,0 +1,17 @@
+import QtQuick.tooling 1.2
+
+Module {
+    Component {
+        name: "ShellContext"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["Shell.Context/ShellContext 1.0"]
+        Property { name: "appTitle"; type: "QString"; isReadonly: true }
+        Property { name: "currentRouteId"; type: "QString"; isReadonly: true }
+        Property { name: "currentRouteSource"; type: "QString"; isReadonly: true }
+        Property { name: "navigationItems"; type: "QVariantList"; isReadonly: true }
+        Property { name: "themeMode"; type: "QString"; isReadonly: true }
+        Property { name: "userDisplayName"; type: "QString"; isReadonly: true }
+        Method { name: "selectRoute"; Parameter { name: "routeId"; type: "QString" } }
+    }
+}

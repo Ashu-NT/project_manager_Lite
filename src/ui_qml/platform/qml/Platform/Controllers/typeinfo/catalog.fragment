@@ -1,0 +1,26 @@
+    Component {
+        name: "PlatformWorkspaceCatalog"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["Platform.Controllers/PlatformWorkspaceCatalog 1.0"]
+        Property { name: "adminWorkspace"; type: "PlatformAdminWorkspaceController"; isReadonly: true }
+        Property { name: "adminAccessWorkspace"; type: "PlatformAdminAccessWorkspaceController"; isReadonly: true }
+        Property { name: "controlWorkspace"; type: "PlatformControlWorkspaceController"; isReadonly: true }
+        Property { name: "settingsWorkspace"; type: "PlatformSettingsWorkspaceController"; isReadonly: true }
+        Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
+        Method { name: "runtimeOverview"; type: "QVariantMap" }
+        Method { name: "adminOverview"; type: "QVariantMap" }
+        Method { name: "controlOverview"; type: "QVariantMap" }
+        Method { name: "settingsOverview"; type: "QVariantMap" }
+        Method { name: "approvalQueue"; type: "QVariantMap" }
+        Method { name: "auditFeed"; type: "QVariantMap" }
+        Method { name: "moduleEntitlements"; type: "QVariantMap" }
+        Method { name: "organizationProfiles"; type: "QVariantMap" }
+        Method { name: "approveRequest"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } }
+        Method { name: "rejectRequest"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } }
+        Method { name: "approveRequestWithNote"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } Parameter { name: "note"; type: "QString" } }
+        Method { name: "rejectRequestWithNote"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } Parameter { name: "note"; type: "QString" } }
+        Method { name: "toggleModuleLicensed"; type: "QVariantMap"; Parameter { name: "moduleCode"; type: "QString" } }
+        Method { name: "toggleModuleEnabled"; type: "QVariantMap"; Parameter { name: "moduleCode"; type: "QString" } }
+        Method { name: "changeModuleLifecycleStatus"; type: "QVariantMap"; Parameter { name: "moduleCode"; type: "QString" } Parameter { name: "lifecycleStatus"; type: "QString" } }
+    }
