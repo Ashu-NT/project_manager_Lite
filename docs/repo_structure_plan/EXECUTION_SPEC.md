@@ -545,7 +545,7 @@ Platform QML route status as of 2026-04-24:
 - `platform.control` now exposes a real QML approval queue with approve/reject actions, decision-note entry, and a real QML audit feed
 - `platform.settings` now exposes a real QML module-entitlement surface with license/enable toggles, lifecycle-status changes, plus organization-profile visibility
 - platform admin/control/settings QML no longer uses page-local `refreshWorkspace()` JavaScript or page-local feedback orchestration
-- support still remains on the legacy QWidget side until its QML workflow reaches parity
+- support now has a real QML workflow through the split support desktop API/controller path, but the legacy QWidget support files still remain until the old platform shell is retired
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
 - `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, admin master-data action lists, admin mutations, and control/settings action states
 - `src/ui_qml/shell/qml/Shell/Context/{qmldir,plugins.qmltypes}` plus `src/ui_qml/shell/qml_type_registration.py` now expose a typed shell runtime surface for `shellModel`
@@ -776,8 +776,8 @@ Completed:
 - `src/ui_qml/platform/presenters/document_management_presenter.py`, `src/ui_qml/platform/controllers/admin/{admin_console_controller.py,document_controller.py,document_structure_controller.py}`, and `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` now move document preview-state, linked-record, and structure-management workflows onto the QML side with controller-owned refresh and mutation orchestration
 - `src/ui_qml/platform/qml/Platform/Widgets/DocumentDetailPanel.qml` plus `src/ui_qml/platform/qml/Platform/Dialogs/{DocumentLinkEditorDialog,DocumentStructureEditorDialog}.qml` now replace the missing advanced document-admin QML surface without putting workflow logic back into QML
 - `src/api/desktop/platform/support.py`, `src/ui_qml/platform/controllers/admin/support_workspace_controller.py`, `src/ui_qml/platform/presenters/support_workspace_presenter.py`, and `src/ui_qml/platform/qml/workspaces/admin/AdminSupportSection.qml` now move the core support workflow onto the QML side through a split typed controller instead of bloating `PlatformAdminWorkspaceController`
-- the migrated QML support slice now covers update settings persistence, manifest checks, diagnostics bundle export, incident package creation, incident-trace copying, support-folder opening, and incident-scoped support activity feeds through `PlatformSupportDesktopApi`
-- keep `src/ui/platform/workspaces/admin/support/*` in place for now because installer-handoff and file-dialog-specific legacy support details are still unmatched; do not delete those Widget files yet
+- the migrated QML support slice now covers update settings persistence, manifest checks, Windows installer handoff, save-file diagnostics export, incident package creation, incident-trace copying, support-folder opening, and incident-scoped support activity feeds through `PlatformSupportDesktopApi`
+- keep `src/ui/platform/workspaces/admin/support/*` in place for now because the legacy QWidget platform shell is still present even though the support workflow now has QML parity; do not delete those Widget files yet
 - runtime tracking now lives under `src/core/platform/runtime_tracking/`:
   - `domain/runtime_execution.py`
   - `contracts.py`
@@ -1079,13 +1079,13 @@ Verified:
   - observed result after the control/settings workflow checkpoint: 49 passed
 - `pytest tests/test_main_window_shell_navigation.py -q`
   - observed result after the control/settings workflow checkpoint: 7 passed
-- `python -m compileall -q src/ui_qml src/api/desktop tests/test_platform_support_desktop_api.py tests/test_qml_platform_presenters.py tests/test_qml_architecture_guardrails.py`
+- `python -m compileall -q src/ui_qml src/api/desktop tests/test_platform_support_desktop_api.py tests/test_qml_platform_presenters.py tests/test_qml_architecture_guardrails.py tests/test_qml_offscreen_loading.py`
 - `pytest tests/test_platform_support_desktop_api.py tests/test_qml_platform_presenters.py tests/test_qml_architecture_guardrails.py tests/test_qml_offscreen_loading.py tests/test_platform_admin_desktop_api.py -q`
-  - observed result after the platform support QML checkpoint: 45 passed
-- `pytest tests/test_operational_support.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py -q`
-  - observed result after the platform support QML checkpoint: 17 passed
+  - observed result after the extended platform support QML checkpoint: 46 passed
+- `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py -q`
+  - observed result after the extended platform support QML checkpoint: 26 passed
 - full `qmllint` scan across `src/ui_qml/**/*.qml`
-  - observed result after the platform support QML checkpoint: clean
+  - observed result after the extended platform support QML checkpoint: clean
 - `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q`
 - `pytest tests/test_platform_control_desktop_api.py tests/test_phase_b_user_admin_ui.py tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_qml_architecture_guardrails.py -q`
 - `pytest tests/test_platform_admin_desktop_api.py tests/test_platform_control_desktop_api.py tests/test_platform_org_desktop_api.py tests/test_platform_runtime_desktop_api.py tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_main_window_shell_navigation.py tests/test_qml_architecture_guardrails.py tests/test_architecture_guardrails.py -q`

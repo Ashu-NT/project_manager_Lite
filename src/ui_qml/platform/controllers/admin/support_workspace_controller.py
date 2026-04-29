@@ -148,6 +148,23 @@ class PlatformSupportWorkspaceController(PlatformWorkspaceControllerBase):
             ),
         )
 
+    @Slot(str, result="QVariantMap")
+    def exportDiagnosticsTo(self, output_path: str) -> dict[str, object]:
+        return self._run_support_action(
+            action=lambda: self._presenter.export_diagnostics_to(
+                incident_id=self._incident_id,
+                output_path=output_path,
+            ),
+            success_message="Diagnostics bundle created.",
+            on_success=self._refresh_activity_feed,
+            success_result_handler=lambda result: self._set_bundle_state(
+                self._presenter.serialize_bundle_state(
+                    current_state=self._bundle_state,
+                    diagnostics_bundle=result.data,
+                )
+            ),
+        )
+
     @Slot(result="QVariantMap")
     def reportIncident(self) -> dict[str, object]:
         return self._run_support_action(
@@ -161,6 +178,22 @@ class PlatformSupportWorkspaceController(PlatformWorkspaceControllerBase):
                 )
             ),
         )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def installAvailableUpdate(self, payload: dict[str, object]) -> dict[str, object]:
+        operation_result = self._run_support_action(
+            action=lambda: self._presenter.install_available_update(
+                payload,
+                trace_id=self._incident_id,
+            ),
+            success_message="Update install handoff launched.",
+            on_success=self._refresh_activity_feed,
+        )
+        if operation_result.get("ok"):
+            app = QGuiApplication.instance()
+            if app is not None:
+                app.quit()
+        return operation_result
 
     @Slot()
     def openLogsFolder(self) -> None:

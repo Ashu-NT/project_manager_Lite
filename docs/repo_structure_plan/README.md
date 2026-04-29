@@ -67,8 +67,8 @@ QML scaffold status:
 - platform `control` now exposes a QML approval queue with approve/reject actions, decision-note entry, and a QML audit feed, all through `platformWorkspaceCatalog` and split platform desktop APIs
 - platform `settings` now exposes a QML module entitlement surface with license toggles, enable toggles, lifecycle-status changes, plus organization-profile visibility, all through `platformWorkspaceCatalog` and `PlatformRuntimeDesktopApi`
 - platform `admin` now also exposes a QML support operations section through `src/api/desktop/platform/support.py`, `src/ui_qml/platform/controllers/admin/support_workspace_controller.py`, `src/ui_qml/platform/presenters/support_workspace_presenter.py`, and `src/ui_qml/platform/qml/workspaces/admin/AdminSupportSection.qml`
-- the migrated QML support section now covers update settings persistence, manifest checks, diagnostics bundle export, incident package creation, incident-trace copying, support-folder opening, and incident-scoped support activity feeds through the desktop API boundary
-- the old QWidget support files should still stay in place for now while installer-handoff and file-dialog-specific legacy details remain unmatched; do not delete `src/ui/platform/workspaces/admin/support/*` yet
+- the migrated QML support section now covers update settings persistence, manifest checks, Windows installer handoff, save-file diagnostics export, incident package creation, incident-trace copying, support-folder opening, and incident-scoped support activity feeds through the desktop API boundary
+- the old QWidget support files should still stay in place for now because the legacy QWidget platform shell is still present and the QML shell is not the active runtime yet; do not delete `src/ui/platform/workspaces/admin/support/*` yet
 - platform QML widgets now live under the named module `src/ui_qml/platform/qml/Platform/Widgets/*`, including `OverviewSectionCard.qml`, `RecordListCard.qml`, `WorkspaceStateBanner.qml`, and `AdminCatalogPanel.qml`
 - platform QML dialogs now live under the named module `src/ui_qml/platform/qml/Platform/Dialogs/*`, including focused editor dialogs for organizations, sites, departments, employees, users, parties, documents, document links, and document structures plus `ApprovalDecisionDialog.qml` and `ModuleLifecycleDialog.qml`
 - platform workspace entry files are now thin wrappers, and the large pages have been split into `AdminConsolePage.qml`, `SettingsWorkspacePage.qml`, `ControlWorkspacePage.qml`, plus focused section/dialog-host files under their workspace folders
@@ -95,7 +95,7 @@ QML scaffold status:
 - focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
 - automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
 - the latest broader QML verification batch passes with `63 passed`, the focused platform/QML batch passes with `41 passed`, and the shell/navigation scaffold regression batch passes with `14 passed`
-- the focused platform support/QML batch now passes with `45 passed`, the operational-support/settings/main-window regression batch passes with `17 passed`, and a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean
+- the focused platform support/QML batch now passes with `46 passed`, the broader support/runtime regression batch passes with `26 passed`, and a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean
 
 ## Core Rule
 
@@ -1737,7 +1737,7 @@ Completed in the clean/no-facade execution:
 - added `src/ui_qml/platform/qml/Platform/Controllers/{qmldir,plugins.qmltypes}` plus `src/ui_qml/platform/qml_type_registration.py`, typed `PlatformWorkspaceCatalog` controller properties in `src/ui_qml/platform/context.py`, and rewired the active platform QML pages/widgets to consume typed controller properties instead of generic `QtObject`
 - added `src/ui_qml/platform/presenters/document_management_presenter.py`, split selected-document/preview/link/structure state across `src/ui_qml/platform/controllers/admin/{admin_console_controller.py,document_controller.py,document_structure_controller.py}`, and upgraded `src/ui_qml/platform/qml/workspaces/admin/AdminWorkspace.qml` so document preview-state, linked-record management, and structure management now live on the QML side through controller-owned actions
 - added `src/ui_qml/platform/qml/Platform/Widgets/DocumentDetailPanel.qml` plus `src/ui_qml/platform/qml/Platform/Dialogs/{DocumentLinkEditorDialog,DocumentStructureEditorDialog}.qml` so the document admin slice no longer depends on the legacy widget document dialogs for those workflows
-- kept support on the legacy QWidget side for now; that workflow is still pending before old Widget files can be deleted
+- at that checkpoint support was still on the legacy QWidget side; later slices moved the support workflow into `src/ui_qml/*`, but the old Widget files still remain until the legacy shell is retired
 - split `core/platform/runtime_tracking/*` into the real `src/core/platform/runtime_tracking/` package:
   - `domain/runtime_execution.py`
   - `contracts.py`
@@ -2032,10 +2032,10 @@ Verified:
 - `python -m compileall -q src/ui_qml tests/test_qml_platform_presenters.py tests/test_qml_platform_routes.py tests/test_qml_offscreen_loading.py tests/test_qml_shell_migration.py tests/test_qml_migration_scaffold.py` passes after the control/settings workflow slice
 - in `conda run -n pmenv`, `pytest tests/test_qml_platform_presenters.py tests/test_qml_platform_routes.py tests/test_qml_offscreen_loading.py tests/test_qml_shell_migration.py tests/test_qml_migration_scaffold.py tests/test_qml_architecture_guardrails.py -q` passes with 38 passed after the control/settings workflow slice
 - in `conda run -n pmenv`, `pytest tests/test_qml_shell_migration.py tests/test_qml_shared_primitives.py tests/test_qml_project_management_routes.py tests/test_qml_project_management_presenters.py tests/test_qml_platform_routes.py tests/test_qml_platform_presenters.py tests/test_qml_offscreen_loading.py tests/test_qml_migration_scaffold.py tests/test_qml_architecture_guardrails.py -q` passes with 49 passed after the control/settings workflow slice
-- `python -m compileall -q src/ui_qml src/api/desktop tests/test_platform_support_desktop_api.py tests/test_qml_platform_presenters.py tests/test_qml_architecture_guardrails.py` passes after the platform support QML slice
-- in `conda run -n pmenv`, `pytest tests/test_platform_support_desktop_api.py tests/test_qml_platform_presenters.py tests/test_qml_architecture_guardrails.py tests/test_qml_offscreen_loading.py tests/test_platform_admin_desktop_api.py -q` passes with 45 passed after the platform support QML slice
-- in `conda run -n pmenv`, `pytest tests/test_operational_support.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py -q` passes with 17 passed after the platform support QML slice
-- a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean after the platform support QML slice
+- `python -m compileall -q src/ui_qml src/api/desktop tests/test_platform_support_desktop_api.py tests/test_qml_platform_presenters.py tests/test_qml_architecture_guardrails.py tests/test_qml_offscreen_loading.py` passes after the extended platform support QML slice
+- in `conda run -n pmenv`, `pytest tests/test_platform_support_desktop_api.py tests/test_qml_platform_presenters.py tests/test_qml_architecture_guardrails.py tests/test_qml_offscreen_loading.py tests/test_platform_admin_desktop_api.py -q` passes with 46 passed after the extended platform support QML slice
+- in `conda run -n pmenv`, `pytest tests/test_operational_support.py tests/test_support_productization.py tests/test_updater.py tests/test_version.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py -q` passes with 26 passed after the extended platform support QML slice
+- a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean after the extended platform support QML slice
 - in `conda run -n pmenv`, platform persistence shape verification passes:
   - `pytest tests/test_platform_persistence_structure.py -q`
 - in `conda run -n pmenv`, `pytest tests/test_platform_runtime_desktop_api.py tests/test_platform_runtime_http_api.py -q` passes

@@ -150,10 +150,36 @@ class PlatformSupportWorkspacePresenter:
             return preview_error_result("Platform support API is not connected in this QML preview.")
         return self._support_api.export_diagnostics(incident_id=incident_id)
 
+    def export_diagnostics_to(
+        self,
+        *,
+        incident_id: str,
+        output_path: str,
+    ) -> DesktopApiResult[object]:
+        if self._support_api is None:
+            return preview_error_result("Platform support API is not connected in this QML preview.")
+        return self._support_api.export_diagnostics_to(
+            incident_id=incident_id,
+            output_path=output_path,
+        )
+
     def create_incident_report(self, *, incident_id: str) -> DesktopApiResult[object]:
         if self._support_api is None:
             return preview_error_result("Platform support API is not connected in this QML preview.")
         return self._support_api.create_incident_report(incident_id=incident_id)
+
+    def install_available_update(
+        self,
+        payload: dict[str, Any],
+        *,
+        trace_id: str,
+    ) -> DesktopApiResult[object]:
+        if self._support_api is None:
+            return preview_error_result("Platform support API is not connected in this QML preview.")
+        return self._support_api.install_available_update(
+            self._build_settings_command(payload),
+            trace_id=trace_id,
+        )
 
     @staticmethod
     def serialize_update_status(dto) -> dict[str, object]:

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from PySide6.QtCore import QSettings
 
@@ -13,6 +16,7 @@ from src.api.desktop.platform.models import (
     DesktopApiResult,
     SupportBundleDto,
     SupportEventDto,
+    SupportInstallLaunchDto,
     SupportPathsDto,
     SupportSettingsDto,
     SupportSettingsUpdateCommand,
@@ -22,6 +26,12 @@ from src.infra.platform.diagnostics import build_diagnostics_bundle
 from src.infra.platform.operational_support import OperationalSupport, bind_trace_id, get_operational_support
 from src.infra.platform.path import user_data_dir
 from src.infra.platform.update import check_for_updates, default_update_manifest_source
+from src.infra.platform.updater import (
+    download_update_installer,
+    launch_windows_update_handoff,
+    prepare_windows_update_handoff,
+    verify_sha256,
+)
 from src.infra.platform.version import get_app_version
 
 _DEFAULT_SUPPORT_EMAIL = "tech_ash_673@info.tech"
@@ -207,20 +217,32 @@ class PlatformSupportDesktopApi:
             return self._runtime_error(exc, code="support_activity_unavailable")
 
     def export_diagnostics(self, *, incident_id: str) -> DesktopApiResult[SupportBundleDto]:
+        return self.export_diagnostics_to(
+            incident_id=incident_id,
+            output_path=str(self._default_diagnostics_output_path()),
+        )
+
+    def export_diagnostics_to(
+        self,
+        *,
+        incident_id: str,
+        output_path: str,
+    ) -> DesktopApiResult[SupportBundleDto]:
         normalized_trace = (incident_id or self.new_incident_id()).strip()
         try:
-            out_dir = user_data_dir()
-            out_dir.mkdir(parents=True, exist_ok=True)
-            output_path = out_dir / f"pm_diagnostics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            resolved_output_path = self._normalize_output_path(
+                output_path,
+                fallback=self._default_diagnostics_output_path(),
+            )
             self._emit_event(
                 trace_id=normalized_trace,
                 event_type="support.diagnostics.export_started",
                 message="Started diagnostics export.",
-                data={"output_path": str(output_path)},
+                data={"output_path": str(resolved_output_path)},
             )
             with bind_trace_id(normalized_trace):
                 result = build_diagnostics_bundle(
-                    output_path=output_path,
+                    output_path=resolved_output_path,
                     settings_snapshot=self._settings_snapshot(),
                     include_db_copy=True,
                     incident_id=normalized_trace,
@@ -283,6 +305,87 @@ class PlatformSupportDesktopApi:
         except Exception as exc:  # noqa: BLE001
             return self._runtime_error(exc, code="support_incident_report_failed")
 
+    def install_available_update(
+        self,
+        command: SupportSettingsUpdateCommand,
+        *,
+        trace_id: str | None = None,
+    ) -> DesktopApiResult[SupportInstallLaunchDto]:
+        normalized_trace = (trace_id or self.new_incident_id()).strip()
+        try:
+            if os.name != "nt":
+                return self._validation_error(
+                    code="support_update_install_unsupported",
+                    message="In-app update install is currently supported on Windows only.",
+                )
+            result = self._load_update_result(command)
+            latest = result.latest
+            if not result.update_available or latest is None:
+                return self._validation_error(
+                    code="support_update_not_available",
+                    message="No update is currently available to install.",
+                )
+            if not latest.url:
+                return self._validation_error(
+                    code="support_update_missing_url",
+                    message="The release manifest did not provide an installer download URL.",
+                )
+
+            updates_dir = user_data_dir() / "updates"
+            updates_dir.mkdir(parents=True, exist_ok=True)
+            self._emit_event(
+                trace_id=normalized_trace,
+                event_type="support.update.install_started",
+                message="Started in-app update install flow.",
+                data={"download_url": latest.url, "version": latest.version},
+            )
+            with bind_trace_id(normalized_trace):
+                installer_path = download_update_installer(
+                    url=latest.url,
+                    download_dir=updates_dir,
+                )
+                expected_hash = latest.sha256 or ""
+                if expected_hash and not verify_sha256(installer_path, expected_hash):
+                    raise RuntimeError("Downloaded installer failed SHA256 verification.")
+                relaunch_executable, relaunch_args = self._resolve_relaunch_command()
+                prepared = prepare_windows_update_handoff(
+                    installer_path=installer_path,
+                    app_pid=os.getpid(),
+                    relaunch_executable=relaunch_executable,
+                    relaunch_args=relaunch_args,
+                    output_dir=updates_dir,
+                )
+                launch_windows_update_handoff(prepared)
+            self._emit_event(
+                trace_id=normalized_trace,
+                event_type="support.update.handoff_started",
+                message="Update handoff launched; app will close.",
+                data={
+                    "installer_path": str(prepared.installer_path),
+                    "handoff_script_path": str(prepared.script_path),
+                    "version": latest.version,
+                },
+            )
+            return DesktopApiResult(
+                ok=True,
+                data=SupportInstallLaunchDto(
+                    latest_version=latest.version,
+                    installer_path=str(prepared.installer_path),
+                    installer_url=prepared.installer_path.resolve().as_uri(),
+                    handoff_script_path=str(prepared.script_path),
+                    handoff_script_url=prepared.script_path.resolve().as_uri(),
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._emit_event(
+                trace_id=normalized_trace,
+                event_type="support.update.install_failed",
+                level="ERROR",
+                message=f"Update install failed: {exc}",
+                data={"channel": command.update_channel},
+            )
+            return self._runtime_error(exc, code="support_update_install_failed")
+
     def _build_settings_dto(self) -> SupportSettingsDto:
         return SupportSettingsDto(
             update_channel=self._settings_store.load_update_channel(default_channel="stable"),
@@ -319,6 +422,18 @@ class PlatformSupportDesktopApi:
         self._settings_store.save_update_auto_check(command.update_auto_check)
         manifest_source = (command.update_manifest_source or "").strip() or default_update_manifest_source()
         self._settings_store.save_update_manifest_source(manifest_source)
+
+    def _load_update_result(self, command: SupportSettingsUpdateCommand):
+        self._persist_settings(command)
+        manifest_source = self._settings_store.load_update_manifest_source(
+            default_source=default_update_manifest_source()
+        )
+        channel = self._settings_store.load_update_channel(default_channel="stable")
+        return check_for_updates(
+            current_version=get_app_version(),
+            channel=channel,
+            manifest_source=manifest_source,
+        )
 
     def _settings_snapshot(self) -> dict[str, object]:
         settings_dto = self._build_settings_dto()
@@ -398,6 +513,41 @@ class PlatformSupportDesktopApi:
         override = (os.getenv("PM_SUPPORT_EMAIL") or "").strip()
         return override or _DEFAULT_SUPPORT_EMAIL
 
+    @staticmethod
+    def _path_from_file_url(source: str) -> Path:
+        parsed = urlparse(source)
+        path_text = url2pathname(parsed.path)
+        if parsed.netloc and parsed.netloc.lower() != "localhost":
+            path_text = f"//{parsed.netloc}{path_text}"
+        return Path(path_text)
+
+    def _normalize_output_path(self, candidate: str, *, fallback: Path) -> Path:
+        raw = (candidate or "").strip()
+        if not raw:
+            return fallback
+        parsed = urlparse(raw)
+        if parsed.scheme == "file":
+            path = self._path_from_file_url(raw)
+        else:
+            path = Path(raw)
+        if path.suffix.lower() != ".zip":
+            path = path.with_suffix(".zip")
+        return path
+
+    @staticmethod
+    def _default_diagnostics_output_path() -> Path:
+        out_dir = user_data_dir()
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return out_dir / f"pm_diagnostics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+
+    @staticmethod
+    def _resolve_relaunch_command() -> tuple[str, list[str]]:
+        if bool(getattr(sys, "frozen", False)):
+            return str(sys.executable), []
+        project_root = Path(__file__).resolve().parents[4]
+        entry = project_root / "main_qt.py"
+        return str(sys.executable), [str(entry)]
+
     def _emit_event(
         self,
         *,
@@ -423,6 +573,17 @@ class PlatformSupportDesktopApi:
                 code=code,
                 message=str(exc),
                 category="runtime",
+            ),
+        )
+
+    @staticmethod
+    def _validation_error(*, code: str, message: str) -> DesktopApiResult[object]:
+        return DesktopApiResult(
+            ok=False,
+            error=DesktopApiError(
+                code=code,
+                message=message,
+                category="validation",
             ),
         )
 

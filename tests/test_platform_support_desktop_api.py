@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 from PySide6.QtCore import QSettings
 
@@ -102,15 +103,18 @@ def test_platform_support_desktop_api_builds_diagnostics_and_incident_packages(t
         operational_support=operational_support,
     )
 
-    diagnostics_result = api.export_diagnostics(incident_id="inc-support-2")
+    diagnostics_target = data_dir / "exports" / "chosen_diagnostics_bundle.zip"
+    diagnostics_result = api.export_diagnostics_to(
+        incident_id="inc-support-2",
+        output_path=diagnostics_target.as_uri(),
+    )
     incident_result = api.create_incident_report(incident_id="inc-support-2")
     paths_result = api.get_paths()
     activity_result = api.list_activity(trace_id="inc-support-2")
 
     assert diagnostics_result.ok is True
     assert diagnostics_result.data is not None
-    assert diagnostics_result.data.output_path.endswith(".zip")
-    assert "pm_diagnostics_" in diagnostics_result.data.output_path
+    assert diagnostics_result.data.output_path == str(diagnostics_target)
     assert diagnostics_result.data.files_added >= 2
 
     assert incident_result.ok is True
@@ -127,3 +131,74 @@ def test_platform_support_desktop_api_builds_diagnostics_and_incident_packages(t
     assert activity_result.data is not None
     assert activity_result.data[0].event_type == "support.incident.report_ready"
     assert any(row.event_type == "support.diagnostics.exported" for row in activity_result.data)
+
+
+def test_platform_support_desktop_api_can_launch_windows_update_handoff(tmp_path, monkeypatch):
+    manifest_path = tmp_path / "release-manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "channels": {
+                    "stable": {
+                        "version": "9.9.9",
+                        "url": "https://example.com/downloads/pm-9.9.9.exe",
+                        "notes": "Modern QML admin support.",
+                        "sha256": "deadbeef",
+                    }
+                }
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    data_dir = tmp_path / "data"
+    logs_dir = data_dir / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    operational_support = OperationalSupport(events_path=logs_dir / "support-events.jsonl")
+    api = PlatformSupportDesktopApi(
+        settings=_settings(tmp_path),
+        operational_support=operational_support,
+    )
+    command = SupportSettingsUpdateCommand(
+        update_channel="stable",
+        update_auto_check=True,
+        update_manifest_source=str(manifest_path),
+    )
+    installer_path = data_dir / "updates" / "pm-9.9.9.exe"
+    installer_path.parent.mkdir(parents=True, exist_ok=True)
+    installer_path.write_bytes(b"installer")
+    handoff_script = data_dir / "updates" / "apply_update_test.ps1"
+    handoff_script.write_text("Write-Host 'test'", encoding="utf-8")
+    launched: dict[str, object] = {}
+
+    monkeypatch.setattr(support_module, "user_data_dir", lambda: data_dir)
+    monkeypatch.setattr(support_module.os, "name", "nt")
+    monkeypatch.setattr(
+        support_module,
+        "download_update_installer",
+        lambda *, url, download_dir: installer_path,
+    )
+    monkeypatch.setattr(support_module, "verify_sha256", lambda path, expected: True)
+    monkeypatch.setattr(
+        support_module,
+        "prepare_windows_update_handoff",
+        lambda **kwargs: SimpleNamespace(script_path=handoff_script, installer_path=installer_path),
+    )
+    monkeypatch.setattr(
+        support_module,
+        "launch_windows_update_handoff",
+        lambda prepared: launched.setdefault("prepared", prepared),
+    )
+
+    result = api.install_available_update(command, trace_id="inc-support-3")
+    activity_result = api.list_activity(trace_id="inc-support-3")
+
+    assert result.ok is True
+    assert result.data is not None
+    assert result.data.latest_version == "9.9.9"
+    assert result.data.installer_path == str(installer_path)
+    assert result.data.handoff_script_path == str(handoff_script)
+    assert launched["prepared"].installer_path == installer_path
+    assert activity_result.ok is True
+    assert activity_result.data is not None
+    assert activity_result.data[0].event_type == "support.update.handoff_started"

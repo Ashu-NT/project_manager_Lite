@@ -16,7 +16,9 @@
         Method { name: "saveSettings"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "checkForUpdates"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "exportDiagnostics"; type: "QVariantMap" }
+        Method { name: "exportDiagnosticsTo"; type: "QVariantMap"; Parameter { name: "outputPath"; type: "QString" } }
         Method { name: "reportIncident"; type: "QVariantMap" }
+        Method { name: "installAvailableUpdate"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "openLogsFolder" }
         Method { name: "openDataFolder" }
         Method { name: "openUpdateDownload" }

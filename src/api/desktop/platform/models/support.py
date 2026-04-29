@@ -66,9 +66,19 @@ class SupportBundleDto:
     support_email: str = ""
 
 
+@dataclass(frozen=True)
+class SupportInstallLaunchDto:
+    latest_version: str
+    installer_path: str
+    installer_url: str
+    handoff_script_path: str
+    handoff_script_url: str
+
+
 __all__ = [
     "SupportBundleDto",
     "SupportEventDto",
+    "SupportInstallLaunchDto",
     "SupportPathsDto",
     "SupportSettingsDto",
     "SupportSettingsUpdateCommand",

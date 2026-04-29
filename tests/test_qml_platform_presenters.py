@@ -29,6 +29,7 @@ from src.api.desktop.platform.models import (
     ScopeTypeChoiceDto,
     SupportBundleDto,
     SupportEventDto,
+    SupportInstallLaunchDto,
     SupportPathsDto,
     SupportSettingsDto,
     SupportUpdateStatusDto,
@@ -1190,9 +1191,20 @@ class _FakePlatformSupportApi:
         return DesktopApiResult(ok=True, data=tuple(rows[:limit]))
 
     def export_diagnostics(self, *, incident_id: str) -> DesktopApiResult[SupportBundleDto]:
-        dto = SupportBundleDto(
+        return self.export_diagnostics_to(
+            incident_id=incident_id,
             output_path=f"C:/pm/data/pm_diagnostics_{incident_id}.zip",
-            output_url=f"file:///C:/pm/data/pm_diagnostics_{incident_id}.zip",
+        )
+
+    def export_diagnostics_to(
+        self,
+        *,
+        incident_id: str,
+        output_path: str,
+    ) -> DesktopApiResult[SupportBundleDto]:
+        dto = SupportBundleDto(
+            output_path=output_path,
+            output_url="file:///" + output_path.replace("\\", "/"),
             files_added=4,
             warnings=("Database copy excluded from diagnostics bundle for security reasons.",),
         )
@@ -1209,6 +1221,20 @@ class _FakePlatformSupportApi:
         )
         self._append_event(incident_id, "support.incident.report_ready", "Incident report package is ready.")
         return DesktopApiResult(ok=True, data=dto)
+
+    def install_available_update(self, command, *, trace_id: str | None = None) -> DesktopApiResult[SupportInstallLaunchDto]:
+        trace = trace_id or "inc-support-1"
+        self._append_event(trace, "support.update.handoff_started", "Update handoff launched; app will close.")
+        return DesktopApiResult(
+            ok=True,
+            data=SupportInstallLaunchDto(
+                latest_version="1.2.0",
+                installer_path="C:/pm/data/updates/pm-1.2.0.exe",
+                installer_url="file:///C:/pm/data/updates/pm-1.2.0.exe",
+                handoff_script_path="C:/pm/data/updates/apply_update_1.ps1",
+                handoff_script_url="file:///C:/pm/data/updates/apply_update_1.ps1",
+            ),
+        )
 
     def _append_event(self, trace_id: str, event_type: str, message: str) -> None:
         rows = self._activity_by_trace.setdefault(trace_id, [])
@@ -2009,8 +2035,15 @@ def test_platform_workspace_catalog_runs_support_actions() -> None:
             "updateManifestSource": "https://example.com/releases/beta-manifest.json",
         }
     )
-    diagnostics_result = support_workspace.exportDiagnostics()
+    diagnostics_result = support_workspace.exportDiagnosticsTo("C:/pm/data/custom_support_diagnostics.zip")
     report_result = support_workspace.reportIncident()
+    install_result = support_workspace.installAvailableUpdate(
+        {
+            "updateChannel": "beta",
+            "updateAutoCheck": True,
+            "updateManifestSource": "https://example.com/releases/beta-manifest.json",
+        }
+    )
 
     assert save_result == {
         "ok": True,
@@ -2036,16 +2069,22 @@ def test_platform_workspace_catalog_runs_support_actions() -> None:
         "code": "",
         "message": "Incident report package created.",
     }
+    assert install_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Update install handoff launched.",
+    }
 
     assert support_workspace.supportSettings["updateChannel"] == "beta"
     assert support_workspace.supportSettings["updateAutoCheck"] is True
     assert support_workspace.updateStatus["statusLabel"] == "Update Available"
     assert support_workspace.updateStatus["latestVersion"] == "1.2.0"
-    assert support_workspace.bundleState["lastDiagnosticsPath"].endswith(".zip")
+    assert support_workspace.bundleState["lastDiagnosticsPath"] == "C:/pm/data/custom_support_diagnostics.zip"
     assert support_workspace.bundleState["lastIncidentReportPath"].endswith(".zip")
     assert support_workspace.bundleState["supportEmail"] == "support@example.com"
-    assert support_workspace.activityFeed["items"][0]["title"] == "Incident report package is ready."
-    assert support_workspace.feedbackMessage == "Incident report package created."
+    assert support_workspace.activityFeed["items"][0]["title"] == "Update handoff launched; app will close."
+    assert support_workspace.feedbackMessage == "Update install handoff launched."
     assert support_workspace.errorMessage == ""
 
 

@@ -49,6 +49,7 @@ from src.api.desktop.platform.models.site import SiteCreateCommand, SiteDto, Sit
 from src.api.desktop.platform.models.support import (
     SupportBundleDto,
     SupportEventDto,
+    SupportInstallLaunchDto,
     SupportPathsDto,
     SupportSettingsDto,
     SupportSettingsUpdateCommand,
@@ -107,6 +108,7 @@ __all__ = [
     "SiteUpdateCommand",
     "SupportBundleDto",
     "SupportEventDto",
+    "SupportInstallLaunchDto",
     "SupportPathsDto",
     "SupportSettingsDto",
     "SupportSettingsUpdateCommand",

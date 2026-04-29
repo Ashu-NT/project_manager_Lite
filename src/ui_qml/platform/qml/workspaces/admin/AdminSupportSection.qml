@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -24,6 +25,22 @@ GridLayout {
     columns: width > 1320 ? 2 : 1
     columnSpacing: Theme.AppTheme.spacingMd
     rowSpacing: Theme.AppTheme.spacingMd
+
+    function diagnosticsDefaultTarget() {
+        const now = new Date()
+        const stamp = String(now.getFullYear())
+            + String(now.getMonth() + 1).padStart(2, "0")
+            + String(now.getDate()).padStart(2, "0")
+            + "_"
+            + String(now.getHours()).padStart(2, "0")
+            + String(now.getMinutes()).padStart(2, "0")
+            + String(now.getSeconds()).padStart(2, "0")
+        const baseUrl = String(root.supportPaths.dataDirectoryUrl || "")
+        if (baseUrl.length === 0) {
+            return ""
+        }
+        return baseUrl + "/pm_diagnostics_" + stamp + ".zip"
+    }
 
     function syncFormFromController() {
         const channel = String(root.supportSettings.updateChannel || "stable")
@@ -63,6 +80,66 @@ GridLayout {
 
         function onIncidentIdChanged() {
             incidentField.text = root.supportController ? root.supportController.incidentId : ""
+        }
+    }
+
+    FileDialog {
+        id: diagnosticsSaveDialog
+
+        title: "Save Diagnostics Bundle"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Zip archive (*.zip)"]
+        currentFile: root.diagnosticsDefaultTarget()
+        onAccepted: {
+            if (root.supportController !== null) {
+                root.supportController.exportDiagnosticsTo(String(selectedFile || ""))
+            }
+        }
+    }
+
+    Dialog {
+        id: installDialog
+
+        modal: true
+        focus: true
+        implicitWidth: 460
+        title: "Install Update"
+
+        contentItem: Label {
+            text: "The app will download the installer, prepare the Windows update handoff, then close and relaunch automatically. Continue?"
+            wrapMode: Text.WordWrap
+            color: Theme.AppTheme.textPrimary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
+        }
+
+        footer: Frame {
+            padding: Theme.AppTheme.marginMd
+
+            RowLayout {
+                anchors.fill: parent
+                spacing: Theme.AppTheme.spacingSm
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Button {
+                    text: "Cancel"
+                    onClicked: installDialog.close()
+                }
+
+                AppControls.PrimaryButton {
+                    text: "Install Now"
+                    enabled: root.supportController ? !root.supportController.isBusy : false
+                    onClicked: {
+                        installDialog.close()
+                        if (root.supportController !== null) {
+                            root.supportController.installAvailableUpdate(root.settingsPayload())
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -263,6 +340,17 @@ GridLayout {
                 }
 
                 AppControls.PrimaryButton {
+                    visible: Qt.platform.os === "windows"
+                    text: "Install Now"
+                    enabled: root.supportController
+                        ? (!root.supportController.isBusy
+                            && Boolean(root.updateStatus.updateAvailable)
+                            && Boolean(root.updateStatus.canOpenDownload))
+                        : false
+                    onClicked: installDialog.open()
+                }
+
+                AppControls.PrimaryButton {
                     text: "Open Download"
                     enabled: root.supportController
                         ? (!root.supportController.isBusy && Boolean(root.updateStatus.canOpenDownload))
@@ -422,7 +510,7 @@ GridLayout {
                 AppControls.PrimaryButton {
                     text: "Export Diagnostics"
                     enabled: root.supportController ? !root.supportController.isBusy : false
-                    onClicked: root.supportController.exportDiagnostics()
+                    onClicked: diagnosticsSaveDialog.open()
                 }
 
                 AppControls.PrimaryButton {
