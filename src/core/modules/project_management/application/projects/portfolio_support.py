@@ -6,6 +6,7 @@ from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioScenarioComparison,
+    PortfolioScoringTemplate,
 )
 
 
@@ -137,6 +138,115 @@ class PortfolioSupportMixin:
                 return value
         entity_type = str(getattr(row, "entity_type", "") or "record").replace("_", " ")
         return f"{entity_type.title()} updated."
+
+    def _ensure_scoring_templates(self) -> list[PortfolioScoringTemplate]:
+        templates = self._scoring_template_repo.list_all()
+        if templates:
+            if not any(template.is_active for template in templates):
+                templates[0].is_active = True
+                templates[0].updated_at = self._utc_now()
+                self._scoring_template_repo.update(templates[0])
+                self._session.commit()
+                templates = self._scoring_template_repo.list_all()
+            return templates
+        default_template = PortfolioScoringTemplate.create(
+            name=self.DEFAULT_TEMPLATE_NAME,
+            summary=self.DEFAULT_TEMPLATE_SUMMARY,
+            strategic_weight=3,
+            value_weight=2,
+            urgency_weight=2,
+            risk_weight=1,
+            is_active=True,
+        )
+        self._scoring_template_repo.add(default_template)
+        self._session.commit()
+        return [default_template]
+
+    def _active_scoring_template(self) -> PortfolioScoringTemplate:
+        templates = self._ensure_scoring_templates()
+        for template in templates:
+            if template.is_active:
+                return template
+        return templates[0]
+
+    def _resolve_scoring_template(self, template_id: str | None) -> PortfolioScoringTemplate:
+        normalized_id = str(template_id or "").strip()
+        if normalized_id:
+            template = self._scoring_template_repo.get(normalized_id)
+            if template is None:
+                from src.core.platform.common.exceptions import NotFoundError
+
+                raise NotFoundError(
+                    "Portfolio scoring template not found.",
+                    code="PORTFOLIO_TEMPLATE_NOT_FOUND",
+                )
+            return template
+        return self._active_scoring_template()
+
+    @staticmethod
+    def _apply_scoring_template(
+        item: PortfolioIntakeItem,
+        template: PortfolioScoringTemplate,
+    ) -> None:
+        item.scoring_template_id = template.id
+        item.scoring_template_name = template.name
+        item.strategic_weight = template.strategic_weight
+        item.value_weight = template.value_weight
+        item.urgency_weight = template.urgency_weight
+        item.risk_weight = template.risk_weight
+
+    def _deactivate_other_templates(self) -> None:
+        for template in self._ensure_scoring_templates():
+            if not template.is_active:
+                continue
+            template.is_active = False
+            template.updated_at = self._utc_now()
+            self._scoring_template_repo.update(template)
+
+    @staticmethod
+    def _template_weight(value: int, label: str) -> int:
+        weight = int(value or 0)
+        if weight < 0 or weight > 9:
+            raise ValidationError(f"{label} must be between 0 and 9.")
+        return weight
+
+    @staticmethod
+    def _validate_template_mix(template: PortfolioScoringTemplate) -> None:
+        if (
+            int(template.strategic_weight or 0)
+            + int(template.value_weight or 0)
+            + int(template.urgency_weight or 0)
+        ) <= 0:
+            raise ValidationError(
+                "At least one positive delivery weight is required.",
+                code="PORTFOLIO_TEMPLATE_EMPTY",
+            )
+
+    def _validate_project_ids(self, project_ids: list[str]) -> list[str]:
+        known_ids = {project.id for project in self._accessible_projects()}
+        invalid = [project_id for project_id in project_ids if project_id not in known_ids]
+        if invalid:
+            raise ValidationError(
+                f"Scenario contains unknown or inaccessible project ids: {', '.join(invalid)}.",
+                code="PORTFOLIO_PROJECT_SCOPE_INVALID",
+            )
+        return sorted({project_id for project_id in project_ids if project_id})
+
+    def _validate_intake_ids(self, intake_item_ids: list[str]) -> list[str]:
+        known_ids = {item.id for item in self._intake_repo.list_all()}
+        invalid = [item_id for item_id in intake_item_ids if item_id not in known_ids]
+        if invalid:
+            raise ValidationError(
+                f"Scenario contains unknown intake item ids: {', '.join(invalid)}.",
+                code="PORTFOLIO_INTAKE_SCOPE_INVALID",
+            )
+        return sorted({item_id for item_id in intake_item_ids if item_id})
+
+    @staticmethod
+    def _utc_now():
+        from datetime import datetime, timezone
+
+        return datetime.now(timezone.utc)
 
 
 __all__ = ["PortfolioSupportMixin"]

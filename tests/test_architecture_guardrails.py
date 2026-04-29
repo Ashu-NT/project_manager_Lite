@@ -10,7 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1410,
+    "tests/test_architecture_guardrails.py": 1415,
     "tests/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
@@ -1158,15 +1158,20 @@ def test_collaboration_service_is_orchestrator_only():
     assert "def list_active_presence" not in text
 
 def test_portfolio_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "modules" / "project_management" / "services" / "portfolio" / "service.py"
+    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "projects" / "portfolio_service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.portfolio.dependencies import PortfolioDependencyMixin" in text
-    assert "from core.modules.project_management.services.portfolio.executive import PortfolioExecutiveMixin" in text
-    assert "from core.modules.project_management.services.portfolio.intake import PortfolioIntakeMixin" in text
-    assert "from core.modules.project_management.services.portfolio.scenarios import PortfolioScenarioMixin" in text
-    assert "from core.modules.project_management.services.portfolio.support import PortfolioSupportMixin" in text
-    assert "from core.modules.project_management.services.portfolio.templates import PortfolioTemplateMixin" in text
+    for snippet in (
+        "from src.core.modules.project_management.application.projects.commands.portfolio_dependencies import",
+        "PortfolioDependencyCommandMixin,",
+        "from src.core.modules.project_management.application.projects.queries.portfolio_executive import",
+        "PortfolioExecutiveQueryMixin,",
+        "from src.core.modules.project_management.application.projects.portfolio_support import",
+        "PortfolioSupportMixin,",
+        "from src.core.modules.project_management.application.projects.commands.portfolio_templates import",
+        "PortfolioTemplateCommandMixin,",
+    ):
+        assert snippet in text
     assert "class PortfolioService(" in text
     assert "def create_intake_item" not in text
     assert "def compare_scenarios" not in text
@@ -1322,13 +1327,17 @@ def test_known_large_modules_have_growth_budgets():
         "src/core/modules/project_management/application/financials/cashflow.py": 120,
         "src/core/modules/project_management/application/financials/policy.py": 120,
         "src/core/modules/project_management/application/financials/helpers.py": 120,
-        "core/modules/project_management/services/portfolio/dependencies.py": 220,
-        "core/modules/project_management/services/portfolio/service.py": 90,
-        "core/modules/project_management/services/portfolio/executive.py": 120,
-        "core/modules/project_management/services/portfolio/intake.py": 120,
-        "core/modules/project_management/services/portfolio/scenarios.py": 240,
-        "core/modules/project_management/services/portfolio/support.py": 150,
-        "core/modules/project_management/services/portfolio/templates.py": 160,
+        "src/core/modules/project_management/application/projects/portfolio_service.py": 90,
+        "src/core/modules/project_management/application/projects/portfolio_support.py": 260,
+        "src/core/modules/project_management/application/projects/commands/portfolio_dependencies.py": 170,
+        "src/core/modules/project_management/application/projects/commands/portfolio_intake.py": 110,
+        "src/core/modules/project_management/application/projects/commands/portfolio_scenarios.py": 90,
+        "src/core/modules/project_management/application/projects/commands/portfolio_templates.py": 90,
+        "src/core/modules/project_management/application/projects/queries/portfolio_dependencies.py": 90,
+        "src/core/modules/project_management/application/projects/queries/portfolio_executive.py": 110,
+        "src/core/modules/project_management/application/projects/queries/portfolio_intake.py": 30,
+        "src/core/modules/project_management/application/projects/queries/portfolio_scenarios.py": 170,
+        "src/core/modules/project_management/application/projects/queries/portfolio_templates.py": 30,
         "src/ui/shared/formatting/ui_config.py": 320,
         "src/core/modules/project_management/application/tasks/service.py": 140,
         "src/core/modules/project_management/application/projects/service.py": 90,

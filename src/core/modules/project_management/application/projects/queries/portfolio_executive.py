@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioRecentAction,
 )
 from src.core.platform.auth.authorization import require_permission
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 
-class PortfolioExecutiveMixin:
+class PortfolioExecutiveQueryMixin:
     def list_portfolio_heatmap(self) -> list[PortfolioExecutiveRow]:
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio executive heatmap")
         rows: list[PortfolioExecutiveRow] = []
@@ -101,4 +101,4 @@ class PortfolioExecutiveMixin:
         return actions
 
 
-__all__ = ["PortfolioExecutiveMixin"]
+__all__ = ["PortfolioExecutiveQueryMixin"]

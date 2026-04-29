@@ -24,8 +24,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 from src.core.platform.auth import UserSessionContext
-from core.modules.project_management.services.portfolio import PortfolioService
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
 from ui.modules.project_management.portfolio.scenario_dialog import PortfolioScenarioDialog
 from ui.modules.project_management.portfolio.scoring_template_dialog import (
     PortfolioScoringTemplateDialog,

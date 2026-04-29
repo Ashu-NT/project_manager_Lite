@@ -1,28 +1,15 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.common.exceptions import NotFoundError
 from core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
 )
 from src.core.platform.auth.authorization import require_permission
+from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.notifications.domain_events import domain_events
 
 
-class PortfolioIntakeMixin:
-    def list_intake_items(
-        self,
-        *,
-        status: PortfolioIntakeStatus | None = None,
-    ) -> list[PortfolioIntakeItem]:
-        require_permission(self._user_session, "portfolio.read", operation_label="view portfolio intake")
-        rows = self._intake_repo.list_all()
-        if status is None:
-            return rows
-        return [row for row in rows if row.status == status]
-
+class PortfolioIntakeCommandMixin:
     def create_intake_item(
         self,
         *,
@@ -101,11 +88,11 @@ class PortfolioIntakeMixin:
             self._apply_scoring_template(item, scoring_template)
         if "status" in changes and changes["status"] is not None:
             item.status = self._as_intake_status(changes["status"])
-        item.updated_at = datetime.now(timezone.utc)
+        item.updated_at = self._utc_now()
         self._intake_repo.update(item)
         self._session.commit()
         domain_events.portfolio_changed.emit(item.id)
         return item
 
 
-__all__ = ["PortfolioIntakeMixin"]
+__all__ = ["PortfolioIntakeCommandMixin"]

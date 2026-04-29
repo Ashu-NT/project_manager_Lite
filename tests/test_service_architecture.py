@@ -58,9 +58,8 @@ from src.core.modules.project_management.application.scheduling.baseline_service
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from core.modules.project_management.services.portfolio import PortfolioService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
@@ -378,6 +377,20 @@ def test_legacy_collaboration_package_is_removed():
     assert not (legacy_collaboration_root / "principal.py").exists()
     assert not (legacy_collaboration_root / "service.py").exists()
     assert not (legacy_collaboration_root / "support.py").exists()
+
+
+def test_legacy_portfolio_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_portfolio_root = root / "core" / "modules" / "project_management" / "services" / "portfolio"
+
+    assert not (legacy_portfolio_root / "__init__.py").exists()
+    assert not (legacy_portfolio_root / "dependencies.py").exists()
+    assert not (legacy_portfolio_root / "executive.py").exists()
+    assert not (legacy_portfolio_root / "intake.py").exists()
+    assert not (legacy_portfolio_root / "scenarios.py").exists()
+    assert not (legacy_portfolio_root / "service.py").exists()
+    assert not (legacy_portfolio_root / "support.py").exists()
+    assert not (legacy_portfolio_root / "templates.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():
