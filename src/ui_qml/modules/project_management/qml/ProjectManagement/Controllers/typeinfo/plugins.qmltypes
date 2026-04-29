@@ -26,6 +26,8 @@ Module {
         Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
         Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
+        Property { name: "panels"; type: "QVariantList"; isReadonly: true }
+        Property { name: "charts"; type: "QVariantList"; isReadonly: true }
         Property { name: "sections"; type: "QVariantList"; isReadonly: true }
         Method { name: "refresh" }
         Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }

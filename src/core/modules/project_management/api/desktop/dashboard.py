@@ -10,6 +10,12 @@ from core.modules.project_management.services.dashboard import (
     DashboardService,
 )
 from core.modules.project_management.services.project.service import ProjectService
+from core.modules.project_management.services.register.models import RegisterProjectSummary
+from src.core.modules.project_management.domain.risk.register import (
+    as_register_entry_severity,
+    as_register_entry_status,
+    as_register_entry_type,
+)
 
 
 @dataclass(frozen=True)
@@ -30,6 +36,43 @@ class ProjectDashboardOverviewDescriptor:
 class ProjectDashboardSelectorOptionDescriptor:
     value: str
     label: str
+
+
+@dataclass(frozen=True)
+class ProjectDashboardPanelRowDescriptor:
+    label: str
+    value: str
+    supporting_text: str = ""
+    tone: str = "default"
+
+
+@dataclass(frozen=True)
+class ProjectDashboardPanelDescriptor:
+    title: str
+    subtitle: str = ""
+    hint: str = ""
+    empty_state: str = ""
+    rows: tuple["ProjectDashboardPanelRowDescriptor", ...] = field(default_factory=tuple)
+    metrics: tuple["ProjectDashboardMetricDescriptor", ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class ProjectDashboardChartPointDescriptor:
+    label: str
+    value: float
+    value_label: str = ""
+    supporting_text: str = ""
+    target_value: float | None = None
+    tone: str = "accent"
+
+
+@dataclass(frozen=True)
+class ProjectDashboardChartDescriptor:
+    title: str
+    subtitle: str = ""
+    chart_type: str = "bar"
+    empty_state: str = ""
+    points: tuple["ProjectDashboardChartPointDescriptor", ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -62,6 +105,8 @@ class ProjectDashboardSnapshotDescriptor:
         default_factory=tuple
     )
     selected_baseline_id: str = ""
+    panels: tuple[ProjectDashboardPanelDescriptor, ...] = field(default_factory=tuple)
+    charts: tuple[ProjectDashboardChartDescriptor, ...] = field(default_factory=tuple)
     sections: tuple[ProjectDashboardSectionDescriptor, ...] = field(default_factory=tuple)
     empty_state: str = ""
 
@@ -82,6 +127,12 @@ def _fmt_float(value: Any, decimals: int = 2) -> str:
 
 def _fmt_percent(value: Any, decimals: int = 2) -> str:
     return f"{_fmt_float(value, decimals)}%"
+
+
+def _fmt_ratio(value: Any) -> str:
+    if value is None:
+        return "-"
+    return _fmt_float(value, 2)
 
 
 def _fmt_date(value: date | None) -> str:
@@ -190,6 +241,8 @@ class ProjectManagementDashboardDesktopApi:
                 selected_project_id=selected_project_id,
                 baseline_options=baseline_options,
                 selected_baseline_id=selected_baseline_id,
+                panels=self._build_preview_panels(),
+                charts=self._build_preview_charts(),
                 sections=(
                     ProjectDashboardSectionDescriptor(
                         title="Dashboard Preview",
@@ -211,6 +264,15 @@ class ProjectManagementDashboardDesktopApi:
                 selected_project_id=selected_project_id,
                 baseline_options=baseline_options,
                 selected_baseline_id=selected_baseline_id,
+                panels=self._build_panels_from_dashboard_data(
+                    dashboard_data=dashboard_data,
+                    baseline_label="Portfolio view",
+                    portfolio_mode=True,
+                ),
+                charts=self._build_charts_from_dashboard_data(
+                    dashboard_data=dashboard_data,
+                    portfolio_mode=True,
+                ),
                 sections=self._build_sections_from_dashboard_data(
                     dashboard_data=dashboard_data,
                     portfolio_mode=True,
@@ -224,6 +286,10 @@ class ProjectManagementDashboardDesktopApi:
             )
 
         project_label = self._project_label_for_id(selected_project_id, project_options)
+        baseline_label = self._baseline_label_for_id(
+            selected_baseline_id,
+            baseline_options,
+        )
         dashboard_data = self._dashboard_service.get_dashboard_data(
             selected_project_id,
             baseline_id=selected_baseline_id or None,
@@ -237,6 +303,15 @@ class ProjectManagementDashboardDesktopApi:
             selected_project_id=selected_project_id,
             baseline_options=baseline_options,
             selected_baseline_id=selected_baseline_id,
+            panels=self._build_panels_from_dashboard_data(
+                dashboard_data=dashboard_data,
+                baseline_label=baseline_label,
+                portfolio_mode=False,
+            ),
+            charts=self._build_charts_from_dashboard_data(
+                dashboard_data=dashboard_data,
+                portfolio_mode=False,
+            ),
             sections=self._build_sections_from_dashboard_data(
                 dashboard_data=dashboard_data,
                 portfolio_mode=False,
@@ -341,6 +416,93 @@ class ProjectManagementDashboardDesktopApi:
                 return option.label
         return "Dashboard"
 
+    @staticmethod
+    def _baseline_label_for_id(
+        baseline_id: str,
+        baseline_options: tuple[ProjectDashboardSelectorOptionDescriptor, ...],
+    ) -> str:
+        for option in baseline_options:
+            if option.value == baseline_id:
+                return option.label
+        if baseline_options:
+            return baseline_options[0].label
+        return "Latest baseline"
+
+    def _build_preview_panels(self) -> tuple[ProjectDashboardPanelDescriptor, ...]:
+        return (
+            ProjectDashboardPanelDescriptor(
+                title="Earned Value (EVM)",
+                subtitle="Schedule and cost performance against the selected baseline.",
+                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+            ),
+            ProjectDashboardPanelDescriptor(
+                title="Register Summary",
+                subtitle="Risk, issue, and change pressure for the selected project.",
+                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+            ),
+            ProjectDashboardPanelDescriptor(
+                title="Cost Sources",
+                subtitle="Planned, committed, and actual cost-source visibility.",
+                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+            ),
+        )
+
+    def _build_preview_charts(self) -> tuple[ProjectDashboardChartDescriptor, ...]:
+        return (
+            ProjectDashboardChartDescriptor(
+                title="Burndown / Status Rollup",
+                subtitle="Burndown or portfolio rollup appears here once the dashboard API is connected.",
+                chart_type="line",
+                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+            ),
+            ProjectDashboardChartDescriptor(
+                title="Resource Load",
+                subtitle="Resource utilization bars appear here once the dashboard API is connected.",
+                chart_type="bar",
+                empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
+            ),
+        )
+
+    def _build_panels_from_dashboard_data(
+        self,
+        *,
+        dashboard_data: Any,
+        baseline_label: str,
+        portfolio_mode: bool,
+    ) -> tuple[ProjectDashboardPanelDescriptor, ...]:
+        return (
+            self._build_evm_panel(
+                dashboard_data=dashboard_data,
+                baseline_label=baseline_label,
+                portfolio_mode=portfolio_mode,
+            ),
+            self._build_register_panel(
+                dashboard_data=dashboard_data,
+                portfolio_mode=portfolio_mode,
+            ),
+            self._build_cost_sources_panel(
+                dashboard_data=dashboard_data,
+                portfolio_mode=portfolio_mode,
+            ),
+        )
+
+    def _build_charts_from_dashboard_data(
+        self,
+        *,
+        dashboard_data: Any,
+        portfolio_mode: bool,
+    ) -> tuple[ProjectDashboardChartDescriptor, ...]:
+        return (
+            self._build_burndown_chart(
+                dashboard_data=dashboard_data,
+                portfolio_mode=portfolio_mode,
+            ),
+            self._build_resource_chart(
+                dashboard_data=dashboard_data,
+                portfolio_mode=portfolio_mode,
+            ),
+        )
+
     def _build_sections_from_dashboard_data(
         self,
         *,
@@ -351,9 +513,10 @@ class ProjectManagementDashboardDesktopApi:
             self._build_alert_section(dashboard_data),
             self._build_milestone_section(dashboard_data),
             self._build_critical_path_section(dashboard_data),
-            self._build_resource_load_section(dashboard_data),
             self._build_upcoming_tasks_section(dashboard_data),
         ]
+        if not portfolio_mode:
+            sections.append(self._build_register_urgent_section(dashboard_data))
         if portfolio_mode:
             sections.append(self._build_portfolio_ranking_section(dashboard_data))
         return tuple(sections)
@@ -426,33 +589,6 @@ class ProjectManagementDashboardDesktopApi:
             ),
         )
 
-    def _build_resource_load_section(self, dashboard_data: Any) -> ProjectDashboardSectionDescriptor:
-        rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
-        return ProjectDashboardSectionDescriptor(
-            title="Resource Load",
-            subtitle="Peak allocation pressure across assigned resources.",
-            empty_state="No resource-load rows are available yet.",
-            items=tuple(
-                ProjectDashboardSectionItemDescriptor(
-                    id=row.resource_id,
-                    title=row.resource_name,
-                    status_label=_fmt_percent(row.utilization_percent),
-                    subtitle=(
-                        f"Allocation: {_fmt_float(row.total_allocation_percent, 0)}% | "
-                        f"Capacity: {_fmt_float(row.capacity_percent, 0)}%"
-                    ),
-                    supporting_text=f"Assignments: {_fmt_int(row.tasks_count)}",
-                    meta_text=(
-                        "Overloaded"
-                        if float(getattr(row, "utilization_percent", 0.0) or 0.0) > 100.0
-                        else "Within capacity"
-                    ),
-                    state={"utilizationPercent": row.utilization_percent},
-                )
-                for row in rows
-            ),
-        )
-
     def _build_upcoming_tasks_section(self, dashboard_data: Any) -> ProjectDashboardSectionDescriptor:
         rows = tuple(getattr(dashboard_data, "upcoming_tasks", []) or [])
         return ProjectDashboardSectionDescriptor(
@@ -485,6 +621,34 @@ class ProjectManagementDashboardDesktopApi:
             ),
         )
 
+    def _build_register_urgent_section(self, dashboard_data: Any) -> ProjectDashboardSectionDescriptor:
+        summary = getattr(dashboard_data, "register_summary", None)
+        urgent_items = tuple(getattr(summary, "urgent_items", []) or []) if summary is not None else ()
+        return ProjectDashboardSectionDescriptor(
+            title="Urgent Register Items",
+            subtitle="Open risks, issues, and changes that need immediate attention.",
+            empty_state="No urgent register items are active right now.",
+            items=tuple(
+                ProjectDashboardSectionItemDescriptor(
+                    id=item.entry_id,
+                    title=item.title,
+                    status_label=as_register_entry_severity(item.severity).value.title(),
+                    subtitle=(
+                        f"{as_register_entry_type(item.entry_type).value.title()} | "
+                        f"Owner: {item.owner_name or 'Unassigned'}"
+                    ),
+                    supporting_text=f"Due: {_fmt_date(item.due_date)}",
+                    meta_text=f"Status: {as_register_entry_status(item.status).value.replace('_', ' ').title()}",
+                    state={
+                        "entryType": as_register_entry_type(item.entry_type).value,
+                        "severity": as_register_entry_severity(item.severity).value,
+                        "status": as_register_entry_status(item.status).value,
+                    },
+                )
+                for item in urgent_items
+            ),
+        )
+
     def _build_portfolio_ranking_section(
         self,
         dashboard_data: Any,
@@ -512,6 +676,256 @@ class ProjectManagementDashboardDesktopApi:
             ),
         )
 
+    def _build_evm_panel(
+        self,
+        *,
+        dashboard_data: Any,
+        baseline_label: str,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardPanelDescriptor:
+        if portfolio_mode:
+            return ProjectDashboardPanelDescriptor(
+                title="Earned Value (EVM)",
+                subtitle="Schedule and cost performance against the selected baseline.",
+                empty_state="EVM remains project-scoped and is not rolled up in portfolio mode.",
+            )
+
+        evm = getattr(dashboard_data, "evm", None)
+        if evm is None:
+            return ProjectDashboardPanelDescriptor(
+                title="Earned Value (EVM)",
+                subtitle="Schedule and cost performance against the selected baseline.",
+                empty_state="Create a baseline to enable EVM metrics for this dashboard.",
+            )
+
+        status_parts = [part.strip() for part in str(getattr(evm, "status_text", "") or "").split(".") if part.strip()]
+        return ProjectDashboardPanelDescriptor(
+            title="Earned Value (EVM)",
+            subtitle="Schedule and cost performance against the selected baseline.",
+            hint=f"As of {_fmt_date(evm.as_of)} (baseline: {baseline_label})",
+            rows=(
+                self._build_panel_row(
+                    "Cost",
+                    status_parts[0] if len(status_parts) > 0 else "-",
+                ),
+                self._build_panel_row(
+                    "Schedule",
+                    status_parts[1] if len(status_parts) > 1 else "-",
+                ),
+                self._build_panel_row(
+                    "Forecast",
+                    status_parts[2] if len(status_parts) > 2 else "-",
+                ),
+                self._build_panel_row(
+                    "TCPI",
+                    status_parts[3] if len(status_parts) > 3 else "-",
+                ),
+            ),
+            metrics=(
+                ProjectDashboardMetricDescriptor("CPI", _fmt_ratio(evm.CPI), "Cost performance"),
+                ProjectDashboardMetricDescriptor("SPI", _fmt_ratio(evm.SPI), "Schedule performance"),
+                ProjectDashboardMetricDescriptor("PV", _fmt_float(evm.PV), "Planned value"),
+                ProjectDashboardMetricDescriptor("EV", _fmt_float(evm.EV), "Earned value"),
+                ProjectDashboardMetricDescriptor("AC", _fmt_float(evm.AC), "Actual cost"),
+                ProjectDashboardMetricDescriptor("EAC", _fmt_float(evm.EAC), "Estimate at completion"),
+                ProjectDashboardMetricDescriptor("VAC", _fmt_float(evm.VAC), "Variance at completion"),
+                ProjectDashboardMetricDescriptor("TCPI(BAC)", _fmt_ratio(evm.TCPI_to_BAC), "Needed to hit BAC"),
+                ProjectDashboardMetricDescriptor("TCPI(EAC)", _fmt_ratio(evm.TCPI_to_EAC), "Needed to hit EAC"),
+            ),
+        )
+
+    def _build_register_panel(
+        self,
+        *,
+        dashboard_data: Any,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardPanelDescriptor:
+        if portfolio_mode:
+            return ProjectDashboardPanelDescriptor(
+                title="Register Summary",
+                subtitle="Risk, issue, and change pressure for the selected project.",
+                empty_state="Register rollups remain project-scoped and are not summarized in portfolio mode.",
+            )
+        summary = getattr(dashboard_data, "register_summary", None)
+        if summary is None:
+            return ProjectDashboardPanelDescriptor(
+                title="Register Summary",
+                subtitle="Risk, issue, and change pressure for the selected project.",
+                empty_state="No register summary is available yet for this project.",
+            )
+        return ProjectDashboardPanelDescriptor(
+            title="Register Summary",
+            subtitle="Risk, issue, and change pressure for the selected project.",
+            rows=(
+                ProjectDashboardPanelRowDescriptor(
+                    "Open risks",
+                    _fmt_int(summary.open_risks),
+                    "Open register risks",
+                ),
+                ProjectDashboardPanelRowDescriptor(
+                    "Open issues",
+                    _fmt_int(summary.open_issues),
+                    "Open execution issues",
+                ),
+                ProjectDashboardPanelRowDescriptor(
+                    "Pending changes",
+                    _fmt_int(summary.pending_changes),
+                    "Changes awaiting closure",
+                ),
+                ProjectDashboardPanelRowDescriptor(
+                    "Overdue items",
+                    _fmt_int(summary.overdue_items),
+                    "Past due register entries",
+                    tone="danger" if int(summary.overdue_items or 0) > 0 else "default",
+                ),
+                ProjectDashboardPanelRowDescriptor(
+                    "Critical items",
+                    _fmt_int(summary.critical_items),
+                    "Critical-severity register entries",
+                    tone="danger" if int(summary.critical_items or 0) > 0 else "default",
+                ),
+            ),
+        )
+
+    def _build_cost_sources_panel(
+        self,
+        *,
+        dashboard_data: Any,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardPanelDescriptor:
+        if portfolio_mode:
+            return ProjectDashboardPanelDescriptor(
+                title="Cost Sources",
+                subtitle="Planned, committed, and actual cost-source visibility.",
+                empty_state="Cost-source breakdown remains project-scoped and is not summarized in portfolio mode.",
+            )
+        sources = getattr(dashboard_data, "cost_sources", None)
+        rows = tuple(getattr(sources, "rows", []) or []) if sources is not None else ()
+        if not rows:
+            return ProjectDashboardPanelDescriptor(
+                title="Cost Sources",
+                subtitle="Planned, committed, and actual cost-source visibility.",
+                empty_state="No cost-source breakdown is available yet for this project.",
+            )
+        return ProjectDashboardPanelDescriptor(
+            title="Cost Sources",
+            subtitle="Planned, committed, and actual cost-source visibility.",
+            rows=tuple(
+                ProjectDashboardPanelRowDescriptor(
+                    label=row.source_label,
+                    value=f"{_fmt_float(row.actual, 0)} / {_fmt_float(row.planned, 0)}",
+                    supporting_text=f"Committed: {_fmt_float(row.committed, 0)}",
+                    tone="warning" if float(row.actual or 0.0) > float(row.planned or 0.0) else "default",
+                )
+                for row in rows
+            ),
+        )
+
+    def _build_burndown_chart(
+        self,
+        *,
+        dashboard_data: Any,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardChartDescriptor:
+        if portfolio_mode:
+            portfolio = getattr(dashboard_data, "portfolio", None)
+            rollup = tuple(getattr(portfolio, "status_rollup", []) or []) if portfolio is not None else ()
+            return ProjectDashboardChartDescriptor(
+                title="Portfolio Status Rollup",
+                subtitle="Cross-project delivery status counts.",
+                chart_type="bar",
+                empty_state="No portfolio status data is available yet.",
+                points=tuple(
+                    ProjectDashboardChartPointDescriptor(
+                        label=str(row.status_label or "").replace("_", " ").title(),
+                        value=float(row.project_count or 0),
+                        value_label=_fmt_int(row.project_count),
+                        supporting_text="Projects",
+                        tone="accent",
+                    )
+                    for row in rollup
+                ),
+            )
+
+        points = tuple(getattr(dashboard_data, "burndown", []) or [])
+        if not points:
+            return ProjectDashboardChartDescriptor(
+                title="Burndown",
+                subtitle="Remaining tasks over time against the ideal trend.",
+                chart_type="line",
+                empty_state="No burndown data is available yet for this project.",
+            )
+        start_value = float(getattr(points[0], "remaining_tasks", 0) or 0)
+        denominator = max(len(points) - 1, 1)
+        return ProjectDashboardChartDescriptor(
+            title="Burndown",
+            subtitle="Remaining tasks over time against the ideal trend.",
+            chart_type="line",
+            points=tuple(
+                ProjectDashboardChartPointDescriptor(
+                    label=point.day.strftime("%m-%d"),
+                    value=float(point.remaining_tasks or 0),
+                    value_label=_fmt_int(point.remaining_tasks),
+                    supporting_text=point.day.strftime("%Y-%m-%d"),
+                    target_value=(start_value * (1.0 - (index / denominator))) if len(points) > 1 else 0.0,
+                    tone="accent",
+                )
+                for index, point in enumerate(points)
+            ),
+        )
+
+    def _build_resource_chart(
+        self,
+        *,
+        dashboard_data: Any,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardChartDescriptor:
+        rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
+        if not rows:
+            return ProjectDashboardChartDescriptor(
+                title="Resource Load" if not portfolio_mode else "Cross-project Resource Load",
+                subtitle="Peak utilization pressure across assigned resources.",
+                chart_type="bar",
+                empty_state="No resource-load data is available yet.",
+            )
+        return ProjectDashboardChartDescriptor(
+            title="Resource Load" if not portfolio_mode else "Cross-project Resource Load",
+            subtitle="Peak utilization pressure across assigned resources.",
+            chart_type="bar",
+            points=tuple(
+                ProjectDashboardChartPointDescriptor(
+                    label=row.resource_name,
+                    value=float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0),
+                    value_label=_fmt_percent(getattr(row, "utilization_percent", row.total_allocation_percent), 0),
+                    supporting_text=(
+                        f"Alloc {_fmt_float(row.total_allocation_percent, 0)}% / "
+                        f"Cap {_fmt_float(row.capacity_percent, 0)}% | "
+                        f"Tasks {_fmt_int(row.tasks_count)}"
+                    ),
+                    target_value=100.0,
+                    tone=(
+                        "danger"
+                        if float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0) > 100.0
+                        else "accent"
+                    ),
+                )
+                for row in rows[:8]
+            ),
+        )
+
+    @staticmethod
+    def _build_panel_row(label: str, text: str) -> ProjectDashboardPanelRowDescriptor:
+        normalized = " ".join(str(text or "-").split())
+        lowered = normalized.lower()
+        tone = "default"
+        if any(token in lowered for token in ("late", "over budget", "unfavorable", "above target")):
+            tone = "danger"
+        elif any(token in lowered for token in ("watch", "monitor", "attention", "recover")):
+            tone = "warning"
+        elif any(token in lowered for token in ("favorable", "ahead", "healthy", "within target")):
+            tone = "success"
+        return ProjectDashboardPanelRowDescriptor(label=label, value=normalized or "-", tone=tone)
+
 
 def build_project_management_dashboard_desktop_api(
     *,
@@ -527,8 +941,12 @@ def build_project_management_dashboard_desktop_api(
 
 
 __all__ = [
+    "ProjectDashboardChartDescriptor",
+    "ProjectDashboardChartPointDescriptor",
     "ProjectDashboardMetricDescriptor",
     "ProjectDashboardOverviewDescriptor",
+    "ProjectDashboardPanelDescriptor",
+    "ProjectDashboardPanelRowDescriptor",
     "ProjectDashboardSectionDescriptor",
     "ProjectDashboardSectionItemDescriptor",
     "ProjectDashboardSelectorOptionDescriptor",

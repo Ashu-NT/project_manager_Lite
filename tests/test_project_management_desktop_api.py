@@ -1,10 +1,15 @@
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
     build_project_management_workspace_desktop_api,
+)
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
 )
 
 
@@ -102,6 +107,8 @@ def test_project_management_dashboard_desktop_api_builds_preview_snapshot() -> N
     assert snapshot.selected_project_id == "__portfolio__"
     assert snapshot.project_options[0].label == "Portfolio Overview"
     assert snapshot.baseline_options[0].label == "Portfolio view"
+    assert snapshot.panels[0].title == "Earned Value (EVM)"
+    assert snapshot.charts[0].title == "Burndown / Status Rollup"
     assert snapshot.sections[0].title == "Dashboard Preview"
     assert "not connected" in snapshot.empty_state
 
@@ -173,12 +180,64 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
                         name="Commissioning Pack",
                         is_late=False,
                         is_critical=True,
-                        start_date=None,
-                        end_date=None,
+                        start_date=date(2026, 4, 30),
+                        end_date=date(2026, 5, 4),
                         main_resource="Taylor",
                         percent_complete=55.0,
                     )
                 ],
+                burndown=[
+                    SimpleNamespace(day=date(2026, 4, 28), remaining_tasks=8),
+                    SimpleNamespace(day=date(2026, 4, 29), remaining_tasks=6),
+                    SimpleNamespace(day=date(2026, 4, 30), remaining_tasks=5),
+                ],
+                evm=SimpleNamespace(
+                    as_of=date(2026, 4, 30),
+                    CPI=0.92,
+                    SPI=0.88,
+                    PV=12000.0,
+                    EV=10400.0,
+                    AC=11300.0,
+                    EAC=13200.0,
+                    VAC=-1200.0,
+                    TCPI_to_BAC=1.11,
+                    TCPI_to_EAC=1.03,
+                    status_text="Cost is unfavorable. Schedule is behind target. Forecast is trending over budget. TCPI needs recovery focus.",
+                ),
+                register_summary=SimpleNamespace(
+                    open_risks=3,
+                    open_issues=2,
+                    pending_changes=1,
+                    overdue_items=1,
+                    critical_items=2,
+                    urgent_items=[
+                        SimpleNamespace(
+                            entry_id="reg-1",
+                            entry_type=RegisterEntryType.RISK,
+                            title="Critical supplier dependency",
+                            severity=RegisterEntrySeverity.CRITICAL,
+                            status=RegisterEntryStatus.OPEN,
+                            owner_name="Lead Planner",
+                            due_date=date(2026, 5, 2),
+                        )
+                    ],
+                ),
+                cost_sources=SimpleNamespace(
+                    rows=[
+                        SimpleNamespace(
+                            source_label="Direct Cost",
+                            planned=7000.0,
+                            committed=6500.0,
+                            actual=7200.0,
+                        ),
+                        SimpleNamespace(
+                            source_label="Computed Labor",
+                            planned=5000.0,
+                            committed=0.0,
+                            actual=4100.0,
+                        ),
+                    ]
+                ),
             )
         ),
     )
@@ -189,17 +248,30 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
     assert snapshot.selected_baseline_id == "base-1"
     assert snapshot.baseline_options[1].label == "Weekly Freeze (2026-04-27 10:30)"
     assert snapshot.overview.title == "Plant Upgrade"
+    assert [panel.title for panel in snapshot.panels] == [
+        "Earned Value (EVM)",
+        "Register Summary",
+        "Cost Sources",
+    ]
+    assert snapshot.panels[0].hint == "As of 2026-04-30 (baseline: Weekly Freeze (2026-04-27 10:30))"
+    assert snapshot.panels[0].metrics[0].label == "CPI"
+    assert snapshot.panels[1].rows[3].tone == "danger"
+    assert snapshot.panels[2].rows[0].supporting_text == "Committed: 6,500"
+    assert [chart.title for chart in snapshot.charts] == ["Burndown", "Resource Load"]
+    assert snapshot.charts[0].chart_type == "line"
+    assert snapshot.charts[0].points[0].target_value == 8.0
+    assert snapshot.charts[1].points[0].tone == "danger"
     assert [section.title for section in snapshot.sections] == [
         "Alerts",
         "Milestones",
         "Critical Path",
-        "Resource Load",
         "Upcoming Work",
+        "Urgent Register Items",
     ]
     assert snapshot.sections[0].items[0].title == "Owner assignment missing on punchlist"
     assert snapshot.sections[2].items[0].meta_text == "Late by 2 day(s)"
-    assert snapshot.sections[3].items[0].status_label == "112.00%"
-    assert snapshot.sections[4].items[0].meta_text == "Progress: 55.00%"
+    assert snapshot.sections[3].items[0].meta_text == "Progress: 55.00%"
+    assert snapshot.sections[4].items[0].status_label == "Critical"
 
 
 def test_project_management_desktop_api_does_not_import_qml_or_infra() -> None:

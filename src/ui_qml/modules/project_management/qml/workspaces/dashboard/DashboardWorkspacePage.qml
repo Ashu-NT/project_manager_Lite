@@ -94,6 +94,16 @@ AppLayouts.WorkspaceFrame {
                 architectureSummary: "Project selection, baseline selection, KPI cards, and read-only delivery sections flow through a typed controller backed by the PM desktop API."
             }
 
+            DashboardAnalysisPanels {
+                Layout.fillWidth: true
+                workspaceController: root.workspaceController
+            }
+
+            DashboardChartsSection {
+                Layout.fillWidth: true
+                workspaceController: root.workspaceController
+            }
+
             DashboardOverviewSections {
                 Layout.fillWidth: true
                 workspaceController: root.workspaceController

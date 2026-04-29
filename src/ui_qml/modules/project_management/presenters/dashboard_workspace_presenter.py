@@ -5,8 +5,12 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
 )
 from src.ui_qml.modules.project_management.view_models.dashboard import (
+    ProjectDashboardChartPointViewModel,
+    ProjectDashboardChartViewModel,
     ProjectDashboardMetricViewModel,
     ProjectDashboardOverviewViewModel,
+    ProjectDashboardPanelRowViewModel,
+    ProjectDashboardPanelViewModel,
     ProjectDashboardSectionItemViewModel,
     ProjectDashboardSectionViewModel,
     ProjectDashboardSelectorOptionViewModel,
@@ -50,6 +54,52 @@ class ProjectDashboardWorkspacePresenter:
                 for option in snapshot.baseline_options
             ),
             selected_baseline_id=snapshot.selected_baseline_id,
+            panels=tuple(
+                ProjectDashboardPanelViewModel(
+                    title=panel.title,
+                    subtitle=panel.subtitle,
+                    hint=panel.hint,
+                    empty_state=panel.empty_state,
+                    rows=tuple(
+                        ProjectDashboardPanelRowViewModel(
+                            label=row.label,
+                            value=row.value,
+                            supporting_text=row.supporting_text,
+                            tone=row.tone,
+                        )
+                        for row in panel.rows
+                    ),
+                    metrics=tuple(
+                        ProjectDashboardMetricViewModel(
+                            label=metric.label,
+                            value=metric.value,
+                            supporting_text=metric.supporting_text,
+                        )
+                        for metric in panel.metrics
+                    ),
+                )
+                for panel in snapshot.panels
+            ),
+            charts=tuple(
+                ProjectDashboardChartViewModel(
+                    title=chart.title,
+                    subtitle=chart.subtitle,
+                    chart_type=chart.chart_type,
+                    empty_state=chart.empty_state,
+                    points=tuple(
+                        ProjectDashboardChartPointViewModel(
+                            label=point.label,
+                            value=point.value,
+                            value_label=point.value_label,
+                            supporting_text=point.supporting_text,
+                            target_value=point.target_value,
+                            tone=point.tone,
+                        )
+                        for point in chart.points
+                    ),
+                )
+                for chart in snapshot.charts
+            ),
             sections=tuple(
                 ProjectDashboardSectionViewModel(
                     title=section.title,

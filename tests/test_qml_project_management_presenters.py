@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +10,11 @@ from src.ui_qml.modules.project_management.presenters import (
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
+)
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
 )
 
 
@@ -89,8 +94,53 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
                 alerts=["Field issue requires review"],
                 milestone_health=[],
                 critical_watchlist=[],
+                burndown=[
+                    SimpleNamespace(day=date(2026, 4, 28), remaining_tasks=8),
+                    SimpleNamespace(day=date(2026, 4, 29), remaining_tasks=5),
+                ],
                 resource_load=[],
                 upcoming_tasks=[],
+                evm=SimpleNamespace(
+                    as_of=date(2026, 4, 29),
+                    CPI=1.02,
+                    SPI=0.98,
+                    PV=5000.0,
+                    EV=4900.0,
+                    AC=4800.0,
+                    EAC=6400.0,
+                    VAC=100.0,
+                    TCPI_to_BAC=0.99,
+                    TCPI_to_EAC=1.01,
+                    status_text="Cost is favorable. Schedule is near target. Forecast is stable. TCPI is manageable.",
+                ),
+                register_summary=SimpleNamespace(
+                    open_risks=1,
+                    open_issues=0,
+                    pending_changes=1,
+                    overdue_items=0,
+                    critical_items=1,
+                    urgent_items=[
+                        SimpleNamespace(
+                            entry_id="urgent-1",
+                            entry_type=RegisterEntryType.RISK,
+                            title="Field issue requires review",
+                            severity=RegisterEntrySeverity.CRITICAL,
+                            status=RegisterEntryStatus.OPEN,
+                            owner_name="PM",
+                            due_date=date(2026, 5, 1),
+                        )
+                    ],
+                ),
+                cost_sources=SimpleNamespace(
+                    rows=[
+                        SimpleNamespace(
+                            source_label="Direct Cost",
+                            planned=5000.0,
+                            committed=4500.0,
+                            actual=4800.0,
+                        )
+                    ]
+                ),
             ),
             get_portfolio_data=lambda: SimpleNamespace(
                 kpi=SimpleNamespace(
@@ -110,8 +160,12 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
                 alerts=[],
                 milestone_health=[],
                 critical_watchlist=[],
+                burndown=[],
                 resource_load=[],
                 upcoming_tasks=[],
+                evm=None,
+                register_summary=None,
+                cost_sources=None,
             ),
         ),
     )
@@ -124,11 +178,15 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
     assert controller.projectOptions[1]["label"] == "Plant Upgrade"
     assert controller.selectedProjectId == "proj-1"
     assert controller.baselineOptions[1]["value"] == "proj-1-base-1"
+    assert controller.panels[0]["title"] == "Earned Value (EVM)"
+    assert controller.charts[0]["chartType"] == "line"
     assert controller.sections[0]["title"] == "Alerts"
 
     controller.selectBaseline("proj-1-base-1")
 
     assert controller.selectedBaselineId == "proj-1-base-1"
+    assert controller.panels[1]["rows"][0]["label"] == "Open risks"
+    assert controller.sections[4]["title"] == "Urgent Register Items"
 
 
 def test_project_management_workspace_catalog_returns_empty_unknown_workspace() -> None:

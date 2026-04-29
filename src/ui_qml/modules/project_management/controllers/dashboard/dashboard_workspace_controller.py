@@ -3,8 +3,10 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    serialize_dashboard_chart_view_models,
     ProjectManagementWorkspaceControllerBase,
     serialize_dashboard_overview_view_model,
+    serialize_dashboard_panel_view_models,
     serialize_dashboard_section_view_models,
     serialize_selector_options,
     serialize_workspace_view_model,
@@ -23,6 +25,8 @@ class ProjectManagementDashboardWorkspaceController(
     selectedProjectIdChanged = Signal()
     baselineOptionsChanged = Signal()
     selectedBaselineIdChanged = Signal()
+    panelsChanged = Signal()
+    chartsChanged = Signal()
     sectionsChanged = Signal()
 
     def __init__(
@@ -44,6 +48,8 @@ class ProjectManagementDashboardWorkspaceController(
         self._selected_project_id = ""
         self._baseline_options: list[dict[str, str]] = []
         self._selected_baseline_id = ""
+        self._panels: list[dict[str, object]] = []
+        self._charts: list[dict[str, object]] = []
         self._sections: list[dict[str, object]] = []
         self.refresh()
 
@@ -66,6 +72,14 @@ class ProjectManagementDashboardWorkspaceController(
     @Property(str, notify=selectedBaselineIdChanged)
     def selectedBaselineId(self) -> str:
         return self._selected_baseline_id
+
+    @Property("QVariantList", notify=panelsChanged)
+    def panels(self) -> list[dict[str, object]]:
+        return self._panels
+
+    @Property("QVariantList", notify=chartsChanged)
+    def charts(self) -> list[dict[str, object]]:
+        return self._charts
 
     @Property("QVariantList", notify=sectionsChanged)
     def sections(self) -> list[dict[str, object]]:
@@ -97,6 +111,12 @@ class ProjectManagementDashboardWorkspaceController(
                 serialize_selector_options(workspace_state.baseline_options)
             )
             self._set_selected_baseline_id(workspace_state.selected_baseline_id)
+            self._set_panels(
+                serialize_dashboard_panel_view_models(workspace_state.panels)
+            )
+            self._set_charts(
+                serialize_dashboard_chart_view_models(workspace_state.charts)
+            )
             self._set_sections(
                 serialize_dashboard_section_view_models(workspace_state.sections)
             )
@@ -152,6 +172,18 @@ class ProjectManagementDashboardWorkspaceController(
             return
         self._selected_baseline_id = selected_baseline_id
         self.selectedBaselineIdChanged.emit()
+
+    def _set_panels(self, panels: list[dict[str, object]]) -> None:
+        if panels == self._panels:
+            return
+        self._panels = panels
+        self.panelsChanged.emit()
+
+    def _set_charts(self, charts: list[dict[str, object]]) -> None:
+        if charts == self._charts:
+            return
+        self._charts = charts
+        self.chartsChanged.emit()
 
     def _set_sections(self, sections: list[dict[str, object]]) -> None:
         if sections == self._sections:
