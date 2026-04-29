@@ -38,7 +38,7 @@ from src.core.modules.project_management.application.financials.policy import (
     resolve_manual_labor_inclusion,
 )
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
 
 class FinanceService(ProjectManagementModuleGuardMixin):

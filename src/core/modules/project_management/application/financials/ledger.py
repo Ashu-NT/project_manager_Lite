@@ -12,7 +12,7 @@ from src.core.modules.project_management.application.financials.helpers import (
     resolve_rate,
 )
 from src.core.modules.project_management.application.financials.models import FinanceLedgerRow
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
 
 def read_stage_amount(*, item: object, stage: str, as_of: date) -> float:

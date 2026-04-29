@@ -19,7 +19,7 @@ from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.import_service import DataImportService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ProjectResourceService
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style

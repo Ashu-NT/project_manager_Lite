@@ -14,9 +14,9 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
-from src.core.modules.project_management.application.scheduling import (
-    CPMTaskInfo,
-    SchedulingEngine,
+from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
+from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
     WorkCalendarEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting.cost_policy import (

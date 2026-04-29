@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QHeaderView, QLabel, QMessageBox, QTableView, QTab
 from core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.application.financials import CostService
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.cost.labor_dialogs import ResourceLaborDialog

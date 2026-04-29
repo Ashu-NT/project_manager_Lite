@@ -762,11 +762,11 @@ def test_shared_theme_module_composes_from_formatting_slices():
 
 
 def test_reporting_evm_module_is_facade_only():
-    evm_path = ROOT / "core" / "services" / "reporting" / "evm.py"
+    evm_path = ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "reporting" / "evm.py"
     text = evm_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.reporting.evm_core import" in text
-    assert "from core.modules.project_management.services.reporting.evm_series import" in text
+    assert "from src.core.modules.project_management.infrastructure.reporting.evm_core import" in text
+    assert "from src.core.modules.project_management.infrastructure.reporting.evm_series import" in text
     assert "def get_earned_value" not in text
     assert "def get_evm_series" not in text
 
@@ -1220,12 +1220,12 @@ def test_known_large_modules_have_growth_budgets():
     # Guardrail budgets: these files are intentionally large for now, but must not keep growing.
     budgets = {
         **_LARGE_MODULE_BUDGETS,
-        "core/modules/project_management/services/reporting/service.py": 180,
-        "core/modules/project_management/services/reporting/evm.py": 80,
-        "core/modules/project_management/services/reporting/evm_core.py": 280,
-        "core/modules/project_management/services/reporting/evm_series.py": 120,
-        "core/modules/project_management/services/reporting/kpi.py": 280,
-        "core/modules/project_management/services/reporting/labor.py": 260,
+        "src/core/modules/project_management/infrastructure/reporting/service.py": 180,
+        "src/core/modules/project_management/infrastructure/reporting/evm.py": 80,
+        "src/core/modules/project_management/infrastructure/reporting/evm_core.py": 280,
+        "src/core/modules/project_management/infrastructure/reporting/evm_series.py": 120,
+        "src/core/modules/project_management/infrastructure/reporting/kpi.py": 280,
+        "src/core/modules/project_management/infrastructure/reporting/labor.py": 260,
         "ui/modules/project_management/project/tab.py": 290,
         "ui/modules/project_management/project/dialogs.py": 80,
         "ui/modules/project_management/project/project_edit_dialog.py": 240,

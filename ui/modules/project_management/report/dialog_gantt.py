@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QResizeEvent
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout
 
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.report.dialog_helpers import setup_dialog_size
 from ui.modules.project_management.report.gantt_interactive import GanttInteractiveMixin

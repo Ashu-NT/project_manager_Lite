@@ -17,7 +17,7 @@ from core.modules.project_management.reporting.api import (
     generate_pdf_report as _generate_pdf_report,
 )
 from src.core.modules.project_management.application.financials import FinanceService
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
 
 def _warn_deprecated(function_name: str) -> None:

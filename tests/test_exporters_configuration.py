@@ -12,7 +12,7 @@ from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.domain.enums import CostType, DependencyType
 from core.modules.project_management.reporting import api as reporting_api
-from core.modules.project_management.services.reporting.models import (
+from src.core.modules.project_management.infrastructure.reporting.models import (
     CostSourceBreakdown,
     CostSourceRow,
     CostBreakdownRow,

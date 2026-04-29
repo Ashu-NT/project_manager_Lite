@@ -18,7 +18,9 @@ from PySide6.QtWidgets import (
 
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.auth import UserSessionContext
-from core.modules.project_management.services.baseline import BaselineService
+from src.core.modules.project_management.application.scheduling.baseline_service import (
+    BaselineService,
+)
 from core.modules.project_management.services.dashboard import DashboardData, DashboardService
 from src.core.modules.project_management.application.projects import ProjectService
 from ui.modules.project_management.dashboard.access import configure_dashboard_access, wire_dashboard_access

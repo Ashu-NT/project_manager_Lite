@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from ui.modules.project_management.report.dialog_helpers import metric_card, section_group, setup_dialog_size
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 

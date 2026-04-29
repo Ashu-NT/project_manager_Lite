@@ -26,7 +26,9 @@ from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
 )
-from core.modules.project_management.services.baseline import BaselineService
+from src.core.modules.project_management.application.scheduling.baseline_service import (
+    BaselineService,
+)
 from core.modules.project_management.services.dashboard import DashboardService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.platform.access import AccessControlService

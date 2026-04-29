@@ -1,7 +1,9 @@
 from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QMessageBox
 
-from core.modules.project_management.services.baseline import BaselineService
+from src.core.modules.project_management.application.scheduling.baseline_service import (
+    BaselineService,
+)
 from core.modules.project_management.services.dashboard import DashboardData, DashboardService, PORTFOLIO_SCOPE_ID
 from src.core.modules.project_management.application.projects import ProjectService
 from ui.modules.project_management.shared.domain_event_filters import is_project_management_domain_event

@@ -54,8 +54,9 @@ from core.modules.maintenance_management import (
     MaintenanceWorkOrderTaskStepService,
     MaintenanceWorkRequestService,
 )
-from core.modules.project_management.services.baseline import BaselineService
-from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
+from src.core.modules.project_management.application.scheduling.baseline_service import (
+    BaselineService,
+)
 from core.modules.project_management.services.collaboration import CollaborationService
 from core.modules.project_management.services.dashboard import DashboardService
 from core.modules.project_management.services.portfolio import PortfolioService
@@ -73,8 +74,7 @@ from src.core.modules.project_management.application.scheduling import (
     WorkCalendarEngine,
     WorkCalendarService,
 )
-from core.modules.project_management.services.reporting import ReportingService
-from core.modules.project_management.services.reporting.service import ReportingService as LegacyReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
@@ -228,8 +228,6 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyApprovalService is ApprovalService
     assert LegacyAuthService is AuthService
     assert LegacyAuditService is AuditService
-    assert LegacyReportingService is ReportingService
-    assert LegacyBaselineService is BaselineService
 
 
 def test_legacy_project_service_package_is_removed():
@@ -288,6 +286,14 @@ def test_legacy_scheduling_calendar_work_calendar_packages_are_removed():
     assert not (legacy_work_calendar_root / "service.py").exists()
 
 
+def test_legacy_baseline_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_baseline_root = root / "core" / "modules" / "project_management" / "services" / "baseline"
+
+    assert not (legacy_baseline_root / "__init__.py").exists()
+    assert not (legacy_baseline_root / "service.py").exists()
+
+
 def test_legacy_resource_cost_finance_packages_are_removed():
     root = Path(__file__).resolve().parents[1]
 
@@ -322,6 +328,24 @@ def test_legacy_register_package_is_removed():
     assert not (legacy_register_root / "lifecycle.py").exists()
     assert not (legacy_register_root / "query.py").exists()
     assert not (legacy_register_root / "models.py").exists()
+
+
+def test_legacy_reporting_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_reporting_root = root / "core" / "modules" / "project_management" / "services" / "reporting"
+
+    assert not (legacy_reporting_root / "__init__.py").exists()
+    assert not (legacy_reporting_root / "baseline_compare.py").exists()
+    assert not (legacy_reporting_root / "cost_breakdown.py").exists()
+    assert not (legacy_reporting_root / "cost_policy.py").exists()
+    assert not (legacy_reporting_root / "evm.py").exists()
+    assert not (legacy_reporting_root / "evm_core.py").exists()
+    assert not (legacy_reporting_root / "evm_series.py").exists()
+    assert not (legacy_reporting_root / "kpi.py").exists()
+    assert not (legacy_reporting_root / "labor.py").exists()
+    assert not (legacy_reporting_root / "models.py").exists()
+    assert not (legacy_reporting_root / "service.py").exists()
+    assert not (legacy_reporting_root / "variance.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

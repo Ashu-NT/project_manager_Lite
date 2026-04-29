@@ -14,7 +14,9 @@ from core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
 from src.core.platform.time.application import TimeService
-from core.modules.project_management.services.baseline import BaselineService
+from src.core.modules.project_management.application.scheduling.baseline_service import (
+    BaselineService,
+)
 from core.modules.project_management.services.collaboration import CollaborationService
 from core.modules.project_management.services.dashboard import DashboardService
 from core.modules.project_management.services.import_service import DataImportService

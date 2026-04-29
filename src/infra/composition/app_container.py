@@ -60,7 +60,9 @@ from core.modules.maintenance_management import (
     MaintenanceWorkOrderTaskStepService,
     MaintenanceWorkRequestService,
 )
-from core.modules.project_management.services.baseline import BaselineService
+from src.core.modules.project_management.application.scheduling.baseline_service import (
+    BaselineService,
+)
 from core.modules.project_management.services.collaboration import CollaborationService
 from core.modules.project_management.services.dashboard import DashboardService
 from core.modules.project_management.services.import_service import DataImportService

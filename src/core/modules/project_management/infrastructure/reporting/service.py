@@ -15,7 +15,10 @@ from src.core.modules.project_management.contracts.repositories.cost_calendar im
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
-from src.core.modules.project_management.application.scheduling import SchedulingEngine, WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling.engine import SchedulingEngine
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+    WorkCalendarEngine,
+)
 from core.modules.project_management.services.common.base import ServiceBase
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 

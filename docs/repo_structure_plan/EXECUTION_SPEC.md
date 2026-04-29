@@ -1181,10 +1181,20 @@ Resolved:
   - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
   - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_task_dependency_ux_logic.py tests/test_progress_flow.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_baseline_comparison_workflow.py tests/test_finance_layer_integration.py tests/test_currency_defaults.py tests/test_technical_math_reporting.py tests/test_exporters_configuration.py tests/test_ui_professional_filters.py`
   - observed result: 165 passed
+- after the PM risk/register application transfer plus the PM reporting infrastructure transfer, focused verification now passes:
+  - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
+  - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_phase2_register_import_and_ui.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_project_management_platform_alignment.py tests/test_refactor_regressions.py tests/test_exporters_configuration.py tests/test_technical_math_reporting.py tests/test_ui_professional_filters.py`
+  - observed result: 184 passed
+  - `conda run -n pmenv pytest -q tests/test_platform_import_export_report_runtime.py tests/test_cost_report_ui.py tests/test_dashboard_portfolio_flow.py`
+  - observed result: 15 passed
+- after the PM baseline application transfer and scheduling/reporting import-cycle cleanup, focused verification now passes:
+  - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
+  - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_baseline_comparison_workflow.py tests/test_exporters_configuration.py tests/test_project_management_platform_alignment.py tests/test_platform_import_export_report_runtime.py`
+  - observed result: 154 passed
 
 Continue next:
 
-1. Continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/resource/*`, `services/cost/*`, and `services/finance/*` moves, starting with `services/register/*` and the reporting/API adapters that should move behind `application/risk/*` and `infrastructure/reporting/*`.
+1. Continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, and `services/reporting/*` moves, starting with `services/dashboard/*`, then `services/collaboration/*`, `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`.
 2. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
@@ -1209,8 +1219,8 @@ Hold status as of 2026-04-22:
 
 Refactor-first priority for the remaining PM slice:
 
-- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into `src/core/modules/project_management/application/risk/*`, while keeping completed `projects`, `tasks`, `scheduling`, `resources`, and `financials` transfers clean and facade-free
-- move PM reporting/rendering adapters into `src/core/modules/project_management/infrastructure/reporting/*`
+- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into their module-local homes under `src/core/modules/project_management/{application,infrastructure}/*`, while keeping completed `projects`, `tasks`, `scheduling`, `baseline`, `resources`, `financials`, `risk`, and `reporting` transfers clean and facade-free
+- keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and continue shrinking the remaining legacy PM service surface
 - expand module-local PM desktop and HTTP APIs over those application handlers, not over the broad legacy service layer
 - regroup PM tests under `src/tests/project_management/*`
 - keep QML migration attached to those refactored module-local APIs instead of using it to drive slice ordering
@@ -1253,6 +1263,16 @@ Completed:
 - moved `core/modules/project_management/services/finance/{service,analytics,cashflow,helpers,ledger,models,policy}.py` into `src/core/modules/project_management/application/financials/*`
 - rewired PM composition, import support, reporting/export surfaces, platform desktop audit support, PM calendar/cost/resource/report/task/project Widget callers, path rewrites, and architecture tests to import `ResourceService`, `CostService`, `FinanceService`, and finance models from `src.core.modules.project_management.application.{resources,financials}`
 - deleted the old source files and legacy package roots under `core/modules/project_management/services/{resource,cost,finance}/` after callers were rewritten, with no facade re-export package kept behind
+- moved `core/modules/project_management/services/register/service.py` into `src/core/modules/project_management/application/risk/register_service.py`, with `lifecycle.py`, `query.py`, and `models.py` landing in `commands/register_lifecycle.py`, `queries/register_query.py`, and `dto/register_summary.py`
+- rewired PM composition, dashboard services, PM desktop dashboard APIs, PM register Widget callers, path rewrites, and architecture tests to import `RegisterService` and register summary DTOs from `src.core.modules.project_management.application.risk`
+- deleted the old source files and legacy package root under `core/modules/project_management/services/register/` after callers were rewritten, with no facade re-export package kept behind
+- moved `core/modules/project_management/services/reporting/{baseline_compare,cost_breakdown,cost_policy,evm,evm_core,evm_series,kpi,labor,models,service,variance}.py` into `src/core/modules/project_management/infrastructure/reporting/*`
+- rewired PM composition, financial services, reporting/export adapters, dashboard services, PM cost/project/report Widget callers, dashboard alert rendering, path rewrites, and architecture tests to import reporting services and models from `src.core.modules.project_management.infrastructure.reporting`
+- deleted the old source files and legacy package root under `core/modules/project_management/services/reporting/` after callers were rewritten, with no facade re-export package kept behind
+- moved `core/modules/project_management/services/baseline/service.py` into `src/core/modules/project_management/application/scheduling/baseline_service.py`
+- rewired PM composition, PM desktop APIs, platform audit support, dashboard Widget callers, path rewrites, and architecture tests to import `BaselineService` from the new scheduling module-local path
+- flattened scheduling imports inside the reporting infrastructure onto concrete scheduling modules so the scheduling/reporting import graph stays acyclic after the baseline transfer
+- deleted the old source file and legacy package root under `core/modules/project_management/services/baseline/` after callers were rewritten, with no facade re-export package kept behind
 - PM ORM rows now live under `src/core/modules/project_management/infrastructure/persistence/orm/`
 - PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - the old `src/infra/persistence/orm/project_management/` global module ORM package was deleted after direct import rewrites

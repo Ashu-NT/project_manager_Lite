@@ -8,7 +8,9 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from src.core.modules.project_management.application.scheduling import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+    WorkCalendarEngine,
+)
 from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
     ReportingCostPolicyMixin,
 )
