@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from core.modules.project_management.services.dashboard.models import CriticalPathRow, MilestoneHealthRow
-from core.modules.project_management.services.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling import CPMTaskInfo
 from src.core.modules.project_management.application.tasks import TaskService
 
 

@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDateEdit, QLineEdit, QMessageBox, QTableWidget, QTableWidgetItem
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from core.modules.project_management.services.work_calendar import WorkCalendarService
+from src.core.modules.project_management.application.scheduling import WorkCalendarService
 
 
 class CalendarHolidaysMixin:

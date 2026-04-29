@@ -4,9 +4,9 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 
+from src.core.modules.project_management.application.scheduling import ResourceConflict
 from core.modules.project_management.services.reporting.models import ResourceLoadRow
 from core.modules.project_management.services.dashboard import DashboardData
-from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 

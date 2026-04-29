@@ -14,10 +14,13 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.application.scheduling import (
+    CPMTaskInfo,
+    SchedulingEngine,
+    WorkCalendarEngine,
+)
 from core.modules.project_management.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.modules.project_management.services.reporting.models import GanttTaskBar, ProjectKPI, ResourceLoadRow
-from core.modules.project_management.services.scheduling.engine import CPMTaskInfo, SchedulingEngine
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 
 class ReportingKpiMixin(ReportingCostPolicyMixin):

@@ -4,8 +4,10 @@ from datetime import date
 from typing import Dict, Optional
 
 from src.core.modules.project_management.domain.tasks.task import Task
-from core.modules.project_management.services.scheduling.models import CPMTaskInfo
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+    WorkCalendarEngine,
+)
 
 
 def build_schedule_result(

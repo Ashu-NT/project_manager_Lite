@@ -15,10 +15,9 @@ from src.core.modules.project_management.contracts.repositories.cost_calendar im
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.application.scheduling import SchedulingEngine, WorkCalendarEngine
 from core.modules.project_management.services.common.base import ServiceBase
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.scheduling.engine import SchedulingEngine
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 from .baseline_compare import ReportingBaselineCompareMixin
 from .cost_breakdown import ReportingCostBreakdownMixin
@@ -48,7 +47,7 @@ class ReportingService(
         cost_repo: CostRepository,
         scheduling_engine: SchedulingEngine,
         calendar: WorkCalendarEngine,
-        baseline_repo : BaselineRepository,
+        baseline_repo: BaselineRepository,
         project_resource_repo: ProjectResourceRepository,
         user_session=None,
         module_catalog_service=None,

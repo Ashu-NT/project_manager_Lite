@@ -6,7 +6,9 @@ from typing import Callable, Dict, List, Optional
 from src.core.platform.common.exceptions import ValidationError
 from core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+    WorkCalendarEngine,
+)
 
 
 ForwardComputeFn = Callable[

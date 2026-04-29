@@ -5,7 +5,7 @@ from datetime import date
 from PySide6.QtWidgets import QDateEdit, QLabel, QMessageBox, QSpinBox
 
 from src.core.platform.common.exceptions import ValidationError
-from core.modules.project_management.services.work_calendar import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling import WorkCalendarEngine
 
 
 class CalendarCalculatorMixin:

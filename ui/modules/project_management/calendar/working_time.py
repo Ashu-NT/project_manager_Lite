@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QCheckBox, QLabel, QMessageBox, QSpinBox
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
+from src.core.modules.project_management.application.scheduling import WorkCalendarEngine, WorkCalendarService
 
 
 class CalendarWorkingTimeMixin:

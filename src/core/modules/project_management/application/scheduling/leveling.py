@@ -5,8 +5,13 @@ from datetime import date, timedelta
 from typing import Callable
 
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
-from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict, ResourceConflictEntry
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling.leveling_models import (
+    ResourceConflict,
+    ResourceConflictEntry,
+)
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+    WorkCalendarEngine,
+)
 
 
 def build_successors_map(deps: list[TaskDependency]) -> dict[str, set[str]]:

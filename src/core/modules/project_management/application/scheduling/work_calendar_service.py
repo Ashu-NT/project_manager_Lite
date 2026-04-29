@@ -1,4 +1,4 @@
-# core/modules/project_management/services/work_calendar/service.py
+# src/core/modules/project_management/application/scheduling/work_calendar_service.py
 from __future__ import annotations
 from datetime import date
 from typing import List, Set
@@ -9,7 +9,9 @@ from src.core.modules.project_management.contracts.repositories.cost_calendar im
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+    WorkCalendarEngine,
+)
 
 
 class WorkCalendarService(ProjectManagementModuleGuardMixin):

@@ -8,9 +8,9 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.application.scheduling import WorkCalendarEngine
 from core.modules.project_management.services.reporting.cost_policy import ReportingCostPolicyMixin
 from core.modules.project_management.services.reporting.models import EarnedValueMetrics
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 
 class ReportingEvmCoreMixin(ReportingCostPolicyMixin):

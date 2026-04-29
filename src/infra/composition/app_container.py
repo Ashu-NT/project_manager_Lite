@@ -61,7 +61,6 @@ from core.modules.maintenance_management import (
     MaintenanceWorkRequestService,
 )
 from core.modules.project_management.services.baseline import BaselineService
-from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.dashboard import DashboardService
@@ -70,13 +69,17 @@ from core.modules.project_management.services.import_service import DataImportSe
 from core.modules.project_management.services.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ProjectResourceService
+from src.core.modules.project_management.application.scheduling import (
+    CalendarService,
+    SchedulingEngine,
+    WorkCalendarEngine,
+    WorkCalendarService,
+)
 from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
-from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_management_service_bundle

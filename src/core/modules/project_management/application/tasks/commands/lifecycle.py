@@ -21,7 +21,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from core.modules.project_management.domain.enums import TaskStatus
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling import WorkCalendarEngine
 
 logger = logging.getLogger(__name__)
 

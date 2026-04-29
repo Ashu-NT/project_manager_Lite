@@ -56,7 +56,6 @@ from core.modules.maintenance_management import (
 )
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
-from core.modules.project_management.services.calendar import CalendarService
 from core.modules.project_management.services.collaboration import CollaborationService
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.dashboard import DashboardService
@@ -65,21 +64,21 @@ from core.modules.project_management.services.finance.service import FinanceServ
 from core.modules.project_management.services.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ProjectResourceService
+from src.core.modules.project_management.application.scheduling import (
+    CPMTaskInfo,
+    CalendarService,
+    SchedulingEngine,
+    WorkCalendarEngine,
+    WorkCalendarService,
+)
 from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.register.service import RegisterService as LegacyRegisterService
-from core.modules.project_management.services.calendar.service import CalendarService as LegacyCalendarService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.reporting.service import ReportingService as LegacyReportingService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.resource.service import ResourceService as LegacyResourceService
-from core.modules.project_management.services.scheduling import CPMTaskInfo, SchedulingEngine
-from core.modules.project_management.services.scheduling.engine import CPMTaskInfo as LegacyCPMTaskInfo
-from core.modules.project_management.services.scheduling.engine import SchedulingEngine as LegacySchedulingEngine
 from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
-from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine as LegacyWorkCalendarEngine
-from core.modules.project_management.services.work_calendar.service import WorkCalendarService as LegacyWorkCalendarService
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
 from pathlib import Path
 
@@ -233,11 +232,6 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyAuditService is AuditService
     assert LegacyRegisterService is RegisterService
     assert LegacyResourceService is ResourceService
-    assert LegacyCalendarService is CalendarService
-    assert LegacySchedulingEngine is SchedulingEngine
-    assert LegacyCPMTaskInfo is CPMTaskInfo
-    assert LegacyWorkCalendarEngine is WorkCalendarEngine
-    assert LegacyWorkCalendarService is WorkCalendarService
     assert LegacyReportingService is ReportingService
     assert LegacyBaselineService is BaselineService
     assert LegacyFinanceService is FinanceService
@@ -272,6 +266,31 @@ def test_legacy_task_service_package_is_removed():
     assert not (legacy_root / "schedule_sync.py").exists()
     assert not (legacy_root / "time_entries.py").exists()
     assert not (legacy_root / "validation.py").exists()
+
+
+def test_legacy_scheduling_calendar_work_calendar_packages_are_removed():
+    root = Path(__file__).resolve().parents[1]
+
+    legacy_calendar_root = root / "core" / "modules" / "project_management" / "services" / "calendar"
+    assert not (legacy_calendar_root / "__init__.py").exists()
+    assert not (legacy_calendar_root / "service.py").exists()
+
+    legacy_scheduling_root = root / "core" / "modules" / "project_management" / "services" / "scheduling"
+    assert not (legacy_scheduling_root / "__init__.py").exists()
+    assert not (legacy_scheduling_root / "date_compute.py").exists()
+    assert not (legacy_scheduling_root / "engine.py").exists()
+    assert not (legacy_scheduling_root / "graph.py").exists()
+    assert not (legacy_scheduling_root / "leveling.py").exists()
+    assert not (legacy_scheduling_root / "leveling_models.py").exists()
+    assert not (legacy_scheduling_root / "leveling_service.py").exists()
+    assert not (legacy_scheduling_root / "models.py").exists()
+    assert not (legacy_scheduling_root / "passes.py").exists()
+    assert not (legacy_scheduling_root / "results.py").exists()
+
+    legacy_work_calendar_root = root / "core" / "modules" / "project_management" / "services" / "work_calendar"
+    assert not (legacy_work_calendar_root / "__init__.py").exists()
+    assert not (legacy_work_calendar_root / "engine.py").exists()
+    assert not (legacy_work_calendar_root / "service.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

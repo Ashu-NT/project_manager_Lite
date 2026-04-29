@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.services.scheduling.engine import SchedulingEngine
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
 
 
 class TaskScheduleSyncMixin:

@@ -13,13 +13,17 @@ from core.modules.project_management.services.dashboard.portfolio import Dashboa
 from core.modules.project_management.services.dashboard.professional import DashboardProfessionalMixin
 from core.modules.project_management.services.dashboard.upcoming import DashboardUpcomingMixin
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.scheduling import (
+    ResourceConflict,
+    ResourceLevelingAction,
+    ResourceLevelingResult,
+    SchedulingEngine,
+    WorkCalendarEngine,
+)
 from core.modules.project_management.services.reporting.service import ReportingService
 from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.scheduling.engine import SchedulingEngine
-from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict, ResourceLevelingAction, ResourceLevelingResult
 from src.core.modules.project_management.application.tasks import TaskService
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 
 class DashboardService(

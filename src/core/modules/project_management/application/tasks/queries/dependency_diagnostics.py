@@ -11,12 +11,23 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from core.modules.project_management.domain.enums import DependencyType
-from core.modules.project_management.services.scheduling.date_compute import compute_task_dates_common
-from core.modules.project_management.services.scheduling.graph import build_project_dependency_graph
-from core.modules.project_management.services.scheduling.models import CPMTaskInfo
-from core.modules.project_management.services.scheduling.passes import run_backward_pass, run_forward_pass
-from core.modules.project_management.services.scheduling.results import build_schedule_result
-from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
+from src.core.modules.project_management.application.scheduling.date_compute import (
+    compute_task_dates_common,
+)
+from src.core.modules.project_management.application.scheduling.graph import (
+    build_project_dependency_graph,
+)
+from src.core.modules.project_management.application.scheduling.models import CPMTaskInfo
+from src.core.modules.project_management.application.scheduling.passes import (
+    run_backward_pass,
+    run_forward_pass,
+)
+from src.core.modules.project_management.application.scheduling.results import (
+    build_schedule_result,
+)
+from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
+    WorkCalendarEngine,
+)
 
 
 @dataclass

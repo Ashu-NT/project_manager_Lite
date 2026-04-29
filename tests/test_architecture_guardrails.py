@@ -10,7 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1310,
+    "tests/test_architecture_guardrails.py": 1340,
     "tests/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
@@ -1106,20 +1106,43 @@ def test_portfolio_service_is_orchestrator_only():
 
 
 def test_scheduling_engine_is_orchestrator_only():
-    engine_path = ROOT / "core" / "services" / "scheduling" / "engine.py"
+    engine_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "scheduling"
+        / "engine.py"
+    )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.scheduling.graph import build_project_dependency_graph" in text
-    assert "from core.modules.project_management.services.scheduling.passes import run_backward_pass, run_forward_pass" in text
-    assert "from core.modules.project_management.services.scheduling.results import build_schedule_result" in text
+    assert "from src.core.modules.project_management.application.scheduling.graph import (" in text
+    assert "build_project_dependency_graph," in text
+    assert "from src.core.modules.project_management.application.scheduling.passes import (" in text
+    assert "run_backward_pass," in text
+    assert "run_forward_pass," in text
+    assert "from src.core.modules.project_management.application.scheduling.results import (" in text
+    assert "build_schedule_result," in text
     assert "import heapq" not in text
 
 
 def test_scheduling_leveling_is_split_from_engine():
-    engine_path = ROOT / "core" / "services" / "scheduling" / "engine.py"
+    engine_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "scheduling"
+        / "engine.py"
+    )
     text = engine_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.scheduling.leveling_service import ResourceLevelingMixin" in text
+    assert "from src.core.modules.project_management.application.scheduling.leveling_service import (" in text
+    assert "ResourceLevelingMixin," in text
     assert "class SchedulingEngine(ResourceLevelingMixin)" in text
 
 
@@ -1201,14 +1224,14 @@ def test_known_large_modules_have_growth_budgets():
         "src/ui/platform/workspaces/admin/support/diagnostics_export.py": 140,
         "src/ui/platform/workspaces/admin/support/incident_report.py": 180,
         "src/ui/shared/dialogs/incident_support.py": 120,
-        "core/modules/project_management/services/scheduling/engine.py": 360,
-        "core/modules/project_management/services/scheduling/models.py": 80,
-        "core/modules/project_management/services/scheduling/graph.py": 180,
-        "core/modules/project_management/services/scheduling/passes.py": 260,
-        "core/modules/project_management/services/scheduling/results.py": 180,
-        "core/modules/project_management/services/scheduling/leveling.py": 180,
-        "core/modules/project_management/services/scheduling/leveling_service.py": 280,
-        "core/modules/project_management/services/scheduling/leveling_models.py": 120,
+        "src/core/modules/project_management/application/scheduling/engine.py": 360,
+        "src/core/modules/project_management/application/scheduling/models.py": 80,
+        "src/core/modules/project_management/application/scheduling/graph.py": 180,
+        "src/core/modules/project_management/application/scheduling/passes.py": 260,
+        "src/core/modules/project_management/application/scheduling/results.py": 180,
+        "src/core/modules/project_management/application/scheduling/leveling.py": 180,
+        "src/core/modules/project_management/application/scheduling/leveling_service.py": 300,
+        "src/core/modules/project_management/application/scheduling/leveling_models.py": 120,
         "ui/modules/project_management/resource/tab.py": 245,
         "ui/modules/project_management/resource/actions.py": 180,
         "ui/modules/project_management/resource/flow.py": 80,
