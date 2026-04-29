@@ -28,7 +28,7 @@ from src.application.runtime.platform_runtime import (
 )
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.dashboard import DashboardService
-from core.modules.project_management.services.project.service import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService

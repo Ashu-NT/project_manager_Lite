@@ -1165,30 +1165,43 @@ Known blocker:
 Resolved:
 
 - `conda run -n pmenv pytest tests/test_architecture_guardrails.py -q` now passes after the Slice 2 PM domain package-root cleanup removed the old duplicated task definitions from `core/modules/project_management/domain/__init__.py`
+- after the PM project/application transfer, focused verification now passes:
+  - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
+  - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py`
+  - observed result: 107 passed
 
 Continue next:
 
-1. Update test path strategy and remove path rewrites only after the new paths are complete.
+1. Continue the remaining legacy PM service transfers after the completed `services/project/*` move, starting with `services/task/*` and the scheduling/calendar/work-calendar group.
+2. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
 
 Hold status as of 2026-04-22:
 
-- pause Slice 2 backend/domain restructuring until the QML migration checkpoint is accepted
-- the PM QML migration itself remains part of Slice 2 and should continue inside Slice 2 one workspace/dialog at a time before moving to another module
+- resume Slice 2 with repo-structure transfer as the active track; QML remains part of Slice 2 but should follow the new structure instead of blocking it
+- continue PM domain/application/infrastructure/API moves first, then incorporate QML naturally on top of those slices
 - completed Slice 2 persistence/contracts/domain work remains valid and must not be reverted
 - active Widget UI under `src/ui/*` remains runnable during migration
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
-- QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
+- QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet, but do not let that foundation block the remaining structure transfer
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
-- PM QML route landing zones are complete with typed controller/catalog scaffolding; the first real PM screen replacement slice has now started on the dashboard
-- PM QML presenter/view-model scaffolding is complete for the route set, and the dashboard now has a typed controller plus split page sections backed by a screen-specific desktop API snapshot with analysis panels and chart state; workspace metadata now comes from a module desktop API
-- PM QML now binds to presenter-backed metadata through a typed `pmCatalog`; outside the dashboard, desktop API wiring and real screen parity still remain pending, and the dashboard itself is still read-only rather than full Widget parity
+- PM QML route landing zones are complete with typed controller/catalog scaffolding; keep that progress, but do not let it replace the remaining module-structure work
+- PM QML presenter/view-model scaffolding is complete for the route set, and the dashboard now has a typed controller plus split page sections backed by a screen-specific desktop API snapshot with analysis panels and chart state; that UI progress remains valid and should not be reverted
+- PM QML now binds to presenter-backed metadata through a typed `pmCatalog`; outside the dashboard, the next source of truth should be the refactored module-local application/API structure
 - real PM workflow/query desktop APIs remain pending and should be added one migrated screen at a time
 - QML architecture guardrails are in place and should stay green before any old Widget screen is deleted
 - automated offscreen QML route loading is in place and should stay green before any old Widget screen is deleted
 - PM Dashboard QML now has API-backed read-only project selection, baseline selection, KPI cards, EVM/register/cost analysis panels, burndown/resource visuals, and delivery-health sections; dialogs, mutations, and deeper parity remain on the Widget dashboard until parity is completed
+
+Refactor-first priority for the remaining PM slice:
+
+- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into `src/core/modules/project_management/application/{projects,tasks,scheduling,resources,financials,risk}/*`
+- move PM reporting/rendering adapters into `src/core/modules/project_management/infrastructure/reporting/*`
+- expand module-local PM desktop and HTTP APIs over those application handlers, not over the broad legacy service layer
+- regroup PM tests under `src/tests/project_management/*`
+- keep QML migration attached to those refactored module-local APIs instead of using it to drive slice ordering
 
 Do:
 
@@ -1206,6 +1219,13 @@ Status as of 2026-04-19:
 
 Completed:
 
+- moved `core/modules/project_management/services/project/service.py` into `src/core/modules/project_management/application/projects/service.py`
+- moved `core/modules/project_management/services/project/lifecycle.py` into `src/core/modules/project_management/application/projects/commands/lifecycle.py`
+- moved `core/modules/project_management/services/project/validation.py` into `src/core/modules/project_management/application/projects/commands/validation.py`
+- moved `core/modules/project_management/services/project/query.py` into `src/core/modules/project_management/application/projects/queries/project_query.py`
+- moved `core/modules/project_management/services/project/resource_service.py` into `src/core/modules/project_management/application/resources/project_resource_service.py`, split across `commands/project_resource_commands.py` and `queries/project_resource_queries.py`
+- rewired PM composition, PM desktop APIs, dashboard/import helpers, legacy PM Widget callers, path rewrites, and architecture tests to the new `src.core.modules.project_management.application.{projects,resources}` imports
+- deleted the old source files under `core/modules/project_management/services/project/` after callers were rewritten, with no facade re-export package kept behind
 - PM ORM rows now live under `src/core/modules/project_management/infrastructure/persistence/orm/`
 - PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - the old `src/infra/persistence/orm/project_management/` global module ORM package was deleted after direct import rewrites
@@ -1270,7 +1290,9 @@ Verified:
 Continue next:
 
 1. Continue the PM domain, service, API, and UI work before starting another module.
-2. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.
+2. Prioritize the remaining PM repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion.
+3. Regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle.
+4. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.
 
 ### Slice 3: Inventory & Procurement
 

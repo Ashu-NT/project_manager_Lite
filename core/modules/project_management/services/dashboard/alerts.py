@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
-from core.modules.project_management.services.project.service import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.task.service import TaskService
 from core.modules.project_management.services.reporting.models import ProjectKPI, ResourceLoadRow
 

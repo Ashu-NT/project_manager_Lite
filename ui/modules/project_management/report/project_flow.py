@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QComboBox
 
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from src.ui.shared.widgets.combo import current_data_and_text
 
 

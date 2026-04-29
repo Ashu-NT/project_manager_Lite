@@ -5,7 +5,7 @@ from typing import Optional
 from PySide6.QtWidgets import QComboBox, QTableView
 
 from src.core.modules.project_management.domain.tasks.task import Task
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.task import TaskService
 from ui.modules.project_management.task.models import TaskTableModel
 from src.ui.shared.widgets.combo import current_data

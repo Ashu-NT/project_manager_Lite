@@ -2,26 +2,30 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.contracts.repositories.cost_calendar import (
+    CalendarEventRepository,
+    CostRepository,
+)
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
-    CostRepository,
+from src.core.modules.project_management.application.projects.commands.lifecycle import (
+    ProjectLifecycleMixin,
 )
-from src.core.platform.common.interfaces import TimeEntryRepository
+from src.core.modules.project_management.application.projects.queries.project_query import (
+    ProjectQueryMixin,
+)
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.common.interfaces import TimeEntryRepository
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.project.lifecycle import ProjectLifecycleMixin
-from core.modules.project_management.services.project.query import ProjectQueryMixin
 
 
 class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):
-    """Project service orchestrator: wiring repositories + composing mixins."""
+    """Project application service orchestrator."""
 
     def __init__(
         self,

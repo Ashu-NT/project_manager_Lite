@@ -17,7 +17,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.tasks.task import Task
-from core.modules.project_management.services.project import ProjectResourceService
+from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService

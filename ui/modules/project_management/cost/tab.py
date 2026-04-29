@@ -7,7 +7,7 @@ from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.cost import CostService
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService

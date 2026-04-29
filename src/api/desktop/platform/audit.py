@@ -10,7 +10,7 @@ from src.core.platform.audit import AuditService
 from src.core.platform.audit.domain import AuditLogEntry
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.cost import CostService
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 

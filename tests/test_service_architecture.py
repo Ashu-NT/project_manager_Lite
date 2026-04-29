@@ -63,12 +63,11 @@ from core.modules.project_management.services.dashboard import DashboardService
 from core.modules.project_management.services.finance import FinanceService
 from core.modules.project_management.services.finance.service import FinanceService as LegacyFinanceService
 from core.modules.project_management.services.portfolio import PortfolioService
-from core.modules.project_management.services.project import ProjectResourceService, ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.register.service import RegisterService as LegacyRegisterService
 from core.modules.project_management.services.calendar.service import CalendarService as LegacyCalendarService
-from core.modules.project_management.services.project.resource_service import ProjectResourceService as LegacyProjectResourceService
-from core.modules.project_management.services.project.service import ProjectService as LegacyProjectService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.reporting.service import ReportingService as LegacyReportingService
 from core.modules.project_management.services.resource import ResourceService
@@ -233,8 +232,6 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyApprovalService is ApprovalService
     assert LegacyAuthService is AuthService
     assert LegacyAuditService is AuditService
-    assert LegacyProjectService is ProjectService
-    assert LegacyProjectResourceService is ProjectResourceService
     assert LegacyRegisterService is RegisterService
     assert LegacyTaskService is TaskService
     assert LegacyResourceService is ResourceService
@@ -246,6 +243,19 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyReportingService is ReportingService
     assert LegacyBaselineService is BaselineService
     assert LegacyFinanceService is FinanceService
+
+
+def test_legacy_project_service_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+
+    legacy_root = root / "core" / "modules" / "project_management" / "services" / "project"
+
+    assert not (legacy_root / "__init__.py").exists()
+    assert not (legacy_root / "service.py").exists()
+    assert not (legacy_root / "lifecycle.py").exists()
+    assert not (legacy_root / "query.py").exists()
+    assert not (legacy_root / "validation.py").exists()
+    assert not (legacy_root / "resource_service.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

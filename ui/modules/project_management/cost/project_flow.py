@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QTableView, QTableWi
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.services.cost import CostService
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.task import TaskService
 from ui.modules.project_management.cost.filters import CostFiltersMixin

@@ -8,7 +8,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from core.modules.project_management.services.project import ProjectResourceService
+from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 from src.ui.shared.dialogs.incident_support import emit_error_event, message_with_incident

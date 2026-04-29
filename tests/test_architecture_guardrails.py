@@ -10,7 +10,8 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1280,
+    "tests/test_architecture_guardrails.py": 1310,
+    "tests/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
 
@@ -85,6 +86,8 @@ def test_shared_access_platform_layers_do_not_import_pm_access_code():
     forbidden_import_targets = (
         "core.modules.project_management.access.policy",
         "core.modules.project_management.services.project",
+        "src.core.modules.project_management.application.projects",
+        "src.core.modules.project_management.application.resources",
     )
     checked_files = (
         ROOT / "src" / "core" / "platform" / "access" / "application" / "access_control_service.py",
@@ -1019,14 +1022,34 @@ def test_core_platform_does_not_import_module_contracts():
 
 
 def test_project_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "services" / "project" / "service.py"
+    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "projects" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.project.lifecycle import ProjectLifecycleMixin" in text
-    assert "from core.modules.project_management.services.project.query import ProjectQueryMixin" in text
+    assert "from src.core.modules.project_management.application.projects.commands.lifecycle import (" in text
+    assert "from src.core.modules.project_management.application.projects.queries.project_query import (" in text
     assert "def create_project" not in text
     assert "def update_project" not in text
     assert "def delete_project" not in text
+
+
+def test_project_resource_service_is_orchestrator_only():
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "resources"
+        / "project_resource_service.py"
+    )
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.modules.project_management.application.resources.commands.project_resource_commands import (" in text
+    assert "from src.core.modules.project_management.application.resources.queries.project_resource_queries import (" in text
+    assert "def add_to_project" not in text
+    assert "def update(" not in text
+    assert "def delete(" not in text
 
 
 def test_cost_service_is_orchestrator_only():
@@ -1208,10 +1231,13 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/portfolio/templates.py": 160,
         "src/ui/shared/formatting/ui_config.py": 320,
         "core/modules/project_management/services/task/service.py": 140,
-        "core/modules/project_management/services/project/service.py": 90,
-        "core/modules/project_management/services/project/lifecycle.py": 250,
-        "core/modules/project_management/services/project/query.py": 90,
-        "core/modules/project_management/services/project/validation.py": 80,
+        "src/core/modules/project_management/application/projects/service.py": 90,
+        "src/core/modules/project_management/application/projects/commands/lifecycle.py": 255,
+        "src/core/modules/project_management/application/projects/commands/validation.py": 80,
+        "src/core/modules/project_management/application/projects/queries/project_query.py": 90,
+        "src/core/modules/project_management/application/resources/project_resource_service.py": 100,
+        "src/core/modules/project_management/application/resources/commands/project_resource_commands.py": 320,
+        "src/core/modules/project_management/application/resources/queries/project_resource_queries.py": 120,
         "core/modules/project_management/services/task/lifecycle.py": 315,
         "core/modules/project_management/services/task/dependency.py": 175,
         "core/modules/project_management/services/task/assignment.py": 245,

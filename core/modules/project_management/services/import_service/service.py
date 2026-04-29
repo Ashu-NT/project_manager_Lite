@@ -6,7 +6,7 @@ from src.core.platform.importing import CsvImportRuntime, ImportDefinitionRegist
 from core.modules.project_management.importing import register_project_management_import_definitions
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.cost import CostService
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService
 

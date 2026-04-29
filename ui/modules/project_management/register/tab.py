@@ -26,7 +26,7 @@ from src.core.modules.project_management.domain.risk.register import as_register
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.auth import UserSessionContext
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.register import RegisterService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.register.dialogs import RegisterEntryDialog

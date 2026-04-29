@@ -207,7 +207,11 @@ PATH_REWRITE_PREFIXES = (
     ("core/services/finance/", "core/modules/project_management/services/finance/"),
     ("core/services/import_service/", "core/modules/project_management/services/import_service/"),
     ("core/services/portfolio/", "core/modules/project_management/services/portfolio/"),
-    ("core/services/project/", "core/modules/project_management/services/project/"),
+    (
+        "core/services/project/resource_service.py",
+        "src/core/modules/project_management/application/resources/project_resource_service.py",
+    ),
+    ("core/services/project/", "src/core/modules/project_management/application/projects/"),
     ("core/services/register/", "core/modules/project_management/services/register/"),
     ("core/services/reporting/", "core/modules/project_management/services/reporting/"),
     ("core/services/resource/", "core/modules/project_management/services/resource/"),

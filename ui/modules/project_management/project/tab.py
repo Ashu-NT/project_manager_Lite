@@ -17,7 +17,8 @@ from src.core.platform.notifications.domain_events import domain_events
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.import_service import DataImportService
-from core.modules.project_management.services.project import ProjectResourceService, ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.task import TaskService

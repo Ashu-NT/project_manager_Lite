@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QWidget
 
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.auth import UserSessionContext
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.scheduling import SchedulingEngine
 from core.modules.project_management.services.task import TaskService
 from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService

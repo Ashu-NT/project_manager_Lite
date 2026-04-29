@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.platform.common.exceptions import ValidationError
 
 
 class ProjectValidationMixin:

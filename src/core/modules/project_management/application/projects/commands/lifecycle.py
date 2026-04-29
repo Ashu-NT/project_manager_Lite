@@ -5,25 +5,27 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.modules.project_management.application.projects.commands.validation import (
+    ProjectValidationMixin,
+)
+from src.core.modules.project_management.contracts.repositories.cost_calendar import (
+    CalendarEventRepository,
+    CostRepository,
+)
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
-    CostRepository,
-)
-from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.modules.project_management.domain.projects.project import Project
-from core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
-from core.modules.project_management.services.project.validation import ProjectValidationMixin
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.interfaces import TimeEntryRepository
+from src.core.platform.notifications.domain_events import domain_events
+from core.modules.project_management.domain.enums import ProjectStatus
 
 logger = logging.getLogger(__name__)
 DEFAULT_CURRENCY_CODE = "EUR"
@@ -78,9 +80,9 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             logger.info("Created project %s - %s", project.id, project.name)
             domain_events.project_changed.emit(project.id)
             return project
-        except Exception as e:
+        except Exception as exc:
             self._session.rollback()
-            logger.error("Error creating project: %s", e)
+            logger.error("Error creating project: %s", exc)
             raise
 
     def set_status(self, project_id: str, status: ProjectStatus) -> None:
@@ -245,4 +247,5 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
 
         domain_events.project_changed.emit(project_id)
 
-__all__ = ["ProjectLifecycleMixin", "DEFAULT_CURRENCY_CODE"]
+
+__all__ = ["DEFAULT_CURRENCY_CODE", "ProjectLifecycleMixin"]

@@ -9,7 +9,7 @@ from core.modules.project_management.services.dashboard import (
     PORTFOLIO_SCOPE_ID,
     DashboardService,
 )
-from core.modules.project_management.services.project.service import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.register.models import RegisterProjectSummary
 from src.core.modules.project_management.domain.risk.register import (
     as_register_entry_severity,

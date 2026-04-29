@@ -22,7 +22,8 @@ from core.modules.project_management.services.dashboard import DashboardService
 from core.modules.project_management.services.finance import FinanceService
 from core.modules.project_management.services.import_service import DataImportService
 from core.modules.project_management.services.portfolio import PortfolioService
-from core.modules.project_management.services.project import ProjectResourceService, ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService

@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QComboBox, QMessageBox
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.auth.authorization import require_permission
-from core.modules.project_management.services.project import ProjectService
+from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.scheduling import SchedulingEngine
 from core.modules.project_management.services.task import TaskService
 from src.ui.shared.dialogs.incident_support import emit_error_event, message_with_incident
