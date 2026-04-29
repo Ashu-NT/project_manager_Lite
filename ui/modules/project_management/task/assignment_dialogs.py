@@ -19,8 +19,8 @@ from src.core.modules.project_management.domain.resources.resource import Resour
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.resources import ProjectResourceService
 from src.core.modules.project_management.application.resources import ResourceService
+from src.core.modules.project_management.application.resources import TimesheetService
 from src.core.modules.project_management.application.tasks import TaskService
-from core.modules.project_management.services.timesheet import TimesheetService
 from ui.modules.project_management.task.assignment_helpers import show_overallocation_warning_if_any
 from ui.modules.project_management.timesheet.dialog import TimesheetDialog
 from src.ui.shared.formatting.formatting import fmt_percent

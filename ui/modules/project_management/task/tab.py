@@ -11,7 +11,7 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.resources import ProjectResourceService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
-from core.modules.project_management.services.timesheet import TimesheetService
+from src.core.modules.project_management.application.resources import TimesheetService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
 from src.ui.shared.widgets.guards import (

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox
 
-from core.modules.project_management.services.import_service import DataImportService
+from src.core.modules.project_management.infrastructure.importers import DataImportService
 from ui.modules.project_management.project.import_wizard import ImportWizardDialog
 
 

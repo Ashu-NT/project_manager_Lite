@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import ImportFieldSpec
+from src.core.modules.project_management.infrastructure.importers.models import ImportFieldSpec
 
 
 IMPORT_SCHEMAS: dict[str, tuple[ImportFieldSpec, ...]] = {

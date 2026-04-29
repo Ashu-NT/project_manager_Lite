@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .models import ImportPreview, ImportPreviewRow
+from src.core.modules.project_management.infrastructure.importers.models import ImportPreview, ImportPreviewRow
 
 
 class DataImportPreviewMixin:

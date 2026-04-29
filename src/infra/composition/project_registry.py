@@ -18,12 +18,12 @@ from src.core.modules.project_management.application.scheduling.baseline_service
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from core.modules.project_management.services.import_service import DataImportService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
 from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
+    TimesheetService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
@@ -32,9 +32,9 @@ from src.core.modules.project_management.application.scheduling import (
     WorkCalendarEngine,
     WorkCalendarService,
 )
+from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
-from core.modules.project_management.services.timesheet import TimesheetService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle

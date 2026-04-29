@@ -10,7 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1415,
+    "tests/test_architecture_guardrails.py": 1460,
     "tests/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
@@ -349,15 +349,55 @@ def test_task_timesheet_dialog_module_is_facade_only():
     assert "class TimeEntryEditDialog" not in text
 
 
-def test_timesheet_lifecycle_module_is_facade_only():
-    lifecycle_path = ROOT / "core" / "services" / "timesheet" / "lifecycle.py"
-    text = lifecycle_path.read_text(encoding="utf-8", errors="ignore")
+def test_project_management_timesheet_service_wraps_platform_time_service():
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "resources"
+        / "timesheet_service.py"
+    )
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.timesheet.entries import" in text
-    assert "from core.modules.project_management.services.timesheet.periods import" in text
-    assert "from core.modules.project_management.services.timesheet.query import" in text
-    assert "from core.modules.project_management.services.timesheet.support import" in text
-    assert "class Timesheet" not in text
+    assert "from core.modules.project_management.services.common.module_guard import (" in text
+    assert "ProjectManagementModuleGuardMixin" in text
+    assert "from src.core.platform.time.application import TimeService" in text
+    assert "class TimesheetService(" in text
+    assert "def add_time_entry" not in text
+    assert "def submit_timesheet_period" not in text
+
+
+def test_data_import_service_is_split_under_pm_infrastructure_importers():
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "infrastructure"
+        / "importers"
+        / "service.py"
+    )
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    for snippet in (
+        "from src.core.modules.project_management.infrastructure.importers.definitions import (",
+        "register_project_management_import_definitions,",
+        "from src.core.modules.project_management.infrastructure.importers.execution import (",
+        "DataImportExecutionMixin,",
+        "from src.core.modules.project_management.infrastructure.importers.preview import (",
+        "DataImportPreviewMixin,",
+        "from src.core.modules.project_management.infrastructure.importers.support import (",
+        "DataImportSupportMixin,",
+    ):
+        assert snippet in text
+    assert "class DataImportService(" in text
+    assert "def _import_projects" not in text
+    assert "def _preview_projects" not in text
+    assert "def _required" not in text
 
 
 def test_cost_tab_is_coordinator_only():
@@ -1352,12 +1392,11 @@ def test_known_large_modules_have_growth_budgets():
         "src/core/modules/project_management/application/tasks/commands/assignment.py": 245,
         "src/core/modules/project_management/application/tasks/queries/task_query.py": 120,
         "src/core/modules/project_management/application/tasks/commands/validation.py": 220,
-        "core/modules/project_management/services/timesheet/service.py": 90,
-        "core/modules/project_management/services/timesheet/lifecycle.py": 40,
-        "core/modules/project_management/services/timesheet/query.py": 100,
-        "core/modules/project_management/services/timesheet/entries.py": 260,
-        "core/modules/project_management/services/timesheet/periods.py": 220,
-        "core/modules/project_management/services/timesheet/support.py": 240,
+        "src/core/modules/project_management/application/resources/timesheet_service.py": 30,
+        "src/core/modules/project_management/infrastructure/importers/service.py": 140,
+        "src/core/modules/project_management/infrastructure/importers/execution.py": 200,
+        "src/core/modules/project_management/infrastructure/importers/preview.py": 170,
+        "src/core/modules/project_management/infrastructure/importers/support.py": 180,
         "src/core/modules/project_management/application/resources/resource_service.py": 80,
         "src/core/modules/project_management/application/resources/commands/resource_commands.py": 280,
         "src/core/modules/project_management/application/resources/queries/resource_queries.py": 40,

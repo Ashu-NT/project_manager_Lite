@@ -6,5 +6,8 @@ from src.core.modules.project_management.application.resources.project_resource_
 from src.core.modules.project_management.application.resources.resource_service import (
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.timesheet_service import (
+    TimesheetService,
+)
 
-__all__ = ["ProjectResourceService", "ResourceService"]
+__all__ = ["ProjectResourceService", "ResourceService", "TimesheetService"]

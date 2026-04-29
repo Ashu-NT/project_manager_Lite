@@ -6,7 +6,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.application.resources import ProjectResourceService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
-from core.modules.project_management.services.timesheet import TimesheetService
+from src.core.modules.project_management.application.resources import TimesheetService
 from ui.modules.project_management.task.assignment_helpers import show_overallocation_warning_if_any
 from ui.modules.project_management.task.dialogs import AssignmentAddDialog
 from ui.modules.project_management.timesheet.dialog import TimesheetDialog

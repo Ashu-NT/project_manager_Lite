@@ -24,7 +24,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.time.application.timesheet_review import TimesheetReviewQueueItem
 from src.core.modules.project_management.application.projects import ProjectService
-from core.modules.project_management.services.timesheet import TimesheetService
+from src.core.modules.project_management.application.resources import TimesheetService
 from ui.modules.project_management.dashboard.styles import (
     dashboard_action_button_style,
     dashboard_badge_style,

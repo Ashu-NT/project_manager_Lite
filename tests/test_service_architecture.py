@@ -58,11 +58,13 @@ from src.core.modules.project_management.application.scheduling.baseline_service
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
+from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
 from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
+    TimesheetService,
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
@@ -74,7 +76,6 @@ from src.core.modules.project_management.application.scheduling import (
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
-from core.modules.project_management.services.timesheet import TimesheetService
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
 from pathlib import Path
 
@@ -151,6 +152,7 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.portfolio_service, PortfolioService)
     assert isinstance(graph.register_service, RegisterService)
     assert isinstance(graph.project_resource_service, ProjectResourceService)
+    assert isinstance(graph.data_import_service, DataImportService)
 
     as_dict = graph.as_dict()
     assert as_dict["approval_service"] is graph.approval_service
@@ -239,6 +241,36 @@ def test_legacy_project_service_package_is_removed():
     assert not (legacy_root / "query.py").exists()
     assert not (legacy_root / "validation.py").exists()
     assert not (legacy_root / "resource_service.py").exists()
+
+
+def test_legacy_timesheet_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_root = root / "core" / "modules" / "project_management" / "services" / "timesheet"
+
+    assert not (legacy_root / "__init__.py").exists()
+    assert not (legacy_root / "service.py").exists()
+    assert not (legacy_root / "lifecycle.py").exists()
+    assert not (legacy_root / "entries.py").exists()
+    assert not (legacy_root / "periods.py").exists()
+    assert not (legacy_root / "query.py").exists()
+    assert not (legacy_root / "support.py").exists()
+
+
+def test_legacy_import_service_packages_are_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_service_root = root / "core" / "modules" / "project_management" / "services" / "import_service"
+    legacy_definition_root = root / "core" / "modules" / "project_management" / "importing"
+
+    assert not (legacy_service_root / "__init__.py").exists()
+    assert not (legacy_service_root / "service.py").exists()
+    assert not (legacy_service_root / "execution.py").exists()
+    assert not (legacy_service_root / "preview.py").exists()
+    assert not (legacy_service_root / "support.py").exists()
+    assert not (legacy_service_root / "models.py").exists()
+    assert not (legacy_service_root / "schemas.py").exists()
+
+    assert not (legacy_definition_root / "__init__.py").exists()
+    assert not (legacy_definition_root / "definitions.py").exists()
 
 
 def test_legacy_task_service_package_is_removed():

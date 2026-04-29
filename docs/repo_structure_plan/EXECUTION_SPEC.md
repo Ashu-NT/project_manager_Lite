@@ -1198,7 +1198,7 @@ Resolved:
 
 Continue next:
 
-1. Continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/dashboard/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, `services/reporting/*`, `services/collaboration/*`, and `services/portfolio/*` moves, starting with `services/timesheet/*`, then `services/import_service/*`.
+1. The legacy PM service-transfer set is now completed through `services/timesheet/*` and `services/import_service/*`; continue with PM API, UI, and test regrouping on top of the new module-local structure.
 2. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
@@ -1224,7 +1224,7 @@ Hold status as of 2026-04-22:
 Refactor-first priority for the remaining PM slice:
 
 - move the remaining legacy PM service packages under `core/modules/project_management/services/*` into their module-local homes under `src/core/modules/project_management/{application,infrastructure}/*`, while keeping completed `projects`, `tasks`, `scheduling`, `baseline`, `dashboard`, `resources`, `financials`, `risk`, and `reporting` transfers clean and facade-free
-- keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and continue shrinking the remaining legacy PM service surface
+- keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and keep the new PM service boundaries stable while API and UI regrouping continues
 - expand module-local PM desktop and HTTP APIs over those application handlers, not over the broad legacy service layer
 - regroup PM tests under `src/tests/project_management/*`
 - keep QML migration attached to those refactored module-local APIs instead of using it to drive slice ordering
@@ -1286,6 +1286,12 @@ Completed:
 - moved `core/modules/project_management/services/portfolio/{service,dependencies,executive,intake,scenarios,support,templates}.py` into `src/core/modules/project_management/application/projects/{portfolio_service.py,portfolio_support.py,commands/*,queries/*}`
 - rewired PM composition, PM portfolio Widget callers, path rewrites, and architecture/service tests to import `PortfolioService` from `src.core.modules.project_management.application.projects`
 - deleted the old source files and legacy package root under `core/modules/project_management/services/portfolio/` after callers were rewritten, with no facade re-export package kept behind
+- moved the PM timesheet wrapper from `core/modules/project_management/services/timesheet/*` into `src/core/modules/project_management/application/resources/timesheet_service.py`, with shared time-entry and timesheet-period workflows remaining owned by `src.core.platform.time`
+- rewired PM composition, PM task/governance/timesheet Widget callers, task application time-entry commands, path rewrites, and architecture/service tests to import `TimesheetService` from `src.core.modules.project_management.application.resources`
+- deleted the old source files and legacy package root under `core/modules/project_management/services/timesheet/` after callers were rewritten, with no facade re-export package kept behind
+- moved `core/modules/project_management/services/import_service/{service,execution,preview,support,models,schemas}.py` and `core/modules/project_management/importing/definitions.py` into `src/core/modules/project_management/infrastructure/importers/*`
+- rewired PM composition, PM project/import Widget callers, path rewrites, and architecture/service tests to import `DataImportService` from `src.core.modules.project_management.infrastructure.importers`
+- deleted the old source files and legacy package roots under `core/modules/project_management/services/import_service/` and `core/modules/project_management/importing/` after callers were rewritten, with no facade re-export package kept behind
 - PM ORM rows now live under `src/core/modules/project_management/infrastructure/persistence/orm/`
 - PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - the old `src/infra/persistence/orm/project_management/` global module ORM package was deleted after direct import rewrites
@@ -1348,10 +1354,11 @@ Verified:
 - latest full architecture result after the PM risk register-domain split: 94 passed
 - PM collaboration application transfer verification: `pytest tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_task_mentions_pro.py -q`, observed 174 passed
 - PM portfolio application transfer verification: `pytest tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_portfolio_flow.py tests/test_enterprise_pm_foundation.py tests/test_project_management_platform_alignment.py tests/test_refactor_regressions.py tests/test_pro_set_v1_ui.py -q`, observed 194 passed
+- PM timesheet/import-service transfer verification: `pytest tests/test_architecture_guardrails.py tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_project_management_desktop_api.py -q`, observed 181 passed
 
 Continue next:
 
-1. Continue the PM domain, service, API, and UI work before starting another module, with the remaining legacy service transfers now centered on `services/timesheet/*` and `services/import_service/*`.
+1. Continue the PM domain, service, API, and UI work before starting another module, with the legacy service-transfer set now completed through `services/timesheet/*` and `services/import_service/*`.
 2. Prioritize the remaining PM repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion.
 3. Regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle.
 4. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.

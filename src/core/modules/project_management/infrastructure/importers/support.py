@@ -10,8 +10,9 @@ from src.core.modules.project_management.application.financials import CostServi
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
-
-from .models import ImportFieldSpec
+from src.core.modules.project_management.infrastructure.importers.models import (
+    ImportFieldSpec,
+)
 
 
 class DataImportSupportMixin:

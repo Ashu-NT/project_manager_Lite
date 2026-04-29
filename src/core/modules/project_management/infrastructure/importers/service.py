@@ -2,19 +2,34 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.core.platform.importing import CsvImportRuntime, ImportDefinitionRegistry
-from core.modules.project_management.importing import register_project_management_import_definitions
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from core.modules.project_management.services.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
 from src.core.modules.project_management.application.financials import CostService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
-
-from .execution import DataImportExecutionMixin
-from .models import ImportFieldSpec, ImportPreview, ImportSummary
-from .preview import DataImportPreviewMixin
-from .schemas import IMPORT_SCHEMAS
-from .support import DataImportSupportMixin
+from src.core.modules.project_management.infrastructure.importers.definitions import (
+    register_project_management_import_definitions,
+)
+from src.core.modules.project_management.infrastructure.importers.execution import (
+    DataImportExecutionMixin,
+)
+from src.core.modules.project_management.infrastructure.importers.models import (
+    ImportFieldSpec,
+    ImportPreview,
+    ImportSummary,
+)
+from src.core.modules.project_management.infrastructure.importers.preview import (
+    DataImportPreviewMixin,
+)
+from src.core.modules.project_management.infrastructure.importers.schemas import (
+    IMPORT_SCHEMAS,
+)
+from src.core.modules.project_management.infrastructure.importers.support import (
+    DataImportSupportMixin,
+)
+from src.core.platform.importing import CsvImportRuntime, ImportDefinitionRegistry
 
 
 class DataImportService(

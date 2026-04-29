@@ -21,7 +21,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.modules.project_management.services.import_service import DataImportService, ImportFieldSpec, ImportPreview
+from src.core.modules.project_management.infrastructure.importers import (
+    DataImportService,
+    ImportFieldSpec,
+    ImportPreview,
+)
 from src.ui.shared.formatting.style_utils import style_table
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
