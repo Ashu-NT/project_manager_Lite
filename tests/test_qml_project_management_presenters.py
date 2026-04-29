@@ -1,4 +1,6 @@
+from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.modules.project_management.presenters import (
@@ -6,6 +8,9 @@ from src.ui_qml.modules.project_management.presenters import (
     build_project_management_workspace_presenters,
 )
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
+from src.core.modules.project_management.api.desktop import (
+    build_project_management_dashboard_desktop_api,
+)
 
 
 def test_project_management_workspace_presenters_match_qml_routes() -> None:
@@ -47,6 +52,83 @@ def test_project_management_workspace_catalog_exposes_typed_dashboard_controller
     assert workspace["migrationStatus"] == "QML landing zone ready"
     assert overview["title"] == "Dashboard"
     assert overview["metrics"][0]["label"] == "Tasks"
+
+
+def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_state() -> None:
+    desktop_api = build_project_management_dashboard_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [
+                SimpleNamespace(id="proj-1", name="Plant Upgrade"),
+                SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
+            ]
+        ),
+        baseline_service=SimpleNamespace(
+            list_baselines=lambda project_id: [
+                SimpleNamespace(
+                    id=f"{project_id}-base-1",
+                    name="Latest Freeze",
+                    created_at=datetime(2026, 4, 27, 9, 0),
+                )
+            ]
+        ),
+        dashboard_service=SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id=project_id,
+                    name="Plant Upgrade" if project_id == "proj-1" else "Warehouse Retrofit",
+                    tasks_total=8,
+                    tasks_completed=3,
+                    tasks_in_progress=2,
+                    task_blocked=1,
+                    critical_tasks=1,
+                    late_tasks=0,
+                    cost_variance=1500.0,
+                    total_actual_cost=5000.0,
+                    total_planned_cost=6500.0,
+                ),
+                alerts=["Field issue requires review"],
+                milestone_health=[],
+                critical_watchlist=[],
+                resource_load=[],
+                upcoming_tasks=[],
+            ),
+            get_portfolio_data=lambda: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id="__portfolio__",
+                    name="Portfolio Overview",
+                    tasks_total=0,
+                    tasks_completed=0,
+                    tasks_in_progress=0,
+                    task_blocked=0,
+                    critical_tasks=0,
+                    late_tasks=0,
+                    cost_variance=0.0,
+                    total_actual_cost=0.0,
+                    total_planned_cost=0.0,
+                ),
+                portfolio=SimpleNamespace(projects_total=2, project_rankings=[]),
+                alerts=[],
+                milestone_health=[],
+                critical_watchlist=[],
+                resource_load=[],
+                upcoming_tasks=[],
+            ),
+        ),
+    )
+    catalog = ProjectManagementWorkspaceCatalog(
+        desktop_api_registry=SimpleNamespace(project_management_dashboard=desktop_api)
+    )
+
+    controller = catalog.dashboardWorkspace
+
+    assert controller.projectOptions[1]["label"] == "Plant Upgrade"
+    assert controller.selectedProjectId == "proj-1"
+    assert controller.baselineOptions[1]["value"] == "proj-1-base-1"
+    assert controller.sections[0]["title"] == "Alerts"
+
+    controller.selectBaseline("proj-1-base-1")
+
+    assert controller.selectedBaselineId == "proj-1-base-1"
 
 
 def test_project_management_workspace_catalog_returns_empty_unknown_workspace() -> None:
@@ -109,3 +191,4 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "import ProjectManagement.Controllers 1.0" in qml_text
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
+    assert "QML read-only dashboard slice active" in qml_text

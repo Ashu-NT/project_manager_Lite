@@ -22,7 +22,14 @@ Module {
         prototype: "ProjectManagementWorkspaceControllerBase"
         exports: ["ProjectManagement.Controllers/ProjectManagementDashboardWorkspaceController 1.0"]
         Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+        Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
+        Property { name: "sections"; type: "QVariantList"; isReadonly: true }
         Method { name: "refresh" }
+        Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+        Method { name: "selectBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     }
 
     Component {

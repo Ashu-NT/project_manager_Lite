@@ -3,6 +3,10 @@
 from src.core.modules.project_management.api.desktop.dashboard import (
     ProjectDashboardMetricDescriptor,
     ProjectDashboardOverviewDescriptor,
+    ProjectDashboardSectionDescriptor,
+    ProjectDashboardSectionItemDescriptor,
+    ProjectDashboardSelectorOptionDescriptor,
+    ProjectDashboardSnapshotDescriptor,
     ProjectManagementDashboardDesktopApi,
     build_project_management_dashboard_desktop_api,
 )
@@ -15,6 +19,10 @@ from src.core.modules.project_management.api.desktop.workspaces import (
 __all__ = [
     "ProjectDashboardMetricDescriptor",
     "ProjectDashboardOverviewDescriptor",
+    "ProjectDashboardSectionDescriptor",
+    "ProjectDashboardSectionItemDescriptor",
+    "ProjectDashboardSelectorOptionDescriptor",
+    "ProjectDashboardSnapshotDescriptor",
     "ProjectManagementDashboardDesktopApi",
     "build_project_management_dashboard_desktop_api",
     "ProjectManagementWorkspaceDescriptor",

@@ -23,7 +23,9 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         getattr(desktop_api_registry, "platform_runtime", None) if desktop_api_registry is not None else None,
         desktop_api_registry=desktop_api_registry,
     )
-    pm_workspace_catalog = ProjectManagementWorkspaceCatalog()
+    pm_workspace_catalog = ProjectManagementWorkspaceCatalog(
+        desktop_api_registry=desktop_api_registry,
+    )
     engine = create_qml_engine()
     load_qml(
         engine,

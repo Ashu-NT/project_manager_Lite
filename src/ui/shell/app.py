@@ -36,6 +36,9 @@ def build_services() -> dict[str, object]:
     services["desktop_platform_party_api"] = desktop_api_registry.platform_party
     services["desktop_platform_support_api"] = desktop_api_registry.platform_support
     services["desktop_platform_user_api"] = desktop_api_registry.platform_user
+    services["desktop_project_management_dashboard_api"] = (
+        desktop_api_registry.project_management_dashboard
+    )
     return services
 
 

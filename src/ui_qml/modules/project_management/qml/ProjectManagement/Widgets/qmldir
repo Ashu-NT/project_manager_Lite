@@ -1,3 +1,5 @@
 module ProjectManagement.Widgets
+DashboardSectionCard 1.0 DashboardSectionCard.qml
+WorkspaceStateBanner 1.0 WorkspaceStateBanner.qml
 WorkspacePlaceholderPage 1.0 WorkspacePlaceholderPage.qml
 WorkspaceStatusSection 1.0 WorkspaceStatusSection.qml

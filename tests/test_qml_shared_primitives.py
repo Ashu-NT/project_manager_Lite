@@ -80,6 +80,8 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         QML_PM_WIDGETS / "qmldir",
+        QML_PM_WIDGETS / "DashboardSectionCard.qml",
+        QML_PM_WIDGETS / "WorkspaceStateBanner.qml",
         QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
         QML_PM_WIDGETS / "WorkspaceStatusSection.qml",
     ]

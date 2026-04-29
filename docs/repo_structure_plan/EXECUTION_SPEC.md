@@ -558,7 +558,7 @@ Project Management QML route status as of 2026-04-29:
 - PM QML entry workspaces exist for `projects`, `tasks`, `scheduling`, `resources`, `financials`, `risk`, `portfolio`, `register`, `collaboration`, `timesheets`, and `dashboard`
 - the dashboard now uses a split `DashboardWorkspace.qml` -> `DashboardWorkspacePage.qml` pattern with local section components, matching the platform workspace layout style
 - the remaining PM workspaces now render through `ProjectManagement.Widgets/WorkspacePlaceholderPage.qml` instead of repeating ad-hoc placeholder layouts
-- these are landing zones only; active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
+- the remaining PM workspaces are still landing zones only; the dashboard is now the first real read-only migrated slice, while active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
 - PM QML now receives a typed `pmCatalog` through the shell loader, and `App.qml` / `MainWindow.qml` no longer treat PM as an untyped `var`
 - `src/ui_qml/modules/project_management/qml/ProjectManagement/{Controllers,Widgets}/qmldir` now define stable named modules for PM controller and widget imports
 - `tests/test_qml_project_management_routes.py` covers PM route registration and workspace file existence
@@ -567,20 +567,21 @@ Project Management QML route status as of 2026-04-29:
 Project Management QML presenter/view-model status as of 2026-04-29:
 
 - `src/core/modules/project_management/api/desktop/workspaces.py` defines the first module-owned PM desktop API surface used by QML routes and presenters
-- `src/core/modules/project_management/api/desktop/dashboard.py` defines the first PM dashboard desktop API overview contract and KPI descriptor shape
+- `src/core/modules/project_management/api/desktop/dashboard.py` defines the first PM dashboard desktop API snapshot contract, including selector options, KPI descriptors, and read-only dashboard section descriptors
 - `src/ui_qml/modules/project_management/view_models/workspace.py` defines the first PM QML workspace view model
-- `src/ui_qml/modules/project_management/view_models/dashboard.py` defines the first PM dashboard QML overview and metric view models
+- `src/ui_qml/modules/project_management/view_models/dashboard.py` defines PM dashboard overview, selector, section, and workspace view models for the QML dashboard slice
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` defines the first PM QML workspace presenter contract
 - `src/ui_qml/modules/project_management/presenters/dashboard_presenter.py` maps the PM dashboard desktop API overview into QML-safe view models
+- `src/ui_qml/modules/project_management/presenters/dashboard_workspace_presenter.py` maps the PM dashboard desktop API snapshot into typed selector, section, and empty-state view models
 - `src/ui_qml/modules/project_management/context.py` now exposes `ProjectManagementWorkspaceCatalog` as the typed PM QML catalog
 - `src/ui_qml/modules/project_management/controllers/common/workspace_controller_base.py` defines the PM workspace-state base used for typed controller exposure
 - `src/ui_qml/modules/project_management/controllers/dashboard/dashboard_workspace_controller.py` exposes the dashboard through a typed `ProjectManagementDashboardWorkspaceController`
 - `src/ui_qml/modules/project_management/qml_type_registration.py` plus `ProjectManagement/Controllers/typeinfo/*` now expose typed runtime/tooling registration for the PM catalog and dashboard controller
 - every registered PM QML route has a matching presenter-backed view model scaffold
 - PM QML files now bind title, summary, migration status, and legacy-runtime status through a typed `pmCatalog` surface instead of generic `property var pmCatalog`
-- `DashboardWorkspacePage.qml` now renders API-backed read-only KPI cards through a typed controller and split QML sections
-- presenter/catalog scaffolding now calls the PM workspace desktop API for metadata only; real workflow/query desktop APIs remain pending
-- the dashboard read-only overview API is the first PM screen-specific desktop API contract; live refresh/actions remain pending
+- `DashboardWorkspacePage.qml` now renders API-backed project selection, baseline selection, KPI cards, workspace-state feedback, and read-only dashboard sections through a typed controller and split QML sections
+- presenter/catalog scaffolding now calls the PM workspace desktop API for metadata, while the dashboard also consumes the first PM screen-specific desktop API snapshot; real workflow/query desktop APIs for the other workspaces remain pending
+- the dashboard read-only snapshot API is the first PM screen-specific desktop API contract; charts, dialogs, and live mutations remain pending
 - active PM QWidget screens remain active; no Widget screen has been deleted or replaced
 - `tests/test_qml_project_management_presenters.py` covers route-to-presenter alignment, typed dashboard controller exposure, named-module usage, QML-safe catalog maps, and guards against legacy Widget or infrastructure imports in the PM QML layer
 - `tests/test_project_management_desktop_api.py` covers PM desktop workspace API descriptors and guards against QML or infrastructure imports from the desktop API layer
@@ -1174,19 +1175,20 @@ Continue next:
 Hold status as of 2026-04-22:
 
 - pause Slice 2 backend/domain restructuring until the QML migration checkpoint is accepted
+- the PM QML migration itself remains part of Slice 2 and should continue inside Slice 2 one workspace/dialog at a time before moving to another module
 - completed Slice 2 persistence/contracts/domain work remains valid and must not be reverted
 - active Widget UI under `src/ui/*` remains runnable during migration
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
-- PM QML route landing zones are complete with typed controller/catalog scaffolding; real PM screen replacement remains pending
-- PM QML presenter/view-model scaffolding is complete for the route set, and the dashboard now has a typed controller plus split page sections; workspace metadata now comes from a module desktop API
-- PM QML now binds to presenter-backed metadata through a typed `pmCatalog`; outside the dashboard overview, desktop API wiring and real screen parity still remain pending
+- PM QML route landing zones are complete with typed controller/catalog scaffolding; the first real PM screen replacement slice has now started on the dashboard
+- PM QML presenter/view-model scaffolding is complete for the route set, and the dashboard now has a typed controller plus split page sections backed by a screen-specific desktop API snapshot; workspace metadata now comes from a module desktop API
+- PM QML now binds to presenter-backed metadata through a typed `pmCatalog`; outside the dashboard, desktop API wiring and real screen parity still remain pending, and the dashboard itself is still read-only rather than full Widget parity
 - real PM workflow/query desktop APIs remain pending and should be added one migrated screen at a time
 - QML architecture guardrails are in place and should stay green before any old Widget screen is deleted
 - automated offscreen QML route loading is in place and should stay green before any old Widget screen is deleted
-- PM Dashboard QML has an API-backed read-only KPI overview; live data refresh, project selection, baselines, charts, dialogs, and actions remain on the Widget dashboard until parity is completed
+- PM Dashboard QML now has API-backed read-only project selection, baseline selection, KPI cards, and delivery-health sections; charts, dialogs, mutations, and deeper parity remain on the Widget dashboard until parity is completed
 
 Do:
 

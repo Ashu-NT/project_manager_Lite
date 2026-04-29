@@ -9,15 +9,28 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
+    ProjectDashboardWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
 
 
 class ProjectManagementWorkspaceCatalog(QObject):
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        desktop_api_registry: object | None = None,
+        parent: QObject | None = None,
+    ) -> None:
         super().__init__(parent)
         self._presenters = build_project_management_workspace_presenters()
+        dashboard_api = getattr(
+            desktop_api_registry,
+            "project_management_dashboard",
+            None,
+        )
         self._dashboard_workspace = ProjectManagementDashboardWorkspaceController(
+            dashboard_workspace_presenter=ProjectDashboardWorkspacePresenter(
+                desktop_api=dashboard_api
+            ),
             parent=self
         )
 

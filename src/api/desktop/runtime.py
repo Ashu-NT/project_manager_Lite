@@ -18,10 +18,17 @@ from src.api.desktop.platform import (
     PlatformSiteDesktopApi,
     PlatformUserDesktopApi,
 )
+from src.core.modules.project_management.api.desktop import (
+    ProjectManagementDashboardDesktopApi,
+    build_project_management_dashboard_desktop_api,
+)
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
 )
+from core.modules.project_management.services.baseline import BaselineService
+from core.modules.project_management.services.dashboard import DashboardService
+from core.modules.project_management.services.project.service import ProjectService
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
@@ -44,6 +51,7 @@ class DesktopApiRegistry:
     platform_party: PlatformPartyDesktopApi
     platform_support: PlatformSupportDesktopApi
     platform_user: PlatformUserDesktopApi
+    project_management_dashboard: ProjectManagementDashboardDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -88,6 +96,15 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     cost_service = services.get("cost_service")
     baseline_service = services.get("baseline_service")
     inventory_service = services.get("inventory_service")
+    pm_project_service = (
+        project_service if isinstance(project_service, ProjectService) else None
+    )
+    pm_dashboard_service = services.get("dashboard_service")
+    if not isinstance(pm_dashboard_service, DashboardService):
+        pm_dashboard_service = None
+    pm_baseline_service = (
+        baseline_service if isinstance(baseline_service, BaselineService) else None
+    )
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
@@ -143,6 +160,11 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_support=PlatformSupportDesktopApi(),
         platform_user=PlatformUserDesktopApi(
             auth_service=auth_service,
+        ),
+        project_management_dashboard=build_project_management_dashboard_desktop_api(
+            project_service=pm_project_service,
+            dashboard_service=pm_dashboard_service,
+            baseline_service=pm_baseline_service,
         ),
     )
 
