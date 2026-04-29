@@ -12,7 +12,7 @@ from core.modules.project_management.reporting.renderers.evm import EvmCurveRend
 from core.modules.project_management.reporting.renderers.excel import ExcelReportRenderer
 from core.modules.project_management.reporting.renderers.gantt import GanttPngRenderer
 from core.modules.project_management.reporting.renderers.pdf import PdfReportRenderer
-from core.modules.project_management.services.finance import FinanceService
+from src.core.modules.project_management.application.financials import FinanceService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.reporting.models import GanttTaskBar
 from src.core.platform.common.exceptions import BusinessRuleError

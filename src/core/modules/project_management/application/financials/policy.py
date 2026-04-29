@@ -5,7 +5,9 @@ from typing import Any
 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from core.modules.project_management.domain.enums import CostType
-from core.modules.project_management.services.finance.helpers import is_effectively_equal
+from src.core.modules.project_management.application.financials.helpers import (
+    is_effectively_equal,
+)
 
 
 def manual_labor_raw_totals(

@@ -7,8 +7,11 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.projects.project import Project
-from core.modules.project_management.services.finance.helpers import normalize_currency, resolve_rate
-from core.modules.project_management.services.finance.models import FinanceLedgerRow
+from src.core.modules.project_management.application.financials.helpers import (
+    normalize_currency,
+    resolve_rate,
+)
+from src.core.modules.project_management.application.financials.models import FinanceLedgerRow
 from core.modules.project_management.services.reporting import ReportingService
 
 

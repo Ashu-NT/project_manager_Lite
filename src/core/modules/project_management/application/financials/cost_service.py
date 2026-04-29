@@ -2,13 +2,19 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.financials.commands.cost_lifecycle import (
+    CostLifecycleMixin,
+)
+from src.core.modules.project_management.application.financials.cost_support import (
+    CostSupportMixin,
+)
+from src.core.modules.project_management.application.financials.queries.cost_query import (
+    CostQueryMixin,
+)
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.cost.lifecycle import CostLifecycleMixin
-from core.modules.project_management.services.cost.query import CostQueryMixin
-from core.modules.project_management.services.cost.support import CostSupportMixin
 
 
 class CostService(
@@ -36,5 +42,8 @@ class CostService(
         self._audit_service = audit_service
         self._approval_service = approval_service
         self._module_catalog_service = module_catalog_service
+
+
+__all__ = ["CostService"]
 
 

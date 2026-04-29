@@ -1,10 +1,7 @@
-# core/modules/project_management/services/resource/service.py
+# src/core/modules/project_management/application/resources/commands/resource_commands.py
 from __future__ import annotations
 
 import logging
-from typing import List
-
-from sqlalchemy.orm import Session
 
 from core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.resource import Resource
@@ -17,7 +14,6 @@ from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError,
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.notifications.domain_events import domain_events
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 
 logger = logging.getLogger(__name__)
 
@@ -45,29 +41,7 @@ def _normalize_capacity_percent(value: float | None) -> float:
     return resolved
 
 
-class ResourceService(ProjectManagementModuleGuardMixin):
-    def __init__(
-        self,
-        session: Session,
-        resource_repo: ResourceRepository,
-        assignment_repo: AssignmentRepository,
-        project_resource_repo: ProjectResourceRepository | None = None,
-        time_entry_repo: TimeEntryRepository | None = None,
-        employee_repo: EmployeeRepository | None = None,
-        user_session=None,
-        audit_service=None,
-        module_catalog_service=None,
-    ):
-        self._session: Session = session
-        self._resource_repo: ResourceRepository = resource_repo
-        self._assignment_repo: AssignmentRepository = assignment_repo
-        self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
-        self._time_entry_repo: TimeEntryRepository | None = time_entry_repo
-        self._employee_repo: EmployeeRepository | None = employee_repo
-        self._user_session = user_session
-        self._audit_service = audit_service
-        self._module_catalog_service = module_catalog_service
-
+class ResourceCommandMixin:
     def create_resource(
         self,
         name: str,
@@ -247,17 +221,6 @@ class ResourceService(ProjectManagementModuleGuardMixin):
         domain_events.resources_changed.emit(resource.id)
         return resource
 
-    def list_resources(self) -> List[Resource]:
-        require_permission(self._user_session, "resource.read", operation_label="list resources")
-        return self._resource_repo.list_all()
-
-    def get_resource(self, resource_id: str) -> Resource:
-        require_permission(self._user_session, "resource.read", operation_label="view resource")
-        resource = self._resource_repo.get(resource_id)
-        if not resource:
-            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-        return resource
-
     def delete_resource(self, resource_id: str) -> None:
         require_permission(self._user_session, "resource.manage", operation_label="delete resource")
         resource = self._resource_repo.get(resource_id)
@@ -287,5 +250,8 @@ class ResourceService(ProjectManagementModuleGuardMixin):
             self._session.rollback()
             raise e
         domain_events.resources_changed.emit(resource_id)
+
+
+__all__ = ["ResourceCommandMixin"]
 
 

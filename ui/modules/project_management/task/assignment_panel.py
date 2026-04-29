@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_meta_chip_style
 from src.ui.shared.widgets.guards import apply_permission_hint, make_guarded_slot

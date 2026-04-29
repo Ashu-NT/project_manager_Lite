@@ -12,6 +12,7 @@ from core.modules.project_management.services.dashboard.models import BurndownPo
 from core.modules.project_management.services.dashboard.portfolio import DashboardPortfolioMixin
 from core.modules.project_management.services.dashboard.professional import DashboardProfessionalMixin
 from core.modules.project_management.services.dashboard.upcoming import DashboardUpcomingMixin
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import (
     ResourceConflict,
@@ -22,7 +23,6 @@ from src.core.modules.project_management.application.scheduling import (
 )
 from core.modules.project_management.services.reporting.service import ReportingService
 from core.modules.project_management.services.register import RegisterService
-from core.modules.project_management.services.resource import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 
 

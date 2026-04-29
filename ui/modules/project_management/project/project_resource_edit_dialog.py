@@ -6,7 +6,7 @@ from PySide6 import QtWidgets
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.modules.project_management.application.resources import ProjectResourceService
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.ui.shared.formatting.ui_config import UIConfig as CFG, CurrencyType
 
 

@@ -10,7 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1340,
+    "tests/test_architecture_guardrails.py": 1400,
     "tests/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
@@ -458,13 +458,22 @@ def test_dashboard_service_is_orchestrator_only():
 
 
 def test_finance_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "services" / "finance" / "service.py"
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "financials"
+        / "finance_service.py"
+    )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.finance.analytics import" in text
-    assert "from core.modules.project_management.services.finance.cashflow import" in text
-    assert "from core.modules.project_management.services.finance.ledger import" in text
-    assert "from core.modules.project_management.services.finance.policy import" in text
+    assert "from src.core.modules.project_management.application.financials.analytics import (" in text
+    assert "from src.core.modules.project_management.application.financials.cashflow import (" in text
+    assert "from src.core.modules.project_management.application.financials.ledger import (" in text
+    assert "from src.core.modules.project_management.application.financials.policy import (" in text
     assert "def _manual_labor_raw_totals" not in text
     assert "def _build_cost_item_ledger_rows" not in text
     assert "def _build_computed_labor_plan_rows" not in text
@@ -1061,13 +1070,44 @@ def test_project_resource_service_is_orchestrator_only():
     assert "def delete(" not in text
 
 
-def test_cost_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "modules" / "project_management" / "services" / "cost" / "service.py"
+def test_resource_service_is_orchestrator_only():
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "resources"
+        / "resource_service.py"
+    )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.cost.lifecycle import CostLifecycleMixin" in text
-    assert "from core.modules.project_management.services.cost.query import CostQueryMixin" in text
-    assert "from core.modules.project_management.services.cost.support import CostSupportMixin" in text
+    assert "from src.core.modules.project_management.application.resources.commands.resource_commands import (" in text
+    assert "from src.core.modules.project_management.application.resources.queries.resource_queries import (" in text
+    assert "def create_resource" not in text
+    assert "def update_resource" not in text
+    assert "def delete_resource" not in text
+    assert "def list_resources" not in text
+    assert "def get_resource" not in text
+
+
+def test_cost_service_is_orchestrator_only():
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "financials"
+        / "cost_service.py"
+    )
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.modules.project_management.application.financials.commands.cost_lifecycle import (" in text
+    assert "from src.core.modules.project_management.application.financials.queries.cost_query import (" in text
+    assert "from src.core.modules.project_management.application.financials.cost_support import (" in text
     assert "class CostService(" in text
     assert "def add_cost_item" not in text
     assert "def update_cost_item" not in text
@@ -1248,12 +1288,12 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/dashboard/evm.py": 160,
         "core/modules/project_management/services/dashboard/portfolio.py": 300,
         "core/modules/project_management/services/dashboard/portfolio_models.py": 100,
-        "core/modules/project_management/services/finance/service.py": 220,
-        "core/modules/project_management/services/finance/ledger.py": 260,
-        "core/modules/project_management/services/finance/analytics.py": 160,
-        "core/modules/project_management/services/finance/cashflow.py": 120,
-        "core/modules/project_management/services/finance/policy.py": 120,
-        "core/modules/project_management/services/finance/helpers.py": 120,
+        "src/core/modules/project_management/application/financials/finance_service.py": 220,
+        "src/core/modules/project_management/application/financials/ledger.py": 260,
+        "src/core/modules/project_management/application/financials/analytics.py": 160,
+        "src/core/modules/project_management/application/financials/cashflow.py": 120,
+        "src/core/modules/project_management/application/financials/policy.py": 120,
+        "src/core/modules/project_management/application/financials/helpers.py": 120,
         "core/modules/project_management/services/portfolio/dependencies.py": 220,
         "core/modules/project_management/services/portfolio/service.py": 90,
         "core/modules/project_management/services/portfolio/executive.py": 120,
@@ -1281,10 +1321,13 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/timesheet/entries.py": 260,
         "core/modules/project_management/services/timesheet/periods.py": 220,
         "core/modules/project_management/services/timesheet/support.py": 240,
-        "core/modules/project_management/services/cost/service.py": 80,
-        "core/modules/project_management/services/cost/lifecycle.py": 240,
-        "core/modules/project_management/services/cost/query.py": 60,
-        "core/modules/project_management/services/cost/support.py": 110,
+        "src/core/modules/project_management/application/resources/resource_service.py": 80,
+        "src/core/modules/project_management/application/resources/commands/resource_commands.py": 280,
+        "src/core/modules/project_management/application/resources/queries/resource_queries.py": 40,
+        "src/core/modules/project_management/application/financials/cost_service.py": 80,
+        "src/core/modules/project_management/application/financials/commands/cost_lifecycle.py": 240,
+        "src/core/modules/project_management/application/financials/queries/cost_query.py": 60,
+        "src/core/modules/project_management/application/financials/cost_support.py": 110,
         "core/modules/project_management/services/collaboration/service.py": 80,
         "core/modules/project_management/services/collaboration/comments.py": 150,
         "core/modules/project_management/services/collaboration/inbox.py": 180,

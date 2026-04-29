@@ -6,10 +6,10 @@ from src.core.platform.notifications.domain_events import domain_events
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.auth import UserSessionContext
-from core.modules.project_management.services.cost import CostService
+from src.core.modules.project_management.application.financials import CostService
 from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.reporting import ReportingService
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.cost.actions import CostActionsMixin
 from ui.modules.project_management.cost.layout import CostLayoutMixin

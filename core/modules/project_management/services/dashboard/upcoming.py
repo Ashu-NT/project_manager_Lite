@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from typing import List
 
 from core.modules.project_management.services.dashboard.models import UpcomingTask
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 
 

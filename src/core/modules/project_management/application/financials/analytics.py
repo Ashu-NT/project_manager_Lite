@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.modules.project_management.services.finance.models import FinanceAnalyticsRow, FinanceLedgerRow
+from src.core.modules.project_management.application.financials.models import (
+    FinanceAnalyticsRow,
+    FinanceLedgerRow,
+)
 
 
 def build_source_analytics(source_rows: list[Any]) -> list[FinanceAnalyticsRow]:

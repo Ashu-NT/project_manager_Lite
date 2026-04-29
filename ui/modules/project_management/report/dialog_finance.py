@@ -15,7 +15,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.modules.project_management.services.finance import FinanceAnalyticsRow, FinanceService, FinanceSnapshot
+from src.core.modules.project_management.application.financials import (
+    FinanceAnalyticsRow,
+    FinanceService,
+    FinanceSnapshot,
+)
 from ui.modules.project_management.report.dialog_helpers import setup_dialog_size
 from src.ui.shared.formatting.formatting import currency_symbol_from_code, fmt_currency
 from src.ui.shared.formatting.style_utils import style_table

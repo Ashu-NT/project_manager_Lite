@@ -8,7 +8,7 @@ from core.modules.project_management.services.reporting import (
     ProjectKPI,
     ResourceLoadRow,
 )
-from core.modules.project_management.services.finance.models import FinanceSnapshot
+from src.core.modules.project_management.application.financials import FinanceSnapshot
 
 @dataclass
 class GanttContext:

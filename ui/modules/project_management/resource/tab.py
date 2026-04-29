@@ -15,7 +15,7 @@ from src.core.platform.notifications.domain_events import domain_events
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.org import EmployeeService
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.resource.actions import ResourceActionsMixin
 from ui.modules.project_management.resource.employee_context import build_employee_context_map

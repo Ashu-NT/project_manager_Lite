@@ -20,7 +20,7 @@ from core.modules.project_management.services.import_service import DataImportSe
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.reporting import ReportingService
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_badge_style, dashboard_meta_chip_style
 from ui.modules.project_management.project.actions import ProjectActionsMixin

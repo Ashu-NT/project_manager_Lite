@@ -16,7 +16,7 @@ from core.modules.project_management.reporting.api import (
     generate_gantt_png as _generate_gantt_png,
     generate_pdf_report as _generate_pdf_report,
 )
-from core.modules.project_management.services.finance import FinanceService
+from src.core.modules.project_management.application.financials import FinanceService
 from core.modules.project_management.services.reporting import ReportingService
 
 

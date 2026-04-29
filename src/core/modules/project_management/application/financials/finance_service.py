@@ -12,16 +12,31 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
-from core.modules.project_management.services.finance.analytics import build_dimension_analytics, build_source_analytics
-from core.modules.project_management.services.finance.cashflow import build_period_cashflow
-from core.modules.project_management.services.finance.helpers import normalize_currency
-from core.modules.project_management.services.finance.ledger import (
+from src.core.modules.project_management.application.financials.analytics import (
+    build_dimension_analytics,
+    build_source_analytics,
+)
+from src.core.modules.project_management.application.financials.cashflow import (
+    build_period_cashflow,
+)
+from src.core.modules.project_management.application.financials.helpers import (
+    normalize_currency,
+)
+from src.core.modules.project_management.application.financials.ledger import (
     build_computed_labor_actual_rows,
     build_computed_labor_plan_rows,
     build_cost_item_ledger_rows,
 )
-from core.modules.project_management.services.finance.models import FinanceAnalyticsRow, FinanceLedgerRow, FinancePeriodRow, FinanceSnapshot
-from core.modules.project_management.services.finance.policy import manual_labor_raw_totals, resolve_manual_labor_inclusion
+from src.core.modules.project_management.application.financials.models import (
+    FinanceAnalyticsRow,
+    FinanceLedgerRow,
+    FinancePeriodRow,
+    FinanceSnapshot,
+)
+from src.core.modules.project_management.application.financials.policy import (
+    manual_labor_raw_totals,
+    resolve_manual_labor_inclusion,
+)
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.reporting import ReportingService
 

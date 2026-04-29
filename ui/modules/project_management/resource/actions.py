@@ -8,7 +8,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.platform.org import EmployeeService
 from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.resource.dialogs import ResourceEditDialog

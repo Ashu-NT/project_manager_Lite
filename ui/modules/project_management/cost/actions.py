@@ -13,7 +13,7 @@ from src.core.platform.common.exceptions import (
 from src.core.modules.project_management.domain.financials.cost import CostItem
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
-from core.modules.project_management.services.cost import CostService
+from src.core.modules.project_management.application.financials import CostService
 from ui.modules.project_management.cost.cost_dialogs import CostEditDialog
 from ui.modules.project_management.cost.error_handling import show_cost_business_rule
 from ui.modules.project_management.cost.models import CostTableModel

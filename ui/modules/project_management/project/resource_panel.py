@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.application.resources import ProjectResourceService
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from ui.modules.project_management.project.dialogs import ProjectResourceEditDialog
 from src.ui.shared.widgets.guards import apply_permission_hint, make_guarded_slot
 from src.ui.shared.formatting.style_utils import style_table

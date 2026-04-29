@@ -2224,7 +2224,7 @@ Hold status:
 
 Refactor-first priority for the remaining PM slice:
 
-- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into `src/core/modules/project_management/application/{resources,financials,risk}/*`, while keeping the completed `projects`, `tasks`, and `scheduling` transfers clean and facade-free
+- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into `src/core/modules/project_management/application/risk/*`, while keeping the completed `projects`, `tasks`, `scheduling`, `resources`, and `financials` transfers clean and facade-free
 - move PM reporting/rendering adapters into `src/core/modules/project_management/infrastructure/reporting/*` and keep dashboard/reporting reads infrastructure-owned
 - expand module-local PM desktop and HTTP APIs over those application handlers, not over legacy broad services
 - regroup PM tests under `src/tests/project_management/*`
@@ -2249,6 +2249,11 @@ Completed in the clean/no-facade execution:
 - moved `core/modules/project_management/services/work_calendar/engine.py` and `service.py` into `src/core/modules/project_management/application/scheduling/work_calendar_{engine,service}.py`
 - rewired PM composition, baseline/reporting/dashboard services, PM calendar/dashboard QWidget callers, path rewrites, and architecture tests to import scheduling, calendar, and work-calendar types from `src.core.modules.project_management.application.scheduling`
 - deleted the old source files and legacy package roots under `core/modules/project_management/services/{scheduling,calendar,work_calendar}/` after callers were rewritten; no facade re-export package was left behind
+- moved `core/modules/project_management/services/resource/service.py` into `src/core/modules/project_management/application/resources/resource_service.py` and split the live workflow into `commands/resource_commands.py` plus `queries/resource_queries.py`
+- moved `core/modules/project_management/services/cost/service.py` into `src/core/modules/project_management/application/financials/cost_service.py`, with `lifecycle.py`, `query.py`, and `support.py` landing in `commands/cost_lifecycle.py`, `queries/cost_query.py`, and `cost_support.py`
+- moved `core/modules/project_management/services/finance/{service,analytics,cashflow,helpers,ledger,models,policy}.py` into `src/core/modules/project_management/application/financials/*`
+- rewired PM composition, import support, reporting/export surfaces, platform desktop audit support, PM cost/resource/report/task/project QWidget callers, path rewrites, and architecture tests to import `ResourceService`, `CostService`, `FinanceService`, and finance models from `src.core.modules.project_management.application.{resources,financials}`
+- deleted the old source files and legacy package roots under `core/modules/project_management/services/{resource,cost,finance}/` after callers were rewritten; no facade re-export package was left behind
 - moved PM ORM rows from `src/infra/persistence/orm/project_management/*` into `src/core/modules/project_management/infrastructure/persistence/orm/*`
 - rewired PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails to split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - deleted the old global `src/infra/persistence/orm/project_management/` package after callers were rewritten
@@ -2350,12 +2355,16 @@ Verified:
   - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
   - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_task_dependency_ux_logic.py tests/test_progress_flow.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_baseline_comparison_workflow.py`
   - observed result after the PM scheduling/calendar/work-calendar application transfer: 133 passed
+- after the PM resource/cost/finance application transfer, focused verification passes:
+  - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
+  - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_task_dependency_ux_logic.py tests/test_progress_flow.py tests/test_cpm_flow.py tests/test_resource_leveling_workflow.py tests/test_baseline_comparison_workflow.py tests/test_finance_layer_integration.py tests/test_currency_defaults.py tests/test_technical_math_reporting.py tests/test_exporters_configuration.py tests/test_ui_professional_filters.py`
+  - observed result after the PM resource/cost/finance application transfer: 165 passed
 
 Still remaining in Slice 2:
 
 - continue splitting PM domain, services, API adapters, and UI according to the Slice 2 plan before starting another module
 - prioritize the remaining repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion
-- continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, and `services/work_calendar/*` moves, especially `services/resource/*`, `services/cost/*`, and `services/finance/*`
+- continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/resource/*`, `services/cost/*`, and `services/finance/*` moves, especially `services/register/*` and the reporting/API adapters that should settle behind `application/risk/*` and `infrastructure/reporting/*`
 - migrate PM UI screens to `src/ui_qml/modules/project_management/*` one workspace/dialog at a time against the refactored module-local APIs; delete old Widget files only after matching QML screens pass tests
 - regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle
 - if real PM gateway boundaries appear during the application/API split, place those contracts under `src/core/modules/project_management/contracts/gateways/*` without facade re-exports

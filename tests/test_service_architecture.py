@@ -57,13 +57,14 @@ from core.modules.maintenance_management import (
 from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.baseline.service import BaselineService as LegacyBaselineService
 from core.modules.project_management.services.collaboration import CollaborationService
-from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.dashboard import DashboardService
-from core.modules.project_management.services.finance import FinanceService
-from core.modules.project_management.services.finance.service import FinanceService as LegacyFinanceService
 from core.modules.project_management.services.portfolio import PortfolioService
+from src.core.modules.project_management.application.financials import CostService, FinanceService
 from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.resources import ProjectResourceService
+from src.core.modules.project_management.application.resources import (
+    ProjectResourceService,
+    ResourceService,
+)
 from src.core.modules.project_management.application.scheduling import (
     CPMTaskInfo,
     CalendarService,
@@ -75,8 +76,6 @@ from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.register.service import RegisterService as LegacyRegisterService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.reporting.service import ReportingService as LegacyReportingService
-from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.resource.service import ResourceService as LegacyResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
@@ -231,10 +230,8 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyAuthService is AuthService
     assert LegacyAuditService is AuditService
     assert LegacyRegisterService is RegisterService
-    assert LegacyResourceService is ResourceService
     assert LegacyReportingService is ReportingService
     assert LegacyBaselineService is BaselineService
-    assert LegacyFinanceService is FinanceService
 
 
 def test_legacy_project_service_package_is_removed():
@@ -291,6 +288,31 @@ def test_legacy_scheduling_calendar_work_calendar_packages_are_removed():
     assert not (legacy_work_calendar_root / "__init__.py").exists()
     assert not (legacy_work_calendar_root / "engine.py").exists()
     assert not (legacy_work_calendar_root / "service.py").exists()
+
+
+def test_legacy_resource_cost_finance_packages_are_removed():
+    root = Path(__file__).resolve().parents[1]
+
+    legacy_resource_root = root / "core" / "modules" / "project_management" / "services" / "resource"
+    assert not (legacy_resource_root / "__init__.py").exists()
+    assert not (legacy_resource_root / "service.py").exists()
+
+    legacy_cost_root = root / "core" / "modules" / "project_management" / "services" / "cost"
+    assert not (legacy_cost_root / "__init__.py").exists()
+    assert not (legacy_cost_root / "service.py").exists()
+    assert not (legacy_cost_root / "lifecycle.py").exists()
+    assert not (legacy_cost_root / "query.py").exists()
+    assert not (legacy_cost_root / "support.py").exists()
+
+    legacy_finance_root = root / "core" / "modules" / "project_management" / "services" / "finance"
+    assert not (legacy_finance_root / "__init__.py").exists()
+    assert not (legacy_finance_root / "service.py").exists()
+    assert not (legacy_finance_root / "analytics.py").exists()
+    assert not (legacy_finance_root / "cashflow.py").exists()
+    assert not (legacy_finance_root / "helpers.py").exists()
+    assert not (legacy_finance_root / "ledger.py").exists()
+    assert not (legacy_finance_root / "models.py").exists()
+    assert not (legacy_finance_root / "policy.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

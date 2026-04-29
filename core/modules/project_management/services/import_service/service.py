@@ -5,9 +5,9 @@ from pathlib import Path
 from src.core.platform.importing import CsvImportRuntime, ImportDefinitionRegistry
 from core.modules.project_management.importing import register_project_management_import_definitions
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.cost import CostService
+from src.core.modules.project_management.application.financials import CostService
 from src.core.modules.project_management.application.projects import ProjectService
-from core.modules.project_management.services.resource import ResourceService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 
 from .execution import DataImportExecutionMixin

@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 
-from core.modules.project_management.services.finance.helpers import normalize_period, period_bounds
-from core.modules.project_management.services.finance.models import FinanceLedgerRow, FinancePeriodRow
+from src.core.modules.project_management.application.financials.helpers import (
+    normalize_period,
+    period_bounds,
+)
+from src.core.modules.project_management.application.financials.models import (
+    FinanceLedgerRow,
+    FinancePeriodRow,
+)
 
 
 def build_period_cashflow(
