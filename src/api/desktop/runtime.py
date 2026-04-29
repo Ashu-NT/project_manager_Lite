@@ -7,6 +7,7 @@ from src.api.desktop.platform import (
     PlatformAccessDesktopApi,
     PlatformApprovalDesktopApi,
     PlatformAuditDesktopApi,
+    PlatformSupportDesktopApi,
 )
 from src.api.desktop.platform import (
     PlatformDocumentDesktopApi,
@@ -41,6 +42,7 @@ class DesktopApiRegistry:
     platform_audit: PlatformAuditDesktopApi
     platform_document: PlatformDocumentDesktopApi
     platform_party: PlatformPartyDesktopApi
+    platform_support: PlatformSupportDesktopApi
     platform_user: PlatformUserDesktopApi
 
 
@@ -138,6 +140,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_party=PlatformPartyDesktopApi(
             party_service=party_service,
         ),
+        platform_support=PlatformSupportDesktopApi(),
         platform_user=PlatformUserDesktopApi(
             auth_service=auth_service,
         ),

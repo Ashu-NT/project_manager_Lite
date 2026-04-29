@@ -19,6 +19,9 @@ from src.ui_qml.platform.presenters.runtime_presenter import PlatformRuntimePres
 from src.ui_qml.platform.presenters.settings_catalog_presenter import PlatformSettingsCatalogPresenter
 from src.ui_qml.platform.presenters.settings_presenter import PlatformSettingsWorkspacePresenter
 from src.ui_qml.platform.presenters.site_catalog_presenter import PlatformSiteCatalogPresenter
+from src.ui_qml.platform.presenters.support_workspace_presenter import (
+    PlatformSupportWorkspacePresenter,
+)
 from src.ui_qml.platform.presenters.user_catalog_presenter import PlatformUserCatalogPresenter
 
 __all__ = [
@@ -36,5 +39,6 @@ __all__ = [
     "PlatformSettingsCatalogPresenter",
     "PlatformSettingsWorkspacePresenter",
     "PlatformSiteCatalogPresenter",
+    "PlatformSupportWorkspacePresenter",
     "PlatformUserCatalogPresenter",
 ]

@@ -172,4 +172,5 @@ def test_build_desktop_api_registry_exposes_platform_admin_adapters(services):
 
     assert registry.platform_document.list_documents(active_only=None).ok is True
     assert registry.platform_party.list_parties(active_only=None).ok is True
+    assert registry.platform_support.load_settings().ok is True
     assert registry.platform_user.list_users().ok is True

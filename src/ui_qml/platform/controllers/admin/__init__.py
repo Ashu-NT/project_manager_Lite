@@ -7,6 +7,7 @@ from .employee_controller import PlatformEmployeeController
 from .organization_controller import PlatformOrganizationController
 from .party_controller import PlatformPartyController
 from .site_controller import PlatformSiteController
+from .support_workspace_controller import PlatformSupportWorkspaceController
 from .user_controller import PlatformUserController
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "PlatformOrganizationController",
     "PlatformPartyController",
     "PlatformSiteController",
+    "PlatformSupportWorkspaceController",
     "PlatformUserController",
 ]

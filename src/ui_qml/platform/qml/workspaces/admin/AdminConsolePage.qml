@@ -22,6 +22,9 @@ AppLayouts.WorkspaceFrame {
     property PlatformControllers.PlatformAdminAccessWorkspaceController accessController: root.platformCatalog
         ? root.platformCatalog.adminAccessWorkspace
         : null
+    property PlatformControllers.PlatformSupportWorkspaceController supportController: root.platformCatalog
+        ? root.platformCatalog.adminSupportWorkspace
+        : null
     property var organizationCatalog: root.workspaceController
         ? root.workspaceController.organizations
         : ({
@@ -266,6 +269,11 @@ AppLayouts.WorkspaceFrame {
             PlatformWidgets.AccessSecurityPanel {
                 Layout.fillWidth: true
                 controller: root.accessController
+            }
+
+            AdminSupportSection {
+                Layout.fillWidth: true
+                supportController: root.supportController
             }
 
             AdminOverviewSections {

@@ -6,6 +6,7 @@ from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.controllers.admin import (
     PlatformAdminAccessWorkspaceController,
     PlatformAdminWorkspaceController,
+    PlatformSupportWorkspaceController,
 )
 from src.ui_qml.platform.controllers.common import PlatformWorkspaceControllerBase
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
@@ -42,6 +43,14 @@ def register_platform_qml_types() -> None:
         1,
         0,
         "PlatformAdminAccessWorkspaceController",
+        "Platform workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        PlatformSupportWorkspaceController,
+        "Platform.Controllers",
+        1,
+        0,
+        "PlatformSupportWorkspaceController",
         "Platform workspace controllers are provided by the shell runtime.",
     )
     qmlRegisterUncreatableType(

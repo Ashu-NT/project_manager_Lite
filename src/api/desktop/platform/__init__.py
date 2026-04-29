@@ -40,6 +40,12 @@ from src.api.desktop.platform.models import (
     SiteCreateCommand,
     SiteDto,
     SiteUpdateCommand,
+    SupportBundleDto,
+    SupportEventDto,
+    SupportPathsDto,
+    SupportSettingsDto,
+    SupportSettingsUpdateCommand,
+    SupportUpdateStatusDto,
     UserCreateCommand,
     UserDto,
     UserPasswordResetCommand,
@@ -54,6 +60,7 @@ from src.api.desktop.platform.employee import PlatformEmployeeDesktopApi
 from src.api.desktop.platform.party import PlatformPartyDesktopApi
 from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
 from src.api.desktop.platform.site import PlatformSiteDesktopApi
+from src.api.desktop.platform.support import PlatformSupportDesktopApi
 from src.api.desktop.platform.user import PlatformUserDesktopApi
 
 __all__ = [
@@ -108,8 +115,15 @@ __all__ = [
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",
+    "SupportBundleDto",
+    "SupportEventDto",
+    "SupportPathsDto",
+    "SupportSettingsDto",
+    "SupportSettingsUpdateCommand",
+    "SupportUpdateStatusDto",
     "UserCreateCommand",
     "UserDto",
     "UserPasswordResetCommand",
+    "PlatformSupportDesktopApi",
     "UserUpdateCommand",
 ]

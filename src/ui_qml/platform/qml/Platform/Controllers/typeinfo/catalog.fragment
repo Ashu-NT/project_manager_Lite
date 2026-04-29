@@ -5,6 +5,7 @@
         exports: ["Platform.Controllers/PlatformWorkspaceCatalog 1.0"]
         Property { name: "adminWorkspace"; type: "PlatformAdminWorkspaceController"; isReadonly: true }
         Property { name: "adminAccessWorkspace"; type: "PlatformAdminAccessWorkspaceController"; isReadonly: true }
+        Property { name: "adminSupportWorkspace"; type: "PlatformSupportWorkspaceController"; isReadonly: true }
         Property { name: "controlWorkspace"; type: "PlatformControlWorkspaceController"; isReadonly: true }
         Property { name: "settingsWorkspace"; type: "PlatformSettingsWorkspaceController"; isReadonly: true }
         Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }

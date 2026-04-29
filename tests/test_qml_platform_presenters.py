@@ -27,6 +27,11 @@ from src.api.desktop.platform.models import (
     SiteDto,
     ScopeTargetDto,
     ScopeTypeChoiceDto,
+    SupportBundleDto,
+    SupportEventDto,
+    SupportPathsDto,
+    SupportSettingsDto,
+    SupportUpdateStatusDto,
     UserDto,
 )
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -1105,6 +1110,119 @@ class _FakePlatformAuditApi:
 
     def list_recent(self, *, limit: int = 25) -> DesktopApiResult[tuple[AuditLogEntryDto, ...]]:
         return DesktopApiResult(ok=True, data=self._rows[:limit])
+
+
+class _FakePlatformSupportApi:
+    def __init__(self) -> None:
+        self._settings = SupportSettingsDto(
+            update_channel="stable",
+            update_auto_check=False,
+            update_manifest_source="https://example.com/releases/manifest.json",
+            theme_mode="light",
+            governance_mode="off",
+            app_version="1.0.0",
+            support_email="support@example.com",
+        )
+        self._activity_by_trace: dict[str, list[SupportEventDto]] = {}
+        self._incident_counter = 0
+
+    def new_incident_id(self) -> str:
+        self._incident_counter += 1
+        return f"inc-support-{self._incident_counter}"
+
+    def load_settings(self) -> DesktopApiResult[SupportSettingsDto]:
+        return DesktopApiResult(ok=True, data=self._settings)
+
+    def get_paths(self) -> DesktopApiResult[SupportPathsDto]:
+        return DesktopApiResult(
+            ok=True,
+            data=SupportPathsDto(
+                data_directory_path="C:/pm/data",
+                data_directory_url="file:///C:/pm/data",
+                logs_directory_path="C:/pm/data/logs",
+                logs_directory_url="file:///C:/pm/data/logs",
+                incidents_directory_path="C:/pm/data/incidents",
+                incidents_directory_url="file:///C:/pm/data/incidents",
+                events_file_path="C:/pm/data/logs/support-events.jsonl",
+                events_file_url="file:///C:/pm/data/logs/support-events.jsonl",
+            ),
+        )
+
+    def save_settings(self, command, *, trace_id: str | None = None) -> DesktopApiResult[SupportSettingsDto]:
+        self._settings = replace(
+            self._settings,
+            update_channel=command.update_channel,
+            update_auto_check=command.update_auto_check,
+            update_manifest_source=command.update_manifest_source,
+        )
+        self._append_event(
+            trace_id or "inc-support-1",
+            "support.update.settings_saved",
+            "Update settings saved.",
+        )
+        return DesktopApiResult(ok=True, data=self._settings)
+
+    def check_for_updates(self, command, *, trace_id: str | None = None) -> DesktopApiResult[SupportUpdateStatusDto]:
+        self.save_settings(command, trace_id=trace_id)
+        trace = trace_id or "inc-support-1"
+        dto = SupportUpdateStatusDto(
+            status_label="Update Available",
+            summary="Update available: 1.0.0 -> 1.2.0.",
+            current_version="1.0.0",
+            latest_version="1.2.0",
+            channel=command.update_channel,
+            update_available=True,
+            can_open_download=True,
+            download_url="https://example.com/downloads/pm-1.2.0.exe",
+            notes="Improved QML workspace shell.",
+            sha256="abc123",
+        )
+        self._append_event(trace, "support.update.available", dto.summary)
+        return DesktopApiResult(ok=True, data=dto)
+
+    def list_activity(
+        self,
+        *,
+        trace_id: str | None = None,
+        limit: int = 12,
+    ) -> DesktopApiResult[tuple[SupportEventDto, ...]]:
+        rows = self._activity_by_trace.get(trace_id or "", [])
+        return DesktopApiResult(ok=True, data=tuple(rows[:limit]))
+
+    def export_diagnostics(self, *, incident_id: str) -> DesktopApiResult[SupportBundleDto]:
+        dto = SupportBundleDto(
+            output_path=f"C:/pm/data/pm_diagnostics_{incident_id}.zip",
+            output_url=f"file:///C:/pm/data/pm_diagnostics_{incident_id}.zip",
+            files_added=4,
+            warnings=("Database copy excluded from diagnostics bundle for security reasons.",),
+        )
+        self._append_event(incident_id, "support.diagnostics.exported", "Diagnostics bundle exported.")
+        return DesktopApiResult(ok=True, data=dto)
+
+    def create_incident_report(self, *, incident_id: str) -> DesktopApiResult[SupportBundleDto]:
+        dto = SupportBundleDto(
+            output_path=f"C:/pm/data/incidents/pm_incident_{incident_id}.zip",
+            output_url=f"file:///C:/pm/data/incidents/pm_incident_{incident_id}.zip",
+            files_added=5,
+            warnings=(),
+            support_email=self._settings.support_email,
+        )
+        self._append_event(incident_id, "support.incident.report_ready", "Incident report package is ready.")
+        return DesktopApiResult(ok=True, data=dto)
+
+    def _append_event(self, trace_id: str, event_type: str, message: str) -> None:
+        rows = self._activity_by_trace.setdefault(trace_id, [])
+        rows.insert(
+            0,
+            SupportEventDto(
+                timestamp_utc="2026-04-29T12:00:00+00:00",
+                event_type=event_type,
+                level="INFO",
+                trace_id=trace_id,
+                message=message,
+                details_summary="",
+            ),
+        )
 def _build_connected_platform_registry() -> SimpleNamespace:
     runtime_api = _FakePlatformRuntimeApi()
     site_rows = (
@@ -1588,6 +1706,7 @@ def _build_connected_platform_registry() -> SimpleNamespace:
         platform_party=party_api,
         platform_approval=_FakePlatformApprovalApi(approval_rows),
         platform_audit=_FakePlatformAuditApi(audit_rows),
+        platform_support=_FakePlatformSupportApi(),
     )
 
 
@@ -1807,6 +1926,19 @@ def test_platform_workspace_controllers_hold_common_state_fields() -> None:
     assert catalog.settingsWorkspace.moduleEntitlements["items"][0]["title"] == "Project Management"
 
 
+def test_platform_workspace_catalog_exposes_support_workspace() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    support_workspace = catalog.adminSupportWorkspace
+
+    assert support_workspace.incidentId == "inc-support-1"
+    assert support_workspace.supportSettings["updateChannel"] == "stable"
+    assert support_workspace.supportPaths["logsDirectoryPath"] == "C:/pm/data/logs"
+    assert support_workspace.updateStatus["statusLabel"] == "Ready"
+    assert support_workspace.activityFeed["title"] == "Support Activity"
+    assert support_workspace.bundleState["lastDiagnosticsPath"] == ""
+
+
 def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
 
@@ -1857,6 +1989,64 @@ def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
     assert catalog.controlWorkspace.feedbackMessage == "Approval request approved and applied."
     assert catalog.settingsWorkspace.feedbackMessage == "Module lifecycle status updated."
     assert catalog.settingsWorkspace.errorMessage == ""
+
+
+def test_platform_workspace_catalog_runs_support_actions() -> None:
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=_build_connected_platform_registry())
+
+    support_workspace = catalog.adminSupportWorkspace
+    save_result = support_workspace.saveSettings(
+        {
+            "updateChannel": "beta",
+            "updateAutoCheck": True,
+            "updateManifestSource": "https://example.com/releases/beta-manifest.json",
+        }
+    )
+    check_result = support_workspace.checkForUpdates(
+        {
+            "updateChannel": "beta",
+            "updateAutoCheck": True,
+            "updateManifestSource": "https://example.com/releases/beta-manifest.json",
+        }
+    )
+    diagnostics_result = support_workspace.exportDiagnostics()
+    report_result = support_workspace.reportIncident()
+
+    assert save_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Support settings saved.",
+    }
+    assert check_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Update check completed.",
+    }
+    assert diagnostics_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Diagnostics bundle created.",
+    }
+    assert report_result == {
+        "ok": True,
+        "category": "",
+        "code": "",
+        "message": "Incident report package created.",
+    }
+
+    assert support_workspace.supportSettings["updateChannel"] == "beta"
+    assert support_workspace.supportSettings["updateAutoCheck"] is True
+    assert support_workspace.updateStatus["statusLabel"] == "Update Available"
+    assert support_workspace.updateStatus["latestVersion"] == "1.2.0"
+    assert support_workspace.bundleState["lastDiagnosticsPath"].endswith(".zip")
+    assert support_workspace.bundleState["lastIncidentReportPath"].endswith(".zip")
+    assert support_workspace.bundleState["supportEmail"] == "support@example.com"
+    assert support_workspace.activityFeed["items"][0]["title"] == "Incident report package is ready."
+    assert support_workspace.feedbackMessage == "Incident report package created."
+    assert support_workspace.errorMessage == ""
 
 
 def test_platform_workspace_catalog_runs_admin_actions() -> None:

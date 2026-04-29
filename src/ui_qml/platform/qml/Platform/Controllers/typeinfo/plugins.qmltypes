@@ -98,6 +98,32 @@ Module {
     }
 
     Component {
+        name: "PlatformSupportWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "PlatformWorkspaceControllerBase"
+        exports: ["Platform.Controllers/PlatformSupportWorkspaceController 1.0"]
+        Property { name: "supportSettings"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "supportPaths"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "updateStatus"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "incidentId"; type: "QString"; isReadonly: true }
+        Property { name: "bundleState"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setIncidentId"; Parameter { name: "incidentId"; type: "QString" } }
+        Method { name: "newIncidentId" }
+        Method { name: "copyIncidentId" }
+        Method { name: "saveSettings"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "checkForUpdates"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "exportDiagnostics"; type: "QVariantMap" }
+        Method { name: "reportIncident"; type: "QVariantMap" }
+        Method { name: "openLogsFolder" }
+        Method { name: "openDataFolder" }
+        Method { name: "openUpdateDownload" }
+        Method { name: "openLatestDiagnostics" }
+        Method { name: "openLatestIncidentReport" }
+    }
+
+    Component {
         name: "PlatformControlWorkspaceController"
         accessSemantics: "reference"
         prototype: "PlatformWorkspaceControllerBase"
@@ -132,6 +158,7 @@ Module {
         exports: ["Platform.Controllers/PlatformWorkspaceCatalog 1.0"]
         Property { name: "adminWorkspace"; type: "PlatformAdminWorkspaceController"; isReadonly: true }
         Property { name: "adminAccessWorkspace"; type: "PlatformAdminAccessWorkspaceController"; isReadonly: true }
+        Property { name: "adminSupportWorkspace"; type: "PlatformSupportWorkspaceController"; isReadonly: true }
         Property { name: "controlWorkspace"; type: "PlatformControlWorkspaceController"; isReadonly: true }
         Property { name: "settingsWorkspace"; type: "PlatformSettingsWorkspaceController"; isReadonly: true }
         Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }

@@ -46,6 +46,14 @@ from src.api.desktop.platform.models.runtime import (
     PlatformRuntimeContextDto,
 )
 from src.api.desktop.platform.models.site import SiteCreateCommand, SiteDto, SiteUpdateCommand
+from src.api.desktop.platform.models.support import (
+    SupportBundleDto,
+    SupportEventDto,
+    SupportPathsDto,
+    SupportSettingsDto,
+    SupportSettingsUpdateCommand,
+    SupportUpdateStatusDto,
+)
 from src.api.desktop.platform.models.user import (
     RoleDto,
     UserCreateCommand,
@@ -97,6 +105,12 @@ __all__ = [
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",
+    "SupportBundleDto",
+    "SupportEventDto",
+    "SupportPathsDto",
+    "SupportSettingsDto",
+    "SupportSettingsUpdateCommand",
+    "SupportUpdateStatusDto",
     "UserCreateCommand",
     "UserDto",
     "UserPasswordResetCommand",

@@ -6,6 +6,7 @@ from src.api.desktop.platform import PlatformRuntimeDesktopApi
 from src.ui_qml.platform.controllers.admin import (
     PlatformAdminAccessWorkspaceController,
     PlatformAdminWorkspaceController,
+    PlatformSupportWorkspaceController,
 )
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
@@ -24,6 +25,7 @@ from src.ui_qml.platform.presenters import (
     PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
     PlatformSiteCatalogPresenter,
+    PlatformSupportWorkspacePresenter,
     PlatformUserCatalogPresenter,
 )
 from src.ui_qml.platform.routes import build_platform_routes
@@ -92,6 +94,12 @@ class PlatformWorkspaceCatalog(QObject):
             ),
             parent=self,
         )
+        self._admin_support_workspace = PlatformSupportWorkspaceController(
+            presenter=PlatformSupportWorkspacePresenter(
+                support_api=getattr(desktop_api_registry, "platform_support", None),
+            ),
+            parent=self,
+        )
         self._control_workspace = PlatformControlWorkspaceController(
             overview_presenter=control_presenter,
             queue_presenter=control_queue_presenter,
@@ -111,6 +119,10 @@ class PlatformWorkspaceCatalog(QObject):
     @Property(PlatformAdminAccessWorkspaceController, constant=True)
     def adminAccessWorkspace(self) -> PlatformAdminAccessWorkspaceController:
         return self._admin_access_workspace
+
+    @Property(PlatformSupportWorkspaceController, constant=True)
+    def adminSupportWorkspace(self) -> PlatformSupportWorkspaceController:
+        return self._admin_support_workspace
 
     @Property(PlatformControlWorkspaceController, constant=True)
     def controlWorkspace(self) -> PlatformControlWorkspaceController:
