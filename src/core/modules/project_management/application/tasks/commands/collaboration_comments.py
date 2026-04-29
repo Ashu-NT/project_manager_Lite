@@ -2,40 +2,16 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.common.exceptions import ValidationError
-from core.modules.project_management.domain.collaboration import (
-    CollaborationMentionCandidate,
-    TaskComment,
-)
+from core.modules.project_management.domain.collaboration import TaskComment
+from infra.modules.project_management.collaboration_attachments import store_task_comment_attachments
+from src.core.modules.project_management.application.tasks.collaboration_mentions import resolve_mentions
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
-from core.modules.project_management.services.collaboration.mentions import resolve_mentions
-from infra.modules.project_management.collaboration_attachments import store_task_comment_attachments
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.notifications.domain_events import domain_events
 
-class CollaborationCommentMixin:
-    def list_comments(self, task_id: str) -> list[TaskComment]:
-        task = self._require_task(task_id)
-        require_permission(self._user_session, "collaboration.read", operation_label="view task collaboration")
-        require_project_permission(
-            self._user_session,
-            task.project_id,
-            "collaboration.read",
-            operation_label="view task collaboration",
-        )
-        return self._comment_repo.list_by_task(task_id)
 
-    def list_mention_candidates(self, task_id: str) -> list[CollaborationMentionCandidate]:
-        task = self._require_task(task_id)
-        require_permission(self._user_session, "collaboration.read", operation_label="view mention candidates")
-        require_project_permission(
-            self._user_session,
-            task.project_id,
-            "collaboration.read",
-            operation_label="view mention candidates",
-        )
-        return self._list_mention_candidates_for_project(task.project_id)
-
+class CollaborationCommentCommandMixin:
     def post_comment(
         self,
         *,
@@ -56,10 +32,7 @@ class CollaborationCommentMixin:
         if not text:
             raise ValidationError("Comment text is required.", code="COLLABORATION_BODY_REQUIRED")
         mention_candidates = self._list_mention_candidates_for_project(task.project_id)
-        mentions, mentioned_user_ids, unresolved = resolve_mentions(
-            text=text,
-            candidates=mention_candidates,
-        )
+        mentions, mentioned_user_ids, unresolved = resolve_mentions(text=text, candidates=mention_candidates)
         if unresolved:
             preview = ", ".join(f"@{token}" for token in unresolved[:4])
             raise ValidationError(
@@ -144,7 +117,5 @@ class CollaborationCommentMixin:
             self._session.commit()
             domain_events.collaboration_changed.emit(task_id)
 
-    def unread_mentions_count(self) -> int:
-        return sum(1 for item in self.list_inbox(limit=500) if item.unread)
 
-__all__ = ["CollaborationCommentMixin"]
+__all__ = ["CollaborationCommentCommandMixin"]

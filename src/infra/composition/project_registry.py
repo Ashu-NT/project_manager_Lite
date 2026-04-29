@@ -17,7 +17,6 @@ from src.core.platform.time.application import TimeService
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
-from core.modules.project_management.services.collaboration import CollaborationService
 from src.core.modules.project_management.application.dashboard import DashboardService
 from core.modules.project_management.services.import_service import DataImportService
 from core.modules.project_management.services.portfolio import PortfolioService
@@ -35,7 +34,7 @@ from src.core.modules.project_management.application.scheduling import (
     WorkCalendarService,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle

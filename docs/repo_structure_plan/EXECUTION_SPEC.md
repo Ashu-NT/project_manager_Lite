@@ -1198,7 +1198,7 @@ Resolved:
 
 Continue next:
 
-1. Continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/dashboard/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, and `services/reporting/*` moves, starting with `services/collaboration/*`, then `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`.
+1. Continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/dashboard/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, `services/reporting/*`, and `services/collaboration/*` moves, starting with `services/portfolio/*`, then `services/timesheet/*`, and `services/import_service/*`.
 2. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
@@ -1280,6 +1280,9 @@ Completed:
 - moved `core/modules/project_management/services/dashboard/{service,alerts,upcoming,burndown,evm,register,portfolio,professional,models,portfolio_models}.py` into `src/core/modules/project_management/application/dashboard/*`
 - rewired PM composition, desktop runtime/dashboard APIs, dashboard Widget callers, dashboard desktop snapshot builders, path rewrites, and architecture tests to import `DashboardService`, `DashboardData`, and `PORTFOLIO_SCOPE_ID` from `src.core.modules.project_management.application.dashboard`
 - deleted the old source files and legacy package root under `core/modules/project_management/services/dashboard/` after callers were rewritten, with no facade re-export package kept behind
+- moved `core/modules/project_management/services/collaboration/{service,comments,documents,inbox,mentions,notifications,presence,principal,support}.py` into `src/core/modules/project_management/application/tasks/{collaboration_service.py,collaboration_mentions.py,collaboration_principal.py,collaboration_support.py,commands/*,queries/*}`
+- rewired PM composition, PM task/collaboration Widget callers, path rewrites, and architecture/service tests to import `CollaborationService` from `src.core.modules.project_management.application.tasks`
+- deleted the old source files and legacy package root under `core/modules/project_management/services/collaboration/` after callers were rewritten, with no facade re-export package kept behind
 - PM ORM rows now live under `src/core/modules/project_management/infrastructure/persistence/orm/`
 - PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - the old `src/infra/persistence/orm/project_management/` global module ORM package was deleted after direct import rewrites
@@ -1340,10 +1343,11 @@ Verified:
 - PM scheduling baseline-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_baseline_comparison_workflow.py tests/test_business_rules_and_edge_cases.py tests/test_domain_event_wiring.py tests/test_technical_math_reporting.py tests/test_exporters_configuration.py -q`, observed 125 passed
 - PM risk register-domain split verification: `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py tests/test_dashboard_professional_panels.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`, observed 69 passed
 - latest full architecture result after the PM risk register-domain split: 94 passed
+- PM collaboration application transfer verification: `pytest tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_task_mentions_pro.py -q`, observed 174 passed
 
 Continue next:
 
-1. Continue the PM domain, service, API, and UI work before starting another module, with the remaining legacy service transfers now centered on `services/collaboration/*`, `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`.
+1. Continue the PM domain, service, API, and UI work before starting another module, with the remaining legacy service transfers now centered on `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`.
 2. Prioritize the remaining PM repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion.
 3. Regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle.
 4. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.

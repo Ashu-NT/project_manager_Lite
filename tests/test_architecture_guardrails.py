@@ -10,7 +10,7 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1400,
+    "tests/test_architecture_guardrails.py": 1410,
     "tests/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
@@ -1138,18 +1138,24 @@ def test_cost_service_is_orchestrator_only():
 
 
 def test_collaboration_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "modules" / "project_management" / "services" / "collaboration" / "service.py"
+    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "tasks" / "collaboration_service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.collaboration.comments import CollaborationCommentMixin" in text
-    assert "from core.modules.project_management.services.collaboration.inbox import CollaborationInboxMixin" in text
-    assert "from core.modules.project_management.services.collaboration.presence import CollaborationPresenceMixin" in text
-    assert "from core.modules.project_management.services.collaboration.support import CollaborationSupportMixin" in text
+    for snippet in (
+        "from src.core.modules.project_management.application.tasks.commands.collaboration_comments import (",
+        "CollaborationCommentCommandMixin,",
+        "from src.core.modules.project_management.application.tasks.commands.collaboration_presence import (",
+        "CollaborationPresenceCommandMixin,",
+        "from src.core.modules.project_management.application.tasks.queries.collaboration_inbox import (",
+        "CollaborationInboxQueryMixin,",
+        "from src.core.modules.project_management.application.tasks.collaboration_support import (",
+        "CollaborationSupportMixin,",
+    ):
+        assert snippet in text
     assert "class CollaborationService(" in text
     assert "def post_comment" not in text
     assert "def list_notifications" not in text
     assert "def list_active_presence" not in text
-
 
 def test_portfolio_service_is_orchestrator_only():
     service_path = ROOT / "core" / "modules" / "project_management" / "services" / "portfolio" / "service.py"
@@ -1350,11 +1356,12 @@ def test_known_large_modules_have_growth_budgets():
         "src/core/modules/project_management/application/financials/commands/cost_lifecycle.py": 240,
         "src/core/modules/project_management/application/financials/queries/cost_query.py": 60,
         "src/core/modules/project_management/application/financials/cost_support.py": 110,
-        "core/modules/project_management/services/collaboration/service.py": 80,
-        "core/modules/project_management/services/collaboration/comments.py": 150,
-        "core/modules/project_management/services/collaboration/inbox.py": 180,
-        "core/modules/project_management/services/collaboration/presence.py": 130,
-        "core/modules/project_management/services/collaboration/support.py": 160,
+        "src/core/modules/project_management/application/tasks/collaboration_service.py": 90,
+        "src/core/modules/project_management/application/tasks/commands/collaboration_comments.py": 150,
+        "src/core/modules/project_management/application/tasks/queries/collaboration_inbox.py": 180,
+        "src/core/modules/project_management/application/tasks/queries/collaboration_presence.py": 130,
+        "src/core/modules/project_management/application/tasks/collaboration_support.py": 160,
+        "src/core/modules/project_management/application/tasks/queries/collaboration_notifications.py": 140, "src/core/modules/project_management/application/tasks/queries/collaboration_documents.py": 80,
         "src/core/platform/modules/application/module_catalog_service.py": 140,
         "src/core/platform/modules/application/module_catalog_context.py": 100,
         "src/core/platform/modules/application/module_catalog_mutation.py": 190,

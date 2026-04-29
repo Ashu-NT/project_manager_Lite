@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     CollaborationNotificationItem,
 )
+from src.core.platform.auth.authorization import require_permission
 
 
-class CollaborationNotificationMixin:
+class CollaborationNotificationQueryMixin:
     def list_notifications(self, *, limit: int = 200) -> list[CollaborationNotificationItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view collaboration notifications")
         tasks, project_name_by_id = self._accessible_task_context_for_collaboration()
@@ -127,4 +127,4 @@ class CollaborationNotificationMixin:
         )
 
 
-__all__ = ["CollaborationNotificationMixin"]
+__all__ = ["CollaborationNotificationQueryMixin"]

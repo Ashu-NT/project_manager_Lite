@@ -57,7 +57,6 @@ from core.modules.maintenance_management import (
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
-from core.modules.project_management.services.collaboration import CollaborationService
 from src.core.modules.project_management.application.dashboard import DashboardService
 from core.modules.project_management.services.portfolio import PortfolioService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
@@ -75,7 +74,7 @@ from src.core.modules.project_management.application.scheduling import (
     WorkCalendarService,
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from src.infra.composition.app_container import ServiceGraph, build_service_graph
 from pathlib import Path
@@ -363,6 +362,22 @@ def test_legacy_dashboard_package_is_removed():
     assert not (legacy_dashboard_root / "register.py").exists()
     assert not (legacy_dashboard_root / "service.py").exists()
     assert not (legacy_dashboard_root / "upcoming.py").exists()
+
+
+def test_legacy_collaboration_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_collaboration_root = root / "core" / "modules" / "project_management" / "services" / "collaboration"
+
+    assert not (legacy_collaboration_root / "__init__.py").exists()
+    assert not (legacy_collaboration_root / "comments.py").exists()
+    assert not (legacy_collaboration_root / "documents.py").exists()
+    assert not (legacy_collaboration_root / "inbox.py").exists()
+    assert not (legacy_collaboration_root / "mentions.py").exists()
+    assert not (legacy_collaboration_root / "notifications.py").exists()
+    assert not (legacy_collaboration_root / "presence.py").exists()
+    assert not (legacy_collaboration_root / "principal.py").exists()
+    assert not (legacy_collaboration_root / "service.py").exists()
+    assert not (legacy_collaboration_root / "support.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

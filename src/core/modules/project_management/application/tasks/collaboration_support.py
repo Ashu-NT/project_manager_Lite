@@ -79,11 +79,7 @@ class CollaborationSupportMixin:
         return project.name if project is not None else ""
 
     def _project_names_label(self, project_ids: list[str]) -> str:
-        names = [
-            project_name
-            for project_id in project_ids
-            if (project_name := self._project_name(project_id))
-        ]
+        names = [project_name for project_id in project_ids if (project_name := self._project_name(project_id))]
         if len(names) == 1:
             return names[0]
         if names:

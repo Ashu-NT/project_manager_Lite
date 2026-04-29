@@ -8,7 +8,7 @@ from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.documents import Document
 
 
-class CollaborationDocumentMixin:
+class CollaborationDocumentQueryMixin:
     def list_comment_documents(self, task_id: str) -> dict[str, list[Document]]:
         task = self._require_task(task_id)
         require_permission(self._user_session, "collaboration.read", operation_label="view linked task documents")
@@ -44,13 +44,7 @@ class CollaborationDocumentMixin:
         )
 
     def _normalize_linked_document_ids(self, linked_document_ids: Iterable[str] | None) -> list[str]:
-        normalized = list(
-            dict.fromkeys(
-                str(item).strip()
-                for item in (linked_document_ids or [])
-                if str(item).strip()
-            )
-        )
+        normalized = list(dict.fromkeys(str(item).strip() for item in (linked_document_ids or []) if str(item).strip()))
         if normalized and self._document_integration_service is None:
             raise ValidationError(
                 "Shared document linking is not available in the current collaboration runtime.",
@@ -73,4 +67,4 @@ class CollaborationDocumentMixin:
             )
 
 
-__all__ = ["CollaborationDocumentMixin"]
+__all__ = ["CollaborationDocumentQueryMixin"]

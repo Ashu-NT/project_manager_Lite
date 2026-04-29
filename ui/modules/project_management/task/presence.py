@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
-from core.modules.project_management.services.collaboration import CollaborationService
+from src.core.modules.project_management.application.tasks import CollaborationService
 
 
 @contextmanager

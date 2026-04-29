@@ -7,7 +7,7 @@ from core.modules.project_management.domain.collaboration import (
 from src.core.platform.auth.authorization import require_permission
 
 
-class CollaborationInboxMixin:
+class CollaborationInboxQueryMixin:
     def list_inbox(self, *, limit: int = 200) -> list[CollaborationInboxItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view collaboration inbox")
         tasks, project_name_by_id = self._accessible_task_context_for_collaboration()
@@ -91,4 +91,4 @@ class CollaborationInboxMixin:
         return sorted(items, key=lambda item: item.created_at, reverse=True)[:limit]
 
 
-__all__ = ["CollaborationInboxMixin"]
+__all__ = ["CollaborationInboxQueryMixin"]

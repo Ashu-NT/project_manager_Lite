@@ -43,11 +43,7 @@ def resolve_mentions(
         canonical_mentions.add(candidate.handle)
         mentioned_user_ids.add(candidate.user_id)
 
-    return (
-        sorted(canonical_mentions),
-        sorted(mentioned_user_ids),
-        sorted(unresolved),
-    )
+    return sorted(canonical_mentions), sorted(mentioned_user_ids), sorted(unresolved)
 
 
 __all__ = ["MENTION_RE", "candidate_handles", "extract_mention_tokens", "resolve_mentions"]
