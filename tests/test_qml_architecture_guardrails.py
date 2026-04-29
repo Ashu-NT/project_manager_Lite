@@ -164,6 +164,21 @@ def test_qml_workspace_controller_properties_use_typed_controller_types() -> Non
     assert not violations, f"QML controller properties still use generic QtObject: {violations}"
 
 
+def test_project_management_qml_does_not_use_generic_pm_catalog_var_binding() -> None:
+    violations: list[str] = []
+
+    for path in (UI_QML_ROOT / "modules" / "project_management").rglob("*.qml"):
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8", errors="ignore").splitlines(),
+            start=1,
+        ):
+            stripped = line.strip()
+            if stripped.startswith("property var pmCatalog"):
+                violations.append(f"{path.relative_to(ROOT)}:{lineno}:{stripped}")
+
+    assert not violations, f"Project management QML still uses generic pmCatalog bindings: {violations}"
+
+
 def test_platform_admin_workspace_controller_uses_split_entrypoint() -> None:
     assert PLATFORM_ADMIN_CONSOLE_CONTROLLER.exists()
     assert not STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER.exists()
@@ -188,6 +203,8 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "platform" / "qml" / "Platform" / "Dialogs" / "DocumentLinkEditorDialog.qml",
         UI_QML_ROOT / "platform" / "qml" / "Platform" / "Dialogs" / "DocumentStructureEditorDialog.qml",
         UI_QML_ROOT / "platform" / "qml" / "workspaces" / "admin" / "AdminSupportSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "WorkspacePlaceholderPage.qml",
     ]
     command = [qmllint_path]
     for import_path in import_paths:

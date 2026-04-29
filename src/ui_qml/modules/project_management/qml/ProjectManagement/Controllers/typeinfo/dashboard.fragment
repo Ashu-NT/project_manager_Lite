@@ -1,0 +1,8 @@
+Component {
+    name: "ProjectManagementDashboardWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementDashboardWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Method { name: "refresh" }
+}

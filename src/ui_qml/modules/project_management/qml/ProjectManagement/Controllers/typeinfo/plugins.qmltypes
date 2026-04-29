@@ -1,0 +1,37 @@
+import QtQuick.tooling 1.2
+
+Module {
+    // Generated module surface; keep grouped fragments in this folder as the source of truth.
+    Component {
+        name: "ProjectManagementWorkspaceControllerBase"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceControllerBase 1.0"]
+        Property { name: "workspace"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "isLoading"; type: "bool"; isReadonly: true }
+        Property { name: "isBusy"; type: "bool"; isReadonly: true }
+        Property { name: "errorMessage"; type: "QString"; isReadonly: true }
+        Property { name: "feedbackMessage"; type: "QString"; isReadonly: true }
+        Property { name: "emptyState"; type: "QString"; isReadonly: true }
+        Method { name: "clearMessages" }
+    }
+
+    Component {
+        name: "ProjectManagementDashboardWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "ProjectManagementWorkspaceControllerBase"
+        exports: ["ProjectManagement.Controllers/ProjectManagementDashboardWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+    }
+
+    Component {
+        name: "ProjectManagementWorkspaceCatalog"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
+        Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
+        Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
+        Method { name: "dashboardOverview"; type: "QVariantMap" }
+    }
+}

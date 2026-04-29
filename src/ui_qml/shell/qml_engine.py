@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Any
 from PySide6.QtQml import QQmlApplicationEngine
 
+from src.ui_qml.modules.project_management.qml_type_registration import (
+    register_project_management_qml_types,
+)
 from src.ui_qml.platform.qml_type_registration import register_platform_qml_types
 from src.ui_qml.shell.qml_type_registration import register_shell_qml_types
 
@@ -19,6 +22,7 @@ QML_IMPORT_ROOTS = (
 def create_qml_engine() -> QQmlApplicationEngine:
     register_shell_qml_types()
     register_platform_qml_types()
+    register_project_management_qml_types()
     engine = QQmlApplicationEngine()
     for import_root in QML_IMPORT_ROOTS:
         if import_root.exists():

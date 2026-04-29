@@ -1,0 +1,3 @@
+module ProjectManagement.Widgets
+WorkspacePlaceholderPage 1.0 WorkspacePlaceholderPage.qml
+WorkspaceStatusSection 1.0 WorkspaceStatusSection.qml

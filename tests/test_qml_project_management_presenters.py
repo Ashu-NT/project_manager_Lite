@@ -37,6 +37,18 @@ def test_project_management_workspace_catalog_exposes_qml_safe_maps() -> None:
     }
 
 
+def test_project_management_workspace_catalog_exposes_typed_dashboard_controller() -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+
+    workspace = catalog.dashboardWorkspace.workspace
+    overview = catalog.dashboardWorkspace.overview
+
+    assert workspace["routeId"] == "project_management.dashboard"
+    assert workspace["migrationStatus"] == "QML landing zone ready"
+    assert overview["title"] == "Dashboard"
+    assert overview["metrics"][0]["label"] == "Tasks"
+
+
 def test_project_management_workspace_catalog_returns_empty_unknown_workspace() -> None:
     catalog = ProjectManagementWorkspaceCatalog()
 
@@ -84,3 +96,16 @@ def test_project_management_qml_presenters_do_not_import_legacy_widget_or_infra(
     assert "ui.modules.project_management" not in source_text
     assert "infrastructure.persistence" not in source_text
     assert "repositories" not in source_text
+
+
+def test_project_management_qml_uses_named_modules_and_typed_catalog_properties() -> None:
+    qml_root = Path("src/ui_qml/modules/project_management/qml")
+    qml_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in qml_root.rglob("*.qml")
+        if "__pycache__" not in path.parts
+    )
+
+    assert "import ProjectManagement.Controllers 1.0" in qml_text
+    assert "import ProjectManagement.Widgets 1.0" in qml_text
+    assert "property var pmCatalog" not in qml_text

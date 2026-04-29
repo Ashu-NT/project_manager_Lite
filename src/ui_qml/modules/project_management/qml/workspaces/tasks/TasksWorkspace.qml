@@ -1,33 +1,9 @@
 import QtQuick
-import QtQuick.Layouts
-import App.Layouts 1.0 as AppLayouts
-import App.Theme 1.0 as Theme
-import App.Widgets 1.0 as AppWidgets
+import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
-AppLayouts.WorkspaceFrame {
-    id: root
-    property var pmCatalog: null
-    property var workspaceModel: root.pmCatalog
-        ? root.pmCatalog.workspace("project_management.tasks")
-        : ({
-            "title": "Tasks",
-            "summary": "",
-            "migrationStatus": "Placeholder",
-            "legacyRuntimeStatus": "Legacy QWidget tasks workspace remains active."
-        })
-
-    title: root.workspaceModel.title
-    subtitle: root.workspaceModel.summary
-
-    RowLayout {
-        anchors.fill: parent
-        spacing: Theme.AppTheme.spacingMd
-
-        AppWidgets.MetricCard {
-            Layout.preferredWidth: 260
-            label: "Migration target"
-            value: root.workspaceModel.migrationStatus
-            supportingText: root.workspaceModel.legacyRuntimeStatus
-        }
-    }
+ProjectManagementWidgets.WorkspacePlaceholderPage {
+    routeId: "project_management.tasks"
+    fallbackTitle: "Tasks"
+    fallbackSummary: "Task planning, progress, dependencies, assignments, and execution state."
+    fallbackLegacyRuntimeStatus: "Existing QWidget tasks workspace remains active"
 }

@@ -78,9 +78,9 @@ QML scaffold status:
 - the legacy QWidget Organizations screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
 - the legacy QWidget Sites screen has been moved onto the same `src/api/desktop/platform/*` API boundary while it waits for full QML replacement
 - the legacy QWidget Departments and Employees screens have been moved onto the same `src/api/desktop/platform/*` API boundary while they wait for full QML replacement
-- project-management QML placeholder workspaces now exist under `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*` and are registered as navigable routes
+- project-management QML workspaces now exist under `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*` and are registered as navigable routes
 - project-management QML presenter/view-model scaffolding now exists under `src/ui_qml/modules/project_management/{presenters,view_models}/*`
-- project-management QML placeholders now bind to presenter-backed workspace metadata through loader-injected `pmCatalog` properties instead of direct global `pmWorkspaceCatalog` access
+- project-management QML now binds to presenter-backed workspace metadata through loader-injected typed `pmCatalog` properties and named `ProjectManagement.Controllers` / `ProjectManagement.Widgets` modules
 - project-management desktop API workspace metadata now exists under `src/core/modules/project_management/api/desktop/workspaces.py` and backs the PM QML route/presenter metadata path
 - project-management dashboard now has a read-only desktop API overview contract under `src/core/modules/project_management/api/desktop/dashboard.py`, with QML presenter/view-model mapping and Dashboard QML rendering of KPI cards
 - shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
@@ -94,7 +94,8 @@ QML scaffold status:
 - focused project-management desktop API coverage exists in `tests/test_project_management_desktop_api.py`
 - focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
 - automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
-- the latest broader QML verification batch passes with `63 passed`, the focused platform/QML batch passes with `41 passed`, and the shell/navigation scaffold regression batch passes with `14 passed`
+- project-management QML now also exposes typed `ProjectManagement.Controllers` / `ProjectManagement.Widgets` modules, a split dashboard page/controller, and a shared placeholder-page pattern aligned with the platform QML structure
+- the latest PM-focused verification batches pass with `8 passed`, `28 passed`, `2 passed`, `7 passed`, and `1 passed`; the broader shell/platform QML regression batch passes with `31 passed`; and a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean
 - the focused platform support/QML batch now passes with `46 passed`, the broader support/runtime regression batch passes with `26 passed`, and a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean
 
 ## Core Rule
@@ -2200,7 +2201,7 @@ Safe handling:
 
 #### Slice 2 execution status
 
-Updated: 2026-04-19
+Updated: 2026-04-29
 
 Hold status:
 
@@ -2211,13 +2212,13 @@ Hold status:
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`, not `src/ui/modules/project_management/*`
 - QML shell foundation has started and is verified independently; Slice 2 backend/domain restructuring remains paused until this QML migration checkpoint is accepted
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and QWidget deletion still remain pending
-- PM QML landing-zone placeholders and routes are now in place for every Slice 2 PM workspace; real PM QWidget screen replacement still has not started
-- PM QML presenter/view-model scaffolding is in place for every PM workspace route; desktop API wiring and real screen parity remain pending
-- PM QML placeholders now consume presenter-backed metadata through a QML context object; this is still metadata-only and does not replace PM Widget screens
+- PM QML landing-zone routes are now in place for every Slice 2 PM workspace, with typed controller/catalog scaffolding and shared placeholder-page structure; real PM QWidget screen replacement still has not started
+- PM QML presenter/view-model scaffolding is in place for every PM workspace route, and the dashboard now has a typed controller plus split page sections; deeper desktop API wiring and real screen parity remain pending
+- PM QML now consumes presenter-backed metadata through a typed QML catalog/controller surface; this is still metadata-only outside the dashboard overview and does not replace PM Widget screens yet
 - PM QML routes and presenters now consume metadata from the PM module desktop API; workflow/query API wiring remains pending
 - QML architecture guardrails are now in place before real screen migration begins
 - registered QML routes are now covered by an automated offscreen loading smoke test
-- PM Dashboard QML now renders an API-backed empty/read-only KPI overview; live dashboard refresh/actions remain on the QWidget dashboard until parity is completed
+- PM Dashboard QML now renders an API-backed empty/read-only KPI overview through a typed controller and split section layout; live dashboard refresh/actions remain on the QWidget dashboard until parity is completed
 
 Completed in the clean/no-facade execution:
 

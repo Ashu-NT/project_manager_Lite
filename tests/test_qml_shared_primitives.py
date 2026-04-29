@@ -7,6 +7,12 @@ QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml")
 QML_PLATFORM_CONTROLLERS = Path("src/ui_qml/platform/qml/Platform/Controllers")
 QML_PLATFORM_DIALOGS = Path("src/ui_qml/platform/qml/Platform/Dialogs")
 QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
+QML_PM_CONTROLLERS = Path(
+    "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers"
+)
+QML_PM_WIDGETS = Path(
+    "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
+)
 
 
 def test_qml_shared_theme_primitives_exist() -> None:
@@ -36,6 +42,8 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_PLATFORM_CONTROLLERS / "qmldir": "module Platform.Controllers",
         QML_PLATFORM_DIALOGS / "qmldir": "module Platform.Dialogs",
         QML_PLATFORM_WIDGETS / "qmldir": "module Platform.Widgets",
+        QML_PM_CONTROLLERS / "qmldir": "module ProjectManagement.Controllers",
+        QML_PM_WIDGETS / "qmldir": "module ProjectManagement.Widgets",
     }
 
     for path, module_name in expected_modules.items():
@@ -59,6 +67,21 @@ def test_qml_platform_widgets_module_exists() -> None:
         QML_PLATFORM_WIDGETS / "DocumentDetailPanel.qml",
         QML_PLATFORM_WIDGETS / "WorkspaceStateBanner.qml",
         QML_PLATFORM_WIDGETS / "qmldir",
+    ]
+
+    assert all(path.exists() for path in expected_files)
+
+
+def test_qml_project_management_modules_exist() -> None:
+    expected_files = [
+        QML_PM_CONTROLLERS / "qmldir",
+        QML_PM_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
+        QML_PM_CONTROLLERS / "typeinfo" / "common.fragment",
+        QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
+        QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
+        QML_PM_WIDGETS / "qmldir",
+        QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
+        QML_PM_WIDGETS / "WorkspaceStatusSection.qml",
     ]
 
     assert all(path.exists() for path in expected_files)
