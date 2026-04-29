@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus
+from src.src.core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus
 
 from src.core.modules.project_management.infrastructure.importers.models import ImportSummary
 
@@ -187,3 +187,5 @@ class DataImportExecutionMixin:
 
 
 __all__ = ["DataImportExecutionMixin"]
+
+

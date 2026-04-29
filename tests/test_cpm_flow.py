@@ -1,6 +1,6 @@
 from datetime import date
 
-from core.modules.project_management.domain.enums import DependencyType
+from src.src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.common.exceptions import BusinessRuleError
 
 def test_cpm_forward_backward_basic(services):
@@ -72,3 +72,5 @@ def test_cpm_cycle_detection(services):
     # Optional: CPM should now run fine (since cycle was blocked)
     schedule = sched.recalculate_project_schedule(pid)
     assert t1.id in schedule and t2.id in schedule
+
+

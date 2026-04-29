@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from core.modules.project_management.domain.enums import CostType, WorkerType
+from src.src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
@@ -253,5 +253,7 @@ class ResourceCommandMixin:
 
 
 __all__ = ["ResourceCommandMixin"]
+
+
 
 

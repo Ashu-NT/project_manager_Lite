@@ -7,7 +7,7 @@ import pytest
 from PySide6.QtWidgets import QDialog
 
 from src.core.platform.common.exceptions import ConcurrencyError
-from core.modules.project_management.domain.enums import TaskStatus
+from src.src.core.modules.project_management.domain.enums import TaskStatus
 from ui.modules.project_management.cost.actions import CostActionsMixin
 from ui.modules.project_management.project.actions import ProjectActionsMixin
 from ui.modules.project_management.resource.actions import ResourceActionsMixin
@@ -577,4 +577,6 @@ def test_cost_edit_action_recovers_from_stale_write(monkeypatch):
     assert info_messages == [
         "This cost item was updated by another user. The latest version has been reloaded. Review the changes and try again."
     ]
+
+
 

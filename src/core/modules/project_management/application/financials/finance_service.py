@@ -37,7 +37,7 @@ from src.core.modules.project_management.application.financials.policy import (
     manual_labor_raw_totals,
     resolve_manual_labor_inclusion,
 )
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
 
@@ -180,3 +180,4 @@ class FinanceService(ProjectManagementModuleGuardMixin):
 
 
 __all__ = ["FinanceService"]
+

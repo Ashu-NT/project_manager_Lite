@@ -7,8 +7,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
-from core.modules.project_management.domain.enums import CostType, DependencyType
-from core.modules.project_management.access.policy import (
+from src.src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
     resolve_project_scope_permissions,
@@ -35,7 +35,7 @@ from src.core.modules.project_management.application.scheduling import (
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
-from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
@@ -401,3 +401,5 @@ def _register_project_management_approval_handlers(
 
 
 __all__ = ["ProjectManagementServiceBundle", "build_project_management_service_bundle"]
+
+

@@ -4,7 +4,7 @@ from datetime import date
 from typing import Callable, Dict, List, Optional
 
 from src.core.platform.common.exceptions import ValidationError
-from core.modules.project_management.domain.enums import DependencyType
+from src.src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
     WorkCalendarEngine,
@@ -112,3 +112,5 @@ def run_backward_pass(
             lf[task_id] = ef[task_id]
 
     return ls, lf
+
+

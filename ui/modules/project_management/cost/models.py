@@ -5,7 +5,7 @@ from typing import Any, Optional
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from src.core.modules.project_management.domain.financials.cost import CostItem
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.ui.shared.models.table_model import horizontal_header_data
 from src.ui.shared.formatting.formatting import fmt_currency, currency_symbol_from_code
@@ -145,3 +145,5 @@ class LaborPlanVsActualTableModel(QAbstractTableModel):
 
 
 __all__ = ["CostTableModel", "LaborPlanVsActualTableModel"]
+
+

@@ -2,7 +2,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-from core.modules.project_management.reporting.contexts import ExcelReportContext
+from src.core.modules.project_management.infrastructure.reporting.contexts import ExcelReportContext
 
 
 class ExcelReportRenderer:
@@ -407,3 +407,4 @@ class ExcelReportRenderer:
 
         wb.save(output_path)
         return output_path
+

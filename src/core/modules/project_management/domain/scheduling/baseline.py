@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from core.modules.project_management.domain.identifiers import generate_id
+from src.src.core.modules.project_management.domain.identifiers import generate_id
 
 
 @dataclass
@@ -58,3 +58,5 @@ class BaselineTask:
 
 
 __all__ = ["ProjectBaseline", "BaselineTask"]
+
+

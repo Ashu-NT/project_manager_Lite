@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.dashboard.alerts import DashboardAlertsMixin
 from src.core.modules.project_management.application.dashboard.burndown import DashboardBurndownMixin
 from src.core.modules.project_management.application.dashboard.evm import DashboardEvmMixin
@@ -165,3 +165,4 @@ class DashboardService(
         return action
 
 __all__ = ["DashboardService", "DashboardData", "DashboardEVM", "UpcomingTask", "BurndownPoint"]
+

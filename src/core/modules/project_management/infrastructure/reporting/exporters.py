@@ -1,7 +1,7 @@
 """Backward-compatible wrappers for reporting exports.
 
 Deprecated:
-    Import from ``core.modules.project_management.reporting.api`` directly for new code.
+    Import from ``src.core.modules.project_management.infrastructure.reporting.api`` directly for new code.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from datetime import date
 from pathlib import Path
 from warnings import warn
 
-from core.modules.project_management.reporting.api import (
+from src.core.modules.project_management.infrastructure.reporting.api import (
     generate_evm_png as _generate_evm_png,
     generate_excel_report as _generate_excel_report,
     generate_gantt_png as _generate_gantt_png,
@@ -23,8 +23,8 @@ from src.core.modules.project_management.infrastructure.reporting import Reporti
 def _warn_deprecated(function_name: str) -> None:
     warn(
         (
-            f"`core.modules.project_management.reporting.exporters.{function_name}` is deprecated. "
-            "Use `core.modules.project_management.reporting.api` instead."
+            f"`src.core.modules.project_management.infrastructure.reporting.exporters.{function_name}` is deprecated. "
+            "Use `src.core.modules.project_management.infrastructure.reporting.api` instead."
         ),
         DeprecationWarning,
         stacklevel=2,
@@ -103,3 +103,4 @@ __all__ = [
     "generate_excel_report",
     "generate_pdf_report",
 ]
+

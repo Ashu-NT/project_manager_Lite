@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
+from src.src.core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
 from src.core.modules.project_management.application.tasks import CollaborationService
 
 
@@ -48,3 +48,5 @@ def format_presence_lines(
 
 
 __all__ = ["format_presence_lines", "task_presence_session"]
+
+

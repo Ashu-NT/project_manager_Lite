@@ -1,4 +1,4 @@
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 
 
 def test_project_defaults_currency_to_eur(services):
@@ -42,3 +42,5 @@ def test_project_resource_defaults_currency_to_eur(services):
         planned_hours=20.0,
     )
     assert pr.currency_code == "EUR"
+
+

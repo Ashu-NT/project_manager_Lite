@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional, Set
 
-from core.modules.project_management.domain.identifiers import generate_id
+from src.src.core.modules.project_management.domain.identifiers import generate_id
 
 
 @dataclass
@@ -67,3 +67,5 @@ class Holiday:
 
 
 __all__ = ["CalendarEvent", "WorkingCalendar", "Holiday"]
+
+

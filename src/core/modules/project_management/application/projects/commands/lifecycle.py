@@ -25,7 +25,7 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.notifications.domain_events import domain_events
-from core.modules.project_management.domain.enums import ProjectStatus
+from src.src.core.modules.project_management.domain.enums import ProjectStatus
 
 logger = logging.getLogger(__name__)
 DEFAULT_CURRENCY_CODE = "EUR"
@@ -249,3 +249,5 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
 
 
 __all__ = ["DEFAULT_CURRENCY_CODE", "ProjectLifecycleMixin"]
+
+

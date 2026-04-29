@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy import Boolean, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.modules.project_management.domain.enums import CostType, WorkerType
+from src.src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.infra.persistence.orm.base import Base
 
 
@@ -48,3 +48,5 @@ class ResourceORM(Base):
 
 
 Index("idx_resources_employee", ResourceORM.employee_id)
+
+

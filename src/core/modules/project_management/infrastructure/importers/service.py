@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.modules.project_management.services.common.module_guard import (
+from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
 from src.core.modules.project_management.application.financials import CostService
@@ -126,3 +126,4 @@ class DataImportService(
 
 
 __all__ = ["DataImportService"]
+

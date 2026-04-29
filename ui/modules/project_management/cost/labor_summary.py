@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QHeaderView, QLabel, QMessageBox, QTableView, QTableWidget, QTableWidgetItem
 
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.application.financials import CostService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
@@ -162,3 +162,5 @@ class CostLaborSummaryMixin:
     def _on_labor_table_selected(self):
         if self.table.selectionModel():
             self.table.clearSelection()
+
+

@@ -12,7 +12,7 @@ from src.core.modules.project_management.application.resources import ProjectRes
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.resources import TimesheetService
-from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
 from src.ui.shared.widgets.guards import (
     can_execute_governed_action,
@@ -162,3 +162,4 @@ class TaskTab(
 
     def _update_task_header_badges(self, visible_count: int) -> None:
         _ = visible_count
+

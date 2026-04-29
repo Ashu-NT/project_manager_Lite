@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import NotFoundError
-from core.modules.project_management.domain.collaboration import (
+from src.src.core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
     TaskComment,
 )
@@ -121,3 +121,5 @@ class CollaborationSupportMixin:
 
 
 __all__ = ["CollaborationSupportMixin"]
+
+

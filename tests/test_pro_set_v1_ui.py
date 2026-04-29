@@ -7,10 +7,10 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QGridLayout
 from PySide6.QtWidgets import QDialog
 
-from core.modules.project_management.domain.enums import TaskStatus
-from core.modules.project_management.domain.enums import DependencyType
+from src.src.core.modules.project_management.domain.enums import TaskStatus
+from src.src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
-from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.dashboard.layout_builder import DashboardLayoutDialog
 from ui.modules.project_management.dashboard.tab import DashboardTab
@@ -550,3 +550,5 @@ def test_collaboration_dialog_posts_mentions_and_attachments_at_runtime(qapp, re
     assert dialog.activity_list.count() == 1
     assert "@alice" in dialog.activity_list.item(0).text()
     assert "proof.txt" in dialog.activity_list.item(0).text()
+
+

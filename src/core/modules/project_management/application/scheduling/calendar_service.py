@@ -8,7 +8,7 @@ from src.core.modules.project_management.contracts.repositories.cost_calendar im
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.auth.authorization import require_permission
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from sqlalchemy.orm import Session
 
 class CalendarService(ProjectManagementModuleGuardMixin):
@@ -142,4 +142,5 @@ class CalendarService(ProjectManagementModuleGuardMixin):
         except Exception as e:  
             self._session.rollback()
             raise e
+
 

@@ -81,7 +81,7 @@ from src.core.modules.project_management.application.scheduling import (
 from src.core.modules.project_management.infrastructure.importers import DataImportService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
-from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_management_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
@@ -338,3 +338,4 @@ def build_service_graph(session: Session) -> ServiceGraph:
 
 def build_service_dict(session: Session) -> dict[str, Any]:
     return build_service_graph(session).as_dict()
+

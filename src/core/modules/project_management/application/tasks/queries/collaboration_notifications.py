@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.collaboration import (
+from src.src.core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     CollaborationNotificationItem,
 )
@@ -128,3 +128,5 @@ class CollaborationNotificationQueryMixin:
 
 
 __all__ = ["CollaborationNotificationQueryMixin"]
+
+

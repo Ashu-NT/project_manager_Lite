@@ -18,7 +18,7 @@ from src.api.desktop.platform import (
     PlatformUserDesktopApi,
 )
 from src.core.modules.project_management.domain.tasks.task import Task
-from core.modules.project_management.domain.enums import TaskStatus
+from src.src.core.modules.project_management.domain.enums import TaskStatus
 from tests.ui_runtime_helpers import make_settings_store
 from src.ui.platform.dialogs.admin.employees.dialogs import EmployeeEditDialog
 from src.ui.platform.workspaces.admin.employees.tab import EmployeeAdminTab
@@ -539,3 +539,5 @@ def test_task_progress_dialog_runtime_supports_status_checkbox_update(qapp, monk
     assert payload is not None
     assert payload["status"] == TaskStatus.IN_PROGRESS
     assert payload["actual_start"] == date(2026, 3, 2)
+
+

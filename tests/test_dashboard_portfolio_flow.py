@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
+from src.src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.dashboard.tab import DashboardTab
@@ -220,3 +220,5 @@ def test_dashboard_tab_preserves_authenticated_session(
     )
 
     assert getattr(tab, "_user_session", None) is services["user_session"]
+
+

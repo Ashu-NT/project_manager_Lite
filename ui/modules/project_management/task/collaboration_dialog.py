@@ -15,12 +15,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.project_management.domain.collaboration import (
+from src.src.core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
     TaskComment,
 )
 from src.core.modules.project_management.application.tasks import CollaborationService
-from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from ui.modules.project_management.task.document_link_dialogs import ProjectManagementDocumentLinkDialog
 from ui.modules.project_management.task.document_labels import format_linked_document_label
 from ui.modules.project_management.task.presence import format_presence_lines
@@ -353,3 +353,5 @@ class TaskCollaborationDialog(QDialog):
 
 
 __all__ = ["TaskCollaborationDialog"]
+
+

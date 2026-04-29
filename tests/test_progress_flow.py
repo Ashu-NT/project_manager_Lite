@@ -1,5 +1,5 @@
 from datetime import date
-from core.modules.project_management.domain.enums import TaskStatus
+from src.src.core.modules.project_management.domain.enums import TaskStatus
 
 
 def test_task_progress_and_status_transitions(services):
@@ -61,3 +61,5 @@ def test_set_status_updates_percent_complete_defaults(services):
     ts.set_status(task.id, TaskStatus.IN_PROGRESS)
     task = ts.get_task(task.id)
     assert 0.0 < float(task.percent_complete or 0.0) < 100.0
+
+

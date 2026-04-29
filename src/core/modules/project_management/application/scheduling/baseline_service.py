@@ -4,7 +4,7 @@ from typing import Optional, Dict, List
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.domain.scheduling.baseline import ProjectBaseline, BaselineTask
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -22,7 +22,7 @@ from src.core.modules.project_management.application.scheduling.engine import Sc
 from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
     WorkCalendarEngine,
 )
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
 class BaselineService(ProjectManagementModuleGuardMixin):
@@ -337,4 +337,6 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         except Exception:
             self._session.rollback()
             raise
+
+
 

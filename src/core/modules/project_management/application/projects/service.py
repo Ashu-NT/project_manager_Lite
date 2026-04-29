@@ -21,7 +21,7 @@ from src.core.modules.project_management.application.projects.queries.project_qu
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.interfaces import TimeEntryRepository
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
 class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, ProjectQueryMixin):
@@ -55,3 +55,4 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
 
 
 __all__ = ["ProjectService"]
+

@@ -5,9 +5,9 @@ from datetime import date
 from PySide6.QtCore import Qt
 from matplotlib.colors import to_rgba
 
-from core.modules.project_management.domain.enums import TaskStatus
+from src.src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.risk.register import RegisterEntrySeverity, RegisterEntryType
-from core.modules.project_management.domain.enums import DependencyType
+from src.src.core.modules.project_management.domain.enums import DependencyType
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.dashboard.layout_builder import DashboardLayoutDialog
 from ui.modules.project_management.dashboard.tab import DashboardTab
@@ -233,3 +233,5 @@ def test_dashboard_tab_can_surface_professional_panels_at_runtime(
     assert tab.watchlist_table.rowCount() >= 1
     assert tab.register_summary_label.rowCount() == 5
     assert tab.register_urgent_table.rowCount() >= 1
+
+

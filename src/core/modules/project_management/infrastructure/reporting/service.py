@@ -19,8 +19,8 @@ from src.core.modules.project_management.application.scheduling.engine import Sc
 from src.core.modules.project_management.application.scheduling.work_calendar_engine import (
     WorkCalendarEngine,
 )
-from core.modules.project_management.services.common.base import ServiceBase
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.platform.common.service_base import ServiceBase
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 from .baseline_compare import ReportingBaselineCompareMixin
 from .cost_breakdown import ReportingCostBreakdownMixin
@@ -77,3 +77,4 @@ class ReportingService(
                 "report.view",
                 operation_label=operation_label,
             )
+

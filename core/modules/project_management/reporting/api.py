@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from core.modules.project_management.reporting.contexts import ExcelReportContext, PdfReportContext
-from core.modules.project_management.reporting.definitions import register_project_management_report_definitions
-from core.modules.project_management.reporting.renderers.evm import EvmCurveRenderer
-from core.modules.project_management.reporting.renderers.excel import ExcelReportRenderer
-from core.modules.project_management.reporting.renderers.gantt import GanttPngRenderer
-from core.modules.project_management.reporting.renderers.pdf import PdfReportRenderer
+from src.core.modules.project_management.infrastructure.reporting.contexts import ExcelReportContext, PdfReportContext
+from src.core.modules.project_management.infrastructure.reporting.definitions import register_project_management_report_definitions
+from src.core.modules.project_management.infrastructure.reporting.renderers.evm import EvmCurveRenderer
+from src.core.modules.project_management.infrastructure.reporting.renderers.excel import ExcelReportRenderer
+from src.core.modules.project_management.infrastructure.reporting.renderers.gantt import GanttPngRenderer
+from src.core.modules.project_management.infrastructure.reporting.renderers.pdf import PdfReportRenderer
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.infrastructure.reporting.models import GanttTaskBar
@@ -375,3 +375,4 @@ def generate_pdf_report(
             module_catalog_service=resolved_module_catalog_service,
         )
     )
+

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.modules.project_management.domain.enums import TaskStatus
+from src.src.core.modules.project_management.domain.enums import TaskStatus
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style, dashboard_meta_chip_style
 from src.ui.shared.widgets.guards import apply_permission_hint, make_guarded_slot
 from src.ui.shared.formatting.style_utils import style_table
@@ -241,3 +241,5 @@ class TaskLayoutMixin:
 
 
 __all__ = ["TaskLayoutMixin"]
+
+

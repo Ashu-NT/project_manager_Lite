@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.portfolio import (
+from src.src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioRecentAction,
 )
@@ -102,3 +102,5 @@ class PortfolioExecutiveQueryMixin:
 
 
 __all__ = ["PortfolioExecutiveQueryMixin"]
+
+

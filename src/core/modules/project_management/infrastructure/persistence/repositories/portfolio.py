@@ -11,7 +11,7 @@ from src.core.modules.project_management.contracts.repositories.portfolio import
     PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
 )
-from core.modules.project_management.domain.portfolio import (
+from src.src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioProjectDependency,
     PortfolioScoringTemplate,
@@ -168,3 +168,5 @@ __all__ = [
     "SqlAlchemyPortfolioScoringTemplateRepository",
     "SqlAlchemyPortfolioScenarioRepository",
 ]
+
+

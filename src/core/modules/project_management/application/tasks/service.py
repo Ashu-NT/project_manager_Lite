@@ -49,7 +49,7 @@ from src.core.platform.approval.application.approval_service import ApprovalServ
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.resources import TimesheetService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
@@ -121,3 +121,4 @@ class TaskService(
 
 
 __all__ = ["TaskService"]
+

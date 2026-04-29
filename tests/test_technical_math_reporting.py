@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from core.modules.project_management.domain.enums import CostType, DependencyType, TaskStatus
+from src.src.core.modules.project_management.domain.enums import CostType, DependencyType, TaskStatus
 
 
 def _bar_map(bars):
@@ -428,3 +428,5 @@ def test_cost_policy_consistent_across_kpi_evm_breakdown_and_totals(services):
     assert _row_sum(rows, "LABOR", "planned") == pytest.approx(1000.0)
     assert _row_sum(rows, "LABOR", "actual") == pytest.approx(200.0)
     assert _row_sum(rows, "OVERHEAD", "actual") == pytest.approx(30.0)
+
+

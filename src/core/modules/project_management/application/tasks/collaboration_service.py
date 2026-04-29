@@ -4,7 +4,7 @@ import os
 
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.tasks.collaboration_principal import (
     CollaborationPrincipalMixin,
 )
@@ -86,3 +86,4 @@ class CollaborationService(
 
 
 __all__ = ["CollaborationService"]
+

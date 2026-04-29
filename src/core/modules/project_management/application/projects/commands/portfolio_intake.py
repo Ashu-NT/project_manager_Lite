@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.portfolio import (
+from src.src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
 )
@@ -96,3 +96,5 @@ class PortfolioIntakeCommandMixin:
 
 
 __all__ = ["PortfolioIntakeCommandMixin"]
+
+

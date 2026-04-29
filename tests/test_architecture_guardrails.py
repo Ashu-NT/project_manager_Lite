@@ -63,8 +63,8 @@ def test_core_layer_does_not_import_ui_layer():
 
 def test_shared_platform_and_inventory_do_not_depend_on_pm_identity_helpers():
     forbidden_patterns = (
-        "from core.modules.project_management.domain.identifiers import generate_id",
-        "from core.modules.project_management.services.common.base import ServiceBase",
+        "from src.src.core.modules.project_management.domain.identifiers import generate_id",
+        "from src.core.platform.common.service_base import ServiceBase",
     )
     checked_roots = (
         ROOT / "core" / "platform",
@@ -84,7 +84,7 @@ def test_shared_platform_and_inventory_do_not_depend_on_pm_identity_helpers():
 
 def test_shared_access_platform_layers_do_not_import_pm_access_code():
     forbidden_import_targets = (
-        "core.modules.project_management.access.policy",
+        "src.src.core.modules.project_management.access.policy",
         "core.modules.project_management.services.project",
         "src.core.modules.project_management.application.projects",
         "src.core.modules.project_management.application.resources",
@@ -116,7 +116,7 @@ def test_platform_bundle_only_registers_platform_owned_scope_policies():
     source = platform_bundle_path.read_text(encoding="utf-8", errors="ignore")
     tree = ast.parse(source)
     forbidden_import_targets = (
-        "core.modules.project_management.access.policy",
+        "src.src.core.modules.project_management.access.policy",
         "core.modules.inventory_procurement.access.policy",
     )
     violations: list[tuple[str, str]] = []
@@ -140,7 +140,7 @@ def test_module_service_bundles_register_their_owned_scope_policies():
     project_text = project_bundle_path.read_text(encoding="utf-8", errors="ignore")
     inventory_text = inventory_bundle_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.access.policy import" in project_text
+    assert "from src.src.core.modules.project_management.access.policy import" in project_text
     assert 'scope_type="project"' in project_text
     assert "from core.modules.inventory_procurement.access.policy import" in inventory_text
     assert 'scope_type="storeroom"' in inventory_text
@@ -362,7 +362,7 @@ def test_project_management_timesheet_service_wraps_platform_time_service():
     )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.common.module_guard import (" in text
+    assert "from src.core.modules.project_management.application.common.module_guard import (" in text
     assert "ProjectManagementModuleGuardMixin" in text
     assert "from src.core.platform.time.application import TimeService" in text
     assert "class TimesheetService(" in text
@@ -1450,3 +1450,5 @@ def test_known_large_modules_have_growth_budgets():
             breaches.append((rel_path, lines, max_lines))
 
     assert not breaches, f"Large-module budgets exceeded: {breaches}"
+
+

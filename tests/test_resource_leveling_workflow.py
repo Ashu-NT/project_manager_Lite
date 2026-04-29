@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from core.modules.project_management.domain.enums import DependencyType
+from src.src.core.modules.project_management.domain.enums import DependencyType
 
 
 def test_preview_resource_conflicts_detects_overallocation(services):
@@ -120,3 +120,5 @@ def test_manual_resource_leveling_shifts_leaf_task_dates(services):
     assert action.new_start == wc.add_working_days(old_start, 3)
     assert updated.start_date == action.new_start
     assert updated.end_date == action.new_end
+
+

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from core.modules.project_management.domain.enums import DependencyType
+from src.src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.notifications.domain_events import domain_events
 
 
@@ -313,3 +313,5 @@ def test_enterprise_tabs_subscribe_to_domain_events_for_auto_refresh():
     assert "domain_events.domain_changed.connect(self._on_generic_domain_change)" in portfolio_text
     assert 'is_project_management_domain_event(event, "project", "portfolio_entity")' in portfolio_text
     assert "self._on_domain_change(event.entity_id)" in portfolio_text
+
+

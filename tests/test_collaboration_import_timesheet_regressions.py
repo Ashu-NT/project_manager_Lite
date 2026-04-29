@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from infra.modules.project_management.collaboration_store import TaskCollaborationStore
+from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.core.platform.infrastructure.persistence.orm.time import TimeEntryORM
 from tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
@@ -38,7 +38,7 @@ def test_db_collaboration_store_copies_file_attachments_and_preserves_tokens(
     ps = services["project_service"]
     ts = services["task_service"]
     store = services["task_collaboration_store"]
-    monkeypatch.setattr("infra.modules.project_management.collaboration_attachments.user_data_dir", lambda: workspace_dir)
+    monkeypatch.setattr("src.core.modules.project_management.infrastructure.collaboration_attachments.user_data_dir", lambda: workspace_dir)
 
     project = ps.create_project("Collab Attachments")
     task = ts.create_task(project.id, "DB Comment Task", start_date=date(2026, 3, 1), duration_days=1)
@@ -339,3 +339,4 @@ def test_time_entry_hours_must_be_greater_than_zero(services):
 
     with pytest.raises(ValidationError, match="greater than zero"):
         ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 17), hours=0.0, note="Invalid")
+

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
+from src.src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
 from src.core.platform.auth.authorization import require_permission
 
 
@@ -15,3 +15,5 @@ class PortfolioTemplateQueryMixin:
 
 
 __all__ = ["PortfolioTemplateQueryMixin"]
+
+

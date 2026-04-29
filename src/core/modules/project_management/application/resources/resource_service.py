@@ -13,7 +13,7 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.org.contracts import EmployeeRepository
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
 class ResourceService(
@@ -47,3 +47,4 @@ class ResourceService(
 
 
 __all__ = ["ResourceService"]
+

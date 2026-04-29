@@ -1,7 +1,7 @@
 from __future__ import annotations
 from PySide6.QtWidgets import QMessageBox
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from core.modules.project_management.reporting.api import generate_evm_png, generate_excel_report, generate_gantt_png, generate_pdf_report
+from src.core.modules.project_management.infrastructure.reporting.api import generate_evm_png, generate_excel_report, generate_gantt_png, generate_pdf_report
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
@@ -156,3 +156,4 @@ class ReportActionsMixin(ReportActionHelpersMixin):
         )
 
 __all__ = ["ReportActionsMixin"]
+

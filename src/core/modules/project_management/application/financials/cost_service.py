@@ -14,7 +14,7 @@ from src.core.modules.project_management.application.financials.queries.cost_que
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
 class CostService(
@@ -45,5 +45,6 @@ class CostService(
 
 
 __all__ = ["CostService"]
+
 
 

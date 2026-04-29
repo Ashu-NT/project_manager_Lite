@@ -6,7 +6,7 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
     RegisterLifecycleMixin,
 )
@@ -35,3 +35,4 @@ class RegisterService(ProjectManagementModuleGuardMixin, RegisterLifecycleMixin,
 
 
 __all__ = ["RegisterService"]
+

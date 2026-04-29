@@ -11,7 +11,7 @@ from src.core.modules.project_management.contracts.repositories.project import (
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.infrastructure.reporting.models import (
     CostSourceBreakdown,
     CostSourceRow,
@@ -392,3 +392,5 @@ class ReportingCostPolicyMixin:
             total_actual=float(direct_actual + computed_actual + manual_actual),
             notes=notes,
         )
+
+

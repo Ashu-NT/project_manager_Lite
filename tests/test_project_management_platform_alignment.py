@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from core.modules.project_management.domain.enums import WorkerType
+from src.src.core.modules.project_management.domain.enums import WorkerType
 from src.core.modules.project_management.domain.risk.register import RegisterEntryType
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.project_management.collaboration.tab import CollaborationTab
@@ -16,7 +16,7 @@ from ui.modules.project_management.task.collaboration_dialog import TaskCollabor
 
 def test_pm_collaboration_attachments_register_shared_documents(services, repo_workspace, monkeypatch):
     monkeypatch.setattr(
-        "infra.modules.project_management.collaboration_attachments.user_data_dir",
+        "src.core.modules.project_management.infrastructure.collaboration_attachments.user_data_dir",
         lambda: repo_workspace,
     )
     project = services["project_service"].create_project("PM Document Alignment")
@@ -63,7 +63,7 @@ def test_pm_collaboration_attachments_register_shared_documents(services, repo_w
 
 def test_pm_task_collaboration_dialog_distinguishes_linked_documents(qapp, services, repo_workspace, monkeypatch):
     monkeypatch.setattr(
-        "infra.modules.project_management.collaboration_attachments.user_data_dir",
+        "src.core.modules.project_management.infrastructure.collaboration_attachments.user_data_dir",
         lambda: repo_workspace,
     )
     project = services["project_service"].create_project("PM Document UX")
@@ -373,3 +373,5 @@ def test_pm_register_tab_refreshes_from_generic_domain_event(qapp, services):
 
     assert tab.table.rowCount() == 1
     assert tab.table.item(0, 1).text() == "Generic register event"
+
+

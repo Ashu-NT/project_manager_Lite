@@ -5,7 +5,7 @@ from datetime import date
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, ValidationError
 from src.core.modules.project_management.domain.financials.cost import CostItem
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 from src.core.platform.audit.helpers import record_audit
 
 
@@ -231,3 +231,5 @@ class CostLifecycleMixin:
             raise
 
         domain_events.costs_changed.emit(item.project_id)
+
+

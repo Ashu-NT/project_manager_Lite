@@ -4,7 +4,7 @@ from datetime import date
 
 from PySide6.QtWidgets import QSizePolicy
 
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 from tests.ui_runtime_helpers import make_settings_store
 from ui.modules.project_management.project.tab import ProjectTab
 from ui.modules.project_management.resource.tab import ResourceTab
@@ -122,3 +122,5 @@ def test_task_tab_filters_work_at_runtime(qapp, services, repo_workspace):
     assert tab.model.data(tab.model.index(0, 0)) == "High Priority Task"
 
     tab._mentions_refresh_timer.stop()
+
+

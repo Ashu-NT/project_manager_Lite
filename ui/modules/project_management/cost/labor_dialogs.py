@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.project_management.domain.enums import CostType
+from src.src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.resources import ResourceService
@@ -277,3 +277,5 @@ class ResourceAssignmentsDialog(QDialog):
 
 
 __all__ = ["ResourceLaborDialog", "ResourceAssignmentsDialog"]
+
+

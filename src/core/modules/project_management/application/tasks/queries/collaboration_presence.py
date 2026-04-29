@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
+from src.src.core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 
@@ -73,3 +73,5 @@ class CollaborationPresenceQueryMixin:
 
 
 __all__ = ["CollaborationPresenceQueryMixin"]
+
+

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.projects.commands.portfolio_dependencies import PortfolioDependencyCommandMixin
 from src.core.modules.project_management.application.projects.commands.portfolio_intake import PortfolioIntakeCommandMixin
 from src.core.modules.project_management.application.projects.commands.portfolio_scenarios import PortfolioScenarioCommandMixin
@@ -72,3 +72,4 @@ class PortfolioService(
 
 
 __all__ = ["PortfolioService"]
+

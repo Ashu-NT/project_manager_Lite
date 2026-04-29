@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtGui import QPixmap
 
-from core.modules.project_management.reporting.api import generate_gantt_png
+from src.core.modules.project_management.infrastructure.reporting.api import generate_gantt_png
 from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
 from src.ui.shared.models.worker_services import service_uses_in_memory_sqlite, worker_service_scope
 
@@ -110,3 +110,4 @@ def _apply_preview_error(dialog, label_text: str, *, timeline_error: str) -> Non
 
 
 __all__ = ["load_gantt_image"]
+

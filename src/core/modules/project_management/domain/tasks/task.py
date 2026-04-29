@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from core.modules.project_management.domain.enums import DependencyType, TaskStatus
-from core.modules.project_management.domain.identifiers import generate_id
+from src.src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.src.core.modules.project_management.domain.identifiers import generate_id
 
 
 @dataclass
@@ -86,3 +86,5 @@ class TaskDependency:
 
 
 __all__ = ["Task", "TaskAssignment", "TaskDependency"]
+
+

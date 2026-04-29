@@ -4,7 +4,7 @@ import pytest
 
 from src.api.desktop.platform import PlatformAccessDesktopApi, PlatformUserDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError
-from core.modules.project_management.access.policy import (
+from src.src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
     resolve_project_scope_permissions,
@@ -227,3 +227,5 @@ def test_access_tab_one_panel_modes_hide_inactive_surface_widgets(qapp, services
     assert security_only.btn_revoke_sessions.isVisibleTo(security_only) is True
     assert security_only.membership_table.isVisibleTo(security_only) is False
     assert security_only.btn_refresh.isVisibleTo(security_only) is False
+
+

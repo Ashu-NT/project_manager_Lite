@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout
 
-from core.modules.project_management.domain.enums import ProjectStatus
+from src.src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.projects.project import Project
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -99,3 +99,5 @@ class ProjectFiltersMixin:
 
 
 __all__ = ["ProjectFiltersMixin"]
+
+

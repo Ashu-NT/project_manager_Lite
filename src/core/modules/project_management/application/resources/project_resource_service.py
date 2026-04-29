@@ -10,7 +10,7 @@ from src.core.modules.project_management.application.resources.queries.project_r
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
+from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
 class ProjectResourceService(
@@ -38,3 +38,4 @@ class ProjectResourceService(
 
 
 __all__ = ["ProjectResourceService"]
+

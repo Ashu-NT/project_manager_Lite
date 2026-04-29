@@ -10,7 +10,7 @@ from openpyxl import load_workbook
 
 from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from core.modules.project_management.domain.enums import CostType, DependencyType
+from src.src.core.modules.project_management.domain.enums import CostType, DependencyType
 from core.modules.project_management.reporting import api as reporting_api
 from src.core.modules.project_management.infrastructure.reporting.models import (
     CostSourceBreakdown,
@@ -236,7 +236,7 @@ def test_pdf_export_succeeds_when_gantt_generation_fails(services, tmp_path, mon
     def _raise_gantt(*_args, **_kwargs):
         raise ValueError("No tasks with dates available for Gantt chart.")
 
-    monkeypatch.setattr("core.modules.project_management.reporting.api.generate_gantt_png", _raise_gantt)
+    monkeypatch.setattr("src.core.modules.project_management.infrastructure.reporting.api.generate_gantt_png", _raise_gantt)
 
     output = tmp_path / "report.pdf"
     reporting_api.generate_pdf_report(
@@ -466,3 +466,5 @@ def test_reporting_api_requires_report_export_permission_from_live_session(servi
         )
 
     assert exc.value.code == "PERMISSION_DENIED"
+
+
