@@ -8,7 +8,10 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
 from src.core.platform.access.authorization import filter_project_rows, require_project_permission
 from src.core.platform.auth.authorization import require_permission
-from core.modules.project_management.services.register.models import RegisterProjectSummary, RegisterUrgentItem
+from src.core.modules.project_management.application.risk.dto.register_summary import (
+    RegisterProjectSummary,
+    RegisterUrgentItem,
+)
 
 _ACTIVE_STATUSES = {
     RegisterEntryStatus.OPEN,

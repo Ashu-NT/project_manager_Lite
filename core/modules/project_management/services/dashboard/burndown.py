@@ -4,7 +4,7 @@ from datetime import timedelta
 from typing import List
 
 from core.modules.project_management.services.dashboard.models import BurndownPoint
-from core.modules.project_management.services.reporting.service import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
 
 

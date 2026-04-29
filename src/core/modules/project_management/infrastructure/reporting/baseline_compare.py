@@ -4,7 +4,10 @@ from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
-from core.modules.project_management.services.reporting.models import BaselineComparisonResult, BaselineComparisonRow
+from src.core.modules.project_management.infrastructure.reporting.models import (
+    BaselineComparisonResult,
+    BaselineComparisonRow,
+)
 
 
 class ReportingBaselineCompareMixin:

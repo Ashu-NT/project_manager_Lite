@@ -71,14 +71,14 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
+from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     CalendarService,
     SchedulingEngine,
     WorkCalendarEngine,
     WorkCalendarService,
 )
-from core.modules.project_management.services.register import RegisterService
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore

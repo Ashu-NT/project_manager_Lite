@@ -65,6 +65,7 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
+from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     CPMTaskInfo,
     CalendarService,
@@ -72,8 +73,6 @@ from src.core.modules.project_management.application.scheduling import (
     WorkCalendarEngine,
     WorkCalendarService,
 )
-from core.modules.project_management.services.register import RegisterService
-from core.modules.project_management.services.register.service import RegisterService as LegacyRegisterService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.reporting.service import ReportingService as LegacyReportingService
 from src.core.modules.project_management.application.tasks import TaskService
@@ -229,7 +228,6 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyApprovalService is ApprovalService
     assert LegacyAuthService is AuthService
     assert LegacyAuditService is AuditService
-    assert LegacyRegisterService is RegisterService
     assert LegacyReportingService is ReportingService
     assert LegacyBaselineService is BaselineService
 
@@ -313,6 +311,17 @@ def test_legacy_resource_cost_finance_packages_are_removed():
     assert not (legacy_finance_root / "ledger.py").exists()
     assert not (legacy_finance_root / "models.py").exists()
     assert not (legacy_finance_root / "policy.py").exists()
+
+
+def test_legacy_register_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_register_root = root / "core" / "modules" / "project_management" / "services" / "register"
+
+    assert not (legacy_register_root / "__init__.py").exists()
+    assert not (legacy_register_root / "service.py").exists()
+    assert not (legacy_register_root / "lifecycle.py").exists()
+    assert not (legacy_register_root / "query.py").exists()
+    assert not (legacy_register_root / "models.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

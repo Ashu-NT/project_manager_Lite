@@ -12,7 +12,10 @@ from src.core.modules.project_management.contracts.repositories.project import (
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
 from core.modules.project_management.domain.enums import CostType
-from core.modules.project_management.services.reporting.models import CostSourceBreakdown, CostSourceRow
+from src.core.modules.project_management.infrastructure.reporting.models import (
+    CostSourceBreakdown,
+    CostSourceRow,
+)
 
 CostBucketKey = Tuple[CostType, str]
 

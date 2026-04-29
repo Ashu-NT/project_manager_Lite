@@ -4,9 +4,13 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import List, Optional
 
-from core.modules.project_management.services.reporting.models import CostSourceBreakdown, ProjectKPI, ResourceLoadRow
 from core.modules.project_management.services.dashboard.portfolio_models import DashboardPortfolio
-from core.modules.project_management.services.register.models import RegisterProjectSummary
+from src.core.modules.project_management.infrastructure.reporting import (
+    CostSourceBreakdown,
+    ProjectKPI,
+    ResourceLoadRow,
+)
+from src.core.modules.project_management.application.risk import RegisterProjectSummary
 
 
 @dataclass

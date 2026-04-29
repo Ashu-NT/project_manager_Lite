@@ -5,7 +5,9 @@ from datetime import date
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from core.modules.project_management.services.reporting.models import EvmSeriesPoint
+from src.core.modules.project_management.infrastructure.reporting.models import (
+    EvmSeriesPoint,
+)
 
 
 class ReportingEvmSeriesMixin:

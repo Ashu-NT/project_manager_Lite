@@ -13,7 +13,11 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from core.modules.project_management.services.reporting.models import LaborAssignmentRow, LaborPlanActualRow, LaborResourceRow
+from src.core.modules.project_management.infrastructure.reporting.models import (
+    LaborAssignmentRow,
+    LaborPlanActualRow,
+    LaborResourceRow,
+)
 
 
 class ReportingLaborMixin:

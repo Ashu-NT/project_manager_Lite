@@ -7,8 +7,12 @@ from src.core.modules.project_management.contracts.repositories.register import 
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.register.lifecycle import RegisterLifecycleMixin
-from core.modules.project_management.services.register.query import RegisterQueryMixin
+from src.core.modules.project_management.application.risk.commands.register_lifecycle import (
+    RegisterLifecycleMixin,
+)
+from src.core.modules.project_management.application.risk.queries.register_query import (
+    RegisterQueryMixin,
+)
 
 
 class RegisterService(ProjectManagementModuleGuardMixin, RegisterLifecycleMixin, RegisterQueryMixin):

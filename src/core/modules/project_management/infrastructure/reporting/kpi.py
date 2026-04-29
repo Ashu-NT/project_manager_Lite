@@ -19,8 +19,14 @@ from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
     WorkCalendarEngine,
 )
-from core.modules.project_management.services.reporting.cost_policy import ReportingCostPolicyMixin
-from core.modules.project_management.services.reporting.models import GanttTaskBar, ProjectKPI, ResourceLoadRow
+from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
+    ReportingCostPolicyMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.models import (
+    GanttTaskBar,
+    ProjectKPI,
+    ResourceLoadRow,
+)
 
 
 class ReportingKpiMixin(ReportingCostPolicyMixin):

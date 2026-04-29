@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.project_management.services.dashboard.models import DashboardEVM
-from core.modules.project_management.services.reporting.models import EarnedValueMetrics
-from core.modules.project_management.services.reporting.service import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import (
+    EarnedValueMetrics,
+    ReportingService,
+)
 
 
 class DashboardEvmMixin:

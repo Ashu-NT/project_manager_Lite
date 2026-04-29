@@ -5,7 +5,10 @@ from typing import List
 
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.tasks import TaskService
-from core.modules.project_management.services.reporting.models import ProjectKPI, ResourceLoadRow
+from src.core.modules.project_management.infrastructure.reporting import (
+    ProjectKPI,
+    ResourceLoadRow,
+)
 
 
 class DashboardAlertsMixin:

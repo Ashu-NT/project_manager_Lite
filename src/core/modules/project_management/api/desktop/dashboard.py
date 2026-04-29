@@ -10,7 +10,7 @@ from core.modules.project_management.services.dashboard import (
     DashboardService,
 )
 from src.core.modules.project_management.application.projects import ProjectService
-from core.modules.project_management.services.register.models import RegisterProjectSummary
+from src.core.modules.project_management.application.risk import RegisterProjectSummary
 from src.core.modules.project_management.domain.risk.register import (
     as_register_entry_severity,
     as_register_entry_status,

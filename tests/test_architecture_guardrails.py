@@ -1070,6 +1070,28 @@ def test_project_resource_service_is_orchestrator_only():
     assert "def delete(" not in text
 
 
+def test_register_service_is_orchestrator_only():
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "risk"
+        / "register_service.py"
+    )
+    text = service_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "from src.core.modules.project_management.application.risk.commands.register_lifecycle import (" in text
+    assert "from src.core.modules.project_management.application.risk.queries.register_query import (" in text
+    assert "def create_entry" not in text
+    assert "def update_entry" not in text
+    assert "def delete_entry" not in text
+    assert "def list_entries" not in text
+    assert "def get_project_summary" not in text
+
+
 def test_resource_service_is_orchestrator_only():
     service_path = (
         ROOT

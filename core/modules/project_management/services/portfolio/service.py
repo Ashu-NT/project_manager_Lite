@@ -18,7 +18,7 @@ from core.modules.project_management.services.portfolio.intake import PortfolioI
 from core.modules.project_management.services.portfolio.scenarios import PortfolioScenarioMixin
 from core.modules.project_management.services.portfolio.support import PortfolioSupportMixin
 from core.modules.project_management.services.portfolio.templates import PortfolioTemplateMixin
-from core.modules.project_management.services.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
 
 class PortfolioService(

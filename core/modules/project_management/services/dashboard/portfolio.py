@@ -12,7 +12,10 @@ from core.modules.project_management.services.dashboard.portfolio_models import 
     PortfolioProjectRow,
     PortfolioStatusRollupRow,
 )
-from core.modules.project_management.services.reporting.models import ProjectKPI, ResourceLoadRow
+from src.core.modules.project_management.infrastructure.reporting import (
+    ProjectKPI,
+    ResourceLoadRow,
+)
 
 
 class DashboardPortfolioMixin:
