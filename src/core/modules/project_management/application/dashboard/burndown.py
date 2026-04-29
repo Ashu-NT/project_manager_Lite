@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import List
 
-from core.modules.project_management.services.dashboard.models import BurndownPoint
+from src.core.modules.project_management.application.dashboard.models import BurndownPoint
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
 

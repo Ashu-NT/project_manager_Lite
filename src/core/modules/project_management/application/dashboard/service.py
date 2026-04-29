@@ -4,14 +4,14 @@ from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
-from core.modules.project_management.services.dashboard.alerts import DashboardAlertsMixin
-from core.modules.project_management.services.dashboard.burndown import DashboardBurndownMixin
-from core.modules.project_management.services.dashboard.evm import DashboardEvmMixin
-from core.modules.project_management.services.dashboard.register import DashboardRegisterMixin
-from core.modules.project_management.services.dashboard.models import BurndownPoint, DashboardData, DashboardEVM, UpcomingTask
-from core.modules.project_management.services.dashboard.portfolio import DashboardPortfolioMixin
-from core.modules.project_management.services.dashboard.professional import DashboardProfessionalMixin
-from core.modules.project_management.services.dashboard.upcoming import DashboardUpcomingMixin
+from src.core.modules.project_management.application.dashboard.alerts import DashboardAlertsMixin
+from src.core.modules.project_management.application.dashboard.burndown import DashboardBurndownMixin
+from src.core.modules.project_management.application.dashboard.evm import DashboardEvmMixin
+from src.core.modules.project_management.application.dashboard.register import DashboardRegisterMixin
+from src.core.modules.project_management.application.dashboard.models import BurndownPoint, DashboardData, DashboardEVM, UpcomingTask
+from src.core.modules.project_management.application.dashboard.portfolio import DashboardPortfolioMixin
+from src.core.modules.project_management.application.dashboard.professional import DashboardProfessionalMixin
+from src.core.modules.project_management.application.dashboard.upcoming import DashboardUpcomingMixin
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.projects import ProjectService

@@ -18,7 +18,7 @@ from src.core.modules.project_management.application.scheduling.baseline_service
     BaselineService,
 )
 from core.modules.project_management.services.collaboration import CollaborationService
-from core.modules.project_management.services.dashboard import DashboardService
+from src.core.modules.project_management.application.dashboard import DashboardService
 from core.modules.project_management.services.import_service import DataImportService
 from core.modules.project_management.services.portfolio import PortfolioService
 from src.core.modules.project_management.application.financials import CostService, FinanceService

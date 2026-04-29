@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 
 from src.core.modules.project_management.application.scheduling import ResourceConflict
 from src.core.modules.project_management.infrastructure.reporting.models import ResourceLoadRow
-from core.modules.project_management.services.dashboard import DashboardData
+from src.core.modules.project_management.application.dashboard import DashboardData
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 

@@ -7,7 +7,7 @@ from typing import Any
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
-from core.modules.project_management.services.dashboard import (
+from src.core.modules.project_management.application.dashboard import (
     PORTFOLIO_SCOPE_ID,
     DashboardService,
 )

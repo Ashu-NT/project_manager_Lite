@@ -1191,10 +1191,14 @@ Resolved:
   - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
   - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_baseline_comparison_workflow.py tests/test_exporters_configuration.py tests/test_project_management_platform_alignment.py tests/test_platform_import_export_report_runtime.py`
   - observed result: 154 passed
+- after the PM dashboard application transfer, focused verification now passes:
+  - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
+  - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_dashboard_portfolio_flow.py tests/test_dashboard_leveling_flow.py tests/test_project_management_platform_alignment.py tests/test_refactor_regressions.py tests/test_pro_set_v1_ui.py`
+  - observed result: 177 passed
 
 Continue next:
 
-1. Continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, and `services/reporting/*` moves, starting with `services/dashboard/*`, then `services/collaboration/*`, `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`.
+1. Continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/dashboard/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, and `services/reporting/*` moves, starting with `services/collaboration/*`, then `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`.
 2. Update test path strategy and remove path rewrites only after the new paths are complete.
 
 ### Slice 2: Project Management
@@ -1219,7 +1223,7 @@ Hold status as of 2026-04-22:
 
 Refactor-first priority for the remaining PM slice:
 
-- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into their module-local homes under `src/core/modules/project_management/{application,infrastructure}/*`, while keeping completed `projects`, `tasks`, `scheduling`, `baseline`, `resources`, `financials`, `risk`, and `reporting` transfers clean and facade-free
+- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into their module-local homes under `src/core/modules/project_management/{application,infrastructure}/*`, while keeping completed `projects`, `tasks`, `scheduling`, `baseline`, `dashboard`, `resources`, `financials`, `risk`, and `reporting` transfers clean and facade-free
 - keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and continue shrinking the remaining legacy PM service surface
 - expand module-local PM desktop and HTTP APIs over those application handlers, not over the broad legacy service layer
 - regroup PM tests under `src/tests/project_management/*`
@@ -1273,6 +1277,9 @@ Completed:
 - rewired PM composition, PM desktop APIs, platform audit support, dashboard Widget callers, path rewrites, and architecture tests to import `BaselineService` from the new scheduling module-local path
 - flattened scheduling imports inside the reporting infrastructure onto concrete scheduling modules so the scheduling/reporting import graph stays acyclic after the baseline transfer
 - deleted the old source file and legacy package root under `core/modules/project_management/services/baseline/` after callers were rewritten, with no facade re-export package kept behind
+- moved `core/modules/project_management/services/dashboard/{service,alerts,upcoming,burndown,evm,register,portfolio,professional,models,portfolio_models}.py` into `src/core/modules/project_management/application/dashboard/*`
+- rewired PM composition, desktop runtime/dashboard APIs, dashboard Widget callers, dashboard desktop snapshot builders, path rewrites, and architecture tests to import `DashboardService`, `DashboardData`, and `PORTFOLIO_SCOPE_ID` from `src.core.modules.project_management.application.dashboard`
+- deleted the old source files and legacy package root under `core/modules/project_management/services/dashboard/` after callers were rewritten, with no facade re-export package kept behind
 - PM ORM rows now live under `src/core/modules/project_management/infrastructure/persistence/orm/`
 - PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - the old `src/infra/persistence/orm/project_management/` global module ORM package was deleted after direct import rewrites
@@ -1336,7 +1343,7 @@ Verified:
 
 Continue next:
 
-1. Continue the PM domain, service, API, and UI work before starting another module.
+1. Continue the PM domain, service, API, and UI work before starting another module, with the remaining legacy service transfers now centered on `services/collaboration/*`, `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`.
 2. Prioritize the remaining PM repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion.
 3. Regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle.
 4. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.

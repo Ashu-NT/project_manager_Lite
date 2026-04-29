@@ -4,7 +4,9 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import List, Optional
 
-from core.modules.project_management.services.dashboard.portfolio_models import DashboardPortfolio
+from src.core.modules.project_management.application.dashboard.portfolio_models import (
+    DashboardPortfolio,
+)
 from src.core.modules.project_management.infrastructure.reporting import (
     CostSourceBreakdown,
     ProjectKPI,

@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from core.modules.project_management.services.dashboard import DashboardData
+from src.core.modules.project_management.application.dashboard import DashboardData
 from ui.modules.project_management.dashboard.evm_rows import build_metric_row, build_status_row
 from src.ui.shared.formatting.formatting import fmt_money, fmt_ratio
 from src.ui.shared.formatting.ui_config import UIConfig as CFG

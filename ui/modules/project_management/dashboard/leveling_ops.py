@@ -1,6 +1,10 @@
 from __future__ import annotations
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QPushButton, QTableWidget
-from core.modules.project_management.services.dashboard import DashboardData, DashboardService, PORTFOLIO_SCOPE_ID
+from src.core.modules.project_management.application.dashboard import (
+    DashboardData,
+    DashboardService,
+    PORTFOLIO_SCOPE_ID,
+)
 from src.core.modules.project_management.application.scheduling import ResourceConflict
 from ui.modules.project_management.dashboard.async_actions import (
     run_auto_level_conflicts_async,

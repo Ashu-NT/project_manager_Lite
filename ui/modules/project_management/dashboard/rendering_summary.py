@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel
-from core.modules.project_management.services.dashboard import DashboardData
+from src.core.modules.project_management.application.dashboard import DashboardData
 from ui.modules.project_management.dashboard.widgets import ChartWidget, KpiCard
 from src.ui.shared.formatting.formatting import fmt_float, fmt_int, fmt_percent
 from src.ui.shared.formatting.ui_config import UIConfig as CFG

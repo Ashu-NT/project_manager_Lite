@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog
 
-from core.modules.project_management.services.dashboard import PORTFOLIO_SCOPE_ID
+from src.core.modules.project_management.application.dashboard import PORTFOLIO_SCOPE_ID
 from ui.modules.project_management.dashboard.layout_builder import (
     DashboardLayoutDialog,
     PORTFOLIO_PANELS,

@@ -21,7 +21,10 @@ from src.core.platform.auth import UserSessionContext
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
-from core.modules.project_management.services.dashboard import DashboardData, DashboardService
+from src.core.modules.project_management.application.dashboard import (
+    DashboardData,
+    DashboardService,
+)
 from src.core.modules.project_management.application.projects import ProjectService
 from ui.modules.project_management.dashboard.access import configure_dashboard_access, wire_dashboard_access
 from ui.modules.project_management.dashboard.alerts_panel import DashboardAlertsPanelMixin

@@ -2224,7 +2224,7 @@ Hold status:
 
 Refactor-first priority for the remaining PM slice:
 
-- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into their module-local homes under `src/core/modules/project_management/{application,infrastructure}/*`, while keeping the completed `projects`, `tasks`, `scheduling`, `baseline`, `resources`, `financials`, `risk`, and `reporting` transfers clean and facade-free
+- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into their module-local homes under `src/core/modules/project_management/{application,infrastructure}/*`, while keeping the completed `projects`, `tasks`, `scheduling`, `baseline`, `dashboard`, `resources`, `financials`, `risk`, and `reporting` transfers clean and facade-free
 - keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and continue shrinking the remaining legacy PM service surface
 - expand module-local PM desktop and HTTP APIs over those application handlers, not over legacy broad services
 - regroup PM tests under `src/tests/project_management/*`
@@ -2264,6 +2264,9 @@ Completed in the clean/no-facade execution:
 - rewired PM composition, PM desktop APIs, platform audit support, dashboard QWidget callers, path rewrites, and architecture tests to import `BaselineService` from the new scheduling module-local path
 - flattened scheduling imports inside the reporting infrastructure onto concrete scheduling modules so the scheduling/reporting import graph stays acyclic after the baseline transfer
 - deleted the old source file and legacy package root under `core/modules/project_management/services/baseline/` after callers were rewritten; no facade re-export package was left behind
+- moved `core/modules/project_management/services/dashboard/{service,alerts,upcoming,burndown,evm,register,portfolio,professional,models,portfolio_models}.py` into `src/core/modules/project_management/application/dashboard/*`
+- rewired PM composition, desktop runtime/dashboard APIs, dashboard QWidget callers, dashboard desktop snapshot builders, path rewrites, and architecture tests to import `DashboardService`, `DashboardData`, and `PORTFOLIO_SCOPE_ID` from `src.core.modules.project_management.application.dashboard`
+- deleted the old source files and legacy package root under `core/modules/project_management/services/dashboard/` after callers were rewritten; no facade re-export package was left behind
 - moved PM ORM rows from `src/infra/persistence/orm/project_management/*` into `src/core/modules/project_management/infrastructure/persistence/orm/*`
 - rewired PM persistence adapters, collaboration storage, metadata loading, and architecture guardrails to split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
 - deleted the old global `src/infra/persistence/orm/project_management/` package after callers were rewritten
@@ -2379,12 +2382,16 @@ Verified:
   - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
   - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_baseline_comparison_workflow.py tests/test_exporters_configuration.py tests/test_project_management_platform_alignment.py tests/test_platform_import_export_report_runtime.py`
   - observed result after the PM baseline transfer: 154 passed
+- after the PM dashboard application transfer, focused verification passes:
+  - `python -m compileall -q src/core/modules/project_management src/infra/composition src/api core/modules/project_management ui/modules/project_management tests`
+  - `conda run -n pmenv pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_professional_panels.py tests/test_dashboard_portfolio_flow.py tests/test_dashboard_leveling_flow.py tests/test_project_management_platform_alignment.py tests/test_refactor_regressions.py tests/test_pro_set_v1_ui.py`
+  - observed result after the PM dashboard transfer: 177 passed
 
 Still remaining in Slice 2:
 
 - continue splitting PM domain, services, API adapters, and UI according to the Slice 2 plan before starting another module
 - prioritize the remaining repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion
-- continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, and `services/reporting/*` moves, especially `services/dashboard/*`, `services/collaboration/*`, `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`
+- continue the remaining legacy PM service transfers after the completed `services/project/*`, `services/task/*`, `services/scheduling/*`, `services/calendar/*`, `services/work_calendar/*`, `services/baseline/*`, `services/dashboard/*`, `services/resource/*`, `services/cost/*`, `services/finance/*`, `services/register/*`, and `services/reporting/*` moves, especially `services/collaboration/*`, `services/portfolio/*`, `services/timesheet/*`, and `services/import_service/*`
 - migrate PM UI screens to `src/ui_qml/modules/project_management/*` one workspace/dialog at a time against the refactored module-local APIs; delete old Widget files only after matching QML screens pass tests
 - regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle
 - if real PM gateway boundaries appear during the application/API split, place those contracts under `src/core/modules/project_management/contracts/gateways/*` without facade re-exports

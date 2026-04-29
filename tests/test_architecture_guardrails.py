@@ -441,15 +441,15 @@ def test_dashboard_summary_rendering_avoids_widget_index_lookups():
 
 
 def test_dashboard_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "services" / "dashboard" / "service.py"
+    service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "dashboard" / "service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.dashboard.alerts import" in text
-    assert "from core.modules.project_management.services.dashboard.upcoming import" in text
-    assert "from core.modules.project_management.services.dashboard.burndown import" in text
-    assert "from core.modules.project_management.services.dashboard.evm import" in text
-    assert "from core.modules.project_management.services.dashboard.portfolio import" in text
-    assert "from core.modules.project_management.services.dashboard.professional import" in text
+    assert "from src.core.modules.project_management.application.dashboard.alerts import" in text
+    assert "from src.core.modules.project_management.application.dashboard.upcoming import" in text
+    assert "from src.core.modules.project_management.application.dashboard.burndown import" in text
+    assert "from src.core.modules.project_management.application.dashboard.evm import" in text
+    assert "from src.core.modules.project_management.application.dashboard.portfolio import" in text
+    assert "from src.core.modules.project_management.application.dashboard.professional import" in text
     assert "def _build_alerts" not in text
     assert "def _build_upcoming_tasks" not in text
     assert "def _build_burndown" not in text
@@ -1302,14 +1302,14 @@ def test_known_large_modules_have_growth_budgets():
         "core/domain/__init__.py": 70,
         "core/modules/project_management/domain/identifiers.py": 40,
         "core/modules/project_management/domain/enums.py": 90,
-        "core/modules/project_management/services/dashboard/service.py": 170,
-        "core/modules/project_management/services/dashboard/models.py": 120,
-        "core/modules/project_management/services/dashboard/alerts.py": 180,
-        "core/modules/project_management/services/dashboard/upcoming.py": 150,
-        "core/modules/project_management/services/dashboard/burndown.py": 120,
-        "core/modules/project_management/services/dashboard/evm.py": 160,
-        "core/modules/project_management/services/dashboard/portfolio.py": 300,
-        "core/modules/project_management/services/dashboard/portfolio_models.py": 100,
+        "src/core/modules/project_management/application/dashboard/service.py": 170,
+        "src/core/modules/project_management/application/dashboard/models.py": 120,
+        "src/core/modules/project_management/application/dashboard/alerts.py": 180,
+        "src/core/modules/project_management/application/dashboard/upcoming.py": 150,
+        "src/core/modules/project_management/application/dashboard/burndown.py": 120,
+        "src/core/modules/project_management/application/dashboard/evm.py": 160,
+        "src/core/modules/project_management/application/dashboard/portfolio.py": 300,
+        "src/core/modules/project_management/application/dashboard/portfolio_models.py": 100,
         "src/core/modules/project_management/application/financials/finance_service.py": 220,
         "src/core/modules/project_management/application/financials/ledger.py": 260,
         "src/core/modules/project_management/application/financials/analytics.py": 160,

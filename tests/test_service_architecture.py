@@ -58,7 +58,7 @@ from src.core.modules.project_management.application.scheduling.baseline_service
     BaselineService,
 )
 from core.modules.project_management.services.collaboration import CollaborationService
-from core.modules.project_management.services.dashboard import DashboardService
+from src.core.modules.project_management.application.dashboard import DashboardService
 from core.modules.project_management.services.portfolio import PortfolioService
 from src.core.modules.project_management.application.financials import CostService, FinanceService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -346,6 +346,23 @@ def test_legacy_reporting_package_is_removed():
     assert not (legacy_reporting_root / "models.py").exists()
     assert not (legacy_reporting_root / "service.py").exists()
     assert not (legacy_reporting_root / "variance.py").exists()
+
+
+def test_legacy_dashboard_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_dashboard_root = root / "core" / "modules" / "project_management" / "services" / "dashboard"
+
+    assert not (legacy_dashboard_root / "__init__.py").exists()
+    assert not (legacy_dashboard_root / "alerts.py").exists()
+    assert not (legacy_dashboard_root / "burndown.py").exists()
+    assert not (legacy_dashboard_root / "evm.py").exists()
+    assert not (legacy_dashboard_root / "models.py").exists()
+    assert not (legacy_dashboard_root / "portfolio.py").exists()
+    assert not (legacy_dashboard_root / "portfolio_models.py").exists()
+    assert not (legacy_dashboard_root / "professional.py").exists()
+    assert not (legacy_dashboard_root / "register.py").exists()
+    assert not (legacy_dashboard_root / "service.py").exists()
+    assert not (legacy_dashboard_root / "upcoming.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import List
 
-from core.modules.project_management.services.dashboard.models import UpcomingTask
+from src.core.modules.project_management.application.dashboard.models import UpcomingTask
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
 

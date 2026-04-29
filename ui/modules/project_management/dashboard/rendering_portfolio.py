@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QGroupBox, QTableWidget, QTableWidgetItem
 
-from core.modules.project_management.services.dashboard import DashboardData
+from src.core.modules.project_management.application.dashboard import DashboardData
 from src.ui.shared.formatting.formatting import fmt_float, fmt_percent
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
