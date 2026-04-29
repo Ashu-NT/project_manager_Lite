@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QMessageBox
 
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 
 
 def show_overallocation_warning_if_any(parent, task_service: TaskService) -> None:

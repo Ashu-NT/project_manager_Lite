@@ -75,8 +75,7 @@ from core.modules.project_management.services.resource.service import ResourceSe
 from core.modules.project_management.services.scheduling import CPMTaskInfo, SchedulingEngine
 from core.modules.project_management.services.scheduling.engine import CPMTaskInfo as LegacyCPMTaskInfo
 from core.modules.project_management.services.scheduling.engine import SchedulingEngine as LegacySchedulingEngine
-from core.modules.project_management.services.task import TaskService
-from core.modules.project_management.services.task.service import TaskService as LegacyTaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine as LegacyWorkCalendarEngine
@@ -233,7 +232,6 @@ def test_legacy_service_imports_point_to_new_packages():
     assert LegacyAuthService is AuthService
     assert LegacyAuditService is AuditService
     assert LegacyRegisterService is RegisterService
-    assert LegacyTaskService is TaskService
     assert LegacyResourceService is ResourceService
     assert LegacyCalendarService is CalendarService
     assert LegacySchedulingEngine is SchedulingEngine
@@ -256,6 +254,24 @@ def test_legacy_project_service_package_is_removed():
     assert not (legacy_root / "query.py").exists()
     assert not (legacy_root / "validation.py").exists()
     assert not (legacy_root / "resource_service.py").exists()
+
+
+def test_legacy_task_service_package_is_removed():
+    root = Path(__file__).resolve().parents[1]
+    legacy_root = root / "core" / "modules" / "project_management" / "services" / "task"
+
+    assert not (legacy_root / "__init__.py").exists()
+    assert not (legacy_root / "service.py").exists()
+    assert not (legacy_root / "lifecycle.py").exists()
+    assert not (legacy_root / "dependency.py").exists()
+    assert not (legacy_root / "dependency_diagnostics.py").exists()
+    assert not (legacy_root / "assignment.py").exists()
+    assert not (legacy_root / "assignment_audit.py").exists()
+    assert not (legacy_root / "assignment_bridge.py").exists()
+    assert not (legacy_root / "query.py").exists()
+    assert not (legacy_root / "schedule_sync.py").exists()
+    assert not (legacy_root / "time_entries.py").exists()
+    assert not (legacy_root / "validation.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

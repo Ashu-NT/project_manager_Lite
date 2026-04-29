@@ -18,7 +18,7 @@ from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.scheduling.engine import SchedulingEngine
 from core.modules.project_management.services.scheduling.leveling_models import ResourceConflict, ResourceLevelingAction, ResourceLevelingResult
-from core.modules.project_management.services.task.service import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 

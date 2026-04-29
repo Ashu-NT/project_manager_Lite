@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from core.modules.project_management.services.dashboard.models import CriticalPathRow, MilestoneHealthRow
 from core.modules.project_management.services.scheduling.models import CPMTaskInfo
-from core.modules.project_management.services.task.service import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 
 
 class DashboardProfessionalMixin:

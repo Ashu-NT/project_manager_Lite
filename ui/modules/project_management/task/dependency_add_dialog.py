@@ -16,8 +16,8 @@ from PySide6.QtWidgets import (
 )
 from core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task
-from core.modules.project_management.services.task import TaskService
-from core.modules.project_management.services.task.dependency_diagnostics import DependencyImpactRow
+from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks.queries import DependencyImpactRow
 from src.ui.shared.formatting.style_utils import style_table
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 from ui.modules.project_management.task.dependency_shared import REL_CURRENT_DEPENDS, REL_OTHER_DEPENDS

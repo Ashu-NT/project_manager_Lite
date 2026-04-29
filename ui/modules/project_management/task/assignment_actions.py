@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QDialog, QInputDialog, QMessageBox
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from ui.modules.project_management.task.assignment_helpers import show_overallocation_warning_if_any
 from ui.modules.project_management.task.dialogs import AssignmentAddDialog

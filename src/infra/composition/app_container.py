@@ -74,7 +74,7 @@ from core.modules.project_management.services.register import RegisterService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService
 from core.modules.project_management.services.scheduling import SchedulingEngine
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from core.modules.project_management.services.work_calendar import WorkCalendarEngine, WorkCalendarService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore

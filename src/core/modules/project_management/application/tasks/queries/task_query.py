@@ -3,15 +3,15 @@ from __future__ import annotations
 from datetime import date
 from typing import List
 
-from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from core.modules.project_management.domain.enums import TaskStatus
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
+from src.core.platform.common.exceptions import ValidationError
+from core.modules.project_management.domain.enums import TaskStatus
 
 
 class TaskQueryMixin:
@@ -44,12 +44,12 @@ class TaskQueryMixin:
     def list_tasks_for_resource(self, resource_id: str) -> List[Task]:
         require_permission(self._user_session, "task.read", operation_label="list resource tasks")
         assignments = self._assignment_repo.list_by_resource(resource_id)
-        task_ids = {a.task_id for a in assignments}
+        task_ids = {assignment.task_id for assignment in assignments}
         tasks: List[Task] = []
-        for tid in task_ids:
-            t = self._task_repo.get(tid)
-            if t and self._user_session.has_project_permission(t.project_id, "task.read"):
-                tasks.append(t)
+        for task_id in task_ids:
+            task = self._task_repo.get(task_id)
+            if task and self._user_session.has_project_permission(task.project_id, "task.read"):
+                tasks.append(task)
         return tasks
 
     def list_assignments_for_tasks(self, task_ids: list[str]) -> List[TaskAssignment]:
@@ -88,20 +88,23 @@ class TaskQueryMixin:
             raise ValidationError("project_id is required for query_tasks currently.")
 
         if status:
-            tasks = [t for t in tasks if t.status == status]
+            tasks = [task for task in tasks if task.status == status]
 
         if start_from:
-            tasks = [t for t in tasks if t.start_date and t.start_date >= start_from]
+            tasks = [task for task in tasks if task.start_date and task.start_date >= start_from]
         if start_to:
-            tasks = [t for t in tasks if t.start_date and t.start_date <= start_to]
+            tasks = [task for task in tasks if task.start_date and task.start_date <= start_to]
         if end_from:
-            tasks = [t for t in tasks if t.end_date and t.end_date >= end_from]
+            tasks = [task for task in tasks if task.end_date and task.end_date >= end_from]
         if end_to:
-            tasks = [t for t in tasks if t.end_date and t.end_date <= end_to]
+            tasks = [task for task in tasks if task.end_date and task.end_date <= end_to]
 
         if resource_id:
             assignments = self._assignment_repo.list_by_resource(resource_id)
-            task_ids = {a.task_id for a in assignments}
-            tasks = [t for t in tasks if t.id in task_ids]
+            task_ids = {assignment.task_id for assignment in assignments}
+            tasks = [task for task in tasks if task.id in task_ids]
 
         return tasks
+
+
+__all__ = ["TaskQueryMixin"]

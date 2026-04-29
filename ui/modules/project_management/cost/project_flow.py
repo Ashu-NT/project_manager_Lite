@@ -8,7 +8,7 @@ from src.core.modules.project_management.domain.tasks.task import Task
 from core.modules.project_management.services.cost import CostService
 from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.reporting import ReportingService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.cost.filters import CostFiltersMixin
 from ui.modules.project_management.cost.models import CostTableModel
 from ui.modules.project_management.cost.reload_support import (

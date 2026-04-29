@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QComboBox, QTableView
 
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.projects import ProjectService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.task.models import TaskTableModel
 from src.ui.shared.widgets.combo import current_data
 

@@ -2,29 +2,30 @@ from __future__ import annotations
 
 import logging
 from datetime import date
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.notifications.domain_events import domain_events
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.modules.project_management.contracts.repositories.cost_calendar import (
+    CalendarEventRepository,
+    CostRepository,
+)
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
-    CostRepository,
-)
 from src.core.modules.project_management.domain.tasks.task import Task
-from core.modules.project_management.domain.enums import TaskStatus
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.notifications.domain_events import domain_events
+from core.modules.project_management.domain.enums import TaskStatus
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
 logger = logging.getLogger(__name__)
+
+
 class TaskLifecycleMixin:
     _session: Session
     _task_repo: TaskRepository
@@ -39,11 +40,11 @@ class TaskLifecycleMixin:
         project_id: str,
         name: str,
         description: str = "",
-        start_date: Optional[date] = None,
-        duration_days: Optional[int] = None,
+        start_date: date | None = None,
+        duration_days: int | None = None,
         status: TaskStatus = TaskStatus.TODO,
         priority: int = 0,
-        deadline: Optional[date] = None,
+        deadline: date | None = None,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="create task")
         require_project_permission(
@@ -83,12 +84,12 @@ class TaskLifecycleMixin:
                 project_id=project_id,
                 details={"name": task.name},
             )
-            logger.info(f"Created task {task.id} - {task.name} for project {project_id}")
+            logger.info("Created task %s - %s for project %s", task.id, task.name, project_id)
             domain_events.tasks_changed.emit(project_id)
             return task
         except Exception as exc:
             self._session.rollback()
-            logger.error(f"Error creating task: {exc}")
+            logger.error("Error creating task: %s", exc)
             raise
 
     def set_status(self, task_id: str, status: TaskStatus) -> None:
@@ -147,9 +148,9 @@ class TaskLifecycleMixin:
             self._assignment_repo.delete_by_task(task_id)
             self._calendar_repo.delete_for_task(task_id)
             cost_items = self._cost_repo.list_by_project(task.project_id)
-            for c in cost_items:
-                if c.task_id == task_id:
-                    self._cost_repo.delete(c.id)
+            for cost_item in cost_items:
+                if cost_item.task_id == task_id:
+                    self._cost_repo.delete(cost_item.id)
             self._task_repo.delete(task_id)
             self._session.commit()
             record_audit(
@@ -207,9 +208,7 @@ class TaskLifecycleMixin:
             task.duration_days = duration_days
 
         if task.start_date and task.duration_days is not None:
-            task.end_date = self._work_calendar_engine.add_working_days(
-                task.start_date, task.duration_days
-            )
+            task.end_date = self._work_calendar_engine.add_working_days(task.start_date, task.duration_days)
 
         if status is not None:
             task.status = status
@@ -312,3 +311,6 @@ class TaskLifecycleMixin:
 
         domain_events.tasks_changed.emit(task.project_id)
         return task
+
+
+__all__ = ["TaskLifecycleMixin"]

@@ -6,7 +6,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.auth.authorization import require_permission
 from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.scheduling import SchedulingEngine
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from src.ui.shared.dialogs.incident_support import emit_error_event, message_with_incident
 from src.ui.shared.dialogs.async_job import JobUiConfig, start_async_job
 from src.ui.shared.models.worker_services import worker_service_scope

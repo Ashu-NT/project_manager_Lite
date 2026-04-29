@@ -5,7 +5,7 @@ from typing import List
 
 from core.modules.project_management.services.dashboard.models import BurndownPoint
 from core.modules.project_management.services.reporting.service import ReportingService
-from core.modules.project_management.services.task.service import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 
 
 class DashboardBurndownMixin:

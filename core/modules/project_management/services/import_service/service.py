@@ -8,7 +8,7 @@ from core.modules.project_management.services.common.module_guard import Project
 from core.modules.project_management.services.cost import CostService
 from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 
 from .execution import DataImportExecutionMixin
 from .models import ImportFieldSpec, ImportPreview, ImportSummary

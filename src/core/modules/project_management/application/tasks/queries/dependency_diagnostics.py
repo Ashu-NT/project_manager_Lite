@@ -9,8 +9,8 @@ from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
     TaskRepository,
 )
-from core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from core.modules.project_management.domain.enums import DependencyType
 from core.modules.project_management.services.scheduling.date_compute import compute_task_dates_common
 from core.modules.project_management.services.scheduling.graph import build_project_dependency_graph
 from core.modules.project_management.services.scheduling.models import CPMTaskInfo
@@ -115,10 +115,10 @@ class TaskDependencyDiagnosticsMixin:
             )
 
         project_id = predecessor.project_id
-        deps = self._dependency_repo.list_by_project(project_id)
+        dependencies = self._dependency_repo.list_by_project(project_id)
         if any(
-            dep.predecessor_task_id == predecessor_id and dep.successor_task_id == successor_id
-            for dep in deps
+            dependency.predecessor_task_id == predecessor_id and dependency.successor_task_id == successor_id
+            for dependency in dependencies
         ):
             return self._invalid_diagnostic(
                 code="DEPENDENCY_DUPLICATE",
@@ -138,7 +138,7 @@ class TaskDependencyDiagnosticsMixin:
         task_name_by_id = {task.id: task.name for task in tasks}
 
         cycle_path_ids = self._find_cycle_path_ids(
-            deps=deps,
+            deps=dependencies,
             predecessor_id=predecessor_id,
             successor_id=successor_id,
         )
@@ -180,12 +180,12 @@ class TaskDependencyDiagnosticsMixin:
             dependency_type=dependency_type,
             lag_days=lag_days,
         )
-        current_schedule = self._simulate_schedule(tasks=tasks, deps=deps)
-        projected_schedule = self._simulate_schedule(tasks=tasks, deps=[*deps, proposed])
+        current_schedule = self._simulate_schedule(tasks=tasks, deps=dependencies)
+        projected_schedule = self._simulate_schedule(tasks=tasks, deps=[*dependencies, proposed])
         impact_rows = self._build_impact_rows(
             current_schedule=current_schedule,
             projected_schedule=projected_schedule,
-            deps=[*deps, proposed],
+            deps=[*dependencies, proposed],
             predecessor_id=predecessor_id,
             successor_id=successor_id,
         )
@@ -267,8 +267,8 @@ class TaskDependencyDiagnosticsMixin:
         successor_id: str,
     ) -> list[str] | None:
         graph: dict[str, list[str]] = {}
-        for dep in deps:
-            graph.setdefault(dep.predecessor_task_id, []).append(dep.successor_task_id)
+        for dependency in deps:
+            graph.setdefault(dependency.predecessor_task_id, []).append(dependency.successor_task_id)
 
         path = self._find_path(graph, successor_id, predecessor_id)
         if not path:
@@ -355,19 +355,19 @@ class TaskDependencyDiagnosticsMixin:
         if not incoming_deps:
             return (task.start_date, task.start_date) if task.start_date else (None, None)
         candidates: List[date] = []
-        for dep in incoming_deps:
-            pred_es = es.get(dep.predecessor_task_id)
-            pred_ef = ef.get(dep.predecessor_task_id)
+        for dependency in incoming_deps:
+            pred_es = es.get(dependency.predecessor_task_id)
+            pred_ef = ef.get(dependency.predecessor_task_id)
             if pred_es is None and pred_ef is None:
                 continue
-            if dep.dependency_type == DependencyType.FINISH_TO_START and pred_ef:
-                candidates.append(self._work_calendar_engine.add_working_days(pred_ef, dep.lag_days + 2))
-            elif dep.dependency_type == DependencyType.START_TO_START and pred_es:
-                candidates.append(self._work_calendar_engine.add_working_days(pred_es, dep.lag_days))
-            elif dep.dependency_type == DependencyType.FINISH_TO_FINISH and pred_ef:
-                candidates.append(self._work_calendar_engine.add_working_days(pred_ef, dep.lag_days))
-            elif dep.dependency_type == DependencyType.START_TO_FINISH and pred_es:
-                candidates.append(self._work_calendar_engine.add_working_days(pred_es, dep.lag_days))
+            if dependency.dependency_type == DependencyType.FINISH_TO_START and pred_ef:
+                candidates.append(self._work_calendar_engine.add_working_days(pred_ef, dependency.lag_days + 2))
+            elif dependency.dependency_type == DependencyType.START_TO_START and pred_es:
+                candidates.append(self._work_calendar_engine.add_working_days(pred_es, dependency.lag_days))
+            elif dependency.dependency_type == DependencyType.FINISH_TO_FINISH and pred_ef:
+                candidates.append(self._work_calendar_engine.add_working_days(pred_ef, dependency.lag_days))
+            elif dependency.dependency_type == DependencyType.START_TO_FINISH and pred_es:
+                candidates.append(self._work_calendar_engine.add_working_days(pred_es, dependency.lag_days))
         if not candidates:
             return (task.start_date, task.start_date) if task.start_date else (None, None)
         est = max(candidates)
@@ -389,20 +389,20 @@ class TaskDependencyDiagnosticsMixin:
             return est, eft
 
         candidate_es: List[date] = []
-        for dep in incoming_deps:
-            pred_es = es.get(dep.predecessor_task_id)
-            pred_ef = ef.get(dep.predecessor_task_id)
+        for dependency in incoming_deps:
+            pred_es = es.get(dependency.predecessor_task_id)
+            pred_ef = ef.get(dependency.predecessor_task_id)
             if pred_es is None and pred_ef is None:
                 continue
-            if dep.dependency_type == DependencyType.FINISH_TO_START and pred_ef:
-                candidate_es.append(self._work_calendar_engine.add_working_days(pred_ef, dep.lag_days + 2))
-            elif dep.dependency_type == DependencyType.START_TO_START and pred_es:
-                candidate_es.append(self._work_calendar_engine.add_working_days(pred_es, dep.lag_days))
-            elif dep.dependency_type == DependencyType.FINISH_TO_FINISH and pred_ef:
-                ef_s = self._work_calendar_engine.add_working_days(pred_ef, dep.lag_days)
+            if dependency.dependency_type == DependencyType.FINISH_TO_START and pred_ef:
+                candidate_es.append(self._work_calendar_engine.add_working_days(pred_ef, dependency.lag_days + 2))
+            elif dependency.dependency_type == DependencyType.START_TO_START and pred_es:
+                candidate_es.append(self._work_calendar_engine.add_working_days(pred_es, dependency.lag_days))
+            elif dependency.dependency_type == DependencyType.FINISH_TO_FINISH and pred_ef:
+                ef_s = self._work_calendar_engine.add_working_days(pred_ef, dependency.lag_days)
                 candidate_es.append(self._work_calendar_engine.add_working_days(ef_s, -(duration - 1)))
-            elif dep.dependency_type == DependencyType.START_TO_FINISH and pred_es:
-                ef_s = self._work_calendar_engine.add_working_days(pred_es, dep.lag_days)
+            elif dependency.dependency_type == DependencyType.START_TO_FINISH and pred_es:
+                ef_s = self._work_calendar_engine.add_working_days(pred_es, dependency.lag_days)
                 candidate_es.append(self._work_calendar_engine.add_working_days(ef_s, -(duration - 1)))
 
         if not candidate_es:
@@ -423,19 +423,19 @@ class TaskDependencyDiagnosticsMixin:
         eft: Optional[date],
         duration_days: int,
     ) -> tuple[Optional[date], Optional[date]]:
-        a_start = getattr(task, "actual_start", None)
-        a_end = getattr(task, "actual_end", None)
-        if a_end is not None:
-            fixed_ef = a_end
-            if a_start is not None:
-                fixed_es = a_start
+        actual_start = getattr(task, "actual_start", None)
+        actual_end = getattr(task, "actual_end", None)
+        if actual_end is not None:
+            fixed_ef = actual_end
+            if actual_start is not None:
+                fixed_es = actual_start
             elif duration_days > 0:
                 fixed_es = self._work_calendar_engine.add_working_days(fixed_ef, -(duration_days - 1))
             else:
                 fixed_es = fixed_ef
             return fixed_es, fixed_ef
-        if a_start is not None and (est is None or a_start > est):
-            est = a_start
+        if actual_start is not None and (est is None or actual_start > est):
+            est = actual_start
             eft = est if duration_days <= 0 else self._work_calendar_engine.add_working_days(est, duration_days)
         return est, eft
 
@@ -465,8 +465,8 @@ class TaskDependencyDiagnosticsMixin:
         successor_id: str,
     ) -> list[DependencyImpactRow]:
         adjacency: dict[str, list[str]] = {}
-        for dep in deps:
-            adjacency.setdefault(dep.predecessor_task_id, []).append(dep.successor_task_id)
+        for dependency in deps:
+            adjacency.setdefault(dependency.predecessor_task_id, []).append(dependency.successor_task_id)
         trace_map = self._trace_paths_from_source(adjacency, successor_id)
 
         rows: list[DependencyImpactRow] = []
@@ -548,4 +548,4 @@ class TaskDependencyDiagnosticsMixin:
         return "high"
 
 
-__all__ = ["DependencyImpactRow", "DependencyDiagnostic", "TaskDependencyDiagnosticsMixin"]
+__all__ = ["DependencyDiagnostic", "DependencyImpactRow", "TaskDependencyDiagnosticsMixin"]

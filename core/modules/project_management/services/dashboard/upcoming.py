@@ -5,7 +5,7 @@ from typing import List
 
 from core.modules.project_management.services.dashboard.models import UpcomingTask
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.task.service import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 
 
 class DashboardUpcomingMixin:

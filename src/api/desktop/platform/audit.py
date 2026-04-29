@@ -12,7 +12,7 @@ from core.modules.project_management.services.baseline import BaselineService
 from core.modules.project_management.services.cost import CostService
 from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 
 
 @dataclass(frozen=True)

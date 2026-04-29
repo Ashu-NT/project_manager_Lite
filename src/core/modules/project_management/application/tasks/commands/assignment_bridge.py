@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 class TaskAssignmentBridgeMixin:
@@ -18,8 +18,8 @@ class TaskAssignmentBridgeMixin:
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
 
-        res = self._resource_repo.get(resource_id)
-        if not res:
+        resource = self._resource_repo.get(resource_id)
+        if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
         if not self._project_resource_repo:
@@ -39,18 +39,18 @@ class TaskAssignmentBridgeMixin:
             self._emit_tasks_changed(task.project_id)
             return assignment
 
-        pr = self._project_resource_repo.get_for_project(task.project_id, resource_id)
-        if not pr:
-            pr = ProjectResource.create(
+        project_resource = self._project_resource_repo.get_for_project(task.project_id, resource_id)
+        if not project_resource:
+            project_resource = ProjectResource.create(
                 project_id=task.project_id,
                 resource_id=resource_id,
-                hourly_rate=getattr(res, "hourly_rate", None),
-                currency_code=getattr(res, "currency_code", None),
+                hourly_rate=getattr(resource, "hourly_rate", None),
+                currency_code=getattr(resource, "currency_code", None),
                 planned_hours=0.0,
-                is_active=bool(getattr(res, "is_active", True)),
+                is_active=bool(getattr(resource, "is_active", True)),
             )
             try:
-                self._project_resource_repo.add(pr)
+                self._project_resource_repo.add(project_resource)
                 self._session.commit()
             except Exception:
                 self._session.rollback()
@@ -58,7 +58,7 @@ class TaskAssignmentBridgeMixin:
 
         return self.assign_project_resource(
             task_id=task_id,
-            project_resource_id=pr.id,
+            project_resource_id=project_resource.id,
             allocation_percent=alloc,
         )
 

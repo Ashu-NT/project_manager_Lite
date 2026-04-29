@@ -10,7 +10,7 @@ from core.modules.project_management.services.collaboration import Collaboration
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ProjectResourceService
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from infra.modules.project_management.collaboration_store import TaskCollaborationStore
 from src.ui.platform.settings.main_window_store import MainWindowSettingsStore

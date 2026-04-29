@@ -4,35 +4,53 @@ import os
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.tasks.commands.assignment import (
+    TaskAssignmentMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.assignment_bridge import (
+    TaskAssignmentBridgeMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.dependency import (
+    TaskDependencyMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.lifecycle import (
+    TaskLifecycleMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
+    TaskScheduleSyncMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.time_entries import (
+    TaskTimeEntryMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.validation import (
+    TaskValidationMixin,
+)
+from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+    TaskDependencyDiagnosticsMixin,
+)
+from src.core.modules.project_management.application.tasks.queries.task_query import (
+    TaskQueryMixin,
+)
+from src.core.modules.project_management.contracts.repositories.cost_calendar import (
+    CalendarEventRepository,
+    CostRepository,
+)
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
-    CostRepository,
-)
-from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.platform.approval.application.approval_service import ApprovalService
 from src.core.platform.audit.application.audit_service import AuditService
 from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from core.modules.project_management.services.common.module_guard import ProjectManagementModuleGuardMixin
 from core.modules.project_management.services.scheduling import SchedulingEngine
-from core.modules.project_management.services.task.assignment import TaskAssignmentMixin
-from core.modules.project_management.services.task.assignment_bridge import TaskAssignmentBridgeMixin
-from core.modules.project_management.services.task.dependency import TaskDependencyMixin
-from core.modules.project_management.services.task.dependency_diagnostics import TaskDependencyDiagnosticsMixin
-from core.modules.project_management.services.task.lifecycle import TaskLifecycleMixin
-from core.modules.project_management.services.task.time_entries import TaskTimeEntryMixin
-from core.modules.project_management.services.task.query import TaskQueryMixin
-from core.modules.project_management.services.task.schedule_sync import TaskScheduleSyncMixin
-from core.modules.project_management.services.task.validation import TaskValidationMixin
 from core.modules.project_management.services.timesheet import TimesheetService
 from core.modules.project_management.services.work_calendar.engine import WorkCalendarEngine
 
@@ -49,6 +67,8 @@ class TaskService(
     TaskQueryMixin,
     TaskValidationMixin,
 ):
+    """Task application service orchestrator."""
+
     def __init__(
         self,
         session: Session,
@@ -96,3 +116,6 @@ class TaskService(
         warning = self._last_overallocation_warning
         self._last_overallocation_warning = None
         return warning
+
+
+__all__ = ["TaskService"]

@@ -25,7 +25,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from src.core.platform.auth import UserSessionContext
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from core.modules.project_management.services.timesheet import TimesheetService
 from src.ui.shared.widgets.guards import has_permission
 from src.ui.shared.formatting.style_utils import style_table

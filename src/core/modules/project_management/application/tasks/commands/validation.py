@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 
 
 class TaskValidationMixin:
@@ -33,31 +33,31 @@ class TaskValidationMixin:
     ):
         if self._project_repo is None:
             return
-        proj = self._project_repo.get(project_id)
-        if not proj:
+        project = self._project_repo.get(project_id)
+        if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
-        ps = getattr(proj, "start_date", None)
-        pe = getattr(proj, "end_date", None)
+        project_start = getattr(project, "start_date", None)
+        project_end = getattr(project, "end_date", None)
 
-        if ps and task_start and task_start < ps:
+        if project_start and task_start and task_start < project_start:
             raise ValidationError(
-                f"Task start date ({task_start}) can not be before project start ({ps})",
+                f"Task start date ({task_start}) can not be before project start ({project_start})",
                 code="TASK_INVALID_DATE",
             )
-        if pe and task_start and task_start > pe:
+        if project_end and task_start and task_start > project_end:
             raise ValidationError(
-                f"Task start date ({task_start}) can not be after project end ({pe})",
+                f"Task start date ({task_start}) can not be after project end ({project_end})",
                 code="TASK_INVALID_DATE",
             )
-        if ps and task_end and task_end < ps:
+        if project_start and task_end and task_end < project_start:
             raise ValidationError(
-                f"Task end date ({task_end}) can not be before project start ({ps})",
+                f"Task end date ({task_end}) can not be before project start ({project_start})",
                 code="TASK_INVALID_DATE",
             )
-        if pe and task_end and task_end > pe:
+        if project_end and task_end and task_end > project_end:
             raise ValidationError(
-                f"Task end date ({task_end}) can not be after project end ({pe})",
+                f"Task end date ({task_end}) can not be after project end ({project_end})",
                 code="TASK_INVALID_DATE",
             )
 
@@ -72,7 +72,7 @@ class TaskValidationMixin:
             raise ValidationError(
                 "Task name must be at least 3 characters.", code="TASK_NAME_TOO_SHORT"
             )
-        if any(c in name for c in ["/", "\\", "?", "%", "*", ":", "|", '"', "<", ">"]):
+        if any(char in name for char in ["/", "\\", "?", "%", "*", ":", "|", '"', "<", ">"]):
             raise ValidationError(
                 "Task name contains invalid characters.", code="TASK_NAME_INVALID_CHARS"
             )
@@ -80,17 +80,18 @@ class TaskValidationMixin:
     def _check_no_circular_dependency(
         self, project_id: str, predecessor_id: str, successor_id: str
     ) -> None:
-        deps = self._dependency_repo.list_by_project(project_id)
-        project_task = {t.id for t in self._task_repo.list_by_project(project_id)}
-        deps = [
-            d
-            for d in deps
-            if d.predecessor_task_id in project_task and d.successor_task_id in project_task
+        dependencies = self._dependency_repo.list_by_project(project_id)
+        project_task_ids = {task.id for task in self._task_repo.list_by_project(project_id)}
+        dependencies = [
+            dependency
+            for dependency in dependencies
+            if dependency.predecessor_task_id in project_task_ids
+            and dependency.successor_task_id in project_task_ids
         ]
 
         graph: dict[str, list[str]] = {}
-        for d in deps:
-            graph.setdefault(d.predecessor_task_id, []).append(d.successor_task_id)
+        for dependency in dependencies:
+            graph.setdefault(dependency.predecessor_task_id, []).append(dependency.successor_task_id)
         graph.setdefault(predecessor_id, []).append(successor_id)
 
         target = predecessor_id
@@ -98,16 +99,16 @@ class TaskValidationMixin:
         visited = set()
 
         while stack:
-            cur = stack.pop()
-            if cur == target:
+            current = stack.pop()
+            if current == target:
                 raise BusinessRuleError(
                     "Adding this dependency would create a circular dependency.",
                     code="DEPENDENCY_CYCLE",
                 )
-            if cur in visited:
+            if current in visited:
                 continue
-            visited.add(cur)
-            for nxt in graph.get(cur, []):
+            visited.add(current)
+            for nxt in graph.get(current, []):
                 if nxt not in visited:
                     stack.append(nxt)
 
@@ -116,11 +117,11 @@ class TaskValidationMixin:
             return
         if end < start:
             start, end = end, start
-        cur = start
-        while cur <= end:
-            if cur.weekday() < 5:
-                yield cur
-            cur += timedelta(days=1)
+        current = start
+        while current <= end:
+            if current.weekday() < 5:
+                yield current
+            current += timedelta(days=1)
 
     def _check_resource_overallocation(
         self,
@@ -135,9 +136,9 @@ class TaskValidationMixin:
         if not new_task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
 
-        ns = getattr(new_task, "start_date", None)
-        ne = getattr(new_task, "end_date", None)
-        if not ns or not ne:
+        new_start = getattr(new_task, "start_date", None)
+        new_end = getattr(new_task, "end_date", None)
+        if not new_start or not new_end:
             return None
 
         capacity_percent = 100.0
@@ -148,54 +149,57 @@ class TaskValidationMixin:
             if raw_capacity > 0.0:
                 capacity_percent = raw_capacity
 
-        assigns = self._assignment_repo.list_by_resource(resource_id)
-        if not assigns:
+        assignments = self._assignment_repo.list_by_resource(resource_id)
+        if not assignments:
             return None
 
         daily_total: dict[date, float] = {}
         daily_tasks: dict[date, list[str]] = {}
 
-        for a in assigns:
-            if exclude_assignment_id and getattr(a, "id", None) == exclude_assignment_id:
+        for assignment in assignments:
+            if exclude_assignment_id and getattr(assignment, "id", None) == exclude_assignment_id:
                 continue
-            t = self._task_repo.get(a.task_id)
-            if not t or getattr(t, "project_id", None) != project_id:
-                continue
-
-            ts = getattr(t, "start_date", None)
-            te = getattr(t, "end_date", None)
-            if not ts or not te:
+            task = self._task_repo.get(assignment.task_id)
+            if not task or getattr(task, "project_id", None) != project_id:
                 continue
 
-            os = max(ns, ts)
-            oe = min(ne, te)
-            if oe < os:
+            task_start = getattr(task, "start_date", None)
+            task_end = getattr(task, "end_date", None)
+            if not task_start or not task_end:
                 continue
 
-            alloc = float(getattr(a, "allocation_percent", 0.0) or 0.0)
-            if alloc <= 0:
+            overlap_start = max(new_start, task_start)
+            overlap_end = min(new_end, task_end)
+            if overlap_end < overlap_start:
                 continue
 
-            for d in self._iter_workdays(os, oe):
-                daily_total[d] = daily_total.get(d, 0.0) + alloc
-                daily_tasks.setdefault(d, []).append(getattr(t, "name", a.task_id))
+            allocation = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
+            if allocation <= 0:
+                continue
 
-        for d in self._iter_workdays(ns, ne):
-            daily_total[d] = daily_total.get(d, 0.0) + float(new_alloc_percent or 0.0)
-            daily_tasks.setdefault(d, []).append(getattr(new_task, "name", new_task_id))
+            for workday in self._iter_workdays(overlap_start, overlap_end):
+                daily_total[workday] = daily_total.get(workday, 0.0) + allocation
+                daily_tasks.setdefault(workday, []).append(getattr(task, "name", assignment.task_id))
 
-        for d in sorted(daily_total.keys()):
-            tot = daily_total[d]
-            if tot > capacity_percent + 1e-9:
-                tasks = daily_tasks.get(d, [])[:6]
-                extra = "..." if len(daily_tasks.get(d, [])) > 6 else ""
-                msg = (
-                    f"Resource would be over-allocated on {d.isoformat()} "
-                    f"({tot:.1f}% > {capacity_percent:.1f}%).\n"
+        for workday in self._iter_workdays(new_start, new_end):
+            daily_total[workday] = daily_total.get(workday, 0.0) + float(new_alloc_percent or 0.0)
+            daily_tasks.setdefault(workday, []).append(getattr(new_task, "name", new_task_id))
+
+        for workday in sorted(daily_total.keys()):
+            total = daily_total[workday]
+            if total > capacity_percent + 1e-9:
+                tasks = daily_tasks.get(workday, [])[:6]
+                extra = "..." if len(daily_tasks.get(workday, [])) > 6 else ""
+                message = (
+                    f"Resource would be over-allocated on {workday.isoformat()} "
+                    f"({total:.1f}% > {capacity_percent:.1f}%).\n"
                     f"Tasks: {', '.join(tasks)}{extra}"
                 )
                 if getattr(self, "_overallocation_policy", "warn") == "strict":
-                    raise BusinessRuleError(msg, code="RESOURCE_OVERALLOCATED")
-                self._last_overallocation_warning = msg
-                return msg
+                    raise BusinessRuleError(message, code="RESOURCE_OVERALLOCATED")
+                self._last_overallocation_warning = message
+                return message
         return None
+
+
+__all__ = ["TaskValidationMixin"]

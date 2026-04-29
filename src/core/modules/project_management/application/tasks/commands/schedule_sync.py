@@ -9,7 +9,7 @@ class TaskScheduleSyncMixin:
     def _sync_project_schedule(self, project_id: str | None) -> None:
         if not project_id:
             return
-        scheduler:SchedulingEngine = getattr(self, "_scheduling_engine", None)
+        scheduler: SchedulingEngine = getattr(self, "_scheduling_engine", None)
         if scheduler is None:
             return
         scheduler.recalculate_project_schedule(project_id)

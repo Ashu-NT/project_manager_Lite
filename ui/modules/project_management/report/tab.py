@@ -7,7 +7,7 @@ from src.core.platform.auth import UserSessionContext
 from core.modules.project_management.services.finance import FinanceService
 from src.core.modules.project_management.application.projects import ProjectService
 from core.modules.project_management.services.reporting import ReportingService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.report.actions import ReportActionsMixin
 from ui.modules.project_management.report.project_flow import ReportProjectFlowMixin
 from ui.modules.project_management.report.surface import ReportSurfaceMixin

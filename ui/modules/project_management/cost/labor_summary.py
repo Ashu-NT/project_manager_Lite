@@ -9,7 +9,7 @@ from src.core.modules.project_management.domain.projects.project import Project
 from core.modules.project_management.services.cost import CostService
 from core.modules.project_management.services.reporting import ReportingService
 from core.modules.project_management.services.resource import ResourceService
-from core.modules.project_management.services.task import TaskService
+from src.core.modules.project_management.application.tasks import TaskService
 from ui.modules.project_management.cost.labor_dialogs import ResourceLaborDialog
 from src.ui.shared.formatting.formatting import currency_symbol_from_code, fmt_currency
 from src.ui.shared.formatting.ui_config import UIConfig as CFG

@@ -763,14 +763,23 @@ def test_reporting_evm_module_is_facade_only():
 
 
 def test_task_service_is_orchestrator_only():
-    service_path = ROOT / "core" / "services" / "task" / "service.py"
+    service_path = (
+        ROOT
+        / "src"
+        / "core"
+        / "modules"
+        / "project_management"
+        / "application"
+        / "tasks"
+        / "service.py"
+    )
     text = service_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from core.modules.project_management.services.task.lifecycle import" in text
-    assert "from core.modules.project_management.services.task.dependency import" in text
-    assert "from core.modules.project_management.services.task.assignment import" in text
-    assert "from core.modules.project_management.services.task.query import" in text
-    assert "from core.modules.project_management.services.task.validation import" in text
+    assert "from src.core.modules.project_management.application.tasks.commands.lifecycle import (" in text
+    assert "from src.core.modules.project_management.application.tasks.commands.dependency import (" in text
+    assert "from src.core.modules.project_management.application.tasks.commands.assignment import (" in text
+    assert "from src.core.modules.project_management.application.tasks.queries.task_query import (" in text
+    assert "from src.core.modules.project_management.application.tasks.commands.validation import (" in text
     assert "def create_task" not in text
     assert "def add_dependency" not in text
     assert "def assign_resource" not in text
@@ -1230,7 +1239,7 @@ def test_known_large_modules_have_growth_budgets():
         "core/modules/project_management/services/portfolio/support.py": 150,
         "core/modules/project_management/services/portfolio/templates.py": 160,
         "src/ui/shared/formatting/ui_config.py": 320,
-        "core/modules/project_management/services/task/service.py": 140,
+        "src/core/modules/project_management/application/tasks/service.py": 140,
         "src/core/modules/project_management/application/projects/service.py": 90,
         "src/core/modules/project_management/application/projects/commands/lifecycle.py": 255,
         "src/core/modules/project_management/application/projects/commands/validation.py": 80,
@@ -1238,11 +1247,11 @@ def test_known_large_modules_have_growth_budgets():
         "src/core/modules/project_management/application/resources/project_resource_service.py": 100,
         "src/core/modules/project_management/application/resources/commands/project_resource_commands.py": 320,
         "src/core/modules/project_management/application/resources/queries/project_resource_queries.py": 120,
-        "core/modules/project_management/services/task/lifecycle.py": 315,
-        "core/modules/project_management/services/task/dependency.py": 175,
-        "core/modules/project_management/services/task/assignment.py": 245,
-        "core/modules/project_management/services/task/query.py": 120,
-        "core/modules/project_management/services/task/validation.py": 220,
+        "src/core/modules/project_management/application/tasks/commands/lifecycle.py": 320,
+        "src/core/modules/project_management/application/tasks/commands/dependency.py": 195,
+        "src/core/modules/project_management/application/tasks/commands/assignment.py": 245,
+        "src/core/modules/project_management/application/tasks/queries/task_query.py": 120,
+        "src/core/modules/project_management/application/tasks/commands/validation.py": 220,
         "core/modules/project_management/services/timesheet/service.py": 90,
         "core/modules/project_management/services/timesheet/lifecycle.py": 40,
         "core/modules/project_management/services/timesheet/query.py": 100,
