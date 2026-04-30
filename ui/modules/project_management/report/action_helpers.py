@@ -95,4 +95,3 @@ class ReportActionHelpersMixin:
 
 
 __all__ = ["ReportActionHelpersMixin"]
-

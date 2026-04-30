@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.src.core.modules.project_management.domain.enums import WorkerType
+from src.core.modules.project_management.domain.enums import WorkerType
 from tests.ui_runtime_helpers import make_settings_store, register_and_login
 from src.ui.shell.main_window import MainWindow
 
@@ -90,5 +90,3 @@ def test_resource_manager_navigation_exposes_employee_directory(
     assert "Employees" in labels
     assert "Resources" in labels
     assert "Users" not in labels
-
-

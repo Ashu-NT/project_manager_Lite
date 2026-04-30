@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Iterable
 
-from src.src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.modules.project_management.domain.identifiers import generate_id
 
 
 @dataclass(frozen=True)
@@ -162,5 +162,3 @@ __all__ = [
     "TaskPresenceStatusItem",
     "TaskComment",
 ]
-
-

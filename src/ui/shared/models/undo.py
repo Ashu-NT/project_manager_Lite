@@ -51,4 +51,3 @@ class UndoStack:
 
     def next_redo_label(self) -> str | None:
         return self._redo[-1].label if self._redo else None
-

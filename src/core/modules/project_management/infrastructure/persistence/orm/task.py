@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy import Date, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.infra.persistence.orm.base import Base
 
 
@@ -92,5 +92,3 @@ class TaskDependencyORM(Base):
 
 Index("idx_dep_predecessor", TaskDependencyORM.predecessor_task_id)
 Index("idx_dep_successor", TaskDependencyORM.successor_task_id)
-
-

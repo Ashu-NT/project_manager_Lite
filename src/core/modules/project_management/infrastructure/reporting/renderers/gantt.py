@@ -193,4 +193,3 @@ class GanttPngRenderer:
         plt.close(fig)
 
         return output_path
-

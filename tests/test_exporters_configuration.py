@@ -10,8 +10,8 @@ from openpyxl import load_workbook
 
 from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.src.core.modules.project_management.domain.enums import CostType, DependencyType
-from core.modules.project_management.reporting import api as reporting_api
+from src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
 from src.core.modules.project_management.infrastructure.reporting.models import (
     CostSourceBreakdown,
     CostSourceRow,
@@ -466,5 +466,3 @@ def test_reporting_api_requires_report_export_permission_from_live_session(servi
         )
 
     assert exc.value.code == "PERMISSION_DENIED"
-
-

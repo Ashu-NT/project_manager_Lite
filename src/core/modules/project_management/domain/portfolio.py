@@ -5,8 +5,8 @@ from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Iterable
 
-from src.src.core.modules.project_management.domain.enums import DependencyType
-from src.src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.identifiers import generate_id
 
 
 class PortfolioIntakeStatus(str, Enum):
@@ -306,5 +306,3 @@ __all__ = [
     "PortfolioProjectDependency",
     "PortfolioProjectDependencyView",
 ]
-
-

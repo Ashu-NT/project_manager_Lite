@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from src.src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
+from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
 
 
 class TaskCommentRepository(ABC):
@@ -46,5 +46,3 @@ class TaskPresenceRepository(ABC):
         since,
         limit: int = 200,
     ) -> List[TaskPresence]: ...
-
-

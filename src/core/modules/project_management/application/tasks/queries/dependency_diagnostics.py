@@ -10,7 +10,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
-from src.src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.application.scheduling.date_compute import (
     compute_task_dates_common,
 )
@@ -560,5 +560,3 @@ class TaskDependencyDiagnosticsMixin:
 
 
 __all__ = ["DependencyDiagnostic", "DependencyImpactRow", "TaskDependencyDiagnosticsMixin"]
-
-

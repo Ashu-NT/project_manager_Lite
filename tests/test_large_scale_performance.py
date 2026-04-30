@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from src.src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.domain.enums import CostType, DependencyType
 
 
 @dataclass(frozen=True)
@@ -268,5 +268,3 @@ def test_large_scale_performance_workflow(services):
     assert len(dashboard_data.resource_load) > 0
 
     _assert_slas(metrics, config)
-
-

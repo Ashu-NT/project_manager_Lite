@@ -11,7 +11,7 @@ from src.core.modules.project_management.domain.tasks.task import Task, TaskAssi
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
-from src.src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.enums import TaskStatus
 
 
 class TaskQueryMixin:
@@ -108,5 +108,3 @@ class TaskQueryMixin:
 
 
 __all__ = ["TaskQueryMixin"]
-
-

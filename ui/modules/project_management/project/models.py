@@ -65,4 +65,3 @@ class ProjectTableModel(QAbstractTableModel):
         if 0 <= row < len(self._projects):
             return self._projects[row]
         return None
-

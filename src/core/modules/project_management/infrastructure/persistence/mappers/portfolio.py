@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from src.src.core.modules.project_management.domain.portfolio import (
+from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioProjectDependency,
@@ -15,7 +15,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.portfoli
     PortfolioScoringTemplateORM,
     PortfolioScenarioORM,
 )
-from src.src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 
 
 def portfolio_intake_to_orm(item: PortfolioIntakeItem) -> PortfolioIntakeItemORM:
@@ -171,5 +171,3 @@ __all__ = [
     "portfolio_scenario_from_orm",
     "portfolio_scenario_to_orm",
 ]
-
-

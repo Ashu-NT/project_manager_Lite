@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.platform.access.authorization import filter_project_rows
 from src.core.platform.common.exceptions import ValidationError
-from src.src.core.modules.project_management.domain.portfolio import (
+from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
     PortfolioScenarioComparison,
@@ -250,5 +250,3 @@ class PortfolioSupportMixin:
 
 
 __all__ = ["PortfolioSupportMixin"]
-
-

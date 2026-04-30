@@ -108,4 +108,3 @@ def services(session):
 @pytest.fixture
 def anonymous_services(session):
     return build_service_dict(session)
-

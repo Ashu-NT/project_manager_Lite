@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from src.src.core.modules.project_management.domain.enums import CostType
-from src.src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.identifiers import generate_id
 
 
 @dataclass
@@ -49,5 +49,3 @@ class CostItem:
 
 
 __all__ = ["CostItem"]
-
-

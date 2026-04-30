@@ -8,7 +8,7 @@ from typing import Optional
 from sqlalchemy import Boolean, Date, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.infra.persistence.orm.base import Base
 
 
@@ -60,5 +60,3 @@ Index(
     ProjectResourceORM.resource_id,
     unique=True,
 )
-
-

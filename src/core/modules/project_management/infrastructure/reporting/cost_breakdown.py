@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from src.src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.infrastructure.reporting.cost_policy import (
     ReportingCostPolicyMixin,
 )
@@ -76,5 +76,3 @@ class ReportingCostBreakdownMixin(ReportingCostPolicyMixin):
                 )
             )
         return rows
-
-

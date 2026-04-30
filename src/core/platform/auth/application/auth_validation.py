@@ -47,4 +47,3 @@ class AuthValidationMixin:
                 "Invalid email format.",
                 code="INVALID_EMAIL",
             )
-

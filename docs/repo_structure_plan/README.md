@@ -2324,6 +2324,11 @@ Completed in the clean/no-facade execution:
 - moved `RegisterEntry`, register enums, and register enum normalizers from `core/modules/project_management/domain/register.py` into `src/core/modules/project_management/domain/risk/register.py`
 - rewired PM register services, register persistence, register ORM enum usage, register contract, register UI, dashboard register rendering, and focused tests to import the register domain model from the new risk subdomain file directly
 - deleted the old flat `core/modules/project_management/domain/register.py` file after callers were rewritten
+- moved the remaining PM module-owned access/domain/support files from `core/modules/project_management/{access,domain,services/common}/*` into `src/core/modules/project_management/{access,domain,application/common}/*`
+- moved the remaining PM reporting runtime entrypoints from `core/modules/project_management/reporting/*` into `src/core/modules/project_management/infrastructure/reporting/*`
+- moved the PM collaboration storage helpers from `infra/modules/project_management/{collaboration_store,collaboration_attachments}.py` into `src/core/modules/project_management/infrastructure/*`
+- rewired PM composition, widgets, tests, and path rewrites to the final module-local PM access/domain/reporting/infrastructure imports and removed accidental `src.src.*` import drift during the sweep
+- deleted the final legacy PM roots `core/modules/project_management/` and `infra/modules/project_management/` after callers were rewritten; no facade package was left behind
 
 Verified:
 
@@ -2363,6 +2368,10 @@ Verified:
 - in `conda run -n pmenv`, PM scheduling baseline-domain split verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_baseline_comparison_workflow.py tests/test_business_rules_and_edge_cases.py tests/test_domain_event_wiring.py tests/test_technical_math_reporting.py tests/test_exporters_configuration.py -q`
   - observed result after the PM scheduling baseline-domain split: 125 passed
+- direct filesystem check confirms `core/modules/project_management/` and `infra/modules/project_management/` no longer exist
+- in `conda run -n pmenv`, post-root-cleanup PM verification passes:
+  - `python -m pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_project_management_desktop_api.py`
+  - observed result after the PM root cleanup: 170 passed
 - in `conda run -n pmenv`, PM risk register-domain split verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages tests/test_service_architecture.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py tests/test_dashboard_professional_panels.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py -q`
   - observed result after the PM risk register-domain split: 69 passed

@@ -4,7 +4,7 @@ from typing import Optional
 
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout
 
-from src.src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
@@ -124,5 +124,3 @@ class ResourceFiltersMixin:
 
 
 __all__ = ["ResourceFiltersMixin"]
-
-

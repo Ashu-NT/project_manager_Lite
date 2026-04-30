@@ -103,4 +103,3 @@ __all__ = [
     "generate_excel_report",
     "generate_pdf_report",
 ]
-

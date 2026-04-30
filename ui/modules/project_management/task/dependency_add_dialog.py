@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QVBoxLayout,
 )
-from src.src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.tasks.queries import DependencyImpactRow
@@ -218,5 +218,3 @@ class DependencyAddDialog(QDialog):
         return f"{days:+d}d"
 
 __all__ = ["DependencyAddDialog"]
-
-

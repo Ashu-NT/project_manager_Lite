@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
 
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.src.core.modules.project_management.domain.enums import DependencyType
-from src.src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
+from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 from src.core.platform.auth import UserSessionContext
 from src.core.modules.project_management.application.projects import PortfolioService, ProjectService
 from ui.modules.project_management.portfolio.scenario_dialog import PortfolioScenarioDialog
@@ -1039,5 +1039,3 @@ class PortfolioTab(QWidget):
 
 
 __all__ = ["PortfolioTab"]
-
-

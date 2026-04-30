@@ -7,8 +7,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
-from src.src.core.modules.project_management.domain.enums import CostType, DependencyType
-from src.src.core.modules.project_management.access.policy import (
+from src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
     resolve_project_scope_permissions,
@@ -401,5 +401,3 @@ def _register_project_management_approval_handlers(
 
 
 __all__ = ["ProjectManagementServiceBundle", "build_project_management_service_bundle"]
-
-

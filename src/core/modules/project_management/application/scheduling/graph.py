@@ -65,4 +65,3 @@ def build_project_dependency_graph(
         deps_by_predecessor.setdefault(dep.predecessor_task_id, []).append(dep)
 
     return topo_order, deps_by_successor, deps_by_predecessor
-

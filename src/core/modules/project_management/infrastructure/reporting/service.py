@@ -77,4 +77,3 @@ class ReportingService(
                 "report.view",
                 operation_label=operation_label,
             )
-

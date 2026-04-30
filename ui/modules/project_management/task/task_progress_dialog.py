@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.enums import TaskStatus
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
 
@@ -282,5 +282,3 @@ class TaskProgressDialog(QDialog):
 
 
 __all__ = ["TaskProgressDialog"]
-
-

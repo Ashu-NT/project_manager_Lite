@@ -274,4 +274,3 @@ class PdfReportRenderer:
 
         doc.build(story)
         return output_path
-

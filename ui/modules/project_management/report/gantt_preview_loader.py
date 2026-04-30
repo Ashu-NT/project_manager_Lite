@@ -110,4 +110,3 @@ def _apply_preview_error(dialog, label_text: str, *, timeline_error: str) -> Non
 
 
 __all__ = ["load_gantt_image"]
-

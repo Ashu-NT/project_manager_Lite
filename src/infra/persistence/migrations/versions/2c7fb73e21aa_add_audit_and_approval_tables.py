@@ -69,4 +69,3 @@ def downgrade() -> None:
     op.drop_index("idx_audit_logs_occurred_at", table_name="audit_logs")
     op.drop_table("approval_requests")
     op.drop_table("audit_logs")
-

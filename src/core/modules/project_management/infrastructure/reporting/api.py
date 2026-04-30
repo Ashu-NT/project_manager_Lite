@@ -375,4 +375,3 @@ def generate_pdf_report(
             module_catalog_service=resolved_module_catalog_service,
         )
     )
-

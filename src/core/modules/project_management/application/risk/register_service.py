@@ -35,4 +35,3 @@ class RegisterService(ProjectManagementModuleGuardMixin, RegisterLifecycleMixin,
 
 
 __all__ = ["RegisterService"]
-

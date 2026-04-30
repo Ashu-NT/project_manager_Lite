@@ -68,4 +68,3 @@ class SqlAlchemyApprovalRepository(ApprovalRepository):
 
 
 __all__ = ["SqlAlchemyApprovalRepository"]
-

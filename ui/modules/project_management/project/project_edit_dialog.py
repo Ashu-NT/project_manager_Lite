@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.modules.project_management.domain.projects.project import Project
-from src.src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.ui.shared.formatting.ui_config import UIConfig as CFG, CurrencyType
 
 
@@ -212,5 +212,3 @@ class ProjectEditDialog(QDialog):
 
 
 __all__ = ["ProjectEditDialog"]
-
-

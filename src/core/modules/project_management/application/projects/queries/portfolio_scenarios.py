@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.src.core.modules.project_management.domain.portfolio import (
+from src.core.modules.project_management.domain.portfolio import (
     PortfolioScenario,
     PortfolioScenarioComparison,
     PortfolioScenarioEvaluation,
@@ -147,5 +147,3 @@ class PortfolioScenarioQueryMixin:
 
 
 __all__ = ["PortfolioScenarioQueryMixin"]
-
-

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.access.authorization import filter_project_rows
 from src.core.platform.auth.authorization import require_permission
 from src.core.modules.project_management.application.dashboard.models import DashboardData
@@ -293,5 +293,3 @@ class DashboardPortfolioMixin:
 
 
 __all__ = ["DashboardPortfolioMixin"]
-
-

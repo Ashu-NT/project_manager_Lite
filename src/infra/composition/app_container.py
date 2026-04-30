@@ -338,4 +338,3 @@ def build_service_graph(session: Session) -> ServiceGraph:
 
 def build_service_dict(session: Session) -> dict[str, Any]:
     return build_service_graph(session).as_dict()
-

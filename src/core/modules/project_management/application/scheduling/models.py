@@ -18,4 +18,3 @@ class CPMTaskInfo:
     is_critical: bool
     deadline: Optional[date] = None
     late_by_days: Optional[int] = None
-

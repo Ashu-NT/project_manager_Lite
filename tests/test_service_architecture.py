@@ -223,206 +223,26 @@ def test_service_graph_builder_wires_all_services(session):
     assert graph.time_service is graph.timesheet_service
 
 
+def test_project_management_legacy_service_roots_are_removed():
+    legacy_roots = (
+        Path("core/modules/project_management"),
+        Path("infra/modules/project_management"),
+    )
+
+    for root in legacy_roots:
+        files = [
+            path
+            for path in root.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        ]
+        assert not files, f"Legacy project-management root still contains files: {files}"
+
+
 def test_legacy_service_imports_point_to_new_packages():
     assert LegacyServiceBase.__name__ == "ServiceBase"
     assert LegacyApprovalService is ApprovalService
     assert LegacyAuthService is AuthService
     assert LegacyAuditService is AuditService
-
-
-def test_legacy_project_service_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-
-    legacy_root = root / "core" / "modules" / "project_management" / "services" / "project"
-
-    assert not (legacy_root / "__init__.py").exists()
-    assert not (legacy_root / "service.py").exists()
-    assert not (legacy_root / "lifecycle.py").exists()
-    assert not (legacy_root / "query.py").exists()
-    assert not (legacy_root / "validation.py").exists()
-    assert not (legacy_root / "resource_service.py").exists()
-
-
-def test_legacy_timesheet_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_root = root / "core" / "modules" / "project_management" / "services" / "timesheet"
-
-    assert not (legacy_root / "__init__.py").exists()
-    assert not (legacy_root / "service.py").exists()
-    assert not (legacy_root / "lifecycle.py").exists()
-    assert not (legacy_root / "entries.py").exists()
-    assert not (legacy_root / "periods.py").exists()
-    assert not (legacy_root / "query.py").exists()
-    assert not (legacy_root / "support.py").exists()
-
-
-def test_legacy_import_service_packages_are_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_service_root = root / "core" / "modules" / "project_management" / "services" / "import_service"
-    legacy_definition_root = root / "core" / "modules" / "project_management" / "importing"
-
-    assert not (legacy_service_root / "__init__.py").exists()
-    assert not (legacy_service_root / "service.py").exists()
-    assert not (legacy_service_root / "execution.py").exists()
-    assert not (legacy_service_root / "preview.py").exists()
-    assert not (legacy_service_root / "support.py").exists()
-    assert not (legacy_service_root / "models.py").exists()
-    assert not (legacy_service_root / "schemas.py").exists()
-
-    assert not (legacy_definition_root / "__init__.py").exists()
-    assert not (legacy_definition_root / "definitions.py").exists()
-
-
-def test_legacy_task_service_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_root = root / "core" / "modules" / "project_management" / "services" / "task"
-
-    assert not (legacy_root / "__init__.py").exists()
-    assert not (legacy_root / "service.py").exists()
-    assert not (legacy_root / "lifecycle.py").exists()
-    assert not (legacy_root / "dependency.py").exists()
-    assert not (legacy_root / "dependency_diagnostics.py").exists()
-    assert not (legacy_root / "assignment.py").exists()
-    assert not (legacy_root / "assignment_audit.py").exists()
-    assert not (legacy_root / "assignment_bridge.py").exists()
-    assert not (legacy_root / "query.py").exists()
-    assert not (legacy_root / "schedule_sync.py").exists()
-    assert not (legacy_root / "time_entries.py").exists()
-    assert not (legacy_root / "validation.py").exists()
-
-
-def test_legacy_scheduling_calendar_work_calendar_packages_are_removed():
-    root = Path(__file__).resolve().parents[1]
-
-    legacy_calendar_root = root / "core" / "modules" / "project_management" / "services" / "calendar"
-    assert not (legacy_calendar_root / "__init__.py").exists()
-    assert not (legacy_calendar_root / "service.py").exists()
-
-    legacy_scheduling_root = root / "core" / "modules" / "project_management" / "services" / "scheduling"
-    assert not (legacy_scheduling_root / "__init__.py").exists()
-    assert not (legacy_scheduling_root / "date_compute.py").exists()
-    assert not (legacy_scheduling_root / "engine.py").exists()
-    assert not (legacy_scheduling_root / "graph.py").exists()
-    assert not (legacy_scheduling_root / "leveling.py").exists()
-    assert not (legacy_scheduling_root / "leveling_models.py").exists()
-    assert not (legacy_scheduling_root / "leveling_service.py").exists()
-    assert not (legacy_scheduling_root / "models.py").exists()
-    assert not (legacy_scheduling_root / "passes.py").exists()
-    assert not (legacy_scheduling_root / "results.py").exists()
-
-    legacy_work_calendar_root = root / "core" / "modules" / "project_management" / "services" / "work_calendar"
-    assert not (legacy_work_calendar_root / "__init__.py").exists()
-    assert not (legacy_work_calendar_root / "engine.py").exists()
-    assert not (legacy_work_calendar_root / "service.py").exists()
-
-
-def test_legacy_baseline_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_baseline_root = root / "core" / "modules" / "project_management" / "services" / "baseline"
-
-    assert not (legacy_baseline_root / "__init__.py").exists()
-    assert not (legacy_baseline_root / "service.py").exists()
-
-
-def test_legacy_resource_cost_finance_packages_are_removed():
-    root = Path(__file__).resolve().parents[1]
-
-    legacy_resource_root = root / "core" / "modules" / "project_management" / "services" / "resource"
-    assert not (legacy_resource_root / "__init__.py").exists()
-    assert not (legacy_resource_root / "service.py").exists()
-
-    legacy_cost_root = root / "core" / "modules" / "project_management" / "services" / "cost"
-    assert not (legacy_cost_root / "__init__.py").exists()
-    assert not (legacy_cost_root / "service.py").exists()
-    assert not (legacy_cost_root / "lifecycle.py").exists()
-    assert not (legacy_cost_root / "query.py").exists()
-    assert not (legacy_cost_root / "support.py").exists()
-
-    legacy_finance_root = root / "core" / "modules" / "project_management" / "services" / "finance"
-    assert not (legacy_finance_root / "__init__.py").exists()
-    assert not (legacy_finance_root / "service.py").exists()
-    assert not (legacy_finance_root / "analytics.py").exists()
-    assert not (legacy_finance_root / "cashflow.py").exists()
-    assert not (legacy_finance_root / "helpers.py").exists()
-    assert not (legacy_finance_root / "ledger.py").exists()
-    assert not (legacy_finance_root / "models.py").exists()
-    assert not (legacy_finance_root / "policy.py").exists()
-
-
-def test_legacy_register_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_register_root = root / "core" / "modules" / "project_management" / "services" / "register"
-
-    assert not (legacy_register_root / "__init__.py").exists()
-    assert not (legacy_register_root / "service.py").exists()
-    assert not (legacy_register_root / "lifecycle.py").exists()
-    assert not (legacy_register_root / "query.py").exists()
-    assert not (legacy_register_root / "models.py").exists()
-
-
-def test_legacy_reporting_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_reporting_root = root / "core" / "modules" / "project_management" / "services" / "reporting"
-
-    assert not (legacy_reporting_root / "__init__.py").exists()
-    assert not (legacy_reporting_root / "baseline_compare.py").exists()
-    assert not (legacy_reporting_root / "cost_breakdown.py").exists()
-    assert not (legacy_reporting_root / "cost_policy.py").exists()
-    assert not (legacy_reporting_root / "evm.py").exists()
-    assert not (legacy_reporting_root / "evm_core.py").exists()
-    assert not (legacy_reporting_root / "evm_series.py").exists()
-    assert not (legacy_reporting_root / "kpi.py").exists()
-    assert not (legacy_reporting_root / "labor.py").exists()
-    assert not (legacy_reporting_root / "models.py").exists()
-    assert not (legacy_reporting_root / "service.py").exists()
-    assert not (legacy_reporting_root / "variance.py").exists()
-
-
-def test_legacy_dashboard_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_dashboard_root = root / "core" / "modules" / "project_management" / "services" / "dashboard"
-
-    assert not (legacy_dashboard_root / "__init__.py").exists()
-    assert not (legacy_dashboard_root / "alerts.py").exists()
-    assert not (legacy_dashboard_root / "burndown.py").exists()
-    assert not (legacy_dashboard_root / "evm.py").exists()
-    assert not (legacy_dashboard_root / "models.py").exists()
-    assert not (legacy_dashboard_root / "portfolio.py").exists()
-    assert not (legacy_dashboard_root / "portfolio_models.py").exists()
-    assert not (legacy_dashboard_root / "professional.py").exists()
-    assert not (legacy_dashboard_root / "register.py").exists()
-    assert not (legacy_dashboard_root / "service.py").exists()
-    assert not (legacy_dashboard_root / "upcoming.py").exists()
-
-
-def test_legacy_collaboration_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_collaboration_root = root / "core" / "modules" / "project_management" / "services" / "collaboration"
-
-    assert not (legacy_collaboration_root / "__init__.py").exists()
-    assert not (legacy_collaboration_root / "comments.py").exists()
-    assert not (legacy_collaboration_root / "documents.py").exists()
-    assert not (legacy_collaboration_root / "inbox.py").exists()
-    assert not (legacy_collaboration_root / "mentions.py").exists()
-    assert not (legacy_collaboration_root / "notifications.py").exists()
-    assert not (legacy_collaboration_root / "presence.py").exists()
-    assert not (legacy_collaboration_root / "principal.py").exists()
-    assert not (legacy_collaboration_root / "service.py").exists()
-    assert not (legacy_collaboration_root / "support.py").exists()
-
-
-def test_legacy_portfolio_package_is_removed():
-    root = Path(__file__).resolve().parents[1]
-    legacy_portfolio_root = root / "core" / "modules" / "project_management" / "services" / "portfolio"
-
-    assert not (legacy_portfolio_root / "__init__.py").exists()
-    assert not (legacy_portfolio_root / "dependencies.py").exists()
-    assert not (legacy_portfolio_root / "executive.py").exists()
-    assert not (legacy_portfolio_root / "intake.py").exists()
-    assert not (legacy_portfolio_root / "scenarios.py").exists()
-    assert not (legacy_portfolio_root / "service.py").exists()
-    assert not (legacy_portfolio_root / "support.py").exists()
-    assert not (legacy_portfolio_root / "templates.py").exists()
 
 
 def test_services_module_delegates_to_modular_registration_builders():

@@ -6,7 +6,7 @@ from src.core.platform.access.authorization import require_scope_permission
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
-from src.src.core.modules.project_management.access.policy import resolve_project_scope_permissions
+from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
 from src.core.platform.org.access_policy import resolve_site_scope_permissions
 from tests.ui_runtime_helpers import login_as
 
@@ -290,5 +290,3 @@ def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):
             stock_item_id=item.id,
             storeroom_id=blocked.id,
         )
-
-

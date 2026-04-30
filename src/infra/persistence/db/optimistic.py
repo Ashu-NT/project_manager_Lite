@@ -31,4 +31,3 @@ def update_with_version_check(
     if session.get(orm_type, row_id) is None:
         raise NotFoundError(not_found_message)
     raise ConcurrencyError(stale_message, code="STALE_WRITE")
-

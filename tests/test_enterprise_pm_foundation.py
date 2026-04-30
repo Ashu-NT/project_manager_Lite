@@ -8,7 +8,7 @@ import pytest
 from src.api.desktop.platform import PlatformAccessDesktopApi, PlatformUserDesktopApi
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from tests.ui_runtime_helpers import login_as, register_and_login, wait_until
 from src.ui.platform.workspaces.admin.access.tab import AccessTab
 from ui.modules.project_management.collaboration.tab import CollaborationTab
@@ -921,5 +921,3 @@ def test_portfolio_tab_disables_manage_actions_for_read_only_user(qapp, services
     assert "portfolio.manage" in tab.btn_activate_template.toolTip()
     assert "portfolio.manage" in tab.btn_add_dependency.toolTip()
     assert "portfolio.manage" in tab.btn_remove_dependency.toolTip()
-
-

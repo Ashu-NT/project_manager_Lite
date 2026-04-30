@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from src.src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.enums import CostType
 from src.ui.shared.formatting.formatting import currency_symbol_from_code, fmt_currency
 
 
@@ -160,5 +160,3 @@ def reload_project_combo(view, *, preferred_project_id: Optional[str] = None) ->
     elif view.project_combo.count() > 0:
         view.project_combo.setCurrentIndex(0)
     return projects
-
-

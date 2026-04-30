@@ -4,7 +4,7 @@ from datetime import date
 from typing import Any
 
 from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
-from src.src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.application.financials.helpers import (
     is_effectively_equal,
 )
@@ -47,5 +47,3 @@ def resolve_manual_labor_inclusion(
 
 
 __all__ = ["manual_labor_raw_totals", "resolve_manual_labor_inclusion"]
-
-

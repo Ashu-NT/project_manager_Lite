@@ -5,7 +5,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from src.src.core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus
+from src.core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus
 from src.core.modules.project_management.application.financials import CostService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
@@ -170,5 +170,3 @@ class DataImportSupportMixin:
 
 
 __all__ = ["DataImportSupportMixin"]
-
-

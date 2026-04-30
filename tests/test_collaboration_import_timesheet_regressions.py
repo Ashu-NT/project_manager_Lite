@@ -339,4 +339,3 @@ def test_time_entry_hours_must_be_greater_than_zero(services):
 
     with pytest.raises(ValidationError, match="greater than zero"):
         ts.add_time_entry(assignment.id, entry_date=date(2026, 3, 17), hours=0.0, note="Invalid")
-

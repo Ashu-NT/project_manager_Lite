@@ -25,4 +25,3 @@ def test_marking_one_alias_as_read_marks_alias_group_as_read(tmp_path):
 
     store.mark_task_mentions_read(task_id="task-1", username="robert")
     assert store.unread_mentions_count_for_users(["bob", "robert"]) == 0
-

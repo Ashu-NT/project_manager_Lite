@@ -6,12 +6,12 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.modules.project_management.contracts.repositories.collaboration import (
     TaskCommentRepository,
     TaskPresenceRepository,
 )
-from src.src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
+from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
 from src.core.modules.project_management.infrastructure.persistence.mappers.collaboration import (
     task_comment_from_orm,
     task_comment_to_orm,
@@ -128,5 +128,3 @@ class SqlAlchemyTaskPresenceRepository(TaskPresenceRepository):
 
 
 __all__ = ["SqlAlchemyTaskCommentRepository", "SqlAlchemyTaskPresenceRepository"]
-
-

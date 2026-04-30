@@ -95,5 +95,3 @@ class WorkCalendarService(ProjectManagementModuleGuardMixin):
         )
         self._repo.delete_holiday(holiday_id)
         self._session.commit()
-
-

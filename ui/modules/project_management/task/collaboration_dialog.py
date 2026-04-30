@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.src.core.modules.project_management.domain.collaboration import (
+from src.core.modules.project_management.domain.collaboration import (
     CollaborationMentionCandidate,
     TaskComment,
 )
@@ -353,5 +353,3 @@ class TaskCollaborationDialog(QDialog):
 
 
 __all__ = ["TaskCollaborationDialog"]
-
-

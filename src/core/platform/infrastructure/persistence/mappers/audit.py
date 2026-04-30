@@ -50,4 +50,3 @@ def audit_from_orm(obj: AuditLogORM) -> AuditLogEntry:
 
 
 __all__ = ["audit_to_orm", "audit_from_orm"]
-

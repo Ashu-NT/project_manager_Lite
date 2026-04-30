@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.modules.project_management.domain.financials.cost import CostItem
-from src.src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.ui.shared.formatting.ui_config import UIConfig as CFG, CurrencyType
@@ -205,5 +205,3 @@ class CostEditDialog(QDialog):
 
 
 __all__ = ["CostEditDialog"]
-
-

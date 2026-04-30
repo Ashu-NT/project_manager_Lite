@@ -12,7 +12,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.application.scheduling.date_compute import (
     compute_task_dates_common,
@@ -317,5 +317,3 @@ class SchedulingEngine(ResourceLevelingMixin):
             if normalized in ("LOW", "L"):
                 return 90
         return 50
-
-

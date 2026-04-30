@@ -162,4 +162,3 @@ class TaskTab(
 
     def _update_task_header_badges(self, visible_count: int) -> None:
         _ = visible_count
-

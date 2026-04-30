@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.src.core.modules.project_management.domain.portfolio import (
+from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
 )
@@ -21,5 +21,3 @@ class PortfolioIntakeQueryMixin:
 
 
 __all__ = ["PortfolioIntakeQueryMixin"]
-
-

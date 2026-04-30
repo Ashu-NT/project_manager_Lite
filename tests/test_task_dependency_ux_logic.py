@@ -1,4 +1,4 @@
-from src.src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
 from ui.modules.project_management.task.dependency_dialogs import _dependency_direction
 
@@ -32,5 +32,3 @@ def test_dependency_add_dialog_shows_risk_and_action_suggestions():
     )
     assert "Risk:" in text
     assert "diag.suggestions[:2]" in text
-
-

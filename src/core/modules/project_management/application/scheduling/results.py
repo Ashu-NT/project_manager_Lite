@@ -62,4 +62,3 @@ def build_schedule_result(
         )
 
     return result
-

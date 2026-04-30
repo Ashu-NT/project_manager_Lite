@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.src.core.modules.project_management.domain.portfolio import (
+from src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioProjectDependencyView,
 )
@@ -80,5 +80,3 @@ class PortfolioDependencyQueryMixin:
 
 
 __all__ = ["PortfolioDependencyQueryMixin"]
-
-

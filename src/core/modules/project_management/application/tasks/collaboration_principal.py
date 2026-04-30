@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.src.core.modules.project_management.domain.collaboration import TaskComment
+from src.core.modules.project_management.domain.collaboration import TaskComment
 
 
 class CollaborationPrincipalMixin:
@@ -49,5 +49,3 @@ class CollaborationPrincipalMixin:
 
 
 __all__ = ["CollaborationPrincipalMixin"]
-
-

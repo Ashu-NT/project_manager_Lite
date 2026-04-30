@@ -45,6 +45,3 @@ class CostService(
 
 
 __all__ = ["CostService"]
-
-
-

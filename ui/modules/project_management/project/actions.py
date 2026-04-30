@@ -8,7 +8,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.enums import ProjectStatus
 from ui.modules.project_management.shared.concurrency import handle_stale_write
 from ui.modules.project_management.project.dialogs import ProjectEditDialog
 
@@ -170,5 +170,3 @@ class ProjectActionsMixin:
 
 
 __all__ = ["ProjectActionsMixin"]
-
-

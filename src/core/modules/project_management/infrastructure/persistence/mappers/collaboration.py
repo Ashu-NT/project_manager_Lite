@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from src.src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
+from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
 
 
@@ -79,5 +79,3 @@ __all__ = [
     "task_presence_from_orm",
     "task_presence_to_orm",
 ]
-
-

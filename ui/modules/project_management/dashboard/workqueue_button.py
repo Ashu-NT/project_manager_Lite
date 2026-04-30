@@ -97,4 +97,3 @@ def _badge_colors(variant: str, *, enabled: bool) -> tuple[str, str]:
 
 
 __all__ = ["DashboardQueueButton"]
-

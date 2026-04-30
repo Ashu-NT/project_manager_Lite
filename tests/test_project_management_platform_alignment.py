@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from src.src.core.modules.project_management.domain.enums import WorkerType
+from src.core.modules.project_management.domain.enums import WorkerType
 from src.core.modules.project_management.domain.risk.register import RegisterEntryType
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.project_management.collaboration.tab import CollaborationTab
@@ -373,5 +373,3 @@ def test_pm_register_tab_refreshes_from_generic_domain_event(qapp, services):
 
     assert tab.table.rowCount() == 1
     assert tab.table.item(0, 1).text() == "Generic register event"
-
-

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 
-from src.src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.modules.project_management.domain.identifiers import generate_id
 
 
 class RegisterEntryType(str, Enum):
@@ -105,5 +105,3 @@ __all__ = [
     "as_register_entry_severity",
     "as_register_entry_status",
 ]
-
-

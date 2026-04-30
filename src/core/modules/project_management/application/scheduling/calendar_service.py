@@ -142,5 +142,3 @@ class CalendarService(ProjectManagementModuleGuardMixin):
         except Exception as e:  
             self._session.rollback()
             raise e
-
-

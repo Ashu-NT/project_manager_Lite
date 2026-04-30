@@ -1,4 +1,3 @@
-﻿from .tab import DashboardTab
+from .tab import DashboardTab
 
 __all__ = ["DashboardTab"]
-

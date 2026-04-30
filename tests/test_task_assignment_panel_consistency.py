@@ -23,4 +23,3 @@ def test_single_task_and_multi_task_assignment_queries_are_consistent(services):
     assert single[0].id == multi[0].id
     assert _assignment_hours_logged(single[0]) == 9.25
     assert _assignment_hours_logged(multi[0]) == 9.25
-

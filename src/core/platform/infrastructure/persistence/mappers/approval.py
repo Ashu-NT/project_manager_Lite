@@ -60,4 +60,3 @@ def approval_from_orm(obj: ApprovalRequestORM) -> ApprovalRequest:
 
 
 __all__ = ["approval_to_orm", "approval_from_orm"]
-

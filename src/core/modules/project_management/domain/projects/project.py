@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from src.src.core.modules.project_management.domain.enums import ProjectStatus
-from src.src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.identifiers import generate_id
 
 
 @dataclass
@@ -60,5 +60,3 @@ class ProjectResource:
             planned_hours=planned_hours,
             is_active=is_active,
         )
-
-

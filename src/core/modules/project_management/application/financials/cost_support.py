@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.enums import CostType
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import is_admin_session, require_permission
@@ -97,5 +97,3 @@ class CostSupportMixin:
     @staticmethod
     def _normalize_currency(currency_code: str | None) -> str:
         return (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
-
-

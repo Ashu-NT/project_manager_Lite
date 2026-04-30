@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
-from src.src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.enums import TaskStatus
 from src.ui.shared.models.undo import UndoCommand
 
 
@@ -161,5 +161,3 @@ class TaskBulkActionsMixin:
 
 
 __all__ = ["TaskBulkActionsMixin"]
-
-

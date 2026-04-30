@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from src.core.platform.common.exceptions import NotFoundError
-from src.src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.persistence.repositories.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
@@ -373,5 +373,3 @@ def test_reporting_export_api_wires_cost_source_context():
     )
     assert "get_project_cost_source_breakdown" in text
     assert "cost_sources=" in text
-
-

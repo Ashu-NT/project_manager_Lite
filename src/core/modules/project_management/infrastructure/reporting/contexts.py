@@ -39,4 +39,3 @@ class ExcelReportContext(ReportExportContext):
 @dataclass
 class PdfReportContext(ReportExportContext):
     gantt_png_path: str
-

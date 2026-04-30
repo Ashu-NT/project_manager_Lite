@@ -67,4 +67,3 @@ class WorkCalendarEngine:
                 count += 1
             current += timedelta(days=1)
         return count
-

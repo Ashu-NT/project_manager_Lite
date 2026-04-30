@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from src.src.core.modules.project_management.domain.collaboration import CollaborationMentionCandidate
+from src.core.modules.project_management.domain.collaboration import CollaborationMentionCandidate
 
 
 MENTION_RE = re.compile(r"@([A-Za-z0-9_.-]+)")
@@ -47,5 +47,3 @@ def resolve_mentions(
 
 
 __all__ = ["MENTION_RE", "candidate_handles", "extract_mention_tokens", "resolve_mentions"]
-
-

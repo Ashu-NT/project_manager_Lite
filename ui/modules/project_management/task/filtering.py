@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from src.src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
 from ui.modules.project_management.dashboard.styles import dashboard_action_button_style
 from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
@@ -327,5 +327,3 @@ class TaskFiltersMixin:
 
 
 __all__ = ["TaskFiltersMixin"]
-
-

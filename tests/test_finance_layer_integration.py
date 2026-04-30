@@ -5,8 +5,8 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from src.src.core.modules.project_management.domain.enums import CostType
-from core.modules.project_management.reporting import api as reporting_api
+from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
 
 
 def _seed_finance_project(services) -> str:
@@ -161,5 +161,3 @@ def test_finance_views_are_report_only_not_duplicated_in_cost_tab():
     assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_cash), "Cashflow")' in finance_dialog
     assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_analytics), "Analytics")' in finance_dialog
     assert 'self.finance_tabs.addTab(self._wrap_tab_panel(grp_ledger), "Ledger Trail")' in finance_dialog
-
-

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.src.core.modules.project_management.domain.portfolio import PortfolioScenario
+from src.core.modules.project_management.domain.portfolio import PortfolioScenario
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.notifications.domain_events import domain_events
@@ -68,5 +68,3 @@ class PortfolioScenarioCommandMixin:
 
 
 __all__ = ["PortfolioScenarioCommandMixin"]
-
-

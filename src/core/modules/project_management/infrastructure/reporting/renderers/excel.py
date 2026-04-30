@@ -407,4 +407,3 @@ class ExcelReportRenderer:
 
         wb.save(output_path)
         return output_path
-

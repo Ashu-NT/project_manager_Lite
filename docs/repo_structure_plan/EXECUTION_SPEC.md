@@ -1328,6 +1328,11 @@ Completed:
 - `RegisterEntry`, register enums, and register enum normalizers now live in `src/core/modules/project_management/domain/risk/register.py`
 - PM register services, register persistence, register ORM enum usage, register repository contracts, register UI, dashboard register rendering, and focused tests now import the register domain model from the new risk subdomain file directly
 - the old flat `core/modules/project_management/domain/register.py` file was deleted after direct import rewrites
+- the remaining PM module-owned access/domain/support files from `core/modules/project_management/{access,domain,services/common}/*` now live under `src/core/modules/project_management/{access,domain,application/common}/*`
+- the remaining PM reporting runtime entrypoints from `core/modules/project_management/reporting/*` now live under `src/core/modules/project_management/infrastructure/reporting/*`
+- the PM collaboration storage helpers from `infra/modules/project_management/{collaboration_store,collaboration_attachments}.py` now live under `src/core/modules/project_management/infrastructure/*`
+- PM composition, widgets, tests, and path rewrites now point at the final module-local PM access/domain/reporting/infrastructure imports, and the accidental `src.src.*` import drift from the sweep was removed
+- the final legacy PM roots `core/modules/project_management/` and `infra/modules/project_management/` were deleted after direct import rewrites, with no facade package kept behind
 
 Verified:
 
@@ -1355,10 +1360,12 @@ Verified:
 - PM collaboration application transfer verification: `pytest tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_task_mentions_pro.py -q`, observed 174 passed
 - PM portfolio application transfer verification: `pytest tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_desktop_api.py tests/test_dashboard_portfolio_flow.py tests/test_enterprise_pm_foundation.py tests/test_project_management_platform_alignment.py tests/test_refactor_regressions.py tests/test_pro_set_v1_ui.py -q`, observed 194 passed
 - PM timesheet/import-service transfer verification: `pytest tests/test_architecture_guardrails.py tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_project_management_desktop_api.py -q`, observed 181 passed
+- direct filesystem check confirms `core/modules/project_management/` and `infra/modules/project_management/` no longer exist
+- PM root-cleanup verification: `pytest tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_project_management_platform_alignment.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_project_management_desktop_api.py -q`, observed 170 passed
 
 Continue next:
 
-1. Continue the PM domain, service, API, and UI work before starting another module, with the legacy service-transfer set now completed through `services/timesheet/*` and `services/import_service/*`.
+1. Continue the PM domain, service, API, and UI work before starting another module, with the legacy PM roots now fully removed and the remaining work happening only under `src/core/modules/project_management/*`.
 2. Prioritize the remaining PM repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion.
 3. Regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle.
 4. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.

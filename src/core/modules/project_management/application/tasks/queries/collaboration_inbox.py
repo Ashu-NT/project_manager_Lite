@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.src.core.modules.project_management.domain.collaboration import (
+from src.core.modules.project_management.domain.collaboration import (
     CollaborationInboxItem,
     CollaborationWorkspaceSnapshot,
 )
@@ -92,5 +92,3 @@ class CollaborationInboxQueryMixin:
 
 
 __all__ = ["CollaborationInboxQueryMixin"]
-
-

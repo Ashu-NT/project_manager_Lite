@@ -36,4 +36,3 @@ class SqlAlchemyAuditLogRepository(AuditLogRepository):
 
 
 __all__ = ["SqlAlchemyAuditLogRepository"]
-

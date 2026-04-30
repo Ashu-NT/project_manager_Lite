@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from src.src.core.modules.project_management.domain.enums import CostType, WorkerType
-from src.src.core.modules.project_management.domain.identifiers import generate_id
+from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.domain.identifiers import generate_id
 
 
 @dataclass
@@ -54,5 +54,3 @@ class Resource:
 
 
 __all__ = ["Resource"]
-
-
