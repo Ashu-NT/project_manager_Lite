@@ -8,6 +8,7 @@ from src.ui_qml.modules.project_management.context import (
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
+    ProjectManagementTasksWorkspaceController,
     ProjectManagementWorkspaceControllerBase,
 )
 
@@ -34,6 +35,14 @@ def register_project_management_qml_types() -> None:
         1,
         0,
         "ProjectManagementProjectsWorkspaceController",
+        "Project management workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        ProjectManagementTasksWorkspaceController,
+        "ProjectManagement.Controllers",
+        1,
+        0,
+        "ProjectManagementTasksWorkspaceController",
         "Project management workspace controllers are provided by the shell runtime.",
     )
     qmlRegisterUncreatableType(

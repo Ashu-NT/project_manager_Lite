@@ -21,8 +21,10 @@ from src.api.desktop.platform import (
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementDashboardDesktopApi,
     ProjectManagementProjectsDesktopApi,
+    ProjectManagementTasksDesktopApi,
     build_project_management_dashboard_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_tasks_desktop_api,
 )
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
@@ -33,6 +35,7 @@ from src.core.modules.project_management.application.scheduling.baseline_service
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.tasks import TaskService
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
@@ -57,6 +60,7 @@ class DesktopApiRegistry:
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_projects: ProjectManagementProjectsDesktopApi
+    project_management_tasks: ProjectManagementTasksDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -104,6 +108,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
     )
+    pm_task_service = task_service if isinstance(task_service, TaskService) else None
     pm_dashboard_service = services.get("dashboard_service")
     if not isinstance(pm_dashboard_service, DashboardService):
         pm_dashboard_service = None
@@ -173,6 +178,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
+        ),
+        project_management_tasks=build_project_management_tasks_desktop_api(
+            project_service=pm_project_service,
+            task_service=pm_task_service,
         ),
     )
 

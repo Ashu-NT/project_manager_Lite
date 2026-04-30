@@ -1,3 +1,5 @@
 module ProjectManagement.Dialogs
 ProjectEditorDialog 1.0 ProjectEditorDialog.qml
 ProjectStatusDialog 1.0 ProjectStatusDialog.qml
+TaskEditorDialog 1.0 TaskEditorDialog.qml
+TaskProgressDialog 1.0 TaskProgressDialog.qml

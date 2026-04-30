@@ -1,14 +1,16 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_tasks_desktop_api,
     build_project_management_workspace_desktop_api,
 )
-from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
@@ -345,6 +347,91 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
     assert api.list_projects() == ()
 
 
+def test_project_management_tasks_desktop_api_lists_statuses() -> None:
+    api = build_project_management_tasks_desktop_api()
+
+    statuses = api.list_statuses()
+
+    assert [status.value for status in statuses] == [
+        "TODO",
+        "IN_PROGRESS",
+        "BLOCKED",
+        "DONE",
+    ]
+    assert statuses[1].label == "In Progress"
+
+
+def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
+    project_service = _FakeProjectService()
+    project = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+    )
+    task_service = _FakeTaskService()
+    api = build_project_management_tasks_desktop_api(
+        project_service=project_service,
+        task_service=task_service,
+    )
+
+    created = api.create_task(
+        SimpleNamespace(
+            project_id=project.id,
+            name="Cable Pull",
+            description="Primary feeder cable installation.",
+            start_date=date(2026, 5, 3),
+            duration_days=4,
+            status="IN_PROGRESS",
+            priority=80,
+            deadline=date(2026, 5, 8),
+        )
+    )
+
+    listed = api.list_tasks(project.id)
+
+    assert created.project_name == "Plant Upgrade"
+    assert created.status == "IN_PROGRESS"
+    assert created.status_label == "In Progress"
+    assert listed[0].name == "Cable Pull"
+    assert listed[0].end_date == date(2026, 5, 6)
+
+    updated = api.update_task(
+        SimpleNamespace(
+            task_id=created.id,
+            expected_version=task_service.get_task(created.id).version,
+            name="Cable Pull Rev A",
+            description="Updated execution scope.",
+            start_date=date(2026, 5, 4),
+            duration_days=5,
+            status="BLOCKED",
+            priority=95,
+            deadline=date(2026, 5, 10),
+        )
+    )
+
+    assert updated.name == "Cable Pull Rev A"
+    assert updated.status == "BLOCKED"
+    assert updated.deadline == date(2026, 5, 10)
+
+    progressed = api.update_progress(
+        SimpleNamespace(
+            task_id=created.id,
+            expected_version=task_service.get_task(created.id).version,
+            percent_complete=65.0,
+            actual_start=date(2026, 5, 4),
+            actual_end=None,
+            status="IN_PROGRESS",
+        )
+    )
+
+    assert progressed.percent_complete == 65.0
+    assert progressed.actual_start == date(2026, 5, 4)
+    assert progressed.status == "IN_PROGRESS"
+
+    api.delete_task(created.id)
+
+    assert api.list_tasks(project.id) == ()
+
+
 def test_project_management_desktop_api_does_not_import_qml_or_infra() -> None:
     api_root = Path("src/core/modules/project_management/api/desktop")
     source_text = "\n".join(
@@ -441,3 +528,112 @@ class _FakeProjectService:
 
     def get_project(self, project_id: str) -> Project | None:
         return self._projects.get(project_id)
+
+
+class _FakeTaskService:
+    def __init__(self) -> None:
+        self._tasks: dict[str, Task] = {}
+        self._next_id = 1
+
+    def list_tasks_for_project(self, project_id: str) -> list[Task]:
+        return [task for task in self._tasks.values() if task.project_id == project_id]
+
+    def create_task(
+        self,
+        *,
+        project_id: str,
+        name: str,
+        description: str = "",
+        start_date: date | None = None,
+        duration_days: int | None = None,
+        priority: int = 0,
+        deadline: date | None = None,
+    ) -> Task:
+        task = Task(
+            id=f"task-{self._next_id}",
+            project_id=project_id,
+            name=name,
+            description=description,
+            start_date=start_date,
+            end_date=_derive_end_date(start_date, duration_days),
+            duration_days=duration_days,
+            priority=priority,
+            deadline=deadline,
+        )
+        self._next_id += 1
+        self._tasks[task.id] = task
+        return task
+
+    def update_task(
+        self,
+        task_id: str,
+        *,
+        expected_version: int | None = None,
+        name: str | None = None,
+        description: str | None = None,
+        status: TaskStatus | None = None,
+        start_date: date | None = None,
+        duration_days: int | None = None,
+        priority: int | None = None,
+        deadline: date | None = None,
+    ) -> Task:
+        task = self._tasks[task_id]
+        if name is not None:
+            task.name = name
+        if description is not None:
+            task.description = description
+        if status is not None:
+            task.status = status
+        if start_date is not None:
+            task.start_date = start_date
+        if duration_days is not None:
+            task.duration_days = duration_days
+        if priority is not None:
+            task.priority = priority
+        if deadline is not None:
+            task.deadline = deadline
+        task.end_date = _derive_end_date(task.start_date, task.duration_days)
+        task.version += 1
+        return task
+
+    def set_status(self, task_id: str, status: TaskStatus) -> None:
+        task = self._tasks[task_id]
+        task.status = status
+        task.version += 1
+
+    def update_progress(
+        self,
+        task_id: str,
+        *,
+        percent_complete: float | None = None,
+        actual_start: date | None = None,
+        actual_end: date | None = None,
+        status: TaskStatus | None = None,
+        expected_version: int | None = None,
+    ) -> Task:
+        task = self._tasks[task_id]
+        if percent_complete is not None:
+            task.percent_complete = percent_complete
+        if actual_start is not None:
+            task.actual_start = actual_start
+        if actual_end is not None:
+            task.actual_end = actual_end
+        if status is not None:
+            task.status = status
+        task.version += 1
+        return task
+
+    def delete_task(self, task_id: str) -> None:
+        del self._tasks[task_id]
+
+    def get_task(self, task_id: str) -> Task | None:
+        return self._tasks.get(task_id)
+
+
+def _derive_end_date(
+    start_date: date | None,
+    duration_days: int | None,
+) -> date | None:
+    if start_date is None or duration_days is None:
+        return None
+    return start_date + timedelta(days=max(duration_days - 1, 0))

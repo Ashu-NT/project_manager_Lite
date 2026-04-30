@@ -11,8 +11,9 @@ from src.ui_qml.modules.project_management.routes import build_project_managemen
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
@@ -115,6 +116,82 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
 
     assert controller.projects["items"] == []
     assert controller.emptyState == "No projects match the current filters."
+
+
+def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -> None:
+    tasks_api = build_project_management_tasks_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [
+                SimpleNamespace(id="proj-1", name="Plant Upgrade"),
+                SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
+            ]
+        ),
+        task_service=_FakeTaskService(
+            [
+                _build_task_record(
+                    task_id="task-1",
+                    project_id="proj-1",
+                    name="Cable Pull",
+                    description="Primary feeder cable installation.",
+                    status=TaskStatus.IN_PROGRESS,
+                    start_date=date(2026, 5, 3),
+                    end_date=date(2026, 5, 6),
+                    duration_days=4,
+                    priority=70,
+                    percent_complete=45.0,
+                    deadline=date(2026, 5, 7),
+                ),
+                _build_task_record(
+                    task_id="task-2",
+                    project_id="proj-1",
+                    name="Punchlist Closeout",
+                    description="Commissioning closeout walkdown.",
+                    status=TaskStatus.BLOCKED,
+                    start_date=date(2026, 5, 8),
+                    end_date=date(2026, 5, 9),
+                    duration_days=2,
+                    priority=95,
+                    percent_complete=0.0,
+                    deadline=date(2026, 5, 9),
+                ),
+                _build_task_record(
+                    task_id="task-3",
+                    project_id="proj-2",
+                    name="Lighting Retrofit",
+                    description="Warehouse fixture replacement.",
+                    status=TaskStatus.TODO,
+                    start_date=date(2026, 5, 10),
+                    end_date=date(2026, 5, 12),
+                    duration_days=3,
+                    priority=40,
+                    percent_complete=0.0,
+                    deadline=date(2026, 5, 13),
+                ),
+            ]
+        ),
+    )
+    catalog = ProjectManagementWorkspaceCatalog(
+        desktop_api_registry=SimpleNamespace(project_management_tasks=tasks_api)
+    )
+
+    controller = catalog.tasksWorkspace
+
+    assert controller.workspace["routeId"] == "project_management.tasks"
+    assert controller.overview["title"] == "Tasks"
+    assert controller.projectOptions[0]["label"] == "Plant Upgrade"
+    assert controller.selectedProjectId == "proj-1"
+    assert controller.tasks["items"][0]["title"] == "Cable Pull"
+    assert controller.selectedTask["title"] == "Cable Pull"
+
+    controller.setStatusFilter("BLOCKED")
+
+    assert controller.selectedStatusFilter == "BLOCKED"
+    assert [item["title"] for item in controller.tasks["items"]] == ["Punchlist Closeout"]
+
+    controller.setSearchText("cable")
+
+    assert controller.tasks["items"] == []
+    assert controller.emptyState == "No tasks match the current filters."
 
 
 def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_state() -> None:
@@ -309,4 +386,52 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
     assert "QML CRUD projects slice active" in qml_text
+    assert "QML CRUD tasks slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
+
+
+class _FakeTaskService:
+    def __init__(self, tasks: list[SimpleNamespace] | None = None) -> None:
+        self._tasks = {
+            task.id: task
+            for task in (tasks or [])
+        }
+
+    def list_tasks_for_project(self, project_id: str) -> list[SimpleNamespace]:
+        return [
+            task
+            for task in self._tasks.values()
+            if task.project_id == project_id
+        ]
+
+
+def _build_task_record(
+    *,
+    task_id: str,
+    project_id: str,
+    name: str,
+    description: str,
+    status: TaskStatus,
+    start_date: date | None,
+    end_date: date | None,
+    duration_days: int | None,
+    priority: int,
+    percent_complete: float,
+    deadline: date | None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=task_id,
+        project_id=project_id,
+        name=name,
+        description=description,
+        status=status,
+        start_date=start_date,
+        end_date=end_date,
+        duration_days=duration_days,
+        priority=priority,
+        percent_complete=percent_complete,
+        actual_start=None,
+        actual_end=None,
+        deadline=deadline,
+        version=1,
+    )

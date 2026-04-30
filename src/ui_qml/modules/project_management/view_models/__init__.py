@@ -12,6 +12,15 @@ from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectRecordViewModel,
     ProjectStatusOptionViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.tasks import (
+    TaskCatalogMetricViewModel,
+    TaskCatalogOverviewViewModel,
+    TaskCatalogWorkspaceViewModel,
+    TaskDetailFieldViewModel,
+    TaskDetailViewModel,
+    TaskRecordViewModel,
+    TaskSelectorOptionViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.workspace import (
     ProjectManagementWorkspaceViewModel,
 )
@@ -27,4 +36,11 @@ __all__ = [
     "ProjectManagementWorkspaceViewModel",
     "ProjectRecordViewModel",
     "ProjectStatusOptionViewModel",
+    "TaskCatalogMetricViewModel",
+    "TaskCatalogOverviewViewModel",
+    "TaskCatalogWorkspaceViewModel",
+    "TaskDetailFieldViewModel",
+    "TaskDetailViewModel",
+    "TaskRecordViewModel",
+    "TaskSelectorOptionViewModel",
 ]

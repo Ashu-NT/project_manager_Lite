@@ -5,6 +5,7 @@ from PySide6.QtCore import Property, QObject, Slot
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
+    ProjectManagementTasksWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_workspace_view_model,
@@ -12,6 +13,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardWorkspacePresenter,
     ProjectProjectsWorkspacePresenter,
+    ProjectTasksWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
 
@@ -34,9 +36,20 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_projects",
             None,
         )
+        tasks_api = getattr(
+            desktop_api_registry,
+            "project_management_tasks",
+            None,
+        )
         self._projects_workspace = ProjectManagementProjectsWorkspaceController(
             projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
                 desktop_api=projects_api
+            ),
+            parent=self,
+        )
+        self._tasks_workspace = ProjectManagementTasksWorkspaceController(
+            tasks_workspace_presenter=ProjectTasksWorkspacePresenter(
+                desktop_api=tasks_api
             ),
             parent=self,
         )
@@ -50,6 +63,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementProjectsWorkspaceController, constant=True)
     def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
         return self._projects_workspace
+
+    @Property(ProjectManagementTasksWorkspaceController, constant=True)
+    def tasksWorkspace(self) -> ProjectManagementTasksWorkspaceController:
+        return self._tasks_workspace
 
     @Property(ProjectManagementDashboardWorkspaceController, constant=True)
     def dashboardWorkspace(self) -> ProjectManagementDashboardWorkspaceController:

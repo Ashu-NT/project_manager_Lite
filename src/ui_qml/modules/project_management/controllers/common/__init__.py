@@ -7,6 +7,9 @@ from src.ui_qml.modules.project_management.controllers.common.serializers import
     serialize_project_detail_view_model,
     serialize_project_record_view_models,
     serialize_selector_options,
+    serialize_task_catalog_overview_view_model,
+    serialize_task_detail_view_model,
+    serialize_task_record_view_models,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.common.mutation_runner import (
@@ -27,5 +30,8 @@ __all__ = [
     "serialize_project_detail_view_model",
     "serialize_project_record_view_models",
     "serialize_selector_options",
+    "serialize_task_catalog_overview_view_model",
+    "serialize_task_detail_view_model",
+    "serialize_task_record_view_models",
     "serialize_workspace_view_model",
 ]
