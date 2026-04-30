@@ -14,6 +14,14 @@ from src.core.modules.project_management.api.desktop.dashboard import (
     ProjectManagementDashboardDesktopApi,
     build_project_management_dashboard_desktop_api,
 )
+from src.core.modules.project_management.api.desktop.projects import (
+    ProjectCreateCommand,
+    ProjectDesktopDto,
+    ProjectManagementProjectsDesktopApi,
+    ProjectStatusDescriptor,
+    ProjectUpdateCommand,
+    build_project_management_projects_desktop_api,
+)
 from src.core.modules.project_management.api.desktop.workspaces import (
     ProjectManagementWorkspaceDescriptor,
     ProjectManagementWorkspaceDesktopApi,
@@ -31,8 +39,14 @@ __all__ = [
     "ProjectDashboardSectionItemDescriptor",
     "ProjectDashboardSelectorOptionDescriptor",
     "ProjectDashboardSnapshotDescriptor",
+    "ProjectCreateCommand",
+    "ProjectDesktopDto",
     "ProjectManagementDashboardDesktopApi",
+    "ProjectManagementProjectsDesktopApi",
     "build_project_management_dashboard_desktop_api",
+    "ProjectStatusDescriptor",
+    "ProjectUpdateCommand",
+    "build_project_management_projects_desktop_api",
     "ProjectManagementWorkspaceDescriptor",
     "ProjectManagementWorkspaceDesktopApi",
     "build_project_management_workspace_desktop_api",

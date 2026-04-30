@@ -20,7 +20,9 @@ from src.api.desktop.platform import (
 )
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementDashboardDesktopApi,
+    ProjectManagementProjectsDesktopApi,
     build_project_management_dashboard_desktop_api,
+    build_project_management_projects_desktop_api,
 )
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
@@ -54,6 +56,7 @@ class DesktopApiRegistry:
     platform_support: PlatformSupportDesktopApi
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
+    project_management_projects: ProjectManagementProjectsDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -167,6 +170,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             project_service=pm_project_service,
             dashboard_service=pm_dashboard_service,
             baseline_service=pm_baseline_service,
+        ),
+        project_management_projects=build_project_management_projects_desktop_api(
+            project_service=pm_project_service,
         ),
     )
 

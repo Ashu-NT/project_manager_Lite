@@ -84,6 +84,8 @@ QML scaffold status:
 - project-management desktop API workspace metadata now exists under `src/core/modules/project_management/api/desktop/workspaces.py` and backs the PM QML route/presenter metadata path
 - project-management dashboard now has a read-only desktop API snapshot contract under `src/core/modules/project_management/api/desktop/dashboard.py`, with project-scope selection, baseline selection, KPI overview metrics, EVM/register/cost analysis panels, burndown/resource chart descriptors, and read-only alert/milestone/critical-path/upcoming/register sections mapped into QML-safe presenter/view-model state
 - project-management dashboard QML now renders that first real Slice 2 workflow slice through `DashboardSelectionBar.qml`, `DashboardMetricsSection.qml`, `DashboardAnalysisPanels.qml`, `DashboardChartsSection.qml`, `DashboardOverviewSections.qml`, `ProjectManagement.Widgets/WorkspaceStateBanner.qml`, `ProjectManagement.Widgets/DashboardPanelCard.qml`, `ProjectManagement.Widgets/DashboardChartCard.qml`, and `ProjectManagement.Widgets/DashboardSectionCard.qml`
+- project-management projects now has a CRUD desktop API contract under `src/core/modules/project_management/api/desktop/projects.py`, with typed status options plus create, update, status-change, and delete commands mapped onto the refactored `application/projects` service
+- project-management projects QML now renders the first mutable PM workspace slice through `ProjectsWorkspacePage.qml`, `ProjectsMetricsSection.qml`, `ProjectsFiltersSection.qml`, `ProjectsCatalogSection.qml`, `ProjectsDetailSection.qml`, `ProjectsDialogHost.qml`, `ProjectManagement.Dialogs/{ProjectEditorDialog,ProjectStatusDialog}.qml`, and `ProjectManagement.Widgets/RecordListCard.qml`
 - shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
 - the scaffold is intentionally not wired into `main_qt.py` yet, so the active QWidget app remains unchanged
 - focused QML shell migration smoke coverage exists in `tests/test_qml_shell_migration.py`
@@ -2215,13 +2217,14 @@ Hold status:
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`, not `src/ui/modules/project_management/*`
 - QML shell foundation has started and is verified independently; that work remains valid, but it is no longer the reason to hold backend/domain restructuring
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and QWidget deletion still remain pending
-- PM QML landing-zone routes are now in place for every Slice 2 PM workspace, with typed controller/catalog scaffolding and shared placeholder-page structure; keep that progress, but do not let it replace the remaining structure transfer work
-- PM QML presenter/view-model scaffolding is in place for every PM workspace route, and the dashboard now has a typed controller plus split page sections backed by a screen-specific desktop API snapshot that includes analysis panels and chart state; that UI progress remains valid and should not be reverted
-- PM QML now consumes presenter-backed metadata through a typed QML catalog/controller surface; outside the dashboard, workflow/query API wiring still needs to come from the refactored module structure first
+- PM QML landing-zone routes are now in place for every Slice 2 PM workspace, but `projects` and `dashboard` have moved beyond placeholders into real typed workspaces; keep that progress, but do not let it replace the remaining structure transfer work
+- PM QML presenter/view-model scaffolding is in place for every PM workspace route, and `dashboard` plus `projects` now have typed controllers and split page sections backed by screen-specific desktop APIs; that UI progress remains valid and should not be reverted
+- PM QML now consumes presenter-backed metadata through a typed QML catalog/controller surface plus named `ProjectManagement.Controllers`, `ProjectManagement.Dialogs`, and `ProjectManagement.Widgets` modules; outside `dashboard` and `projects`, workflow/query API wiring still needs to come from the refactored module structure first
 - PM QML should now be incorporated naturally as each backend/application/API slice settles, not treated as the sole active Slice 2 track
 - QML architecture guardrails are now in place before real screen migration begins
 - registered QML routes are now covered by an automated offscreen loading smoke test
 - PM Dashboard QML now renders API-backed project selection, baseline selection, KPI cards, EVM/register/cost analysis panels, burndown/resource visuals, and read-only delivery-health sections through a typed controller and split section layout; dialogs, mutations, and deeper dashboard parity remain on the QWidget dashboard until parity is completed
+- PM Projects QML now renders API-backed filters, catalog/detail panels, and create/edit/status/delete dialogs through a typed controller and split section layout; import flows, resource-assignment side panels, and deeper project parity remain on the QWidget workspace until parity is completed
 
 Refactor-first priority for the remaining PM slice:
 

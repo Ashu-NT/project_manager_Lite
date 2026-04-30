@@ -1,0 +1,3 @@
+module ProjectManagement.Dialogs
+ProjectEditorDialog 1.0 ProjectEditorDialog.qml
+ProjectStatusDialog 1.0 ProjectStatusDialog.qml

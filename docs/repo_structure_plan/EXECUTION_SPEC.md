@@ -557,10 +557,11 @@ Project Management QML route status as of 2026-04-29:
 - `src/ui_qml/modules/project_management/routes.py` registers the full PM QML route set for the Slice 2 workspace names
 - PM QML entry workspaces exist for `projects`, `tasks`, `scheduling`, `resources`, `financials`, `risk`, `portfolio`, `register`, `collaboration`, `timesheets`, and `dashboard`
 - the dashboard now uses a split `DashboardWorkspace.qml` -> `DashboardWorkspacePage.qml` pattern with local section components, matching the platform workspace layout style
+- the projects workspace now uses a split `ProjectsWorkspace.qml` -> `ProjectsWorkspacePage.qml` pattern with local metrics, filters, catalog, detail, and dialog-host components, matching the platform workspace layout style
 - the remaining PM workspaces now render through `ProjectManagement.Widgets/WorkspacePlaceholderPage.qml` instead of repeating ad-hoc placeholder layouts
-- the remaining PM workspaces are still landing zones only; the dashboard is now the first real read-only migrated slice, while active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
+- the remaining PM workspaces are still landing zones only; `dashboard` is the first real read-only migrated slice and `projects` is the first real CRUD migrated slice, while active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
 - PM QML now receives a typed `pmCatalog` through the shell loader, and `App.qml` / `MainWindow.qml` no longer treat PM as an untyped `var`
-- `src/ui_qml/modules/project_management/qml/ProjectManagement/{Controllers,Widgets}/qmldir` now define stable named modules for PM controller and widget imports
+- `src/ui_qml/modules/project_management/qml/ProjectManagement/{Controllers,Dialogs,Widgets}/qmldir` now define stable named modules for PM controller, dialog, and widget imports
 - `tests/test_qml_project_management_routes.py` covers PM route registration and workspace file existence
 - offscreen QML loading has verified that all PM workspaces resolve with the shared QML primitives and the typed PM runtime injection pattern
 
@@ -1213,13 +1214,14 @@ Hold status as of 2026-04-22:
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet, but do not let that foundation block the remaining structure transfer
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
-- PM QML route landing zones are complete with typed controller/catalog scaffolding; keep that progress, but do not let it replace the remaining module-structure work
-- PM QML presenter/view-model scaffolding is complete for the route set, and the dashboard now has a typed controller plus split page sections backed by a screen-specific desktop API snapshot with analysis panels and chart state; that UI progress remains valid and should not be reverted
-- PM QML now binds to presenter-backed metadata through a typed `pmCatalog`; outside the dashboard, the next source of truth should be the refactored module-local application/API structure
-- real PM workflow/query desktop APIs remain pending and should be added one migrated screen at a time
+- PM QML route landing zones are complete with typed controller/catalog scaffolding, and `projects` plus `dashboard` have now moved beyond placeholders; keep that progress, but do not let it replace the remaining module-structure work
+- PM QML presenter/view-model scaffolding is complete for the route set, and `projects` plus `dashboard` now have typed controllers plus split page sections backed by screen-specific desktop APIs; that UI progress remains valid and should not be reverted
+- PM QML now binds to presenter-backed metadata through a typed `pmCatalog` and named PM controller/dialog/widget modules; outside `projects` and `dashboard`, the next source of truth should be the refactored module-local application/API structure
+- real PM workflow/query desktop APIs are now in place for `dashboard` and `projects`; add the rest one migrated screen at a time
 - QML architecture guardrails are in place and should stay green before any old Widget screen is deleted
 - automated offscreen QML route loading is in place and should stay green before any old Widget screen is deleted
 - PM Dashboard QML now has API-backed read-only project selection, baseline selection, KPI cards, EVM/register/cost analysis panels, burndown/resource visuals, and delivery-health sections; dialogs, mutations, and deeper parity remain on the Widget dashboard until parity is completed
+- PM Projects QML now has API-backed filters, catalog/detail sections, and create/edit/status/delete dialogs; import flows, resource-assignment side panels, and deeper parity remain on the Widget projects workspace until parity is completed
 
 Refactor-first priority for the remaining PM slice:
 

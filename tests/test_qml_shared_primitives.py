@@ -10,6 +10,9 @@ QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
 QML_PM_CONTROLLERS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers"
 )
+QML_PM_DIALOGS = Path(
+    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs"
+)
 QML_PM_WIDGETS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
 )
@@ -43,6 +46,7 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_PLATFORM_DIALOGS / "qmldir": "module Platform.Dialogs",
         QML_PLATFORM_WIDGETS / "qmldir": "module Platform.Widgets",
         QML_PM_CONTROLLERS / "qmldir": "module ProjectManagement.Controllers",
+        QML_PM_DIALOGS / "qmldir": "module ProjectManagement.Dialogs",
         QML_PM_WIDGETS / "qmldir": "module ProjectManagement.Widgets",
     }
 
@@ -77,12 +81,17 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "qmldir",
         QML_PM_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
         QML_PM_CONTROLLERS / "typeinfo" / "common.fragment",
+        QML_PM_CONTROLLERS / "typeinfo" / "projects.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
+        QML_PM_DIALOGS / "qmldir",
+        QML_PM_DIALOGS / "ProjectEditorDialog.qml",
+        QML_PM_DIALOGS / "ProjectStatusDialog.qml",
         QML_PM_WIDGETS / "qmldir",
         QML_PM_WIDGETS / "DashboardChartCard.qml",
         QML_PM_WIDGETS / "DashboardPanelCard.qml",
         QML_PM_WIDGETS / "DashboardSectionCard.qml",
+        QML_PM_WIDGETS / "RecordListCard.qml",
         QML_PM_WIDGETS / "WorkspaceStateBanner.qml",
         QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
         QML_PM_WIDGETS / "WorkspaceStatusSection.qml",

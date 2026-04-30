@@ -4,12 +4,14 @@ from PySide6.QtCore import Property, QObject, Slot
 
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
+    ProjectManagementProjectsWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardWorkspacePresenter,
+    ProjectProjectsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
 
@@ -27,12 +29,27 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_dashboard",
             None,
         )
+        projects_api = getattr(
+            desktop_api_registry,
+            "project_management_projects",
+            None,
+        )
+        self._projects_workspace = ProjectManagementProjectsWorkspaceController(
+            projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
+                desktop_api=projects_api
+            ),
+            parent=self,
+        )
         self._dashboard_workspace = ProjectManagementDashboardWorkspaceController(
             dashboard_workspace_presenter=ProjectDashboardWorkspacePresenter(
                 desktop_api=dashboard_api
             ),
             parent=self
         )
+
+    @Property(ProjectManagementProjectsWorkspaceController, constant=True)
+    def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
+        return self._projects_workspace
 
     @Property(ProjectManagementDashboardWorkspaceController, constant=True)
     def dashboardWorkspace(self) -> ProjectManagementDashboardWorkspaceController:

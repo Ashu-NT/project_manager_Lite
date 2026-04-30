@@ -3,6 +3,7 @@ Component {
     accessSemantics: "reference"
     prototype: "QObject"
     exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
+    Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
     Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
     Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     Method { name: "dashboardOverview"; type: "QVariantMap" }
