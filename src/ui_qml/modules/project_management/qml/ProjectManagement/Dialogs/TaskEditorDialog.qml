@@ -23,7 +23,7 @@ Dialog {
     closePolicy: Popup.CloseOnEscape
 
     function statusIndexForValue(statusValue) {
-        for (var index = 0; index < root.workflowStatusOptions.length; index += 1) {
+        for (let index = 0; index < root.workflowStatusOptions.length; index += 1) {
             if (String(root.workflowStatusOptions[index].value || "") === String(statusValue || "")) {
                 return index
             }
