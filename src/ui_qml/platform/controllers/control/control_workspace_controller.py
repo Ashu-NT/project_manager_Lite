@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.platform.presenters import (
     PlatformControlQueuePresenter,
     PlatformControlWorkspacePresenter,
@@ -32,6 +33,7 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         self._queue_presenter = queue_presenter
         self._approval_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._audit_feed: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=approvalQueueChanged)
@@ -78,6 +80,22 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
             operation=self._queue_presenter.reject_request,
             success_message="Approval request rejected.",
         )
+
+    def _bind_domain_events(self) -> None:
+        for signal in (
+            domain_events.approvals_changed,
+            domain_events.project_changed,
+            domain_events.tasks_changed,
+            domain_events.costs_changed,
+            domain_events.resources_changed,
+            domain_events.baseline_changed,
+            domain_events.register_changed,
+            domain_events.modules_changed,
+        ):
+            self._subscribe_domain_signal(signal, self._on_domain_event)
+
+    def _on_domain_event(self, _payload: object) -> None:
+        self._request_domain_refresh()
 
     def _apply_request_action(
         self,

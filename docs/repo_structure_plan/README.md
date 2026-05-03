@@ -39,6 +39,7 @@ New final UI rule:
 - final desktop UI lives under `src/ui_qml/*`
 - QML files render and bind state only
 - workspace controller/catalog objects own refresh, mutation orchestration, loading/busy flags, error handling, and feedback state
+- backend domain-event listeners also belong in Python workspace controllers/catalogs; QML pages do not subscribe to backend events directly
 - presenters own UI behavior and orchestration
 - view models expose UI-shaped state only
 - presenters call module-owned desktop APIs under `src/core/modules/<module>/api/desktop/*`
@@ -642,6 +643,7 @@ QML module rules:
 - platform reusable imports use `Platform.*` namespaces
 - keep aliasing consistent across files: `Theme`, `AppLayouts`, `AppWidgets`, `AppControls`, and `PlatformWidgets`
 - QML files render state and emit simple user-intent actions; workspace controllers/catalogs own refresh and mutation sequencing
+- when cross-workspace or out-of-band backend changes must refresh the UI, connect `domain_events` in Python controllers/catalogs and keep QML render-only
 
 View-model rules:
 
@@ -2234,9 +2236,11 @@ Hold status:
 - PM QML should now be incorporated naturally as each backend/application/API slice settles, not treated as the sole active Slice 2 track
 - QML architecture guardrails are now in place before real screen migration begins
 - registered QML routes are now covered by an automated offscreen loading smoke test
+- implemented PM and platform QML workspaces now use controller-level domain-event bridges with queued refresh while busy/loading; future QML slices must extend that controller pattern instead of wiring event listeners in QML
 - PM Dashboard QML now renders API-backed project selection, baseline selection, KPI cards, EVM/register/cost analysis panels, burndown/resource visuals, and read-only delivery-health sections through a typed controller and split section layout; dialogs, mutations, and deeper dashboard parity remain on the QWidget dashboard until parity is completed
 - PM Projects QML now renders API-backed filters, catalog/detail panels, and create/edit/status/delete dialogs through a typed controller and split section layout; import flows, resource-assignment side panels, and deeper project parity remain on the QWidget workspace until parity is completed
 - PM Resources QML now renders API-backed active/category filters, catalog/detail panels, employee-linked worker setup, and create/edit/active-toggle/delete dialogs through a typed controller and split section layout; project assignment/utilization panels and deeper parity remain on the QWidget workspace until parity is completed
+- platform `admin`, `access/security`, `control`, and `settings`, plus PM `dashboard`, `projects`, `tasks`, `resources`, `scheduling`, `financials`, and `risk/register`, now auto-refresh from controller-side backend domain events; the support workspace stays action-driven because it does not currently depend on shared domain-event streams
 
 Refactor-first priority for the remaining PM slice:
 

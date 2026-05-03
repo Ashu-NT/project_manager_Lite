@@ -76,6 +76,7 @@ class ProjectManagementSchedulingWorkspaceController(
             "items": [],
         }
         self._calculator_result = ""
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -301,6 +302,14 @@ class ProjectManagementSchedulingWorkspaceController(
         self._set_calculator_result(result)
         self._set_feedback_message("")
         return {"ok": True, "message": result}
+
+    def _bind_domain_events(self) -> None:
+        self._subscribe_domain_change(
+            "project",
+            "project_tasks",
+            "project_baseline",
+            scope_code="project_management",
+        )
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:

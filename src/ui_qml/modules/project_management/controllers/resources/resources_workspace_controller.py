@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -70,6 +71,7 @@ class ProjectManagementResourcesWorkspaceController(
             "state": {},
         }
         self._selected_resource_id = ""
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -258,6 +260,16 @@ class ProjectManagementResourcesWorkspaceController(
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
+
+    def _bind_domain_events(self) -> None:
+        self._subscribe_domain_change("resource", scope_code="project_management")
+        self._subscribe_domain_signal(
+            domain_events.employees_changed,
+            self._on_domain_event,
+        )
+
+    def _on_domain_event(self, _payload: object) -> None:
+        self._request_domain_refresh()
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:

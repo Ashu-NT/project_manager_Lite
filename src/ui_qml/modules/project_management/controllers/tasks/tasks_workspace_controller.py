@@ -67,6 +67,7 @@ class ProjectManagementTasksWorkspaceController(
             "state": {},
         }
         self._selected_task_id = ""
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -227,6 +228,14 @@ class ProjectManagementTasksWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+        )
+
+    def _bind_domain_events(self) -> None:
+        self._subscribe_domain_change(
+            "project",
+            "project_tasks",
+            "resource",
+            scope_code="project_management",
         )
 
     def _set_overview(self, overview: dict[str, object]) -> None:

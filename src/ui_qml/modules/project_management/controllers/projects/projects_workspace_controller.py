@@ -63,6 +63,7 @@ class ProjectManagementProjectsWorkspaceController(
             "state": {},
         }
         self._selected_project_id = ""
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -220,6 +221,13 @@ class ProjectManagementProjectsWorkspaceController(
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
+        )
+
+    def _bind_domain_events(self) -> None:
+        self._subscribe_domain_change(
+            "project",
+            "portfolio_entity",
+            scope_code="project_management",
         )
 
     def _set_overview(self, overview: dict[str, object]) -> None:

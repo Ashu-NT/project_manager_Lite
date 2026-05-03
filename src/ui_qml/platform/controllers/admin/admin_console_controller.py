@@ -4,6 +4,7 @@ from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.platform.presenters.admin_presenter import PlatformAdminWorkspacePresenter
 from src.ui_qml.platform.presenters.department_catalog_presenter import PlatformDepartmentCatalogPresenter
 from src.ui_qml.platform.presenters.document_catalog_presenter import PlatformDocumentCatalogPresenter
@@ -81,6 +82,7 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             self,
         )
         self._bind_child_signals()
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=organizationsChanged)
@@ -356,6 +358,21 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
             action=lambda: self._document_controller.removeDocumentLink(link_id),
             on_success=self._refresh_after_document_link_change,
         )
+
+    def _bind_domain_events(self) -> None:
+        for signal in (
+            domain_events.organizations_changed,
+            domain_events.sites_changed,
+            domain_events.departments_changed,
+            domain_events.employees_changed,
+            domain_events.auth_changed,
+            domain_events.parties_changed,
+            domain_events.documents_changed,
+        ):
+            self._subscribe_domain_signal(signal, self._on_domain_event)
+
+    def _on_domain_event(self, _payload: object) -> None:
+        self._request_domain_refresh()
 
     def _bind_child_signals(self) -> None:
         self._organization_controller.organizationsChanged.connect(self.organizationsChanged.emit)

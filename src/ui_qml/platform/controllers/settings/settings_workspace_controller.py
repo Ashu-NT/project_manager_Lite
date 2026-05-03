@@ -4,6 +4,7 @@ from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.platform.presenters import (
     PlatformSettingsCatalogPresenter,
     PlatformSettingsWorkspacePresenter,
@@ -35,6 +36,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         self._module_entitlements: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._organization_profiles: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._lifecycle_options = [dict(option) for option in self._catalog_presenter.lifecycle_options()]
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=moduleEntitlementsChanged)
@@ -86,6 +88,19 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
             ),
             success_message="Module lifecycle status updated.",
         )
+
+    def _bind_domain_events(self) -> None:
+        self._subscribe_domain_signal(
+            domain_events.modules_changed,
+            self._on_domain_event,
+        )
+        self._subscribe_domain_signal(
+            domain_events.organizations_changed,
+            self._on_domain_event,
+        )
+
+    def _on_domain_event(self, _payload: object) -> None:
+        self._request_domain_refresh()
 
     def _apply_entitlement_action(
         self,

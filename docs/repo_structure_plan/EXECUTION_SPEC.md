@@ -483,6 +483,7 @@ QML migration rules:
 - QML renders and binds state only
 - QML must not contain business rules or direct repository/session/ORM access
 - presenters or workspace-controller/catalog objects own user intent, loading/busy/error/feedback state, refresh, mutation sequencing, navigation, dialog orchestration, and API calls
+- backend domain-event listeners also belong in presenters/controller/catalog Python objects, not in QML pages
 - presenters call module-owned desktop APIs, not repositories or handlers directly
 - view models expose display-ready values only
 - reusable QML must be exposed through `qmldir`-backed named modules, not parent-relative imports
@@ -545,6 +546,7 @@ Platform QML route status as of 2026-04-24:
 - `platform.control` now exposes a real QML approval queue with approve/reject actions, decision-note entry, and a real QML audit feed
 - `platform.settings` now exposes a real QML module-entitlement surface with license/enable toggles, lifecycle-status changes, plus organization-profile visibility
 - platform admin/control/settings QML no longer uses page-local `refreshWorkspace()` JavaScript or page-local feedback orchestration
+- controller-level refresh now also covers backend `domain_events` subscriptions for implemented QML workspaces; QML stays declarative and render-only
 - support now has a real QML workflow through the split support desktop API/controller path, but the legacy QWidget support files still remain until the old platform shell is retired
 - `tests/test_qml_platform_routes.py` covers platform route registration and workspace file existence
 - `tests/test_qml_platform_presenters.py` covers platform QML presenter/context behavior for connected, preview, grouped-overview, direct-runtime-fallback, admin master-data action lists, admin mutations, and control/settings action states
@@ -1257,6 +1259,7 @@ Hold status as of 2026-04-22:
 - real PM workflow/query desktop APIs are now in place for `dashboard`, `projects`, `resources`, `risk/register`, `tasks`, and `scheduling`; add the rest one migrated screen at a time
 - QML architecture guardrails are in place and should stay green before any old Widget screen is deleted
 - automated offscreen QML route loading is in place and should stay green before any old Widget screen is deleted
+- implemented platform and PM QML workspaces now subscribe to backend domain events through Python controller bases with queued refresh while busy/loading; extend that controller pattern for future QML slices instead of adding event listeners in QML
 - PM Dashboard QML now has API-backed read-only project selection, baseline selection, KPI cards, EVM/register/cost analysis panels, burndown/resource visuals, and delivery-health sections; dialogs, mutations, and deeper parity remain on the Widget dashboard until parity is completed
 - PM Projects QML now has API-backed filters, catalog/detail sections, and create/edit/status/delete dialogs; import flows, resource-assignment side panels, and deeper parity remain on the Widget projects workspace until parity is completed
 - PM Resources QML now has API-backed active/category filters, catalog/detail sections, employee-linked worker setup, and create/edit/active-toggle/delete dialogs; project assignment/utilization panels and deeper parity remain on the Widget resources workspace until parity is completed

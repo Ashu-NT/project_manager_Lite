@@ -4,6 +4,7 @@ from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
+from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.platform.presenters.access_workspace_presenter import PlatformAccessWorkspacePresenter
 
 from ..common import (
@@ -46,6 +47,7 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         self._scope_hint = ""
         self._scope_grants: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._security_users: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantList", notify=scopeTypeOptionsChanged)
@@ -192,6 +194,18 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
             set_operation_result=self._set_operation_result,
             set_feedback_message=self._set_feedback_message,
         )
+
+    def _bind_domain_events(self) -> None:
+        for signal in (
+            domain_events.auth_changed,
+            domain_events.access_changed,
+            domain_events.project_changed,
+            domain_events.modules_changed,
+        ):
+            self._subscribe_domain_signal(signal, self._on_domain_event)
+
+    def _on_domain_event(self, _payload: object) -> None:
+        self._request_domain_refresh()
 
     def _refresh_after_access_change(self) -> None:
         self._refresh_scope_grants()

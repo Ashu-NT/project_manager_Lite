@@ -51,6 +51,7 @@ class ProjectManagementDashboardWorkspaceController(
         self._panels: list[dict[str, object]] = []
         self._charts: list[dict[str, object]] = []
         self._sections: list[dict[str, object]] = []
+        self._bind_domain_events()
         self.refresh()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -142,6 +143,18 @@ class ProjectManagementDashboardWorkspaceController(
             return
         self._set_selected_baseline_id(normalized_id)
         self.refresh()
+
+    def _bind_domain_events(self) -> None:
+        self._subscribe_domain_change(
+            "project",
+            "project_tasks",
+            "project_baseline",
+            "resource",
+            "project_costs",
+            "register_scope",
+            "portfolio_entity",
+            scope_code="project_management",
+        )
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:
