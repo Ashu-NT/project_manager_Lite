@@ -82,6 +82,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
         QML_PM_CONTROLLERS / "typeinfo" / "common.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "projects.fragment",
+        QML_PM_CONTROLLERS / "typeinfo" / "scheduling.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "tasks.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",

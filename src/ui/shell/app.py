@@ -42,6 +42,9 @@ def build_services() -> dict[str, object]:
     services["desktop_project_management_projects_api"] = (
         desktop_api_registry.project_management_projects
     )
+    services["desktop_project_management_scheduling_api"] = (
+        desktop_api_registry.project_management_scheduling
+    )
     services["desktop_project_management_tasks_api"] = (
         desktop_api_registry.project_management_tasks
     )

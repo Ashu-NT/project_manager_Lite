@@ -21,9 +21,11 @@ from src.api.desktop.platform import (
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementDashboardDesktopApi,
     ProjectManagementProjectsDesktopApi,
+    ProjectManagementSchedulingDesktopApi,
     ProjectManagementTasksDesktopApi,
     build_project_management_dashboard_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
 )
 from src.application.runtime.platform_runtime import (
@@ -35,7 +37,13 @@ from src.core.modules.project_management.application.scheduling.baseline_service
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.scheduling import (
+    SchedulingEngine,
+    WorkCalendarEngine,
+    WorkCalendarService,
+)
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import AuditService
@@ -60,6 +68,7 @@ class DesktopApiRegistry:
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_projects: ProjectManagementProjectsDesktopApi
+    project_management_scheduling: ProjectManagementSchedulingDesktopApi
     project_management_tasks: ProjectManagementTasksDesktopApi
 
 
@@ -109,12 +118,24 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         project_service if isinstance(project_service, ProjectService) else None
     )
     pm_task_service = task_service if isinstance(task_service, TaskService) else None
+    pm_scheduling_engine = services.get("scheduling_engine")
+    if not isinstance(pm_scheduling_engine, SchedulingEngine):
+        pm_scheduling_engine = None
+    pm_work_calendar_service = services.get("work_calendar_service")
+    if not isinstance(pm_work_calendar_service, WorkCalendarService):
+        pm_work_calendar_service = None
+    pm_work_calendar_engine = services.get("work_calendar_engine")
+    if not isinstance(pm_work_calendar_engine, WorkCalendarEngine):
+        pm_work_calendar_engine = None
     pm_dashboard_service = services.get("dashboard_service")
     if not isinstance(pm_dashboard_service, DashboardService):
         pm_dashboard_service = None
     pm_baseline_service = (
         baseline_service if isinstance(baseline_service, BaselineService) else None
     )
+    pm_reporting_service = services.get("reporting_service")
+    if not isinstance(pm_reporting_service, ReportingService):
+        pm_reporting_service = None
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
@@ -178,6 +199,15 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
+        ),
+        project_management_scheduling=build_project_management_scheduling_desktop_api(
+            project_service=pm_project_service,
+            task_service=pm_task_service,
+            scheduling_engine=pm_scheduling_engine,
+            work_calendar_service=pm_work_calendar_service,
+            work_calendar_engine=pm_work_calendar_engine,
+            baseline_service=pm_baseline_service,
+            reporting_service=pm_reporting_service,
         ),
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=pm_project_service,

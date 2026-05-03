@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
     build_project_management_workspace_desktop_api,
 )
@@ -432,6 +433,106 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     assert api.list_tasks(project.id) == ()
 
 
+def test_project_management_scheduling_desktop_api_supports_schedule_calendar_and_baselines() -> None:
+    project_service = _FakeProjectService()
+    project = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+    )
+    task_service = _FakeTaskService()
+    task_a = task_service.create_task(
+        project_id=project.id,
+        name="Cable Pull",
+        description="Primary feeder cable installation.",
+        start_date=date(2026, 5, 3),
+        duration_days=4,
+        priority=90,
+        deadline=date(2026, 5, 7),
+    )
+    task_b = task_service.create_task(
+        project_id=project.id,
+        name="Punchlist Closeout",
+        description="Commissioning closeout walkdown.",
+        start_date=date(2026, 5, 8),
+        duration_days=2,
+        priority=50,
+        deadline=date(2026, 5, 9),
+    )
+    scheduling_engine = _FakeSchedulingEngine(
+        task_service=task_service,
+        critical_task_ids={task_a.id},
+    )
+    work_calendar_service = _FakeWorkCalendarService()
+    work_calendar_engine = _FakeWorkCalendarEngine(work_calendar_service)
+    baseline_service = _FakeBaselineService()
+    reporting_service = _FakeReportingService()
+    api = build_project_management_scheduling_desktop_api(
+        project_service=project_service,
+        task_service=task_service,
+        scheduling_engine=scheduling_engine,
+        work_calendar_service=work_calendar_service,
+        work_calendar_engine=work_calendar_engine,
+        baseline_service=baseline_service,
+        reporting_service=reporting_service,
+    )
+
+    assert api.list_projects()[0].label == "Plant Upgrade"
+    assert api.get_calendar_snapshot().working_days[0].label == "Mon"
+
+    calendar = api.update_calendar(
+        SimpleNamespace(working_days=(0, 1, 2, 3, 4, 5), hours_per_day=10.0)
+    )
+
+    assert calendar.hours_per_day == 10.0
+    assert calendar.working_days[5].checked is True
+
+    holiday = api.add_holiday(
+        SimpleNamespace(holiday_date=date(2026, 5, 1), name="Labor Day")
+    )
+
+    assert holiday.name == "Labor Day"
+    assert len(api.get_calendar_snapshot().holidays) == 1
+
+    calculation = api.calculate_working_days(
+        SimpleNamespace(start_date=date(2026, 5, 4), working_days=3)
+    )
+
+    assert calculation.result_date == date(2026, 5, 7)
+
+    schedule = api.list_schedule(project.id)
+
+    assert schedule[0].name == "Cable Pull"
+    assert schedule[0].is_critical is True
+    assert schedule[1].total_float_days == 2
+
+    created_a = api.create_baseline(
+        SimpleNamespace(project_id=project.id, name="Original Plan")
+    )
+    created_b = api.create_baseline(
+        SimpleNamespace(project_id=project.id, name="Weekly Freeze")
+    )
+    baseline_options = api.list_baselines(project.id)
+
+    assert created_a.value in {option.value for option in baseline_options}
+    assert baseline_options[0].value == created_a.value
+
+    comparison_rows = api.compare_baselines(
+        project_id=project.id,
+        baseline_a_id=created_a.value,
+        baseline_b_id=created_b.value,
+        include_unchanged=False,
+    )
+
+    assert comparison_rows[0].task_name == "Cable Pull"
+    assert comparison_rows[0].start_shift_days == 1
+
+    api.delete_holiday(holiday.id)
+    api.delete_baseline(created_a.value)
+
+    assert api.get_calendar_snapshot().holidays == ()
+    assert [option.value for option in api.list_baselines(project.id)] == [created_b.value]
+
+
 def test_project_management_desktop_api_does_not_import_qml_or_infra() -> None:
     api_root = Path("src/core/modules/project_management/api/desktop")
     source_text = "\n".join(
@@ -628,6 +729,150 @@ class _FakeTaskService:
 
     def get_task(self, task_id: str) -> Task | None:
         return self._tasks.get(task_id)
+
+
+class _FakeSchedulingEngine:
+    def __init__(
+        self,
+        *,
+        task_service: _FakeTaskService,
+        critical_task_ids: set[str],
+    ) -> None:
+        self._task_service = task_service
+        self._critical_task_ids = critical_task_ids
+
+    def recalculate_project_schedule(
+        self,
+        project_id: str,
+        *,
+        persist: bool = True,
+    ) -> dict[str, SimpleNamespace]:
+        result: dict[str, SimpleNamespace] = {}
+        for task in self._task_service.list_tasks_for_project(project_id):
+            total_float_days = 0 if task.id in self._critical_task_ids else 2
+            result[task.id] = SimpleNamespace(
+                task=task,
+                earliest_start=task.start_date,
+                earliest_finish=task.end_date,
+                latest_start=task.start_date if total_float_days == 0 else date.fromordinal(task.start_date.toordinal() + total_float_days),
+                latest_finish=task.end_date if total_float_days == 0 else date.fromordinal(task.end_date.toordinal() + total_float_days),
+                total_float_days=total_float_days,
+                is_critical=task.id in self._critical_task_ids,
+                deadline=task.deadline,
+                late_by_days=0 if task.id in self._critical_task_ids else 1,
+            )
+        return result
+
+
+class _FakeWorkCalendarService:
+    def __init__(self) -> None:
+        self._working_days = {0, 1, 2, 3, 4}
+        self._hours_per_day = 8.0
+        self._holidays: dict[str, SimpleNamespace] = {}
+        self._next_holiday_id = 1
+
+    def get_calendar(self) -> SimpleNamespace:
+        return SimpleNamespace(
+            working_days=set(self._working_days),
+            hours_per_day=self._hours_per_day,
+        )
+
+    def set_working_days(self, working_days: set[int], hours_per_day: float | None = None):
+        self._working_days = set(working_days)
+        if hours_per_day is not None:
+            self._hours_per_day = hours_per_day
+        return self.get_calendar()
+
+    def list_holidays(self) -> list[SimpleNamespace]:
+        return list(self._holidays.values())
+
+    def add_holiday(self, holiday_date: date, name: str = "") -> SimpleNamespace:
+        holiday = SimpleNamespace(
+            id=f"holiday-{self._next_holiday_id}",
+            date=holiday_date,
+            name=name,
+        )
+        self._next_holiday_id += 1
+        self._holidays[holiday.id] = holiday
+        return holiday
+
+    def delete_holiday(self, holiday_id: str) -> None:
+        del self._holidays[holiday_id]
+
+
+class _FakeWorkCalendarEngine:
+    def __init__(self, work_calendar_service: _FakeWorkCalendarService) -> None:
+        self._service = work_calendar_service
+
+    def add_working_days(self, start_date: date, working_days: int) -> date:
+        current = start_date
+        added = 0
+        while added < working_days:
+            current = date.fromordinal(current.toordinal() + 1)
+            if self.is_working_day(current):
+                added += 1
+        return current
+
+    def is_working_day(self, target_date: date) -> bool:
+        holiday_dates = {holiday.date for holiday in self._service.list_holidays()}
+        return (
+            target_date.weekday() in self._service.get_calendar().working_days
+            and target_date not in holiday_dates
+        )
+
+
+class _FakeBaselineService:
+    def __init__(self) -> None:
+        self._baselines_by_project: dict[str, list[SimpleNamespace]] = {}
+        self._next_id = 1
+
+    def list_baselines(self, project_id: str) -> list[SimpleNamespace]:
+        return list(self._baselines_by_project.get(project_id, []))
+
+    def create_baseline(self, project_id: str, name: str = "Baseline") -> SimpleNamespace:
+        baseline = SimpleNamespace(
+            id=f"base-{self._next_id}",
+            project_id=project_id,
+            name=name,
+            created_at=date(2026, 5, self._next_id),
+        )
+        self._next_id += 1
+        self._baselines_by_project.setdefault(project_id, []).append(baseline)
+        return baseline
+
+    def delete_baseline(self, baseline_id: str) -> None:
+        for project_id, baselines in self._baselines_by_project.items():
+            self._baselines_by_project[project_id] = [
+                baseline for baseline in baselines if baseline.id != baseline_id
+            ]
+
+
+class _FakeReportingService:
+    def compare_baselines(
+        self,
+        *,
+        project_id: str,
+        baseline_a_id: str,
+        baseline_b_id: str,
+        include_unchanged: bool = False,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(
+            rows=[
+                SimpleNamespace(
+                    task_id="task-1",
+                    task_name="Cable Pull",
+                    change_type="CHANGED",
+                    baseline_a_start=date(2026, 5, 2),
+                    baseline_a_finish=date(2026, 5, 5),
+                    baseline_b_start=date(2026, 5, 3),
+                    baseline_b_finish=date(2026, 5, 6),
+                    start_shift_days=1,
+                    finish_shift_days=1,
+                    duration_delta_days=0,
+                    planned_cost_delta=1200.0,
+                )
+            ]
+        )
 
 
 def _derive_end_date(

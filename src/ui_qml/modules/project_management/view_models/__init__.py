@@ -12,6 +12,17 @@ from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectRecordViewModel,
     ProjectStatusOptionViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.scheduling import (
+    SchedulingBaselineCompareViewModel,
+    SchedulingCalendarViewModel,
+    SchedulingCollectionViewModel,
+    SchedulingDayOptionViewModel,
+    SchedulingMetricViewModel,
+    SchedulingOverviewViewModel,
+    SchedulingRecordViewModel,
+    SchedulingSelectorOptionViewModel,
+    SchedulingWorkspaceViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogMetricViewModel,
     TaskCatalogOverviewViewModel,
@@ -36,6 +47,15 @@ __all__ = [
     "ProjectManagementWorkspaceViewModel",
     "ProjectRecordViewModel",
     "ProjectStatusOptionViewModel",
+    "SchedulingBaselineCompareViewModel",
+    "SchedulingCalendarViewModel",
+    "SchedulingCollectionViewModel",
+    "SchedulingDayOptionViewModel",
+    "SchedulingMetricViewModel",
+    "SchedulingOverviewViewModel",
+    "SchedulingRecordViewModel",
+    "SchedulingSelectorOptionViewModel",
+    "SchedulingWorkspaceViewModel",
     "TaskCatalogMetricViewModel",
     "TaskCatalogOverviewViewModel",
     "TaskCatalogWorkspaceViewModel",

@@ -5,6 +5,7 @@ from PySide6.QtCore import Property, QObject, Slot
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
+    ProjectManagementSchedulingWorkspaceController,
     ProjectManagementTasksWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
@@ -13,6 +14,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardWorkspacePresenter,
     ProjectProjectsWorkspacePresenter,
+    ProjectSchedulingWorkspacePresenter,
     ProjectTasksWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
@@ -41,9 +43,20 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_tasks",
             None,
         )
+        scheduling_api = getattr(
+            desktop_api_registry,
+            "project_management_scheduling",
+            None,
+        )
         self._projects_workspace = ProjectManagementProjectsWorkspaceController(
             projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
                 desktop_api=projects_api
+            ),
+            parent=self,
+        )
+        self._scheduling_workspace = ProjectManagementSchedulingWorkspaceController(
+            scheduling_workspace_presenter=ProjectSchedulingWorkspacePresenter(
+                desktop_api=scheduling_api
             ),
             parent=self,
         )
@@ -63,6 +76,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementProjectsWorkspaceController, constant=True)
     def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
         return self._projects_workspace
+
+    @Property(ProjectManagementSchedulingWorkspaceController, constant=True)
+    def schedulingWorkspace(self) -> ProjectManagementSchedulingWorkspaceController:
+        return self._scheduling_workspace
 
     @Property(ProjectManagementTasksWorkspaceController, constant=True)
     def tasksWorkspace(self) -> ProjectManagementTasksWorkspaceController:

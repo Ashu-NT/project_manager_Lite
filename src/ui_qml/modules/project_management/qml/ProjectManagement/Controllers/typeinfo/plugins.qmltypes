@@ -64,6 +64,33 @@ Module {
     }
 
     Component {
+        name: "ProjectManagementSchedulingWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "ProjectManagementWorkspaceControllerBase"
+        exports: ["ProjectManagement.Controllers/ProjectManagementSchedulingWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+        Property { name: "calendar"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "baselines"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "schedule"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "criticalPath"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "calculatorResult"; type: "QString"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+        Method { name: "selectBaselineA"; Parameter { name: "baselineId"; type: "QString" } }
+        Method { name: "selectBaselineB"; Parameter { name: "baselineId"; type: "QString" } }
+        Method { name: "setIncludeUnchanged"; Parameter { name: "includeUnchanged"; type: "bool" } }
+        Method { name: "saveCalendar"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "addHoliday"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "deleteHoliday"; type: "QVariantMap"; Parameter { name: "holidayId"; type: "QString" } }
+        Method { name: "createBaseline"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "deleteBaseline"; type: "QVariantMap"; Parameter { name: "baselineId"; type: "QString" } }
+        Method { name: "recalculateSchedule"; type: "QVariantMap" }
+        Method { name: "calculateWorkingDays"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    }
+
+    Component {
         name: "ProjectManagementDashboardWorkspaceController"
         accessSemantics: "reference"
         prototype: "ProjectManagementWorkspaceControllerBase"
@@ -87,6 +114,7 @@ Module {
         prototype: "QObject"
         exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
         Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
+        Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
         Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
         Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
         Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
