@@ -10,6 +10,7 @@ from src.ui_qml.modules.project_management.presenters import (
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
 from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
+    build_project_management_financials_desktop_api,
     build_project_management_projects_desktop_api,
     build_project_management_resources_desktop_api,
     build_project_management_scheduling_desktop_api,
@@ -118,6 +119,170 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
 
     assert controller.projects["items"] == []
     assert controller.emptyState == "No projects match the current filters."
+
+
+def test_project_management_workspace_catalog_exposes_typed_financials_controller() -> None:
+    financials_api = build_project_management_financials_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [
+                SimpleNamespace(
+                    id="proj-1",
+                    name="Plant Upgrade",
+                    planned_budget=5000.0,
+                    currency="EUR",
+                ),
+                SimpleNamespace(
+                    id="proj-2",
+                    name="Warehouse Retrofit",
+                    planned_budget=3200.0,
+                    currency="USD",
+                ),
+            ]
+        ),
+        task_service=_FakeTaskOptionService(
+            {
+                "proj-1": [
+                    SimpleNamespace(id="task-1", name="Cable Pull", start_date=date(2026, 5, 3)),
+                ],
+                "proj-2": [],
+            }
+        ),
+        cost_service=_FakeFinancialCostService(
+            {
+                "proj-1": [
+                    _build_cost_record(
+                        cost_id="cost-1",
+                        project_id="proj-1",
+                        task_id="task-1",
+                        description="Electrical material package",
+                        planned_amount=1500.0,
+                        committed_amount=900.0,
+                        actual_amount=450.0,
+                        cost_type=CostType.MATERIAL,
+                        incurred_date=date(2026, 5, 4),
+                        currency_code="EUR",
+                        version=2,
+                    ),
+                    _build_cost_record(
+                        cost_id="cost-2",
+                        project_id="proj-1",
+                        task_id=None,
+                        description="Scaffold labor support",
+                        planned_amount=800.0,
+                        committed_amount=500.0,
+                        actual_amount=200.0,
+                        cost_type=CostType.LABOR,
+                        incurred_date=date(2026, 5, 5),
+                        currency_code="EUR",
+                        version=1,
+                    ),
+                ],
+                "proj-2": [],
+            }
+        ),
+        finance_service=_FakeFinanceDesktopService(
+            {
+                "proj-1": SimpleNamespace(
+                    project_currency="EUR",
+                    budget=5000.0,
+                    planned=2300.0,
+                    committed=1400.0,
+                    actual=650.0,
+                    exposure=1400.0,
+                    available=3600.0,
+                    ledger=[
+                        SimpleNamespace(
+                            source_label="Direct Cost",
+                            stage="actual",
+                            amount=450.0,
+                            currency="EUR",
+                            reference_label="Electrical material package",
+                            task_name="Cable Pull",
+                            resource_name=None,
+                            occurred_on=date(2026, 5, 4),
+                            included_in_policy=True,
+                        )
+                    ],
+                    cashflow=[
+                        SimpleNamespace(
+                            period_key="2026-05",
+                            planned=2300.0,
+                            committed=1400.0,
+                            actual=650.0,
+                            forecast=2300.0,
+                            exposure=1400.0,
+                        )
+                    ],
+                    by_source=[
+                        SimpleNamespace(
+                            dimension="source",
+                            key="direct_cost",
+                            label="Direct Cost",
+                            planned=2300.0,
+                            committed=1400.0,
+                            actual=650.0,
+                            forecast=2300.0,
+                            exposure=1400.0,
+                        )
+                    ],
+                    by_cost_type=[
+                        SimpleNamespace(
+                            dimension="cost_type",
+                            key="MATERIAL",
+                            label="Material",
+                            planned=1500.0,
+                            committed=900.0,
+                            actual=450.0,
+                            forecast=1500.0,
+                            exposure=900.0,
+                        )
+                    ],
+                    by_resource=[],
+                    by_task=[],
+                    notes=["Finance snapshot preview generated from PM financial services."],
+                ),
+                "proj-2": SimpleNamespace(
+                    project_currency="USD",
+                    budget=3200.0,
+                    planned=0.0,
+                    committed=0.0,
+                    actual=0.0,
+                    exposure=0.0,
+                    available=3200.0,
+                    ledger=[],
+                    cashflow=[],
+                    by_source=[],
+                    by_cost_type=[],
+                    by_resource=[],
+                    by_task=[],
+                    notes=[],
+                ),
+            }
+        ),
+    )
+    catalog = ProjectManagementWorkspaceCatalog(
+        desktop_api_registry=SimpleNamespace(project_management_financials=financials_api)
+    )
+
+    controller = catalog.financialsWorkspace
+
+    assert controller.workspace["routeId"] == "project_management.financials"
+    assert controller.overview["title"] == "Financials"
+    assert controller.projectOptions[0]["label"] == "Plant Upgrade"
+    assert controller.costTypeOptions[1]["value"] == "LABOR"
+    assert controller.costs["items"][0]["title"] == "Electrical material package"
+    assert controller.selectedCost["title"] == "Electrical material package"
+    assert controller.cashflow["items"][0]["title"] == "2026-05"
+
+    controller.setCostTypeFilter("LABOR")
+
+    assert controller.selectedCostType == "LABOR"
+    assert [item["title"] for item in controller.costs["items"]] == ["Scaffold labor support"]
+
+    controller.setSearchText("cable")
+
+    assert controller.costs["items"] == []
+    assert controller.emptyState == "No cost items match the current filters."
 
 
 def test_project_management_workspace_catalog_exposes_typed_resources_controller() -> None:
@@ -557,6 +722,7 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
     assert "QML CRUD projects slice active" in qml_text
+    assert "QML financials operations slice active" in qml_text
     assert "QML CRUD resources slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
     assert "QML CRUD tasks slice active" in qml_text
@@ -624,6 +790,30 @@ class _FakeTaskService:
         ]
 
 
+class _FakeTaskOptionService:
+    def __init__(self, tasks_by_project: dict[str, list[SimpleNamespace]]) -> None:
+        self._tasks_by_project = tasks_by_project
+
+    def list_tasks_for_project(self, project_id: str) -> list[SimpleNamespace]:
+        return list(self._tasks_by_project.get(project_id, []))
+
+
+class _FakeFinancialCostService:
+    def __init__(self, costs_by_project: dict[str, list[SimpleNamespace]]) -> None:
+        self._costs_by_project = costs_by_project
+
+    def list_cost_items_for_project(self, project_id: str) -> list[SimpleNamespace]:
+        return list(self._costs_by_project.get(project_id, []))
+
+
+class _FakeFinanceDesktopService:
+    def __init__(self, snapshots_by_project: dict[str, SimpleNamespace]) -> None:
+        self._snapshots_by_project = snapshots_by_project
+
+    def get_finance_snapshot(self, project_id: str) -> SimpleNamespace:
+        return self._snapshots_by_project[project_id]
+
+
 def _build_task_record(
     *,
     task_id: str,
@@ -653,6 +843,35 @@ def _build_task_record(
         actual_end=None,
         deadline=deadline,
         version=1,
+    )
+
+
+def _build_cost_record(
+    *,
+    cost_id: str,
+    project_id: str,
+    task_id: str | None,
+    description: str,
+    planned_amount: float,
+    committed_amount: float,
+    actual_amount: float,
+    cost_type: CostType,
+    incurred_date: date | None,
+    currency_code: str | None,
+    version: int,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=cost_id,
+        project_id=project_id,
+        task_id=task_id,
+        description=description,
+        planned_amount=planned_amount,
+        committed_amount=committed_amount,
+        actual_amount=actual_amount,
+        cost_type=cost_type,
+        incurred_date=incurred_date,
+        currency_code=currency_code,
+        version=version,
     )
 
 

@@ -20,11 +20,13 @@ from src.api.desktop.platform import (
 )
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementDashboardDesktopApi,
+    ProjectManagementFinancialsDesktopApi,
     ProjectManagementProjectsDesktopApi,
     ProjectManagementResourcesDesktopApi,
     ProjectManagementSchedulingDesktopApi,
     ProjectManagementTasksDesktopApi,
     build_project_management_dashboard_desktop_api,
+    build_project_management_financials_desktop_api,
     build_project_management_projects_desktop_api,
     build_project_management_resources_desktop_api,
     build_project_management_scheduling_desktop_api,
@@ -38,6 +40,7 @@ from src.core.modules.project_management.application.scheduling.baseline_service
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
+from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.scheduling import (
@@ -70,6 +73,7 @@ class DesktopApiRegistry:
     platform_support: PlatformSupportDesktopApi
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
+    project_management_financials: ProjectManagementFinancialsDesktopApi
     project_management_projects: ProjectManagementProjectsDesktopApi
     project_management_resources: ProjectManagementResourcesDesktopApi
     project_management_scheduling: ProjectManagementSchedulingDesktopApi
@@ -137,6 +141,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_dashboard_service = services.get("dashboard_service")
     if not isinstance(pm_dashboard_service, DashboardService):
         pm_dashboard_service = None
+    pm_finance_service = services.get("finance_service")
+    if not isinstance(pm_finance_service, FinanceService):
+        pm_finance_service = None
     pm_baseline_service = (
         baseline_service if isinstance(baseline_service, BaselineService) else None
     )
@@ -203,6 +210,16 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             project_service=pm_project_service,
             dashboard_service=pm_dashboard_service,
             baseline_service=pm_baseline_service,
+        ),
+        project_management_financials=build_project_management_financials_desktop_api(
+            project_service=pm_project_service,
+            task_service=pm_task_service,
+            cost_service=(
+                cost_service
+                if hasattr(cost_service, "list_cost_items_for_project")
+                else None
+            ),
+            finance_service=pm_finance_service,
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,

@@ -3,6 +3,16 @@ from src.ui_qml.modules.project_management.view_models.dashboard import (
     ProjectDashboardMetricViewModel,
     ProjectDashboardOverviewViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.financials import (
+    FinancialsCollectionViewModel,
+    FinancialsDetailFieldViewModel,
+    FinancialsDetailViewModel,
+    FinancialsMetricViewModel,
+    FinancialsOverviewViewModel,
+    FinancialsRecordViewModel,
+    FinancialsSelectorOptionViewModel,
+    FinancialsWorkspaceViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,
     ProjectCatalogOverviewViewModel,
@@ -47,6 +57,14 @@ from src.ui_qml.modules.project_management.view_models.workspace import (
 )
 
 __all__ = [
+    "FinancialsCollectionViewModel",
+    "FinancialsDetailFieldViewModel",
+    "FinancialsDetailViewModel",
+    "FinancialsMetricViewModel",
+    "FinancialsOverviewViewModel",
+    "FinancialsRecordViewModel",
+    "FinancialsSelectorOptionViewModel",
+    "FinancialsWorkspaceViewModel",
     "ProjectCatalogMetricViewModel",
     "ProjectCatalogOverviewViewModel",
     "ProjectCatalogWorkspaceViewModel",
