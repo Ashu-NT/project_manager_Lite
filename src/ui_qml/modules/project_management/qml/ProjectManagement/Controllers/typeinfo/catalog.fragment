@@ -5,6 +5,8 @@ Component {
     exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
     Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
     Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
+    Property { name: "riskWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
+    Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
     Property { name: "resourcesWorkspace"; type: "ProjectManagementResourcesWorkspaceController"; isReadonly: true }
     Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
     Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }

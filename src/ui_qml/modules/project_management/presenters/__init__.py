@@ -11,6 +11,9 @@ from src.ui_qml.modules.project_management.presenters.financials_workspace_prese
 from src.ui_qml.modules.project_management.presenters.projects_workspace_presenter import (
     ProjectProjectsWorkspacePresenter,
 )
+from src.ui_qml.modules.project_management.presenters.register_workspace_presenter import (
+    ProjectRegisterWorkspacePresenter,
+)
 from src.ui_qml.modules.project_management.presenters.resources_workspace_presenter import (
     ProjectResourcesWorkspacePresenter,
 )
@@ -31,6 +34,7 @@ __all__ = [
     "ProjectFinancialsWorkspacePresenter",
     "ProjectManagementWorkspacePresenter",
     "ProjectProjectsWorkspacePresenter",
+    "ProjectRegisterWorkspacePresenter",
     "ProjectResourcesWorkspacePresenter",
     "ProjectSchedulingWorkspacePresenter",
     "ProjectTasksWorkspacePresenter",

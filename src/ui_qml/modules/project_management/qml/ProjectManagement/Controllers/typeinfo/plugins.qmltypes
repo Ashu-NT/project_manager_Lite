@@ -95,6 +95,37 @@ Module {
     }
 
     Component {
+        name: "ProjectManagementRegisterWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "ProjectManagementWorkspaceControllerBase"
+        exports: ["ProjectManagement.Controllers/ProjectManagementRegisterWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "typeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "severityOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedTypeFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedSeverityFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "entries"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedEntry"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
+        Property { name: "urgentEntries"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+        Method { name: "setTypeFilter"; Parameter { name: "typeFilter"; type: "QString" } }
+        Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
+        Method { name: "setSeverityFilter"; Parameter { name: "severityFilter"; type: "QString" } }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "selectEntry"; Parameter { name: "entryId"; type: "QString" } }
+        Method { name: "createEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "deleteEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+    }
+
+    Component {
         name: "ProjectManagementTasksWorkspaceController"
         accessSemantics: "reference"
         prototype: "ProjectManagementWorkspaceControllerBase"
@@ -171,6 +202,8 @@ Module {
         exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
         Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
         Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
+        Property { name: "riskWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
+        Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
         Property { name: "resourcesWorkspace"; type: "ProjectManagementResourcesWorkspaceController"; isReadonly: true }
         Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
         Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }

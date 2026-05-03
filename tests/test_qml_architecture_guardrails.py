@@ -264,6 +264,38 @@ def test_project_management_financials_workspace_no_longer_uses_placeholder_page
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_project_management_risk_workspace_no_longer_uses_placeholder_page() -> None:
+    risk_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "risk"
+        / "RiskWorkspace.qml"
+    )
+    text = risk_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "RiskWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
+def test_project_management_register_workspace_no_longer_uses_placeholder_page() -> None:
+    register_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "register"
+        / "RegisterWorkspace.qml"
+    )
+    text = register_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "RegisterWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     qmllint_path = shutil.which("pyside6-qmllint")
     if qmllint_path is None:
@@ -291,6 +323,9 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "CostItemEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "resources" / "ResourcesWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ResourceEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "risk" / "RiskWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "register" / "RegisterWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "RegisterEntryEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingCalendarSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingBaselineSection.qml",

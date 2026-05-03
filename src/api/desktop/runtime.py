@@ -22,12 +22,14 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementDashboardDesktopApi,
     ProjectManagementFinancialsDesktopApi,
     ProjectManagementProjectsDesktopApi,
+    ProjectManagementRegisterDesktopApi,
     ProjectManagementResourcesDesktopApi,
     ProjectManagementSchedulingDesktopApi,
     ProjectManagementTasksDesktopApi,
     build_project_management_dashboard_desktop_api,
     build_project_management_financials_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_register_desktop_api,
     build_project_management_resources_desktop_api,
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
@@ -42,6 +44,7 @@ from src.core.modules.project_management.application.scheduling.baseline_service
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
@@ -75,6 +78,8 @@ class DesktopApiRegistry:
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_financials: ProjectManagementFinancialsDesktopApi
     project_management_projects: ProjectManagementProjectsDesktopApi
+    project_management_register: ProjectManagementRegisterDesktopApi
+    project_management_risk: ProjectManagementRegisterDesktopApi
     project_management_resources: ProjectManagementResourcesDesktopApi
     project_management_scheduling: ProjectManagementSchedulingDesktopApi
     project_management_tasks: ProjectManagementTasksDesktopApi
@@ -125,6 +130,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
     )
+    register_service = services.get("register_service")
+    pm_register_service = (
+        register_service if isinstance(register_service, RegisterService) else None
+    )
     pm_resource_service = (
         resource_service if isinstance(resource_service, ResourceService) else None
     )
@@ -168,6 +177,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             (f"{storeroom.storeroom_code} - {storeroom.name}", storeroom.id)
             for storeroom in inventory_service.list_storerooms()
         ]
+    register_desktop_api = build_project_management_register_desktop_api(
+        project_service=pm_project_service,
+        register_service=pm_register_service,
+    )
     return DesktopApiRegistry(
         platform_runtime=PlatformRuntimeDesktopApi(
             platform_runtime_application_service=platform_runtime_application_service,
@@ -224,6 +237,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
         ),
+        project_management_register=register_desktop_api,
+        project_management_risk=register_desktop_api,
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=pm_resource_service,
             employee_service=employee_service,

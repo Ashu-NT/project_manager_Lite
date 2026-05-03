@@ -2,6 +2,7 @@ module ProjectManagement.Dialogs
 CostItemEditorDialog 1.0 CostItemEditorDialog.qml
 ProjectEditorDialog 1.0 ProjectEditorDialog.qml
 ProjectStatusDialog 1.0 ProjectStatusDialog.qml
+RegisterEntryEditorDialog 1.0 RegisterEntryEditorDialog.qml
 ResourceEditorDialog 1.0 ResourceEditorDialog.qml
 TaskEditorDialog 1.0 TaskEditorDialog.qml
 TaskProgressDialog 1.0 TaskProgressDialog.qml

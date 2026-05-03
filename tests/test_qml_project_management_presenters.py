@@ -12,6 +12,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
     build_project_management_financials_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_register_desktop_api,
     build_project_management_resources_desktop_api,
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
@@ -345,6 +346,94 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
 
     assert controller.resources["items"] == []
     assert controller.emptyState == "No resources match the current filters."
+
+
+def test_project_management_workspace_catalog_exposes_typed_risk_and_register_controller() -> None:
+    register_api = build_project_management_register_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [
+                SimpleNamespace(id="proj-1", name="Plant Upgrade"),
+                SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
+            ]
+        ),
+        register_service=_FakeRegisterService(
+            [
+                _build_register_record(
+                    entry_id="reg-1",
+                    project_id="proj-1",
+                    entry_type=RegisterEntryType.RISK,
+                    title="Critical supplier dependency",
+                    description="Switchgear release note is still pending.",
+                    severity=RegisterEntrySeverity.CRITICAL,
+                    status=RegisterEntryStatus.OPEN,
+                    owner_name="Lead Planner",
+                    due_date=date(2026, 5, 2),
+                    impact_summary="Commissioning could slip by one week.",
+                    response_plan="Escalate with vendor and approve alternates.",
+                    version=2,
+                ),
+                _build_register_record(
+                    entry_id="reg-2",
+                    project_id="proj-1",
+                    entry_type=RegisterEntryType.CHANGE,
+                    title="Additional cable tray scope",
+                    description="New field route requires material and labor change.",
+                    severity=RegisterEntrySeverity.MEDIUM,
+                    status=RegisterEntryStatus.IN_PROGRESS,
+                    owner_name="Project Engineer",
+                    due_date=date(2026, 5, 7),
+                    impact_summary="Budget exposure needs approval.",
+                    response_plan="Issue estimate and submit change control.",
+                    version=1,
+                ),
+                _build_register_record(
+                    entry_id="reg-3",
+                    project_id="proj-2",
+                    entry_type=RegisterEntryType.ISSUE,
+                    title="Permit handoff blocked",
+                    description="Permit package is still pending city review.",
+                    severity=RegisterEntrySeverity.HIGH,
+                    status=RegisterEntryStatus.IN_PROGRESS,
+                    owner_name="PM",
+                    due_date=date(2026, 5, 6),
+                    impact_summary="Mobilization is at risk.",
+                    response_plan="Daily escalation with local authority.",
+                    version=1,
+                ),
+            ]
+        ),
+    )
+    catalog = ProjectManagementWorkspaceCatalog(
+        desktop_api_registry=SimpleNamespace(
+            project_management_risk=register_api,
+            project_management_register=register_api,
+        )
+    )
+
+    risk_controller = catalog.riskWorkspace
+    register_controller = catalog.registerWorkspace
+
+    assert risk_controller.workspace["routeId"] == "project_management.risk"
+    assert risk_controller.overview["title"] == "Risk"
+    assert risk_controller.entries["items"][0]["title"] == "Critical supplier dependency"
+    assert risk_controller.selectedEntry["title"] == "Critical supplier dependency"
+    assert risk_controller.urgentEntries["items"][0]["title"] == "Critical supplier dependency"
+
+    risk_controller.setSeverityFilter("HIGH")
+
+    assert [item["title"] for item in risk_controller.entries["items"]] == []
+    assert risk_controller.emptyState == "No risks match the current filters."
+
+    assert register_controller.workspace["routeId"] == "project_management.register"
+    assert register_controller.typeOptions[1]["value"] == "RISK"
+    assert register_controller.entries["items"][0]["title"] == "Critical supplier dependency"
+    assert register_controller.selectedEntry["fields"][2]["label"] == "Impact"
+
+    register_controller.setTypeFilter("CHANGE")
+
+    assert [item["title"] for item in register_controller.entries["items"]] == [
+        "Additional cable tray scope"
+    ]
 
 
 def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -> None:
@@ -724,6 +813,8 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "QML CRUD projects slice active" in qml_text
     assert "QML financials operations slice active" in qml_text
     assert "QML CRUD resources slice active" in qml_text
+    assert "QML risk register slice active" in qml_text
+    assert "QML governance register slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
     assert "QML CRUD tasks slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
@@ -773,6 +864,31 @@ class _FakeResourceService:
 
     def list_resources(self) -> list[SimpleNamespace]:
         return list(self._resources.values())
+
+
+class _FakeRegisterService:
+    def __init__(self, entries: list[SimpleNamespace] | None = None) -> None:
+        self._entries = {
+            entry.id: entry
+            for entry in (entries or [])
+        }
+
+    def list_entries(
+        self,
+        *,
+        project_id: str | None = None,
+        entry_type: RegisterEntryType | None = None,
+        status: RegisterEntryStatus | None = None,
+        severity: RegisterEntrySeverity | None = None,
+    ) -> list[SimpleNamespace]:
+        return [
+            entry
+            for entry in self._entries.values()
+            if (project_id is None or entry.project_id == project_id)
+            and (entry_type is None or entry.entry_type == entry_type)
+            and (status is None or entry.status == status)
+            and (severity is None or entry.severity == severity)
+        ]
 
 
 class _FakeTaskService:
@@ -871,6 +987,37 @@ def _build_cost_record(
         cost_type=cost_type,
         incurred_date=incurred_date,
         currency_code=currency_code,
+        version=version,
+    )
+
+
+def _build_register_record(
+    *,
+    entry_id: str,
+    project_id: str,
+    entry_type: RegisterEntryType,
+    title: str,
+    description: str,
+    severity: RegisterEntrySeverity,
+    status: RegisterEntryStatus,
+    owner_name: str | None,
+    due_date: date | None,
+    impact_summary: str,
+    response_plan: str,
+    version: int,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=entry_id,
+        project_id=project_id,
+        entry_type=entry_type,
+        title=title,
+        description=description,
+        severity=severity,
+        status=status,
+        owner_name=owner_name,
+        due_date=due_date,
+        impact_summary=impact_summary,
+        response_plan=response_plan,
         version=version,
     )
 

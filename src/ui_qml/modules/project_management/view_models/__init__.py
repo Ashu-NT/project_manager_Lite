@@ -32,6 +32,16 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceRecordViewModel,
     ResourceSelectorOptionViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.register import (
+    RegisterCollectionViewModel,
+    RegisterDetailFieldViewModel,
+    RegisterDetailViewModel,
+    RegisterMetricViewModel,
+    RegisterOverviewViewModel,
+    RegisterRecordViewModel,
+    RegisterSelectorOptionViewModel,
+    RegisterWorkspaceViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingBaselineCompareViewModel,
     SchedulingCalendarViewModel,
@@ -75,6 +85,14 @@ __all__ = [
     "ProjectManagementWorkspaceViewModel",
     "ProjectRecordViewModel",
     "ProjectStatusOptionViewModel",
+    "RegisterCollectionViewModel",
+    "RegisterDetailFieldViewModel",
+    "RegisterDetailViewModel",
+    "RegisterMetricViewModel",
+    "RegisterOverviewViewModel",
+    "RegisterRecordViewModel",
+    "RegisterSelectorOptionViewModel",
+    "RegisterWorkspaceViewModel",
     "ResourceCatalogMetricViewModel",
     "ResourceCatalogOverviewViewModel",
     "ResourceCatalogWorkspaceViewModel",

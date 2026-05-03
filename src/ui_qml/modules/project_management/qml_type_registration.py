@@ -9,6 +9,7 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
+    ProjectManagementRegisterWorkspaceController,
     ProjectManagementResourcesWorkspaceController,
     ProjectManagementSchedulingWorkspaceController,
     ProjectManagementTasksWorkspaceController,
@@ -70,6 +71,14 @@ def register_project_management_qml_types() -> None:
         1,
         0,
         "ProjectManagementResourcesWorkspaceController",
+        "Project management workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        ProjectManagementRegisterWorkspaceController,
+        "ProjectManagement.Controllers",
+        1,
+        0,
+        "ProjectManagementRegisterWorkspaceController",
         "Project management workspace controllers are provided by the shell runtime.",
     )
     qmlRegisterUncreatableType(

@@ -3,6 +3,12 @@ DashboardChartCard 1.0 DashboardChartCard.qml
 DashboardPanelCard 1.0 DashboardPanelCard.qml
 DashboardSectionCard 1.0 DashboardSectionCard.qml
 RecordListCard 1.0 RecordListCard.qml
+RegisterCatalogSection 1.0 RegisterCatalogSection.qml
+RegisterDetailSection 1.0 RegisterDetailSection.qml
+RegisterDialogHost 1.0 RegisterDialogHost.qml
+RegisterFiltersSection 1.0 RegisterFiltersSection.qml
+RegisterMetricsSection 1.0 RegisterMetricsSection.qml
+RegisterUrgentSection 1.0 RegisterUrgentSection.qml
 WorkspaceStateBanner 1.0 WorkspaceStateBanner.qml
 WorkspacePlaceholderPage 1.0 WorkspacePlaceholderPage.qml
 WorkspaceStatusSection 1.0 WorkspaceStatusSection.qml

@@ -6,6 +6,7 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
+    ProjectManagementRegisterWorkspaceController,
     ProjectManagementResourcesWorkspaceController,
     ProjectManagementSchedulingWorkspaceController,
     ProjectManagementTasksWorkspaceController,
@@ -16,7 +17,9 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardWorkspacePresenter,
     ProjectFinancialsWorkspacePresenter,
+    ProjectManagementWorkspacePresenter,
     ProjectProjectsWorkspacePresenter,
+    ProjectRegisterWorkspacePresenter,
     ProjectResourcesWorkspacePresenter,
     ProjectSchedulingWorkspacePresenter,
     ProjectTasksWorkspacePresenter,
@@ -57,6 +60,16 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_resources",
             None,
         )
+        register_api = getattr(
+            desktop_api_registry,
+            "project_management_register",
+            None,
+        )
+        risk_api = getattr(
+            desktop_api_registry,
+            "project_management_risk",
+            register_api,
+        )
         scheduling_api = getattr(
             desktop_api_registry,
             "project_management_scheduling",
@@ -79,6 +92,26 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._resources_workspace = ProjectManagementResourcesWorkspaceController(
             resources_workspace_presenter=ProjectResourcesWorkspacePresenter(
                 desktop_api=resources_api
+            ),
+            parent=self,
+        )
+        self._risk_workspace = ProjectManagementRegisterWorkspaceController(
+            workspace_presenter=ProjectManagementWorkspacePresenter(
+                "project_management.risk"
+            ),
+            register_workspace_presenter=ProjectRegisterWorkspacePresenter(
+                desktop_api=risk_api,
+                workspace_mode="risk",
+            ),
+            parent=self,
+        )
+        self._register_workspace = ProjectManagementRegisterWorkspaceController(
+            workspace_presenter=ProjectManagementWorkspacePresenter(
+                "project_management.register"
+            ),
+            register_workspace_presenter=ProjectRegisterWorkspacePresenter(
+                desktop_api=register_api,
+                workspace_mode="register",
             ),
             parent=self,
         )
@@ -108,6 +141,14 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementResourcesWorkspaceController, constant=True)
     def resourcesWorkspace(self) -> ProjectManagementResourcesWorkspaceController:
         return self._resources_workspace
+
+    @Property(ProjectManagementRegisterWorkspaceController, constant=True)
+    def riskWorkspace(self) -> ProjectManagementRegisterWorkspaceController:
+        return self._risk_workspace
+
+    @Property(ProjectManagementRegisterWorkspaceController, constant=True)
+    def registerWorkspace(self) -> ProjectManagementRegisterWorkspaceController:
+        return self._register_workspace
 
     @Property(ProjectManagementFinancialsWorkspaceController, constant=True)
     def financialsWorkspace(self) -> ProjectManagementFinancialsWorkspaceController:
