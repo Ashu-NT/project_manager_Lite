@@ -1,6 +1,7 @@
 from pathlib import Path
 
 
+QMLLS_CONFIG = Path(".qmlls.ini")
 QML_SHARED_ROOT = Path("src/ui_qml/shared/qml/App")
 QML_SHELL_CONTEXT = Path("src/ui_qml/shell/qml/Shell/Context")
 QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml")
@@ -52,6 +53,22 @@ def test_qml_modules_declare_stable_namespaces() -> None:
 
     for path, module_name in expected_modules.items():
         assert module_name in path.read_text(encoding="utf-8")
+
+
+def test_qmlls_import_paths_cover_named_qml_modules() -> None:
+    config_text = QMLLS_CONFIG.read_text(encoding="utf-8")
+    expected_paths = [
+        "src/ui_qml/shared/qml",
+        "src/ui_qml/shell/qml",
+        "src/ui_qml/platform/qml",
+        "src/ui_qml/modules/project_management/qml",
+    ]
+
+    for expected_path in expected_paths:
+        assert expected_path in config_text
+
+    assert "src/ui_qml/modules;" not in config_text
+    assert not config_text.rstrip().endswith("src/ui_qml/modules")
 
 
 def test_qml_platform_widgets_module_exists() -> None:

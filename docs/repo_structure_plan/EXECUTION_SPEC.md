@@ -597,6 +597,7 @@ Project Management QML presenter/view-model status as of 2026-04-29:
 - `src/ui_qml/modules/project_management/controllers/scheduling/scheduling_workspace_controller.py` exposes the scheduling workspace through a typed `ProjectManagementSchedulingWorkspaceController`
 - `src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py` exposes the tasks workspace through a typed `ProjectManagementTasksWorkspaceController`
 - `src/ui_qml/modules/project_management/qml_type_registration.py` plus `ProjectManagement/Controllers/typeinfo/*` now expose typed runtime/tooling registration for the PM catalog and dashboard/projects/resources/scheduling/tasks controllers
+- `.qmlls.ini` now pins the shared, shell, platform, and project-management QML import roots so `qmlls` / `qmllint` can resolve `ProjectManagement.Controllers`, `ProjectManagement.Dialogs`, and `ProjectManagement.Widgets` consistently across the implemented PM QML pages
 - every registered PM QML route has a matching presenter-backed view model scaffold
 - PM QML files now bind title, summary, migration status, and legacy-runtime status through a typed `pmCatalog` surface instead of generic `property var pmCatalog`
 - `DashboardWorkspacePage.qml` now renders API-backed project selection, baseline selection, KPI cards, analysis panels, chart surfaces, workspace-state feedback, and read-only dashboard sections through a typed controller and split QML sections
@@ -620,6 +621,7 @@ QML architecture guardrail status as of 2026-04-29:
 - QML files must not reference repository, ORM, SQLAlchemy, session, or persistence concepts
 - QML files must not use parent-relative import paths; named-module imports are now enforced for reusable QML
 - PM QML must not fall back to generic `property var pmCatalog`; typed PM catalog bindings are now enforced
+- `.qmlls.ini` must keep the shared, shell, platform, and project-management QML roots aligned with the named-module imports used by the implemented screens
 - these guardrails must pass before wiring real QML screens to module desktop APIs
 - registered QML routes must continue loading offscreen before any old Widget screen is deleted
 - the latest PM-focused verification batches pass with `13 passed`, `13 passed`, `6 passed`, `26 passed`, `2 passed`, `1 passed`, and `7 passed`; and a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean

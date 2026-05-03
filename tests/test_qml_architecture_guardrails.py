@@ -255,6 +255,7 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
 
     import_paths = [
         str(UI_QML_ROOT / "shared" / "qml"),
+        str(UI_QML_ROOT / "shell" / "qml"),
         str(UI_QML_ROOT / "platform" / "qml"),
         str(UI_QML_ROOT / "modules" / "project_management" / "qml"),
     ]

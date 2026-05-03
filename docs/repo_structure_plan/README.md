@@ -104,6 +104,7 @@ QML scaffold status:
 - focused QML architecture guardrail coverage exists in `tests/test_qml_architecture_guardrails.py`
 - automated offscreen QML route loading coverage exists in `tests/test_qml_offscreen_loading.py`
 - project-management QML now also exposes typed `ProjectManagement.Controllers` / `ProjectManagement.Widgets` modules, split `dashboard/projects/resources/tasks/scheduling` page/controller slices, and a shared placeholder-page pattern for the still-unmigrated PM workspaces aligned with the platform QML structure
+- repo-level QML tooling now pins the shared, shell, platform, and project-management module roots in `.qmlls.ini`, so `qmlls` / `qmllint` can resolve `ProjectManagement.Controllers`, `ProjectManagement.Dialogs`, and `ProjectManagement.Widgets` consistently across the implemented PM QML pages
 - the latest PM-focused verification batches pass with `13 passed`, `13 passed`, `6 passed`, `26 passed`, `2 passed`, `1 passed`, and `7 passed`; `python -m compileall -q src/core/modules/project_management src/ui_qml tests` passes; and a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean
 - the focused platform support/QML batch now passes with `46 passed`, the broader support/runtime regression batch passes with `26 passed`, and a full `qmllint` scan across `src/ui_qml/**/*.qml` is clean
 
