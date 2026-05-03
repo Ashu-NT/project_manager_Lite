@@ -39,6 +39,32 @@ Module {
     }
 
     Component {
+        name: "ProjectManagementResourcesWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "ProjectManagementWorkspaceControllerBase"
+        exports: ["ProjectManagement.Controllers/ProjectManagementResourcesWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "workerTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "categoryOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "employeeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedCategoryFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "resources"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
+        Method { name: "setCategoryFilter"; Parameter { name: "categoryFilter"; type: "QString" } }
+        Method { name: "selectResource"; Parameter { name: "resourceId"; type: "QString" } }
+        Method { name: "createResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleResourceActive"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+        Method { name: "deleteResource"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } }
+    }
+
+    Component {
         name: "ProjectManagementTasksWorkspaceController"
         accessSemantics: "reference"
         prototype: "ProjectManagementWorkspaceControllerBase"
@@ -114,6 +140,7 @@ Module {
         prototype: "QObject"
         exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
         Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
+        Property { name: "resourcesWorkspace"; type: "ProjectManagementResourcesWorkspaceController"; isReadonly: true }
         Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
         Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
         Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }

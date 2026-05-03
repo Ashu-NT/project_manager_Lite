@@ -10,6 +10,12 @@ from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectDetailViewModel,
     ProjectRecordViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.resources import (
+    ResourceCatalogOverviewViewModel,
+    ResourceDetailViewModel,
+    ResourceEmployeeOptionViewModel,
+    ResourceRecordViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingBaselineCompareViewModel,
     SchedulingCalendarViewModel,
@@ -204,6 +210,82 @@ def serialize_project_detail_view_model(
     }
 
 
+def serialize_resource_catalog_overview_view_model(
+    view_model: ResourceCatalogOverviewViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "metrics": [
+            {
+                "label": metric.label,
+                "value": metric.value,
+                "supportingText": metric.supporting_text,
+            }
+            for metric in view_model.metrics
+        ],
+    }
+
+
+def serialize_resource_employee_option_view_models(
+    view_models: tuple[ResourceEmployeeOptionViewModel, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "value": view_model.value,
+            "label": view_model.label,
+            "name": view_model.name,
+            "title": view_model.title,
+            "contact": view_model.contact,
+            "context": view_model.context,
+            "isActive": view_model.is_active,
+        }
+        for view_model in view_models
+    ]
+
+
+def serialize_resource_record_view_models(
+    view_models: tuple[ResourceRecordViewModel, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": view_model.id,
+            "title": view_model.title,
+            "statusLabel": view_model.status_label,
+            "subtitle": view_model.subtitle,
+            "supportingText": view_model.supporting_text,
+            "metaText": view_model.meta_text,
+            "canPrimaryAction": view_model.can_primary_action,
+            "canSecondaryAction": view_model.can_secondary_action,
+            "canTertiaryAction": view_model.can_tertiary_action,
+            "state": dict(view_model.state),
+        }
+        for view_model in view_models
+    ]
+
+
+def serialize_resource_detail_view_model(
+    view_model: ResourceDetailViewModel,
+) -> dict[str, object]:
+    return {
+        "id": view_model.id,
+        "title": view_model.title,
+        "statusLabel": view_model.status_label,
+        "subtitle": view_model.subtitle,
+        "description": view_model.description,
+        "emptyState": view_model.empty_state,
+        "fields": [
+            {
+                "label": field.label,
+                "value": field.value,
+                "supportingText": field.supporting_text,
+            }
+            for field in view_model.fields
+        ],
+        "state": dict(view_model.state),
+    }
+
+
 def serialize_task_catalog_overview_view_model(
     view_model: TaskCatalogOverviewViewModel,
 ) -> dict[str, object]:
@@ -352,6 +434,10 @@ __all__ = [
     "serialize_project_catalog_overview_view_model",
     "serialize_project_detail_view_model",
     "serialize_project_record_view_models",
+    "serialize_resource_catalog_overview_view_model",
+    "serialize_resource_detail_view_model",
+    "serialize_resource_employee_option_view_models",
+    "serialize_resource_record_view_models",
     "serialize_scheduling_baselines_view_model",
     "serialize_scheduling_calendar_view_model",
     "serialize_scheduling_collection_view_model",

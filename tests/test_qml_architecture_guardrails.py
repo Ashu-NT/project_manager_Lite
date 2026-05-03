@@ -232,6 +232,22 @@ def test_project_management_scheduling_workspace_no_longer_uses_placeholder_page
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_project_management_resources_workspace_no_longer_uses_placeholder_page() -> None:
+    resources_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "resources"
+        / "ResourcesWorkspace.qml"
+    )
+    text = resources_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "ResourcesWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     qmllint_path = shutil.which("pyside6-qmllint")
     if qmllint_path is None:
@@ -254,6 +270,8 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "projects" / "ProjectsWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectStatusDialog.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "resources" / "ResourcesWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ResourceEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingCalendarSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingBaselineSection.qml",

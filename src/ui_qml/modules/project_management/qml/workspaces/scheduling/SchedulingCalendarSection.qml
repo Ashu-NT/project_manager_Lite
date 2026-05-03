@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -17,22 +18,36 @@ Item {
     })
     property string calculatorResult: ""
     property bool isBusy: false
+    property var workingDayStates: []
 
     signal saveCalendarRequested(var payload)
     signal addHolidayRequested(var payload)
     signal deleteHolidayRequested(string holidayId)
     signal calculateRequested(var payload)
 
+    function resetWorkingDayStates() {
+        root.workingDayStates = (root.calendarModel.workingDays || []).map(function(day) {
+            return {
+                "index": day.index,
+                "label": day.label,
+                "checked": Boolean(day.checked)
+            }
+        })
+    }
+
     function selectedWorkingDays() {
         var values = []
-        for (var index = 0; index < dayRepeater.count; index += 1) {
-            var item = dayRepeater.itemAt(index)
-            if (item && item.checked) {
-                values.push(item.dayIndex)
+        for (var index = 0; index < root.workingDayStates.length; index += 1) {
+            var day = root.workingDayStates[index]
+            if (day && day.checked) {
+                values.push(day.index)
             }
         }
         return values
     }
+
+    onCalendarModelChanged: root.resetWorkingDayStates()
+    Component.onCompleted: root.resetWorkingDayStates()
 
     implicitHeight: calendarLayout.implicitHeight
 
@@ -83,16 +98,26 @@ Item {
 
                     Repeater {
                         id: dayRepeater
-                        model: root.calendarModel.workingDays || []
+                        model: root.workingDayStates
 
                         delegate: CheckBox {
+                            id: dayCheck
                             required property var modelData
+                            required property int index
 
-                            property int dayIndex: Number(modelData.index || 0)
-
-                            text: String(modelData.label || "")
-                            checked: Boolean(modelData.checked)
+                            text: String(dayCheck.modelData.label || "")
+                            checked: Boolean(dayCheck.modelData.checked)
                             enabled: !root.isBusy
+
+                            onToggled: {
+                                var updated = root.workingDayStates.slice()
+                                updated[index] = {
+                                    "index": dayCheck.modelData.index,
+                                    "label": dayCheck.modelData.label,
+                                    "checked": checked
+                                }
+                                root.workingDayStates = updated
+                            }
                         }
                     }
                 }

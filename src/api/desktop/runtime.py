@@ -21,10 +21,12 @@ from src.api.desktop.platform import (
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementDashboardDesktopApi,
     ProjectManagementProjectsDesktopApi,
+    ProjectManagementResourcesDesktopApi,
     ProjectManagementSchedulingDesktopApi,
     ProjectManagementTasksDesktopApi,
     build_project_management_dashboard_desktop_api,
     build_project_management_projects_desktop_api,
+    build_project_management_resources_desktop_api,
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
 )
@@ -37,6 +39,7 @@ from src.core.modules.project_management.application.scheduling.baseline_service
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
     WorkCalendarEngine,
@@ -68,6 +71,7 @@ class DesktopApiRegistry:
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_projects: ProjectManagementProjectsDesktopApi
+    project_management_resources: ProjectManagementResourcesDesktopApi
     project_management_scheduling: ProjectManagementSchedulingDesktopApi
     project_management_tasks: ProjectManagementTasksDesktopApi
 
@@ -116,6 +120,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     inventory_service = services.get("inventory_service")
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
+    )
+    pm_resource_service = (
+        resource_service if isinstance(resource_service, ResourceService) else None
     )
     pm_task_service = task_service if isinstance(task_service, TaskService) else None
     pm_scheduling_engine = services.get("scheduling_engine")
@@ -199,6 +206,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
+        ),
+        project_management_resources=build_project_management_resources_desktop_api(
+            resource_service=pm_resource_service,
+            employee_service=employee_service,
         ),
         project_management_scheduling=build_project_management_scheduling_desktop_api(
             project_service=pm_project_service,

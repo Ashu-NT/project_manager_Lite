@@ -8,6 +8,9 @@ from src.ui_qml.modules.project_management.presenters.dashboard_workspace_presen
 from src.ui_qml.modules.project_management.presenters.projects_workspace_presenter import (
     ProjectProjectsWorkspacePresenter,
 )
+from src.ui_qml.modules.project_management.presenters.resources_workspace_presenter import (
+    ProjectResourcesWorkspacePresenter,
+)
 from src.ui_qml.modules.project_management.presenters.scheduling_workspace_presenter import (
     ProjectSchedulingWorkspacePresenter,
 )
@@ -24,6 +27,7 @@ __all__ = [
     "ProjectDashboardWorkspacePresenter",
     "ProjectManagementWorkspacePresenter",
     "ProjectProjectsWorkspacePresenter",
+    "ProjectResourcesWorkspacePresenter",
     "ProjectSchedulingWorkspacePresenter",
     "ProjectTasksWorkspacePresenter",
     "build_project_management_workspace_presenters",

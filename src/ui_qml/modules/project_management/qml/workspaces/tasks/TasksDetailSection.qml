@@ -108,6 +108,7 @@ Rectangle {
             model: root.taskDetail.fields || []
 
             delegate: Rectangle {
+                id: fieldCard
                 required property var modelData
 
                 Layout.fillWidth: true
@@ -125,7 +126,7 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        text: String(modelData.label || "")
+                        text: String(fieldCard.modelData.label || "")
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -134,7 +135,7 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        text: String(modelData.value || "")
+                        text: String(fieldCard.modelData.value || "")
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.bodySize
@@ -143,8 +144,8 @@ Rectangle {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: String(modelData.supportingText || "").length > 0
-                        text: String(modelData.supportingText || "")
+                        visible: String(fieldCard.modelData.supportingText || "").length > 0
+                        text: String(fieldCard.modelData.supportingText || "")
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize

@@ -7,6 +7,9 @@ from src.ui_qml.modules.project_management.controllers.dashboard import (
 from src.ui_qml.modules.project_management.controllers.projects import (
     ProjectManagementProjectsWorkspaceController,
 )
+from src.ui_qml.modules.project_management.controllers.resources import (
+    ProjectManagementResourcesWorkspaceController,
+)
 from src.ui_qml.modules.project_management.controllers.scheduling import (
     ProjectManagementSchedulingWorkspaceController,
 )
@@ -17,6 +20,7 @@ from src.ui_qml.modules.project_management.controllers.tasks import (
 __all__ = [
     "ProjectManagementDashboardWorkspaceController",
     "ProjectManagementProjectsWorkspaceController",
+    "ProjectManagementResourcesWorkspaceController",
     "ProjectManagementSchedulingWorkspaceController",
     "ProjectManagementTasksWorkspaceController",
     "ProjectManagementWorkspaceControllerBase",

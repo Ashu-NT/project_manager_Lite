@@ -5,6 +5,7 @@ from PySide6.QtCore import Property, QObject, Slot
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
+    ProjectManagementResourcesWorkspaceController,
     ProjectManagementSchedulingWorkspaceController,
     ProjectManagementTasksWorkspaceController,
 )
@@ -14,6 +15,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardWorkspacePresenter,
     ProjectProjectsWorkspacePresenter,
+    ProjectResourcesWorkspacePresenter,
     ProjectSchedulingWorkspacePresenter,
     ProjectTasksWorkspacePresenter,
     build_project_management_workspace_presenters,
@@ -43,6 +45,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_tasks",
             None,
         )
+        resources_api = getattr(
+            desktop_api_registry,
+            "project_management_resources",
+            None,
+        )
         scheduling_api = getattr(
             desktop_api_registry,
             "project_management_scheduling",
@@ -51,6 +58,12 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self._projects_workspace = ProjectManagementProjectsWorkspaceController(
             projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
                 desktop_api=projects_api
+            ),
+            parent=self,
+        )
+        self._resources_workspace = ProjectManagementResourcesWorkspaceController(
+            resources_workspace_presenter=ProjectResourcesWorkspacePresenter(
+                desktop_api=resources_api
             ),
             parent=self,
         )
@@ -76,6 +89,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementProjectsWorkspaceController, constant=True)
     def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
         return self._projects_workspace
+
+    @Property(ProjectManagementResourcesWorkspaceController, constant=True)
+    def resourcesWorkspace(self) -> ProjectManagementResourcesWorkspaceController:
+        return self._resources_workspace
 
     @Property(ProjectManagementSchedulingWorkspaceController, constant=True)
     def schedulingWorkspace(self) -> ProjectManagementSchedulingWorkspaceController:

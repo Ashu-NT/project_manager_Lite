@@ -7,7 +7,7 @@ import App.Theme 1.0 as Theme
 Rectangle {
     id: root
 
-    property var projectDetail: ({
+    property var resourceDetail: ({
         "id": "",
         "title": "",
         "statusLabel": "",
@@ -20,7 +20,7 @@ Rectangle {
     property bool isBusy: false
 
     signal editRequested()
-    signal statusRequested()
+    signal toggleRequested()
     signal deleteRequested()
 
     radius: Theme.AppTheme.radiusLg
@@ -45,7 +45,7 @@ Rectangle {
 
                 Label {
                     Layout.fillWidth: true
-                    text: root.projectDetail.title || "Project Detail"
+                    text: root.resourceDetail.title || "Resource Detail"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.bodySize
@@ -55,7 +55,7 @@ Rectangle {
 
                 Label {
                     Layout.fillWidth: true
-                    text: root.projectDetail.subtitle || "Select a project to inspect details."
+                    text: root.resourceDetail.subtitle || "Select a resource to inspect details."
                     color: Theme.AppTheme.textSecondary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
@@ -64,7 +64,7 @@ Rectangle {
             }
 
             Rectangle {
-                visible: String(root.projectDetail.statusLabel || "").length > 0
+                visible: String(root.resourceDetail.statusLabel || "").length > 0
                 radius: Theme.AppTheme.radiusMd
                 color: Theme.AppTheme.accentSoft
                 border.color: Theme.AppTheme.accent
@@ -75,7 +75,7 @@ Rectangle {
                     id: statusLabel
 
                     anchors.centerIn: parent
-                    text: root.projectDetail.statusLabel
+                    text: root.resourceDetail.statusLabel
                     color: Theme.AppTheme.accent
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
@@ -86,8 +86,8 @@ Rectangle {
 
         Label {
             Layout.fillWidth: true
-            visible: String(root.projectDetail.emptyState || "").length > 0 && String(root.projectDetail.id || "").length === 0
-            text: root.projectDetail.emptyState
+            visible: String(root.resourceDetail.emptyState || "").length > 0 && String(root.resourceDetail.id || "").length === 0
+            text: root.resourceDetail.emptyState
             color: Theme.AppTheme.textSecondary
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.bodySize
@@ -96,8 +96,8 @@ Rectangle {
 
         Label {
             Layout.fillWidth: true
-            visible: String(root.projectDetail.id || "").length > 0
-            text: root.projectDetail.description || ""
+            visible: String(root.resourceDetail.id || "").length > 0
+            text: root.resourceDetail.description || ""
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.bodySize
@@ -105,7 +105,7 @@ Rectangle {
         }
 
         Repeater {
-            model: root.projectDetail.fields || []
+            model: root.resourceDetail.fields || []
 
             delegate: Rectangle {
                 id: fieldCard
@@ -157,7 +157,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            visible: String(root.projectDetail.id || "").length > 0
+            visible: String(root.resourceDetail.id || "").length > 0
             spacing: Theme.AppTheme.spacingSm
 
             AppControls.PrimaryButton {
@@ -167,9 +167,9 @@ Rectangle {
             }
 
             AppControls.PrimaryButton {
-                text: "Status"
+                text: root.resourceDetail.state && root.resourceDetail.state.isActive ? "Deactivate" : "Activate"
                 enabled: !root.isBusy
-                onClicked: root.statusRequested()
+                onClicked: root.toggleRequested()
             }
 
             AppControls.PrimaryButton {
