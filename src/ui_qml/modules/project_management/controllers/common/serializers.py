@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.view_models.collaboration import (
+    CollaborationCollectionViewModel,
+    CollaborationOverviewViewModel,
+    CollaborationRecordViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.dashboard import (
     ProjectDashboardChartViewModel,
     ProjectDashboardOverviewViewModel,
@@ -54,6 +59,54 @@ def serialize_workspace_view_model(
         "summary": view_model.summary,
         "migrationStatus": view_model.migration_status,
         "legacyRuntimeStatus": view_model.legacy_runtime_status,
+    }
+
+
+def serialize_collaboration_overview_view_model(
+    view_model: CollaborationOverviewViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "metrics": [
+            {
+                "label": metric.label,
+                "value": metric.value,
+                "supportingText": metric.supporting_text,
+            }
+            for metric in view_model.metrics
+        ],
+    }
+
+
+def serialize_collaboration_record_view_models(
+    view_models: tuple[CollaborationRecordViewModel, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": view_model.id,
+            "title": view_model.title,
+            "statusLabel": view_model.status_label,
+            "subtitle": view_model.subtitle,
+            "supportingText": view_model.supporting_text,
+            "metaText": view_model.meta_text,
+            "canPrimaryAction": view_model.can_primary_action,
+            "canSecondaryAction": view_model.can_secondary_action,
+            "canTertiaryAction": view_model.can_tertiary_action,
+            "state": dict(view_model.state),
+        }
+        for view_model in view_models
+    ]
+
+
+def serialize_collaboration_collection_view_model(
+    view_model: CollaborationCollectionViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "emptyState": view_model.empty_state,
+        "items": serialize_collaboration_record_view_models(view_model.items),
     }
 
 
@@ -579,6 +632,9 @@ def serialize_scheduling_baselines_view_model(
 
 
 __all__ = [
+    "serialize_collaboration_collection_view_model",
+    "serialize_collaboration_overview_view_model",
+    "serialize_collaboration_record_view_models",
     "serialize_dashboard_chart_view_models",
     "serialize_dashboard_overview_view_model",
     "serialize_dashboard_panel_view_models",

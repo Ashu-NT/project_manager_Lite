@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
+    build_project_management_collaboration_desktop_api,
     build_project_management_dashboard_desktop_api,
     build_project_management_financials_desktop_api,
     build_project_management_projects_desktop_api,
@@ -76,6 +77,26 @@ def test_project_management_dashboard_desktop_api_builds_empty_overview() -> Non
         "Cost variance",
         "Spend vs plan",
     ]
+
+
+def test_project_management_collaboration_desktop_api_builds_snapshot_and_marks_mentions_read() -> None:
+    service = _FakeCollaborationService()
+    api = build_project_management_collaboration_desktop_api(
+        collaboration_service=service
+    )
+
+    snapshot = api.build_snapshot(limit=50)
+
+    assert snapshot.notifications[0].notification_type_label == "Approval"
+    assert snapshot.notifications[0].created_at_label == "2026-05-01 09:30"
+    assert snapshot.inbox[0].mentions_label == "@planner"
+    assert snapshot.recent_activity[0].unread is False
+    assert snapshot.active_presence[0].who_label == "Alex Taylor (@planner)"
+    assert snapshot.active_presence[0].activity_label == "Reviewing"
+
+    api.mark_task_mentions_read("task-1")
+
+    assert service.marked_task_ids == ["task-1"]
 
 
 def test_project_management_dashboard_desktop_api_maps_dashboard_kpis() -> None:
@@ -896,6 +917,74 @@ class _FakeProjectService:
 
     def get_project(self, project_id: str) -> Project | None:
         return self._projects.get(project_id)
+
+
+class _FakeCollaborationService:
+    def __init__(self) -> None:
+        self.marked_task_ids: list[str] = []
+
+    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
+        assert limit == 50
+        return SimpleNamespace(
+            notifications=[
+                SimpleNamespace(
+                    notification_type="approval",
+                    entity_type="approval_request",
+                    entity_id="approval-1",
+                    headline="Approval requested for Weekly Freeze",
+                    body_preview="Baseline comparison needs governance review.",
+                    actor_username="alex",
+                    created_at=datetime(2026, 5, 1, 9, 30),
+                    project_id="proj-1",
+                    project_name="Plant Upgrade",
+                    attention=True,
+                )
+            ],
+            inbox=[
+                SimpleNamespace(
+                    comment_id="comment-1",
+                    task_id="task-1",
+                    task_name="Cable Pull",
+                    project_id="proj-1",
+                    project_name="Plant Upgrade",
+                    author_username="jamie",
+                    body_preview="Please review the updated execution window.",
+                    mentions=["planner"],
+                    created_at=datetime(2026, 5, 1, 8, 45),
+                    unread=True,
+                )
+            ],
+            recent_activity=[
+                SimpleNamespace(
+                    comment_id="comment-2",
+                    task_id="task-2",
+                    task_name="Commissioning Pack",
+                    project_id="proj-1",
+                    project_name="Plant Upgrade",
+                    author_username="morgan",
+                    body_preview="Draft punchlist is now linked for review.",
+                    mentions=[],
+                    created_at=datetime(2026, 5, 1, 8, 15),
+                    unread=False,
+                )
+            ],
+            active_presence=[
+                SimpleNamespace(
+                    task_id="task-1",
+                    task_name="Cable Pull",
+                    project_id="proj-1",
+                    project_name="Plant Upgrade",
+                    username="planner",
+                    display_name="Alex Taylor",
+                    activity="reviewing",
+                    last_seen_at=datetime(2026, 5, 1, 9, 35),
+                    is_self=True,
+                )
+            ],
+        )
+
+    def mark_task_mentions_read(self, task_id: str) -> None:
+        self.marked_task_ids.append(task_id)
 
 
 class _FakeEmployeeService:

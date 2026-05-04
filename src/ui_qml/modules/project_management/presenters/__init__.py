@@ -1,4 +1,7 @@
 """Project management QML presenters."""
+from src.ui_qml.modules.project_management.presenters.collaboration_workspace_presenter import (
+    ProjectCollaborationWorkspacePresenter,
+)
 from src.ui_qml.modules.project_management.presenters.dashboard_presenter import (
     ProjectDashboardPresenter,
 )
@@ -29,6 +32,7 @@ from src.ui_qml.modules.project_management.presenters.workspace_presenter import
 )
 
 __all__ = [
+    "ProjectCollaborationWorkspacePresenter",
     "ProjectDashboardPresenter",
     "ProjectDashboardWorkspacePresenter",
     "ProjectFinancialsWorkspacePresenter",

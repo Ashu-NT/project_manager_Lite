@@ -19,6 +19,7 @@ from src.api.desktop.platform import (
     PlatformUserDesktopApi,
 )
 from src.core.modules.project_management.api.desktop import (
+    ProjectManagementCollaborationDesktopApi,
     ProjectManagementDashboardDesktopApi,
     ProjectManagementFinancialsDesktopApi,
     ProjectManagementProjectsDesktopApi,
@@ -26,6 +27,7 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
     ProjectManagementSchedulingDesktopApi,
     ProjectManagementTasksDesktopApi,
+    build_project_management_collaboration_desktop_api,
     build_project_management_dashboard_desktop_api,
     build_project_management_financials_desktop_api,
     build_project_management_projects_desktop_api,
@@ -51,7 +53,10 @@ from src.core.modules.project_management.application.scheduling import (
     WorkCalendarEngine,
     WorkCalendarService,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.application.tasks import (
+    CollaborationService,
+    TaskService,
+)
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
@@ -76,6 +81,7 @@ class DesktopApiRegistry:
     platform_support: PlatformSupportDesktopApi
     platform_user: PlatformUserDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
+    project_management_collaboration: ProjectManagementCollaborationDesktopApi
     project_management_financials: ProjectManagementFinancialsDesktopApi
     project_management_projects: ProjectManagementProjectsDesktopApi
     project_management_register: ProjectManagementRegisterDesktopApi
@@ -129,6 +135,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     inventory_service = services.get("inventory_service")
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
+    )
+    collaboration_service = services.get("collaboration_service")
+    pm_collaboration_service = (
+        collaboration_service
+        if isinstance(collaboration_service, CollaborationService)
+        else None
     )
     register_service = services.get("register_service")
     pm_register_service = (
@@ -223,6 +235,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             project_service=pm_project_service,
             dashboard_service=pm_dashboard_service,
             baseline_service=pm_baseline_service,
+        ),
+        project_management_collaboration=build_project_management_collaboration_desktop_api(
+            collaboration_service=pm_collaboration_service,
         ),
         project_management_financials=build_project_management_financials_desktop_api(
             project_service=pm_project_service,

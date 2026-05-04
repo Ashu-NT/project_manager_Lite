@@ -559,6 +559,7 @@ Project Management QML route status as of 2026-04-29:
 - `src/ui_qml/modules/project_management/routes.py` registers the full PM QML route set for the Slice 2 workspace names
 - PM QML entry workspaces exist for `projects`, `tasks`, `scheduling`, `resources`, `financials`, `risk`, `portfolio`, `register`, `collaboration`, `timesheets`, and `dashboard`
 - the dashboard now uses a split `DashboardWorkspace.qml` -> `DashboardWorkspacePage.qml` pattern with local section components, matching the platform workspace layout style
+- the collaboration workspace now uses a split `CollaborationWorkspace.qml` -> `CollaborationWorkspacePage.qml` pattern with local metrics and toolbar sections, matching the platform workspace layout style
 - the projects workspace now uses a split `ProjectsWorkspace.qml` -> `ProjectsWorkspacePage.qml` pattern with local metrics, filters, catalog, detail, and dialog-host components, matching the platform workspace layout style
 - the resources workspace now uses a split `ResourcesWorkspace.qml` -> `ResourcesWorkspacePage.qml` pattern with local metrics, filters, catalog, detail, and dialog-host components, matching the platform workspace layout style
 - the scheduling workspace now uses a split `SchedulingWorkspace.qml` -> `SchedulingWorkspacePage.qml` pattern with local toolbar, calendar, baseline, schedule, and metrics sections, matching the platform workspace layout style
@@ -566,7 +567,7 @@ Project Management QML route status as of 2026-04-29:
 - the tasks workspace now uses a split `TasksWorkspace.qml` -> `TasksWorkspacePage.qml` pattern with local metrics, filters, catalog, detail, and dialog-host components, matching the platform workspace layout style
 - the risk and register workspaces now use real `RiskWorkspacePage.qml` / `RegisterWorkspacePage.qml` screens backed by shared register metrics, filters, catalog, detail, urgent-queue, and dialog-host components
 - the remaining PM workspaces now render through `ProjectManagement.Widgets/WorkspacePlaceholderPage.qml` instead of repeating ad-hoc placeholder layouts
-- the remaining PM workspaces are still landing zones only; `dashboard` is the first real read-only migrated slice, `projects`, `resources`, `risk`, `register`, and `tasks` are the first real CRUD migrated slices, `scheduling` is the first real PM operations slice, `financials` is the first real PM commercial-control slice, and active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
+- the remaining PM landing-zone-only workspaces are now `portfolio` and `timesheets`; `dashboard` is the first real read-only migrated slice, `projects`, `resources`, `risk`, `register`, and `tasks` are the first real CRUD migrated slices, `scheduling` is the first real PM operations slice, `financials` is the first real PM commercial-control slice, `collaboration` is the first real PM coordination slice, and active PM QWidget screens under `src/ui/*` remain active until each screen has a real QML replacement, presenter, view model, navigation rewrite, and tests
 - PM QML now receives a typed `pmCatalog` through the shell loader, and `App.qml` / `MainWindow.qml` no longer treat PM as an untyped `var`
 - `src/ui_qml/modules/project_management/qml/ProjectManagement/{Controllers,Dialogs,Widgets}/qmldir` now define stable named modules for PM controller, dialog, and widget imports
 - `tests/test_qml_project_management_routes.py` covers PM route registration and workspace file existence
@@ -575,6 +576,7 @@ Project Management QML route status as of 2026-04-29:
 Project Management QML presenter/view-model status as of 2026-04-29:
 
 - `src/core/modules/project_management/api/desktop/workspaces.py` defines the first module-owned PM desktop API surface used by QML routes and presenters
+- `src/core/modules/project_management/api/desktop/collaboration.py` defines the PM collaboration desktop API contract, including notifications, mention inbox, recent activity, active presence, and mark-read mutations
 - `src/core/modules/project_management/api/desktop/dashboard.py` defines the first PM dashboard desktop API snapshot contract, including selector options, KPI descriptors, analysis-panel descriptors, chart descriptors, and read-only dashboard section descriptors
 - `src/core/modules/project_management/api/desktop/financials.py` defines the PM financials desktop API contract, including project/task/category selectors, cost-item CRUD, finance snapshot, ledger, cashflow, and analytics DTOs
 - `src/core/modules/project_management/api/desktop/projects.py` defines the PM projects CRUD desktop API contract
@@ -1253,10 +1255,10 @@ Hold status as of 2026-04-22:
 - old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet, but do not let that foundation block the remaining structure transfer
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
-- PM QML route landing zones are complete with typed controller/catalog scaffolding, and `dashboard`, `financials`, `projects`, `resources`, `risk`, `register`, `tasks`, plus `scheduling` have now moved beyond placeholders; keep that progress, but do not let it replace the remaining module-structure work
-- PM QML presenter/view-model scaffolding is complete for the route set, and `dashboard`, `projects`, `resources`, `risk`, `register`, `tasks`, plus `scheduling` now have typed controllers plus split page sections backed by screen-specific desktop APIs; that UI progress remains valid and should not be reverted
-- PM QML now binds to presenter-backed metadata through a typed `pmCatalog` and named PM controller/dialog/widget modules; outside `dashboard`, `projects`, `resources`, `risk`, `register`, `tasks`, and `scheduling`, the next source of truth should be the refactored module-local application/API structure
-- real PM workflow/query desktop APIs are now in place for `dashboard`, `projects`, `resources`, `risk/register`, `tasks`, and `scheduling`; add the rest one migrated screen at a time
+- PM QML route landing zones are complete with typed controller/catalog scaffolding, and `collaboration`, `dashboard`, `financials`, `projects`, `resources`, `risk`, `register`, `tasks`, plus `scheduling` have now moved beyond placeholders; keep that progress, but do not let it replace the remaining module-structure work
+- PM QML presenter/view-model scaffolding is complete for the route set, and `collaboration`, `dashboard`, `projects`, `resources`, `risk`, `register`, `tasks`, plus `scheduling` now have typed controllers plus split page sections backed by screen-specific desktop APIs; that UI progress remains valid and should not be reverted
+- PM QML now binds to presenter-backed metadata through a typed `pmCatalog` and named PM controller/dialog/widget modules; outside `collaboration`, `dashboard`, `projects`, `resources`, `risk`, `register`, `tasks`, and `scheduling`, the next source of truth should be the refactored module-local application/API structure
+- real PM workflow/query desktop APIs are now in place for `collaboration`, `dashboard`, `projects`, `resources`, `risk/register`, `tasks`, and `scheduling`; add the rest one migrated screen at a time
 - QML architecture guardrails are in place and should stay green before any old Widget screen is deleted
 - automated offscreen QML route loading is in place and should stay green before any old Widget screen is deleted
 - implemented platform and PM QML workspaces now subscribe to backend domain events through Python controller bases with queued refresh while busy/loading; extend that controller pattern for future QML slices instead of adding event listeners in QML
@@ -1265,6 +1267,7 @@ Hold status as of 2026-04-22:
 - PM Resources QML now has API-backed active/category filters, catalog/detail sections, employee-linked worker setup, and create/edit/active-toggle/delete dialogs; project assignment/utilization panels and deeper parity remain on the Widget resources workspace until parity is completed
 - PM Scheduling QML now has API-backed project selection, working-calendar setup, holiday management, working-day calculation, schedule recalculation, baseline creation/deletion, baseline comparison, and critical-path/schedule snapshots; event syncing, deeper dependency graphing, and richer reporting parity remain on the Widget calendar/report surfaces until parity is completed
 - PM Tasks QML now has API-backed project/status filters, catalog/detail sections, and create/edit/progress/delete dialogs; dependencies, assignments, collaboration side panels, bulk actions, and deeper parity remain on the Widget tasks workspace until parity is completed
+- PM Collaboration QML now has API-backed notifications, mention inbox, recent activity, active presence, and mark-read mutations; task-level posting, attachments, shared-document linking, and presence touch/clear flows remain on the Widget task dialog until parity is completed
 
 Refactor-first priority for the remaining PM slice:
 

@@ -39,6 +39,20 @@ Module {
     }
 
     Component {
+        name: "ProjectManagementCollaborationWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "ProjectManagementWorkspaceControllerBase"
+        exports: ["ProjectManagement.Controllers/ProjectManagementCollaborationWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "notifications"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "inbox"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "recentActivity"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "activePresence"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "markTaskRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    }
+
+    Component {
         name: "ProjectManagementFinancialsWorkspaceController"
         accessSemantics: "reference"
         prototype: "ProjectManagementWorkspaceControllerBase"
@@ -201,6 +215,7 @@ Module {
         prototype: "QObject"
         exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
         Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
+        Property { name: "collaborationWorkspace"; type: "ProjectManagementCollaborationWorkspaceController"; isReadonly: true }
         Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
         Property { name: "riskWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
         Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }

@@ -4,6 +4,7 @@ Component {
     prototype: "QObject"
     exports: ["ProjectManagement.Controllers/ProjectManagementWorkspaceCatalog 1.0"]
     Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
+    Property { name: "collaborationWorkspace"; type: "ProjectManagementCollaborationWorkspaceController"; isReadonly: true }
     Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
     Property { name: "riskWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
     Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }

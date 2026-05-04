@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 
 from src.ui_qml.modules.project_management.controllers import (
+    ProjectManagementCollaborationWorkspaceController,
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
@@ -15,6 +16,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
+    ProjectCollaborationWorkspacePresenter,
     ProjectDashboardWorkspacePresenter,
     ProjectFinancialsWorkspacePresenter,
     ProjectManagementWorkspacePresenter,
@@ -38,6 +40,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
         dashboard_api = getattr(
             desktop_api_registry,
             "project_management_dashboard",
+            None,
+        )
+        collaboration_api = getattr(
+            desktop_api_registry,
+            "project_management_collaboration",
             None,
         )
         projects_api = getattr(
@@ -133,6 +140,14 @@ class ProjectManagementWorkspaceCatalog(QObject):
             ),
             parent=self
         )
+        self._collaboration_workspace = (
+            ProjectManagementCollaborationWorkspaceController(
+                collaboration_workspace_presenter=ProjectCollaborationWorkspacePresenter(
+                    desktop_api=collaboration_api
+                ),
+                parent=self,
+            )
+        )
 
     @Property(ProjectManagementProjectsWorkspaceController, constant=True)
     def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
@@ -165,6 +180,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementDashboardWorkspaceController, constant=True)
     def dashboardWorkspace(self) -> ProjectManagementDashboardWorkspaceController:
         return self._dashboard_workspace
+
+    @Property(ProjectManagementCollaborationWorkspaceController, constant=True)
+    def collaborationWorkspace(self) -> ProjectManagementCollaborationWorkspaceController:
+        return self._collaboration_workspace
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:

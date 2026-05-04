@@ -1,4 +1,7 @@
 from src.ui_qml.modules.project_management.controllers.common.serializers import (
+    serialize_collaboration_collection_view_model,
+    serialize_collaboration_overview_view_model,
+    serialize_collaboration_record_view_models,
     serialize_dashboard_chart_view_models,
     serialize_dashboard_overview_view_model,
     serialize_dashboard_panel_view_models,
@@ -38,6 +41,9 @@ from src.ui_qml.modules.project_management.controllers.common.workspace_controll
 __all__ = [
     "ProjectManagementWorkspaceControllerBase",
     "run_mutation",
+    "serialize_collaboration_collection_view_model",
+    "serialize_collaboration_overview_view_model",
+    "serialize_collaboration_record_view_models",
     "serialize_dashboard_chart_view_models",
     "serialize_dashboard_overview_view_model",
     "serialize_dashboard_panel_view_models",

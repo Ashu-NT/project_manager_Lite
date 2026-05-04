@@ -35,6 +35,19 @@ def test_pm_resources_workspace_refreshes_on_resource_and_employee_events(monkey
     assert refresh_calls == ["refresh", "refresh"]
 
 
+def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(monkeypatch) -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+    controller = catalog.collaborationWorkspace
+    refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+
+    domain_events.collaboration_changed.emit("task-1")
+    domain_events.approvals_changed.emit("approval-1")
+    domain_events.timesheet_periods_changed.emit("period-1")
+
+    assert refresh_calls == ["refresh", "refresh", "refresh"]
+
+
 def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> None:
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.controlWorkspace
@@ -93,6 +106,10 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
         "src/ui_qml/modules/project_management/controllers/projects/projects_workspace_controller.py": (
             "self._bind_domain_events()",
             '_subscribe_domain_change(',
+        ),
+        "src/ui_qml/modules/project_management/controllers/collaboration/collaboration_workspace_controller.py": (
+            "self._bind_domain_events()",
+            "domain_events.approvals_changed",
         ),
         "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": (
             "self._bind_domain_events()",

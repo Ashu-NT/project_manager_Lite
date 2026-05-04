@@ -1,5 +1,13 @@
 """Project management desktop API adapters."""
 
+from src.core.modules.project_management.api.desktop.collaboration import (
+    CollaborationInboxDesktopDto,
+    CollaborationNotificationDesktopDto,
+    CollaborationPresenceDesktopDto,
+    CollaborationWorkspaceSnapshotDto,
+    ProjectManagementCollaborationDesktopApi,
+    build_project_management_collaboration_desktop_api,
+)
 from src.core.modules.project_management.api.desktop.dashboard import (
     ProjectDashboardChartDescriptor,
     ProjectDashboardChartPointDescriptor,
@@ -90,6 +98,11 @@ from src.core.modules.project_management.api.desktop.workspaces import (
 )
 
 __all__ = [
+    "CollaborationInboxDesktopDto",
+    "CollaborationNotificationDesktopDto",
+    "CollaborationPresenceDesktopDto",
+    "CollaborationWorkspaceSnapshotDto",
+    "ProjectManagementCollaborationDesktopApi",
     "ProjectDashboardChartDescriptor",
     "ProjectDashboardChartPointDescriptor",
     "ProjectDashboardMetricDescriptor",
@@ -111,6 +124,7 @@ __all__ = [
     "FinancialTaskOptionDescriptor",
     "FinancialUpdateCommand",
     "ProjectManagementFinancialsDesktopApi",
+    "build_project_management_collaboration_desktop_api",
     "ProjectCreateCommand",
     "ProjectDesktopDto",
     "ProjectManagementDashboardDesktopApi",

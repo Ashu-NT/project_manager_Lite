@@ -98,6 +98,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "qmldir",
         QML_PM_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
         QML_PM_CONTROLLERS / "typeinfo" / "common.fragment",
+        QML_PM_CONTROLLERS / "typeinfo" / "collaboration.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "financials.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "projects.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "register.fragment",
