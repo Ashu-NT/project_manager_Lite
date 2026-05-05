@@ -22,19 +22,23 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
     ProjectManagementDashboardDesktopApi,
     ProjectManagementFinancialsDesktopApi,
+    ProjectManagementPortfolioDesktopApi,
     ProjectManagementProjectsDesktopApi,
     ProjectManagementRegisterDesktopApi,
     ProjectManagementResourcesDesktopApi,
     ProjectManagementSchedulingDesktopApi,
     ProjectManagementTasksDesktopApi,
+    ProjectManagementTimesheetsDesktopApi,
     build_project_management_collaboration_desktop_api,
     build_project_management_dashboard_desktop_api,
     build_project_management_financials_desktop_api,
+    build_project_management_portfolio_desktop_api,
     build_project_management_projects_desktop_api,
     build_project_management_register_desktop_api,
     build_project_management_resources_desktop_api,
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
+    build_project_management_timesheets_desktop_api,
 )
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
@@ -45,9 +49,15 @@ from src.core.modules.project_management.application.scheduling.baseline_service
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import FinanceService
-from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.projects import (
+    PortfolioService,
+    ProjectService,
+)
 from src.core.modules.project_management.application.risk import RegisterService
-from src.core.modules.project_management.application.resources import ResourceService
+from src.core.modules.project_management.application.resources import (
+    ResourceService,
+    TimesheetService,
+)
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
     WorkCalendarEngine,
@@ -83,12 +93,14 @@ class DesktopApiRegistry:
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_collaboration: ProjectManagementCollaborationDesktopApi
     project_management_financials: ProjectManagementFinancialsDesktopApi
+    project_management_portfolio: ProjectManagementPortfolioDesktopApi
     project_management_projects: ProjectManagementProjectsDesktopApi
     project_management_register: ProjectManagementRegisterDesktopApi
     project_management_risk: ProjectManagementRegisterDesktopApi
     project_management_resources: ProjectManagementResourcesDesktopApi
     project_management_scheduling: ProjectManagementSchedulingDesktopApi
     project_management_tasks: ProjectManagementTasksDesktopApi
+    project_management_timesheets: ProjectManagementTimesheetsDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -136,6 +148,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
     )
+    portfolio_service = services.get("portfolio_service")
+    pm_portfolio_service = (
+        portfolio_service if isinstance(portfolio_service, PortfolioService) else None
+    )
     collaboration_service = services.get("collaboration_service")
     pm_collaboration_service = (
         collaboration_service
@@ -148,6 +164,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     )
     pm_resource_service = (
         resource_service if isinstance(resource_service, ResourceService) else None
+    )
+    timesheet_service = services.get("timesheet_service")
+    pm_timesheet_service = (
+        timesheet_service if isinstance(timesheet_service, TimesheetService) else None
     )
     pm_task_service = task_service if isinstance(task_service, TaskService) else None
     pm_scheduling_engine = services.get("scheduling_engine")
@@ -249,6 +269,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             ),
             finance_service=pm_finance_service,
         ),
+        project_management_portfolio=build_project_management_portfolio_desktop_api(
+            project_service=pm_project_service,
+            portfolio_service=pm_portfolio_service,
+        ),
         project_management_projects=build_project_management_projects_desktop_api(
             project_service=pm_project_service,
         ),
@@ -270,6 +294,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=pm_project_service,
             task_service=pm_task_service,
+        ),
+        project_management_timesheets=build_project_management_timesheets_desktop_api(
+            project_service=pm_project_service,
+            task_service=pm_task_service,
+            resource_service=pm_resource_service,
+            timesheet_service=pm_timesheet_service,
         ),
     )
 

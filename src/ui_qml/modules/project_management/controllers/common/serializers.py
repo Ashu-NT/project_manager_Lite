@@ -16,6 +16,12 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsOverviewViewModel,
     FinancialsRecordViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.portfolio import (
+    PortfolioCollectionViewModel,
+    PortfolioOverviewViewModel,
+    PortfolioRecordViewModel,
+    PortfolioSummaryViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogOverviewViewModel,
     ProjectDetailViewModel,
@@ -44,6 +50,12 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogOverviewViewModel,
     TaskDetailViewModel,
     TaskRecordViewModel,
+)
+from src.ui_qml.modules.project_management.view_models.timesheets import (
+    TimesheetCollectionViewModel,
+    TimesheetDetailViewModel,
+    TimesheetOverviewViewModel,
+    TimesheetRecordViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.workspace import (
     ProjectManagementWorkspaceViewModel,
@@ -303,6 +315,72 @@ def serialize_financials_detail_view_model(
     }
 
 
+def serialize_portfolio_overview_view_model(
+    view_model: PortfolioOverviewViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "metrics": [
+            {
+                "label": metric.label,
+                "value": metric.value,
+                "supportingText": metric.supporting_text,
+            }
+            for metric in view_model.metrics
+        ],
+    }
+
+
+def serialize_portfolio_record_view_models(
+    view_models: tuple[PortfolioRecordViewModel, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": view_model.id,
+            "title": view_model.title,
+            "statusLabel": view_model.status_label,
+            "subtitle": view_model.subtitle,
+            "supportingText": view_model.supporting_text,
+            "metaText": view_model.meta_text,
+            "canPrimaryAction": view_model.can_primary_action,
+            "canSecondaryAction": view_model.can_secondary_action,
+            "canTertiaryAction": view_model.can_tertiary_action,
+            "state": dict(view_model.state),
+        }
+        for view_model in view_models
+    ]
+
+
+def serialize_portfolio_collection_view_model(
+    view_model: PortfolioCollectionViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "emptyState": view_model.empty_state,
+        "items": serialize_portfolio_record_view_models(view_model.items),
+    }
+
+
+def serialize_portfolio_summary_view_model(
+    view_model: PortfolioSummaryViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "emptyState": view_model.empty_state,
+        "fields": [
+            {
+                "label": field.label,
+                "value": field.value,
+                "supportingText": field.supporting_text,
+            }
+            for field in view_model.fields
+        ],
+    }
+
+
 def serialize_project_record_view_models(
     view_models: tuple[ProjectRecordViewModel, ...],
 ) -> list[dict[str, object]]:
@@ -550,6 +628,76 @@ def serialize_task_detail_view_model(
     }
 
 
+def serialize_timesheet_overview_view_model(
+    view_model: TimesheetOverviewViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "metrics": [
+            {
+                "label": metric.label,
+                "value": metric.value,
+                "supportingText": metric.supporting_text,
+            }
+            for metric in view_model.metrics
+        ],
+    }
+
+
+def serialize_timesheet_record_view_models(
+    view_models: tuple[TimesheetRecordViewModel, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "id": view_model.id,
+            "title": view_model.title,
+            "statusLabel": view_model.status_label,
+            "subtitle": view_model.subtitle,
+            "supportingText": view_model.supporting_text,
+            "metaText": view_model.meta_text,
+            "canPrimaryAction": view_model.can_primary_action,
+            "canSecondaryAction": view_model.can_secondary_action,
+            "canTertiaryAction": view_model.can_tertiary_action,
+            "state": dict(view_model.state),
+        }
+        for view_model in view_models
+    ]
+
+
+def serialize_timesheet_collection_view_model(
+    view_model: TimesheetCollectionViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "emptyState": view_model.empty_state,
+        "items": serialize_timesheet_record_view_models(view_model.items),
+    }
+
+
+def serialize_timesheet_detail_view_model(
+    view_model: TimesheetDetailViewModel,
+) -> dict[str, object]:
+    return {
+        "id": view_model.id,
+        "title": view_model.title,
+        "statusLabel": view_model.status_label,
+        "subtitle": view_model.subtitle,
+        "description": view_model.description,
+        "emptyState": view_model.empty_state,
+        "fields": [
+            {
+                "label": field.label,
+                "value": field.value,
+                "supportingText": field.supporting_text,
+            }
+            for field in view_model.fields
+        ],
+        "state": dict(view_model.state),
+    }
+
+
 def serialize_scheduling_overview_view_model(
     view_model: SchedulingOverviewViewModel,
 ) -> dict[str, object]:
@@ -643,6 +791,10 @@ __all__ = [
     "serialize_financials_detail_view_model",
     "serialize_financials_overview_view_model",
     "serialize_financials_record_view_models",
+    "serialize_portfolio_collection_view_model",
+    "serialize_portfolio_overview_view_model",
+    "serialize_portfolio_record_view_models",
+    "serialize_portfolio_summary_view_model",
     "serialize_project_catalog_overview_view_model",
     "serialize_project_detail_view_model",
     "serialize_project_record_view_models",
@@ -663,5 +815,9 @@ __all__ = [
     "serialize_task_catalog_overview_view_model",
     "serialize_task_detail_view_model",
     "serialize_task_record_view_models",
+    "serialize_timesheet_collection_view_model",
+    "serialize_timesheet_detail_view_model",
+    "serialize_timesheet_overview_view_model",
+    "serialize_timesheet_record_view_models",
     "serialize_workspace_view_model",
 ]

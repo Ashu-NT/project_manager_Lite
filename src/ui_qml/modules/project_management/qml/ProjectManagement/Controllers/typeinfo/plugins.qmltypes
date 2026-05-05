@@ -83,6 +83,43 @@ Module {
     }
 
     Component {
+        name: "ProjectManagementPortfolioWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "ProjectManagementWorkspaceControllerBase"
+        exports: ["ProjectManagement.Controllers/ProjectManagementPortfolioWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "intakeStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "templateOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "scenarioOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedIntakeStatusFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedScenarioId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedBaseScenarioId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedCompareScenarioId"; type: "QString"; isReadonly: true }
+        Property { name: "intakeItems"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "templates"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "scenarios"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "evaluation"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "comparison"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "heatmap"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "recentActions"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "activeTemplateSummary"; type: "QString"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setIntakeStatusFilter"; Parameter { name: "intakeStatusFilter"; type: "QString" } }
+        Method { name: "selectScenario"; Parameter { name: "scenarioId"; type: "QString" } }
+        Method { name: "selectCompareBase"; Parameter { name: "scenarioId"; type: "QString" } }
+        Method { name: "selectCompareScenario"; Parameter { name: "scenarioId"; type: "QString" } }
+        Method { name: "createTemplate"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "activateTemplate"; type: "QVariantMap"; Parameter { name: "templateId"; type: "QString" } }
+        Method { name: "createIntakeItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "createScenario"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "removeDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
+    }
+
+    Component {
         name: "ProjectManagementResourcesWorkspaceController"
         accessSemantics: "reference"
         prototype: "ProjectManagementWorkspaceControllerBase"
@@ -210,6 +247,44 @@ Module {
     }
 
     Component {
+        name: "ProjectManagementTimesheetsWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "ProjectManagementWorkspaceControllerBase"
+        exports: ["ProjectManagement.Controllers/ProjectManagementTimesheetsWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "periodOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "queueStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedPeriodStart"; type: "QString"; isReadonly: true }
+        Property { name: "selectedQueueStatus"; type: "QString"; isReadonly: true }
+        Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedQueuePeriodId"; type: "QString"; isReadonly: true }
+        Property { name: "assignmentSummary"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "entries"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedEntry"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "reviewQueue"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "reviewDetail"; type: "QVariantMap"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+        Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
+        Method { name: "selectPeriod"; Parameter { name: "periodStart"; type: "QString" } }
+        Method { name: "setQueueStatus"; Parameter { name: "queueStatus"; type: "QString" } }
+        Method { name: "selectEntry"; Parameter { name: "entryId"; type: "QString" } }
+        Method { name: "selectQueuePeriod"; Parameter { name: "periodId"; type: "QString" } }
+        Method { name: "addTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "deleteTimeEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+        Method { name: "submitPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "approvePeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "rejectPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "lockPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "unlockPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    }
+
+    Component {
         name: "ProjectManagementWorkspaceCatalog"
         accessSemantics: "reference"
         prototype: "QObject"
@@ -217,12 +292,14 @@ Module {
         Property { name: "projectsWorkspace"; type: "ProjectManagementProjectsWorkspaceController"; isReadonly: true }
         Property { name: "collaborationWorkspace"; type: "ProjectManagementCollaborationWorkspaceController"; isReadonly: true }
         Property { name: "financialsWorkspace"; type: "ProjectManagementFinancialsWorkspaceController"; isReadonly: true }
+        Property { name: "portfolioWorkspace"; type: "ProjectManagementPortfolioWorkspaceController"; isReadonly: true }
         Property { name: "riskWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
         Property { name: "registerWorkspace"; type: "ProjectManagementRegisterWorkspaceController"; isReadonly: true }
         Property { name: "resourcesWorkspace"; type: "ProjectManagementResourcesWorkspaceController"; isReadonly: true }
         Property { name: "schedulingWorkspace"; type: "ProjectManagementSchedulingWorkspaceController"; isReadonly: true }
         Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
         Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
+        Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
         Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
         Method { name: "dashboardOverview"; type: "QVariantMap" }
     }

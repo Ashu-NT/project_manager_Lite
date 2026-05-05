@@ -93,6 +93,190 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
     }
 
 
+def test_project_management_workspace_catalog_exposes_typed_portfolio_controller() -> None:
+    class _FakePortfolioDesktopApi:
+        def list_projects(self):
+            return (
+                SimpleNamespace(value="proj-1", label="Plant Upgrade"),
+                SimpleNamespace(value="proj-2", label="Warehouse Retrofit"),
+            )
+
+        def list_intake_statuses(self):
+            return (
+                SimpleNamespace(value="PROPOSED", label="Proposed"),
+                SimpleNamespace(value="APPROVED", label="Approved"),
+            )
+
+        def list_dependency_types(self):
+            return (
+                SimpleNamespace(value="FINISH_TO_START", label="Finish -> Start"),
+            )
+
+        def list_templates(self):
+            return (
+                SimpleNamespace(
+                    id="tpl-1",
+                    name="Balanced PMO",
+                    summary="Standard weighted intake rubric.",
+                    weight_summary="Strategic x3, Value x2, Urgency x2, Risk x1",
+                    is_active=True,
+                ),
+            )
+
+        def list_intake_items(self, *, status=None):
+            rows = (
+                SimpleNamespace(
+                    id="intake-1",
+                    title="Packaging Line Expansion",
+                    sponsor_name="Operations Director",
+                    summary="Capacity uplift on the secondary line.",
+                    requested_budget_label="EUR 180,000.00",
+                    requested_capacity_label="40.0%",
+                    scoring_template_name="Balanced PMO",
+                    scoring_template_id="tpl-1",
+                    status="PROPOSED",
+                    status_label="Proposed",
+                    composite_score=27,
+                    version=2,
+                ),
+                SimpleNamespace(
+                    id="intake-2",
+                    title="Warehouse HVAC Refresh",
+                    sponsor_name="Facilities Lead",
+                    summary="Replace failing rooftop units.",
+                    requested_budget_label="EUR 95,000.00",
+                    requested_capacity_label="15.0%",
+                    scoring_template_name="Balanced PMO",
+                    scoring_template_id="tpl-1",
+                    status="APPROVED",
+                    status_label="Approved",
+                    composite_score=22,
+                    version=1,
+                ),
+            )
+            if status:
+                return tuple(row for row in rows if row.status == status)
+            return rows
+
+        def list_scenarios(self):
+            return (
+                SimpleNamespace(
+                    id="scn-1",
+                    name="Q3 Balanced Plan",
+                    budget_limit_label="EUR 500,000.00",
+                    capacity_limit_label="280.0%",
+                    project_ids=("proj-1",),
+                    intake_item_ids=("intake-1",),
+                    notes="Protect active execution first.",
+                    created_at_label="2026-05-01 09:00",
+                ),
+                SimpleNamespace(
+                    id="scn-2",
+                    name="Aggressive Expansion",
+                    budget_limit_label="EUR 650,000.00",
+                    capacity_limit_label="340.0%",
+                    project_ids=("proj-1", "proj-2"),
+                    intake_item_ids=("intake-1", "intake-2"),
+                    notes="Pull intake forward if labor opens up.",
+                    created_at_label="2026-05-02 10:30",
+                ),
+            )
+
+        def evaluate_scenario(self, scenario_id):
+            return SimpleNamespace(
+                scenario_id=scenario_id,
+                scenario_name="Q3 Balanced Plan",
+                summary="Within budget with moderate capacity headroom.",
+                selected_projects_label="1",
+                selected_intake_items_label="1",
+                total_budget_label="EUR 180,000.00",
+                budget_limit_label="EUR 500,000.00",
+                total_capacity_label="40.0%",
+                capacity_limit_label="280.0%",
+                available_capacity_label="240.0%",
+                intake_score_label="27",
+                status_label="Within limits",
+            )
+
+        def compare_scenarios(self, base_scenario_id, candidate_scenario_id):
+            return SimpleNamespace(
+                base_scenario_name="Q3 Balanced Plan",
+                candidate_scenario_name="Aggressive Expansion",
+                summary="Candidate adds one more intake item and one more project.",
+                budget_delta_label="+EUR 95,000.00",
+                capacity_delta_label="+15.0%",
+                selected_projects_delta_label="+1",
+                selected_intake_items_delta_label="+1",
+                intake_score_delta_label="+22",
+                added_project_names=("Warehouse Retrofit",),
+                removed_project_names=(),
+                added_intake_titles=("Warehouse HVAC Refresh",),
+                removed_intake_titles=(),
+            )
+
+        def list_heatmap(self):
+            return (
+                SimpleNamespace(
+                    project_id="proj-1",
+                    project_name="Plant Upgrade",
+                    pressure_label="Hot",
+                    project_status_label="Active",
+                    late_tasks=2,
+                    critical_tasks=1,
+                    peak_utilization_label="118.0%",
+                    cost_variance_label="-EUR 8,500.00",
+                ),
+            )
+
+        def list_dependencies(self):
+            return (
+                SimpleNamespace(
+                    dependency_id="dep-1",
+                    predecessor_project_name="Plant Upgrade",
+                    successor_project_name="Warehouse Retrofit",
+                    pressure_label="Watch",
+                    dependency_type_label="Finish -> Start",
+                    predecessor_project_status_label="Active",
+                    successor_project_status_label="Planned",
+                    summary="Warehouse cutover waits for line shutdown lessons learned.",
+                ),
+            )
+
+        def list_recent_actions(self, *, limit=12):
+            assert limit == 12
+            return (
+                SimpleNamespace(
+                    occurred_at_label="2026-05-03 08:45",
+                    project_name="Plant Upgrade",
+                    actor_username="alex",
+                    action_label="Baseline created",
+                    summary="Weekly execution freeze published for governance review.",
+                ),
+            )
+
+    catalog = ProjectManagementWorkspaceCatalog(
+        desktop_api_registry=SimpleNamespace(
+            project_management_portfolio=_FakePortfolioDesktopApi()
+        )
+    )
+
+    controller = catalog.portfolioWorkspace
+
+    assert controller.workspace["routeId"] == "project_management.portfolio"
+    assert controller.overview["title"] == "Portfolio"
+    assert controller.templateOptions[0]["label"] == "Balanced PMO"
+    assert controller.intakeItems["items"][0]["title"] == "Packaging Line Expansion"
+    assert controller.evaluation["title"] == "Scenario Evaluation: Q3 Balanced Plan"
+    assert controller.comparison["fields"][0]["value"] == "+EUR 95,000.00"
+
+    controller.setIntakeStatusFilter("APPROVED")
+
+    assert controller.selectedIntakeStatusFilter == "APPROVED"
+    assert [item["title"] for item in controller.intakeItems["items"]] == [
+        "Warehouse HVAC Refresh"
+    ]
+
+
 def test_project_management_workspace_catalog_exposes_typed_projects_controller() -> None:
     projects_api = build_project_management_projects_desktop_api(
         project_service=SimpleNamespace(
@@ -373,6 +557,170 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
 
     assert controller.resources["items"] == []
     assert controller.emptyState == "No resources match the current filters."
+
+
+def test_project_management_workspace_catalog_exposes_typed_timesheets_controller() -> None:
+    class _FakeTimesheetsDesktopApi:
+        def list_projects(self):
+            return (
+                SimpleNamespace(value="proj-1", label="Plant Upgrade"),
+                SimpleNamespace(value="proj-2", label="Warehouse Retrofit"),
+            )
+
+        def list_assignments(self, *, project_id=None):
+            rows = (
+                SimpleNamespace(
+                    value="assign-1",
+                    label="Plant Upgrade | Cable Pull | Electrical Crew",
+                ),
+                SimpleNamespace(
+                    value="assign-2",
+                    label="Warehouse Retrofit | Lighting Retrofit | Alex Taylor",
+                ),
+            )
+            if project_id == "proj-1":
+                return rows[:1]
+            if project_id == "proj-2":
+                return rows[1:]
+            return rows
+
+        def list_queue_statuses(self):
+            return (
+                SimpleNamespace(value="all", label="All statuses"),
+                SimpleNamespace(value="SUBMITTED", label="Submitted"),
+                SimpleNamespace(value="APPROVED", label="Approved"),
+            )
+
+        def build_assignment_snapshot(self, assignment_id, *, period_start=None):
+            assert assignment_id == "assign-1"
+            return SimpleNamespace(
+                assignment=SimpleNamespace(
+                    value="assign-1",
+                    label="Plant Upgrade | Cable Pull | Electrical Crew",
+                    project_id="proj-1",
+                ),
+                period_options=(
+                    SimpleNamespace(value="2026-05-01", label="May 2026"),
+                ),
+                selected_period_start="2026-05-01",
+                period_summary=SimpleNamespace(
+                    period_id="period-1",
+                    period_start_label="May 2026",
+                    period_end_label="2026-05-31",
+                    status="SUBMITTED",
+                    status_label="Submitted",
+                    resource_id="res-1",
+                    resource_name="Electrical Crew",
+                    total_hours_label="16.00h",
+                    entry_count=2,
+                    submitted_by_username="alex",
+                    submitted_at_label="2026-05-04 17:00",
+                    decided_by_username="-",
+                    decided_at_label="-",
+                    decision_note="",
+                ),
+                entries=(
+                    SimpleNamespace(
+                        entry_id="entry-1",
+                        entry_date_label="2026-05-03",
+                        hours=8.0,
+                        hours_label="8.00h",
+                        note="Cable tray installation",
+                        author_username="alex",
+                    ),
+                    SimpleNamespace(
+                        entry_id="entry-2",
+                        entry_date_label="2026-05-04",
+                        hours=8.0,
+                        hours_label="8.00h",
+                        note="Termination prep",
+                        author_username="alex",
+                    ),
+                ),
+                resource_period_total_hours_label="16.00h",
+                scope_summary="Task period entries: 2 | Resource month total: 16.00h",
+            )
+
+        def list_review_queue(self, *, status="SUBMITTED"):
+            if status == "all":
+                return (
+                    SimpleNamespace(
+                        period_id="period-1",
+                        resource_name="Electrical Crew",
+                        period_start_label="May 2026",
+                        status="SUBMITTED",
+                        status_label="Submitted",
+                        project_names=("Plant Upgrade",),
+                        total_hours_label="16.00h",
+                        entry_count=2,
+                        submitted_by_username="alex",
+                        submitted_at_label="2026-05-04 17:00",
+                        resource_id="res-1",
+                        period_start=date(2026, 5, 1),
+                    ),
+                )
+            return (
+                SimpleNamespace(
+                    period_id="period-1",
+                    resource_name="Electrical Crew",
+                    period_start_label="May 2026",
+                    status="SUBMITTED",
+                    status_label="Submitted",
+                    project_names=("Plant Upgrade",),
+                    total_hours_label="16.00h",
+                    entry_count=2,
+                    submitted_by_username="alex",
+                    submitted_at_label="2026-05-04 17:00",
+                    resource_id="res-1",
+                    period_start=date(2026, 5, 1),
+                ),
+            )
+
+        def get_review_detail(self, period_id):
+            assert period_id == "period-1"
+            return SimpleNamespace(
+                summary=SimpleNamespace(
+                    period_id="period-1",
+                    resource_id="res-1",
+                    resource_name="Electrical Crew",
+                    period_start=date(2026, 5, 1),
+                    period_start_label="May 2026",
+                    status="SUBMITTED",
+                    status_label="Submitted",
+                    project_names=("Plant Upgrade",),
+                    total_hours_label="16.00h",
+                    entry_count=2,
+                    submitted_by_username="alex",
+                    submitted_at_label="2026-05-04 17:00",
+                    decided_by_username="-",
+                    decided_at_label="-",
+                    decision_note="No decision note recorded.",
+                ),
+                entries=(
+                    SimpleNamespace(task_name="Cable Pull"),
+                    SimpleNamespace(task_name="Cable Pull"),
+                ),
+            )
+
+    catalog = ProjectManagementWorkspaceCatalog(
+        desktop_api_registry=SimpleNamespace(
+            project_management_timesheets=_FakeTimesheetsDesktopApi()
+        )
+    )
+
+    controller = catalog.timesheetsWorkspace
+
+    assert controller.workspace["routeId"] == "project_management.timesheets"
+    assert controller.overview["title"] == "Timesheets"
+    assert controller.assignmentOptions[0]["label"] == "Plant Upgrade | Cable Pull | Electrical Crew"
+    assert controller.entries["items"][0]["title"] == "2026-05-03"
+    assert controller.selectedEntry["fields"][0]["value"] == "2026-05-03"
+    assert controller.reviewQueue["items"][0]["title"] == "Electrical Crew | May 2026"
+
+    controller.setQueueStatus("all")
+
+    assert controller.selectedQueueStatus == "all"
+    assert controller.reviewDetail["title"] == "Electrical Crew | May 2026"
 
 
 def test_project_management_workspace_catalog_exposes_typed_risk_and_register_controller() -> None:
@@ -843,8 +1191,10 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "QML risk register slice active" in qml_text
     assert "QML governance register slice active" in qml_text
     assert "QML collaboration inbox slice active" in qml_text
+    assert "QML portfolio planning slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
     assert "QML CRUD tasks slice active" in qml_text
+    assert "QML timesheet capture and review slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
 
 

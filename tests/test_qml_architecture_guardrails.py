@@ -312,6 +312,38 @@ def test_project_management_collaboration_workspace_no_longer_uses_placeholder_p
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_project_management_portfolio_workspace_no_longer_uses_placeholder_page() -> None:
+    portfolio_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "portfolio"
+        / "PortfolioWorkspace.qml"
+    )
+    text = portfolio_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PortfolioWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
+def test_project_management_timesheets_workspace_no_longer_uses_placeholder_page() -> None:
+    timesheets_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "timesheets"
+        / "TimesheetsWorkspace.qml"
+    )
+    text = timesheets_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "TimesheetsWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     qmllint_path = shutil.which("pyside6-qmllint")
     if qmllint_path is None:
@@ -342,6 +374,14 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "risk" / "RiskWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "register" / "RegisterWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "collaboration" / "CollaborationWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioToolbarSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioIntakeSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioTemplatesSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioScenariosSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioDependenciesSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioExecutiveSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioSummaryCard.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "RegisterEntryEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingCalendarSection.qml",
@@ -349,6 +389,10 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskProgressDialog.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsToolbarSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsEntriesSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsReviewSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "WorkspacePlaceholderPage.qml",
     ]

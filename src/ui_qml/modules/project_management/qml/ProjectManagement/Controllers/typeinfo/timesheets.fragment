@@ -1,0 +1,37 @@
+Component {
+    name: "ProjectManagementTimesheetsWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementTimesheetsWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "periodOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "queueStatusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedPeriodStart"; type: "QString"; isReadonly: true }
+    Property { name: "selectedQueueStatus"; type: "QString"; isReadonly: true }
+    Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedQueuePeriodId"; type: "QString"; isReadonly: true }
+    Property { name: "assignmentSummary"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "entries"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedEntry"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "reviewQueue"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "reviewDetail"; type: "QVariantMap"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
+    Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "selectPeriod"; Parameter { name: "periodStart"; type: "QString" } }
+    Method { name: "setQueueStatus"; Parameter { name: "queueStatus"; type: "QString" } }
+    Method { name: "selectEntry"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "selectQueuePeriod"; Parameter { name: "periodId"; type: "QString" } }
+    Method { name: "addTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteTimeEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+    Method { name: "submitPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "approvePeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "rejectPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "lockPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "unlockPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+}

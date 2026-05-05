@@ -13,6 +13,16 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsSelectorOptionViewModel,
     FinancialsWorkspaceViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.portfolio import (
+    PortfolioCollectionViewModel,
+    PortfolioMetricViewModel,
+    PortfolioOverviewViewModel,
+    PortfolioRecordViewModel,
+    PortfolioSelectorOptionViewModel,
+    PortfolioSummaryFieldViewModel,
+    PortfolioSummaryViewModel,
+    PortfolioWorkspaceViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.projects import (
     ProjectCatalogMetricViewModel,
     ProjectCatalogOverviewViewModel,
@@ -62,6 +72,16 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskRecordViewModel,
     TaskSelectorOptionViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.timesheets import (
+    TimesheetCollectionViewModel,
+    TimesheetDetailFieldViewModel,
+    TimesheetDetailViewModel,
+    TimesheetMetricViewModel,
+    TimesheetOverviewViewModel,
+    TimesheetRecordViewModel,
+    TimesheetSelectorOptionViewModel,
+    TimesheetsWorkspaceViewModel,
+)
 from src.ui_qml.modules.project_management.view_models.workspace import (
     ProjectManagementWorkspaceViewModel,
 )
@@ -75,6 +95,14 @@ __all__ = [
     "FinancialsRecordViewModel",
     "FinancialsSelectorOptionViewModel",
     "FinancialsWorkspaceViewModel",
+    "PortfolioCollectionViewModel",
+    "PortfolioMetricViewModel",
+    "PortfolioOverviewViewModel",
+    "PortfolioRecordViewModel",
+    "PortfolioSelectorOptionViewModel",
+    "PortfolioSummaryFieldViewModel",
+    "PortfolioSummaryViewModel",
+    "PortfolioWorkspaceViewModel",
     "ProjectCatalogMetricViewModel",
     "ProjectCatalogOverviewViewModel",
     "ProjectCatalogWorkspaceViewModel",
@@ -117,4 +145,12 @@ __all__ = [
     "TaskDetailViewModel",
     "TaskRecordViewModel",
     "TaskSelectorOptionViewModel",
+    "TimesheetCollectionViewModel",
+    "TimesheetDetailFieldViewModel",
+    "TimesheetDetailViewModel",
+    "TimesheetMetricViewModel",
+    "TimesheetOverviewViewModel",
+    "TimesheetRecordViewModel",
+    "TimesheetSelectorOptionViewModel",
+    "TimesheetsWorkspaceViewModel",
 ]

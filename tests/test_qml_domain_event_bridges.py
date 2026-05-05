@@ -48,6 +48,30 @@ def test_pm_collaboration_workspace_refreshes_on_collaboration_workflow_events(m
     assert refresh_calls == ["refresh", "refresh", "refresh"]
 
 
+def test_pm_portfolio_workspace_refreshes_on_portfolio_workflow_events(monkeypatch) -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+    controller = catalog.portfolioWorkspace
+    refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+
+    domain_events.portfolio_changed.emit("portfolio-1")
+    domain_events.project_changed.emit("proj-1")
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
+def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypatch) -> None:
+    catalog = ProjectManagementWorkspaceCatalog()
+    controller = catalog.timesheetsWorkspace
+    refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+
+    domain_events.timesheet_periods_changed.emit("period-1")
+    domain_events.resources_changed.emit("res-1")
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
 def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> None:
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.controlWorkspace
@@ -111,6 +135,10 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
             "self._bind_domain_events()",
             "domain_events.approvals_changed",
         ),
+        "src/ui_qml/modules/project_management/controllers/portfolio/portfolio_workspace_controller.py": (
+            "self._bind_domain_events()",
+            '_subscribe_domain_change(',
+        ),
         "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": (
             "self._bind_domain_events()",
             '_subscribe_domain_change(',
@@ -128,6 +156,10 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
             '_subscribe_domain_change(',
         ),
         "src/ui_qml/modules/project_management/controllers/register/register_workspace_controller.py": (
+            "self._bind_domain_events()",
+            '_subscribe_domain_change(',
+        ),
+        "src/ui_qml/modules/project_management/controllers/timesheets/timesheets_workspace_controller.py": (
             "self._bind_domain_events()",
             '_subscribe_domain_change(',
         ),

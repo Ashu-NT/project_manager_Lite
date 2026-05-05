@@ -6,11 +6,13 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementCollaborationWorkspaceController,
     ProjectManagementDashboardWorkspaceController,
     ProjectManagementFinancialsWorkspaceController,
+    ProjectManagementPortfolioWorkspaceController,
     ProjectManagementProjectsWorkspaceController,
     ProjectManagementRegisterWorkspaceController,
     ProjectManagementResourcesWorkspaceController,
     ProjectManagementSchedulingWorkspaceController,
     ProjectManagementTasksWorkspaceController,
+    ProjectManagementTimesheetsWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_workspace_view_model,
@@ -20,11 +22,13 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardWorkspacePresenter,
     ProjectFinancialsWorkspacePresenter,
     ProjectManagementWorkspacePresenter,
+    ProjectPortfolioWorkspacePresenter,
     ProjectProjectsWorkspacePresenter,
     ProjectRegisterWorkspacePresenter,
     ProjectResourcesWorkspacePresenter,
     ProjectSchedulingWorkspacePresenter,
     ProjectTasksWorkspacePresenter,
+    ProjectTimesheetsWorkspacePresenter,
     build_project_management_workspace_presenters,
 )
 
@@ -57,6 +61,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_financials",
             None,
         )
+        portfolio_api = getattr(
+            desktop_api_registry,
+            "project_management_portfolio",
+            None,
+        )
         tasks_api = getattr(
             desktop_api_registry,
             "project_management_tasks",
@@ -82,6 +91,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             "project_management_scheduling",
             None,
         )
+        timesheets_api = getattr(
+            desktop_api_registry,
+            "project_management_timesheets",
+            None,
+        )
         self._projects_workspace = ProjectManagementProjectsWorkspaceController(
             projects_workspace_presenter=ProjectProjectsWorkspacePresenter(
                 desktop_api=projects_api
@@ -92,6 +106,14 @@ class ProjectManagementWorkspaceCatalog(QObject):
             ProjectManagementFinancialsWorkspaceController(
                 financials_workspace_presenter=ProjectFinancialsWorkspacePresenter(
                     desktop_api=financials_api
+                ),
+                parent=self,
+            )
+        )
+        self._portfolio_workspace = (
+            ProjectManagementPortfolioWorkspaceController(
+                portfolio_workspace_presenter=ProjectPortfolioWorkspacePresenter(
+                    desktop_api=portfolio_api
                 ),
                 parent=self,
             )
@@ -148,6 +170,14 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 parent=self,
             )
         )
+        self._timesheets_workspace = (
+            ProjectManagementTimesheetsWorkspaceController(
+                timesheets_workspace_presenter=ProjectTimesheetsWorkspacePresenter(
+                    desktop_api=timesheets_api
+                ),
+                parent=self,
+            )
+        )
 
     @Property(ProjectManagementProjectsWorkspaceController, constant=True)
     def projectsWorkspace(self) -> ProjectManagementProjectsWorkspaceController:
@@ -169,6 +199,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def financialsWorkspace(self) -> ProjectManagementFinancialsWorkspaceController:
         return self._financials_workspace
 
+    @Property(ProjectManagementPortfolioWorkspaceController, constant=True)
+    def portfolioWorkspace(self) -> ProjectManagementPortfolioWorkspaceController:
+        return self._portfolio_workspace
+
     @Property(ProjectManagementSchedulingWorkspaceController, constant=True)
     def schedulingWorkspace(self) -> ProjectManagementSchedulingWorkspaceController:
         return self._scheduling_workspace
@@ -184,6 +218,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Property(ProjectManagementCollaborationWorkspaceController, constant=True)
     def collaborationWorkspace(self) -> ProjectManagementCollaborationWorkspaceController:
         return self._collaboration_workspace
+
+    @Property(ProjectManagementTimesheetsWorkspaceController, constant=True)
+    def timesheetsWorkspace(self) -> ProjectManagementTimesheetsWorkspaceController:
+        return self._timesheets_workspace
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:

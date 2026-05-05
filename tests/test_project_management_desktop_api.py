@@ -6,21 +6,43 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_dashboard_desktop_api,
     build_project_management_financials_desktop_api,
+    build_project_management_portfolio_desktop_api,
     build_project_management_projects_desktop_api,
     build_project_management_register_desktop_api,
     build_project_management_resources_desktop_api,
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
+    build_project_management_timesheets_desktop_api,
     build_project_management_workspace_desktop_api,
 )
-from src.core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus, WorkerType
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    DependencyType,
+    ProjectStatus,
+    TaskStatus,
+    WorkerType,
+)
+from src.core.modules.project_management.domain.portfolio import (
+    PortfolioExecutiveRow,
+    PortfolioIntakeItem,
+    PortfolioIntakeStatus,
+    PortfolioProjectDependency,
+    PortfolioProjectDependencyView,
+    PortfolioRecentAction,
+    PortfolioScenario,
+    PortfolioScenarioComparison,
+    PortfolioScenarioEvaluation,
+    PortfolioScoringTemplate,
+)
 from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.platform.time.application import TimesheetReviewDetail
+from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 
 EXPECTED_PM_WORKSPACE_KEYS = [
@@ -821,6 +843,223 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert [option.value for option in api.list_baselines(project.id)] == [created_b.value]
 
 
+def test_project_management_portfolio_desktop_api_mutates_portfolio_records() -> None:
+    project_service = _FakeProjectService()
+    project_alpha = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+        planned_budget=250000.0,
+        currency="eur",
+    )
+    project_beta = project_service.create_project(
+        name="Warehouse Retrofit",
+        description="Upgrade lighting and controls.",
+        planned_budget=120000.0,
+        currency="eur",
+    )
+    project_service.update_project(project_alpha.id, status=ProjectStatus.ACTIVE)
+    project_service.update_project(project_beta.id, status=ProjectStatus.ON_HOLD)
+    portfolio_service = _FakePortfolioService(project_service)
+    api = build_project_management_portfolio_desktop_api(
+        project_service=project_service,
+        portfolio_service=portfolio_service,
+    )
+
+    assert [option.label for option in api.list_projects()] == [
+        "Plant Upgrade",
+        "Warehouse Retrofit",
+    ]
+    assert api.list_intake_statuses()[0].value == "PROPOSED"
+    assert api.list_dependency_types()[0].label == "Finish -> Start"
+
+    created_template = api.create_scoring_template(
+        SimpleNamespace(
+            name="Balanced PMO",
+            summary="Weighted intake rubric for governance.",
+            strategic_weight=3,
+            value_weight=2,
+            urgency_weight=2,
+            risk_weight=1,
+            activate=True,
+        )
+    )
+    created_intake = api.create_intake_item(
+        SimpleNamespace(
+            title="Packaging Line Expansion",
+            sponsor_name="Operations Director",
+            summary="Capacity uplift on the secondary line.",
+            requested_budget=180000.0,
+            requested_capacity_percent=40.0,
+            target_start_date=date(2026, 6, 1),
+            strategic_score=5,
+            value_score=4,
+            urgency_score=3,
+            risk_score=2,
+            scoring_template_id=created_template.id,
+            status="APPROVED",
+        )
+    )
+    created_scenario = api.create_scenario(
+        SimpleNamespace(
+            name="Q3 Balanced Plan",
+            budget_limit=500000.0,
+            capacity_limit_percent=280.0,
+            project_ids=(project_alpha.id,),
+            intake_item_ids=(created_intake.id,),
+            notes="Protect active execution first.",
+        )
+    )
+    comparison_scenario = api.create_scenario(
+        SimpleNamespace(
+            name="Aggressive Expansion",
+            budget_limit=650000.0,
+            capacity_limit_percent=340.0,
+            project_ids=(project_alpha.id, project_beta.id),
+            intake_item_ids=(created_intake.id,),
+            notes="Bring forward more intake if labor opens up.",
+        )
+    )
+
+    listed_templates = api.list_templates()
+    listed_intake = api.list_intake_items(status="APPROVED")
+    evaluation = api.evaluate_scenario(created_scenario.id)
+    comparison = api.compare_scenarios(created_scenario.id, comparison_scenario.id)
+    dependency = api.create_project_dependency(
+        SimpleNamespace(
+            predecessor_project_id=project_alpha.id,
+            successor_project_id=project_beta.id,
+            dependency_type="FS",
+            summary="Warehouse cutover depends on line shutdown lessons learned.",
+        )
+    )
+
+    assert listed_templates[0].is_active is True
+    assert listed_intake[0].title == "Packaging Line Expansion"
+    assert evaluation.scenario_name == "Q3 Balanced Plan"
+    assert evaluation.status_label == "Within limits"
+    assert comparison.added_project_names == ("Warehouse Retrofit",)
+    assert dependency.summary == "Warehouse cutover depends on line shutdown lessons learned."
+    assert api.list_heatmap()[0].pressure_label in {"Stable", "Watch", "Hot"}
+    assert api.list_recent_actions(limit=5)[0].action_label == "Dependency created"
+
+    api.remove_project_dependency(dependency.dependency_id)
+
+    assert api.list_dependencies() == ()
+
+
+def test_project_management_timesheets_desktop_api_supports_assignment_periods_and_review() -> None:
+    project_service = _FakeProjectService()
+    project = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+    )
+    task_service = _FakeTaskService()
+    task = task_service.create_task(
+        project_id=project.id,
+        name="Cable Pull",
+        description="Primary feeder cable installation.",
+        start_date=date(2026, 5, 3),
+        duration_days=4,
+    )
+    resource_service = _FakeResourceService()
+    resource = resource_service.create_resource(
+        name="Electrical Crew",
+        role="Lead Technician",
+        hourly_rate=95.0,
+        is_active=True,
+        cost_type=CostType.LABOR,
+        currency_code="eur",
+        capacity_percent=110.0,
+        address="Site Office",
+        contact="crew@example.com",
+        worker_type=WorkerType.EXTERNAL,
+        employee_id=None,
+    )
+    assignment = task_service.create_assignment(
+        task_id=task.id,
+        resource_id=resource.id,
+        allocation_percent=100.0,
+    )
+    timesheet_service = _FakeTimesheetService(
+        task_service=task_service,
+        resource_service=resource_service,
+    )
+    api = build_project_management_timesheets_desktop_api(
+        project_service=project_service,
+        task_service=task_service,
+        resource_service=resource_service,
+        timesheet_service=timesheet_service,
+    )
+
+    assert api.list_projects()[0].label == "Plant Upgrade"
+    assert api.list_queue_statuses()[1].value == "OPEN"
+    assert api.list_assignments(project_id=project.id)[0].label == (
+        "Plant Upgrade | Cable Pull | Electrical Crew"
+    )
+
+    created_entry = api.add_time_entry(
+        SimpleNamespace(
+            assignment_id=assignment.id,
+            entry_date=date(2026, 5, 3),
+            hours=8.0,
+            note="Cable tray installation",
+        )
+    )
+    api.add_time_entry(
+        SimpleNamespace(
+            assignment_id=assignment.id,
+            entry_date=date(2026, 5, 4),
+            hours=6.5,
+            note="Termination prep",
+        )
+    )
+    updated_entry = api.update_time_entry(
+        SimpleNamespace(
+            entry_id=created_entry.entry_id,
+            entry_date=date(2026, 5, 3),
+            hours=7.5,
+            note="Cable tray installation revised",
+        )
+    )
+    snapshot = api.build_assignment_snapshot(assignment.id)
+    submitted_period = api.submit_period(
+        resource_id=resource.id,
+        period_start=date(2026, 5, 1),
+        note="Submitted for supervisor review.",
+    )
+    review_queue = api.list_review_queue()
+    review_detail = api.get_review_detail(submitted_period.period_id)
+    approved_period = api.approve_period(
+        submitted_period.period_id,
+        note="Approved after weekly close review.",
+    )
+    locked_period = api.lock_period(
+        resource_id=resource.id,
+        period_start=date(2026, 5, 1),
+        note="Month-end payroll lock.",
+    )
+    unlocked_period = api.unlock_period(
+        locked_period.period_id,
+        note="Reopened for correction.",
+    )
+    api.delete_time_entry(created_entry.entry_id)
+
+    assert updated_entry.hours_label == "7.50h"
+    assert snapshot.assignment.resource_name == "Electrical Crew"
+    assert snapshot.entries[0].entry_id == created_entry.entry_id
+    assert snapshot.resource_period_total_hours_label == "14.00h"
+    assert submitted_period.status == "SUBMITTED"
+    assert review_queue[0].entry_count == 2
+    assert review_detail.summary.resource_name == "Electrical Crew"
+    assert review_detail.entries[0].task_name == "Cable Pull"
+    assert approved_period.status == "APPROVED"
+    assert locked_period.status == "LOCKED"
+    assert unlocked_period.status == "OPEN"
+    assert [entry.entry_id for entry in api.build_assignment_snapshot(assignment.id).entries] != [
+        created_entry.entry_id
+    ]
+
+
 def test_project_management_desktop_api_does_not_import_qml_or_infra() -> None:
     api_root = Path("src/core/modules/project_management/api/desktop")
     source_text = "\n".join(
@@ -1228,6 +1467,7 @@ class _FakeRegisterService:
 class _FakeTaskService:
     def __init__(self) -> None:
         self._tasks: dict[str, Task] = {}
+        self._assignments: dict[str, TaskAssignment] = {}
         self._next_id = 1
 
     def list_tasks_for_project(self, project_id: str) -> list[Task]:
@@ -1258,6 +1498,35 @@ class _FakeTaskService:
         self._next_id += 1
         self._tasks[task.id] = task
         return task
+
+    def create_assignment(
+        self,
+        *,
+        task_id: str,
+        resource_id: str,
+        allocation_percent: float = 100.0,
+        hours_logged: float = 0.0,
+    ) -> TaskAssignment:
+        assignment = TaskAssignment(
+            id=f"assign-{len(self._assignments) + 1}",
+            task_id=task_id,
+            resource_id=resource_id,
+            allocation_percent=allocation_percent,
+            hours_logged=hours_logged,
+        )
+        self._assignments[assignment.id] = assignment
+        return assignment
+
+    def list_assignments_for_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
+        task_id_set = {str(task_id) for task_id in task_ids}
+        return [
+            assignment
+            for assignment in self._assignments.values()
+            if assignment.task_id in task_id_set
+        ]
+
+    def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
+        return self._assignments.get(assignment_id)
 
     def update_task(
         self,
@@ -1323,6 +1592,597 @@ class _FakeTaskService:
 
     def get_task(self, task_id: str) -> Task | None:
         return self._tasks.get(task_id)
+
+
+class _FakePortfolioService:
+    def __init__(self, project_service: _FakeProjectService) -> None:
+        self._project_service = project_service
+        self._templates: dict[str, PortfolioScoringTemplate] = {}
+        self._intake_items: dict[str, PortfolioIntakeItem] = {}
+        self._scenarios: dict[str, PortfolioScenario] = {}
+        self._dependencies: dict[str, PortfolioProjectDependency] = {}
+        self._actions: list[PortfolioRecentAction] = []
+
+    def list_scoring_templates(self) -> list[PortfolioScoringTemplate]:
+        return list(self._templates.values())
+
+    def create_scoring_template(
+        self,
+        *,
+        name: str,
+        summary: str = "",
+        strategic_weight: int = 3,
+        value_weight: int = 2,
+        urgency_weight: int = 2,
+        risk_weight: int = 1,
+        activate: bool = False,
+    ) -> PortfolioScoringTemplate:
+        if activate:
+            for existing in self._templates.values():
+                existing.is_active = False
+        template = PortfolioScoringTemplate(
+            id=f"tpl-{len(self._templates) + 1}",
+            name=name,
+            summary=summary,
+            strategic_weight=strategic_weight,
+            value_weight=value_weight,
+            urgency_weight=urgency_weight,
+            risk_weight=risk_weight,
+            is_active=activate,
+            created_at=datetime(2026, 5, 1, 9, 0),
+            updated_at=datetime(2026, 5, 1, 9, 0),
+        )
+        self._templates[template.id] = template
+        self._append_action("Template created", "Portfolio", summary or name)
+        return template
+
+    def activate_scoring_template(self, template_id: str) -> PortfolioScoringTemplate:
+        for existing in self._templates.values():
+            existing.is_active = existing.id == template_id
+        template = self._templates[template_id]
+        self._append_action("Template activated", "Portfolio", template.name)
+        return template
+
+    def list_intake_items(
+        self,
+        *,
+        status: PortfolioIntakeStatus | None = None,
+    ) -> list[PortfolioIntakeItem]:
+        rows = list(self._intake_items.values())
+        if status is not None:
+            rows = [row for row in rows if row.status == status]
+        return rows
+
+    def create_intake_item(
+        self,
+        *,
+        title: str,
+        sponsor_name: str,
+        summary: str = "",
+        requested_budget: float = 0.0,
+        requested_capacity_percent: float = 0.0,
+        target_start_date: date | None = None,
+        strategic_score: int = 3,
+        value_score: int = 3,
+        urgency_score: int = 3,
+        risk_score: int = 3,
+        scoring_template_id: str | None = None,
+        status: PortfolioIntakeStatus = PortfolioIntakeStatus.PROPOSED,
+    ) -> PortfolioIntakeItem:
+        template = (
+            self._templates.get(str(scoring_template_id or "").strip())
+            if scoring_template_id
+            else next((row for row in self._templates.values() if row.is_active), None)
+        )
+        item = PortfolioIntakeItem(
+            id=f"intake-{len(self._intake_items) + 1}",
+            title=title,
+            sponsor_name=sponsor_name,
+            summary=summary,
+            requested_budget=requested_budget,
+            requested_capacity_percent=requested_capacity_percent,
+            target_start_date=target_start_date,
+            strategic_score=strategic_score,
+            value_score=value_score,
+            urgency_score=urgency_score,
+            risk_score=risk_score,
+            scoring_template_id=template.id if template is not None else "",
+            scoring_template_name=template.name if template is not None else "Balanced PMO",
+            strategic_weight=getattr(template, "strategic_weight", 3),
+            value_weight=getattr(template, "value_weight", 2),
+            urgency_weight=getattr(template, "urgency_weight", 2),
+            risk_weight=getattr(template, "risk_weight", 1),
+            status=status,
+            created_at=datetime(2026, 5, 1, 10, 0),
+            updated_at=datetime(2026, 5, 1, 10, 0),
+            version=1,
+        )
+        self._intake_items[item.id] = item
+        self._append_action("Intake created", "Portfolio", item.title)
+        return item
+
+    def list_scenarios(self) -> list[PortfolioScenario]:
+        return list(self._scenarios.values())
+
+    def create_scenario(
+        self,
+        *,
+        name: str,
+        budget_limit: float | None = None,
+        capacity_limit_percent: float | None = None,
+        project_ids: list[str] | None = None,
+        intake_item_ids: list[str] | None = None,
+        notes: str = "",
+    ) -> PortfolioScenario:
+        scenario = PortfolioScenario(
+            id=f"scn-{len(self._scenarios) + 1}",
+            name=name,
+            budget_limit=budget_limit,
+            capacity_limit_percent=capacity_limit_percent,
+            project_ids=list(project_ids or []),
+            intake_item_ids=list(intake_item_ids or []),
+            notes=notes,
+            created_at=datetime(2026, 5, 2, 9, 0),
+            updated_at=datetime(2026, 5, 2, 9, 0),
+        )
+        self._scenarios[scenario.id] = scenario
+        self._append_action("Scenario saved", "Portfolio", scenario.name)
+        return scenario
+
+    def evaluate_scenario(self, scenario_id: str) -> PortfolioScenarioEvaluation:
+        scenario = self._scenarios[scenario_id]
+        selected_projects = [
+            self._project_service.get_project(project_id)
+            for project_id in scenario.project_ids
+        ]
+        selected_items = [
+            self._intake_items[item_id]
+            for item_id in scenario.intake_item_ids
+            if item_id in self._intake_items
+        ]
+        project_budget = sum(
+            float(getattr(project, "planned_budget", 0.0) or 0.0)
+            for project in selected_projects
+            if project is not None
+        )
+        intake_budget = sum(float(item.requested_budget or 0.0) for item in selected_items)
+        total_budget = project_budget + intake_budget
+        total_capacity = sum(
+            float(item.requested_capacity_percent or 0.0) for item in selected_items
+        )
+        capacity_limit = scenario.capacity_limit_percent
+        available_capacity = max(float(capacity_limit or 0.0) - total_capacity, 0.0)
+        over_budget = (
+            scenario.budget_limit is not None and total_budget > float(scenario.budget_limit)
+        )
+        over_capacity = capacity_limit is not None and total_capacity > float(capacity_limit)
+        return PortfolioScenarioEvaluation(
+            scenario_id=scenario.id,
+            scenario_name=scenario.name,
+            selected_projects=len([project for project in selected_projects if project is not None]),
+            selected_intake_items=len(selected_items),
+            total_budget=total_budget,
+            budget_limit=scenario.budget_limit,
+            total_capacity_percent=total_capacity,
+            capacity_limit_percent=capacity_limit,
+            available_capacity_percent=available_capacity,
+            intake_composite_score=sum(item.composite_score for item in selected_items),
+            over_budget=over_budget,
+            over_capacity=over_capacity,
+            summary=(
+                "Within limits"
+                if not over_budget and not over_capacity
+                else "Escalation required"
+            ),
+        )
+
+    def compare_scenarios(
+        self,
+        base_scenario_id: str,
+        candidate_scenario_id: str,
+    ) -> PortfolioScenarioComparison:
+        base = self._scenarios[base_scenario_id]
+        candidate = self._scenarios[candidate_scenario_id]
+        base_eval = self.evaluate_scenario(base_scenario_id)
+        candidate_eval = self.evaluate_scenario(candidate_scenario_id)
+        base_project_ids = set(base.project_ids)
+        candidate_project_ids = set(candidate.project_ids)
+        base_intake_ids = set(base.intake_item_ids)
+        candidate_intake_ids = set(candidate.intake_item_ids)
+        return PortfolioScenarioComparison(
+            base_scenario_id=base.id,
+            base_scenario_name=base.name,
+            candidate_scenario_id=candidate.id,
+            candidate_scenario_name=candidate.name,
+            base_evaluation=base_eval,
+            candidate_evaluation=candidate_eval,
+            budget_delta=candidate_eval.total_budget - base_eval.total_budget,
+            capacity_delta_percent=(
+                candidate_eval.total_capacity_percent - base_eval.total_capacity_percent
+            ),
+            intake_score_delta=(
+                candidate_eval.intake_composite_score - base_eval.intake_composite_score
+            ),
+            selected_projects_delta=(
+                candidate_eval.selected_projects - base_eval.selected_projects
+            ),
+            selected_intake_items_delta=(
+                candidate_eval.selected_intake_items - base_eval.selected_intake_items
+            ),
+            added_project_names=[
+                self._project_service.get_project(project_id).name
+                for project_id in sorted(candidate_project_ids - base_project_ids)
+                if self._project_service.get_project(project_id) is not None
+            ],
+            removed_project_names=[
+                self._project_service.get_project(project_id).name
+                for project_id in sorted(base_project_ids - candidate_project_ids)
+                if self._project_service.get_project(project_id) is not None
+            ],
+            added_intake_titles=[
+                self._intake_items[item_id].title
+                for item_id in sorted(candidate_intake_ids - base_intake_ids)
+                if item_id in self._intake_items
+            ],
+            removed_intake_titles=[
+                self._intake_items[item_id].title
+                for item_id in sorted(base_intake_ids - candidate_intake_ids)
+                if item_id in self._intake_items
+            ],
+            summary="Candidate scenario increases scope and portfolio demand.",
+        )
+
+    def list_portfolio_heatmap(self) -> list[PortfolioExecutiveRow]:
+        rows: list[PortfolioExecutiveRow] = []
+        for project in self._project_service.list_projects():
+            pressure_label = "Hot" if project.status == ProjectStatus.ON_HOLD else "Stable"
+            rows.append(
+                PortfolioExecutiveRow(
+                    project_id=project.id,
+                    project_name=project.name,
+                    project_status=project.status.value,
+                    late_tasks=1 if pressure_label == "Hot" else 0,
+                    critical_tasks=1,
+                    peak_utilization_percent=118.0 if pressure_label == "Hot" else 92.0,
+                    cost_variance=-8500.0 if pressure_label == "Hot" else 2500.0,
+                    pressure_score=90 if pressure_label == "Hot" else 40,
+                    pressure_label=pressure_label,
+                )
+            )
+        return rows
+
+    def list_project_dependencies(self) -> list[PortfolioProjectDependencyView]:
+        rows: list[PortfolioProjectDependencyView] = []
+        for dependency in self._dependencies.values():
+            predecessor = self._project_service.get_project(dependency.predecessor_project_id)
+            successor = self._project_service.get_project(dependency.successor_project_id)
+            rows.append(
+                PortfolioProjectDependencyView(
+                    dependency_id=dependency.id,
+                    predecessor_project_id=dependency.predecessor_project_id,
+                    predecessor_project_name=getattr(
+                        predecessor,
+                        "name",
+                        dependency.predecessor_project_id,
+                    ),
+                    predecessor_project_status=getattr(
+                        getattr(predecessor, "status", None),
+                        "value",
+                        "PLANNED",
+                    ),
+                    successor_project_id=dependency.successor_project_id,
+                    successor_project_name=getattr(
+                        successor,
+                        "name",
+                        dependency.successor_project_id,
+                    ),
+                    successor_project_status=getattr(
+                        getattr(successor, "status", None),
+                        "value",
+                        "PLANNED",
+                    ),
+                    dependency_type=dependency.dependency_type,
+                    summary=dependency.summary,
+                    pressure_label="Watch",
+                    created_at=dependency.created_at,
+                )
+            )
+        return rows
+
+    def create_project_dependency(
+        self,
+        *,
+        predecessor_project_id: str,
+        successor_project_id: str,
+        dependency_type: DependencyType = DependencyType.FINISH_TO_START,
+        summary: str = "",
+    ) -> PortfolioProjectDependency:
+        dependency = PortfolioProjectDependency(
+            id=f"dep-{len(self._dependencies) + 1}",
+            predecessor_project_id=predecessor_project_id,
+            successor_project_id=successor_project_id,
+            dependency_type=dependency_type,
+            summary=summary,
+            created_at=datetime(2026, 5, 3, 8, 45),
+            updated_at=datetime(2026, 5, 3, 8, 45),
+        )
+        self._dependencies[dependency.id] = dependency
+        self._append_action(
+            "Dependency created",
+            getattr(
+                self._project_service.get_project(predecessor_project_id),
+                "name",
+                predecessor_project_id,
+            ),
+            summary or dependency.id,
+        )
+        return dependency
+
+    def remove_project_dependency(self, dependency_id: str) -> None:
+        self._dependencies.pop(dependency_id, None)
+        self._append_action("Dependency removed", "Portfolio", dependency_id)
+
+    def list_recent_pm_actions(self, *, limit: int = 12) -> list[PortfolioRecentAction]:
+        return list(reversed(self._actions[-limit:]))
+
+    def _append_action(self, action_label: str, project_name: str, summary: str) -> None:
+        self._actions.append(
+            PortfolioRecentAction(
+                occurred_at=datetime(2026, 5, 3, 9, len(self._actions)),
+                project_name=project_name,
+                actor_username="alex",
+                action_label=action_label,
+                summary=summary,
+            )
+        )
+
+
+class _FakeTimesheetService:
+    def __init__(
+        self,
+        *,
+        task_service: _FakeTaskService,
+        resource_service: _FakeResourceService,
+    ) -> None:
+        self._task_service = task_service
+        self._resource_service = resource_service
+        self._entries: dict[str, TimeEntry] = {}
+        self._periods: dict[tuple[str, date], TimesheetPeriod] = {}
+
+    def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
+        return [
+            entry
+            for entry in self._entries.values()
+            if entry.assignment_id == assignment_id
+        ]
+
+    def list_time_entries_for_assignment_period(
+        self,
+        assignment_id: str,
+        *,
+        period_start: date,
+    ) -> list[TimeEntry]:
+        return [
+            entry
+            for entry in self.list_time_entries_for_assignment(assignment_id)
+            if entry.entry_date.year == period_start.year
+            and entry.entry_date.month == period_start.month
+        ]
+
+    def list_time_entries_for_resource_period(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+    ) -> list[TimeEntry]:
+        return [
+            entry
+            for entry in self._entries.values()
+            if self._resource_id_for_entry(entry) == resource_id
+            and entry.entry_date.year == period_start.year
+            and entry.entry_date.month == period_start.month
+        ]
+
+    def list_timesheet_periods_for_resource(self, resource_id: str) -> list[TimesheetPeriod]:
+        return [
+            period
+            for (current_resource_id, _period_start), period in self._periods.items()
+            if current_resource_id == resource_id
+        ]
+
+    def get_timesheet_period(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+    ) -> TimesheetPeriod:
+        return self._ensure_period(resource_id, period_start)
+
+    def add_time_entry(
+        self,
+        assignment_id: str,
+        *,
+        entry_date: date,
+        hours: float,
+        note: str = "",
+    ) -> TimeEntry:
+        assignment = self._task_service.get_assignment(assignment_id)
+        task = self._task_service.get_task(assignment.task_id) if assignment is not None else None
+        entry = TimeEntry(
+            id=f"entry-{len(self._entries) + 1}",
+            work_allocation_id=assignment_id,
+            assignment_id=assignment_id,
+            entry_date=entry_date,
+            hours=float(hours),
+            note=note,
+            author_username="alex",
+            owner_type="task_assignment",
+            owner_id=getattr(task, "id", None),
+            owner_label=getattr(task, "name", assignment_id),
+            scope_type="project",
+            scope_id=getattr(task, "project_id", None),
+        )
+        self._entries[entry.id] = entry
+        self._ensure_period(assignment.resource_id, entry_date.replace(day=1))
+        return entry
+
+    def update_time_entry(
+        self,
+        entry_id: str,
+        *,
+        entry_date: date | None = None,
+        hours: float | None = None,
+        note: str | None = None,
+    ) -> TimeEntry:
+        entry = self._entries[entry_id]
+        if entry_date is not None:
+            entry.entry_date = entry_date
+        if hours is not None:
+            entry.hours = float(hours)
+        if note is not None:
+            entry.note = note
+        return entry
+
+    def delete_time_entry(self, entry_id: str) -> None:
+        del self._entries[entry_id]
+
+    def submit_timesheet_period(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+        note: str = "",
+    ) -> TimesheetPeriod:
+        period = self._ensure_period(resource_id, period_start)
+        period.status = TimesheetPeriodStatus.SUBMITTED
+        period.submitted_at = datetime(2026, 5, 4, 17, 0)
+        period.submitted_by_username = "alex"
+        period.decision_note = note
+        return period
+
+    def approve_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+        period = self._period_by_id(period_id)
+        period.status = TimesheetPeriodStatus.APPROVED
+        period.decided_at = datetime(2026, 5, 5, 9, 0)
+        period.decided_by_username = "jamie"
+        period.decision_note = note
+        return period
+
+    def reject_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+        period = self._period_by_id(period_id)
+        period.status = TimesheetPeriodStatus.REJECTED
+        period.decided_at = datetime(2026, 5, 5, 9, 0)
+        period.decided_by_username = "jamie"
+        period.decision_note = note
+        return period
+
+    def lock_timesheet_period(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+        note: str = "",
+    ) -> TimesheetPeriod:
+        period = self._ensure_period(resource_id, period_start)
+        period.status = TimesheetPeriodStatus.LOCKED
+        period.locked_at = datetime(2026, 5, 6, 18, 0)
+        period.decision_note = note
+        return period
+
+    def unlock_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+        period = self._period_by_id(period_id)
+        period.status = TimesheetPeriodStatus.OPEN
+        period.decision_note = note
+        period.locked_at = None
+        return period
+
+    def list_timesheet_review_queue(
+        self,
+        *,
+        status: TimesheetPeriodStatus | None = TimesheetPeriodStatus.SUBMITTED,
+        limit: int = 200,
+    ) -> list[SimpleNamespace]:
+        rows: list[SimpleNamespace] = []
+        for period in self._periods.values():
+            if status is not None and period.status != status:
+                continue
+            rows.append(self._build_review_summary(period))
+        return rows[:limit]
+
+    def get_timesheet_review_detail(self, period_id: str) -> SimpleNamespace:
+        period = self._period_by_id(period_id)
+        summary = self._build_review_summary(period)
+        entries = self.list_time_entries_for_resource_period(
+            period.resource_id,
+            period_start=period.period_start,
+        )
+        review_entries = []
+        for entry in entries:
+            assignment = self._task_service.get_assignment(entry.assignment_id or "")
+            task = self._task_service.get_task(assignment.task_id) if assignment is not None else None
+            review_entries.append(
+                SimpleNamespace(
+                    entry_id=entry.id,
+                    entry_date=entry.entry_date,
+                    hours=float(entry.hours or 0.0),
+                    note=entry.note or "",
+                    author_username=entry.author_username,
+                    task_name=getattr(task, "name", entry.owner_label or ""),
+                    project_id=getattr(task, "project_id", None),
+                )
+            )
+        return SimpleNamespace(summary=summary, entries=tuple(review_entries))
+
+    def _build_review_summary(self, period: TimesheetPeriod) -> SimpleNamespace:
+        entries = self.list_time_entries_for_resource_period(
+            period.resource_id,
+            period_start=period.period_start,
+        )
+        resource = self._resource_service.get_resource(period.resource_id)
+        project_ids = sorted(
+            {
+                entry.scope_id
+                for entry in entries
+                if getattr(entry, "scope_type", None) == "project" and getattr(entry, "scope_id", None)
+            }
+        )
+        return SimpleNamespace(
+            period_id=period.id,
+            resource_id=period.resource_id,
+            resource_name=getattr(resource, "name", period.resource_id),
+            period_start=period.period_start,
+            period_end=period.period_end,
+            status=period.status,
+            submitted_at=period.submitted_at,
+            submitted_by_username=period.submitted_by_username,
+            decided_at=period.decided_at,
+            decided_by_username=period.decided_by_username,
+            decision_note=period.decision_note,
+            entry_count=len(entries),
+            total_hours=sum(float(entry.hours or 0.0) for entry in entries),
+            project_ids=tuple(project_ids),
+        )
+
+    def _ensure_period(self, resource_id: str, period_start: date) -> TimesheetPeriod:
+        key = (resource_id, period_start)
+        if key not in self._periods:
+            self._periods[key] = TimesheetPeriod(
+                id=f"period-{len(self._periods) + 1}",
+                resource_id=resource_id,
+                period_start=period_start,
+                period_end=_test_period_end(period_start),
+            )
+        return self._periods[key]
+
+    def _period_by_id(self, period_id: str) -> TimesheetPeriod:
+        for period in self._periods.values():
+            if period.id == period_id:
+                return period
+        raise KeyError(period_id)
+
+    def _resource_id_for_entry(self, entry: TimeEntry) -> str | None:
+        assignment = self._task_service.get_assignment(entry.assignment_id or "")
+        return assignment.resource_id if assignment is not None else None
 
 
 class _FakeCostService:
@@ -1659,6 +2519,14 @@ class _FakeReportingService:
                 )
             ]
         )
+
+
+def _test_period_end(period_start: date) -> date:
+    if period_start.month == 12:
+        return date.fromordinal(date(period_start.year + 1, 1, 1).toordinal() - 1)
+    return date.fromordinal(
+        date(period_start.year, period_start.month + 1, 1).toordinal() - 1
+    )
 
 
 def _derive_end_date(
