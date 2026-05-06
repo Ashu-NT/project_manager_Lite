@@ -43,12 +43,18 @@ from src.ui_qml.modules.project_management.controllers.common.serializers import
 from src.ui_qml.modules.project_management.controllers.common.mutation_runner import (
     run_mutation,
 )
+from src.ui_qml.modules.project_management.controllers.common.undo_stack import (
+    ProjectManagementUndoCommand,
+    ProjectManagementUndoStack,
+)
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
     ProjectManagementWorkspaceControllerBase,
 )
 
 __all__ = [
     "ProjectManagementWorkspaceControllerBase",
+    "ProjectManagementUndoCommand",
+    "ProjectManagementUndoStack",
     "run_mutation",
     "serialize_collaboration_collection_view_model",
     "serialize_collaboration_overview_view_model",

@@ -28,7 +28,7 @@ Execution rule:
 - use `EXECUTION_SPEC.md` as the execution contract
 - use `PySide6_Widgets_to_QML_Migration_Spec.docx` as the UI migration contract
 - if a downloaded spec suggests temporary facades or compatibility wrappers, ignore that part and follow the clean hard-cutover rule instead
-- if older README wording says `src/ui/*` for final desktop UI, interpret the final target as `src/ui_qml/*`; `src/ui/*` is legacy QWidget UI until each screen is migrated, verified, and deleted
+- if older README wording says `src/ui/*` for final desktop UI, interpret the final target as `src/ui_qml/*`; `src/ui/*` is legacy QWidget UI only as temporary migration reference/runtime fallback, and no new refactor work should continue there
 
 ## Active Pivot: QML UI Migration
 
@@ -43,8 +43,9 @@ New final UI rule:
 - presenters own UI behavior and orchestration
 - view models expose UI-shaped state only
 - presenters call module-owned desktop APIs under `src/core/modules/<module>/api/desktop/*`
-- `src/ui/*` remains the active legacy QWidget UI only until a screen has a complete QML replacement and regression coverage
-- old QWidget paths are deleted only after their migrated screen is complete, imports/navigation are rewritten, and tests pass
+- `ui/*` and `src/ui/*` remain temporary legacy QWidget sources/runtime fallback only while QML migration is in progress
+- new desktop UI work should land directly in `src/ui_qml/*`, not in new or reshaped QWidget paths
+- old QWidget paths stay in place even after an individual screen reaches parity; delete them only after all planned slices are migrated, the QML runtime cutover is approved, imports/navigation are rewritten, and tests pass
 - no new QWidget screens should be added for migrated modules
 
 QML scaffold status:
@@ -2234,6 +2235,8 @@ Hold status:
 - completed Slice 2 backend/domain work remains valid and should not be reverted
 - active QWidget UI under `src/ui/*` remains runnable until each QML screen is complete and tested
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`, not `src/ui/modules/project_management/*`
+- `ui/*` and `src/ui/*` are now legacy migration-reference trees only; do not continue QWidget-side restructuring there
+- even when an individual PM QML screen reaches parity, keep the old QWidget trees intact until all planned slices are migrated and the runtime cutover is approved
 - QML shell foundation has started and is verified independently; that work remains valid, but it is no longer the reason to hold backend/domain restructuring
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and QWidget deletion still remain pending
 - PM QML landing-zone routes are now in place for every Slice 2 PM workspace, and `collaboration`, `dashboard`, `financials`, `portfolio`, `projects`, `resources`, `risk`, `register`, `scheduling`, `tasks`, and `timesheets` have moved beyond placeholders into real typed workspaces; keep that progress, but do not let it replace the remaining structure transfer work
@@ -2246,7 +2249,7 @@ Hold status:
 - PM Dashboard QML now renders API-backed project selection, baseline selection, KPI cards, EVM/register/cost analysis panels, burndown/resource visuals, and read-only delivery-health sections through a typed controller and split section layout; dialogs, mutations, and deeper dashboard parity remain on the QWidget dashboard until parity is completed
 - PM Projects QML now renders API-backed filters, catalog/detail panels, and create/edit/status/delete dialogs through a typed controller and split section layout; import flows, resource-assignment side panels, and deeper project parity remain on the QWidget workspace until parity is completed
 - PM Resources QML now renders API-backed active/category filters, catalog/detail panels, employee-linked worker setup, and create/edit/active-toggle/delete dialogs through a typed controller and split section layout; project assignment/utilization panels and deeper parity remain on the QWidget workspace until parity is completed
-- PM Tasks QML now renders API-backed project/status filters, catalog/detail panels, create/edit/progress/delete dialogs, bulk status/delete actions, collaboration mention/notification/active-presence status metrics, assignment management, dependency management, assignment-period time-entry capture, task comments, mention-read flows, attachment/document-linked collaboration posting, and active presence through a typed controller and split section layout; deeper parity and final QWidget deletion still remain until parity is completed
+- PM Tasks QML now renders API-backed project/status filters, catalog/detail panels, create/edit/progress/delete dialogs, bulk status/delete actions, bulk-status undo/redo, collaboration mention/notification/active-presence status metrics, assignment management, dependency management, assignment-period time-entry capture, task comments, mention-read flows, attachment/document-linked collaboration posting, and active presence through a typed controller and split section layout; deeper parity and final QWidget deletion still remain until parity is completed
 - PM Portfolio QML now renders API-backed intake filters, scoring-template activation, scenario save/evaluation/comparison views, dependency management, and executive heatmap/recent-action sections through a typed controller and split section layout; deeper scoring governance, richer portfolio analytics, and eventual QWidget deletion still remain to be completed
 - PM Timesheets QML now renders API-backed assignment-period entry capture, period submission, review-queue detail, approve/reject, and lock/unlock flows through a typed controller and split section layout; payroll-close integrations, richer review auditing, and eventual QWidget deletion still remain to be completed
 - platform `admin`, `access/security`, `control`, and `settings`, plus PM `collaboration`, `dashboard`, `projects`, `tasks`, `resources`, `scheduling`, `financials`, and `risk/register`, now auto-refresh from controller-side backend domain events; the support workspace stays action-driven because it does not currently depend on shared domain-event streams

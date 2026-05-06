@@ -15,8 +15,9 @@ When this file and the original downloaded execution spec differ, this file wins
 For desktop UI migration, `PySide6_Widgets_to_QML_Migration_Spec.docx` wins over older Widget-oriented wording:
 
 - final desktop UI lives under `src/ui_qml/*`
-- active Widget UI under `src/ui/*` remains temporary legacy UI until each screen is migrated
-- old Widget paths are deleted only after the matching QML screen, presenter, view model, route, and tests are complete
+- active Widget UI under `src/ui/*` remains temporary legacy UI/reference while QML migration is in progress
+- new desktop UI work should land directly in `src/ui_qml/*`, not in new or reshaped Widget paths
+- old Widget paths stay in place even after a matching QML screen reaches parity; delete them only after all planned slices are migrated, the QML runtime cutover is approved, and tests are complete
 - `src/ui_qml/*` is scaffolded and the initial shell route/registry/navigation/QML engine foundation exists, but it must not become the active entrypoint until the QML shell is complete and tested end-to-end
 
 ## Purpose
@@ -1252,7 +1253,8 @@ Hold status as of 2026-04-22:
 - completed Slice 2 persistence/contracts/domain work remains valid and must not be reverted
 - active Widget UI under `src/ui/*` remains runnable during migration
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
-- old PM Widget screens are deleted only after matching QML workspaces/dialogs, presenters, view models, routes, and tests are complete
+- `ui/*` and `src/ui/*` are now legacy migration-reference trees only; do not continue Widget-side restructuring there
+- old PM Widget screens remain intact during migration even after a single screen reaches parity; delete them only after all planned slices are migrated, the QML runtime cutover is approved, and matching tests are complete
 - QML shell foundation is started and independently smoke-tested; do not wire `main_qt.py` to QML yet, but do not let that foundation block the remaining structure transfer
 - the platform-first QML checkpoint now has a routed shell host, grouped platform admin/control/settings overviews, a real QML approval/audit control surface, and a real QML module-entitlement/runtime-settings surface, all backed by split platform desktop APIs; full workflow parity and Widget deletion still remain pending
 - PM QML route landing zones are complete with typed controller/catalog scaffolding, and `collaboration`, `dashboard`, `financials`, `portfolio`, `projects`, `resources`, `risk`, `register`, `scheduling`, `tasks`, and `timesheets` have now moved beyond placeholders; keep that progress, but do not let it replace the remaining module-structure work
@@ -1266,7 +1268,7 @@ Hold status as of 2026-04-22:
 - PM Projects QML now has API-backed filters, catalog/detail sections, and create/edit/status/delete dialogs; import flows, resource-assignment side panels, and deeper parity remain on the Widget projects workspace until parity is completed
 - PM Resources QML now has API-backed active/category filters, catalog/detail sections, employee-linked worker setup, and create/edit/active-toggle/delete dialogs; project assignment/utilization panels and deeper parity remain on the Widget resources workspace until parity is completed
 - PM Scheduling QML now has API-backed project selection, working-calendar setup, holiday management, working-day calculation, schedule recalculation, baseline creation/deletion, baseline comparison, and critical-path/schedule snapshots; event syncing, deeper dependency graphing, and richer reporting parity remain on the Widget calendar/report surfaces until parity is completed
-- PM Tasks QML now has API-backed project/status filters, catalog/detail sections, create/edit/progress/delete dialogs, bulk status/delete actions, collaboration mention/notification/active-presence status metrics, assignment management, dependency management, assignment-period time-entry capture, task comments, mention-read flows, attachment/document-linked collaboration posting, and active presence; deeper parity and final Widget deletion still remain until parity is completed
+- PM Tasks QML now has API-backed project/status filters, catalog/detail sections, create/edit/progress/delete dialogs, bulk status/delete actions, bulk-status undo/redo, collaboration mention/notification/active-presence status metrics, assignment management, dependency management, assignment-period time-entry capture, task comments, mention-read flows, attachment/document-linked collaboration posting, and active presence; deeper parity and final Widget deletion still remain until parity is completed
 - PM Portfolio QML now has API-backed intake filters, scoring-template activation, scenario save/evaluation/comparison views, dependency management, and executive heatmap/recent-action sections; deeper scoring governance, richer portfolio analytics, and eventual Widget deletion still remain to be completed
 - PM Timesheets QML now has API-backed assignment-period entry capture, period submission, review-queue detail, approve/reject, and lock/unlock flows; payroll-close integrations, richer review auditing, and eventual Widget deletion still remain to be completed
 - PM Collaboration QML now has API-backed notifications, mention inbox, recent activity, active presence, and mark-read mutations; task-level posting, attachments, shared-document linking, and presence touch/clear flows remain on the Widget task dialog until parity is completed
@@ -1289,7 +1291,7 @@ Do:
 6. Add PM desktop API adapters.
 7. Add PM QML workspaces/dialogs/widgets under `src/ui_qml/modules/project_management/qml/*`.
 8. Add PM QML presenters and view models under `src/ui_qml/modules/project_management/{presenters,view_models}/`.
-9. Rewrite imports/navigation and delete old PM Widget paths only after the migrated QML screen passes tests.
+9. Rewrite imports/navigation during migration, but keep old PM Widget paths in place until all planned QML slices are complete and the runtime cutover is approved; only then delete the old Widget trees.
 
 Status as of 2026-04-19:
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementUndoCommand,
+    ProjectManagementUndoStack,
     serialize_collaboration_collection_view_model,
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
@@ -37,6 +39,7 @@ class ProjectManagementTasksWorkspaceController(
     selectedTaskIdsChanged = Signal()
     selectedTaskCountChanged = Signal()
     selectedTaskDoneCountChanged = Signal()
+    taskActionHistoryChanged = Signal()
     assignmentOptionsChanged = Signal()
     selectedAssignmentIdChanged = Signal()
     dependencyTaskOptionsChanged = Signal()
@@ -99,6 +102,7 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_task_ids: list[str] = []
         self._selected_task_count = 0
         self._selected_task_done_count = 0
+        self._task_action_history = ProjectManagementUndoStack(max_depth=25)
         self._assignment_options: list[dict[str, str]] = []
         self._selected_assignment_id = ""
         self._dependency_task_options: list[dict[str, str]] = []
@@ -212,6 +216,22 @@ class ProjectManagementTasksWorkspaceController(
     @Property(int, notify=selectedTaskDoneCountChanged)
     def selectedTaskDoneCount(self) -> int:
         return self._selected_task_done_count
+
+    @Property(bool, notify=taskActionHistoryChanged)
+    def canUndoTaskAction(self) -> bool:
+        return self._task_action_history.can_undo()
+
+    @Property(bool, notify=taskActionHistoryChanged)
+    def canRedoTaskAction(self) -> bool:
+        return self._task_action_history.can_redo()
+
+    @Property(str, notify=taskActionHistoryChanged)
+    def nextUndoLabel(self) -> str:
+        return self._task_action_history.next_undo_label() or ""
+
+    @Property(str, notify=taskActionHistoryChanged)
+    def nextRedoLabel(self) -> str:
+        return self._task_action_history.next_redo_label() or ""
 
     @Property("QVariantList", notify=assignmentOptionsChanged)
     def assignmentOptions(self) -> list[dict[str, str]]:
@@ -603,12 +623,13 @@ class ProjectManagementTasksWorkspaceController(
     def applyBulkStatus(self, payload: dict[str, object]) -> dict[str, object]:
         merged_payload = dict(payload)
         merged_payload.setdefault("taskIds", list(self._selected_task_ids))
+        history_command = self._build_bulk_status_history_command(merged_payload)
         return run_mutation(
             operation=lambda: self._tasks_workspace_presenter.apply_bulk_status(
                 merged_payload
             ),
             success_message="Bulk task status applied.",
-            on_success=self.refresh,
+            on_success=lambda: self._on_bulk_status_success(history_command),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -630,6 +651,40 @@ class ProjectManagementTasksWorkspaceController(
                 self.clearTaskBulkSelection(),
                 self.refresh(),
             ),
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(result="QVariantMap")
+    def undoLastTaskAction(self) -> dict[str, object]:
+        if not self._task_action_history.can_undo():
+            return {
+                "ok": False,
+                "message": "Nothing to undo.",
+            }
+        label = self._task_action_history.next_undo_label() or "task action"
+        return run_mutation(
+            operation=self._undo_task_action,
+            success_message=f"Undid {label}.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(result="QVariantMap")
+    def redoLastTaskAction(self) -> dict[str, object]:
+        if not self._task_action_history.can_redo():
+            return {
+                "ok": False,
+                "message": "Nothing to redo.",
+            }
+        label = self._task_action_history.next_redo_label() or "task action"
+        return run_mutation(
+            operation=self._redo_task_action,
+            success_message=f"Redid {label}.",
+            on_success=self.refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -870,6 +925,93 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._selected_task_done_count = selected_task_done_count
         self.selectedTaskDoneCountChanged.emit()
+
+    def _emit_task_action_history_changed(self) -> None:
+        self.taskActionHistoryChanged.emit()
+
+    def _on_bulk_status_success(
+        self,
+        history_command: ProjectManagementUndoCommand | None,
+    ) -> None:
+        if history_command is not None:
+            self._task_action_history.record(history_command)
+            self._emit_task_action_history_changed()
+        self.refresh()
+
+    def _undo_task_action(self) -> None:
+        self._task_action_history.undo()
+        self._emit_task_action_history_changed()
+
+    def _redo_task_action(self) -> None:
+        self._task_action_history.redo()
+        self._emit_task_action_history_changed()
+
+    def _build_bulk_status_history_command(
+        self,
+        payload: dict[str, object],
+    ) -> ProjectManagementUndoCommand | None:
+        target_status = str(payload.get("status", "") or "").strip().upper()
+        raw_task_ids = payload.get("taskIds", []) or []
+        task_ids = [
+            str(task_id or "").strip()
+            for task_id in raw_task_ids
+            if str(task_id or "").strip()
+        ]
+        if not target_status or not task_ids:
+            return None
+        task_items_by_id = {
+            str(item.get("id", "") or "").strip(): item
+            for item in self._tasks.get("items", [])
+            if str(item.get("id", "") or "").strip()
+        }
+        changes: list[tuple[str, str, str]] = []
+        for task_id in task_ids:
+            item = task_items_by_id.get(task_id)
+            if item is None:
+                continue
+            state = item.get("state", {})
+            if not isinstance(state, dict):
+                continue
+            current_status = str(state.get("status", "") or "").strip().upper()
+            if not current_status or current_status == target_status:
+                continue
+            changes.append((task_id, current_status, target_status))
+        if not changes:
+            return None
+        reopen_percent_complete = payload.get("reopenPercentComplete", "")
+
+        def _apply_grouped_status(task_changes: list[tuple[str, str, str]], direction: int) -> None:
+            grouped_task_ids: dict[str, list[str]] = {}
+            for task_id, old_status, new_status in task_changes:
+                status = old_status if direction == 0 else new_status
+                grouped_task_ids.setdefault(status, []).append(task_id)
+            for status, grouped_ids in grouped_task_ids.items():
+                mutation_payload: dict[str, object] = {
+                    "taskIds": grouped_ids,
+                    "status": status,
+                }
+                if (
+                    direction == 1
+                    and status == "IN_PROGRESS"
+                    and reopen_percent_complete not in ("", None)
+                    and any(
+                        old_status == "DONE" and new_status == "IN_PROGRESS"
+                        for _, old_status, new_status in task_changes
+                    )
+                ):
+                    mutation_payload["reopenPercentComplete"] = reopen_percent_complete
+                self._tasks_workspace_presenter.apply_bulk_status(mutation_payload)
+
+        label = (
+            "Bulk status -> "
+            f"{target_status.replace('_', ' ').title()} "
+            f"({len(changes)} task(s))"
+        )
+        return ProjectManagementUndoCommand(
+            label=label,
+            redo=lambda: _apply_grouped_status(changes, 1),
+            undo=lambda: _apply_grouped_status(changes, 0),
+        )
 
     def _set_assignment_options(
         self,

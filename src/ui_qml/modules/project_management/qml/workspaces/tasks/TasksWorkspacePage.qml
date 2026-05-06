@@ -230,7 +230,7 @@ AppLayouts.WorkspaceFrame {
                     : (root.workspaceModel.migrationStatus || "")
                 legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
                 architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Task catalog, bulk status/delete flows, collaboration status signals, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
+                architectureSummary: "Task catalog, bulk status/delete plus undo/redo flows, collaboration status signals, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
             }
 
             TasksFiltersSection {
@@ -278,6 +278,10 @@ AppLayouts.WorkspaceFrame {
                 selectedTaskDoneCount: root.workspaceController ? root.workspaceController.selectedTaskDoneCount : 0
                 visibleTaskCount: (root.tasksModel.items || []).length
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                canUndoTaskAction: root.workspaceController ? root.workspaceController.canUndoTaskAction : false
+                canRedoTaskAction: root.workspaceController ? root.workspaceController.canRedoTaskAction : false
+                undoLabel: root.workspaceController ? root.workspaceController.nextUndoLabel : ""
+                redoLabel: root.workspaceController ? root.workspaceController.nextRedoLabel : ""
 
                 onSelectVisibleRequested: function() {
                     if (root.workspaceController !== null) {
@@ -301,6 +305,18 @@ AppLayouts.WorkspaceFrame {
                     dialogHost.openBulkDeleteDialog(
                         root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
                     )
+                }
+
+                onUndoRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.undoLastTaskAction()
+                    }
+                }
+
+                onRedoRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.redoLastTaskAction()
+                    }
                 }
             }
 

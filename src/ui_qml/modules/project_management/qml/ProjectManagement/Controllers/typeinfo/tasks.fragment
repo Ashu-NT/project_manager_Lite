@@ -16,6 +16,10 @@ Component {
     Property { name: "selectedTaskIds"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedTaskCount"; type: "int"; isReadonly: true }
     Property { name: "selectedTaskDoneCount"; type: "int"; isReadonly: true }
+    Property { name: "canUndoTaskAction"; type: "bool"; isReadonly: true }
+    Property { name: "canRedoTaskAction"; type: "bool"; isReadonly: true }
+    Property { name: "nextUndoLabel"; type: "QString"; isReadonly: true }
+    Property { name: "nextRedoLabel"; type: "QString"; isReadonly: true }
     Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
     Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
@@ -40,6 +44,8 @@ Component {
     Method { name: "setTaskBulkSelection"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
     Method { name: "selectVisibleTasks" }
     Method { name: "clearTaskBulkSelection" }
+    Method { name: "undoLastTaskAction"; type: "QVariantMap" }
+    Method { name: "redoLastTaskAction"; type: "QVariantMap" }
     Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
     Method { name: "selectTimePeriod"; Parameter { name: "periodStart"; type: "QString" } }
     Method { name: "selectTimeEntry"; Parameter { name: "entryId"; type: "QString" } }

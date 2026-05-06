@@ -12,12 +12,18 @@ Rectangle {
     property int selectedTaskDoneCount: 0
     property int visibleTaskCount: 0
     property bool isBusy: false
+    property bool canUndoTaskAction: false
+    property bool canRedoTaskAction: false
+    property string undoLabel: ""
+    property string redoLabel: ""
     property string selectedStatusValue: ""
 
     signal selectVisibleRequested()
     signal clearRequested()
     signal applyStatusRequested(var payload)
     signal bulkDeleteRequested()
+    signal undoRequested()
+    signal redoRequested()
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -99,6 +105,24 @@ Rectangle {
                 text: "Clear"
                 enabled: !root.isBusy && root.selectedTaskCount > 0
                 onClicked: root.clearRequested()
+            }
+
+            Button {
+                text: "Undo"
+                enabled: !root.isBusy && root.canUndoTaskAction
+                onClicked: root.undoRequested()
+
+                ToolTip.visible: hovered && root.undoLabel.length > 0
+                ToolTip.text: root.undoLabel
+            }
+
+            Button {
+                text: "Redo"
+                enabled: !root.isBusy && root.canRedoTaskAction
+                onClicked: root.redoRequested()
+
+                ToolTip.visible: hovered && root.redoLabel.length > 0
+                ToolTip.text: root.redoLabel
             }
         }
 

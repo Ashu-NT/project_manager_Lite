@@ -1045,6 +1045,8 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     assert metrics_by_label["Mentions"]["value"] == "1"
     assert metrics_by_label["Notifications"]["value"] == "1"
     assert metrics_by_label["Active now"]["value"] == "1"
+    assert controller.canUndoTaskAction is False
+    assert controller.canRedoTaskAction is False
     assert controller.projectOptions[0]["label"] == "Plant Upgrade"
     assert controller.selectedProjectId == "proj-1"
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
@@ -1083,12 +1085,35 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
         "ok": True,
         "message": "Bulk task status applied.",
     }
+    assert controller.canUndoTaskAction is True
+    assert controller.nextUndoLabel.startswith("Bulk status -> In Progress")
     reopened_task = next(
         item for item in controller.tasks["items"] if item["id"] == "task-4"
     )
     assert reopened_task["statusLabel"] == "In Progress"
     assert reopened_task["state"]["status"] == "IN_PROGRESS"
     assert controller.selectedTaskDoneCount == 0
+
+    undo_result = controller.undoLastTaskAction()
+
+    assert undo_result["ok"] is True
+    assert controller.canRedoTaskAction is True
+    assert controller.nextRedoLabel.startswith("Bulk status -> In Progress")
+    restored_task = next(
+        item for item in controller.tasks["items"] if item["id"] == "task-4"
+    )
+    assert restored_task["statusLabel"] == "Done"
+    assert restored_task["state"]["status"] == "DONE"
+
+    redo_result = controller.redoLastTaskAction()
+
+    assert redo_result["ok"] is True
+    assert controller.canUndoTaskAction is True
+    redone_task = next(
+        item for item in controller.tasks["items"] if item["id"] == "task-4"
+    )
+    assert redone_task["statusLabel"] == "In Progress"
+    assert redone_task["state"]["status"] == "IN_PROGRESS"
 
     controller.clearTaskBulkSelection()
 
