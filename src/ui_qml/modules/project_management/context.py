@@ -154,6 +154,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
             tasks_workspace_presenter=ProjectTasksWorkspacePresenter(
                 desktop_api=tasks_api,
                 collaboration_desktop_api=collaboration_api,
+                timesheets_desktop_api=timesheets_api,
             ),
             parent=self,
         )

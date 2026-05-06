@@ -6,6 +6,10 @@ from typing import Any
 from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationCollectionViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.timesheets import (
+    TimesheetCollectionViewModel,
+    TimesheetDetailViewModel,
+)
 
 
 @dataclass(frozen=True)
@@ -81,6 +85,7 @@ class TaskCatalogWorkspaceViewModel:
     selected_task_id: str = ""
     selected_task_detail: TaskDetailViewModel = field(default_factory=TaskDetailViewModel)
     assignment_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    selected_assignment_id: str = ""
     dependency_task_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
     dependency_type_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
     assignments: TaskExecutionCollectionViewModel = field(
@@ -88,6 +93,18 @@ class TaskCatalogWorkspaceViewModel:
     )
     dependencies: TaskExecutionCollectionViewModel = field(
         default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
+    time_period_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    selected_time_period_start: str = ""
+    time_assignment_summary: TimesheetDetailViewModel = field(
+        default_factory=TimesheetDetailViewModel
+    )
+    time_entries: TimesheetCollectionViewModel = field(
+        default_factory=lambda: TimesheetCollectionViewModel(title="", subtitle="", empty_state="")
+    )
+    selected_time_entry_id: str = ""
+    selected_time_entry_detail: TimesheetDetailViewModel = field(
+        default_factory=TimesheetDetailViewModel
     )
     collaboration_mention_options: tuple[TaskSelectorOptionViewModel, ...] = field(
         default_factory=tuple

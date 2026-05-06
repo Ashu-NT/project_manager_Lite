@@ -191,10 +191,17 @@ Module {
         Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
         Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
         Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
         Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
         Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "timePeriodOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedTimePeriodStart"; type: "QString"; isReadonly: true }
+        Property { name: "timeAssignmentSummary"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "timeEntries"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedTimeEntryId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedTimeEntry"; type: "QVariantMap"; isReadonly: true }
         Property { name: "collaborationMentionOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "collaborationDocumentOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "collaborationComments"; type: "QVariantMap"; isReadonly: true }
@@ -204,6 +211,9 @@ Module {
         Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
         Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
         Method { name: "selectTask"; Parameter { name: "taskId"; type: "QString" } }
+        Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
+        Method { name: "selectTimePeriod"; Parameter { name: "periodStart"; type: "QString" } }
+        Method { name: "selectTimeEntry"; Parameter { name: "entryId"; type: "QString" } }
         Method { name: "createTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateProgress"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
@@ -211,6 +221,12 @@ Module {
         Method { name: "createAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateAssignmentAllocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "setAssignmentHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "addTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "deleteTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }
+        Method { name: "submitTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "lockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "unlockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "deleteAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
         Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }

@@ -132,6 +132,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_WIDGETS / "RegisterFiltersSection.qml",
         QML_PM_WIDGETS / "RegisterMetricsSection.qml",
         QML_PM_WIDGETS / "RegisterUrgentSection.qml",
+        QML_PM_WIDGETS / "TimesheetEntriesCard.qml",
         QML_PM_WIDGETS / "WorkspaceStateBanner.qml",
         QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
         QML_PM_WIDGETS / "WorkspaceStatusSection.qml",

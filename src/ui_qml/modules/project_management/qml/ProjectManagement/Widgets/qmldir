@@ -9,6 +9,7 @@ RegisterDialogHost 1.0 RegisterDialogHost.qml
 RegisterFiltersSection 1.0 RegisterFiltersSection.qml
 RegisterMetricsSection 1.0 RegisterMetricsSection.qml
 RegisterUrgentSection 1.0 RegisterUrgentSection.qml
+TimesheetEntriesCard 1.0 TimesheetEntriesCard.qml
 WorkspaceStateBanner 1.0 WorkspaceStateBanner.qml
 WorkspacePlaceholderPage 1.0 WorkspacePlaceholderPage.qml
 WorkspaceStatusSection 1.0 WorkspaceStatusSection.qml

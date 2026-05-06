@@ -63,6 +63,35 @@ AppLayouts.WorkspaceFrame {
             "emptyState": "Select a task to review predecessor and successor links.",
             "items": []
         })
+    readonly property var timeAssignmentSummaryModel: root.workspaceController
+        ? root.workspaceController.timeAssignmentSummary
+        : ({
+            "title": "",
+            "subtitle": "",
+            "emptyState": "Select a task assignment to review detailed time entries, period status, and labor totals.",
+            "fields": [],
+            "state": {}
+        })
+    readonly property var timeEntriesModel: root.workspaceController
+        ? root.workspaceController.timeEntries
+        : ({
+            "title": "Time Entries",
+            "subtitle": "Detailed labor entries for the selected task assignment.",
+            "emptyState": "Select a task assignment to review or capture labor entries.",
+            "items": []
+        })
+    readonly property var selectedTimeEntryModel: root.workspaceController
+        ? root.workspaceController.selectedTimeEntry
+        : ({
+            "id": "",
+            "title": "",
+            "statusLabel": "",
+            "subtitle": "",
+            "description": "",
+            "emptyState": "Select an entry from the period list to review or edit its captured labor note.",
+            "fields": [],
+            "state": {}
+        })
     readonly property var collaborationCommentsModel: root.workspaceController
         ? root.workspaceController.collaborationComments
         : ({
@@ -190,11 +219,11 @@ AppLayouts.WorkspaceFrame {
             ProjectManagementWidgets.WorkspaceStatusSection {
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
-                    ? "QML task execution and collaboration slice active"
+                    ? "QML task execution, collaboration, and time-entry slice active"
                     : (root.workspaceModel.migrationStatus || "")
                 legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
                 architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Task catalog, progress updates, assignment management, dependency flows, and task-level collaboration now run through typed PM controllers backed by the task and collaboration desktop APIs."
+                architectureSummary: "Task catalog, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
             }
 
             TasksFiltersSection {
@@ -298,12 +327,18 @@ AppLayouts.WorkspaceFrame {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
                     assignmentsModel: root.assignmentsModel
+                    selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     canCreate: !!(root.selectedTaskModel && root.selectedTaskModel.id)
                         && ((root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []).length > 0)
 
                     onCreateRequested: function() {
                         dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
+                    }
+                    onAssignmentSelected: function(assignmentId) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectAssignment(assignmentId)
+                        }
                     }
                     onEditAllocationRequested: function(assignmentData) {
                         dialogHost.openEditAssignmentAllocationDialog(
@@ -332,6 +367,65 @@ AppLayouts.WorkspaceFrame {
                     }
                     onDeleteRequested: function(dependencyData) {
                         dialogHost.openDeleteDependencyDialog(dependencyData)
+                    }
+                }
+            }
+
+            TasksTimeEntriesSection {
+                Layout.fillWidth: true
+                assignmentSummary: root.timeAssignmentSummaryModel
+                periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
+                selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
+                entriesModel: root.timeEntriesModel
+                selectedEntryDetail: root.selectedTimeEntryModel
+                selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                onPeriodChanged: function(periodStart) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectTimePeriod(periodStart)
+                    }
+                }
+
+                onEntrySelected: function(entryId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectTimeEntry(entryId)
+                    }
+                }
+
+                onAddRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.addTaskTimeEntry(payload)
+                    }
+                }
+
+                onUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.updateTaskTimeEntry(payload)
+                    }
+                }
+
+                onDeleteRequested: function(entryId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.deleteTaskTimeEntry(entryId)
+                    }
+                }
+
+                onSubmitRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.submitTaskPeriod(payload)
+                    }
+                }
+
+                onLockRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.lockTaskPeriod(payload)
+                    }
+                }
+
+                onUnlockRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.unlockTaskPeriod(payload)
                     }
                 }
             }

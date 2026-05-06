@@ -11,6 +11,8 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_task_collection_view_model,
     serialize_task_detail_view_model,
     serialize_task_record_view_models,
+    serialize_timesheet_collection_view_model,
+    serialize_timesheet_detail_view_model,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
@@ -32,10 +34,17 @@ class ProjectManagementTasksWorkspaceController(
     selectedTaskChanged = Signal()
     selectedTaskIdChanged = Signal()
     assignmentOptionsChanged = Signal()
+    selectedAssignmentIdChanged = Signal()
     dependencyTaskOptionsChanged = Signal()
     dependencyTypeOptionsChanged = Signal()
     assignmentsChanged = Signal()
     dependenciesChanged = Signal()
+    timePeriodOptionsChanged = Signal()
+    selectedTimePeriodStartChanged = Signal()
+    timeAssignmentSummaryChanged = Signal()
+    timeEntriesChanged = Signal()
+    selectedTimeEntryIdChanged = Signal()
+    selectedTimeEntryChanged = Signal()
     collaborationMentionOptionsChanged = Signal()
     collaborationDocumentOptionsChanged = Signal()
     collaborationCommentsChanged = Signal()
@@ -83,6 +92,7 @@ class ProjectManagementTasksWorkspaceController(
         }
         self._selected_task_id = ""
         self._assignment_options: list[dict[str, str]] = []
+        self._selected_assignment_id = ""
         self._dependency_task_options: list[dict[str, str]] = []
         self._dependency_type_options: list[dict[str, str]] = []
         self._assignments: dict[str, object] = {
@@ -96,6 +106,35 @@ class ProjectManagementTasksWorkspaceController(
             "subtitle": "",
             "emptyState": "",
             "items": [],
+        }
+        self._time_period_options: list[dict[str, str]] = []
+        self._selected_time_period_start = ""
+        self._time_assignment_summary: dict[str, object] = {
+            "id": "",
+            "title": "",
+            "statusLabel": "",
+            "subtitle": "",
+            "description": "",
+            "emptyState": "",
+            "fields": [],
+            "state": {},
+        }
+        self._time_entries: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
+        }
+        self._selected_time_entry_id = ""
+        self._selected_time_entry: dict[str, object] = {
+            "id": "",
+            "title": "",
+            "statusLabel": "",
+            "subtitle": "",
+            "description": "",
+            "emptyState": "",
+            "fields": [],
+            "state": {},
         }
         self._collaboration_mention_options: list[dict[str, str]] = []
         self._collaboration_document_options: list[dict[str, str]] = []
@@ -154,6 +193,10 @@ class ProjectManagementTasksWorkspaceController(
     def assignmentOptions(self) -> list[dict[str, str]]:
         return self._assignment_options
 
+    @Property(str, notify=selectedAssignmentIdChanged)
+    def selectedAssignmentId(self) -> str:
+        return self._selected_assignment_id
+
     @Property("QVariantList", notify=dependencyTaskOptionsChanged)
     def dependencyTaskOptions(self) -> list[dict[str, str]]:
         return self._dependency_task_options
@@ -169,6 +212,30 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=dependenciesChanged)
     def dependencies(self) -> dict[str, object]:
         return self._dependencies
+
+    @Property("QVariantList", notify=timePeriodOptionsChanged)
+    def timePeriodOptions(self) -> list[dict[str, str]]:
+        return self._time_period_options
+
+    @Property(str, notify=selectedTimePeriodStartChanged)
+    def selectedTimePeriodStart(self) -> str:
+        return self._selected_time_period_start
+
+    @Property("QVariantMap", notify=timeAssignmentSummaryChanged)
+    def timeAssignmentSummary(self) -> dict[str, object]:
+        return self._time_assignment_summary
+
+    @Property("QVariantMap", notify=timeEntriesChanged)
+    def timeEntries(self) -> dict[str, object]:
+        return self._time_entries
+
+    @Property(str, notify=selectedTimeEntryIdChanged)
+    def selectedTimeEntryId(self) -> str:
+        return self._selected_time_entry_id
+
+    @Property("QVariantMap", notify=selectedTimeEntryChanged)
+    def selectedTimeEntry(self) -> dict[str, object]:
+        return self._selected_time_entry
 
     @Property("QVariantList", notify=collaborationMentionOptionsChanged)
     def collaborationMentionOptions(self) -> list[dict[str, str]]:
@@ -202,6 +269,9 @@ class ProjectManagementTasksWorkspaceController(
                 search_text=self._search_text,
                 status_filter=self._selected_status_filter,
                 selected_task_id=self._selected_task_id or None,
+                selected_assignment_id=self._selected_assignment_id or None,
+                selected_time_period_start=self._selected_time_period_start,
+                selected_time_entry_id=self._selected_time_entry_id or None,
             )
             self._set_overview(
                 serialize_task_catalog_overview_view_model(
@@ -241,6 +311,9 @@ class ProjectManagementTasksWorkspaceController(
             self._set_assignment_options(
                 serialize_selector_options(workspace_state.assignment_options)
             )
+            self._set_selected_assignment_id(
+                workspace_state.selected_assignment_id
+            )
             self._set_dependency_task_options(
                 serialize_selector_options(
                     workspace_state.dependency_task_options
@@ -256,6 +329,30 @@ class ProjectManagementTasksWorkspaceController(
             )
             self._set_dependencies(
                 serialize_task_collection_view_model(workspace_state.dependencies)
+            )
+            self._set_time_period_options(
+                serialize_selector_options(workspace_state.time_period_options)
+            )
+            self._set_selected_time_period_start(
+                workspace_state.selected_time_period_start
+            )
+            self._set_time_assignment_summary(
+                serialize_timesheet_detail_view_model(
+                    workspace_state.time_assignment_summary
+                )
+            )
+            self._set_time_entries(
+                serialize_timesheet_collection_view_model(
+                    workspace_state.time_entries
+                )
+            )
+            self._set_selected_time_entry_id(
+                workspace_state.selected_time_entry_id
+            )
+            self._set_selected_time_entry(
+                serialize_timesheet_detail_view_model(
+                    workspace_state.selected_time_entry_detail
+                )
             )
             self._set_collaboration_mention_options(
                 serialize_selector_options(
@@ -290,6 +387,9 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_selected_project_id(normalized_value)
         self._set_selected_task_id("")
+        self._set_selected_assignment_id("")
+        self._set_selected_time_period_start("")
+        self._set_selected_time_entry_id("")
         self.refresh()
 
     @Slot(str)
@@ -314,6 +414,36 @@ class ProjectManagementTasksWorkspaceController(
         if normalized_value == self._selected_task_id:
             return
         self._set_selected_task_id(normalized_value)
+        self._set_selected_assignment_id("")
+        self._set_selected_time_period_start("")
+        self._set_selected_time_entry_id("")
+        self.refresh()
+
+    @Slot(str)
+    def selectAssignment(self, assignment_id: str) -> None:
+        normalized_value = (assignment_id or "").strip()
+        if normalized_value == self._selected_assignment_id:
+            return
+        self._set_selected_assignment_id(normalized_value)
+        self._set_selected_time_period_start("")
+        self._set_selected_time_entry_id("")
+        self.refresh()
+
+    @Slot(str)
+    def selectTimePeriod(self, period_start: str) -> None:
+        normalized_value = (period_start or "").strip()
+        if normalized_value == self._selected_time_period_start:
+            return
+        self._set_selected_time_period_start(normalized_value)
+        self._set_selected_time_entry_id("")
+        self.refresh()
+
+    @Slot(str)
+    def selectTimeEntry(self, entry_id: str) -> None:
+        normalized_value = (entry_id or "").strip()
+        if normalized_value == self._selected_time_entry_id:
+            return
+        self._set_selected_time_entry_id(normalized_value)
         self.refresh()
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -408,6 +538,84 @@ class ProjectManagementTasksWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def addTaskTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.add_task_time_entry(
+                dict(payload)
+            ),
+            success_message="Task time entry added.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateTaskTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.update_task_time_entry(
+                dict(payload)
+            ),
+            success_message="Task time entry updated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deleteTaskTimeEntry(self, entry_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.delete_task_time_entry(
+                entry_id
+            ),
+            success_message="Task time entry deleted.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def submitTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.submit_task_period(
+                dict(payload)
+            ),
+            success_message="Task period submitted.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def lockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.lock_task_period(
+                dict(payload)
+            ),
+            success_message="Task period locked.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def unlockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.unlock_task_period(
+                dict(payload)
+            ),
+            success_message="Task period unlocked.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     @Slot(str, result="QVariantMap")
     def deleteAssignment(self, assignment_id: str) -> dict[str, object]:
         return run_mutation(
@@ -478,6 +686,7 @@ class ProjectManagementTasksWorkspaceController(
             "project",
             "project_tasks",
             "resource",
+            "timesheet_period",
             "task_collaboration",
             scope_code="project_management",
         )
@@ -545,6 +754,12 @@ class ProjectManagementTasksWorkspaceController(
         self._assignment_options = assignment_options
         self.assignmentOptionsChanged.emit()
 
+    def _set_selected_assignment_id(self, selected_assignment_id: str) -> None:
+        if selected_assignment_id == self._selected_assignment_id:
+            return
+        self._selected_assignment_id = selected_assignment_id
+        self.selectedAssignmentIdChanged.emit()
+
     def _set_dependency_task_options(
         self,
         dependency_task_options: list[dict[str, str]],
@@ -574,6 +789,45 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._dependencies = dependencies
         self.dependenciesChanged.emit()
+
+    def _set_time_period_options(
+        self,
+        time_period_options: list[dict[str, str]],
+    ) -> None:
+        if time_period_options == self._time_period_options:
+            return
+        self._time_period_options = time_period_options
+        self.timePeriodOptionsChanged.emit()
+
+    def _set_selected_time_period_start(self, selected_time_period_start: str) -> None:
+        if selected_time_period_start == self._selected_time_period_start:
+            return
+        self._selected_time_period_start = selected_time_period_start
+        self.selectedTimePeriodStartChanged.emit()
+
+    def _set_time_assignment_summary(self, time_assignment_summary: dict[str, object]) -> None:
+        if time_assignment_summary == self._time_assignment_summary:
+            return
+        self._time_assignment_summary = time_assignment_summary
+        self.timeAssignmentSummaryChanged.emit()
+
+    def _set_time_entries(self, time_entries: dict[str, object]) -> None:
+        if time_entries == self._time_entries:
+            return
+        self._time_entries = time_entries
+        self.timeEntriesChanged.emit()
+
+    def _set_selected_time_entry_id(self, selected_time_entry_id: str) -> None:
+        if selected_time_entry_id == self._selected_time_entry_id:
+            return
+        self._selected_time_entry_id = selected_time_entry_id
+        self.selectedTimeEntryIdChanged.emit()
+
+    def _set_selected_time_entry(self, selected_time_entry: dict[str, object]) -> None:
+        if selected_time_entry == self._selected_time_entry:
+            return
+        self._selected_time_entry = selected_time_entry
+        self.selectedTimeEntryChanged.emit()
 
     def _set_collaboration_mention_options(
         self,

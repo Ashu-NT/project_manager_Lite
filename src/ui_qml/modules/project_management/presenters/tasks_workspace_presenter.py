@@ -6,6 +6,7 @@ from typing import Any
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
     ProjectManagementTasksDesktopApi,
+    ProjectManagementTimesheetsDesktopApi,
     TaskCollaborationPostCommand,
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
@@ -14,8 +15,11 @@ from src.core.modules.project_management.api.desktop import (
     TaskDependencyCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
+    TimesheetEntryCreateCommand,
+    TimesheetEntryUpdateCommand,
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
+    build_project_management_timesheets_desktop_api,
 )
 from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationCollectionViewModel,
@@ -31,6 +35,12 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskRecordViewModel,
     TaskSelectorOptionViewModel,
 )
+from src.ui_qml.modules.project_management.view_models.timesheets import (
+    TimesheetCollectionViewModel,
+    TimesheetDetailFieldViewModel,
+    TimesheetDetailViewModel,
+    TimesheetRecordViewModel,
+)
 
 
 class ProjectTasksWorkspacePresenter:
@@ -39,11 +49,16 @@ class ProjectTasksWorkspacePresenter:
         *,
         desktop_api: ProjectManagementTasksDesktopApi | None = None,
         collaboration_desktop_api: ProjectManagementCollaborationDesktopApi | None = None,
+        timesheets_desktop_api: ProjectManagementTimesheetsDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_tasks_desktop_api()
         self._collaboration_desktop_api = (
             collaboration_desktop_api
             or build_project_management_collaboration_desktop_api()
+        )
+        self._timesheets_desktop_api = (
+            timesheets_desktop_api
+            or build_project_management_timesheets_desktop_api()
         )
 
     def build_workspace_state(
@@ -53,6 +68,9 @@ class ProjectTasksWorkspacePresenter:
         search_text: str = "",
         status_filter: str = "all",
         selected_task_id: str | None = None,
+        selected_assignment_id: str | None = None,
+        selected_time_period_start: str = "",
+        selected_time_entry_id: str | None = None,
     ) -> TaskCatalogWorkspaceViewModel:
         project_options = tuple(
             TaskSelectorOptionViewModel(value=option.value, label=option.label)
@@ -105,10 +123,43 @@ class ProjectTasksWorkspacePresenter:
             if resolved_task_id
             else ()
         )
+        resolved_assignment_id = self._resolve_assignment_id(
+            selected_assignment_id,
+            assignments,
+        )
         dependencies = (
             self._desktop_api.list_dependencies(resolved_task_id)
             if resolved_task_id
             else ()
+        )
+        timesheet_snapshot = (
+            self._timesheets_desktop_api.build_assignment_snapshot(
+                resolved_assignment_id,
+                period_start=self._optional_iso_date(selected_time_period_start),
+            )
+            if resolved_assignment_id
+            else None
+        )
+        time_period_options = tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in (timesheet_snapshot.period_options if timesheet_snapshot is not None else ())
+        )
+        resolved_time_period_start = (
+            timesheet_snapshot.selected_period_start
+            if timesheet_snapshot is not None
+            else ""
+        )
+        resolved_time_entry_id = self._resolve_time_entry_id(
+            selected_time_entry_id,
+            timesheet_snapshot.entries if timesheet_snapshot is not None else (),
+        )
+        selected_time_entry = next(
+            (
+                entry
+                for entry in (timesheet_snapshot.entries if timesheet_snapshot is not None else ())
+                if entry.entry_id == resolved_time_entry_id
+            ),
+            None,
         )
         collaboration_snapshot = (
             self._collaboration_desktop_api.build_task_snapshot(resolved_task_id)
@@ -137,6 +188,7 @@ class ProjectTasksWorkspacePresenter:
                 dependency_count=len(dependencies),
             ),
             assignment_options=assignment_options,
+            selected_assignment_id=resolved_assignment_id,
             dependency_task_options=dependency_task_options,
             dependency_type_options=dependency_type_options,
             assignments=self._build_assignments_collection(
@@ -148,6 +200,18 @@ class ProjectTasksWorkspacePresenter:
                 selected_task=selected_task,
                 all_tasks=all_tasks,
                 dependencies=dependencies,
+            ),
+            time_period_options=time_period_options,
+            selected_time_period_start=resolved_time_period_start,
+            time_assignment_summary=self._build_time_assignment_summary(
+                timesheet_snapshot
+            ),
+            time_entries=self._build_time_entries_collection(
+                timesheet_snapshot
+            ),
+            selected_time_entry_id=resolved_time_entry_id,
+            selected_time_entry_detail=self._build_selected_time_entry_detail(
+                selected_time_entry
             ),
             collaboration_mention_options=tuple(
                 TaskSelectorOptionViewModel(value=option.value, label=option.label)
@@ -281,6 +345,94 @@ class ProjectTasksWorkspacePresenter:
             ),
         )
         self._desktop_api.set_assignment_hours(command)
+
+    def add_task_time_entry(self, payload: dict[str, Any]) -> None:
+        command = TimesheetEntryCreateCommand(
+            assignment_id=self._require_text(
+                payload,
+                "assignmentId",
+                "Choose an assignment before logging time.",
+            ),
+            entry_date=self._require_date(
+                payload,
+                "entryDate",
+                "Entry date is required.",
+            ),
+            hours=self._require_float(
+                payload,
+                "hours",
+                "Hours are required.",
+            ),
+            note=self._optional_text(payload, "note") or "",
+        )
+        self._timesheets_desktop_api.add_time_entry(command)
+
+    def update_task_time_entry(self, payload: dict[str, Any]) -> None:
+        command = TimesheetEntryUpdateCommand(
+            entry_id=self._require_text(
+                payload,
+                "entryId",
+                "Choose an entry to update.",
+            ),
+            entry_date=self._require_date(
+                payload,
+                "entryDate",
+                "Entry date is required.",
+            ),
+            hours=self._require_float(
+                payload,
+                "hours",
+                "Hours are required.",
+            ),
+            note=self._optional_text(payload, "note") or "",
+        )
+        self._timesheets_desktop_api.update_time_entry(command)
+
+    def delete_task_time_entry(self, entry_id: str) -> None:
+        normalized_entry_id = (entry_id or "").strip()
+        if not normalized_entry_id:
+            raise ValueError("Choose an entry to delete.")
+        self._timesheets_desktop_api.delete_time_entry(normalized_entry_id)
+
+    def submit_task_period(self, payload: dict[str, Any]) -> None:
+        self._timesheets_desktop_api.submit_period(
+            resource_id=self._require_text(
+                payload,
+                "resourceId",
+                "Choose a resource period to submit.",
+            ),
+            period_start=self._require_date(
+                payload,
+                "periodStart",
+                "Period start is required.",
+            ),
+            note=self._optional_text(payload, "note") or "",
+        )
+
+    def lock_task_period(self, payload: dict[str, Any]) -> None:
+        self._timesheets_desktop_api.lock_period(
+            resource_id=self._require_text(
+                payload,
+                "resourceId",
+                "Choose a resource period to lock.",
+            ),
+            period_start=self._require_date(
+                payload,
+                "periodStart",
+                "Period start is required.",
+            ),
+            note=self._optional_text(payload, "note") or "",
+        )
+
+    def unlock_task_period(self, payload: dict[str, Any]) -> None:
+        self._timesheets_desktop_api.unlock_period(
+            self._require_text(
+                payload,
+                "periodId",
+                "Choose a period to unlock.",
+            ),
+            note=self._optional_text(payload, "note") or "",
+        )
 
     def delete_assignment(self, assignment_id: str) -> None:
         normalized_assignment_id = (assignment_id or "").strip()
@@ -530,6 +682,98 @@ class ProjectTasksWorkspacePresenter:
             empty_state=empty_state,
         )
 
+    @staticmethod
+    def _build_time_assignment_summary(snapshot) -> TimesheetDetailViewModel:
+        if snapshot is None:
+            return TimesheetDetailViewModel(
+                title="No assignment selected",
+                empty_state="Select a task assignment to review detailed time entries, period status, and labor totals.",
+            )
+        summary = snapshot.period_summary
+        return TimesheetDetailViewModel(
+            id=snapshot.assignment.value,
+            title=snapshot.assignment.label,
+            status_label=summary.status_label,
+            subtitle=f"{summary.period_start_label} -> {summary.period_end_label}",
+            description=snapshot.scope_summary,
+            fields=(
+                TimesheetDetailFieldViewModel(
+                    label="Resource",
+                    value=summary.resource_name,
+                ),
+                TimesheetDetailFieldViewModel(
+                    label="Hours",
+                    value=summary.total_hours_label,
+                    supporting_text=f"{summary.entry_count} entry or entries in the selected resource month.",
+                ),
+                TimesheetDetailFieldViewModel(
+                    label="Submitted by",
+                    value=summary.submitted_by_username,
+                    supporting_text=summary.submitted_at_label,
+                ),
+                TimesheetDetailFieldViewModel(
+                    label="Decision",
+                    value=summary.decided_by_username,
+                    supporting_text=summary.decided_at_label,
+                ),
+                TimesheetDetailFieldViewModel(
+                    label="Decision note",
+                    value=summary.decision_note or "No review note recorded.",
+                ),
+            ),
+            state={
+                "assignmentId": snapshot.assignment.value,
+                "resourceId": summary.resource_id,
+                "periodStart": snapshot.selected_period_start,
+                "periodId": summary.period_id,
+                "projectId": snapshot.assignment.project_id,
+            },
+        )
+
+    @classmethod
+    def _build_time_entries_collection(cls, snapshot) -> TimesheetCollectionViewModel:
+        if snapshot is None:
+            return TimesheetCollectionViewModel(
+                title="Time Entries",
+                subtitle="Detailed labor entries for the selected task assignment.",
+                empty_state="Select a task assignment to review or capture labor entries.",
+            )
+        return TimesheetCollectionViewModel(
+            title="Time Entries",
+            subtitle="Detailed labor entries for the selected task assignment.",
+            empty_state="No time entries are available yet for the selected period.",
+            items=tuple(
+                cls._to_time_entry_record_view_model(entry)
+                for entry in snapshot.entries
+            ),
+        )
+
+    @staticmethod
+    def _build_selected_time_entry_detail(selected_entry) -> TimesheetDetailViewModel:
+        if selected_entry is None:
+            return TimesheetDetailViewModel(
+                title="No entry selected",
+                empty_state="Select an entry from the period list to review or edit its captured labor note.",
+            )
+        return TimesheetDetailViewModel(
+            id=selected_entry.entry_id,
+            title=selected_entry.entry_date_label,
+            status_label=selected_entry.hours_label,
+            subtitle=selected_entry.author_username,
+            description=selected_entry.note or "No labor note recorded.",
+            fields=(
+                TimesheetDetailFieldViewModel(label="Date", value=selected_entry.entry_date_label),
+                TimesheetDetailFieldViewModel(label="Hours", value=selected_entry.hours_label),
+                TimesheetDetailFieldViewModel(label="Author", value=selected_entry.author_username),
+            ),
+            state={
+                "entryId": selected_entry.entry_id,
+                "entryDate": selected_entry.entry_date_label,
+                "hours": str(selected_entry.hours),
+                "note": selected_entry.note,
+            },
+        )
+
     def _build_collaboration_comments_collection(
         self,
         *,
@@ -654,6 +898,23 @@ class ProjectTasksWorkspacePresenter:
             can_primary_action=False,
             can_secondary_action=False,
             state=state,
+        )
+
+    @staticmethod
+    def _to_time_entry_record_view_model(entry) -> TimesheetRecordViewModel:
+        return TimesheetRecordViewModel(
+            id=entry.entry_id,
+            title=entry.entry_date_label,
+            status_label=entry.hours_label,
+            subtitle=entry.author_username,
+            supporting_text=entry.note or "No labor note recorded.",
+            meta_text=f"Assignment entry {entry.entry_id}",
+            state={
+                "entryId": entry.entry_id,
+                "entryDate": entry.entry_date_label,
+                "hours": entry.hours,
+                "note": entry.note,
+            },
         )
 
     @staticmethod
@@ -783,6 +1044,22 @@ class ProjectTasksWorkspacePresenter:
         return ""
 
     @staticmethod
+    def _resolve_assignment_id(selected_assignment_id: str | None, assignments) -> str:
+        normalized_id = (selected_assignment_id or "").strip()
+        available_values = [str(assignment.id or "") for assignment in assignments]
+        if normalized_id and normalized_id in available_values:
+            return normalized_id
+        return available_values[0] if available_values else ""
+
+    @staticmethod
+    def _resolve_time_entry_id(selected_time_entry_id: str | None, entries) -> str:
+        normalized_id = (selected_time_entry_id or "").strip()
+        available_values = [str(entry.entry_id or "") for entry in entries]
+        if normalized_id and normalized_id in available_values:
+            return normalized_id
+        return available_values[0] if available_values else ""
+
+    @staticmethod
     def _normalize_status_filter(
         status_filter: str,
         status_options: tuple[TaskSelectorOptionViewModel, ...],
@@ -901,6 +1178,23 @@ class ProjectTasksWorkspacePresenter:
                 f"{key.replace('Date', ' date').replace('_', ' ').title()} "
                 "must use YYYY-MM-DD."
             ) from exc
+
+    @classmethod
+    def _require_date(cls, payload: dict[str, Any], key: str, message: str) -> date:
+        value = cls._optional_date(payload, key)
+        if value is None:
+            raise ValueError(message)
+        return value
+
+    @staticmethod
+    def _optional_iso_date(value: str) -> date | None:
+        normalized_value = str(value or "").strip()
+        if not normalized_value:
+            return None
+        try:
+            return date.fromisoformat(normalized_value)
+        except ValueError as exc:
+            raise ValueError("Dates must use YYYY-MM-DD.") from exc
 
 
 __all__ = ["ProjectTasksWorkspacePresenter"]

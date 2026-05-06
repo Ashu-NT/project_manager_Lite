@@ -819,6 +819,107 @@ def test_project_management_workspace_catalog_exposes_typed_risk_and_register_co
 
 
 def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -> None:
+    class _FakeTaskTimesheetsDesktopApi:
+        def __init__(self) -> None:
+            self.added_entries: list[dict[str, object]] = []
+
+        def build_assignment_snapshot(self, assignment_id, *, period_start=None):
+            assert assignment_id == "assign-1"
+            selected_period_start = (
+                period_start.isoformat() if period_start is not None else "2026-05-01"
+            )
+            entry_rows = [
+                SimpleNamespace(
+                    entry_id="entry-1",
+                    entry_date_label="2026-05-03",
+                    hours=6.0,
+                    hours_label="6.00h",
+                    note="Cable tray installation",
+                    author_username="alex",
+                ),
+                *[
+                    SimpleNamespace(
+                        entry_id=row["entry_id"],
+                        entry_date_label=row["entry_date"],
+                        hours=row["hours"],
+                        hours_label=f"{float(row['hours']):.2f}h",
+                        note=row["note"],
+                        author_username="alex",
+                    )
+                    for row in self.added_entries
+                ],
+            ]
+            total_hours = sum(float(entry.hours or 0.0) for entry in entry_rows)
+            return SimpleNamespace(
+                assignment=SimpleNamespace(
+                    value="assign-1",
+                    label="Plant Upgrade | Cable Pull | Alex Taylor",
+                    project_id="proj-1",
+                ),
+                period_options=(
+                    SimpleNamespace(value="2026-05-01", label="May 2026"),
+                    SimpleNamespace(value="2026-04-01", label="Apr 2026"),
+                ),
+                selected_period_start=selected_period_start,
+                period_summary=SimpleNamespace(
+                    period_id="period-1",
+                    period_start_label="May 2026",
+                    period_end_label="2026-05-31",
+                    status="OPEN",
+                    status_label="Open",
+                    resource_id="res-1",
+                    resource_name="Alex Taylor",
+                    total_hours_label=f"{total_hours:.2f}h",
+                    entry_count=len(entry_rows),
+                    submitted_by_username="-",
+                    submitted_at_label="-",
+                    decided_by_username="-",
+                    decided_at_label="-",
+                    decision_note="",
+                ),
+                entries=tuple(entry_rows),
+                resource_period_total_hours_label=f"{total_hours:.2f}h",
+                scope_summary=(
+                    f"Task period entries: {len(entry_rows)} | "
+                    f"Resource month total: {total_hours:.2f}h"
+                ),
+            )
+
+        def add_time_entry(self, command):
+            entry_id = f"entry-{len(self.added_entries) + 2}"
+            self.added_entries.append(
+                {
+                    "entry_id": entry_id,
+                    "entry_date": command.entry_date.isoformat(),
+                    "hours": float(command.hours),
+                    "note": command.note or "",
+                }
+            )
+            return SimpleNamespace(id=entry_id)
+
+        def update_time_entry(self, command):
+            for row in self.added_entries:
+                if row["entry_id"] == command.entry_id:
+                    row["entry_date"] = command.entry_date.isoformat()
+                    row["hours"] = float(command.hours)
+                    row["note"] = command.note or ""
+                    return SimpleNamespace(id=command.entry_id)
+            return SimpleNamespace(id=command.entry_id)
+
+        def delete_time_entry(self, entry_id):
+            self.added_entries = [
+                row for row in self.added_entries if row["entry_id"] != entry_id
+            ]
+
+        def submit_period(self, *, resource_id, period_start, note=""):
+            return SimpleNamespace(resource_id=resource_id, period_start=period_start, note=note)
+
+        def lock_period(self, *, resource_id, period_start, note=""):
+            return SimpleNamespace(resource_id=resource_id, period_start=period_start, note=note)
+
+        def unlock_period(self, period_id, *, note=""):
+            return SimpleNamespace(period_id=period_id, note=note)
+
     task_service = _FakeTaskService(
         [
             _build_task_record(
@@ -912,10 +1013,12 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     collaboration_api = build_project_management_collaboration_desktop_api(
         collaboration_service=collaboration_service
     )
+    timesheets_api = _FakeTaskTimesheetsDesktopApi()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
             project_management_tasks=tasks_api,
             project_management_collaboration=collaboration_api,
+            project_management_timesheets=timesheets_api,
         )
     )
 
@@ -929,13 +1032,34 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     assert controller.selectedTask["title"] == "Cable Pull"
     assert controller.assignmentOptions[0]["label"] == "Alex Taylor (90.00 EUR/hr)"
     assert controller.assignments["items"][0]["title"] == "Alex Taylor"
+    assert controller.selectedAssignmentId == "assign-1"
     assert controller.dependencies["items"][0]["title"] == "Punchlist Closeout"
     assert controller.dependencyTypeOptions[0]["value"] == "FS"
     assert controller.dependencyTaskOptions[0]["value"] == "task-2"
+    assert controller.timePeriodOptions[0]["value"] == "2026-05-01"
+    assert controller.timeEntries["items"][0]["title"] == "2026-05-03"
+    assert controller.timeAssignmentSummary["state"]["assignmentId"] == "assign-1"
+    assert controller.selectedTimeEntry["fields"][0]["value"] == "2026-05-03"
     assert controller.collaborationMentionOptions[0]["value"] == "planner"
     assert controller.collaborationDocumentOptions[0]["value"] == "doc-1"
     assert controller.collaborationComments["items"][0]["title"] == "@jamie"
     assert controller.collaborationPresence["items"][0]["title"] == "Alex Taylor (@planner)"
+
+    time_entry_result = controller.addTaskTimeEntry(
+        {
+            "assignmentId": "assign-1",
+            "entryDate": "2026-05-06",
+            "hours": "2.5",
+            "note": "Punchlist support",
+        }
+    )
+
+    assert time_entry_result == {
+        "ok": True,
+        "message": "Task time entry added.",
+    }
+    assert timesheets_api.added_entries[-1]["hours"] == 2.5
+    assert any(item["title"] == "2026-05-06" for item in controller.timeEntries["items"])
 
     post_result = controller.postTaskComment(
         {
@@ -1269,7 +1393,7 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "QML collaboration inbox slice active" in qml_text
     assert "QML portfolio planning slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
-    assert "QML task execution and collaboration slice active" in qml_text
+    assert "QML task execution, collaboration, and time-entry slice active" in qml_text
     assert "QML timesheet capture and review slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
 

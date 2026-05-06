@@ -13,10 +13,12 @@ Rectangle {
         "emptyState": "",
         "items": []
     })
+    property string selectedAssignmentId: ""
     property bool isBusy: false
     property bool canCreate: false
 
     signal createRequested()
+    signal assignmentSelected(string assignmentId)
     signal editAllocationRequested(var assignmentData)
     signal setHoursRequested(var assignmentData)
     signal deleteRequested(var assignmentData)
@@ -75,11 +77,16 @@ Rectangle {
             subtitle: ""
             emptyState: root.assignmentsModel.emptyState || ""
             items: root.assignmentsModel.items || []
+            selectedItemId: root.selectedAssignmentId
             primaryActionLabel: "Allocation"
             secondaryActionLabel: "Hours"
             tertiaryActionLabel: "Remove"
             tertiaryDanger: true
             actionsEnabled: !root.isBusy
+
+            onItemSelected: function(itemId) {
+                root.assignmentSelected(itemId)
+            }
 
             onPrimaryActionRequested: function(itemData) {
                 root.editAllocationRequested(itemData)
