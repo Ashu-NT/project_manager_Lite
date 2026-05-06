@@ -1039,6 +1039,12 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
 
     assert controller.workspace["routeId"] == "project_management.tasks"
     assert controller.overview["title"] == "Tasks"
+    metrics_by_label = {
+        metric["label"]: metric for metric in controller.overview["metrics"]
+    }
+    assert metrics_by_label["Mentions"]["value"] == "1"
+    assert metrics_by_label["Notifications"]["value"] == "1"
+    assert metrics_by_label["Active now"]["value"] == "1"
     assert controller.projectOptions[0]["label"] == "Plant Upgrade"
     assert controller.selectedProjectId == "proj-1"
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
