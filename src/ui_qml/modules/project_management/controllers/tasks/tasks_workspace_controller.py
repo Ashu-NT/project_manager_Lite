@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    serialize_collaboration_collection_view_model,
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
     serialize_selector_options,
@@ -35,6 +36,10 @@ class ProjectManagementTasksWorkspaceController(
     dependencyTypeOptionsChanged = Signal()
     assignmentsChanged = Signal()
     dependenciesChanged = Signal()
+    collaborationMentionOptionsChanged = Signal()
+    collaborationDocumentOptionsChanged = Signal()
+    collaborationCommentsChanged = Signal()
+    collaborationPresenceChanged = Signal()
 
     def __init__(
         self,
@@ -87,6 +92,20 @@ class ProjectManagementTasksWorkspaceController(
             "items": [],
         }
         self._dependencies: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
+        }
+        self._collaboration_mention_options: list[dict[str, str]] = []
+        self._collaboration_document_options: list[dict[str, str]] = []
+        self._collaboration_comments: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
+        }
+        self._collaboration_presence: dict[str, object] = {
             "title": "",
             "subtitle": "",
             "emptyState": "",
@@ -150,6 +169,22 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantMap", notify=dependenciesChanged)
     def dependencies(self) -> dict[str, object]:
         return self._dependencies
+
+    @Property("QVariantList", notify=collaborationMentionOptionsChanged)
+    def collaborationMentionOptions(self) -> list[dict[str, str]]:
+        return self._collaboration_mention_options
+
+    @Property("QVariantList", notify=collaborationDocumentOptionsChanged)
+    def collaborationDocumentOptions(self) -> list[dict[str, str]]:
+        return self._collaboration_document_options
+
+    @Property("QVariantMap", notify=collaborationCommentsChanged)
+    def collaborationComments(self) -> dict[str, object]:
+        return self._collaboration_comments
+
+    @Property("QVariantMap", notify=collaborationPresenceChanged)
+    def collaborationPresence(self) -> dict[str, object]:
+        return self._collaboration_presence
 
     @Slot()
     def refresh(self) -> None:
@@ -221,6 +256,26 @@ class ProjectManagementTasksWorkspaceController(
             )
             self._set_dependencies(
                 serialize_task_collection_view_model(workspace_state.dependencies)
+            )
+            self._set_collaboration_mention_options(
+                serialize_selector_options(
+                    workspace_state.collaboration_mention_options
+                )
+            )
+            self._set_collaboration_document_options(
+                serialize_selector_options(
+                    workspace_state.collaboration_document_options
+                )
+            )
+            self._set_collaboration_comments(
+                serialize_collaboration_collection_view_model(
+                    workspace_state.collaboration_comments
+                )
+            )
+            self._set_collaboration_presence(
+                serialize_collaboration_collection_view_model(
+                    workspace_state.collaboration_presence
+                )
             )
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
@@ -392,11 +447,38 @@ class ProjectManagementTasksWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.post_task_comment(
+                dict(payload)
+            ),
+            success_message="Task collaboration update posted.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def markTaskCollaborationRead(self, task_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.mark_task_collaboration_read(
+                task_id
+            ),
+            success_message="Task collaboration mentions marked as read.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(
             "project",
             "project_tasks",
             "resource",
+            "task_collaboration",
             scope_code="project_management",
         )
 
@@ -492,6 +574,42 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._dependencies = dependencies
         self.dependenciesChanged.emit()
+
+    def _set_collaboration_mention_options(
+        self,
+        collaboration_mention_options: list[dict[str, str]],
+    ) -> None:
+        if collaboration_mention_options == self._collaboration_mention_options:
+            return
+        self._collaboration_mention_options = collaboration_mention_options
+        self.collaborationMentionOptionsChanged.emit()
+
+    def _set_collaboration_document_options(
+        self,
+        collaboration_document_options: list[dict[str, str]],
+    ) -> None:
+        if collaboration_document_options == self._collaboration_document_options:
+            return
+        self._collaboration_document_options = collaboration_document_options
+        self.collaborationDocumentOptionsChanged.emit()
+
+    def _set_collaboration_comments(
+        self,
+        collaboration_comments: dict[str, object],
+    ) -> None:
+        if collaboration_comments == self._collaboration_comments:
+            return
+        self._collaboration_comments = collaboration_comments
+        self.collaborationCommentsChanged.emit()
+
+    def _set_collaboration_presence(
+        self,
+        collaboration_presence: dict[str, object],
+    ) -> None:
+        if collaboration_presence == self._collaboration_presence:
+            return
+        self._collaboration_presence = collaboration_presence
+        self.collaborationPresenceChanged.emit()
 
 
 __all__ = ["ProjectManagementTasksWorkspaceController"]

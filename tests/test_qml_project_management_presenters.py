@@ -30,6 +30,7 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.platform.documents import DocumentStorageKind
 
 
 def test_project_management_workspace_presenters_match_qml_routes() -> None:
@@ -907,8 +908,15 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
             ]
         ),
     )
+    collaboration_service = _FakeCollaborationService()
+    collaboration_api = build_project_management_collaboration_desktop_api(
+        collaboration_service=collaboration_service
+    )
     catalog = ProjectManagementWorkspaceCatalog(
-        desktop_api_registry=SimpleNamespace(project_management_tasks=tasks_api)
+        desktop_api_registry=SimpleNamespace(
+            project_management_tasks=tasks_api,
+            project_management_collaboration=collaboration_api,
+        )
     )
 
     controller = catalog.tasksWorkspace
@@ -924,6 +932,25 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     assert controller.dependencies["items"][0]["title"] == "Punchlist Closeout"
     assert controller.dependencyTypeOptions[0]["value"] == "FS"
     assert controller.dependencyTaskOptions[0]["value"] == "task-2"
+    assert controller.collaborationMentionOptions[0]["value"] == "planner"
+    assert controller.collaborationDocumentOptions[0]["value"] == "doc-1"
+    assert controller.collaborationComments["items"][0]["title"] == "@jamie"
+    assert controller.collaborationPresence["items"][0]["title"] == "Alex Taylor (@planner)"
+
+    post_result = controller.postTaskComment(
+        {
+            "taskId": "task-1",
+            "body": "Please review the linked checklist with @planner.",
+            "attachments": ["handover.txt"],
+            "linkedDocumentIds": ["doc-2"],
+        }
+    )
+
+    assert post_result == {
+        "ok": True,
+        "message": "Task collaboration update posted.",
+    }
+    assert collaboration_service.posted_comments[-1]["linked_document_ids"] == ("doc-2",)
 
     controller.setStatusFilter("BLOCKED")
 
@@ -1242,7 +1269,7 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "QML collaboration inbox slice active" in qml_text
     assert "QML portfolio planning slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
-    assert "QML task execution slice active" in qml_text
+    assert "QML task execution and collaboration slice active" in qml_text
     assert "QML timesheet capture and review slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
 
@@ -1285,6 +1312,40 @@ class _FakeEmployeeService:
 class _FakeCollaborationService:
     def __init__(self) -> None:
         self.marked_task_ids: list[str] = []
+        self.posted_comments: list[dict[str, object]] = []
+        self._comments: list[SimpleNamespace] = [
+            SimpleNamespace(
+                id="comment-1",
+                task_id="task-1",
+                author_username="jamie",
+                body="Please review the updated execution window.",
+                mentions=["planner"],
+                attachments=["handover.txt"],
+                created_at=datetime(2026, 5, 1, 8, 45),
+            )
+        ]
+        self._comment_documents: dict[str, list[SimpleNamespace]] = {
+            "comment-1": [
+                SimpleNamespace(
+                    id="doc-1",
+                    document_code="PM-ATT-001",
+                    title="handover.txt",
+                    document_type=SimpleNamespace(value="GENERAL"),
+                    storage_kind=DocumentStorageKind.FILE_PATH,
+                    storage_uri="handover.txt",
+                    file_name="procedure.pdf",
+                ),
+                SimpleNamespace(
+                    id="doc-ref-1",
+                    document_code="PM-REF-001",
+                    title="ticket-123",
+                    document_type=SimpleNamespace(value="GENERAL"),
+                    storage_kind=DocumentStorageKind.REFERENCE,
+                    storage_uri="ticket-123",
+                    file_name="",
+                ),
+            ]
+        }
 
     def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
         assert limit == 200
@@ -1348,6 +1409,96 @@ class _FakeCollaborationService:
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
+
+    def list_comments(self, task_id: str) -> list[SimpleNamespace]:
+        return [comment for comment in self._comments if comment.task_id == task_id]
+
+    def list_comment_documents(self, task_id: str) -> dict[str, list[SimpleNamespace]]:
+        comment_ids = {comment.id for comment in self.list_comments(task_id)}
+        return {
+            comment_id: list(documents)
+            for comment_id, documents in self._comment_documents.items()
+            if comment_id in comment_ids
+        }
+
+    def list_mention_candidates(self, task_id: str) -> list[SimpleNamespace]:
+        if task_id != "task-1":
+            return []
+        return [
+            SimpleNamespace(handle="planner", label="@planner  Alex Taylor  Planner"),
+            SimpleNamespace(handle="supervisor", label="@supervisor  Jordan Blake  Supervisor"),
+        ]
+
+    def list_available_documents(self, *, active_only: bool = True) -> list[SimpleNamespace]:
+        assert active_only is True
+        return [
+            SimpleNamespace(
+                id="doc-1",
+                document_code="PM-LINK-001",
+                title="Shared Method Statement",
+            ),
+            SimpleNamespace(
+                id="doc-2",
+                document_code="PM-LINK-002",
+                title="Commissioning Checklist",
+            ),
+        ]
+
+    def list_task_presence(self, task_id: str) -> list[SimpleNamespace]:
+        if task_id != "task-1":
+            return []
+        return [
+            SimpleNamespace(
+                task_id="task-1",
+                task_name="Cable Pull",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                username="planner",
+                display_name="Alex Taylor",
+                activity="reviewing",
+                last_seen_at=datetime(2026, 5, 1, 9, 35),
+                is_self=True,
+            )
+        ]
+
+    def post_comment(
+        self,
+        *,
+        task_id: str,
+        body: str,
+        attachments=(),
+        linked_document_ids=(),
+    ) -> SimpleNamespace:
+        self.posted_comments.append(
+            {
+                "task_id": task_id,
+                "body": body,
+                "attachments": tuple(attachments),
+                "linked_document_ids": tuple(linked_document_ids),
+            }
+        )
+        comment = SimpleNamespace(
+            id="comment-posted-1",
+            task_id=task_id,
+            author_username="alex",
+            body=body,
+            mentions=["planner"],
+            attachments=list(attachments),
+            created_at=datetime(2026, 5, 1, 10, 15),
+        )
+        self._comments.append(comment)
+        self._comment_documents[comment.id] = [
+            SimpleNamespace(
+                id="doc-2",
+                document_code="PM-LINK-002",
+                title="Commissioning Checklist",
+                document_type=SimpleNamespace(value="GENERAL"),
+                storage_kind=DocumentStorageKind.REFERENCE,
+                storage_uri="ticket-456",
+                file_name="",
+            )
+        ]
+        return comment
 
 
 class _FakeResourceService:

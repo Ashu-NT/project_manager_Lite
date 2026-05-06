@@ -6,6 +6,7 @@ RegisterEntryEditorDialog 1.0 RegisterEntryEditorDialog.qml
 ResourceEditorDialog 1.0 ResourceEditorDialog.qml
 TaskAssignmentEditorDialog 1.0 TaskAssignmentEditorDialog.qml
 TaskAssignmentHoursDialog 1.0 TaskAssignmentHoursDialog.qml
+TaskCollaborationComposerDialog 1.0 TaskCollaborationComposerDialog.qml
 TaskDependencyEditorDialog 1.0 TaskDependencyEditorDialog.qml
 TaskEditorDialog 1.0 TaskEditorDialog.qml
 TaskProgressDialog 1.0 TaskProgressDialog.qml

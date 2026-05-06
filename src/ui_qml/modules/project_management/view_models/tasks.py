@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.ui_qml.modules.project_management.view_models.collaboration import (
+    CollaborationCollectionViewModel,
+)
+
 
 @dataclass(frozen=True)
 class TaskCatalogMetricViewModel:
@@ -84,6 +88,26 @@ class TaskCatalogWorkspaceViewModel:
     )
     dependencies: TaskExecutionCollectionViewModel = field(
         default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
+    collaboration_mention_options: tuple[TaskSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    collaboration_document_options: tuple[TaskSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    collaboration_comments: CollaborationCollectionViewModel = field(
+        default_factory=lambda: CollaborationCollectionViewModel(
+            title="",
+            subtitle="",
+            empty_state="",
+        )
+    )
+    collaboration_presence: CollaborationCollectionViewModel = field(
+        default_factory=lambda: CollaborationCollectionViewModel(
+            title="",
+            subtitle="",
+            empty_state="",
+        )
     )
     empty_state: str = ""
 

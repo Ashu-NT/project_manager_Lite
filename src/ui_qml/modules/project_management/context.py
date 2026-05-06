@@ -152,7 +152,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
         )
         self._tasks_workspace = ProjectManagementTasksWorkspaceController(
             tasks_workspace_presenter=ProjectTasksWorkspacePresenter(
-                desktop_api=tasks_api
+                desktop_api=tasks_api,
+                collaboration_desktop_api=collaboration_api,
             ),
             parent=self,
         )

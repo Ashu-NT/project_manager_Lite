@@ -4,7 +4,9 @@ from datetime import date
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    ProjectManagementCollaborationDesktopApi,
     ProjectManagementTasksDesktopApi,
+    TaskCollaborationPostCommand,
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
@@ -12,7 +14,12 @@ from src.core.modules.project_management.api.desktop import (
     TaskDependencyCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
+    build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
+)
+from src.ui_qml.modules.project_management.view_models.collaboration import (
+    CollaborationCollectionViewModel,
+    CollaborationRecordViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogMetricViewModel,
@@ -31,8 +38,13 @@ class ProjectTasksWorkspacePresenter:
         self,
         *,
         desktop_api: ProjectManagementTasksDesktopApi | None = None,
+        collaboration_desktop_api: ProjectManagementCollaborationDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_tasks_desktop_api()
+        self._collaboration_desktop_api = (
+            collaboration_desktop_api
+            or build_project_management_collaboration_desktop_api()
+        )
 
     def build_workspace_state(
         self,
@@ -98,6 +110,11 @@ class ProjectTasksWorkspacePresenter:
             if resolved_task_id
             else ()
         )
+        collaboration_snapshot = (
+            self._collaboration_desktop_api.build_task_snapshot(resolved_task_id)
+            if resolved_task_id
+            else None
+        )
 
         return TaskCatalogWorkspaceViewModel(
             overview=self._build_overview(
@@ -131,6 +148,30 @@ class ProjectTasksWorkspacePresenter:
                 selected_task=selected_task,
                 all_tasks=all_tasks,
                 dependencies=dependencies,
+            ),
+            collaboration_mention_options=tuple(
+                TaskSelectorOptionViewModel(value=option.value, label=option.label)
+                for option in (
+                    collaboration_snapshot.mention_options
+                    if collaboration_snapshot is not None
+                    else ()
+                )
+            ),
+            collaboration_document_options=tuple(
+                TaskSelectorOptionViewModel(value=option.value, label=option.label)
+                for option in (
+                    collaboration_snapshot.document_options
+                    if collaboration_snapshot is not None
+                    else ()
+                )
+            ),
+            collaboration_comments=self._build_collaboration_comments_collection(
+                selected_task=selected_task,
+                snapshot=collaboration_snapshot,
+            ),
+            collaboration_presence=self._build_collaboration_presence_collection(
+                selected_task=selected_task,
+                snapshot=collaboration_snapshot,
             ),
             empty_state=self._build_empty_state(
                 project_options=project_options,
@@ -274,6 +315,31 @@ class ProjectTasksWorkspacePresenter:
         if not normalized_dependency_id:
             raise ValueError("Dependency ID is required to remove a dependency.")
         self._desktop_api.delete_dependency(normalized_dependency_id)
+
+    def post_task_comment(self, payload: dict[str, Any]) -> None:
+        command = TaskCollaborationPostCommand(
+            task_id=self._require_text(
+                payload,
+                "taskId",
+                "Select a task before posting a collaboration update.",
+            ),
+            body=self._require_text(
+                payload,
+                "body",
+                "Comment text is required.",
+            ),
+            attachments=tuple(self._coerce_string_list(payload.get("attachments"))),
+            linked_document_ids=tuple(
+                self._coerce_string_list(payload.get("linkedDocumentIds"))
+            ),
+        )
+        self._collaboration_desktop_api.post_task_comment(command)
+
+    def mark_task_collaboration_read(self, task_id: str) -> None:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            raise ValueError("Select a task before marking collaboration updates as read.")
+        self._collaboration_desktop_api.mark_task_mentions_read(normalized_task_id)
 
     @staticmethod
     def _build_overview(*, all_tasks, filtered_tasks) -> TaskCatalogOverviewViewModel:
@@ -464,6 +530,62 @@ class ProjectTasksWorkspacePresenter:
             empty_state=empty_state,
         )
 
+    def _build_collaboration_comments_collection(
+        self,
+        *,
+        selected_task,
+        snapshot,
+    ) -> CollaborationCollectionViewModel:
+        if selected_task is None:
+            return CollaborationCollectionViewModel(
+                title="Task Collaboration",
+                subtitle="Comments, mentions, attachments, and linked shared documents for the selected task.",
+                empty_state="Select a task to review collaboration updates and post comments.",
+            )
+        if snapshot is None or not snapshot.comments:
+            return CollaborationCollectionViewModel(
+                title="Task Collaboration",
+                subtitle="Comments, mentions, attachments, and linked shared documents for the selected task.",
+                empty_state="No collaboration updates are linked to the selected task yet.",
+            )
+        return CollaborationCollectionViewModel(
+            title="Task Collaboration",
+            subtitle="Comments, mentions, attachments, and linked shared documents for the selected task.",
+            items=tuple(
+                self._to_collaboration_comment_record_view_model(comment)
+                for comment in snapshot.comments
+            ),
+            empty_state="",
+        )
+
+    def _build_collaboration_presence_collection(
+        self,
+        *,
+        selected_task,
+        snapshot,
+    ) -> CollaborationCollectionViewModel:
+        if selected_task is None:
+            return CollaborationCollectionViewModel(
+                title="Active Presence",
+                subtitle="People currently reviewing or updating the selected task.",
+                empty_state="Select a task to review active collaboration presence.",
+            )
+        if snapshot is None or not snapshot.active_presence:
+            return CollaborationCollectionViewModel(
+                title="Active Presence",
+                subtitle="People currently reviewing or updating the selected task.",
+                empty_state="No active collaborators are visible for the selected task right now.",
+            )
+        return CollaborationCollectionViewModel(
+            title="Active Presence",
+            subtitle="People currently reviewing or updating the selected task.",
+            items=tuple(
+                self._to_collaboration_presence_record_view_model(item)
+                for item in snapshot.active_presence
+            ),
+            empty_state="",
+        )
+
     def _to_task_record_view_model(self, task) -> TaskRecordViewModel:
         state = self._build_task_state(task)
         return TaskRecordViewModel(
@@ -532,6 +654,55 @@ class ProjectTasksWorkspacePresenter:
             can_primary_action=False,
             can_secondary_action=False,
             state=state,
+        )
+
+    @staticmethod
+    def _to_collaboration_comment_record_view_model(
+        comment,
+    ) -> CollaborationRecordViewModel:
+        meta_parts = [comment.created_at_label]
+        if comment.mentions:
+            meta_parts.append(f"Mentions: {comment.mentions_label}")
+        if comment.linked_documents:
+            meta_parts.append(f"Linked: {comment.linked_documents_label}")
+        elif comment.attachments:
+            meta_parts.append(f"Attachments: {comment.attachments_label}")
+        return CollaborationRecordViewModel(
+            id=comment.comment_id,
+            title=f"@{comment.author_username}",
+            status_label="Mentions" if comment.mentions else "Comment",
+            subtitle=comment.body,
+            supporting_text=(
+                f"Attachments: {comment.attachments_label}"
+                if comment.attachments
+                else "No attachment references recorded."
+            ),
+            meta_text=" | ".join(part for part in meta_parts if part),
+            state={
+                "taskId": comment.task_id,
+                "commentId": comment.comment_id,
+                "mentions": list(comment.mentions),
+                "attachments": list(comment.attachments),
+                "linkedDocuments": list(comment.linked_documents),
+            },
+        )
+
+    @staticmethod
+    def _to_collaboration_presence_record_view_model(
+        presence,
+    ) -> CollaborationRecordViewModel:
+        return CollaborationRecordViewModel(
+            id=f"{presence.task_id}:{presence.username}",
+            title=presence.who_label,
+            status_label=presence.activity_label,
+            subtitle=f"Last seen {presence.last_seen_at_label}",
+            supporting_text="You are included in this presence view." if presence.is_self else "",
+            meta_text=f"@{presence.username}" if presence.username else "",
+            state={
+                "taskId": presence.task_id,
+                "username": presence.username,
+                "isSelf": presence.is_self,
+            },
         )
 
     def _build_task_state(self, task) -> dict[str, object]:
@@ -678,6 +849,20 @@ class ProjectTasksWorkspacePresenter:
                 f"{key.replace('_', ' ').replace('Days', ' days').title()} "
                 "must be a whole number."
             ) from exc
+
+    @staticmethod
+    def _coerce_string_list(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, (list, tuple)):
+            result: list[str] = []
+            for item in value:
+                normalized = str(item or "").strip()
+                if normalized:
+                    result.append(normalized)
+            return result
+        normalized = str(value or "").strip()
+        return [normalized] if normalized else []
 
     @staticmethod
     def _optional_float(payload: dict[str, Any], key: str) -> float | None:

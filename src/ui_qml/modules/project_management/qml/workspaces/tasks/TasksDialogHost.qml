@@ -13,11 +13,14 @@ Item {
     property var assignmentOptions: []
     property var dependencyTaskOptions: []
     property var dependencyTypeOptions: []
+    property var collaborationMentionOptions: []
+    property var collaborationDocumentOptions: []
     property var editTarget: ({})
     property var progressTarget: ({})
     property var deleteTarget: ({})
     property var assignmentTarget: ({})
     property var dependencyTarget: ({})
+    property var collaborationTarget: ({})
 
     signal createRequested(var payload)
     signal updateRequested(var payload)
@@ -29,6 +32,7 @@ Item {
     signal deleteAssignmentRequested(string assignmentId)
     signal createDependencyRequested(var payload)
     signal deleteDependencyRequested(string dependencyId)
+    signal postTaskCommentRequested(var payload)
 
     function openCreateDialog() {
         root.editTarget = {
@@ -97,6 +101,12 @@ Item {
         deleteDependencyDialog.open()
     }
 
+    function openTaskCollaborationDialog(taskData) {
+        root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.open()
+    }
+
     ProjectManagementDialogs.TaskEditorDialog {
         id: editorDialog
 
@@ -162,6 +172,18 @@ Item {
         onSubmitted: function(payload) {
             root.createDependencyRequested(payload)
             dependencyEditorDialog.close()
+        }
+    }
+
+    ProjectManagementDialogs.TaskCollaborationComposerDialog {
+        id: collaborationComposerDialog
+
+        mentionOptions: root.collaborationMentionOptions
+        documentOptions: root.collaborationDocumentOptions
+
+        onSubmitted: function(payload) {
+            root.postTaskCommentRequested(payload)
+            collaborationComposerDialog.close()
         }
     }
 

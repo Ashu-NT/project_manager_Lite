@@ -15,6 +15,7 @@ def test_pm_tasks_workspace_queues_domain_refresh_while_busy(monkeypatch) -> Non
 
     controller._set_is_busy(True)
     domain_events.tasks_changed.emit("proj-1")
+    domain_events.collaboration_changed.emit("task-1")
 
     assert refresh_calls == []
 
@@ -141,7 +142,7 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
         ),
         "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": (
             "self._bind_domain_events()",
-            '_subscribe_domain_change(',
+            "task_collaboration",
         ),
         "src/ui_qml/modules/project_management/controllers/resources/resources_workspace_controller.py": (
             "self._bind_domain_events()",

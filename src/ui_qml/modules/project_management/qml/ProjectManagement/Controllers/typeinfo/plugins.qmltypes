@@ -195,6 +195,10 @@ Module {
         Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
         Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "collaborationMentionOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "collaborationDocumentOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "collaborationComments"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "collaborationPresence"; type: "QVariantMap"; isReadonly: true }
         Method { name: "refresh" }
         Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
         Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
@@ -210,6 +214,8 @@ Module {
         Method { name: "deleteAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
         Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
+        Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
     }
 
     Component {

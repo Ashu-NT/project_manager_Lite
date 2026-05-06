@@ -63,6 +63,22 @@ AppLayouts.WorkspaceFrame {
             "emptyState": "Select a task to review predecessor and successor links.",
             "items": []
         })
+    readonly property var collaborationCommentsModel: root.workspaceController
+        ? root.workspaceController.collaborationComments
+        : ({
+            "title": "Task Collaboration",
+            "subtitle": "Comments, mentions, attachments, and linked shared documents for the selected task.",
+            "emptyState": "Select a task to review collaboration updates and post comments.",
+            "items": []
+        })
+    readonly property var collaborationPresenceModel: root.workspaceController
+        ? root.workspaceController.collaborationPresence
+        : ({
+            "title": "Active Presence",
+            "subtitle": "People currently reviewing or updating the selected task.",
+            "emptyState": "Select a task to review active collaboration presence.",
+            "items": []
+        })
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
@@ -76,6 +92,8 @@ AppLayouts.WorkspaceFrame {
         assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
         dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
         dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
+        collaborationMentionOptions: root.workspaceController ? (root.workspaceController.collaborationMentionOptions || []) : []
+        collaborationDocumentOptions: root.workspaceController ? (root.workspaceController.collaborationDocumentOptions || []) : []
 
         onCreateRequested: function(payload) {
             if (root.workspaceController !== null) {
@@ -136,6 +154,12 @@ AppLayouts.WorkspaceFrame {
                 root.workspaceController.deleteDependency(dependencyId)
             }
         }
+
+        onPostTaskCommentRequested: function(payload) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.postTaskComment(payload)
+            }
+        }
     }
 
     Flickable {
@@ -166,11 +190,11 @@ AppLayouts.WorkspaceFrame {
             ProjectManagementWidgets.WorkspaceStatusSection {
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
-                    ? "QML task execution slice active"
+                    ? "QML task execution and collaboration slice active"
                     : (root.workspaceModel.migrationStatus || "")
                 legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
                 architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Task catalog, progress updates, assignment management, and dependency flows now run through a typed PM controller backed by the task desktop API."
+                architectureSummary: "Task catalog, progress updates, assignment management, dependency flows, and task-level collaboration now run through typed PM controllers backed by the task and collaboration desktop APIs."
             }
 
             TasksFiltersSection {
@@ -308,6 +332,31 @@ AppLayouts.WorkspaceFrame {
                     }
                     onDeleteRequested: function(dependencyData) {
                         dialogHost.openDeleteDependencyDialog(dependencyData)
+                    }
+                }
+            }
+
+            TasksCollaborationSection {
+                Layout.fillWidth: true
+                commentsModel: root.collaborationCommentsModel
+                presenceModel: root.collaborationPresenceModel
+                selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                canCompose: !!(root.selectedTaskModel && root.selectedTaskModel.id)
+
+                onComposeRequested: function() {
+                    dialogHost.openTaskCollaborationDialog(root.selectedTaskModel)
+                }
+
+                onMarkReadRequested: function(taskId) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.markTaskCollaborationRead(taskId)
+                    }
+                }
+
+                onRefreshRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.refresh()
                     }
                 }
             }

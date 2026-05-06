@@ -117,6 +117,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_DIALOGS / "ResourceEditorDialog.qml",
         QML_PM_DIALOGS / "TaskAssignmentEditorDialog.qml",
         QML_PM_DIALOGS / "TaskAssignmentHoursDialog.qml",
+        QML_PM_DIALOGS / "TaskCollaborationComposerDialog.qml",
         QML_PM_DIALOGS / "TaskDependencyEditorDialog.qml",
         QML_PM_DIALOGS / "TaskEditorDialog.qml",
         QML_PM_DIALOGS / "TaskProgressDialog.qml",

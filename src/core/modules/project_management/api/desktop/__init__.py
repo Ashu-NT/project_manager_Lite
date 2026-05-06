@@ -6,6 +6,11 @@ from src.core.modules.project_management.api.desktop.collaboration import (
     CollaborationPresenceDesktopDto,
     CollaborationWorkspaceSnapshotDto,
     ProjectManagementCollaborationDesktopApi,
+    TaskCollaborationCommentDesktopDto,
+    TaskCollaborationDocumentOptionDescriptor,
+    TaskCollaborationMentionOptionDescriptor,
+    TaskCollaborationPostCommand,
+    TaskCollaborationSnapshotDto,
     build_project_management_collaboration_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.dashboard import (
@@ -144,6 +149,11 @@ __all__ = [
     "CollaborationPresenceDesktopDto",
     "CollaborationWorkspaceSnapshotDto",
     "ProjectManagementCollaborationDesktopApi",
+    "TaskCollaborationCommentDesktopDto",
+    "TaskCollaborationDocumentOptionDescriptor",
+    "TaskCollaborationMentionOptionDescriptor",
+    "TaskCollaborationPostCommand",
+    "TaskCollaborationSnapshotDto",
     "ProjectDashboardChartDescriptor",
     "ProjectDashboardChartPointDescriptor",
     "ProjectDashboardMetricDescriptor",
