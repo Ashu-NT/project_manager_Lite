@@ -7,6 +7,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
     serialize_selector_options,
     serialize_task_catalog_overview_view_model,
+    serialize_task_collection_view_model,
     serialize_task_detail_view_model,
     serialize_task_record_view_models,
     serialize_workspace_view_model,
@@ -29,6 +30,11 @@ class ProjectManagementTasksWorkspaceController(
     tasksChanged = Signal()
     selectedTaskChanged = Signal()
     selectedTaskIdChanged = Signal()
+    assignmentOptionsChanged = Signal()
+    dependencyTaskOptionsChanged = Signal()
+    dependencyTypeOptionsChanged = Signal()
+    assignmentsChanged = Signal()
+    dependenciesChanged = Signal()
 
     def __init__(
         self,
@@ -44,7 +50,11 @@ class ProjectManagementTasksWorkspaceController(
         self._tasks_workspace_presenter = (
             tasks_workspace_presenter or ProjectTasksWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {"title": "", "subtitle": "", "metrics": []}
+        self._overview: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "metrics": [],
+        }
         self._project_options: list[dict[str, str]] = []
         self._selected_project_id = ""
         self._status_options: list[dict[str, str]] = []
@@ -67,6 +77,21 @@ class ProjectManagementTasksWorkspaceController(
             "state": {},
         }
         self._selected_task_id = ""
+        self._assignment_options: list[dict[str, str]] = []
+        self._dependency_task_options: list[dict[str, str]] = []
+        self._dependency_type_options: list[dict[str, str]] = []
+        self._assignments: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
+        }
+        self._dependencies: dict[str, object] = {
+            "title": "",
+            "subtitle": "",
+            "emptyState": "",
+            "items": [],
+        }
         self._bind_domain_events()
         self.refresh()
 
@@ -106,6 +131,26 @@ class ProjectManagementTasksWorkspaceController(
     def selectedTaskId(self) -> str:
         return self._selected_task_id
 
+    @Property("QVariantList", notify=assignmentOptionsChanged)
+    def assignmentOptions(self) -> list[dict[str, str]]:
+        return self._assignment_options
+
+    @Property("QVariantList", notify=dependencyTaskOptionsChanged)
+    def dependencyTaskOptions(self) -> list[dict[str, str]]:
+        return self._dependency_task_options
+
+    @Property("QVariantList", notify=dependencyTypeOptionsChanged)
+    def dependencyTypeOptions(self) -> list[dict[str, str]]:
+        return self._dependency_type_options
+
+    @Property("QVariantMap", notify=assignmentsChanged)
+    def assignments(self) -> dict[str, object]:
+        return self._assignments
+
+    @Property("QVariantMap", notify=dependenciesChanged)
+    def dependencies(self) -> dict[str, object]:
+        return self._dependencies
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -124,7 +169,9 @@ class ProjectManagementTasksWorkspaceController(
                 selected_task_id=self._selected_task_id or None,
             )
             self._set_overview(
-                serialize_task_catalog_overview_view_model(workspace_state.overview)
+                serialize_task_catalog_overview_view_model(
+                    workspace_state.overview
+                )
             )
             self._set_project_options(
                 serialize_selector_options(workspace_state.project_options)
@@ -133,19 +180,47 @@ class ProjectManagementTasksWorkspaceController(
             self._set_status_options(
                 serialize_selector_options(workspace_state.status_options)
             )
-            self._set_selected_status_filter(workspace_state.selected_status_filter)
+            self._set_selected_status_filter(
+                workspace_state.selected_status_filter
+            )
             self._set_search_text(workspace_state.search_text)
             self._set_tasks(
                 {
                     "title": "Task Catalog",
-                    "subtitle": "Edit delivery tasks, progress, and execution priorities.",
+                    "subtitle": (
+                        "Edit delivery tasks, progress, and execution "
+                        "priorities."
+                    ),
                     "emptyState": workspace_state.empty_state,
-                    "items": serialize_task_record_view_models(workspace_state.tasks),
+                    "items": serialize_task_record_view_models(
+                        workspace_state.tasks
+                    ),
                 }
             )
             self._set_selected_task_id(workspace_state.selected_task_id)
             self._set_selected_task(
-                serialize_task_detail_view_model(workspace_state.selected_task_detail)
+                serialize_task_detail_view_model(
+                    workspace_state.selected_task_detail
+                )
+            )
+            self._set_assignment_options(
+                serialize_selector_options(workspace_state.assignment_options)
+            )
+            self._set_dependency_task_options(
+                serialize_selector_options(
+                    workspace_state.dependency_task_options
+                )
+            )
+            self._set_dependency_type_options(
+                serialize_selector_options(
+                    workspace_state.dependency_type_options
+                )
+            )
+            self._set_assignments(
+                serialize_task_collection_view_model(workspace_state.assignments)
+            )
+            self._set_dependencies(
+                serialize_task_collection_view_model(workspace_state.dependencies)
             )
             self._set_empty_state(workspace_state.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
@@ -189,7 +264,9 @@ class ProjectManagementTasksWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def createTask(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.create_task(dict(payload)),
+            operation=lambda: self._tasks_workspace_presenter.create_task(
+                dict(payload)
+            ),
             success_message="Task created.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
@@ -200,7 +277,9 @@ class ProjectManagementTasksWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def updateTask(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.update_task(dict(payload)),
+            operation=lambda: self._tasks_workspace_presenter.update_task(
+                dict(payload)
+            ),
             success_message="Task updated.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
@@ -211,7 +290,9 @@ class ProjectManagementTasksWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def updateProgress(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.update_progress(dict(payload)),
+            operation=lambda: self._tasks_workspace_presenter.update_progress(
+                dict(payload)
+            ),
             success_message="Task progress updated.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
@@ -224,6 +305,87 @@ class ProjectManagementTasksWorkspaceController(
         return run_mutation(
             operation=lambda: self._tasks_workspace_presenter.delete_task(task_id),
             success_message="Task deleted.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.create_assignment(
+                dict(payload)
+            ),
+            success_message="Assignment created.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateAssignmentAllocation(
+        self,
+        payload: dict[str, object],
+    ) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.update_assignment_allocation(
+                dict(payload)
+            ),
+            success_message="Assignment allocation updated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def setAssignmentHours(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.set_assignment_hours(
+                dict(payload)
+            ),
+            success_message="Assignment effort updated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deleteAssignment(self, assignment_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.delete_assignment(
+                assignment_id
+            ),
+            success_message="Assignment removed.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def createDependency(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.create_dependency(
+                dict(payload)
+            ),
+            success_message="Dependency created.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot(str, result="QVariantMap")
+    def deleteDependency(self, dependency_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.delete_dependency(
+                dependency_id
+            ),
+            success_message="Dependency removed.",
             on_success=self.refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
@@ -291,6 +453,45 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._selected_task_id = selected_task_id
         self.selectedTaskIdChanged.emit()
+
+    def _set_assignment_options(
+        self,
+        assignment_options: list[dict[str, str]],
+    ) -> None:
+        if assignment_options == self._assignment_options:
+            return
+        self._assignment_options = assignment_options
+        self.assignmentOptionsChanged.emit()
+
+    def _set_dependency_task_options(
+        self,
+        dependency_task_options: list[dict[str, str]],
+    ) -> None:
+        if dependency_task_options == self._dependency_task_options:
+            return
+        self._dependency_task_options = dependency_task_options
+        self.dependencyTaskOptionsChanged.emit()
+
+    def _set_dependency_type_options(
+        self,
+        dependency_type_options: list[dict[str, str]],
+    ) -> None:
+        if dependency_type_options == self._dependency_type_options:
+            return
+        self._dependency_type_options = dependency_type_options
+        self.dependencyTypeOptionsChanged.emit()
+
+    def _set_assignments(self, assignments: dict[str, object]) -> None:
+        if assignments == self._assignments:
+            return
+        self._assignments = assignments
+        self.assignmentsChanged.emit()
+
+    def _set_dependencies(self, dependencies: dict[str, object]) -> None:
+        if dependencies == self._dependencies:
+            return
+        self._dependencies = dependencies
+        self.dependenciesChanged.emit()
 
 
 __all__ = ["ProjectManagementTasksWorkspaceController"]

@@ -4,8 +4,12 @@ from dataclasses import dataclass
 from datetime import date
 
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.resources import (
+    ProjectResourceService,
+    ResourceService,
+)
 from src.core.modules.project_management.application.tasks import TaskService
-from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 
 
 @dataclass(frozen=True)
@@ -16,6 +20,18 @@ class TaskProjectOptionDescriptor:
 
 @dataclass(frozen=True)
 class TaskStatusDescriptor:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class TaskProjectResourceOptionDescriptor:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class TaskDependencyTypeDescriptor:
     value: str
     label: str
 
@@ -75,15 +91,71 @@ class TaskProgressCommand:
     expected_version: int | None = None
 
 
+@dataclass(frozen=True)
+class TaskAssignmentDesktopDto:
+    id: str
+    task_id: str
+    resource_id: str
+    resource_name: str
+    allocation_percent: float
+    hours_logged: float
+    project_resource_id: str | None
+
+
+@dataclass(frozen=True)
+class TaskAssignmentCreateCommand:
+    task_id: str
+    project_resource_id: str
+    allocation_percent: float = 100.0
+
+
+@dataclass(frozen=True)
+class TaskAssignmentAllocationCommand:
+    assignment_id: str
+    allocation_percent: float
+
+
+@dataclass(frozen=True)
+class TaskAssignmentHoursCommand:
+    assignment_id: str
+    hours_logged: float
+
+
+@dataclass(frozen=True)
+class TaskDependencyDesktopDto:
+    id: str
+    direction: str
+    direction_label: str
+    linked_task_id: str
+    linked_task_name: str
+    dependency_type: str
+    dependency_type_label: str
+    lag_days: int
+    relationship_label: str
+
+
+@dataclass(frozen=True)
+class TaskDependencyCreateCommand:
+    task_id: str
+    linked_task_id: str
+    relationship_direction: str
+    dependency_type: str = DependencyType.FINISH_TO_START.value
+    lag_days: int = 0
+
+
 class ProjectManagementTasksDesktopApi:
     def __init__(
         self,
         *,
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
+        project_resource_service: ProjectResourceService | None = None,
+        resource_service: ResourceService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
+        self._project_resource_service = project_resource_service
+        self._resource_service = resource_service
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         if self._project_service is None:
@@ -104,6 +176,71 @@ class ProjectManagementTasksDesktopApi:
                 label=status.value.replace("_", " ").title(),
             )
             for status in TaskStatus
+        )
+
+    def list_project_resources(
+        self,
+        project_id: str,
+    ) -> tuple[TaskProjectResourceOptionDescriptor, ...]:
+        if (
+            not project_id
+            or self._project_resource_service is None
+            or self._resource_service is None
+        ):
+            return ()
+        list_by_project = getattr(self._project_resource_service, "list_by_project", None)
+        list_resources = getattr(self._resource_service, "list_resources", None)
+        if not callable(list_by_project) or not callable(list_resources):
+            return ()
+        resources_by_id = {
+            resource.id: resource
+            for resource in list_resources()
+        }
+        options: list[TaskProjectResourceOptionDescriptor] = []
+        for project_resource in list_by_project(project_id):
+            resource = resources_by_id.get(project_resource.resource_id)
+            if resource is None:
+                continue
+            if not getattr(project_resource, "is_active", True) or not getattr(
+                resource,
+                "is_active",
+                True,
+            ):
+                continue
+            rate = (
+                getattr(project_resource, "hourly_rate", None)
+                if getattr(project_resource, "hourly_rate", None) is not None
+                else getattr(resource, "hourly_rate", None)
+            )
+            currency = (
+                getattr(project_resource, "currency_code", None)
+                or getattr(resource, "currency_code", None)
+                or ""
+            ).upper()
+            label = str(getattr(resource, "name", "") or project_resource.resource_id)
+            if rate is not None:
+                rate_label = f"{float(rate):.2f}"
+                if currency:
+                    label += f" ({rate_label} {currency}/hr)"
+                else:
+                    label += f" ({rate_label}/hr)"
+            options.append(
+                TaskProjectResourceOptionDescriptor(
+                    value=project_resource.id,
+                    label=label,
+                )
+            )
+        return tuple(
+            sorted(options, key=lambda option: option.label.casefold())
+        )
+
+    def list_dependency_types(self) -> tuple[TaskDependencyTypeDescriptor, ...]:
+        return tuple(
+            TaskDependencyTypeDescriptor(
+                value=dependency_type.value,
+                label=_dependency_type_label(dependency_type),
+            )
+            for dependency_type in DependencyType
         )
 
     def list_tasks(self, project_id: str) -> tuple[TaskDesktopDto, ...]:
@@ -185,6 +322,154 @@ class ProjectManagementTasksDesktopApi:
             project_name=self._project_name_by_id().get(task.project_id, ""),
         )
 
+    def list_assignments(self, task_id: str) -> tuple[TaskAssignmentDesktopDto, ...]:
+        if not task_id:
+            return ()
+        service = self._require_task_service()
+        list_assignments_for_task = getattr(service, "list_assignments_for_task", None)
+        if not callable(list_assignments_for_task):
+            return ()
+        resources_by_id = self._resource_by_id()
+        assignments = sorted(
+            list_assignments_for_task(task_id),
+            key=lambda assignment: (
+                self._resource_name_for_assignment(
+                    assignment,
+                    resources_by_id=resources_by_id,
+                ).casefold(),
+                -float(getattr(assignment, "allocation_percent", 0.0) or 0.0),
+            ),
+        )
+        return tuple(
+            self._serialize_assignment(
+                assignment,
+                resources_by_id=resources_by_id,
+            )
+            for assignment in assignments
+        )
+
+    def create_assignment(
+        self,
+        command: TaskAssignmentCreateCommand,
+    ) -> TaskAssignmentDesktopDto:
+        assignment = self._require_task_method("assign_project_resource")(
+            task_id=command.task_id,
+            project_resource_id=command.project_resource_id,
+            allocation_percent=command.allocation_percent,
+        )
+        return self._serialize_assignment(
+            assignment,
+            resources_by_id=self._resource_by_id(),
+        )
+
+    def update_assignment_allocation(
+        self,
+        command: TaskAssignmentAllocationCommand,
+    ) -> TaskAssignmentDesktopDto:
+        assignment = self._require_task_method("set_assignment_allocation")(
+            assignment_id=command.assignment_id,
+            allocation_percent=command.allocation_percent,
+        )
+        return self._serialize_assignment(
+            assignment,
+            resources_by_id=self._resource_by_id(),
+        )
+
+    def set_assignment_hours(
+        self,
+        command: TaskAssignmentHoursCommand,
+    ) -> TaskAssignmentDesktopDto:
+        assignment = self._require_task_method("set_assignment_hours")(
+            assignment_id=command.assignment_id,
+            hours_logged=command.hours_logged,
+        )
+        return self._serialize_assignment(
+            assignment,
+            resources_by_id=self._resource_by_id(),
+        )
+
+    def delete_assignment(self, assignment_id: str) -> None:
+        self._require_task_method("unassign_resource")(assignment_id)
+
+    def list_dependencies(self, task_id: str) -> tuple[TaskDependencyDesktopDto, ...]:
+        if not task_id:
+            return ()
+        service = self._require_task_service()
+        list_dependencies_for_task = getattr(service, "list_dependencies_for_task", None)
+        get_task = getattr(service, "get_task", None)
+        list_tasks_for_project = getattr(service, "list_tasks_for_project", None)
+        if (
+            not callable(list_dependencies_for_task)
+            or not callable(get_task)
+            or not callable(list_tasks_for_project)
+        ):
+            return ()
+        current_task = get_task(task_id)
+        if current_task is None:
+            return ()
+        tasks_by_id = {
+            task.id: task
+            for task in list_tasks_for_project(current_task.project_id)
+        }
+        rows = [
+            self._serialize_dependency(
+                dependency,
+                current_task_id=current_task.id,
+                tasks_by_id=tasks_by_id,
+            )
+            for dependency in list_dependencies_for_task(task_id)
+            if _dependency_direction(current_task.id, dependency)[0]
+        ]
+        return tuple(
+            sorted(
+                rows,
+                key=lambda row: (
+                    row.direction != "PREDECESSOR",
+                    row.linked_task_name.casefold(),
+                ),
+            )
+        )
+
+    def create_dependency(
+        self,
+        command: TaskDependencyCreateCommand,
+    ) -> TaskDependencyDesktopDto:
+        relationship_direction = _coerce_dependency_direction(
+            command.relationship_direction
+        )
+        predecessor_id = (
+            command.linked_task_id
+            if relationship_direction == "PREDECESSOR"
+            else command.task_id
+        )
+        successor_id = (
+            command.task_id
+            if relationship_direction == "PREDECESSOR"
+            else command.linked_task_id
+        )
+        dependency = self._require_task_method("add_dependency")(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=_coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
+        )
+        current_task = self._require_task_method("get_task")(command.task_id)
+        tasks_by_id: dict[str, object] = {}
+        list_tasks_for_project = getattr(self._task_service, "list_tasks_for_project", None)
+        if current_task is not None and callable(list_tasks_for_project):
+            tasks_by_id = {
+                task.id: task
+                for task in list_tasks_for_project(current_task.project_id)
+            }
+        return self._serialize_dependency(
+            dependency,
+            current_task_id=command.task_id,
+            tasks_by_id=tasks_by_id,
+        )
+
+    def delete_dependency(self, dependency_id: str) -> None:
+        self._require_task_method("remove_dependency")(dependency_id)
+
     def delete_task(self, task_id: str) -> None:
         self._require_task_service().delete_task(task_id)
 
@@ -193,6 +478,15 @@ class ProjectManagementTasksDesktopApi:
             raise RuntimeError("Project management tasks desktop API is not connected.")
         return self._task_service
 
+    def _require_task_method(self, method_name: str):
+        service = self._require_task_service()
+        method = getattr(service, method_name, None)
+        if not callable(method):
+            raise RuntimeError(
+                f"Project management tasks desktop API does not support {method_name}."
+            )
+        return method
+
     def _project_name_by_id(self) -> dict[str, str]:
         if self._project_service is None:
             return {}
@@ -200,6 +494,24 @@ class ProjectManagementTasksDesktopApi:
             project.id: project.name
             for project in self._project_service.list_projects()
         }
+
+    def _resource_by_id(self) -> dict[str, object]:
+        if self._resource_service is None:
+            return {}
+        list_resources = getattr(self._resource_service, "list_resources", None)
+        if not callable(list_resources):
+            return {}
+        return {
+            resource.id: resource
+            for resource in list_resources()
+        }
+
+    @staticmethod
+    def _resource_name_for_assignment(assignment, *, resources_by_id: dict[str, object]) -> str:
+        resource = resources_by_id.get(assignment.resource_id)
+        return str(
+            getattr(resource, "name", "") or getattr(assignment, "resource_id", "")
+        )
 
     @staticmethod
     def _serialize_task(task, *, project_name: str) -> TaskDesktopDto:
@@ -222,15 +534,70 @@ class ProjectManagementTasksDesktopApi:
             version=task.version,
         )
 
+    @classmethod
+    def _serialize_assignment(
+        cls,
+        assignment,
+        *,
+        resources_by_id: dict[str, object],
+    ) -> TaskAssignmentDesktopDto:
+        return TaskAssignmentDesktopDto(
+            id=assignment.id,
+            task_id=assignment.task_id,
+            resource_id=assignment.resource_id,
+            resource_name=cls._resource_name_for_assignment(
+                assignment,
+                resources_by_id=resources_by_id,
+            ),
+            allocation_percent=float(getattr(assignment, "allocation_percent", 0.0) or 0.0),
+            hours_logged=float(getattr(assignment, "hours_logged", 0.0) or 0.0),
+            project_resource_id=getattr(assignment, "project_resource_id", None),
+        )
+
+    @staticmethod
+    def _serialize_dependency(
+        dependency,
+        *,
+        current_task_id: str,
+        tasks_by_id: dict[str, object],
+    ) -> TaskDependencyDesktopDto:
+        direction, linked_task_id = _dependency_direction(current_task_id, dependency)
+        predecessor = tasks_by_id.get(dependency.predecessor_task_id)
+        successor = tasks_by_id.get(dependency.successor_task_id)
+        predecessor_name = str(
+            getattr(predecessor, "name", "") or dependency.predecessor_task_id
+        )
+        successor_name = str(
+            getattr(successor, "name", "") or dependency.successor_task_id
+        )
+        linked_task_name = str(
+            getattr(tasks_by_id.get(linked_task_id), "name", "") or linked_task_id
+        )
+        return TaskDependencyDesktopDto(
+            id=dependency.id,
+            direction=direction,
+            direction_label="Predecessor" if direction == "PREDECESSOR" else "Successor",
+            linked_task_id=linked_task_id,
+            linked_task_name=linked_task_name,
+            dependency_type=dependency.dependency_type.value,
+            dependency_type_label=_dependency_type_label(dependency.dependency_type),
+            lag_days=int(getattr(dependency, "lag_days", 0) or 0),
+            relationship_label=f"{predecessor_name} -> {successor_name}",
+        )
+
 
 def build_project_management_tasks_desktop_api(
     *,
     project_service: ProjectService | None = None,
     task_service: TaskService | None = None,
+    project_resource_service: ProjectResourceService | None = None,
+    resource_service: ResourceService | None = None,
 ) -> ProjectManagementTasksDesktopApi:
     return ProjectManagementTasksDesktopApi(
         project_service=project_service,
         task_service=task_service,
+        project_resource_service=project_resource_service,
+        resource_service=resource_service,
     )
 
 
@@ -244,12 +611,60 @@ def _coerce_task_status(value: str | TaskStatus | None) -> TaskStatus:
         raise ValueError(f"Unsupported task status: {normalized_value}.") from exc
 
 
+def _coerce_dependency_type(
+    value: str | DependencyType | None,
+) -> DependencyType:
+    if isinstance(value, DependencyType):
+        return value
+    normalized_value = str(value or DependencyType.FINISH_TO_START.value).strip().upper()
+    try:
+        return DependencyType(normalized_value)
+    except ValueError as exc:
+        raise ValueError(f"Unsupported dependency type: {normalized_value}.") from exc
+
+
+def _coerce_dependency_direction(value: str | None) -> str:
+    normalized_value = str(value or "predecessor").strip().upper()
+    if normalized_value in {"PREDECESSOR", "CURRENT_DEPENDS_ON_OTHER"}:
+        return "PREDECESSOR"
+    if normalized_value in {"SUCCESSOR", "OTHER_DEPENDS_ON_CURRENT"}:
+        return "SUCCESSOR"
+    raise ValueError(f"Unsupported dependency direction: {normalized_value}.")
+
+
+def _dependency_direction(current_task_id: str, dependency) -> tuple[str, str]:
+    if current_task_id == dependency.successor_task_id:
+        return ("PREDECESSOR", dependency.predecessor_task_id)
+    if current_task_id == dependency.predecessor_task_id:
+        return ("SUCCESSOR", dependency.successor_task_id)
+    return ("", dependency.successor_task_id)
+
+
+def _dependency_type_label(value: DependencyType | str) -> str:
+    dependency_type = _coerce_dependency_type(value)
+    labels = {
+        DependencyType.FINISH_TO_START: "Finish -> Start",
+        DependencyType.FINISH_TO_FINISH: "Finish -> Finish",
+        DependencyType.START_TO_START: "Start -> Start",
+        DependencyType.START_TO_FINISH: "Start -> Finish",
+    }
+    return labels[dependency_type]
+
+
 __all__ = [
     "ProjectManagementTasksDesktopApi",
+    "TaskAssignmentAllocationCommand",
+    "TaskAssignmentCreateCommand",
+    "TaskAssignmentDesktopDto",
+    "TaskAssignmentHoursCommand",
     "TaskCreateCommand",
     "TaskDesktopDto",
+    "TaskDependencyCreateCommand",
+    "TaskDependencyDesktopDto",
+    "TaskDependencyTypeDescriptor",
     "TaskProgressCommand",
     "TaskProjectOptionDescriptor",
+    "TaskProjectResourceOptionDescriptor",
     "TaskStatusDescriptor",
     "TaskUpdateCommand",
     "build_project_management_tasks_desktop_api",

@@ -58,6 +58,14 @@ class TaskDetailViewModel:
 
 
 @dataclass(frozen=True)
+class TaskExecutionCollectionViewModel:
+    title: str
+    subtitle: str
+    empty_state: str = ""
+    items: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
 class TaskCatalogWorkspaceViewModel:
     overview: TaskCatalogOverviewViewModel
     project_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
@@ -68,6 +76,15 @@ class TaskCatalogWorkspaceViewModel:
     tasks: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
     selected_task_id: str = ""
     selected_task_detail: TaskDetailViewModel = field(default_factory=TaskDetailViewModel)
+    assignment_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    dependency_task_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    dependency_type_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    assignments: TaskExecutionCollectionViewModel = field(
+        default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
+    dependencies: TaskExecutionCollectionViewModel = field(
+        default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
     empty_state: str = ""
 
 
@@ -77,6 +94,7 @@ __all__ = [
     "TaskCatalogWorkspaceViewModel",
     "TaskDetailFieldViewModel",
     "TaskDetailViewModel",
+    "TaskExecutionCollectionViewModel",
     "TaskRecordViewModel",
     "TaskSelectorOptionViewModel",
 ]

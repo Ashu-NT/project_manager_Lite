@@ -47,6 +47,22 @@ AppLayouts.WorkspaceFrame {
             "fields": [],
             "state": {}
         })
+    readonly property var assignmentsModel: root.workspaceController
+        ? root.workspaceController.assignments
+        : ({
+            "title": "Assignments",
+            "subtitle": "Resource allocations and logged effort for this task.",
+            "emptyState": "Select a task to review assignments and effort coverage.",
+            "items": []
+        })
+    readonly property var dependenciesModel: root.workspaceController
+        ? root.workspaceController.dependencies
+        : ({
+            "title": "Dependencies",
+            "subtitle": "Sequencing links and lag settings for this task.",
+            "emptyState": "Select a task to review predecessor and successor links.",
+            "items": []
+        })
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
@@ -55,7 +71,11 @@ AppLayouts.WorkspaceFrame {
         id: dialogHost
 
         selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+        selectedTaskData: root.selectedTaskModel
         statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+        assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+        dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+        dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
 
         onCreateRequested: function(payload) {
             if (root.workspaceController !== null) {
@@ -78,6 +98,42 @@ AppLayouts.WorkspaceFrame {
         onDeleteRequested: function(taskId) {
             if (root.workspaceController !== null) {
                 root.workspaceController.deleteTask(taskId)
+            }
+        }
+
+        onCreateAssignmentRequested: function(payload) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.createAssignment(payload)
+            }
+        }
+
+        onUpdateAssignmentAllocationRequested: function(payload) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.updateAssignmentAllocation(payload)
+            }
+        }
+
+        onSetAssignmentHoursRequested: function(payload) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.setAssignmentHours(payload)
+            }
+        }
+
+        onDeleteAssignmentRequested: function(assignmentId) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.deleteAssignment(assignmentId)
+            }
+        }
+
+        onCreateDependencyRequested: function(payload) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.createDependency(payload)
+            }
+        }
+
+        onDeleteDependencyRequested: function(dependencyId) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.deleteDependency(dependencyId)
             }
         }
     }
@@ -110,11 +166,11 @@ AppLayouts.WorkspaceFrame {
             ProjectManagementWidgets.WorkspaceStatusSection {
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
-                    ? "QML CRUD tasks slice active"
+                    ? "QML task execution slice active"
                     : (root.workspaceModel.migrationStatus || "")
                 legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
                 architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Task list, project filtering, create, edit, progress, and delete flows now run through a typed PM controller backed by the task desktop API."
+                architectureSummary: "Task catalog, progress updates, assignment management, and dependency flows now run through a typed PM controller backed by the task desktop API."
             }
 
             TasksFiltersSection {
@@ -205,6 +261,54 @@ AppLayouts.WorkspaceFrame {
                     onEditRequested: dialogHost.openEditDialog(root.selectedTaskModel)
                     onProgressRequested: dialogHost.openProgressDialog(root.selectedTaskModel)
                     onDeleteRequested: dialogHost.openDeleteDialog(root.selectedTaskModel)
+                }
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: root.width > 1180 ? 2 : 1
+                columnSpacing: 12
+                rowSpacing: 12
+
+                TasksAssignmentsSection {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    assignmentsModel: root.assignmentsModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    canCreate: !!(root.selectedTaskModel && root.selectedTaskModel.id)
+                        && ((root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []).length > 0)
+
+                    onCreateRequested: function() {
+                        dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
+                    }
+                    onEditAllocationRequested: function(assignmentData) {
+                        dialogHost.openEditAssignmentAllocationDialog(
+                            assignmentData,
+                            root.selectedTaskModel
+                        )
+                    }
+                    onSetHoursRequested: function(assignmentData) {
+                        dialogHost.openAssignmentHoursDialog(assignmentData)
+                    }
+                    onDeleteRequested: function(assignmentData) {
+                        dialogHost.openDeleteAssignmentDialog(assignmentData)
+                    }
+                }
+
+                TasksDependenciesSection {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    dependenciesModel: root.dependenciesModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    canCreate: !!(root.selectedTaskModel && root.selectedTaskModel.id)
+                        && ((root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []).length > 0)
+
+                    onCreateRequested: function() {
+                        dialogHost.openCreateDependencyDialog(root.selectedTaskModel)
+                    }
+                    onDeleteRequested: function(dependencyData) {
+                        dialogHost.openDeleteDependencyDialog(dependencyData)
+                    }
                 }
             }
         }

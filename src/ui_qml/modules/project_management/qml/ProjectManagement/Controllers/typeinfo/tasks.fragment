@@ -12,6 +12,11 @@ Component {
     Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
+    Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "assignments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
@@ -21,4 +26,10 @@ Component {
     Method { name: "updateTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateProgress"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteTask"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
+    Method { name: "createAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateAssignmentAllocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "setAssignmentHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
 }

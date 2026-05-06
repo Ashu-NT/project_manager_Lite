@@ -18,7 +18,13 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
 )
-from src.core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus, WorkerType
+from src.core.modules.project_management.domain.enums import (
+    CostType,
+    DependencyType,
+    ProjectStatus,
+    TaskStatus,
+    WorkerType,
+)
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
@@ -812,6 +818,61 @@ def test_project_management_workspace_catalog_exposes_typed_risk_and_register_co
 
 
 def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -> None:
+    task_service = _FakeTaskService(
+        [
+            _build_task_record(
+                task_id="task-1",
+                project_id="proj-1",
+                name="Cable Pull",
+                description="Primary feeder cable installation.",
+                status=TaskStatus.IN_PROGRESS,
+                start_date=date(2026, 5, 3),
+                end_date=date(2026, 5, 6),
+                duration_days=4,
+                priority=70,
+                percent_complete=45.0,
+                deadline=date(2026, 5, 7),
+            ),
+            _build_task_record(
+                task_id="task-2",
+                project_id="proj-1",
+                name="Punchlist Closeout",
+                description="Commissioning closeout walkdown.",
+                status=TaskStatus.BLOCKED,
+                start_date=date(2026, 5, 8),
+                end_date=date(2026, 5, 9),
+                duration_days=2,
+                priority=95,
+                percent_complete=0.0,
+                deadline=date(2026, 5, 9),
+            ),
+            _build_task_record(
+                task_id="task-3",
+                project_id="proj-2",
+                name="Lighting Retrofit",
+                description="Warehouse fixture replacement.",
+                status=TaskStatus.TODO,
+                start_date=date(2026, 5, 10),
+                end_date=date(2026, 5, 12),
+                duration_days=3,
+                priority=40,
+                percent_complete=0.0,
+                deadline=date(2026, 5, 13),
+            ),
+        ]
+    )
+    task_service.register_project_resource("pr-1", "res-1")
+    task_service.assign_project_resource(
+        task_id="task-1",
+        project_resource_id="pr-1",
+        allocation_percent=55.0,
+    )
+    task_service.add_dependency(
+        predecessor_id="task-1",
+        successor_id="task-2",
+        dependency_type="FS",
+        lag_days=2,
+    )
     tasks_api = build_project_management_tasks_desktop_api(
         project_service=SimpleNamespace(
             list_projects=lambda: [
@@ -819,47 +880,30 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
-        task_service=_FakeTaskService(
-            [
-                _build_task_record(
-                    task_id="task-1",
+        task_service=task_service,
+        project_resource_service=SimpleNamespace(
+            list_by_project=lambda project_id: [
+                SimpleNamespace(
+                    id="pr-1",
                     project_id="proj-1",
-                    name="Cable Pull",
-                    description="Primary feeder cable installation.",
-                    status=TaskStatus.IN_PROGRESS,
-                    start_date=date(2026, 5, 3),
-                    end_date=date(2026, 5, 6),
-                    duration_days=4,
-                    priority=70,
-                    percent_complete=45.0,
-                    deadline=date(2026, 5, 7),
-                ),
-                _build_task_record(
-                    task_id="task-2",
-                    project_id="proj-1",
-                    name="Punchlist Closeout",
-                    description="Commissioning closeout walkdown.",
-                    status=TaskStatus.BLOCKED,
-                    start_date=date(2026, 5, 8),
-                    end_date=date(2026, 5, 9),
-                    duration_days=2,
-                    priority=95,
-                    percent_complete=0.0,
-                    deadline=date(2026, 5, 9),
-                ),
-                _build_task_record(
-                    task_id="task-3",
-                    project_id="proj-2",
-                    name="Lighting Retrofit",
-                    description="Warehouse fixture replacement.",
-                    status=TaskStatus.TODO,
-                    start_date=date(2026, 5, 10),
-                    end_date=date(2026, 5, 12),
-                    duration_days=3,
-                    priority=40,
-                    percent_complete=0.0,
-                    deadline=date(2026, 5, 13),
-                ),
+                    resource_id="res-1",
+                    hourly_rate=90.0,
+                    currency_code="EUR",
+                    is_active=True,
+                )
+            ]
+            if project_id == "proj-1"
+            else []
+        ),
+        resource_service=SimpleNamespace(
+            list_resources=lambda: [
+                SimpleNamespace(
+                    id="res-1",
+                    name="Alex Taylor",
+                    is_active=True,
+                    hourly_rate=85.0,
+                    currency_code="EUR",
+                )
             ]
         ),
     )
@@ -875,6 +919,11 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     assert controller.selectedProjectId == "proj-1"
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
     assert controller.selectedTask["title"] == "Cable Pull"
+    assert controller.assignmentOptions[0]["label"] == "Alex Taylor (90.00 EUR/hr)"
+    assert controller.assignments["items"][0]["title"] == "Alex Taylor"
+    assert controller.dependencies["items"][0]["title"] == "Punchlist Closeout"
+    assert controller.dependencyTypeOptions[0]["value"] == "FS"
+    assert controller.dependencyTaskOptions[0]["value"] == "task-2"
 
     controller.setStatusFilter("BLOCKED")
 
@@ -1193,7 +1242,7 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "QML collaboration inbox slice active" in qml_text
     assert "QML portfolio planning slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
-    assert "QML CRUD tasks slice active" in qml_text
+    assert "QML task execution slice active" in qml_text
     assert "QML timesheet capture and review slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
 
@@ -1343,12 +1392,75 @@ class _FakeTaskService:
             task.id: task
             for task in (tasks or [])
         }
+        self._assignments: dict[str, SimpleNamespace] = {}
+        self._dependencies: dict[str, SimpleNamespace] = {}
+        self._project_resource_lookup: dict[str, str] = {}
 
     def list_tasks_for_project(self, project_id: str) -> list[SimpleNamespace]:
         return [
             task
             for task in self._tasks.values()
             if task.project_id == project_id
+        ]
+
+    def get_task(self, task_id: str) -> SimpleNamespace | None:
+        return self._tasks.get(task_id)
+
+    def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
+        self._project_resource_lookup[project_resource_id] = resource_id
+
+    def list_assignments_for_task(self, task_id: str) -> list[SimpleNamespace]:
+        return [
+            assignment
+            for assignment in self._assignments.values()
+            if assignment.task_id == task_id
+        ]
+
+    def assign_project_resource(
+        self,
+        *,
+        task_id: str,
+        project_resource_id: str,
+        allocation_percent: float,
+    ) -> SimpleNamespace:
+        assignment = SimpleNamespace(
+            id=f"assign-{len(self._assignments) + 1}",
+            task_id=task_id,
+            resource_id=self._project_resource_lookup.get(
+                project_resource_id,
+                project_resource_id,
+            ),
+            allocation_percent=allocation_percent,
+            hours_logged=0.0,
+            project_resource_id=project_resource_id,
+        )
+        self._assignments[assignment.id] = assignment
+        return assignment
+
+    def add_dependency(
+        self,
+        *,
+        predecessor_id: str,
+        successor_id: str,
+        dependency_type: str,
+        lag_days: int = 0,
+    ) -> SimpleNamespace:
+        dependency = SimpleNamespace(
+            id=f"dep-{len(self._dependencies) + 1}",
+            predecessor_task_id=predecessor_id,
+            successor_task_id=successor_id,
+            dependency_type=DependencyType(str(dependency_type)),
+            lag_days=lag_days,
+        )
+        self._dependencies[dependency.id] = dependency
+        return dependency
+
+    def list_dependencies_for_task(self, task_id: str) -> list[SimpleNamespace]:
+        return [
+            dependency
+            for dependency in self._dependencies.values()
+            if dependency.predecessor_task_id == task_id
+            or dependency.successor_task_id == task_id
         ]
 
 

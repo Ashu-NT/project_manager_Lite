@@ -583,7 +583,7 @@ Project Management QML presenter/view-model status as of 2026-04-29:
 - `src/core/modules/project_management/api/desktop/register.py` defines the PM risk/register desktop API contract, including project/type/status/severity selectors and register-entry CRUD DTOs
 - `src/core/modules/project_management/api/desktop/resources.py` defines the PM resources CRUD desktop API contract, including worker-type, category, and employee selector DTOs
 - `src/core/modules/project_management/api/desktop/scheduling.py` defines the PM scheduling operations desktop API contract
-- `src/core/modules/project_management/api/desktop/tasks.py` defines the PM tasks CRUD/progress desktop API contract
+- `src/core/modules/project_management/api/desktop/tasks.py` defines the PM tasks CRUD/progress desktop API contract, including assignment and dependency DTOs plus task-execution mutations
 - `src/ui_qml/modules/project_management/view_models/workspace.py` defines the first PM QML workspace view model
 - `src/ui_qml/modules/project_management/view_models/dashboard.py` defines PM dashboard overview, selector, analysis-panel, chart, section, and workspace view models for the QML dashboard slice
 - `src/ui_qml/modules/project_management/view_models/financials.py` defines PM financial overview, selector, collection, detail, and finance insight view models
@@ -591,7 +591,7 @@ Project Management QML presenter/view-model status as of 2026-04-29:
 - `src/ui_qml/modules/project_management/view_models/register.py` defines PM risk/register overview, selector, collection, detail, and urgent-queue view models
 - `src/ui_qml/modules/project_management/view_models/resources.py` defines PM resources overview, selector, employee-option, catalog, detail, and dialog state view models
 - `src/ui_qml/modules/project_management/view_models/scheduling.py` defines PM scheduling overview, calendar, baseline-compare, schedule, and critical-path view models
-- `src/ui_qml/modules/project_management/view_models/tasks.py` defines PM tasks overview, selector, catalog, detail, and dialog state view models
+- `src/ui_qml/modules/project_management/view_models/tasks.py` defines PM tasks overview, selector, catalog, detail, assignment/dependency collection, and dialog state view models
 - `src/ui_qml/modules/project_management/presenters/workspace_presenter.py` defines the first PM QML workspace presenter contract
 - `src/ui_qml/modules/project_management/presenters/dashboard_presenter.py` maps the PM dashboard desktop API overview into QML-safe view models
 - `src/ui_qml/modules/project_management/presenters/dashboard_workspace_presenter.py` maps the PM dashboard desktop API snapshot into typed selector, section, and empty-state view models
@@ -600,7 +600,7 @@ Project Management QML presenter/view-model status as of 2026-04-29:
 - `src/ui_qml/modules/project_management/presenters/register_workspace_presenter.py` maps the shared PM risk/register desktop API into typed project/type/status/severity filters, catalog/detail, urgent-queue, and mutation-friendly view models
 - `src/ui_qml/modules/project_management/presenters/resources_workspace_presenter.py` maps the PM resources desktop API into typed filters, employee-linked worker options, catalog, detail, and mutation-friendly view models
 - `src/ui_qml/modules/project_management/presenters/scheduling_workspace_presenter.py` maps the PM scheduling desktop API into typed calendar, baseline, schedule, and working-day calculation view models
-- `src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py` maps the PM tasks desktop API into typed selector, catalog, detail, and progress-friendly view models
+- `src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py` maps the PM tasks desktop API into typed selector, catalog, detail, assignment/dependency execution, and progress-friendly view models
 - `src/ui_qml/modules/project_management/context.py` now exposes `ProjectManagementWorkspaceCatalog` as the typed PM QML catalog
 - `src/ui_qml/modules/project_management/controllers/common/workspace_controller_base.py` defines the PM workspace-state base used for typed controller exposure
 - `src/ui_qml/modules/project_management/controllers/dashboard/dashboard_workspace_controller.py` exposes the dashboard through a typed `ProjectManagementDashboardWorkspaceController`
@@ -1266,7 +1266,7 @@ Hold status as of 2026-04-22:
 - PM Projects QML now has API-backed filters, catalog/detail sections, and create/edit/status/delete dialogs; import flows, resource-assignment side panels, and deeper parity remain on the Widget projects workspace until parity is completed
 - PM Resources QML now has API-backed active/category filters, catalog/detail sections, employee-linked worker setup, and create/edit/active-toggle/delete dialogs; project assignment/utilization panels and deeper parity remain on the Widget resources workspace until parity is completed
 - PM Scheduling QML now has API-backed project selection, working-calendar setup, holiday management, working-day calculation, schedule recalculation, baseline creation/deletion, baseline comparison, and critical-path/schedule snapshots; event syncing, deeper dependency graphing, and richer reporting parity remain on the Widget calendar/report surfaces until parity is completed
-- PM Tasks QML now has API-backed project/status filters, catalog/detail sections, and create/edit/progress/delete dialogs; dependencies, assignments, collaboration side panels, bulk actions, and deeper parity remain on the Widget tasks workspace until parity is completed
+- PM Tasks QML now has API-backed project/status filters, catalog/detail sections, create/edit/progress/delete dialogs, assignment management, and dependency management; collaboration side panels, bulk actions, richer time-entry workflows, and deeper parity remain on the Widget tasks workspace until parity is completed
 - PM Portfolio QML now has API-backed intake filters, scoring-template activation, scenario save/evaluation/comparison views, dependency management, and executive heatmap/recent-action sections; deeper scoring governance, richer portfolio analytics, and eventual Widget deletion still remain to be completed
 - PM Timesheets QML now has API-backed assignment-period entry capture, period submission, review-queue detail, approve/reject, and lock/unlock flows; payroll-close integrations, richer review auditing, and eventual Widget deletion still remain to be completed
 - PM Collaboration QML now has API-backed notifications, mention inbox, recent activity, active presence, and mark-read mutations; task-level posting, attachments, shared-document linking, and presence touch/clear flows remain on the Widget task dialog until parity is completed

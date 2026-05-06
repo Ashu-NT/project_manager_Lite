@@ -55,6 +55,7 @@ from src.core.modules.project_management.application.projects import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.resources import (
+    ProjectResourceService,
     ResourceService,
     TimesheetService,
 )
@@ -164,6 +165,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     )
     pm_resource_service = (
         resource_service if isinstance(resource_service, ResourceService) else None
+    )
+    project_resource_service = services.get("project_resource_service")
+    pm_project_resource_service = (
+        project_resource_service
+        if isinstance(project_resource_service, ProjectResourceService)
+        else None
     )
     timesheet_service = services.get("timesheet_service")
     pm_timesheet_service = (
@@ -294,6 +301,8 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=pm_project_service,
             task_service=pm_task_service,
+            project_resource_service=pm_project_resource_service,
+            resource_service=pm_resource_service,
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=pm_project_service,

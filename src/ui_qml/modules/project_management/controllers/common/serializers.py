@@ -49,6 +49,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogOverviewViewModel,
     TaskDetailViewModel,
+    TaskExecutionCollectionViewModel,
     TaskRecordViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.timesheets import (
@@ -606,6 +607,17 @@ def serialize_task_record_view_models(
     ]
 
 
+def serialize_task_collection_view_model(
+    view_model: TaskExecutionCollectionViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "emptyState": view_model.empty_state,
+        "items": serialize_task_record_view_models(view_model.items),
+    }
+
+
 def serialize_task_detail_view_model(
     view_model: TaskDetailViewModel,
 ) -> dict[str, object]:
@@ -813,6 +825,7 @@ __all__ = [
     "serialize_scheduling_record_view_models",
     "serialize_selector_options",
     "serialize_task_catalog_overview_view_model",
+    "serialize_task_collection_view_model",
     "serialize_task_detail_view_model",
     "serialize_task_record_view_models",
     "serialize_timesheet_collection_view_model",
