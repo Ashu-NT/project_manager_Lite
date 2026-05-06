@@ -3,11 +3,12 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementTaskViewStore,
     ProjectManagementUndoCommand,
     ProjectManagementUndoStack,
-    serialize_collaboration_collection_view_model,
     ProjectManagementWorkspaceControllerBase,
     run_mutation,
+    serialize_collaboration_collection_view_model,
     serialize_selector_options,
     serialize_task_catalog_overview_view_model,
     serialize_task_collection_view_model,
@@ -31,7 +32,13 @@ class ProjectManagementTasksWorkspaceController(
     selectedProjectIdChanged = Signal()
     statusOptionsChanged = Signal()
     bulkStatusOptionsChanged = Signal()
+    priorityOptionsChanged = Signal()
+    scheduleOptionsChanged = Signal()
+    taskViewOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
+    selectedPriorityFilterChanged = Signal()
+    selectedScheduleFilterChanged = Signal()
+    selectedTaskViewNameChanged = Signal()
     searchTextChanged = Signal()
     tasksChanged = Signal()
     selectedTaskChanged = Signal()
@@ -62,6 +69,7 @@ class ProjectManagementTasksWorkspaceController(
         *,
         workspace_presenter: ProjectManagementWorkspacePresenter | None = None,
         tasks_workspace_presenter: ProjectTasksWorkspacePresenter | None = None,
+        task_view_store: ProjectManagementTaskViewStore | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -80,8 +88,17 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_project_id = ""
         self._status_options: list[dict[str, str]] = []
         self._bulk_status_options: list[dict[str, str]] = []
+        self._priority_options: list[dict[str, str]] = []
+        self._schedule_options: list[dict[str, str]] = []
+        self._task_view_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
+        self._selected_priority_filter = "all"
+        self._selected_schedule_filter = "all"
+        self._selected_task_view_name = ""
         self._search_text = ""
+        self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
+        self._saved_task_views = self._load_saved_task_views()
+        self._refresh_task_view_options()
         self._tasks: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -185,9 +202,33 @@ class ProjectManagementTasksWorkspaceController(
     def bulkStatusOptions(self) -> list[dict[str, str]]:
         return self._bulk_status_options
 
+    @Property("QVariantList", notify=priorityOptionsChanged)
+    def priorityOptions(self) -> list[dict[str, str]]:
+        return self._priority_options
+
+    @Property("QVariantList", notify=scheduleOptionsChanged)
+    def scheduleOptions(self) -> list[dict[str, str]]:
+        return self._schedule_options
+
+    @Property("QVariantList", notify=taskViewOptionsChanged)
+    def taskViewOptions(self) -> list[dict[str, str]]:
+        return self._task_view_options
+
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
         return self._selected_status_filter
+
+    @Property(str, notify=selectedPriorityFilterChanged)
+    def selectedPriorityFilter(self) -> str:
+        return self._selected_priority_filter
+
+    @Property(str, notify=selectedScheduleFilterChanged)
+    def selectedScheduleFilter(self) -> str:
+        return self._selected_schedule_filter
+
+    @Property(str, notify=selectedTaskViewNameChanged)
+    def selectedTaskViewName(self) -> str:
+        return self._selected_task_view_name
 
     @Property(str, notify=searchTextChanged)
     def searchText(self) -> str:
@@ -312,6 +353,8 @@ class ProjectManagementTasksWorkspaceController(
                 project_id=self._selected_project_id or None,
                 search_text=self._search_text,
                 status_filter=self._selected_status_filter,
+                priority_filter=self._selected_priority_filter,
+                schedule_filter=self._selected_schedule_filter,
                 selected_task_id=self._selected_task_id or None,
                 selected_assignment_id=self._selected_assignment_id or None,
                 selected_time_period_start=self._selected_time_period_start,
@@ -332,8 +375,20 @@ class ProjectManagementTasksWorkspaceController(
             self._set_bulk_status_options(
                 serialize_selector_options(workspace_state.bulk_status_options)
             )
+            self._set_priority_options(
+                serialize_selector_options(workspace_state.priority_options)
+            )
+            self._set_schedule_options(
+                serialize_selector_options(workspace_state.schedule_options)
+            )
             self._set_selected_status_filter(
                 workspace_state.selected_status_filter
+            )
+            self._set_selected_priority_filter(
+                workspace_state.selected_priority_filter
+            )
+            self._set_selected_schedule_filter(
+                workspace_state.selected_schedule_filter
             )
             self._set_search_text(workspace_state.search_text)
             self._set_tasks(
@@ -446,6 +501,7 @@ class ProjectManagementTasksWorkspaceController(
         if normalized_value == self._search_text:
             return
         self._set_search_text(normalized_value)
+        self._set_selected_task_view_name("")
         self.refresh()
 
     @Slot(str)
@@ -454,7 +510,111 @@ class ProjectManagementTasksWorkspaceController(
         if normalized_value == self._selected_status_filter.lower():
             return
         self._set_selected_status_filter(normalized_value)
+        self._set_selected_task_view_name("")
         self.refresh()
+
+    @Slot(str)
+    def setPriorityFilter(self, priority_filter: str) -> None:
+        normalized_value = (priority_filter or "").strip().lower() or "all"
+        if normalized_value == self._selected_priority_filter.lower():
+            return
+        self._set_selected_priority_filter(normalized_value)
+        self._set_selected_task_view_name("")
+        self.refresh()
+
+    @Slot(str)
+    def setScheduleFilter(self, schedule_filter: str) -> None:
+        normalized_value = (schedule_filter or "").strip().lower() or "all"
+        if normalized_value == self._selected_schedule_filter.lower():
+            return
+        self._set_selected_schedule_filter(normalized_value)
+        self._set_selected_task_view_name("")
+        self.refresh()
+
+    @Slot()
+    def clearFilters(self) -> None:
+        if (
+            not self._search_text
+            and self._selected_status_filter == "all"
+            and self._selected_priority_filter == "all"
+            and self._selected_schedule_filter == "all"
+            and not self._selected_task_view_name
+        ):
+            return
+        self._set_search_text("")
+        self._set_selected_status_filter("all")
+        self._set_selected_priority_filter("all")
+        self._set_selected_schedule_filter("all")
+        self._set_selected_task_view_name("")
+        self.refresh()
+
+    @Slot(str)
+    def selectTaskView(self, view_name: str) -> None:
+        self._set_selected_task_view_name((view_name or "").strip())
+
+    @Slot(str, result="QVariantMap")
+    def saveCurrentTaskView(self, view_name: str) -> dict[str, object]:
+        normalized_name = (view_name or "").strip()
+        if not normalized_name:
+            self._set_error_message("Saved view name is required.")
+            return {
+                "ok": False,
+                "message": "Saved view name is required.",
+            }
+        self._saved_task_views[normalized_name] = self._capture_task_view_state()
+        self._persist_saved_task_views()
+        self._refresh_task_view_options()
+        self._set_selected_task_view_name(normalized_name)
+        self._set_error_message("")
+        self._set_feedback_message(f'Saved task view "{normalized_name}".')
+        return {
+            "ok": True,
+            "message": f'Saved task view "{normalized_name}".',
+        }
+
+    @Slot(result="QVariantMap")
+    def applySelectedTaskView(self) -> dict[str, object]:
+        view_name = self._selected_task_view_name
+        if not view_name:
+            self.refresh()
+            return {
+                "ok": True,
+                "message": "Current filters applied.",
+            }
+        state = self._saved_task_views.get(view_name)
+        if not isinstance(state, dict):
+            self._set_error_message("Saved task view is no longer available.")
+            return {
+                "ok": False,
+                "message": "Saved task view is no longer available.",
+            }
+        self._apply_task_view_state(state, selected_view_name=view_name)
+        self._set_error_message("")
+        self._set_feedback_message(f'Applied task view "{view_name}".')
+        return {
+            "ok": True,
+            "message": f'Applied task view "{view_name}".',
+        }
+
+    @Slot(result="QVariantMap")
+    def deleteSelectedTaskView(self) -> dict[str, object]:
+        view_name = self._selected_task_view_name
+        if not view_name:
+            self._set_error_message("Choose a saved task view first.")
+            return {
+                "ok": False,
+                "message": "Choose a saved task view first.",
+            }
+        self._saved_task_views.pop(view_name, None)
+        self._persist_saved_task_views()
+        self._refresh_task_view_options()
+        self._set_selected_task_view_name("")
+        self._set_error_message("")
+        self._set_feedback_message(f'Deleted task view "{view_name}".')
+        return {
+            "ok": True,
+            "message": f'Deleted task view "{view_name}".',
+        }
 
     @Slot(str)
     def selectTask(self, task_id: str) -> None:
@@ -873,17 +1033,178 @@ class ProjectManagementTasksWorkspaceController(
         self._bulk_status_options = bulk_status_options
         self.bulkStatusOptionsChanged.emit()
 
+    def _set_priority_options(self, priority_options: list[dict[str, str]]) -> None:
+        if priority_options == self._priority_options:
+            return
+        self._priority_options = priority_options
+        self.priorityOptionsChanged.emit()
+
+    def _set_schedule_options(self, schedule_options: list[dict[str, str]]) -> None:
+        if schedule_options == self._schedule_options:
+            return
+        self._schedule_options = schedule_options
+        self.scheduleOptionsChanged.emit()
+
+    def _set_task_view_options(self, task_view_options: list[dict[str, str]]) -> None:
+        if task_view_options == self._task_view_options:
+            return
+        self._task_view_options = task_view_options
+        self.taskViewOptionsChanged.emit()
+
     def _set_selected_status_filter(self, selected_status_filter: str) -> None:
         if selected_status_filter == self._selected_status_filter:
             return
         self._selected_status_filter = selected_status_filter
         self.selectedStatusFilterChanged.emit()
 
+    def _set_selected_priority_filter(self, selected_priority_filter: str) -> None:
+        if selected_priority_filter == self._selected_priority_filter:
+            return
+        self._selected_priority_filter = selected_priority_filter
+        self.selectedPriorityFilterChanged.emit()
+
+    def _set_selected_schedule_filter(self, selected_schedule_filter: str) -> None:
+        if selected_schedule_filter == self._selected_schedule_filter:
+            return
+        self._selected_schedule_filter = selected_schedule_filter
+        self.selectedScheduleFilterChanged.emit()
+
+    def _set_selected_task_view_name(self, selected_task_view_name: str) -> None:
+        if selected_task_view_name == self._selected_task_view_name:
+            return
+        self._selected_task_view_name = selected_task_view_name
+        self.selectedTaskViewNameChanged.emit()
+
     def _set_search_text(self, search_text: str) -> None:
         if search_text == self._search_text:
             return
         self._search_text = search_text
         self.searchTextChanged.emit()
+
+    def _load_saved_task_views(self) -> dict[str, dict[str, object]]:
+        raw_views = self._task_view_store.load_task_saved_views()
+        normalized_views: dict[str, dict[str, object]] = {}
+        for name, state in raw_views.items():
+            normalized_name = (name or "").strip()
+            if not normalized_name or not isinstance(state, dict):
+                continue
+            normalized_views[normalized_name] = self._normalize_task_view_state(
+                state
+            )
+        return normalized_views
+
+    def _persist_saved_task_views(self) -> None:
+        self._task_view_store.save_task_saved_views(self._saved_task_views)
+
+    def _refresh_task_view_options(self) -> None:
+        options = [{"value": "", "label": "Current Filters"}]
+        options.extend(
+            {"value": name, "label": name}
+            for name in sorted(self._saved_task_views)
+        )
+        self._set_task_view_options(options)
+        if self._selected_task_view_name and (
+            self._selected_task_view_name not in self._saved_task_views
+        ):
+            self._set_selected_task_view_name("")
+
+    def _capture_task_view_state(self) -> dict[str, object]:
+        return {
+            "query": self._search_text,
+            "status": self._index_for_option_value(
+                self._status_options,
+                self._selected_status_filter,
+            ),
+            "priority": self._index_for_option_value(
+                self._priority_options,
+                self._selected_priority_filter,
+            ),
+            "schedule": self._index_for_option_value(
+                self._schedule_options,
+                self._selected_schedule_filter,
+            ),
+        }
+
+    def _apply_task_view_state(
+        self,
+        state: dict[str, object],
+        *,
+        selected_view_name: str,
+    ) -> None:
+        normalized_state = self._normalize_task_view_state(state)
+        self._set_search_text(str(normalized_state.get("query", "") or ""))
+        self._set_selected_status_filter(
+            self._option_value_for_index(
+                self._status_options,
+                normalized_state.get("status", 0),
+                default_value="all",
+            )
+        )
+        self._set_selected_priority_filter(
+            self._option_value_for_index(
+                self._priority_options,
+                normalized_state.get("priority", 0),
+                default_value="all",
+            )
+        )
+        self._set_selected_schedule_filter(
+            self._option_value_for_index(
+                self._schedule_options,
+                normalized_state.get("schedule", 0),
+                default_value="all",
+            )
+        )
+        self._set_selected_task_view_name(selected_view_name)
+        self.refresh()
+
+    @staticmethod
+    def _normalize_task_view_state(state: dict[str, object]) -> dict[str, object]:
+        return {
+            "query": str(state.get("query", "") or "").strip(),
+            "status": ProjectManagementTasksWorkspaceController._coerce_non_negative_int(
+                state.get("status", 0)
+            ),
+            "priority": ProjectManagementTasksWorkspaceController._coerce_non_negative_int(
+                state.get("priority", 0)
+            ),
+            "schedule": ProjectManagementTasksWorkspaceController._coerce_non_negative_int(
+                state.get("schedule", 0)
+            ),
+        }
+
+    @staticmethod
+    def _coerce_non_negative_int(value: object) -> int:
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
+    def _index_for_option_value(
+        options: list[dict[str, str]],
+        target_value: str,
+    ) -> int:
+        target = str(target_value or "")
+        for index, option in enumerate(options):
+            if str(option.get("value", "") or "") == target:
+                return index
+        return 0
+
+    @staticmethod
+    def _option_value_for_index(
+        options: list[dict[str, str]],
+        index_value: object,
+        *,
+        default_value: str,
+    ) -> str:
+        normalized_index = ProjectManagementTasksWorkspaceController._coerce_non_negative_int(
+            index_value
+        )
+        if 0 <= normalized_index < len(options):
+            return str(options[normalized_index].get("value", "") or default_value)
+        if options:
+            return str(options[0].get("value", "") or default_value)
+        return default_value
 
     def _set_tasks(self, tasks: dict[str, object]) -> None:
         if tasks == self._tasks:

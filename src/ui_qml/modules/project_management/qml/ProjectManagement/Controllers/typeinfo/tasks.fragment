@@ -8,7 +8,13 @@ Component {
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
     Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "priorityOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "scheduleOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "taskViewOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedPriorityFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedScheduleFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTaskViewName"; type: "QString"; isReadonly: true }
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
@@ -40,6 +46,13 @@ Component {
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
+    Method { name: "setPriorityFilter"; Parameter { name: "priorityFilter"; type: "QString" } }
+    Method { name: "setScheduleFilter"; Parameter { name: "scheduleFilter"; type: "QString" } }
+    Method { name: "clearFilters" }
+    Method { name: "selectTaskView"; Parameter { name: "viewName"; type: "QString" } }
+    Method { name: "saveCurrentTaskView"; type: "QVariantMap"; Parameter { name: "viewName"; type: "QString" } }
+    Method { name: "applySelectedTaskView"; type: "QVariantMap" }
+    Method { name: "deleteSelectedTaskView"; type: "QVariantMap" }
     Method { name: "selectTask"; Parameter { name: "taskId"; type: "QString" } }
     Method { name: "setTaskBulkSelection"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
     Method { name: "selectVisibleTasks" }

@@ -1,8 +1,14 @@
+import json
 from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
+from PySide6.QtCore import QSettings
+
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
+from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementTaskViewStore,
+)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardPresenter,
     build_project_management_workspace_presenters,
@@ -818,7 +824,9 @@ def test_project_management_workspace_catalog_exposes_typed_risk_and_register_co
     ]
 
 
-def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -> None:
+def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
+    tmp_path: Path,
+) -> None:
     class _FakeTaskTimesheetsDesktopApi:
         def __init__(self) -> None:
             self.added_entries: list[dict[str, object]] = []
@@ -1027,12 +1035,15 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
         collaboration_service=collaboration_service
     )
     timesheets_api = _FakeTaskTimesheetsDesktopApi()
+    settings = QSettings(str(tmp_path / "pm-task-views.ini"), QSettings.IniFormat)
+    settings.clear()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
             project_management_tasks=tasks_api,
             project_management_collaboration=collaboration_api,
             project_management_timesheets=timesheets_api,
-        )
+        ),
+        task_view_store=ProjectManagementTaskViewStore(settings),
     )
 
     controller = catalog.tasksWorkspace
@@ -1049,6 +1060,9 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     assert controller.canRedoTaskAction is False
     assert controller.projectOptions[0]["label"] == "Plant Upgrade"
     assert controller.selectedProjectId == "proj-1"
+    assert controller.priorityOptions[0]["label"] == "All priorities"
+    assert controller.scheduleOptions[0]["value"] == "all"
+    assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
     assert controller.selectedTask["title"] == "Cable Pull"
     assert controller.assignmentOptions[0]["label"] == "Alex Taylor (90.00 EUR/hr)"
@@ -1066,6 +1080,57 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     assert controller.collaborationComments["items"][0]["title"] == "@jamie"
     assert controller.collaborationPresence["items"][0]["title"] == "Alex Taylor (@planner)"
     assert controller.bulkStatusOptions[0]["value"] == "TODO"
+
+    controller.setSearchText("priority>=90")
+
+    assert [item["title"] for item in controller.tasks["items"]] == [
+        "Punchlist Closeout"
+    ]
+
+    save_view_result = controller.saveCurrentTaskView("High Focus")
+
+    assert save_view_result == {
+        "ok": True,
+        "message": 'Saved task view "High Focus".',
+    }
+    assert controller.selectedTaskViewName == "High Focus"
+    assert controller.taskViewOptions[-1]["value"] == "High Focus"
+    assert json.loads(str(settings.value("task/saved_views", "{}"))) == {
+        "High Focus": {
+            "priority": 0,
+            "query": "priority>=90",
+            "schedule": 0,
+            "status": 0,
+        }
+    }
+
+    controller.clearFilters()
+
+    assert controller.searchText == ""
+    assert controller.selectedTaskViewName == ""
+
+    controller.selectTaskView("High Focus")
+    apply_view_result = controller.applySelectedTaskView()
+
+    assert apply_view_result == {
+        "ok": True,
+        "message": 'Applied task view "High Focus".',
+    }
+    assert controller.searchText == "priority>=90"
+    assert [item["title"] for item in controller.tasks["items"]] == [
+        "Punchlist Closeout"
+    ]
+
+    delete_view_result = controller.deleteSelectedTaskView()
+
+    assert delete_view_result == {
+        "ok": True,
+        "message": 'Deleted task view "High Focus".',
+    }
+    assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]
+
+    controller.clearFilters()
+    controller.selectTask("task-1")
 
     controller.setTaskBulkSelection("task-1", True)
     controller.setTaskBulkSelection("task-4", True)
@@ -1490,7 +1555,7 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "QML collaboration inbox slice active" in qml_text
     assert "QML portfolio planning slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
-    assert "QML task execution, bulk actions, collaboration, and time-entry slice active" in qml_text
+    assert "QML task execution, advanced filters, saved views, bulk actions, collaboration, and time-entry slice active" in qml_text
     assert "QML timesheet capture and review slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
 

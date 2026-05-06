@@ -226,11 +226,11 @@ AppLayouts.WorkspaceFrame {
             ProjectManagementWidgets.WorkspaceStatusSection {
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
-                    ? "QML task execution, bulk actions, collaboration, and time-entry slice active"
+                    ? "QML task execution, advanced filters, saved views, bulk actions, collaboration, and time-entry slice active"
                     : (root.workspaceModel.migrationStatus || "")
                 legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
                 architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Task catalog, bulk status/delete plus undo/redo flows, collaboration status signals, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
+                architectureSummary: "Task catalog, advanced task-query filters, saved filter views, bulk status/delete plus undo/redo flows, collaboration status signals, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
             }
 
             TasksFiltersSection {
@@ -238,7 +238,13 @@ AppLayouts.WorkspaceFrame {
                 projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                priorityOptions: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
+                scheduleOptions: root.workspaceController ? (root.workspaceController.scheduleOptions || []) : []
+                taskViewOptions: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
                 selectedStatusFilter: root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                selectedPriorityFilter: root.workspaceController ? root.workspaceController.selectedPriorityFilter : "all"
+                selectedScheduleFilter: root.workspaceController ? root.workspaceController.selectedScheduleFilter : "all"
+                selectedTaskViewName: root.workspaceController ? root.workspaceController.selectedTaskViewName : ""
                 searchText: root.workspaceController ? root.workspaceController.searchText : ""
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -260,9 +266,51 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
+                onPriorityFilterUpdated: function(priorityValue) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.setPriorityFilter(priorityValue)
+                    }
+                }
+
+                onScheduleFilterUpdated: function(scheduleValue) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.setScheduleFilter(scheduleValue)
+                    }
+                }
+
+                onTaskViewSelected: function(viewName) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectTaskView(viewName)
+                    }
+                }
+
                 onRefreshRequested: function() {
                     if (root.workspaceController !== null) {
                         root.workspaceController.refresh()
+                    }
+                }
+
+                onClearRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.clearFilters()
+                    }
+                }
+
+                onApplyTaskViewRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.applySelectedTaskView()
+                    }
+                }
+
+                onSaveTaskViewRequested: function(viewName) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.saveCurrentTaskView(viewName)
+                    }
+                }
+
+                onDeleteTaskViewRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.deleteSelectedTaskView()
                     }
                 }
 

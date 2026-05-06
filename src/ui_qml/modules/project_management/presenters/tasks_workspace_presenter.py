@@ -22,6 +22,12 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
     build_project_management_timesheets_desktop_api,
 )
+from src.ui_qml.modules.project_management.presenters.task_filters import (
+    build_task_priority_options,
+    build_task_schedule_options,
+    matches_task_filters,
+    normalize_task_filter,
+)
 from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationCollectionViewModel,
     CollaborationRecordViewModel,
@@ -68,6 +74,8 @@ class ProjectTasksWorkspacePresenter:
         project_id: str | None = None,
         search_text: str = "",
         status_filter: str = "all",
+        priority_filter: str = "all",
+        schedule_filter: str = "all",
         selected_task_id: str | None = None,
         selected_assignment_id: str | None = None,
         selected_time_period_start: str = "",
@@ -89,10 +97,20 @@ class ProjectTasksWorkspacePresenter:
             TaskSelectorOptionViewModel(value=option.value, label=option.label)
             for option in self._desktop_api.list_statuses()
         )
+        priority_options = build_task_priority_options()
+        schedule_options = build_task_schedule_options()
         normalized_search = (search_text or "").strip()
         normalized_status_filter = self._normalize_status_filter(
             status_filter,
             status_options,
+        )
+        normalized_priority_filter = normalize_task_filter(
+            priority_filter,
+            priority_options,
+        )
+        normalized_schedule_filter = normalize_task_filter(
+            schedule_filter,
+            schedule_options,
         )
         all_tasks = (
             self._desktop_api.list_tasks(resolved_project_id)
@@ -102,8 +120,13 @@ class ProjectTasksWorkspacePresenter:
         filtered_tasks = tuple(
             task
             for task in all_tasks
-            if self._matches_status(task, normalized_status_filter)
-            and self._matches_search(task, normalized_search)
+            if matches_task_filters(
+                task,
+                search_text=normalized_search,
+                status_filter=normalized_status_filter,
+                priority_filter=normalized_priority_filter,
+                schedule_filter=normalized_schedule_filter,
+            )
         )
         resolved_task_id = self._resolve_task_id(selected_task_id, filtered_tasks)
         selected_task = next(
@@ -185,7 +208,11 @@ class ProjectTasksWorkspacePresenter:
             selected_project_id=resolved_project_id,
             status_options=status_options,
             bulk_status_options=bulk_status_options,
+            priority_options=priority_options,
+            schedule_options=schedule_options,
             selected_status_filter=normalized_status_filter,
+            selected_priority_filter=normalized_priority_filter,
+            selected_schedule_filter=normalized_schedule_filter,
             search_text=normalized_search,
             tasks=tuple(
                 self._to_task_record_view_model(task)
@@ -253,6 +280,8 @@ class ProjectTasksWorkspacePresenter:
                 filtered_tasks=filtered_tasks,
                 search_text=normalized_search,
                 status_filter=normalized_status_filter,
+                priority_filter=normalized_priority_filter,
+                schedule_filter=normalized_schedule_filter,
             ),
         )
 
@@ -1083,27 +1112,6 @@ class ProjectTasksWorkspacePresenter:
         }
 
     @staticmethod
-    def _matches_search(task, search_text: str) -> bool:
-        if not search_text:
-            return True
-        normalized_search = search_text.casefold()
-        haystacks = (
-            task.name or "",
-            task.description or "",
-            task.project_name or "",
-        )
-        return any(
-            normalized_search in value.casefold()
-            for value in haystacks
-        )
-
-    @staticmethod
-    def _matches_status(task, status_filter: str) -> bool:
-        if status_filter == "all":
-            return True
-        return task.status == status_filter
-
-    @staticmethod
     def _resolve_project_id(
         project_id: str | None,
         project_options: tuple[TaskSelectorOptionViewModel, ...],
@@ -1161,6 +1169,8 @@ class ProjectTasksWorkspacePresenter:
         filtered_tasks,
         search_text: str,
         status_filter: str,
+        priority_filter: str,
+        schedule_filter: str,
     ) -> str:
         if not project_options:
             return "No projects are available yet. Create a project before planning tasks."
@@ -1168,7 +1178,12 @@ class ProjectTasksWorkspacePresenter:
             return ""
         if not all_tasks:
             return "No tasks are available for the selected project yet."
-        if search_text or status_filter != "all":
+        if (
+            search_text
+            or status_filter != "all"
+            or priority_filter != "all"
+            or schedule_filter != "all"
+        ):
             return "No tasks match the current filters."
         return "No tasks are available for the selected project yet."
 

@@ -15,6 +15,7 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementTimesheetsWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
+    ProjectManagementTaskViewStore,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
@@ -37,6 +38,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def __init__(
         self,
         desktop_api_registry: object | None = None,
+        task_view_store: ProjectManagementTaskViewStore | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -156,6 +158,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
                 collaboration_desktop_api=collaboration_api,
                 timesheets_desktop_api=timesheets_api,
             ),
+            task_view_store=task_view_store,
             parent=self,
         )
         self._dashboard_workspace = ProjectManagementDashboardWorkspaceController(

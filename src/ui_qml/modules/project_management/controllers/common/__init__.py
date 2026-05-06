@@ -47,12 +47,16 @@ from src.ui_qml.modules.project_management.controllers.common.undo_stack import 
     ProjectManagementUndoCommand,
     ProjectManagementUndoStack,
 )
+from src.ui_qml.modules.project_management.controllers.common.task_view_store import (
+    ProjectManagementTaskViewStore,
+)
 from src.ui_qml.modules.project_management.controllers.common.workspace_controller_base import (
     ProjectManagementWorkspaceControllerBase,
 )
 
 __all__ = [
     "ProjectManagementWorkspaceControllerBase",
+    "ProjectManagementTaskViewStore",
     "ProjectManagementUndoCommand",
     "ProjectManagementUndoStack",
     "run_mutation",
