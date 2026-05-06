@@ -2,6 +2,7 @@ from pathlib import Path
 
 
 QMLLS_CONFIG = Path(".qmlls.ini")
+UI_QML_ROOT = Path("src/ui_qml")
 QML_SHARED_ROOT = Path("src/ui_qml/shared/qml/App")
 QML_SHELL_CONTEXT = Path("src/ui_qml/shell/qml/Shell/Context")
 QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml")
@@ -136,6 +137,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_WIDGETS / "WorkspaceStateBanner.qml",
         QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
         QML_PM_WIDGETS / "WorkspaceStatusSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksBulkActionsSection.qml",
     ]
 
     assert all(path.exists() for path in expected_files)

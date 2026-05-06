@@ -185,11 +185,15 @@ Module {
         Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
         Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "bulkStatusOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
         Property { name: "searchText"; type: "QString"; isReadonly: true }
         Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
         Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
         Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedTaskIds"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedTaskCount"; type: "int"; isReadonly: true }
+        Property { name: "selectedTaskDoneCount"; type: "int"; isReadonly: true }
         Property { name: "assignmentOptions"; type: "QVariantList"; isReadonly: true }
         Property { name: "selectedAssignmentId"; type: "QString"; isReadonly: true }
         Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
@@ -211,6 +215,9 @@ Module {
         Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
         Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
         Method { name: "selectTask"; Parameter { name: "taskId"; type: "QString" } }
+        Method { name: "setTaskBulkSelection"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
+        Method { name: "selectVisibleTasks" }
+        Method { name: "clearTaskBulkSelection" }
         Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
         Method { name: "selectTimePeriod"; Parameter { name: "periodStart"; type: "QString" } }
         Method { name: "selectTimeEntry"; Parameter { name: "entryId"; type: "QString" } }
@@ -221,6 +228,8 @@ Module {
         Method { name: "createAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateAssignmentAllocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "setAssignmentHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "bulkDeleteTasks"; type: "QVariantMap"; Parameter { name: "taskIds"; type: "QVariantList" } }
         Method { name: "addTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "updateTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
         Method { name: "deleteTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "entryId"; type: "QString" } }

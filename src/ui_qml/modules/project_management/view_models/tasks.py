@@ -79,6 +79,7 @@ class TaskCatalogWorkspaceViewModel:
     project_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
     selected_project_id: str = ""
     status_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    bulk_status_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
     selected_status_filter: str = "all"
     search_text: str = ""
     tasks: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)

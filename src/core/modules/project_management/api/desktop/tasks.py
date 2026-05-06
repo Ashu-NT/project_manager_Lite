@@ -143,6 +143,13 @@ class TaskDependencyCreateCommand:
     lag_days: int = 0
 
 
+@dataclass(frozen=True)
+class TaskBulkStatusCommand:
+    task_ids: tuple[str, ...]
+    status: str
+    reopen_percent_complete: float | None = None
+
+
 class ProjectManagementTasksDesktopApi:
     def __init__(
         self,
@@ -473,6 +480,51 @@ class ProjectManagementTasksDesktopApi:
     def delete_task(self, task_id: str) -> None:
         self._require_task_service().delete_task(task_id)
 
+    def apply_bulk_status(
+        self,
+        command: TaskBulkStatusCommand,
+    ) -> tuple[TaskDesktopDto, ...]:
+        service = self._require_task_service()
+        desired_status = _coerce_task_status(command.status)
+        task_ids = _normalize_task_ids(command.task_ids)
+        changed_tasks: list[TaskDesktopDto] = []
+        for task_id in task_ids:
+            task = service.get_task(task_id)
+            if task is None or task.status == desired_status:
+                continue
+            if (
+                task.status == TaskStatus.DONE
+                and desired_status == TaskStatus.IN_PROGRESS
+                and command.reopen_percent_complete is not None
+            ):
+                updated = service.update_progress(
+                    task_id,
+                    status=TaskStatus.IN_PROGRESS,
+                    percent_complete=float(command.reopen_percent_complete),
+                )
+                task = updated
+            else:
+                service.set_status(task_id, desired_status)
+                task = service.get_task(task_id) or task
+            changed_tasks.append(
+                self._serialize_task(
+                    task,
+                    project_name=self._project_name_by_id().get(task.project_id, ""),
+                )
+            )
+        return tuple(changed_tasks)
+
+    def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
+        normalized_ids = _normalize_task_ids(task_ids)
+        deleted_ids: list[str] = []
+        for task_id in normalized_ids:
+            task = self._require_task_service().get_task(task_id)
+            if task is None:
+                continue
+            self._require_task_service().delete_task(task_id)
+            deleted_ids.append(task_id)
+        return tuple(deleted_ids)
+
     def _require_task_service(self) -> TaskService:
         if self._task_service is None:
             raise RuntimeError("Project management tasks desktop API is not connected.")
@@ -651,12 +703,25 @@ def _dependency_type_label(value: DependencyType | str) -> str:
     return labels[dependency_type]
 
 
+def _normalize_task_ids(task_ids) -> tuple[str, ...]:
+    normalized_ids: list[str] = []
+    seen: set[str] = set()
+    for task_id in task_ids or ():
+        normalized_id = str(task_id or "").strip()
+        if not normalized_id or normalized_id in seen:
+            continue
+        normalized_ids.append(normalized_id)
+        seen.add(normalized_id)
+    return tuple(normalized_ids)
+
+
 __all__ = [
     "ProjectManagementTasksDesktopApi",
     "TaskAssignmentAllocationCommand",
     "TaskAssignmentCreateCommand",
     "TaskAssignmentDesktopDto",
     "TaskAssignmentHoursCommand",
+    "TaskBulkStatusCommand",
     "TaskCreateCommand",
     "TaskDesktopDto",
     "TaskDependencyCreateCommand",

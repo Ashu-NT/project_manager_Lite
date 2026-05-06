@@ -15,12 +15,14 @@ Item {
     property var dependencyTypeOptions: []
     property var collaborationMentionOptions: []
     property var collaborationDocumentOptions: []
+    property var selectedTaskIds: []
     property var editTarget: ({})
     property var progressTarget: ({})
     property var deleteTarget: ({})
     property var assignmentTarget: ({})
     property var dependencyTarget: ({})
     property var collaborationTarget: ({})
+    property var bulkDeleteTargetIds: []
 
     signal createRequested(var payload)
     signal updateRequested(var payload)
@@ -33,6 +35,7 @@ Item {
     signal createDependencyRequested(var payload)
     signal deleteDependencyRequested(string dependencyId)
     signal postTaskCommentRequested(var payload)
+    signal bulkDeleteRequested(var taskIds)
 
     function openCreateDialog() {
         root.editTarget = {
@@ -105,6 +108,11 @@ Item {
         root.collaborationTarget = taskData || root.selectedTaskData || ({})
         collaborationComposerDialog.taskData = root.collaborationTarget
         collaborationComposerDialog.open()
+    }
+
+    function openBulkDeleteDialog(taskIds) {
+        root.bulkDeleteTargetIds = taskIds || root.selectedTaskIds || []
+        bulkDeleteDialog.open()
     }
 
     ProjectManagementDialogs.TaskEditorDialog {
@@ -232,6 +240,47 @@ Item {
             if (state.taskId) {
                 root.deleteRequested(String(state.taskId))
             }
+        }
+    }
+
+    Dialog {
+        id: bulkDeleteDialog
+
+        modal: true
+        title: "Bulk Delete Tasks"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        closePolicy: Popup.CloseOnEscape
+
+        background: Rectangle {
+            radius: Theme.AppTheme.radiusLg
+            color: Theme.AppTheme.surface
+            border.color: Theme.AppTheme.border
+        }
+
+        contentItem: ColumnLayout {
+            spacing: Theme.AppTheme.spacingSm
+
+            Label {
+                Layout.fillWidth: true
+                text: "Delete " + String((root.bulkDeleteTargetIds || []).length) + " selected tasks and their dependencies/assignments?"
+                color: Theme.AppTheme.textPrimary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
+                wrapMode: Text.WordWrap
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text: "This action cannot be undone."
+                color: Theme.AppTheme.textSecondary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+        }
+
+        onAccepted: {
+            root.bulkDeleteRequested(root.bulkDeleteTargetIds || [])
         }
     }
 

@@ -961,6 +961,19 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
                 percent_complete=0.0,
                 deadline=date(2026, 5, 13),
             ),
+            _build_task_record(
+                task_id="task-4",
+                project_id="proj-1",
+                name="As-Built Handover",
+                description="Finalize turnover package and as-built dossier.",
+                status=TaskStatus.DONE,
+                start_date=date(2026, 5, 10),
+                end_date=date(2026, 5, 10),
+                duration_days=1,
+                priority=50,
+                percent_complete=100.0,
+                deadline=date(2026, 5, 10),
+            ),
         ]
     )
     task_service.register_project_resource("pr-1", "res-1")
@@ -1044,6 +1057,44 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
     assert controller.collaborationDocumentOptions[0]["value"] == "doc-1"
     assert controller.collaborationComments["items"][0]["title"] == "@jamie"
     assert controller.collaborationPresence["items"][0]["title"] == "Alex Taylor (@planner)"
+    assert controller.bulkStatusOptions[0]["value"] == "TODO"
+
+    controller.setTaskBulkSelection("task-1", True)
+    controller.setTaskBulkSelection("task-4", True)
+
+    assert controller.selectedTaskIds == ["task-1", "task-4"]
+    assert controller.selectedTaskCount == 2
+    assert controller.selectedTaskDoneCount == 1
+
+    bulk_status_result = controller.applyBulkStatus(
+        {
+            "status": "IN_PROGRESS",
+            "reopenPercentComplete": "50",
+        }
+    )
+
+    assert bulk_status_result == {
+        "ok": True,
+        "message": "Bulk task status applied.",
+    }
+    reopened_task = next(
+        item for item in controller.tasks["items"] if item["id"] == "task-4"
+    )
+    assert reopened_task["statusLabel"] == "In Progress"
+    assert reopened_task["state"]["status"] == "IN_PROGRESS"
+    assert controller.selectedTaskDoneCount == 0
+
+    controller.clearTaskBulkSelection()
+
+    assert controller.selectedTaskIds == []
+    assert controller.selectedTaskCount == 0
+
+    controller.selectVisibleTasks()
+
+    assert set(controller.selectedTaskIds) == {"task-1", "task-2", "task-4"}
+    assert controller.selectedTaskCount == 3
+
+    controller.clearTaskBulkSelection()
 
     time_entry_result = controller.addTaskTimeEntry(
         {
@@ -1085,6 +1136,21 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller() -
 
     assert controller.tasks["items"] == []
     assert controller.emptyState == "No tasks match the current filters."
+
+    controller.setStatusFilter("all")
+    controller.setSearchText("")
+    controller.setTaskBulkSelection("task-1", True)
+    controller.setTaskBulkSelection("task-4", True)
+
+    bulk_delete_result = controller.bulkDeleteTasks(["task-1", "task-4"])
+
+    assert bulk_delete_result == {
+        "ok": True,
+        "message": "Selected tasks deleted.",
+    }
+    assert [item["id"] for item in controller.tasks["items"]] == ["task-2"]
+    assert controller.selectedTaskIds == []
+    assert controller.selectedTaskCount == 0
 
 
 def test_project_management_workspace_catalog_exposes_typed_scheduling_controller() -> None:
@@ -1393,7 +1459,7 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "QML collaboration inbox slice active" in qml_text
     assert "QML portfolio planning slice active" in qml_text
     assert "QML scheduling operations slice active" in qml_text
-    assert "QML task execution, collaboration, and time-entry slice active" in qml_text
+    assert "QML task execution, bulk actions, collaboration, and time-entry slice active" in qml_text
     assert "QML timesheet capture and review slice active" in qml_text
     assert "QML read-only dashboard slice active" in qml_text
 
@@ -1680,6 +1746,36 @@ class _FakeTaskService:
 
     def get_task(self, task_id: str) -> SimpleNamespace | None:
         return self._tasks.get(task_id)
+
+    def set_status(self, task_id: str, status: TaskStatus) -> None:
+        task = self._tasks[task_id]
+        task.status = status
+        task.version += 1
+
+    def update_progress(
+        self,
+        task_id: str,
+        *,
+        percent_complete: float | None = None,
+        actual_start: date | None = None,
+        actual_end: date | None = None,
+        status: TaskStatus | None = None,
+        expected_version: int | None = None,
+    ) -> SimpleNamespace:
+        task = self._tasks[task_id]
+        if percent_complete is not None:
+            task.percent_complete = float(percent_complete)
+        if actual_start is not None:
+            task.actual_start = actual_start
+        if actual_end is not None:
+            task.actual_end = actual_end
+        if status is not None:
+            task.status = status
+        task.version += 1
+        return task
+
+    def delete_task(self, task_id: str) -> None:
+        del self._tasks[task_id]
 
     def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
         self._project_resource_lookup[project_resource_id] = resource_id

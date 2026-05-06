@@ -28,11 +28,15 @@ class ProjectManagementTasksWorkspaceController(
     projectOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
     statusOptionsChanged = Signal()
+    bulkStatusOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
     searchTextChanged = Signal()
     tasksChanged = Signal()
     selectedTaskChanged = Signal()
     selectedTaskIdChanged = Signal()
+    selectedTaskIdsChanged = Signal()
+    selectedTaskCountChanged = Signal()
+    selectedTaskDoneCountChanged = Signal()
     assignmentOptionsChanged = Signal()
     selectedAssignmentIdChanged = Signal()
     dependencyTaskOptionsChanged = Signal()
@@ -72,6 +76,7 @@ class ProjectManagementTasksWorkspaceController(
         self._project_options: list[dict[str, str]] = []
         self._selected_project_id = ""
         self._status_options: list[dict[str, str]] = []
+        self._bulk_status_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
         self._search_text = ""
         self._tasks: dict[str, object] = {
@@ -91,6 +96,9 @@ class ProjectManagementTasksWorkspaceController(
             "state": {},
         }
         self._selected_task_id = ""
+        self._selected_task_ids: list[str] = []
+        self._selected_task_count = 0
+        self._selected_task_done_count = 0
         self._assignment_options: list[dict[str, str]] = []
         self._selected_assignment_id = ""
         self._dependency_task_options: list[dict[str, str]] = []
@@ -169,6 +177,10 @@ class ProjectManagementTasksWorkspaceController(
     def statusOptions(self) -> list[dict[str, str]]:
         return self._status_options
 
+    @Property("QVariantList", notify=bulkStatusOptionsChanged)
+    def bulkStatusOptions(self) -> list[dict[str, str]]:
+        return self._bulk_status_options
+
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
         return self._selected_status_filter
@@ -188,6 +200,18 @@ class ProjectManagementTasksWorkspaceController(
     @Property(str, notify=selectedTaskIdChanged)
     def selectedTaskId(self) -> str:
         return self._selected_task_id
+
+    @Property("QVariantList", notify=selectedTaskIdsChanged)
+    def selectedTaskIds(self) -> list[str]:
+        return list(self._selected_task_ids)
+
+    @Property(int, notify=selectedTaskCountChanged)
+    def selectedTaskCount(self) -> int:
+        return self._selected_task_count
+
+    @Property(int, notify=selectedTaskDoneCountChanged)
+    def selectedTaskDoneCount(self) -> int:
+        return self._selected_task_done_count
 
     @Property("QVariantList", notify=assignmentOptionsChanged)
     def assignmentOptions(self) -> list[dict[str, str]]:
@@ -285,6 +309,9 @@ class ProjectManagementTasksWorkspaceController(
             self._set_status_options(
                 serialize_selector_options(workspace_state.status_options)
             )
+            self._set_bulk_status_options(
+                serialize_selector_options(workspace_state.bulk_status_options)
+            )
             self._set_selected_status_filter(
                 workspace_state.selected_status_filter
             )
@@ -302,6 +329,7 @@ class ProjectManagementTasksWorkspaceController(
                     ),
                 }
             )
+            self._reconcile_task_bulk_selection(self._tasks["items"])
             self._set_selected_task_id(workspace_state.selected_task_id)
             self._set_selected_task(
                 serialize_task_detail_view_model(
@@ -419,6 +447,39 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_time_entry_id("")
         self.refresh()
 
+    @Slot(str, bool)
+    def setTaskBulkSelection(self, task_id: str, selected: bool) -> None:
+        normalized_value = (task_id or "").strip()
+        if not normalized_value:
+            return
+        current_ids = list(self._selected_task_ids)
+        if selected:
+            if normalized_value not in current_ids:
+                current_ids.append(normalized_value)
+        else:
+            current_ids = [
+                existing_id for existing_id in current_ids if existing_id != normalized_value
+            ]
+        self._set_selected_task_ids(current_ids)
+        self._sync_selected_task_stats(self._tasks.get("items", []))
+
+    @Slot()
+    def selectVisibleTasks(self) -> None:
+        visible_task_ids = [
+            str(item.get("id", "") or "").strip()
+            for item in self._tasks.get("items", [])
+            if str(item.get("id", "") or "").strip()
+        ]
+        self._set_selected_task_ids(visible_task_ids)
+        self._sync_selected_task_stats(self._tasks.get("items", []))
+
+    @Slot()
+    def clearTaskBulkSelection(self) -> None:
+        if not self._selected_task_ids:
+            return
+        self._set_selected_task_ids([])
+        self._sync_selected_task_stats(self._tasks.get("items", []))
+
     @Slot(str)
     def selectAssignment(self, assignment_id: str) -> None:
         normalized_value = (assignment_id or "").strip()
@@ -533,6 +594,42 @@ class ProjectManagementTasksWorkspaceController(
             ),
             success_message="Assignment effort updated.",
             on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkStatus(self, payload: dict[str, object]) -> dict[str, object]:
+        merged_payload = dict(payload)
+        merged_payload.setdefault("taskIds", list(self._selected_task_ids))
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.apply_bulk_status(
+                merged_payload
+            ),
+            success_message="Bulk task status applied.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantList", result="QVariantMap")
+    def bulkDeleteTasks(self, task_ids: list[object]) -> dict[str, object]:
+        normalized_ids = [
+            str(task_id or "").strip()
+            for task_id in task_ids
+            if str(task_id or "").strip()
+        ]
+        return run_mutation(
+            operation=lambda: self._tasks_workspace_presenter.bulk_delete_tasks(
+                normalized_ids
+            ),
+            success_message="Selected tasks deleted.",
+            on_success=lambda: (
+                self.clearTaskBulkSelection(),
+                self.refresh(),
+            ),
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
@@ -715,6 +812,12 @@ class ProjectManagementTasksWorkspaceController(
         self._status_options = status_options
         self.statusOptionsChanged.emit()
 
+    def _set_bulk_status_options(self, bulk_status_options: list[dict[str, str]]) -> None:
+        if bulk_status_options == self._bulk_status_options:
+            return
+        self._bulk_status_options = bulk_status_options
+        self.bulkStatusOptionsChanged.emit()
+
     def _set_selected_status_filter(self, selected_status_filter: str) -> None:
         if selected_status_filter == self._selected_status_filter:
             return
@@ -744,6 +847,29 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._selected_task_id = selected_task_id
         self.selectedTaskIdChanged.emit()
+
+    def _set_selected_task_ids(self, selected_task_ids: list[str]) -> None:
+        normalized_ids = [
+            str(task_id or "").strip()
+            for task_id in selected_task_ids
+            if str(task_id or "").strip()
+        ]
+        if normalized_ids == self._selected_task_ids:
+            return
+        self._selected_task_ids = normalized_ids
+        self.selectedTaskIdsChanged.emit()
+
+    def _set_selected_task_count(self, selected_task_count: int) -> None:
+        if selected_task_count == self._selected_task_count:
+            return
+        self._selected_task_count = selected_task_count
+        self.selectedTaskCountChanged.emit()
+
+    def _set_selected_task_done_count(self, selected_task_done_count: int) -> None:
+        if selected_task_done_count == self._selected_task_done_count:
+            return
+        self._selected_task_done_count = selected_task_done_count
+        self.selectedTaskDoneCountChanged.emit()
 
     def _set_assignment_options(
         self,
@@ -828,6 +954,37 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._selected_time_entry = selected_time_entry
         self.selectedTimeEntryChanged.emit()
+
+    def _reconcile_task_bulk_selection(self, task_items: list[dict[str, object]]) -> None:
+        visible_task_ids = {
+            str(item.get("id", "") or "").strip()
+            for item in task_items
+            if str(item.get("id", "") or "").strip()
+        }
+        reconciled_ids = [
+            task_id for task_id in self._selected_task_ids if task_id in visible_task_ids
+        ]
+        self._set_selected_task_ids(reconciled_ids)
+        self._sync_selected_task_stats(task_items)
+
+    def _sync_selected_task_stats(self, task_items: list[dict[str, object]]) -> None:
+        selected_ids = set(self._selected_task_ids)
+        selected_count = len(selected_ids)
+        selected_done_count = sum(
+            1
+            for item in task_items
+            if str(item.get("id", "") or "").strip() in selected_ids
+            and str(
+                (item.get("state", {}) if isinstance(item.get("state"), dict) else {}).get(
+                    "status",
+                    "",
+                )
+                or ""
+            ).strip().upper()
+            == "DONE"
+        )
+        self._set_selected_task_count(selected_count)
+        self._set_selected_task_done_count(selected_done_count)
 
     def _set_collaboration_mention_options(
         self,

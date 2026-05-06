@@ -123,6 +123,7 @@ AppLayouts.WorkspaceFrame {
         dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
         collaborationMentionOptions: root.workspaceController ? (root.workspaceController.collaborationMentionOptions || []) : []
         collaborationDocumentOptions: root.workspaceController ? (root.workspaceController.collaborationDocumentOptions || []) : []
+        selectedTaskIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
 
         onCreateRequested: function(payload) {
             if (root.workspaceController !== null) {
@@ -189,6 +190,12 @@ AppLayouts.WorkspaceFrame {
                 root.workspaceController.postTaskComment(payload)
             }
         }
+
+        onBulkDeleteRequested: function(taskIds) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.bulkDeleteTasks(taskIds)
+            }
+        }
     }
 
     Flickable {
@@ -219,11 +226,11 @@ AppLayouts.WorkspaceFrame {
             ProjectManagementWidgets.WorkspaceStatusSection {
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
-                    ? "QML task execution, collaboration, and time-entry slice active"
+                    ? "QML task execution, bulk actions, collaboration, and time-entry slice active"
                     : (root.workspaceModel.migrationStatus || "")
                 legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
                 architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Task catalog, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
+                architectureSummary: "Task catalog, bulk status/delete flows, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
             }
 
             TasksFiltersSection {
@@ -264,6 +271,39 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
+            TasksBulkActionsSection {
+                Layout.fillWidth: true
+                statusOptions: root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
+                selectedTaskCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
+                selectedTaskDoneCount: root.workspaceController ? root.workspaceController.selectedTaskDoneCount : 0
+                visibleTaskCount: (root.tasksModel.items || []).length
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                onSelectVisibleRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectVisibleTasks()
+                    }
+                }
+
+                onClearRequested: function() {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.clearTaskBulkSelection()
+                    }
+                }
+
+                onApplyStatusRequested: function(payload) {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.applyBulkStatus(payload)
+                    }
+                }
+
+                onBulkDeleteRequested: function() {
+                    dialogHost.openBulkDeleteDialog(
+                        root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
+                    )
+                }
+            }
+
             GridLayout {
                 Layout.fillWidth: true
                 columns: root.width > 1180 ? 2 : 1
@@ -275,11 +315,18 @@ AppLayouts.WorkspaceFrame {
                     Layout.alignment: Qt.AlignTop
                     tasksModel: root.tasksModel
                     selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
+                    selectedTaskIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
                     onTaskSelected: function(taskId) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.selectTask(taskId)
+                        }
+                    }
+
+                    onTaskSelectionToggled: function(taskId, selected) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.setTaskBulkSelection(taskId, selected)
                         }
                     }
 

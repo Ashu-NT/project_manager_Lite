@@ -11,6 +11,7 @@ from src.core.modules.project_management.api.desktop import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
+    TaskBulkStatusCommand,
     TaskCreateCommand,
     TaskDependencyCreateCommand,
     TaskProgressCommand,
@@ -83,6 +84,10 @@ class ProjectTasksWorkspacePresenter:
                 TaskSelectorOptionViewModel(value=option.value, label=option.label)
                 for option in self._desktop_api.list_statuses()
             ),
+        )
+        bulk_status_options = tuple(
+            TaskSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in self._desktop_api.list_statuses()
         )
         normalized_search = (search_text or "").strip()
         normalized_status_filter = self._normalize_status_filter(
@@ -175,6 +180,7 @@ class ProjectTasksWorkspacePresenter:
             project_options=project_options,
             selected_project_id=resolved_project_id,
             status_options=status_options,
+            bulk_status_options=bulk_status_options,
             selected_status_filter=normalized_status_filter,
             search_text=normalized_search,
             tasks=tuple(
@@ -439,6 +445,39 @@ class ProjectTasksWorkspacePresenter:
         if not normalized_assignment_id:
             raise ValueError("Assignment ID is required to remove an assignment.")
         self._desktop_api.delete_assignment(normalized_assignment_id)
+
+    def apply_bulk_status(self, payload: dict[str, Any]) -> None:
+        task_ids = tuple(self._coerce_string_list(payload.get("taskIds")))
+        if not task_ids:
+            raise ValueError("Select one or more tasks first.")
+        target_status = self._require_text(
+            payload,
+            "status",
+            "Choose a valid target status.",
+        )
+        reopen_percent_complete = None
+        if str(target_status or "").strip().upper() == "IN_PROGRESS":
+            reopen_percent_complete = self._optional_float(
+                payload,
+                "reopenPercentComplete",
+            )
+        changed_tasks = self._desktop_api.apply_bulk_status(
+            TaskBulkStatusCommand(
+                task_ids=task_ids,
+                status=target_status,
+                reopen_percent_complete=reopen_percent_complete,
+            )
+        )
+        if not changed_tasks:
+            raise ValueError("Selected tasks already have this status.")
+
+    def bulk_delete_tasks(self, task_ids: list[str] | tuple[str, ...]) -> None:
+        normalized_ids = tuple(self._coerce_string_list(task_ids))
+        if not normalized_ids:
+            raise ValueError("Select one or more tasks first.")
+        deleted_ids = self._desktop_api.delete_tasks(normalized_ids)
+        if not deleted_ids:
+            raise ValueError("No selected tasks could be deleted.")
 
     def create_dependency(self, payload: dict[str, Any]) -> None:
         command = TaskDependencyCreateCommand(

@@ -771,6 +771,56 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     assert api.list_tasks(project.id) == ()
 
 
+def test_project_management_tasks_desktop_api_supports_bulk_status_and_delete() -> None:
+    project_service = _FakeProjectService()
+    project = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+    )
+    task_service = _FakeTaskService()
+    task_a = task_service.create_task(
+        project_id=project.id,
+        name="Cable Pull",
+        description="Primary feeder cable installation.",
+        start_date=date(2026, 5, 3),
+        duration_days=4,
+        priority=80,
+        deadline=date(2026, 5, 8),
+    )
+    task_b = task_service.create_task(
+        project_id=project.id,
+        name="Punchlist Closeout",
+        description="Commissioning closeout walkdown.",
+        start_date=date(2026, 5, 8),
+        duration_days=2,
+        priority=60,
+        deadline=date(2026, 5, 10),
+    )
+    task_service.set_status(task_b.id, TaskStatus.DONE)
+    api = build_project_management_tasks_desktop_api(
+        project_service=project_service,
+        task_service=task_service,
+    )
+
+    changed = api.apply_bulk_status(
+        SimpleNamespace(
+            task_ids=(task_a.id, task_b.id, task_a.id, "missing"),
+            status="IN_PROGRESS",
+            reopen_percent_complete=50.0,
+        )
+    )
+
+    assert {task.id for task in changed} == {task_a.id, task_b.id}
+    assert task_service.get_task(task_a.id).status == TaskStatus.IN_PROGRESS
+    assert task_service.get_task(task_b.id).status == TaskStatus.IN_PROGRESS
+    assert task_service.get_task(task_b.id).percent_complete == 50.0
+
+    deleted_ids = api.delete_tasks((task_a.id, task_b.id, task_b.id, "missing"))
+
+    assert deleted_ids == (task_a.id, task_b.id)
+    assert api.list_tasks(project.id) == ()
+
+
 def test_project_management_tasks_desktop_api_supports_assignments_and_dependencies() -> None:
     project_service = _FakeProjectService()
     project = project_service.create_project(
