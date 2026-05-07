@@ -40,6 +40,30 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
     build_project_management_timesheets_desktop_api,
 )
+from src.core.modules.inventory_procurement.api.desktop import (
+    InventoryProcurementCatalogDesktopApi,
+    InventoryProcurementDashboardDesktopApi,
+    InventoryProcurementInventoryDesktopApi,
+    InventoryProcurementProcurementDesktopApi,
+    InventoryProcurementReservationsDesktopApi,
+    InventoryProcurementWorkspaceDesktopApi,
+    build_inventory_procurement_catalog_desktop_api,
+    build_inventory_procurement_dashboard_desktop_api,
+    build_inventory_procurement_inventory_desktop_api,
+    build_inventory_procurement_procurement_desktop_api,
+    build_inventory_procurement_reservations_desktop_api,
+    build_inventory_procurement_workspace_desktop_api,
+)
+from src.core.modules.inventory_procurement import (
+    InventoryReferenceService,
+    ItemCategoryService,
+    ItemMasterService,
+    InventoryService,
+    ProcurementService,
+    PurchasingService,
+    ReservationService,
+    StockControlService,
+)
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
@@ -102,6 +126,12 @@ class DesktopApiRegistry:
     project_management_scheduling: ProjectManagementSchedulingDesktopApi
     project_management_tasks: ProjectManagementTasksDesktopApi
     project_management_timesheets: ProjectManagementTimesheetsDesktopApi
+    inventory_procurement_workspaces: InventoryProcurementWorkspaceDesktopApi
+    inventory_procurement_catalog: InventoryProcurementCatalogDesktopApi
+    inventory_procurement_inventory: InventoryProcurementInventoryDesktopApi
+    inventory_procurement_reservations: InventoryProcurementReservationsDesktopApi
+    inventory_procurement_procurement: InventoryProcurementProcurementDesktopApi
+    inventory_procurement_dashboard: InventoryProcurementDashboardDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -146,6 +176,13 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     cost_service = services.get("cost_service")
     baseline_service = services.get("baseline_service")
     inventory_service = services.get("inventory_service")
+    inventory_reference_service = services.get("inventory_reference_service")
+    inventory_item_category_service = services.get("inventory_item_category_service")
+    inventory_item_service = services.get("inventory_item_service")
+    inventory_stock_service = services.get("inventory_stock_service")
+    inventory_reservation_service = services.get("inventory_reservation_service")
+    inventory_procurement_service = services.get("inventory_procurement_service")
+    inventory_purchasing_service = services.get("inventory_purchasing_service")
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
     )
@@ -198,6 +235,44 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     pm_reporting_service = services.get("reporting_service")
     if not isinstance(pm_reporting_service, ReportingService):
         pm_reporting_service = None
+    inventory_reference_desktop_service = (
+        inventory_reference_service
+        if isinstance(inventory_reference_service, InventoryReferenceService)
+        else None
+    )
+    inventory_category_desktop_service = (
+        inventory_item_category_service
+        if isinstance(inventory_item_category_service, ItemCategoryService)
+        else None
+    )
+    inventory_item_desktop_service = (
+        inventory_item_service
+        if isinstance(inventory_item_service, ItemMasterService)
+        else None
+    )
+    inventory_inventory_desktop_service = (
+        inventory_service if isinstance(inventory_service, InventoryService) else None
+    )
+    inventory_stock_desktop_service = (
+        inventory_stock_service
+        if isinstance(inventory_stock_service, StockControlService)
+        else None
+    )
+    inventory_reservation_desktop_service = (
+        inventory_reservation_service
+        if isinstance(inventory_reservation_service, ReservationService)
+        else None
+    )
+    inventory_procurement_desktop_service = (
+        inventory_procurement_service
+        if isinstance(inventory_procurement_service, ProcurementService)
+        else None
+    )
+    inventory_purchasing_desktop_service = (
+        inventory_purchasing_service
+        if isinstance(inventory_purchasing_service, PurchasingService)
+        else None
+    )
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
     access_scope_type_choices: list[tuple[str, str]] = []
     access_scope_option_loaders: dict[str, object] = {}
@@ -309,6 +384,39 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             task_service=pm_task_service,
             resource_service=pm_resource_service,
             timesheet_service=pm_timesheet_service,
+        ),
+        inventory_procurement_workspaces=build_inventory_procurement_workspace_desktop_api(),
+        inventory_procurement_catalog=build_inventory_procurement_catalog_desktop_api(
+            category_service=inventory_category_desktop_service,
+            item_service=inventory_item_desktop_service,
+            reference_service=inventory_reference_desktop_service,
+        ),
+        inventory_procurement_inventory=build_inventory_procurement_inventory_desktop_api(
+            inventory_service=inventory_inventory_desktop_service,
+            stock_service=inventory_stock_desktop_service,
+            item_service=inventory_item_desktop_service,
+            reference_service=inventory_reference_desktop_service,
+        ),
+        inventory_procurement_reservations=build_inventory_procurement_reservations_desktop_api(
+            reservation_service=inventory_reservation_desktop_service,
+            item_service=inventory_item_desktop_service,
+            inventory_service=inventory_inventory_desktop_service,
+        ),
+        inventory_procurement_procurement=build_inventory_procurement_procurement_desktop_api(
+            procurement_service=inventory_procurement_desktop_service,
+            purchasing_service=inventory_purchasing_desktop_service,
+            reference_service=inventory_reference_desktop_service,
+            inventory_service=inventory_inventory_desktop_service,
+            item_service=inventory_item_desktop_service,
+        ),
+        inventory_procurement_dashboard=build_inventory_procurement_dashboard_desktop_api(
+            item_service=inventory_item_desktop_service,
+            inventory_service=inventory_inventory_desktop_service,
+            stock_service=inventory_stock_desktop_service,
+            reservation_service=inventory_reservation_desktop_service,
+            procurement_service=inventory_procurement_desktop_service,
+            purchasing_service=inventory_purchasing_desktop_service,
+            reference_service=inventory_reference_desktop_service,
         ),
     )
 
