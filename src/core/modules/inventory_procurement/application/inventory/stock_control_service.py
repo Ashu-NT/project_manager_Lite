@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.interfaces import StockBalanceRepository, StockTransactionRepository
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
 from src.core.modules.inventory_procurement.application.inventory.stock_control_adjustments import (
@@ -16,6 +15,10 @@ from src.core.modules.inventory_procurement.application.inventory.stock_control_
 )
 from src.core.modules.inventory_procurement.application.inventory.stock_control_support import (
     StockControlSupportMixin,
+)
+from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
+    StockBalanceRepository,
+    StockTransactionRepository,
 )
 from src.core.platform.org.contracts import OrganizationRepository
 

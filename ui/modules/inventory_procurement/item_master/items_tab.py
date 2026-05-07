@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from core.modules.inventory_procurement import InventoryReferenceService
-from core.modules.inventory_procurement.domain import InventoryItemCategory, StockItem
+from src.core.modules.inventory_procurement.domain.catalog.item import InventoryItemCategory, StockItem
 from src.core.modules.inventory_procurement.application.catalog import ItemCategoryService, ItemMasterService
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError

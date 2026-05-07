@@ -5,14 +5,16 @@ from core.modules.inventory_procurement.services import (
     InventoryReferenceService,
     InventoryReportingService,
     MaintenanceMaterialService,
-    ProcurementService,
-    PurchasingService,
 )
 from src.core.modules.inventory_procurement.application.catalog import ItemCategoryService, ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import (
     InventoryService,
     ReservationService,
     StockControlService,
+)
+from src.core.modules.inventory_procurement.application.procurement import (
+    ProcurementService,
+    PurchasingService,
 )
 
 __all__ = [

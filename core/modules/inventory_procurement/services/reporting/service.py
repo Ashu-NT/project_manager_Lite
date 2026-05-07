@@ -15,10 +15,13 @@ from core.modules.inventory_procurement.reporting import (
     register_inventory_procurement_report_definitions,
 )
 from core.modules.inventory_procurement.reporting.excel import InventoryExcelReportRenderer
-from core.modules.inventory_procurement.services.procurement import ProcurementService, PurchasingService
 from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService, StockControlService
+from src.core.modules.inventory_procurement.application.procurement import (
+    ProcurementService,
+    PurchasingService,
+)
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.exporting import ensure_output_path, finalize_artifact
 from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime

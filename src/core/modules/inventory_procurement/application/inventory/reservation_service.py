@@ -6,14 +6,8 @@ from uuid import uuid4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.domain import StockReservation, StockReservationStatus
-from core.modules.inventory_procurement.interfaces import StockReservationRepository
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
-from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
-from src.core.modules.inventory_procurement.application.inventory.stock_control_service import (
-    StockControlService,
-)
-from core.modules.inventory_procurement.support import (
+from src.core.modules.inventory_procurement.application.common.support import (
     RESERVATION_STATUS_TRANSITIONS,
     normalize_optional_text,
     normalize_positive_quantity,
@@ -21,6 +15,17 @@ from core.modules.inventory_procurement.support import (
     normalize_uom,
     resolve_item_uom_factor,
     validate_transition,
+)
+from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
+from src.core.modules.inventory_procurement.application.inventory.stock_control_service import (
+    StockControlService,
+)
+from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
+    StockReservationRepository,
+)
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
+    StockReservation,
+    StockReservationStatus,
 )
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission

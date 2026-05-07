@@ -8,8 +8,6 @@ from core.modules.inventory_procurement import (
     InventoryReferenceService,
     InventoryReportingService,
     MaintenanceMaterialService,
-    ProcurementService,
-    PurchasingService,
 )
 from core.modules.inventory_procurement.access.policy import (
     STOREROOM_SCOPE_ROLE_CHOICES,
@@ -24,6 +22,10 @@ from src.core.modules.inventory_procurement.application.inventory import (
     InventoryService,
     ReservationService,
     StockControlService,
+)
+from src.core.modules.inventory_procurement.application.procurement import (
+    ProcurementService,
+    PurchasingService,
 )
 from infra.modules.inventory_procurement.db import (
     SqlAlchemyInventoryItemCategoryRepository,

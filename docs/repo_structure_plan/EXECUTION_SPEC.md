@@ -1436,9 +1436,20 @@ Status as of 2026-05-07:
 
 - started the first real inventory transfer by moving `services/item_master/*` into `src/core/modules/inventory_procurement/application/catalog/*`
 - started the first real inventory transfer by moving `services/inventory/*`, `services/reservation/service.py`, and `services/stock_control/*` into `src/core/modules/inventory_procurement/application/inventory/*`
-- rewired inventory composition, remaining inventory services, legacy inventory QWidget callers, and `tests/test_service_architecture.py` to the new `src.core.modules.inventory_procurement.application.{catalog,inventory}` imports
-- deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control}/`
-- remaining Slice 3 work still follows the existing plan: split domain/contracts, move procurement/reporting/persistence, add desktop/HTTP APIs, migrate `src/ui_qml/modules/inventory_procurement/*`, regroup tests, and then remove the broader legacy inventory paths
+- moved `services/procurement/*` into `src/core/modules/inventory_procurement/application/procurement/*`
+- added `src/core/modules/inventory_procurement/application/common/support.py` so the transferred inventory application code does not keep importing the legacy flat support module
+- split the transferred inventory domain into `src/core/modules/inventory_procurement/domain/catalog/item.py` and `domain/inventory/stock.py`
+- split the transferred procurement domain into `src/core/modules/inventory_procurement/domain/procurement/purchasing.py`
+- split the transferred inventory repository contracts into `src/core/modules/inventory_procurement/contracts/repositories/{catalog,inventory,procurement}.py`
+- rewired inventory composition, remaining inventory services, legacy inventory/procurement QWidget callers, reporting/data-exchange and maintenance-material integrations, plus transitional inventory ORM/repository adapters to the new `src.core.modules.inventory_procurement.application.{catalog,inventory,procurement}` imports and the split `src.core.modules.inventory_procurement.domain.*` and `contracts.repositories.*` paths
+- deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control,procurement}/`
+- deleted unused inventory placeholder package branches under `src/core/modules/inventory_procurement/{api,infrastructure}`, `application/{pricing,procurement}`, `contracts/{gateways,services}`, and `domain/{pricing,procurement}` so the current partial inventory module mirrors the PM rule: do not keep empty future folders around once the slice has a real code shape
+- reintroduced `src/core/modules/inventory_procurement/application/procurement/` and `domain/procurement/` only after they had real migrated code, while `application/pricing/`, `domain/pricing/`, `api/`, and `infrastructure/` stay absent until their later Slice 3 moves
+- verification after the inventory procurement application/domain/contracts transfer:
+  - `python -m compileall -q src/core/modules/inventory_procurement src/infra/composition core/modules/inventory_procurement infra/modules/inventory_procurement ui/modules/inventory_procurement tests`
+  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ledger.py tests/test_inventory_procurement_movements.py tests/test_inventory_procurement_reservations.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_ui.py`
+  - observed result: `66 passed`
+- remaining Slice 3 work still follows the existing plan: move inventory reporting and persistence into module-local `infrastructure/`, add desktop/HTTP APIs, migrate `src/ui_qml/modules/inventory_procurement/*`, regroup tests, and then remove the broader legacy inventory paths
 
 ### Slice 4: Maintenance
 

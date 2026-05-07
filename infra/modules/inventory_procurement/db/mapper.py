@@ -1,7 +1,18 @@
 from __future__ import annotations
 
-from core.modules.inventory_procurement.domain import (
+from src.core.modules.inventory_procurement.domain.catalog.item import (
     InventoryItemCategory,
+    StockItem,
+)
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
+    StockBalance,
+    StockReservation,
+    StockReservationStatus,
+    StockTransaction,
+    StockTransactionType,
+    Storeroom,
+)
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseOrder,
     PurchaseOrderLine,
     PurchaseOrderLineStatus,
@@ -13,13 +24,6 @@ from core.modules.inventory_procurement.domain import (
     ReceiptHeader,
     ReceiptLine,
     ReceiptStatus,
-    StockBalance,
-    StockItem,
-    StockReservation,
-    StockReservationStatus,
-    StockTransaction,
-    StockTransactionType,
-    Storeroom,
 )
 from src.infra.persistence.orm.inventory_procurement.models import (
     InventoryItemCategoryORM,

@@ -2502,9 +2502,20 @@ Started in Slice 3:
 
 - moved `core/modules/inventory_procurement/services/item_master/{service.py,category_service.py}` into `src/core/modules/inventory_procurement/application/catalog/{service.py,category_service.py}`
 - moved `core/modules/inventory_procurement/services/inventory/service.py`, `services/reservation/service.py`, and `services/stock_control/*` into `src/core/modules/inventory_procurement/application/inventory/*`
-- rewired inventory composition, legacy inventory QWidget callers, procurement/reporting/data-exchange services, maintenance material-requirement callers, and `tests/test_service_architecture.py` to the new `src.core.modules.inventory_procurement.application.{catalog,inventory}` imports
-- deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control}/`
-- remaining Slice 3 work stays exactly on the plan: split inventory domain/contracts, move procurement and reporting/persistence, add module-local desktop/HTTP APIs, migrate inventory QML workspaces, regroup tests, and only then remove the broader legacy inventory paths
+- moved `core/modules/inventory_procurement/services/procurement/*` into `src/core/modules/inventory_procurement/application/procurement/*`
+- added `src/core/modules/inventory_procurement/application/common/support.py` so the transferred inventory application code no longer depends on the legacy flat `core/modules/inventory_procurement/support.py`
+- split the transferred inventory domain into `src/core/modules/inventory_procurement/domain/catalog/item.py` and `domain/inventory/stock.py`
+- split the transferred procurement domain into `src/core/modules/inventory_procurement/domain/procurement/purchasing.py`
+- split the transferred inventory repository contracts into `src/core/modules/inventory_procurement/contracts/repositories/{catalog,inventory,procurement}.py`
+- rewired inventory composition, legacy inventory/procurement QWidget callers, procurement/reporting/data-exchange services, maintenance material-requirement callers, transitional inventory ORM/repository adapters, and `tests/test_service_architecture.py` to the new `src.core.modules.inventory_procurement.application.{catalog,inventory,procurement}` imports plus the split `src.core.modules.inventory_procurement.domain.*` and `contracts.repositories.*` paths
+- deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control,procurement}/`
+- deleted unused inventory placeholder package branches under `src/core/modules/inventory_procurement/{api,infrastructure}`, `application/{pricing,procurement}`, `contracts/{gateways,services}`, and `domain/{pricing,procurement}` so the partial inventory module now matches the PM rule: keep only folders with real code until the next chunk lands
+- reintroduced `src/core/modules/inventory_procurement/application/procurement/` and `domain/procurement/` only after they contained real migrated code, keeping `application/pricing/`, `domain/pricing/`, `api/`, and `infrastructure/` absent until those later Slice 3 chunks land
+- focused verification after the inventory procurement application/domain/contracts transfer passes:
+  - `python -m compileall -q src/core/modules/inventory_procurement src/infra/composition core/modules/inventory_procurement infra/modules/inventory_procurement ui/modules/inventory_procurement tests`
+  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ledger.py tests/test_inventory_procurement_movements.py tests/test_inventory_procurement_reservations.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_ui.py`
+  - observed result after the catalog/inventory/procurement transfer and structure cleanup: `66 passed`
+- remaining Slice 3 work stays exactly on the plan: move inventory reporting and persistence into module-local `infrastructure/`, add module-local desktop/HTTP APIs, migrate inventory QML workspaces, regroup tests, and only then remove the broader legacy inventory paths
 
 ### Slice 4: Maintenance
 

@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 
-from core.modules.inventory_procurement.domain import StockTransactionType
+from src.core.modules.inventory_procurement.domain.inventory.stock import StockTransactionType
 from core.modules.inventory_procurement.services.maintenance_integration import (
     MaintenanceMaterialAvailabilityStatus,
 )

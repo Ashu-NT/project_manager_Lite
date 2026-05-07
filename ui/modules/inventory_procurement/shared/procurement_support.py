@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from core.modules.inventory_procurement.domain import (
+from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
+from src.core.modules.inventory_procurement.domain.inventory.stock import Storeroom
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseOrder,
     PurchaseRequisition,
-    StockItem,
-    Storeroom,
 )
 
 

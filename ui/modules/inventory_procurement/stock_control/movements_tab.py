@@ -18,7 +18,10 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.modules.inventory_procurement.domain import StockTransaction, StockTransactionType
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
+    StockTransaction,
+    StockTransactionType,
+)
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService, StockControlService
 from src.core.platform.auth import UserSessionContext

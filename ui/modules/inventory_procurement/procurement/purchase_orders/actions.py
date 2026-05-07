@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
-from core.modules.inventory_procurement.services.procurement.purchasing_service import PurchasingService
-from core.modules.inventory_procurement.services.procurement.service import ProcurementService
 from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService
+from src.core.modules.inventory_procurement.application.procurement import (
+    ProcurementService,
+    PurchasingService,
+)
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,

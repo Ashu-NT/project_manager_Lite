@@ -7,9 +7,9 @@ from core.modules.inventory_procurement import (
     InventoryReferenceService,
     ProcurementService,
 )
-from core.modules.inventory_procurement.domain import PurchaseRequisition
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import PurchaseRequisition
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.notifications.domain_events import domain_events
 from ui.modules.inventory_procurement.procurement.requisitions.actions import RequisitionsActionsMixin

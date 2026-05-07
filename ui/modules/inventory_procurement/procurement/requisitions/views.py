@@ -3,7 +3,10 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QComboBox, QTableWidgetItem
 
-from core.modules.inventory_procurement.domain import PurchaseRequisition, PurchaseRequisitionStatus
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
+    PurchaseRequisition,
+    PurchaseRequisitionStatus,
+)
 from ui.modules.inventory_procurement.shared.procurement_support import (
     format_date,
     format_item_label,

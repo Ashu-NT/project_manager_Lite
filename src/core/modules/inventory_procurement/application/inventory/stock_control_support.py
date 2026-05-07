@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from core.modules.inventory_procurement.domain import StockBalance, StockItem, StockTransaction, StockTransactionType, Storeroom
+from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
+    StockBalance,
+    StockTransaction,
+    StockTransactionType,
+    Storeroom,
+)
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError

@@ -4,17 +4,23 @@ from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 
-from core.modules.inventory_procurement.domain import StockBalance, StockItem, StockTransaction, StockTransactionType, Storeroom
-from src.core.modules.inventory_procurement.application.inventory.stock_control_support import (
-    build_transaction_number,
-)
-from core.modules.inventory_procurement.support import (
+from src.core.modules.inventory_procurement.application.common.support import (
     convert_item_quantity,
     convert_item_unit_cost_to_stock,
     normalize_nonnegative_quantity,
     normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
+)
+from src.core.modules.inventory_procurement.application.inventory.stock_control_support import (
+    build_transaction_number,
+)
+from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
+    StockBalance,
+    StockTransaction,
+    StockTransactionType,
+    Storeroom,
 )
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.common.exceptions import ValidationError

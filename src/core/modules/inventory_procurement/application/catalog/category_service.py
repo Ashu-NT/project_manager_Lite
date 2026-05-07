@@ -5,14 +5,16 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.domain import InventoryItemCategory
-from core.modules.inventory_procurement.interfaces import InventoryItemCategoryRepository
-from core.modules.inventory_procurement.support import (
+from src.core.modules.inventory_procurement.application.common.support import (
     normalize_inventory_code,
     normalize_inventory_name,
     normalize_item_category_type,
     normalize_optional_text,
 )
+from src.core.modules.inventory_procurement.contracts.repositories.catalog import (
+    InventoryItemCategoryRepository,
+)
+from src.core.modules.inventory_procurement.domain.catalog.item import InventoryItemCategory
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError

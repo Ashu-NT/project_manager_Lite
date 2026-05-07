@@ -3,11 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from core.modules.inventory_procurement.domain import (
-    PurchaseRequisition,
-    PurchaseRequisitionLine,
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockReservation,
     StockTransaction,
+)
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
+    PurchaseRequisition,
+    PurchaseRequisitionLine,
 )
 
 

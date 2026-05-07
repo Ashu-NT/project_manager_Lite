@@ -3,31 +3,39 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.domain import (
-    InventoryItemCategory,
-    PurchaseOrder,
-    PurchaseOrderLine,
-    ReceiptHeader,
-    ReceiptLine,
-    StockBalance,
-    StockItem,
-    StockReservation,
-    StockTransaction,
-    Storeroom,
-)
-from core.modules.inventory_procurement.interfaces import (
+from src.core.modules.inventory_procurement.contracts.repositories.catalog import (
     InventoryItemCategoryRepository,
+    StockItemRepository,
+)
+from src.core.modules.inventory_procurement.contracts.repositories.inventory import (
+    StockBalanceRepository,
+    StockReservationRepository,
+    StockTransactionRepository,
+    StoreroomRepository,
+)
+from src.core.modules.inventory_procurement.contracts.repositories.procurement import (
     PurchaseOrderLineRepository,
     PurchaseOrderRepository,
     PurchaseRequisitionLineRepository,
     PurchaseRequisitionRepository,
     ReceiptHeaderRepository,
     ReceiptLineRepository,
-    StockBalanceRepository,
-    StockItemRepository,
-    StockReservationRepository,
-    StockTransactionRepository,
-    StoreroomRepository,
+)
+from src.core.modules.inventory_procurement.domain.catalog.item import (
+    InventoryItemCategory,
+    StockItem,
+)
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
+    StockBalance,
+    StockReservation,
+    StockTransaction,
+    Storeroom,
+)
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
+    PurchaseOrder,
+    PurchaseOrderLine,
+    ReceiptHeader,
+    ReceiptLine,
 )
 from infra.modules.inventory_procurement.db.mapper import (
     inventory_item_category_from_orm,

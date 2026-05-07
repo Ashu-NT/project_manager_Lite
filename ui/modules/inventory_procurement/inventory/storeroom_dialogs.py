@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.inventory_procurement.domain import Storeroom
+from src.core.modules.inventory_procurement.domain.inventory.stock import Storeroom
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 
 

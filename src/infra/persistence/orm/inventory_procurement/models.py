@@ -18,14 +18,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.modules.inventory_procurement.domain import (
+from src.core.modules.inventory_procurement.domain.inventory.stock import (
+    StockReservationStatus,
+    StockTransactionType,
+)
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
     PurchaseOrderLineStatus,
     PurchaseOrderStatus,
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
     ReceiptStatus,
-    StockReservationStatus,
-    StockTransactionType,
 )
 from src.infra.persistence.orm.base import Base
 

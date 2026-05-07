@@ -8,11 +8,6 @@ from core.modules.inventory_procurement.exporting import (
 from core.modules.inventory_procurement.importing import (
     register_inventory_procurement_import_definitions,
 )
-from core.modules.inventory_procurement.interfaces import (
-    PurchaseOrderLineRepository,
-    PurchaseRequisitionLineRepository,
-    ReceiptLineRepository,
-)
 from core.modules.inventory_procurement.services.data_exchange.import_workflows import (
     InventoryDataExchangeImportMixin,
 )
@@ -36,9 +31,17 @@ from core.modules.inventory_procurement.services.data_exchange.support import (
     stringify_bool,
     write_rows,
 )
-from core.modules.inventory_procurement.services.procurement import ProcurementService, PurchasingService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService
+from src.core.modules.inventory_procurement.application.procurement import (
+    ProcurementService,
+    PurchasingService,
+)
+from src.core.modules.inventory_procurement.contracts.repositories.procurement import (
+    PurchaseOrderLineRepository,
+    PurchaseRequisitionLineRepository,
+    ReceiptLineRepository,
+)
 from src.core.platform.exporting import (
     ExportArtifactDraft,
     ExportDefinitionRegistry,

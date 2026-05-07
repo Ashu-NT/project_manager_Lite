@@ -20,7 +20,11 @@ from core.modules.inventory_procurement import (
     ProcurementService,
     PurchasingService,
 )
-from core.modules.inventory_procurement.domain import PurchaseOrderStatus, PurchaseRequisitionStatus, StockReservationStatus
+from src.core.modules.inventory_procurement.domain.inventory.stock import StockReservationStatus
+from src.core.modules.inventory_procurement.domain.procurement.purchasing import (
+    PurchaseOrderStatus,
+    PurchaseRequisitionStatus,
+)
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import (
     InventoryService,
