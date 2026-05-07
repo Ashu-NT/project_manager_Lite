@@ -344,6 +344,22 @@ def test_project_management_timesheets_workspace_no_longer_uses_placeholder_page
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_inventory_pricing_workspace_no_longer_uses_placeholder_page() -> None:
+    pricing_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "inventory_procurement"
+        / "qml"
+        / "workspaces"
+        / "pricing"
+        / "PricingWorkspace.qml"
+    )
+    text = pricing_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PricingWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     qmllint_path = shutil.which("pyside6-qmllint")
     if qmllint_path is None:
@@ -354,6 +370,7 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         str(UI_QML_ROOT / "shell" / "qml"),
         str(UI_QML_ROOT / "platform" / "qml"),
         str(UI_QML_ROOT / "modules" / "project_management" / "qml"),
+        str(UI_QML_ROOT / "modules" / "inventory_procurement" / "qml"),
     ]
     targets = [
         UI_QML_ROOT / "platform" / "qml" / "workspaces" / "admin" / "AdminWorkspace.qml",
@@ -406,6 +423,11 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsEntriesSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsReviewSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingExportsSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingStockSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingSupplierPricingSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "WorkspacePlaceholderPage.qml",
     ]
     command = [qmllint_path]

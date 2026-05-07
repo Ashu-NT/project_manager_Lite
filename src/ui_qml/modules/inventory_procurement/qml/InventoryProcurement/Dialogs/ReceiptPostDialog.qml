@@ -1,0 +1,256 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQml
+import App.Theme 1.0 as Theme
+
+Dialog {
+    id: root
+
+    property var purchaseOrderData: ({})
+    property var purchaseOrderLines: []
+    property string validationMessage: ""
+
+    signal submitted(var payload)
+
+    modal: true
+    width: 860
+    title: "Post Receipt"
+    closePolicy: Popup.CloseOnEscape
+
+    ListModel {
+        id: receiptLineModel
+    }
+
+    function populateFromPurchaseOrder() {
+        var state = root.purchaseOrderData && root.purchaseOrderData.state ? root.purchaseOrderData.state : (root.purchaseOrderData || {})
+        supplierDeliveryReferenceField.text = ""
+        notesField.text = ""
+        receiptLineModel.clear()
+        for (var index = 0; index < (root.purchaseOrderLines || []).length; index += 1) {
+            var line = root.purchaseOrderLines[index] || {}
+            var lineState = line.state || {}
+            var outstandingQty = Number(lineState.outstandingQty || 0)
+            if (outstandingQty <= 0) {
+                continue
+            }
+            receiptLineModel.append({
+                "purchaseOrderLineId": String(lineState.purchaseOrderLineId || ""),
+                "title": String(line.title || ""),
+                "subtitle": String(line.subtitle || ""),
+                "supportingText": String(line.supportingText || ""),
+                "uom": String(lineState.uom || ""),
+                "unitPrice": String(lineState.unitPrice || ""),
+                "outstandingQty": outstandingQty,
+                "quantityAccepted": "",
+                "quantityRejected": "",
+                "notes": ""
+            })
+        }
+        root.validationMessage = ""
+    }
+
+    function buildPayload() {
+        var state = root.purchaseOrderData && root.purchaseOrderData.state ? root.purchaseOrderData.state : (root.purchaseOrderData || {})
+        var lines = []
+        for (var index = 0; index < receiptLineModel.count; index += 1) {
+            var line = receiptLineModel.get(index)
+            lines.push({
+                "purchaseOrderLineId": String(line.purchaseOrderLineId || ""),
+                "quantityAccepted": String(line.quantityAccepted || ""),
+                "quantityRejected": String(line.quantityRejected || ""),
+                "unitCost": String(line.unitPrice || ""),
+                "notes": String(line.notes || "")
+            })
+        }
+        return {
+            "purchaseOrderId": String(state.purchaseOrderId || ""),
+            "supplierDeliveryReference": supplierDeliveryReferenceField.text,
+            "notes": notesField.text,
+            "receiptLines": lines
+        }
+    }
+
+    function submitDialog() {
+        var hasAnyQuantity = false
+        for (var index = 0; index < receiptLineModel.count; index += 1) {
+            var line = receiptLineModel.get(index)
+            if (Number(line.quantityAccepted || 0) > 0 || Number(line.quantityRejected || 0) > 0) {
+                hasAnyQuantity = true
+                break
+            }
+        }
+        if (!hasAnyQuantity) {
+            root.validationMessage = "Enter at least one accepted or rejected quantity before posting the receipt."
+            return
+        }
+        root.validationMessage = ""
+        root.submitted(root.buildPayload())
+    }
+
+    onOpened: root.populateFromPurchaseOrder()
+
+    background: Rectangle {
+        radius: Theme.AppTheme.radiusLg
+        color: Theme.AppTheme.surface
+        border.color: Theme.AppTheme.border
+    }
+
+    contentItem: ColumnLayout {
+        spacing: Theme.AppTheme.spacingMd
+
+        Label {
+            Layout.fillWidth: true
+            text: "Post accepted and rejected quantities against the selected purchase order. Accepted quantities increase stock while rejected quantities close supplier demand without increasing on-hand."
+            color: Theme.AppTheme.textSecondary
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.bodySize
+            wrapMode: Text.WordWrap
+        }
+
+        Label {
+            Layout.fillWidth: true
+            visible: root.validationMessage.length > 0
+            text: root.validationMessage
+            color: "#8B1E1E"
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.smallSize
+            wrapMode: Text.WordWrap
+        }
+
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 2
+            columnSpacing: Theme.AppTheme.spacingMd
+            rowSpacing: Theme.AppTheme.spacingSm
+
+            Label { text: "Delivery reference" }
+            TextField { id: supplierDeliveryReferenceField; Layout.fillWidth: true; placeholderText: "Carrier or supplier slip number" }
+
+            Label { text: "Notes" }
+            TextArea {
+                id: notesField
+                Layout.fillWidth: true
+                Layout.preferredHeight: 72
+                wrapMode: TextEdit.WordWrap
+                placeholderText: "Receipt header notes, carrier remarks, or inspection summary."
+            }
+        }
+
+        ScrollView {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 340
+            clip: true
+
+            ColumnLayout {
+                width: parent.width
+                spacing: Theme.AppTheme.spacingSm
+
+                Repeater {
+                    model: receiptLineModel
+
+                    delegate: Rectangle {
+                        id: receiptLineCard
+
+                        required property int index
+                        required property string title
+                        required property string subtitle
+                        required property string supportingText
+                        required property string quantityAccepted
+                        required property string quantityRejected
+                        required property string unitPrice
+
+                        Layout.fillWidth: true
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceAlt
+                        border.color: Theme.AppTheme.border
+                        implicitHeight: lineLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
+
+                        ColumnLayout {
+                            id: lineLayout
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: receiptLineCard.title
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.bodySize
+                                font.bold: true
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: receiptLineCard.subtitle
+                                color: Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: receiptLineCard.supportingText
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                wrapMode: Text.WordWrap
+                            }
+
+                            GridLayout {
+                                Layout.fillWidth: true
+                                columns: root.width > 720 ? 3 : 1
+                                columnSpacing: Theme.AppTheme.spacingMd
+                                rowSpacing: Theme.AppTheme.spacingSm
+
+                                TextField {
+                                    Layout.fillWidth: true
+                                    placeholderText: "Accepted qty"
+                                    text: receiptLineCard.quantityAccepted
+                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                    onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityAccepted", text)
+                                }
+
+                                TextField {
+                                    Layout.fillWidth: true
+                                    placeholderText: "Rejected qty"
+                                    text: receiptLineCard.quantityRejected
+                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                    onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "quantityRejected", text)
+                                }
+
+                                TextField {
+                                    Layout.fillWidth: true
+                                    placeholderText: "Unit cost"
+                                    text: receiptLineCard.unitPrice
+                                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                    onTextChanged: receiptLineModel.setProperty(receiptLineCard.index, "unitPrice", text)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    footer: RowLayout {
+        spacing: Theme.AppTheme.spacingSm
+
+        Item { Layout.fillWidth: true }
+
+        Button {
+            text: "Cancel"
+            onClicked: root.close()
+        }
+
+        Button {
+            text: "Post Receipt"
+            onClicked: root.submitDialog()
+        }
+    }
+}

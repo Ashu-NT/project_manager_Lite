@@ -9,6 +9,9 @@ from src.ui_qml.modules.inventory_procurement.controllers import (
     InventoryProcurementCatalogWorkspaceController,
     InventoryProcurementDashboardWorkspaceController,
     InventoryProcurementInventoryWorkspaceController,
+    InventoryProcurementPricingWorkspaceController,
+    InventoryProcurementProcurementWorkspaceController,
+    InventoryProcurementReservationsWorkspaceController,
     InventoryProcurementWorkspaceControllerBase,
 )
 
@@ -51,6 +54,30 @@ def register_inventory_procurement_qml_types() -> None:
         1,
         0,
         "InventoryProcurementInventoryWorkspaceController",
+        "Inventory workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        InventoryProcurementPricingWorkspaceController,
+        "InventoryProcurement.Controllers",
+        1,
+        0,
+        "InventoryProcurementPricingWorkspaceController",
+        "Inventory workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        InventoryProcurementReservationsWorkspaceController,
+        "InventoryProcurement.Controllers",
+        1,
+        0,
+        "InventoryProcurementReservationsWorkspaceController",
+        "Inventory workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        InventoryProcurementProcurementWorkspaceController,
+        "InventoryProcurement.Controllers",
+        1,
+        0,
+        "InventoryProcurementProcurementWorkspaceController",
         "Inventory workspace controllers are provided by the shell runtime.",
     )
     qmlRegisterUncreatableType(

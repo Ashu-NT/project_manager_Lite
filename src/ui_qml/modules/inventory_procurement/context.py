@@ -6,6 +6,9 @@ from src.ui_qml.modules.inventory_procurement.controllers import (
     InventoryProcurementCatalogWorkspaceController,
     InventoryProcurementDashboardWorkspaceController,
     InventoryProcurementInventoryWorkspaceController,
+    InventoryProcurementPricingWorkspaceController,
+    InventoryProcurementProcurementWorkspaceController,
+    InventoryProcurementReservationsWorkspaceController,
 )
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     serialize_workspace_view_model,
@@ -14,7 +17,10 @@ from src.ui_qml.modules.inventory_procurement.presenters import (
     InventoryCatalogWorkspacePresenter,
     InventoryDashboardWorkspacePresenter,
     InventoryInventoryWorkspacePresenter,
+    InventoryPricingWorkspacePresenter,
+    InventoryProcurementProcurementWorkspacePresenter,
     InventoryProcurementWorkspacePresenter,
+    InventoryReservationsWorkspacePresenter,
     build_inventory_procurement_workspace_presenters,
 )
 
@@ -42,6 +48,21 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             "inventory_procurement_inventory",
             None,
         )
+        reservations_api = getattr(
+            desktop_api_registry,
+            "inventory_procurement_reservations",
+            None,
+        )
+        procurement_api = getattr(
+            desktop_api_registry,
+            "inventory_procurement_procurement",
+            None,
+        )
+        pricing_api = getattr(
+            desktop_api_registry,
+            "inventory_procurement_pricing",
+            None,
+        )
         self._catalog_workspace = InventoryProcurementCatalogWorkspaceController(
             workspace_presenter=InventoryProcurementWorkspacePresenter(
                 "inventory_procurement.catalog"
@@ -57,6 +78,37 @@ class InventoryProcurementWorkspaceCatalog(QObject):
             ),
             inventory_workspace_presenter=InventoryInventoryWorkspacePresenter(
                 desktop_api=inventory_api
+            ),
+            parent=self,
+        )
+        self._reservations_workspace = (
+            InventoryProcurementReservationsWorkspaceController(
+                workspace_presenter=InventoryProcurementWorkspacePresenter(
+                    "inventory_procurement.reservations"
+                ),
+                reservations_workspace_presenter=InventoryReservationsWorkspacePresenter(
+                    desktop_api=reservations_api
+                ),
+                parent=self,
+            )
+        )
+        self._procurement_workspace = (
+            InventoryProcurementProcurementWorkspaceController(
+                workspace_presenter=InventoryProcurementWorkspacePresenter(
+                    "inventory_procurement.procurement"
+                ),
+                procurement_workspace_presenter=InventoryProcurementProcurementWorkspacePresenter(
+                    desktop_api=procurement_api
+                ),
+                parent=self,
+            )
+        )
+        self._pricing_workspace = InventoryProcurementPricingWorkspaceController(
+            workspace_presenter=InventoryProcurementWorkspacePresenter(
+                "inventory_procurement.pricing"
+            ),
+            pricing_workspace_presenter=InventoryPricingWorkspacePresenter(
+                desktop_api=pricing_api
             ),
             parent=self,
         )
@@ -77,6 +129,18 @@ class InventoryProcurementWorkspaceCatalog(QObject):
     @Property(InventoryProcurementInventoryWorkspaceController, constant=True)
     def inventoryWorkspace(self) -> InventoryProcurementInventoryWorkspaceController:
         return self._inventory_workspace
+
+    @Property(InventoryProcurementReservationsWorkspaceController, constant=True)
+    def reservationsWorkspace(self) -> InventoryProcurementReservationsWorkspaceController:
+        return self._reservations_workspace
+
+    @Property(InventoryProcurementProcurementWorkspaceController, constant=True)
+    def procurementWorkspace(self) -> InventoryProcurementProcurementWorkspaceController:
+        return self._procurement_workspace
+
+    @Property(InventoryProcurementPricingWorkspaceController, constant=True)
+    def pricingWorkspace(self) -> InventoryProcurementPricingWorkspaceController:
+        return self._pricing_workspace
 
     @Property(InventoryProcurementDashboardWorkspaceController, constant=True)
     def dashboardWorkspace(self) -> InventoryProcurementDashboardWorkspaceController:

@@ -44,18 +44,21 @@ from src.core.modules.inventory_procurement.api.desktop import (
     InventoryProcurementCatalogDesktopApi,
     InventoryProcurementDashboardDesktopApi,
     InventoryProcurementInventoryDesktopApi,
+    InventoryProcurementPricingDesktopApi,
     InventoryProcurementProcurementDesktopApi,
     InventoryProcurementReservationsDesktopApi,
     InventoryProcurementWorkspaceDesktopApi,
     build_inventory_procurement_catalog_desktop_api,
     build_inventory_procurement_dashboard_desktop_api,
     build_inventory_procurement_inventory_desktop_api,
+    build_inventory_procurement_pricing_desktop_api,
     build_inventory_procurement_procurement_desktop_api,
     build_inventory_procurement_reservations_desktop_api,
     build_inventory_procurement_workspace_desktop_api,
 )
 from src.core.modules.inventory_procurement import (
     InventoryReferenceService,
+    InventoryReportingService,
     ItemCategoryService,
     ItemMasterService,
     InventoryService,
@@ -132,6 +135,7 @@ class DesktopApiRegistry:
     inventory_procurement_reservations: InventoryProcurementReservationsDesktopApi
     inventory_procurement_procurement: InventoryProcurementProcurementDesktopApi
     inventory_procurement_dashboard: InventoryProcurementDashboardDesktopApi
+    inventory_procurement_pricing: InventoryProcurementPricingDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -183,6 +187,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     inventory_reservation_service = services.get("inventory_reservation_service")
     inventory_procurement_service = services.get("inventory_procurement_service")
     inventory_purchasing_service = services.get("inventory_purchasing_service")
+    inventory_reporting_service = services.get("inventory_reporting_service")
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
     )
@@ -271,6 +276,11 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     inventory_purchasing_desktop_service = (
         inventory_purchasing_service
         if isinstance(inventory_purchasing_service, PurchasingService)
+        else None
+    )
+    inventory_reporting_desktop_service = (
+        inventory_reporting_service
+        if isinstance(inventory_reporting_service, InventoryReportingService)
         else None
     )
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
@@ -417,6 +427,14 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             procurement_service=inventory_procurement_desktop_service,
             purchasing_service=inventory_purchasing_desktop_service,
             reference_service=inventory_reference_desktop_service,
+        ),
+        inventory_procurement_pricing=build_inventory_procurement_pricing_desktop_api(
+            reporting_service=inventory_reporting_desktop_service,
+            reference_service=inventory_reference_desktop_service,
+            inventory_service=inventory_inventory_desktop_service,
+            purchasing_service=inventory_purchasing_desktop_service,
+            item_service=inventory_item_desktop_service,
+            user_session=services.get("user_session"),
         ),
     )
 

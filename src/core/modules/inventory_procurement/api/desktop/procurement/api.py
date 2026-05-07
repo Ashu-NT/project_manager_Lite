@@ -483,6 +483,18 @@ class InventoryProcurementProcurementDesktopApi:
         )
         return self._serialize_purchase_order(purchase_order)
 
+    def close_purchase_order(
+        self,
+        purchase_order_id: str,
+        *,
+        note: str = "",
+    ) -> InventoryPurchaseOrderDesktopDto:
+        purchase_order = self._require_purchasing_service().close_purchase_order(
+            purchase_order_id,
+            note=note,
+        )
+        return self._serialize_purchase_order(purchase_order)
+
     def post_receipt(
         self,
         command: InventoryReceiptPostCommand,

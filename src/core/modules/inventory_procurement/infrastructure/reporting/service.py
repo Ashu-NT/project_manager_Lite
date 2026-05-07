@@ -141,6 +141,40 @@ class InventoryReportingService:
             limit=limit,
         )
 
+    def build_stock_status_report(
+        self,
+        *,
+        site_id: str | None = None,
+        storeroom_id: str | None = None,
+    ) -> StockStatusReport:
+        return self._build_stock_status_report(
+            InventoryReportRequest(
+                output_path=Path("inventory-stock-status.preview"),
+                site_id=site_id,
+                storeroom_id=storeroom_id,
+            )
+        )
+
+    def build_procurement_overview_report(
+        self,
+        *,
+        site_id: str | None = None,
+        storeroom_id: str | None = None,
+        supplier_party_id: str | None = None,
+        purchase_order_id: str | None = None,
+        limit: int = 200,
+    ) -> ProcurementOverviewReport:
+        return self._build_procurement_overview_report(
+            InventoryReportRequest(
+                output_path=Path("inventory-procurement-overview.preview"),
+                site_id=site_id,
+                storeroom_id=storeroom_id,
+                supplier_party_id=supplier_party_id,
+                purchase_order_id=purchase_order_id,
+                limit=limit,
+            )
+        )
+
     def _render(
         self,
         report_key: str,

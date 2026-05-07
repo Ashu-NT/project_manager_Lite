@@ -32,6 +32,9 @@ class InventoryProcurementWorkspacePresenter:
             "inventory_procurement.dashboard": "QML dashboard slice active",
             "inventory_procurement.catalog": "QML CRUD catalog slice active",
             "inventory_procurement.inventory": "QML stock operations slice active",
+            "inventory_procurement.reservations": "QML reservations slice active",
+            "inventory_procurement.procurement": "QML procurement slice active",
+            "inventory_procurement.pricing": "QML pricing slice active",
         }.get(self._route_id, "QML landing zone ready")
         return InventoryProcurementWorkspaceViewModel(
             route_id=route.route_id,

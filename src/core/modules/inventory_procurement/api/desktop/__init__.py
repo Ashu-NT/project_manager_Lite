@@ -41,6 +41,13 @@ from src.core.modules.inventory_procurement.api.desktop.inventory import (
     InventoryTransferCommand,
     build_inventory_procurement_inventory_desktop_api,
 )
+from src.core.modules.inventory_procurement.api.desktop.pricing import (
+    InventoryPricingMetricDescriptor,
+    InventoryPricingRowDescriptor,
+    InventoryPricingSnapshotDescriptor,
+    InventoryProcurementPricingDesktopApi,
+    build_inventory_procurement_pricing_desktop_api,
+)
 from src.core.modules.inventory_procurement.api.desktop.procurement import (
     InventoryProcurementProcurementDesktopApi,
     InventoryProcurementStatusDescriptor,
@@ -93,9 +100,13 @@ __all__ = [
     "InventoryItemStatusDescriptor",
     "InventoryItemUpdateCommand",
     "InventoryOpeningBalanceCommand",
+    "InventoryPricingMetricDescriptor",
+    "InventoryPricingRowDescriptor",
+    "InventoryPricingSnapshotDescriptor",
     "InventoryProcurementCatalogDesktopApi",
     "InventoryProcurementDashboardDesktopApi",
     "InventoryProcurementInventoryDesktopApi",
+    "InventoryProcurementPricingDesktopApi",
     "InventoryProcurementProcurementDesktopApi",
     "InventoryProcurementReservationsDesktopApi",
     "InventoryProcurementStatusDescriptor",
@@ -133,6 +144,7 @@ __all__ = [
     "build_inventory_procurement_catalog_desktop_api",
     "build_inventory_procurement_dashboard_desktop_api",
     "build_inventory_procurement_inventory_desktop_api",
+    "build_inventory_procurement_pricing_desktop_api",
     "build_inventory_procurement_procurement_desktop_api",
     "build_inventory_procurement_reservations_desktop_api",
     "build_inventory_procurement_workspace_desktop_api",

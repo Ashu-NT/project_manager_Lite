@@ -39,7 +39,7 @@ _WORKSPACE_DESCRIPTORS: tuple[InventoryProcurementWorkspaceDescriptor, ...] = (
     InventoryProcurementWorkspaceDescriptor(
         key="pricing",
         title="Pricing",
-        summary="Pricing and supplier analysis will land here once the later pricing slice is transferred.",
+        summary="Supplier pricing analysis plus stock and procurement report exports.",
     ),
 )
 
