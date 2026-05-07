@@ -1,0 +1,5 @@
+module InventoryProcurement.Widgets
+RecordListCard 1.0 RecordListCard.qml
+WorkspacePlaceholderPage 1.0 WorkspacePlaceholderPage.qml
+WorkspaceStateBanner 1.0 WorkspaceStateBanner.qml
+WorkspaceStatusSection 1.0 WorkspaceStatusSection.qml

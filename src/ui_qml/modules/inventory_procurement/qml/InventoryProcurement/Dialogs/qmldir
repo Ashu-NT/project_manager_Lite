@@ -1,0 +1,4 @@
+module InventoryProcurement.Dialogs
+CategoryEditorDialog 1.0 CategoryEditorDialog.qml
+DocumentLinkDialog 1.0 DocumentLinkDialog.qml
+ItemEditorDialog 1.0 ItemEditorDialog.qml

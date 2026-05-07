@@ -64,6 +64,12 @@ def test_qml_main_window_navigation_uses_registry_routes():
         "Collaboration",
         "Timesheets",
         "Dashboard",
+        "Inventory Dashboard",
+        "Catalog",
+        "Inventory",
+        "Reservations",
+        "Procurement",
+        "Pricing",
     ]
 
 

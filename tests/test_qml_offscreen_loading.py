@@ -4,6 +4,9 @@ import os
 
 from PySide6.QtGui import QGuiApplication
 
+from src.ui_qml.modules.inventory_procurement.context import (
+    InventoryProcurementWorkspaceCatalog,
+)
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context
@@ -29,6 +32,7 @@ def test_registered_qml_routes_load_offscreen() -> None:
     shell_context = build_shell_context(build_main_window_navigation(registry))
     platform_catalog = PlatformWorkspaceCatalog()
     pm_catalog = ProjectManagementWorkspaceCatalog()
+    inventory_catalog = InventoryProcurementWorkspaceCatalog()
 
     for route in registry.list_routes():
         engine = create_qml_engine()
@@ -38,6 +42,7 @@ def test_registered_qml_routes_load_offscreen() -> None:
                 "shellModel": shell_context,
                 "platformCatalog": platform_catalog,
                 "pmCatalog": pm_catalog,
+                "inventoryCatalog": inventory_catalog,
             }
         load_qml(engine, route.qml_path, initial_properties=initial_properties)
         assert len(engine.rootObjects()) == 1

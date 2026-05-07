@@ -4,6 +4,9 @@ import sys
 
 from PySide6.QtGui import QGuiApplication
 
+from src.ui_qml.modules.inventory_procurement.context import (
+    InventoryProcurementWorkspaceCatalog,
+)
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context
@@ -26,6 +29,9 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     pm_workspace_catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
     )
+    inventory_workspace_catalog = InventoryProcurementWorkspaceCatalog(
+        desktop_api_registry=desktop_api_registry,
+    )
     engine = create_qml_engine()
     load_qml(
         engine,
@@ -34,6 +40,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "shellModel": shell_context,
             "platformCatalog": platform_workspace_catalog,
             "pmCatalog": pm_workspace_catalog,
+            "inventoryCatalog": inventory_workspace_catalog,
         },
     )
     return app.exec()

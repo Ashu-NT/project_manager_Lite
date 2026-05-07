@@ -14,9 +14,11 @@ from src.core.modules.inventory_procurement.api.desktop._support import (
     format_enum_label,
     format_quantity,
 )
-from src.core.modules.inventory_procurement.api.desktop.inventory import (
+from src.core.modules.inventory_procurement.api.desktop.shared_options import (
     InventoryCatalogItemOptionDescriptor,
     InventoryStoreroomOptionDescriptor,
+    serialize_item_option,
+    serialize_storeroom_option,
 )
 from src.core.modules.inventory_procurement.domain.inventory.stock import (
     StockReservationStatus,
@@ -112,23 +114,7 @@ class InventoryProcurementReservationsDesktopApi:
                 str(getattr(row, "item_code", "") or "").casefold(),
             ),
         )
-        return tuple(
-            InventoryCatalogItemOptionDescriptor(
-                value=row.id,
-                label=" - ".join(
-                    part
-                    for part in (
-                        clean_text(getattr(row, "item_code", "")),
-                        clean_text(getattr(row, "name", "")),
-                    )
-                    if part
-                ),
-                stock_uom=clean_text(getattr(row, "stock_uom", "")),
-                category_code=clean_text(getattr(row, "category_code", "")),
-                is_active=bool(getattr(row, "is_active", True)),
-            )
-            for row in items
-        )
+        return tuple(serialize_item_option(row) for row in items)
 
     def list_storeroom_options(
         self,
@@ -144,21 +130,15 @@ class InventoryProcurementReservationsDesktopApi:
                 str(getattr(row, "storeroom_code", "") or "").casefold(),
             ),
         )
-        return tuple(
-            InventoryStoreroomOptionDescriptor(
-                value=row.id,
-                label=" - ".join(
-                    part
-                    for part in (
-                        clean_text(getattr(row, "storeroom_code", "")),
-                        clean_text(getattr(row, "name", "")),
-                    )
-                    if part
-                ),
-                site_id=clean_text(getattr(row, "site_id", "")),
-                site_label=clean_text(getattr(row, "site_id", ""), default="-"),
-                is_active=bool(getattr(row, "is_active", True)),
+        site_lookup = {
+            clean_text(getattr(row, "site_id", "")): clean_text(
+                getattr(row, "site_id", ""),
+                default="-",
             )
+            for row in storerooms
+        }
+        return tuple(
+            serialize_storeroom_option(row, site_lookup=site_lookup)
             for row in storerooms
         )
 

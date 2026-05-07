@@ -47,6 +47,12 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
         ("project_management.collaboration", "Collaboration"),
         ("project_management.timesheets", "Timesheets"),
         ("project_management.dashboard", "Dashboard"),
+        ("inventory_procurement.dashboard", "Inventory Dashboard"),
+        ("inventory_procurement.catalog", "Catalog"),
+        ("inventory_procurement.inventory", "Inventory"),
+        ("inventory_procurement.reservations", "Reservations"),
+        ("inventory_procurement.procurement", "Procurement"),
+        ("inventory_procurement.pricing", "Pricing"),
     ]
 
 
@@ -74,6 +80,12 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
         "project_management.collaboration",
         "project_management.timesheets",
         "project_management.dashboard",
+        "inventory_procurement.dashboard",
+        "inventory_procurement.catalog",
+        "inventory_procurement.inventory",
+        "inventory_procurement.reservations",
+        "inventory_procurement.procurement",
+        "inventory_procurement.pricing",
     ]
     assert context.navigationItems[0]["qmlSource"] == route_by_id["shell.home"].qml_path.as_uri()
 
@@ -102,6 +114,7 @@ def test_qml_engine_registers_named_import_roots() -> None:
     assert Path("src/ui_qml/shared/qml").resolve() in import_roots
     assert Path("src/ui_qml/platform/qml").resolve() in import_roots
     assert Path("src/ui_qml/modules/project_management/qml").resolve() in import_roots
+    assert Path("src/ui_qml/modules/inventory_procurement/qml").resolve() in import_roots
 
 
 def test_qml_shell_does_not_replace_widget_entrypoint_yet() -> None:

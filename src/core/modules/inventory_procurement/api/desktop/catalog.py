@@ -20,6 +20,10 @@ from src.core.modules.inventory_procurement.api.desktop._support import (
     format_enum_label,
     format_quantity,
 )
+from src.core.modules.inventory_procurement.api.desktop.shared_options import (
+    InventoryBusinessPartyOptionDescriptor,
+    serialize_business_party_option,
+)
 
 
 @dataclass(frozen=True)
@@ -32,16 +36,6 @@ class InventoryCategoryTypeDescriptor:
 class InventoryItemStatusDescriptor:
     value: str
     label: str
-
-
-@dataclass(frozen=True)
-class InventoryBusinessPartyOptionDescriptor:
-    value: str
-    label: str
-    party_type: str
-    contact: str
-    context: str
-    is_active: bool
 
 
 @dataclass(frozen=True)
@@ -243,7 +237,7 @@ class InventoryProcurementCatalogDesktopApi:
                 str(getattr(row, "party_code", "") or "").casefold(),
             ),
         )
-        return tuple(_serialize_business_party(row) for row in parties)
+        return tuple(serialize_business_party_option(row) for row in parties)
 
     def list_categories(
         self,
@@ -546,27 +540,6 @@ def build_inventory_procurement_catalog_desktop_api(
         item_service=item_service,
         reference_service=reference_service,
     )
-
-
-def _serialize_business_party(row) -> InventoryBusinessPartyOptionDescriptor:
-    party_name = clean_text(getattr(row, "party_name", ""))
-    party_code = clean_text(getattr(row, "party_code", ""))
-    party_type = getattr(getattr(row, "party_type", None), "value", getattr(row, "party_type", ""))
-    label = f"{party_code} - {party_name}" if party_code else party_name
-    contact = clean_text(getattr(row, "contact_name", "")) or clean_text(getattr(row, "email", ""), default="-")
-    context_parts = [
-        clean_text(getattr(row, "city", "")),
-        clean_text(getattr(row, "country", "")),
-    ]
-    return InventoryBusinessPartyOptionDescriptor(
-        value=row.id,
-        label=label,
-        party_type=str(party_type or ""),
-        contact=contact or "-",
-        context=", ".join(part for part in context_parts if part) or "-",
-        is_active=bool(getattr(row, "is_active", True)),
-    )
-
 
 def _serialize_document(row) -> InventoryDocumentOptionDescriptor:
     document_type = getattr(getattr(row, "document_type", None), "value", getattr(row, "document_type", ""))

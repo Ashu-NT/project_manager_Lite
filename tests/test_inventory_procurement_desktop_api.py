@@ -518,7 +518,7 @@ def test_build_desktop_api_registry_exposes_inventory_adapters(services) -> None
 
 def test_inventory_procurement_desktop_api_does_not_import_qml_or_legacy_ui() -> None:
     root = Path("src/core/modules/inventory_procurement/api/desktop")
-    combined = "\n".join(path.read_text(encoding="utf-8") for path in sorted(root.glob("*.py")))
+    combined = "\n".join(path.read_text(encoding="utf-8") for path in sorted(root.rglob("*.py")))
 
     assert "src.ui_qml" not in combined
     assert "ui.modules.inventory_procurement" not in combined

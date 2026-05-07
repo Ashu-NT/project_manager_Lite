@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
 import Platform.Controllers 1.0 as PlatformControllers
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import Shell.Context 1.0 as ShellContexts
@@ -10,6 +11,7 @@ Item {
     property ShellContexts.ShellContext shellModel
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
+    property InventoryProcurementControllers.InventoryProcurementWorkspaceCatalog inventoryCatalog
 
     ColumnLayout {
         anchors.fill: parent
@@ -57,6 +59,9 @@ Item {
                         }
                         if ("pmCatalog" in item) {
                             item.pmCatalog = root.pmCatalog
+                        }
+                        if ("inventoryCatalog" in item) {
+                            item.inventoryCatalog = root.inventoryCatalog
                         }
                     }
                 }

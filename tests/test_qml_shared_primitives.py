@@ -18,6 +18,15 @@ QML_PM_DIALOGS = Path(
 QML_PM_WIDGETS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
 )
+QML_INV_CONTROLLERS = Path(
+    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Controllers"
+)
+QML_INV_DIALOGS = Path(
+    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Dialogs"
+)
+QML_INV_WIDGETS = Path(
+    "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Widgets"
+)
 
 
 def test_qml_shared_theme_primitives_exist() -> None:
@@ -50,6 +59,9 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_PM_CONTROLLERS / "qmldir": "module ProjectManagement.Controllers",
         QML_PM_DIALOGS / "qmldir": "module ProjectManagement.Dialogs",
         QML_PM_WIDGETS / "qmldir": "module ProjectManagement.Widgets",
+        QML_INV_CONTROLLERS / "qmldir": "module InventoryProcurement.Controllers",
+        QML_INV_DIALOGS / "qmldir": "module InventoryProcurement.Dialogs",
+        QML_INV_WIDGETS / "qmldir": "module InventoryProcurement.Widgets",
     }
 
     for path, module_name in expected_modules.items():
@@ -63,6 +75,7 @@ def test_qmlls_import_paths_cover_named_qml_modules() -> None:
         "src/ui_qml/shell/qml",
         "src/ui_qml/platform/qml",
         "src/ui_qml/modules/project_management/qml",
+        "src/ui_qml/modules/inventory_procurement/qml",
     ]
 
     for expected_path in expected_paths:
@@ -138,6 +151,38 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
         QML_PM_WIDGETS / "WorkspaceStatusSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksBulkActionsSection.qml",
+    ]
+
+    assert all(path.exists() for path in expected_files)
+
+
+def test_qml_inventory_procurement_modules_exist() -> None:
+    expected_files = [
+        QML_INV_CONTROLLERS / "qmldir",
+        QML_INV_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
+        QML_INV_DIALOGS / "qmldir",
+        QML_INV_DIALOGS / "CategoryEditorDialog.qml",
+        QML_INV_DIALOGS / "DocumentLinkDialog.qml",
+        QML_INV_DIALOGS / "ItemEditorDialog.qml",
+        QML_INV_WIDGETS / "qmldir",
+        QML_INV_WIDGETS / "RecordListCard.qml",
+        QML_INV_WIDGETS / "WorkspacePlaceholderPage.qml",
+        QML_INV_WIDGETS / "WorkspaceStateBanner.qml",
+        QML_INV_WIDGETS / "WorkspaceStatusSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspace.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "CatalogWorkspace.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "CatalogWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "CatalogDialogHost.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "CatalogFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "CategoryCatalogSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "CategoryDetailSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "ItemCatalogSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "catalog" / "ItemDetailSection.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "inventory" / "InventoryWorkspace.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "reservations" / "ReservationsWorkspace.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "procurement" / "ProcurementWorkspace.qml",
+        UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingWorkspace.qml",
     ]
 
     assert all(path.exists() for path in expected_files)
