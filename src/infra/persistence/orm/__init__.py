@@ -1,7 +1,6 @@
 """ORM metadata and model packages."""
 
 from src.infra.persistence.orm.base import Base
-import src.infra.persistence.orm.inventory_procurement.models  # noqa: F401
 import src.infra.persistence.orm.maintenance.models  # noqa: F401
 import src.infra.persistence.orm.maintenance.preventive_runtime_models  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.org  # noqa: F401
@@ -22,5 +21,8 @@ import src.core.modules.project_management.infrastructure.persistence.orm.baseli
 import src.core.modules.project_management.infrastructure.persistence.orm.register  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.collaboration  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.portfolio  # noqa: F401
+import src.core.modules.inventory_procurement.infrastructure.persistence.orm.catalog  # noqa: F401
+import src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory  # noqa: F401
+import src.core.modules.inventory_procurement.infrastructure.persistence.orm.procurement  # noqa: F401
 
 __all__ = ["Base"]

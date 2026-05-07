@@ -6,7 +6,6 @@ from src.core.platform.access import ScopedRolePolicy
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     InventoryReferenceService,
-    InventoryReportingService,
     MaintenanceMaterialService,
 )
 from core.modules.inventory_procurement.access.policy import (
@@ -27,20 +26,25 @@ from src.core.modules.inventory_procurement.application.procurement import (
     ProcurementService,
     PurchasingService,
 )
-from infra.modules.inventory_procurement.db import (
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.catalog import (
     SqlAlchemyInventoryItemCategoryRepository,
+    SqlAlchemyStockItemRepository,
+)
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.inventory import (
+    SqlAlchemyStockBalanceRepository,
+    SqlAlchemyStockReservationRepository,
+    SqlAlchemyStockTransactionRepository,
+    SqlAlchemyStoreroomRepository,
+)
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.procurement import (
     SqlAlchemyPurchaseOrderLineRepository,
     SqlAlchemyPurchaseOrderRepository,
     SqlAlchemyPurchaseRequisitionLineRepository,
     SqlAlchemyPurchaseRequisitionRepository,
     SqlAlchemyReceiptHeaderRepository,
     SqlAlchemyReceiptLineRepository,
-    SqlAlchemyStockBalanceRepository,
-    SqlAlchemyStockItemRepository,
-    SqlAlchemyStockReservationRepository,
-    SqlAlchemyStockTransactionRepository,
-    SqlAlchemyStoreroomRepository,
 )
+from src.core.modules.inventory_procurement.infrastructure.reporting import InventoryReportingService
 from src.infra.composition.platform_registry import PlatformServiceBundle
 
 

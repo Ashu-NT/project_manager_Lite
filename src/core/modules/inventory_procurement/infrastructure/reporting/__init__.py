@@ -1,8 +1,8 @@
-from core.modules.inventory_procurement.reporting.definitions import (
+from src.core.modules.inventory_procurement.infrastructure.reporting.definitions import (
     CallbackReportDefinition,
     register_inventory_procurement_report_definitions,
 )
-from core.modules.inventory_procurement.reporting.models import (
+from src.core.modules.inventory_procurement.infrastructure.reporting.models import (
     ProcurementOverviewReport,
     PurchaseOrderOverviewRow,
     ReceiptOverviewRow,
@@ -11,9 +11,15 @@ from core.modules.inventory_procurement.reporting.models import (
     StockStatusReport,
     StockStatusRow,
 )
+from src.core.modules.inventory_procurement.infrastructure.reporting.service import (
+    InventoryReportRequest,
+    InventoryReportingService,
+)
 
 __all__ = [
     "CallbackReportDefinition",
+    "InventoryReportRequest",
+    "InventoryReportingService",
     "ProcurementOverviewReport",
     "PurchaseOrderOverviewRow",
     "ReceiptOverviewRow",

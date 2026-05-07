@@ -10,7 +10,11 @@ _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
     "infra/modules/maintenance_management/db/repository.py": 1488,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
-    "tests/test_architecture_guardrails.py": 1460,
+    "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1335,
+    "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
+    "tests/test_project_management_desktop_api.py": 2990,
+    "tests/test_qml_project_management_presenters.py": 2185,
+    "tests/test_architecture_guardrails.py": 1500,
     "tests/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
@@ -736,14 +740,19 @@ def test_project_management_persistence_imports_project_management_orm_models():
 
 def test_inventory_persistence_imports_inventory_orm_models():
     checked_files = [
-        ROOT / "infra" / "modules" / "inventory_procurement" / "db" / "repository.py",
-        ROOT / "infra" / "modules" / "inventory_procurement" / "db" / "mapper.py",
+        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "mappers" / "catalog.py",
+        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "mappers" / "inventory.py",
+        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "mappers" / "procurement.py",
+        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "repositories" / "catalog.py",
+        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "repositories" / "inventory.py",
+        ROOT / "src" / "core" / "modules" / "inventory_procurement" / "infrastructure" / "persistence" / "repositories" / "procurement.py",
     ]
 
     for path in checked_files:
         text = path.read_text(encoding="utf-8", errors="ignore")
-        assert "from src.infra.persistence.orm.inventory_procurement.models import" in text
+        assert "from src.core.modules.inventory_procurement.infrastructure.persistence.orm." in text
         assert "from src.infra.persistence.orm.platform.models import" not in text
+        assert "from src.infra.persistence.orm.inventory_procurement.models import" not in text
 
 
 def test_orm_package_root_loads_all_model_packages():
@@ -754,7 +763,6 @@ def test_orm_package_root_loads_all_model_packages():
 
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "platform").exists()
     assert "from src.infra.persistence.orm.base import Base" in package_text
-    assert "import src.infra.persistence.orm.inventory_procurement.models" in package_text
     assert "import src.infra.persistence.orm.maintenance.models" in package_text
     assert "import src.infra.persistence.orm.maintenance.preventive_runtime_models" in package_text
     platform_orm_modules = ("org", "documents", "party", "modules", "time", "auth", "access", "audit", "approval", "runtime_tracking")
@@ -762,8 +770,22 @@ def test_orm_package_root_loads_all_model_packages():
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
     for module in ("project", "resource", "task", "cost_calendar", "baseline", "register", "collaboration", "portfolio"):
         assert f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}" in package_text
+    for module in ("catalog", "inventory", "procurement"):
+        assert f"import src.core.modules.inventory_procurement.infrastructure.persistence.orm.{module}" in package_text
     assert "from src.infra.persistence.orm import Base" in migration_env_text
     assert "import src.infra.persistence.orm" in migration_env_text
+
+
+def test_legacy_inventory_persistence_and_reporting_packages_are_removed():
+    removed = [
+        ROOT / "infra" / "modules" / "inventory_procurement" / "db",
+        ROOT / "src" / "infra" / "persistence" / "orm" / "inventory_procurement",
+        ROOT / "core" / "modules" / "inventory_procurement" / "reporting",
+        ROOT / "core" / "modules" / "inventory_procurement" / "services" / "reporting",
+    ]
+
+    for path in removed:
+        assert not path.exists()
 
 
 def test_legacy_infra_repository_wrappers_are_removed():

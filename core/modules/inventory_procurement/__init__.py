@@ -3,7 +3,6 @@
 from core.modules.inventory_procurement.services import (
     InventoryDataExchangeService,
     InventoryReferenceService,
-    InventoryReportingService,
     MaintenanceMaterialService,
 )
 from src.core.modules.inventory_procurement.application.catalog import ItemCategoryService, ItemMasterService
@@ -12,6 +11,7 @@ from src.core.modules.inventory_procurement.application.inventory import (
     ReservationService,
     StockControlService,
 )
+from src.core.modules.inventory_procurement.infrastructure.reporting import InventoryReportingService
 from src.core.modules.inventory_procurement.application.procurement import (
     ProcurementService,
     PurchasingService,

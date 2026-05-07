@@ -5,7 +5,7 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-from core.modules.inventory_procurement.reporting.models import (
+from src.core.modules.inventory_procurement.infrastructure.reporting.models import (
     ProcurementOverviewReport,
     StockStatusReport,
 )

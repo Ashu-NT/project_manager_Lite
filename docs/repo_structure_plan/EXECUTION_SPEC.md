@@ -722,7 +722,7 @@ Completed:
 - `main.py`, `main_qt.py`, and `main_qt.spec` now reference the new migration runner/assets path
 - platform ORM model files were moved out of `infra/platform/db/`; business-module ORM rows landed in temporary global de-mixing homes until their module slices move them under module-local infrastructure:
   - `models.py` initially lived at `src/infra/persistence/orm/platform/models.py`, then moved to `src/core/platform/infrastructure/persistence/orm/models.py`, and is now split into `src/core/platform/infrastructure/persistence/orm/{access,approval,audit,auth,documents,modules,org,party,runtime_tracking,time}.py`
-  - `inventory_models.py` now lives at `src/infra/persistence/orm/inventory_procurement/models.py`
+  - `inventory_models.py` now lives across `src/core/modules/inventory_procurement/infrastructure/persistence/orm/{catalog,inventory,procurement}.py`
   - `maintenance_models.py` now lives at `src/infra/persistence/orm/maintenance/models.py`
   - `maintenance_preventive_runtime_models.py` now lives at `src/infra/persistence/orm/maintenance/preventive_runtime_models.py`
 - platform persistence adapters, metadata loading, tests, and timesheet regression checks now import platform-owned infrastructure under `src.core.platform.infrastructure.persistence`
@@ -1076,7 +1076,7 @@ Completed:
   - `PortfolioScenarioORM`
   - `PortfolioProjectDependencyORM`
 - PM persistence adapters and collaboration storage were first rewired to the temporary `src.infra.persistence.orm.project_management.models` path; they now import split feature ORM files under `src.core.modules.project_management.infrastructure.persistence.orm.*`
-- inventory persistence adapters now import `src.infra.persistence.orm.inventory_procurement.models` directly instead of pulling inventory rows through `src.infra.persistence.orm.platform.models`
+- inventory persistence adapters now import the split module-local ORM files under `src.core.modules.inventory_procurement.infrastructure.persistence.orm.{catalog,inventory,procurement}` instead of pulling inventory rows through `src.infra.persistence.orm.platform.models`
 - `src/infra/persistence/orm/__init__.py` now loads all current ORM packages directly for metadata registration, and `src/infra/persistence/migrations/env.py` imports the ORM package root instead of the old platform model barrel; this loader must be adjusted as module ORM rows move to module-local infrastructure
 - the stale `core/__init__.py` UI bootstrap side effect was removed so `src.infra.composition.app_container` imports cleanly in a fresh process again
 
@@ -1112,7 +1112,7 @@ Verified:
 - direct import of `src.ui.platform.workspaces.admin.AccessTab`, `DepartmentAdminTab`, `DocumentAdminTab`, `EmployeeAdminTab`, `ModuleLicensingTab`, `OrganizationAdminTab`, `PartyAdminTab`, `SiteAdminTab`, `SupportTab`, and `UserAdminTab`
   - direct import of `src.ui.platform.dialogs.DocumentLinksDialog`, `DocumentPreviewDialog`, `DocumentEditDialog`, `OrganizationEditDialog`, `PasswordResetDialog`, `UserCreateDialog`, and `UserEditDialog`
   - direct import of `src.ui.platform.widgets.build_admin_header`, `build_admin_table`, `DocumentPreviewWidget`, and `build_document_preview_state`
-  - direct import of `src.infra.persistence.orm.Base`, PM split ORM files for project/task/resource/baseline/collaboration/portfolio, `src.infra.persistence.orm.inventory_procurement.models.InventoryItemCategoryORM`, `PurchaseOrderORM`, `StockItemORM`, and `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`
+  - direct import of `src.infra.persistence.orm.Base`, PM split ORM files for project/task/resource/baseline/collaboration/portfolio, the split inventory ORM files under `src.core.modules.inventory_procurement.infrastructure.persistence.orm.{catalog,inventory,procurement}`, and platform ORM rows such as `TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, and `OrganizationORM`
   - direct metadata smoke import confirms `src.core.platform.infrastructure.persistence.orm.models.TimeEntryORM`, `TimesheetPeriodORM`, `UserORM`, `OrganizationORM`, `AuditLogORM`, and `RuntimeExecutionORM` remain registered in `Base.metadata`
   - direct import of `src.infra.composition.app_container.build_service_dict`
   - direct import of `src.infra.platform.path`, `resource`, `version`, `update`, `updater`, `diagnostics`, and `operational_support`; `resource_path("assets/icons/app.ico")` resolves to the project-root asset path
@@ -1441,15 +1441,20 @@ Status as of 2026-05-07:
 - split the transferred inventory domain into `src/core/modules/inventory_procurement/domain/catalog/item.py` and `domain/inventory/stock.py`
 - split the transferred procurement domain into `src/core/modules/inventory_procurement/domain/procurement/purchasing.py`
 - split the transferred inventory repository contracts into `src/core/modules/inventory_procurement/contracts/repositories/{catalog,inventory,procurement}.py`
-- rewired inventory composition, remaining inventory services, legacy inventory/procurement QWidget callers, reporting/data-exchange and maintenance-material integrations, plus transitional inventory ORM/repository adapters to the new `src.core.modules.inventory_procurement.application.{catalog,inventory,procurement}` imports and the split `src.core.modules.inventory_procurement.domain.*` and `contracts.repositories.*` paths
+- moved inventory reporting helpers into `src/core/modules/inventory_procurement/infrastructure/reporting/{definitions,models,excel,service}.py`
+- moved inventory persistence implementations into `src/core/modules/inventory_procurement/infrastructure/persistence/{orm,mappers,repositories}/{catalog,inventory,procurement}.py`
+- rewired inventory composition, remaining inventory services, legacy inventory/procurement QWidget callers, reporting/data-exchange and maintenance-material integrations, metadata loading, and transitional inventory ORM/repository adapters to the new `src.core.modules.inventory_procurement.application.{catalog,inventory,procurement}` imports plus the split `src.core.modules.inventory_procurement.domain.*`, `contracts.repositories.*`, and `infrastructure.*` paths
 - deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control,procurement}/`
 - deleted unused inventory placeholder package branches under `src/core/modules/inventory_procurement/{api,infrastructure}`, `application/{pricing,procurement}`, `contracts/{gateways,services}`, and `domain/{pricing,procurement}` so the current partial inventory module mirrors the PM rule: do not keep empty future folders around once the slice has a real code shape
-- reintroduced `src/core/modules/inventory_procurement/application/procurement/` and `domain/procurement/` only after they had real migrated code, while `application/pricing/`, `domain/pricing/`, `api/`, and `infrastructure/` stay absent until their later Slice 3 moves
-- verification after the inventory procurement application/domain/contracts transfer:
+- deleted the old legacy reporting and persistence package roots under `core/modules/inventory_procurement/{reporting,services/reporting}`, `infra/modules/inventory_procurement/db/`, and `src/infra/persistence/orm/inventory_procurement/`
+- reintroduced `src/core/modules/inventory_procurement/application/procurement/`, `domain/procurement/`, and `infrastructure/{reporting,persistence}/` only after they had real migrated code, while `application/pricing/`, `domain/pricing/`, and `api/` stay absent until their later Slice 3 moves
+- verification after the inventory procurement application/domain/contracts/reporting/persistence transfer:
   - `python -m compileall -q src/core/modules/inventory_procurement src/infra/composition core/modules/inventory_procurement infra/modules/inventory_procurement ui/modules/inventory_procurement tests`
-  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ledger.py tests/test_inventory_procurement_movements.py tests/test_inventory_procurement_reservations.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_ui.py`
-  - observed result: `66 passed`
-- remaining Slice 3 work still follows the existing plan: move inventory reporting and persistence into module-local `infrastructure/`, add desktop/HTTP APIs, migrate `src/ui_qml/modules/inventory_procurement/*`, regroup tests, and then remove the broader legacy inventory paths
+  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ledger.py tests/test_inventory_procurement_movements.py tests/test_inventory_procurement_reservations.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_inventory_procurement_ui.py`
+  - observed results: `104 passed`, `42 passed`, and `19 passed`
+- remaining Slice 3 work still follows the existing plan: add desktop/HTTP APIs, migrate `src/ui_qml/modules/inventory_procurement/*`, regroup tests, and then remove the broader legacy inventory paths
 
 ### Slice 4: Maintenance
 
