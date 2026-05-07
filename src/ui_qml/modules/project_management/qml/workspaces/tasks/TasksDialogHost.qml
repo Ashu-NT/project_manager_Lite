@@ -36,6 +36,8 @@ Item {
     signal deleteDependencyRequested(string dependencyId)
     signal postTaskCommentRequested(var payload)
     signal bulkDeleteRequested(var taskIds)
+    signal taskPresenceStarted(string taskId, string activity)
+    signal taskPresenceEnded(string taskId)
 
     function openCreateDialog() {
         root.editTarget = {
@@ -50,6 +52,10 @@ Item {
 
     function openEditDialog(taskData) {
         root.editTarget = taskData || ({})
+        const state = root.editTarget && root.editTarget.state ? root.editTarget.state : (root.editTarget || {})
+        if (state.taskId) {
+            root.taskPresenceStarted(String(state.taskId), "editing")
+        }
         editorDialog.modeTitle = "Edit Task"
         editorDialog.taskData = root.editTarget
         editorDialog.open()
@@ -57,6 +63,10 @@ Item {
 
     function openProgressDialog(taskData) {
         root.progressTarget = taskData || ({})
+        const state = root.progressTarget && root.progressTarget.state ? root.progressTarget.state : (root.progressTarget || {})
+        if (state.taskId) {
+            root.taskPresenceStarted(String(state.taskId), "updating progress")
+        }
         progressDialog.taskData = root.progressTarget
         progressDialog.open()
     }
@@ -106,6 +116,10 @@ Item {
 
     function openTaskCollaborationDialog(taskData) {
         root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        const state = root.collaborationTarget && root.collaborationTarget.state ? root.collaborationTarget.state : (root.collaborationTarget || {})
+        if (state.taskId || state.id) {
+            root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
+        }
         collaborationComposerDialog.taskData = root.collaborationTarget
         collaborationComposerDialog.open()
     }
@@ -119,6 +133,15 @@ Item {
         id: editorDialog
 
         statusOptions: root.statusOptions
+
+        onClosed: {
+            const state = root.editTarget && root.editTarget.state
+                ? root.editTarget.state
+                : (root.editTarget || {})
+            if (state.taskId) {
+                root.taskPresenceEnded(String(state.taskId))
+            }
+        }
 
         onSubmitted: function(payload) {
             const state = root.editTarget && root.editTarget.state
@@ -140,6 +163,15 @@ Item {
         id: progressDialog
 
         statusOptions: root.statusOptions
+
+        onClosed: {
+            const state = root.progressTarget && root.progressTarget.state
+                ? root.progressTarget.state
+                : (root.progressTarget || {})
+            if (state.taskId) {
+                root.taskPresenceEnded(String(state.taskId))
+            }
+        }
 
         onSubmitted: function(payload) {
             root.progressRequested(payload)
@@ -188,6 +220,15 @@ Item {
 
         mentionOptions: root.collaborationMentionOptions
         documentOptions: root.collaborationDocumentOptions
+
+        onClosed: {
+            const state = root.collaborationTarget && root.collaborationTarget.state
+                ? root.collaborationTarget.state
+                : (root.collaborationTarget || {})
+            if (state.taskId || state.id) {
+                root.taskPresenceEnded(String(state.taskId || state.id))
+            }
+        }
 
         onSubmitted: function(payload) {
             root.postTaskCommentRequested(payload)

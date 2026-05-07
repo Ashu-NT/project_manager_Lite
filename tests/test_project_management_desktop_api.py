@@ -148,6 +148,12 @@ def test_project_management_collaboration_desktop_api_builds_snapshot_and_marks_
     assert posted.linked_documents == ("Commissioning Checklist [General | Reference]",)
     assert service.posted_comments[-1]["task_id"] == "task-1"
 
+    api.touch_task_presence("task-1", activity="editing")
+    api.clear_task_presence("task-1")
+
+    assert service.touched_presence == [("task-1", "editing")]
+    assert service.cleared_presence == ["task-1"]
+
 
 def test_project_management_dashboard_desktop_api_maps_dashboard_kpis() -> None:
     api = build_project_management_dashboard_desktop_api()
@@ -1342,6 +1348,8 @@ class _FakeCollaborationService:
     def __init__(self) -> None:
         self.marked_task_ids: list[str] = []
         self.posted_comments: list[dict[str, object]] = []
+        self.touched_presence: list[tuple[str, str]] = []
+        self.cleared_presence: list[str] = []
         self._comments: list[SimpleNamespace] = [
             SimpleNamespace(
                 id="comment-1",
@@ -1489,6 +1497,12 @@ class _FakeCollaborationService:
                 is_self=True,
             )
         ]
+
+    def touch_task_presence(self, task_id: str, *, activity: str = "reviewing") -> None:
+        self.touched_presence.append((task_id, activity))
+
+    def clear_task_presence(self, task_id: str) -> None:
+        self.cleared_presence.append(task_id)
 
     def post_comment(
         self,

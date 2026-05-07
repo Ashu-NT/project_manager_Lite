@@ -50,6 +50,8 @@ Component {
     Method { name: "setScheduleFilter"; Parameter { name: "scheduleFilter"; type: "QString" } }
     Method { name: "clearFilters" }
     Method { name: "selectTaskView"; Parameter { name: "viewName"; type: "QString" } }
+    Method { name: "beginTaskPresence"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "activity"; type: "QString" } }
+    Method { name: "endTaskPresence"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
     Method { name: "saveCurrentTaskView"; type: "QVariantMap"; Parameter { name: "viewName"; type: "QString" } }
     Method { name: "applySelectedTaskView"; type: "QVariantMap" }
     Method { name: "deleteSelectedTaskView"; type: "QVariantMap" }

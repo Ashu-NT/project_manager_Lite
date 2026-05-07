@@ -1080,6 +1080,7 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
     assert controller.collaborationComments["items"][0]["title"] == "@jamie"
     assert controller.collaborationPresence["items"][0]["title"] == "Alex Taylor (@planner)"
     assert controller.bulkStatusOptions[0]["value"] == "TODO"
+    assert collaboration_service.touched_presence[0] == ("task-1", "reviewing")
 
     controller.setSearchText("priority>=90")
 
@@ -1222,6 +1223,17 @@ def test_project_management_workspace_catalog_exposes_typed_tasks_controller(
         "message": "Task collaboration update posted.",
     }
     assert collaboration_service.posted_comments[-1]["linked_document_ids"] == ("doc-2",)
+
+    begin_presence_result = controller.beginTaskPresence("task-1", "editing")
+
+    assert begin_presence_result["ok"] is True
+    assert collaboration_service.touched_presence[-1] == ("task-1", "editing")
+
+    end_presence_result = controller.endTaskPresence("task-1")
+
+    assert end_presence_result["ok"] is True
+    assert collaboration_service.cleared_presence[-1] == "task-1"
+    assert collaboration_service.touched_presence[-1] == ("task-1", "reviewing")
 
     controller.setStatusFilter("BLOCKED")
 
@@ -1599,6 +1611,8 @@ class _FakeCollaborationService:
     def __init__(self) -> None:
         self.marked_task_ids: list[str] = []
         self.posted_comments: list[dict[str, object]] = []
+        self.touched_presence: list[tuple[str, str]] = []
+        self.cleared_presence: list[str] = []
         self._comments: list[SimpleNamespace] = [
             SimpleNamespace(
                 id="comment-1",
@@ -1746,6 +1760,12 @@ class _FakeCollaborationService:
                 is_self=True,
             )
         ]
+
+    def touch_task_presence(self, task_id: str, *, activity: str = "reviewing") -> None:
+        self.touched_presence.append((task_id, activity))
+
+    def clear_task_presence(self, task_id: str) -> None:
+        self.cleared_presence.append(task_id)
 
     def post_comment(
         self,

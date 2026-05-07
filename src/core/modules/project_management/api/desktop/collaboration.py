@@ -144,6 +144,27 @@ class ProjectManagementCollaborationDesktopApi:
             raise ValueError("Task ID is required to mark collaboration mentions as read.")
         self._require_collaboration_service().mark_task_mentions_read(normalized_task_id)
 
+    def touch_task_presence(
+        self,
+        task_id: str,
+        *,
+        activity: str = "reviewing",
+    ) -> None:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            raise ValueError("Task ID is required to start a presence session.")
+        normalized_activity = (activity or "").strip() or "reviewing"
+        self._require_collaboration_service().touch_task_presence(
+            normalized_task_id,
+            activity=normalized_activity,
+        )
+
+    def clear_task_presence(self, task_id: str) -> None:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            raise ValueError("Task ID is required to clear a presence session.")
+        self._require_collaboration_service().clear_task_presence(normalized_task_id)
+
     def build_task_snapshot(self, task_id: str) -> TaskCollaborationSnapshotDto:
         normalized_task_id = (task_id or "").strip()
         if not normalized_task_id or self._collaboration_service is None:

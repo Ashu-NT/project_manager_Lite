@@ -565,6 +565,27 @@ class ProjectTasksWorkspacePresenter:
             raise ValueError("Select a task before marking collaboration updates as read.")
         self._collaboration_desktop_api.mark_task_mentions_read(normalized_task_id)
 
+    def touch_task_collaboration_presence(
+        self,
+        task_id: str,
+        *,
+        activity: str = "reviewing",
+    ) -> None:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            raise ValueError("Select a task before starting a presence session.")
+        normalized_activity = (activity or "").strip() or "reviewing"
+        self._collaboration_desktop_api.touch_task_presence(
+            normalized_task_id,
+            activity=normalized_activity,
+        )
+
+    def clear_task_collaboration_presence(self, task_id: str) -> None:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return
+        self._collaboration_desktop_api.clear_task_presence(normalized_task_id)
+
     @staticmethod
     def _build_overview(
         *,

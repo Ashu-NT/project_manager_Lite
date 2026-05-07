@@ -99,6 +99,9 @@ class ProjectManagementTasksWorkspaceController(
         self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
         self._saved_task_views = self._load_saved_task_views()
         self._refresh_task_view_options()
+        self._presence_session_task_id = ""
+        self._presence_session_activity = ""
+        self._presence_override_task_id = ""
         self._tasks: dict[str, object] = {
             "title": "",
             "subtitle": "",
@@ -179,6 +182,7 @@ class ProjectManagementTasksWorkspaceController(
             "emptyState": "",
             "items": [],
         }
+        self.destroyed.connect(self._on_destroyed_cleanup)
         self._bind_domain_events()
         self.refresh()
 
@@ -411,6 +415,7 @@ class ProjectManagementTasksWorkspaceController(
                     workspace_state.selected_task_detail
                 )
             )
+            self._sync_review_presence()
             self._set_assignment_options(
                 serialize_selector_options(workspace_state.assignment_options)
             )
@@ -551,6 +556,43 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str)
     def selectTaskView(self, view_name: str) -> None:
         self._set_selected_task_view_name((view_name or "").strip())
+
+    @Slot(str, str, result="QVariantMap")
+    def beginTaskPresence(self, task_id: str, activity: str) -> dict[str, object]:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return {
+                "ok": False,
+                "message": "Task ID is required to start a presence session.",
+            }
+        normalized_activity = (activity or "").strip() or "reviewing"
+        try:
+            self._presence_override_task_id = normalized_task_id
+            self._set_task_presence(
+                normalized_task_id,
+                normalized_activity,
+            )
+            self._set_error_message("")
+            return {"ok": True, "message": ""}
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            self._set_error_message(str(exc))
+            return {"ok": False, "message": str(exc)}
+
+    @Slot(str, result="QVariantMap")
+    def endTaskPresence(self, task_id: str) -> dict[str, object]:
+        normalized_task_id = (task_id or "").strip()
+        try:
+            if (
+                normalized_task_id
+                and normalized_task_id == self._presence_override_task_id
+            ):
+                self._presence_override_task_id = ""
+            self._sync_review_presence()
+            self._set_error_message("")
+            return {"ok": True, "message": ""}
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            self._set_error_message(str(exc))
+            return {"ok": False, "message": str(exc)}
 
     @Slot(str, result="QVariantMap")
     def saveCurrentTaskView(self, view_name: str) -> dict[str, object]:
@@ -1211,6 +1253,58 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._tasks = tasks
         self.tasksChanged.emit()
+
+    def _sync_review_presence(self) -> None:
+        if self._presence_override_task_id:
+            return
+        selected_task_id = (self._selected_task_id or "").strip()
+        if selected_task_id:
+            self._set_task_presence(selected_task_id, "reviewing")
+            return
+        self._clear_current_task_presence()
+
+    def _set_task_presence(self, task_id: str, activity: str) -> None:
+        normalized_task_id = (task_id or "").strip()
+        normalized_activity = (activity or "").strip() or "reviewing"
+        if not normalized_task_id:
+            self._clear_current_task_presence()
+            return
+        if (
+            normalized_task_id == self._presence_session_task_id
+            and normalized_activity == self._presence_session_activity
+        ):
+            return
+        if self._presence_session_task_id and (
+            self._presence_session_task_id != normalized_task_id
+            or self._presence_session_activity != normalized_activity
+        ):
+            self._tasks_workspace_presenter.clear_task_collaboration_presence(
+                self._presence_session_task_id
+            )
+            self._presence_session_task_id = ""
+            self._presence_session_activity = ""
+        self._tasks_workspace_presenter.touch_task_collaboration_presence(
+            normalized_task_id,
+            activity=normalized_activity,
+        )
+        self._presence_session_task_id = normalized_task_id
+        self._presence_session_activity = normalized_activity
+
+    def _clear_current_task_presence(self) -> None:
+        if not self._presence_session_task_id:
+            return
+        self._tasks_workspace_presenter.clear_task_collaboration_presence(
+            self._presence_session_task_id
+        )
+        self._presence_session_task_id = ""
+        self._presence_session_activity = ""
+
+    def _on_destroyed_cleanup(self, *_args) -> None:
+        try:
+            self._presence_override_task_id = ""
+            self._clear_current_task_presence()
+        except Exception:
+            pass
 
     def _set_selected_task(self, selected_task: dict[str, object]) -> None:
         if selected_task == self._selected_task:

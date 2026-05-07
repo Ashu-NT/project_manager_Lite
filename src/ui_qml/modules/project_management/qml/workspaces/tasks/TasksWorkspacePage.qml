@@ -196,6 +196,18 @@ AppLayouts.WorkspaceFrame {
                 root.workspaceController.bulkDeleteTasks(taskIds)
             }
         }
+
+        onTaskPresenceStarted: function(taskId, activity) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.beginTaskPresence(taskId, activity)
+            }
+        }
+
+        onTaskPresenceEnded: function(taskId) {
+            if (root.workspaceController !== null) {
+                root.workspaceController.endTaskPresence(taskId)
+            }
+        }
     }
 
     Flickable {
