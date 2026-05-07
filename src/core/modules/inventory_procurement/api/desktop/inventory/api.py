@@ -11,8 +11,11 @@ from src.core.modules.inventory_procurement.application.inventory import (
 from src.core.modules.inventory_procurement.api.desktop.inventory.options import (
     InventoryDesktopOptionMixin,
 )
-from src.core.modules.inventory_procurement.api.desktop.inventory.stock import (
-    InventoryDesktopStockMixin,
+from src.core.modules.inventory_procurement.api.desktop.inventory.balances import (
+    InventoryDesktopBalanceMixin,
+)
+from src.core.modules.inventory_procurement.api.desktop.inventory.movements import (
+    InventoryDesktopMovementMixin,
 )
 from src.core.modules.inventory_procurement.api.desktop.inventory.storerooms import (
     InventoryDesktopStoreroomMixin,
@@ -22,7 +25,8 @@ from src.core.modules.inventory_procurement.api.desktop.inventory.storerooms imp
 class InventoryProcurementInventoryDesktopApi(
     InventoryDesktopOptionMixin,
     InventoryDesktopStoreroomMixin,
-    InventoryDesktopStockMixin,
+    InventoryDesktopBalanceMixin,
+    InventoryDesktopMovementMixin,
 ):
     def __init__(
         self,

@@ -12,9 +12,11 @@ from src.core.modules.inventory_procurement.api.desktop.inventory.models import 
     InventoryTransactionTypeDescriptor,
 )
 from src.core.modules.inventory_procurement.api.desktop.shared_options import (
+    InventoryBusinessPartyOptionDescriptor,
     InventoryCatalogItemOptionDescriptor,
     InventorySiteOptionDescriptor,
     InventoryStoreroomOptionDescriptor,
+    serialize_business_party_option,
     serialize_item_option,
     serialize_site_option,
     serialize_storeroom_option,
@@ -98,6 +100,22 @@ class InventoryDesktopOptionMixin:
         return tuple(
             serialize_storeroom_option(row, site_lookup=site_lookup) for row in ordered
         )
+
+    def list_business_parties(
+        self,
+        *,
+        active_only: bool | None = True,
+    ) -> tuple[InventoryBusinessPartyOptionDescriptor, ...]:
+        if self._reference_service is None:
+            return ()
+        parties = sorted(
+            self._reference_service.list_business_parties(active_only=active_only),
+            key=lambda row: (
+                not bool(getattr(row, "is_active", True)),
+                str(getattr(row, "party_code", "") or "").casefold(),
+            ),
+        )
+        return tuple(serialize_business_party_option(row) for row in parties)
 
     def _party_lookup(self) -> dict[str, str]:
         if self._reference_service is None:

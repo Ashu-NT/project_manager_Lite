@@ -1450,9 +1450,12 @@ Status as of 2026-05-07:
 - deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control,procurement}/`
 - deleted the old legacy reporting and persistence package roots under `core/modules/inventory_procurement/{reporting,services/reporting}`, `infra/modules/inventory_procurement/db/`, and `src/infra/persistence/orm/inventory_procurement/`
 - deleted the remaining legacy inventory package roots under `core/modules/inventory_procurement/*` and `infra/modules/inventory_procurement/*` after the last imports moved to `src`
-- added module-local inventory APIs under `src/core/modules/inventory_procurement/api/desktop/{workspaces,catalog,inventory,reservations,procurement,dashboard}.py`, `api/desktop/__init__.py`, and `api/http/__init__.py`
+- added module-local inventory APIs under `src/core/modules/inventory_procurement/api/desktop/{workspaces,dashboard}.py`, `api/desktop/catalog/{api,options,categories,items,models,serializers}.py`, `api/desktop/inventory/{api,options,storerooms,balances,movements,models,serializers}.py`, `api/desktop/reservations/{api,options,records,models,serializers}.py`, `api/desktop/procurement/{api,requisitions,purchase_orders,receipts,statuses}.py`, plus `api/desktop/__init__.py` and `api/http/__init__.py`
 - wired the shared desktop registry in `src/api/desktop/runtime.py` to expose `inventory_procurement_{workspaces,catalog,inventory,reservations,procurement,dashboard}` on top of the transferred inventory services
 - kept the live inventory package branches under `src/core/modules/inventory_procurement/*` as `access/`, `application/{catalog,common,inventory,procurement}`, `contracts/{repositories,gateways}`, `domain/{catalog,inventory,procurement}`, `infrastructure/{exporters,importers,integrations,persistence,reporting}`, and `api/{desktop,http}`. `application/pricing/` and `domain/pricing/` still stay absent until the later Slice 3 pricing move lands
+- inventory QML now has three real workspaces on top of that structure: `dashboard`, `catalog`, and `inventory`
+- `src/ui_qml/modules/inventory_procurement/controllers/inventory/inventory_workspace_controller.py`, `presenters/inventory_workspace_presenter.py`, and `view_models/inventory.py` now provide the typed controller/presenter/view-model path for inventory stock operations
+- `InventoryWorkspacePage.qml` now renders API-backed site/storeroom/item/movement filters, storeroom CRUD, stock balance review, movement history, and opening-balance/adjustment/issue/return/transfer dialogs through the typed inventory controller
 - verification after the inventory procurement application/domain/contracts/reporting/persistence transfer:
   - `python -m compileall -q src/core/modules/inventory_procurement src/infra/composition core/modules/maintenance_management ui/modules/inventory_procurement tests`
   - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_ui.py tests/test_platform_access_scopes.py tests/test_maintenance_execution_foundation.py`
@@ -1461,7 +1464,17 @@ Status as of 2026-05-07:
   - `python -m compileall -q src/core/modules/inventory_procurement/api src/api/desktop tests/test_inventory_procurement_desktop_api.py`
   - `conda run -n pmenv python -m pytest -q tests/test_inventory_procurement_desktop_api.py tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_platform_runtime_desktop_api.py tests/test_platform_org_desktop_api.py tests/test_platform_admin_desktop_api.py tests/test_platform_control_desktop_api.py`
   - observed results after the inventory desktop-API transfer: `130 passed`
-- remaining Slice 3 work still follows the existing plan: keep the module-local inventory desktop APIs stable, add real inventory HTTP routers on top of `src/core/modules/inventory_procurement/api/http/*`, migrate `src/ui_qml/modules/inventory_procurement/*`, regroup tests, and keep the old inventory QWidget UI only as temporary runtime fallback until the final QML cutover
+- focused verification after the inventory QML inventory-operations slice passes:
+  - `python -m compileall -q src/core/modules/inventory_procurement src/ui_qml/modules/inventory_procurement tests`
+  - full `pyside6-qmllint` across `src/ui_qml/**/*.qml` with the repo import roots
+  - `conda run -n pmenv python -m pytest -q tests/test_inventory_procurement_desktop_api.py tests/test_qml_inventory_procurement_presenters.py tests/test_qml_inventory_procurement_routes.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_qml_shared_primitives.py tests/test_qml_architecture_guardrails.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_qml_migration_scaffold.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_qml_shell_migration.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_qml_offscreen_loading.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_main_window_shell_navigation.py`
+  - observed results after the inventory QML inventory-operations slice: `16 passed`, `40 passed`, `5 passed`, `7 passed`, `1 passed`, and `7 passed` in the focused batches; the grouped conda/Qt batch still shows the known environment quirk, so those files were verified individually
+- remaining Slice 3 work still follows the existing plan: keep the module-local inventory desktop APIs stable, add real inventory HTTP routers on top of `src/core/modules/inventory_procurement/api/http/*`, migrate the remaining `src/ui_qml/modules/inventory_procurement/*` workspaces (`reservations`, `procurement`, and later `pricing`), regroup tests, and keep the old inventory QWidget UI only as temporary runtime fallback until the final QML cutover
 
 ### Slice 4: Maintenance
 

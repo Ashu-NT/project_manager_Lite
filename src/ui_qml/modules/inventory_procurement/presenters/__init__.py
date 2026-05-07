@@ -7,6 +7,9 @@ from src.ui_qml.modules.inventory_procurement.presenters.catalog_workspace_prese
 from src.ui_qml.modules.inventory_procurement.presenters.dashboard_workspace_presenter import (
     InventoryDashboardWorkspacePresenter,
 )
+from src.ui_qml.modules.inventory_procurement.presenters.inventory_workspace_presenter import (
+    InventoryInventoryWorkspacePresenter,
+)
 from src.ui_qml.modules.inventory_procurement.presenters.workspace_presenter import (
     InventoryProcurementWorkspacePresenter,
     build_inventory_procurement_workspace_presenters,
@@ -15,6 +18,7 @@ from src.ui_qml.modules.inventory_procurement.presenters.workspace_presenter imp
 __all__ = [
     "InventoryCatalogWorkspacePresenter",
     "InventoryDashboardWorkspacePresenter",
+    "InventoryInventoryWorkspacePresenter",
     "InventoryProcurementWorkspacePresenter",
     "build_inventory_procurement_workspace_presenters",
 ]

@@ -2,3 +2,6 @@ module InventoryProcurement.Dialogs
 CategoryEditorDialog 1.0 CategoryEditorDialog.qml
 DocumentLinkDialog 1.0 DocumentLinkDialog.qml
 ItemEditorDialog 1.0 ItemEditorDialog.qml
+StockMovementDialog 1.0 StockMovementDialog.qml
+StockTransferDialog 1.0 StockTransferDialog.qml
+StoreroomEditorDialog 1.0 StoreroomEditorDialog.qml
