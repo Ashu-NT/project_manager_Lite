@@ -1,15 +1,13 @@
-from core.modules.inventory_procurement.services.maintenance_integration.contracts import (
+from src.core.modules.inventory_procurement.contracts.gateways.maintenance_materials import (
     MaintenanceMaterialAvailability,
     MaintenanceMaterialAvailabilityStatus,
     MaintenanceMaterialExecutionResult,
     MaintenanceMaterialProcurementEscalation,
 )
-from core.modules.inventory_procurement.services.maintenance_integration.service import MaintenanceMaterialService
 
 __all__ = [
     "MaintenanceMaterialAvailability",
     "MaintenanceMaterialAvailabilityStatus",
     "MaintenanceMaterialExecutionResult",
     "MaintenanceMaterialProcurementEscalation",
-    "MaintenanceMaterialService",
 ]

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.common import InventoryReferenceService
 from src.core.modules.inventory_procurement.application.inventory import (
     InventoryService,
     StockControlService,

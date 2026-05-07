@@ -13,7 +13,7 @@ from src.core.platform.org import DepartmentService, EmployeeService, Organizati
 from src.core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.core.platform.time.application import TimeService
-from core.modules.inventory_procurement import (
+from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     MaintenanceMaterialService,
     InventoryReferenceService,
@@ -240,6 +240,21 @@ def test_project_management_legacy_service_roots_are_removed():
             if path.is_file() and "__pycache__" not in path.parts
         ]
         assert not files, f"Legacy project-management root still contains files: {files}"
+
+
+def test_inventory_procurement_legacy_service_roots_are_removed():
+    legacy_roots = (
+        Path("core/modules/inventory_procurement"),
+        Path("infra/modules/inventory_procurement"),
+    )
+
+    for root in legacy_roots:
+        files = [
+            path
+            for path in root.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        ]
+        assert not files, f"Legacy inventory-procurement root still contains files: {files}"
 
 
 def test_legacy_service_imports_point_to_new_packages():

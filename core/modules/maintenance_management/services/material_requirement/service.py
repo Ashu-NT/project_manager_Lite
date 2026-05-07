@@ -6,12 +6,12 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.inventory_procurement.services.maintenance_integration import MaintenanceMaterialService
-from core.modules.inventory_procurement.services.maintenance_integration.contracts import (
+from src.core.modules.inventory_procurement.contracts.gateways import (
     MaintenanceMaterialAvailability,
     MaintenanceMaterialAvailabilityStatus,
     MaintenanceMaterialProcurementEscalation,
 )
+from src.core.modules.inventory_procurement.infrastructure.integrations import MaintenanceMaterialService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService
 from core.modules.maintenance_management.domain import (

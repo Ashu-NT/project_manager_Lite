@@ -8,7 +8,7 @@ from src.core.platform.importing import (
     ImportSummary,
 )
 
-from core.modules.inventory_procurement.services.data_exchange.support import text
+from src.core.modules.inventory_procurement.infrastructure.importers.support import text
 
 
 class InventoryDataExchangeImportMixin:

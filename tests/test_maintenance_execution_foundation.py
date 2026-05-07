@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from core.modules.inventory_procurement.services.maintenance_integration.contracts import (
+from src.core.modules.inventory_procurement.contracts.gateways import (
     MaintenanceMaterialAvailability,
     MaintenanceMaterialAvailabilityStatus,
 )

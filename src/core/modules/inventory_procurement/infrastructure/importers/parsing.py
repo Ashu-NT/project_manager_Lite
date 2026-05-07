@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.party import PartyService
-from core.modules.inventory_procurement.services.data_exchange.support import (
+from src.core.modules.inventory_procurement.infrastructure.importers.support import (
     optional_text,
     parse_optional_bool,
     parse_optional_date,

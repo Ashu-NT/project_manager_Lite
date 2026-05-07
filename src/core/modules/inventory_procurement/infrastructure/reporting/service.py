@@ -4,8 +4,8 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 
-from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.common import InventoryReferenceService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService, StockControlService
 from src.core.modules.inventory_procurement.application.procurement import (
     ProcurementService,

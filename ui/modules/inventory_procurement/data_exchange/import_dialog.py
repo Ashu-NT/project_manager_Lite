@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.inventory_procurement import InventoryDataExchangeService
+from src.core.modules.inventory_procurement import InventoryDataExchangeService
 from src.core.platform.importing import ImportPreview
 from src.ui.shared.formatting.style_utils import style_table
 from src.ui.shared.formatting.ui_config import UIConfig as CFG

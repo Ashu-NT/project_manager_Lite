@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.modules.inventory_procurement import InventoryReferenceService
+from src.core.modules.inventory_procurement import InventoryReferenceService
 from src.core.modules.inventory_procurement.domain.inventory.stock import Storeroom
 from src.core.modules.inventory_procurement.application.inventory import InventoryService
 from src.core.platform.auth import UserSessionContext

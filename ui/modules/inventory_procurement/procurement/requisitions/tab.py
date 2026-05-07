@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QWidget
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.modules.inventory_procurement import (
+from src.core.modules.inventory_procurement import (
     InventoryReferenceService,
     ProcurementService,
 )

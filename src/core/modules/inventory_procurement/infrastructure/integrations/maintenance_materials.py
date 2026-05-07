@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from core.modules.inventory_procurement.services.maintenance_integration.contracts import (
-    MaintenanceMaterialAvailability,
-    MaintenanceMaterialAvailabilityStatus,
-    MaintenanceMaterialExecutionResult,
-    MaintenanceMaterialProcurementEscalation,
-)
-from core.modules.inventory_procurement.support import (
+from src.core.modules.inventory_procurement.application.common.support import (
     convert_item_quantity,
     normalize_maintenance_source_reference_type,
     normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
+)
+from src.core.modules.inventory_procurement.contracts.gateways import (
+    MaintenanceMaterialAvailability,
+    MaintenanceMaterialAvailabilityStatus,
+    MaintenanceMaterialExecutionResult,
+    MaintenanceMaterialProcurementEscalation,
 )
 from src.core.modules.inventory_procurement.application.catalog import (
     ItemCategoryService,

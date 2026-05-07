@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.inventory_procurement.access.policy import (
+from src.core.modules.inventory_procurement.access.policy import (
     STOREROOM_SCOPE_ROLE_ALIASES,
     STOREROOM_SCOPE_ROLE_CHOICES,
     STOREROOM_SCOPE_ROLE_PERMISSIONS,

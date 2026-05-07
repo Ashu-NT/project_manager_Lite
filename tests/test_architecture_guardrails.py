@@ -72,7 +72,7 @@ def test_shared_platform_and_inventory_do_not_depend_on_pm_identity_helpers():
     )
     checked_roots = (
         ROOT / "core" / "platform",
-        ROOT / "core" / "modules" / "inventory_procurement",
+        ROOT / "src" / "core" / "modules" / "inventory_procurement",
     )
     violations: list[tuple[str, str]] = []
 
@@ -116,12 +116,12 @@ def test_shared_access_platform_layers_do_not_import_pm_access_code():
 
 
 def test_platform_bundle_only_registers_platform_owned_scope_policies():
-    platform_bundle_path = ROOT / "infra" / "platform" / "service_registration" / "platform_bundle.py"
+    platform_bundle_path = ROOT / "src" / "infra" / "composition" / "platform_registry.py"
     source = platform_bundle_path.read_text(encoding="utf-8", errors="ignore")
     tree = ast.parse(source)
     forbidden_import_targets = (
         "src.core.modules.project_management.access.policy",
-        "core.modules.inventory_procurement.access.policy",
+        "src.core.modules.inventory_procurement.access.policy",
     )
     violations: list[tuple[str, str]] = []
 
@@ -139,14 +139,14 @@ def test_platform_bundle_only_registers_platform_owned_scope_policies():
 
 
 def test_module_service_bundles_register_their_owned_scope_policies():
-    project_bundle_path = ROOT / "infra" / "platform" / "service_registration" / "project_management_bundle.py"
-    inventory_bundle_path = ROOT / "infra" / "platform" / "service_registration" / "inventory_procurement_bundle.py"
+    project_bundle_path = ROOT / "src" / "infra" / "composition" / "project_registry.py"
+    inventory_bundle_path = ROOT / "src" / "infra" / "composition" / "inventory_registry.py"
     project_text = project_bundle_path.read_text(encoding="utf-8", errors="ignore")
     inventory_text = inventory_bundle_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "from src.core.modules.project_management.access.policy import" in project_text
     assert 'scope_type="project"' in project_text
-    assert "from core.modules.inventory_procurement.access.policy import" in inventory_text
+    assert "from src.core.modules.inventory_procurement.access.policy import" in inventory_text
     assert 'scope_type="storeroom"' in inventory_text
 
 

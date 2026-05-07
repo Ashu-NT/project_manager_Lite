@@ -2,19 +2,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.modules.inventory_procurement.exporting import (
+from src.core.modules.inventory_procurement.infrastructure.exporters import (
     register_inventory_procurement_export_definitions,
 )
-from core.modules.inventory_procurement.importing import (
+from src.core.modules.inventory_procurement.infrastructure.importers.definitions import (
     register_inventory_procurement_import_definitions,
 )
-from core.modules.inventory_procurement.services.data_exchange.import_workflows import (
+from src.core.modules.inventory_procurement.infrastructure.importers.import_workflows import (
     InventoryDataExchangeImportMixin,
 )
-from core.modules.inventory_procurement.services.data_exchange.parsing import (
+from src.core.modules.inventory_procurement.infrastructure.importers.parsing import (
     InventoryDataExchangeParsingMixin,
 )
-from core.modules.inventory_procurement.services.data_exchange.support import (
+from src.core.modules.inventory_procurement.infrastructure.importers.support import (
     ITEM_EXPORT_FIELDS,
     ITEM_FIELDS,
     PURCHASE_ORDER_FIELDS,

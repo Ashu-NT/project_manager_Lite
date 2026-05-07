@@ -2486,8 +2486,8 @@ Goal: complete inventory and procurement before maintenance, because maintenance
 #### Current inventory features that are live but not explicitly named in the uploaded inventory tree
 
 - `reservation`
-- `data_exchange`
-- `maintenance_integration`
+- `data_exchange`, now landing under `src/core/modules/inventory_procurement/infrastructure/importers/*` and `infrastructure/exporters/*`
+- `maintenance_integration`, now landing under `src/core/modules/inventory_procurement/contracts/gateways/*` and `infrastructure/integrations/*`
 - split `stock_control` UI/service package
 - inventory reporting service helpers
 
@@ -2504,23 +2504,24 @@ Started in Slice 3:
 - moved `core/modules/inventory_procurement/services/inventory/service.py`, `services/reservation/service.py`, and `services/stock_control/*` into `src/core/modules/inventory_procurement/application/inventory/*`
 - moved `core/modules/inventory_procurement/services/procurement/*` into `src/core/modules/inventory_procurement/application/procurement/*`
 - added `src/core/modules/inventory_procurement/application/common/support.py` so the transferred inventory application code no longer depends on the legacy flat `core/modules/inventory_procurement/support.py`
+- added `src/core/modules/inventory_procurement/application/common/reference_service.py` and `src/core/modules/inventory_procurement/access/*` so inventory reference lookups and storeroom scope policy now live under the module-local `src` tree instead of the old flat package
 - split the transferred inventory domain into `src/core/modules/inventory_procurement/domain/catalog/item.py` and `domain/inventory/stock.py`
 - split the transferred procurement domain into `src/core/modules/inventory_procurement/domain/procurement/purchasing.py`
 - split the transferred inventory repository contracts into `src/core/modules/inventory_procurement/contracts/repositories/{catalog,inventory,procurement}.py`
+- moved maintenance material integration contracts into `src/core/modules/inventory_procurement/contracts/gateways/maintenance_materials.py` and the live integration adapter into `src/core/modules/inventory_procurement/infrastructure/integrations/maintenance_materials.py`
+- moved inventory data exchange into `src/core/modules/inventory_procurement/infrastructure/importers/{definitions,import_workflows,parsing,service,support}.py` plus `infrastructure/exporters/definitions.py`
 - moved inventory reporting helpers into `src/core/modules/inventory_procurement/infrastructure/reporting/{definitions,models,excel,service}.py`
 - moved inventory persistence implementations into `src/core/modules/inventory_procurement/infrastructure/persistence/{orm,mappers,repositories}/{catalog,inventory,procurement}.py`
-- rewired inventory composition, legacy inventory/procurement QWidget callers, procurement/reporting/data-exchange services, maintenance material-requirement callers, metadata loading, transitional inventory ORM/repository adapters, and `tests/test_service_architecture.py` to the new `src.core.modules.inventory_procurement.application.{catalog,inventory,procurement}` imports plus the split `src.core.modules.inventory_procurement.domain.*`, `contracts.repositories.*`, and `infrastructure.*` paths
+- rewired inventory composition, legacy inventory/procurement QWidget callers, procurement/reporting/data-exchange services, maintenance material-requirement callers, metadata loading, transitional inventory ORM/repository adapters, and the focused inventory architecture/service tests to the new `src.core.modules.inventory_procurement.application.{catalog,inventory,procurement}` imports plus the split `src.core.modules.inventory_procurement.{access,domain,contracts,infrastructure}.*` paths
 - deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control,procurement}/`
 - deleted the old legacy reporting and persistence package roots under `core/modules/inventory_procurement/{reporting,services/reporting}`, `infra/modules/inventory_procurement/db/`, and `src/infra/persistence/orm/inventory_procurement/`
-- deleted unused inventory placeholder package branches under `src/core/modules/inventory_procurement/{api,infrastructure}`, `application/{pricing,procurement}`, `contracts/{gateways,services}`, and `domain/{pricing,procurement}` so the partial inventory module now matches the PM rule: keep only folders with real code until the next chunk lands
-- reintroduced `src/core/modules/inventory_procurement/application/procurement/`, `domain/procurement/`, and `infrastructure/{reporting,persistence}/` only after they contained real migrated code, keeping `application/pricing/`, `domain/pricing/`, and `api/` absent until those later Slice 3 chunks land
+- deleted the remaining legacy inventory package roots under `core/modules/inventory_procurement/*` and `infra/modules/inventory_procurement/*` after the last imports moved to `src`
+- kept only live inventory package branches under `src/core/modules/inventory_procurement/*`: `access/`, `application/{catalog,common,inventory,procurement}`, `contracts/{repositories,gateways}`, `domain/{catalog,inventory,procurement}`, and `infrastructure/{exporters,importers,integrations,persistence,reporting}`. `application/pricing/`, `domain/pricing/`, and `api/` stay absent until the later Slice 3 moves land
 - focused verification after the inventory procurement application/domain/contracts/reporting/persistence transfer passes:
-  - `python -m compileall -q src/core/modules/inventory_procurement src/infra/composition core/modules/inventory_procurement infra/modules/inventory_procurement ui/modules/inventory_procurement tests`
-  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py`
-  - `conda run -n pmenv python -m pytest -q tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_ledger.py tests/test_inventory_procurement_movements.py tests/test_inventory_procurement_reservations.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py`
-  - `conda run -n pmenv python -m pytest -q tests/test_inventory_procurement_ui.py`
-  - observed results after the inventory application/domain/contracts/reporting/persistence transfer and structure cleanup: `104 passed`, `42 passed`, and `19 passed`
-- remaining Slice 3 work stays exactly on the plan: add module-local desktop/HTTP APIs, migrate inventory QML workspaces, regroup tests, and only then remove the broader legacy inventory paths
+  - `python -m compileall -q src/core/modules/inventory_procurement src/infra/composition core/modules/maintenance_management ui/modules/inventory_procurement tests`
+  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py tests/test_inventory_procurement_foundation.py tests/test_inventory_procurement_requisition.py tests/test_inventory_procurement_purchasing.py tests/test_inventory_import_export_reporting.py tests/test_inventory_maintenance_material_contracts.py tests/test_inventory_procurement_ui.py tests/test_platform_access_scopes.py tests/test_maintenance_execution_foundation.py`
+  - observed results after the inventory structure-alignment transfer: `163 passed`
+- remaining Slice 3 work stays exactly on the plan: add module-local desktop/HTTP APIs, migrate inventory QML workspaces, regroup tests, and keep the old inventory QWidget UI only as temporary runtime fallback until the final QML cutover
 
 ### Slice 4: Maintenance
 

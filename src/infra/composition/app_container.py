@@ -19,7 +19,7 @@ from src.core.platform.org import DepartmentService, EmployeeService, Organizati
 from src.core.platform.party import PartyService
 from src.core.platform.time.application import TimeService
 from src.core.platform.runtime_tracking import RuntimeExecutionService
-from core.modules.inventory_procurement import (
+from src.core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,
     MaintenanceMaterialService,

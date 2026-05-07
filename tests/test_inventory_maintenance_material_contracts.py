@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.modules.inventory_procurement.domain.inventory.stock import StockTransactionType
-from core.modules.inventory_procurement.services.maintenance_integration import (
+from src.core.modules.inventory_procurement.contracts.gateways import (
     MaintenanceMaterialAvailabilityStatus,
 )
 from src.core.platform.common.exceptions import ValidationError

@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.core.platform.access import ScopedRolePolicy
-from core.modules.inventory_procurement import (
+from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     InventoryReferenceService,
     MaintenanceMaterialService,
 )
-from core.modules.inventory_procurement.access.policy import (
+from src.core.modules.inventory_procurement.access.policy import (
     STOREROOM_SCOPE_ROLE_CHOICES,
     normalize_storeroom_scope_role,
     resolve_storeroom_scope_permissions,
