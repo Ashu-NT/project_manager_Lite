@@ -11,14 +11,13 @@ from core.modules.inventory_procurement.interfaces import (
     ReceiptLineRepository,
     StockBalanceRepository,
 )
-from core.modules.inventory_procurement.services.inventory import InventoryService
-from core.modules.inventory_procurement.services.item_master import ItemMasterService
 from core.modules.inventory_procurement.services.procurement.purchasing_lifecycle import PurchasingLifecycleMixin
 from core.modules.inventory_procurement.services.procurement.purchasing_queries import PurchasingQueryMixin
 from core.modules.inventory_procurement.services.procurement.purchasing_receiving import PurchasingReceivingMixin
 from core.modules.inventory_procurement.services.procurement.purchasing_support import PurchasingSupportMixin
 from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
-from core.modules.inventory_procurement.services.stock_control import StockControlService
+from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.inventory import InventoryService, StockControlService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.org.contracts import OrganizationRepository
 

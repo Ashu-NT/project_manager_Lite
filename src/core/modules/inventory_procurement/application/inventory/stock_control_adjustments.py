@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 
 from core.modules.inventory_procurement.domain import StockBalance, StockItem, StockTransaction, StockTransactionType, Storeroom
-from core.modules.inventory_procurement.services.stock_control.stock_support import build_transaction_number
+from src.core.modules.inventory_procurement.application.inventory.stock_control_support import (
+    build_transaction_number,
+)
 from core.modules.inventory_procurement.support import (
     convert_item_quantity,
     convert_item_unit_cost_to_stock,

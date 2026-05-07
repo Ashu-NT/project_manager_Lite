@@ -2255,13 +2255,13 @@ Hold status:
 - platform `admin`, `access/security`, `control`, and `settings`, plus PM `collaboration`, `dashboard`, `projects`, `tasks`, `resources`, `scheduling`, `financials`, and `risk/register`, now auto-refresh from controller-side backend domain events; the support workspace stays action-driven because it does not currently depend on shared domain-event streams
 - platform `admin`, `access/security`, `control`, and `settings`, plus PM `collaboration`, `dashboard`, `financials`, `portfolio`, `projects`, `resources`, `risk/register`, `scheduling`, `tasks`, and `timesheets`, now auto-refresh from controller-side backend domain events; the support workspace stays action-driven because it does not currently depend on shared domain-event streams
 
-Refactor-first priority for the remaining PM slice:
+Slice 2 close-out notes:
 
-- keep the completed legacy PM service-transfer set under `src/core/modules/project_management/{application,infrastructure}/*` clean and facade-free, with `timesheet` now settled under `application/resources` and `import_service` under `infrastructure/importers`
-- keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and keep the new PM service boundaries stable while API and UI regrouping continues
-- expand module-local PM desktop and HTTP APIs over those application handlers, not over legacy broad services
-- regroup PM tests under `src/tests/project_management/*`
-- keep QML migration attached to those refactored module-local APIs and packages instead of using it to drive slice ordering
+- Slice 2 is complete enough to advance to Slice 3: the PM legacy roots under `core/modules/project_management/` and `infra/modules/project_management/` are gone, the module-local PM application/infrastructure/API layout is live, and every planned PM QML workspace route now has a real typed screen behind it
+- keep the completed PM service-transfer set under `src/core/modules/project_management/{application,infrastructure}/*` clean and facade-free while later slices progress
+- keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and keep the new PM service boundaries stable while later module work lands
+- do not resume QWidget-side PM restructuring; old Widget trees stay only as legacy runtime fallback/reference until the final global QML cutover
+- remaining PM flat-test regrouping into `src/tests/project_management/*` and final PM QWidget deletion are now cleanup-phase tasks, not blockers for starting Inventory
 
 Completed in the clean/no-facade execution:
 
@@ -2453,14 +2453,11 @@ Verified:
   - `conda run -n pmenv python -m pytest -q tests/test_architecture_guardrails.py tests/test_service_architecture.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_project_management_platform_alignment.py tests/test_collaboration_import_timesheet_regressions.py tests/test_refactor_regressions.py tests/test_project_management_desktop_api.py`
   - observed result after the PM timesheet/import-service transfer: 181 passed
 
-Still remaining in Slice 2:
+Slice 2 status:
 
-- continue splitting PM domain, services, API adapters, and UI according to the Slice 2 plan before starting another module
-- prioritize the remaining repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion
-- the legacy PM service-transfer set is now completed through `services/timesheet/*` and `services/import_service/*`; continue the PM API, test, and UI regrouping on top of the new module-local structure
-- migrate PM UI screens to `src/ui_qml/modules/project_management/*` one workspace/dialog at a time against the refactored module-local APIs; delete old Widget files only after matching QML screens pass tests
-- regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle
-- if real PM gateway boundaries appear during the application/API split, place those contracts under `src/core/modules/project_management/contracts/gateways/*` without facade re-exports
+- PM is complete enough for slice-order purposes; continue later PM work only as stability/cleanup on the settled `src/core/modules/project_management/*` and `src/ui_qml/modules/project_management/*` trees
+- do not delete old PM QWidget trees yet; delete them only after all planned slices are migrated and the runtime cutover is approved
+- any further PM test regrouping or final PM cleanup belongs to the later cleanup phase and must not block Slice 3
 
 ### Slice 3: Inventory & Procurement
 
@@ -2500,6 +2497,14 @@ Safe handling:
 - reporting moves into `infrastructure/reporting`
 - reservations and maintenance integration must be assigned final homes before the inventory slice is closed
 - data exchange stays temporarily attached to inventory as an integration adapter, not as a direct cross-module dependency
+
+Started in Slice 3:
+
+- moved `core/modules/inventory_procurement/services/item_master/{service.py,category_service.py}` into `src/core/modules/inventory_procurement/application/catalog/{service.py,category_service.py}`
+- moved `core/modules/inventory_procurement/services/inventory/service.py`, `services/reservation/service.py`, and `services/stock_control/*` into `src/core/modules/inventory_procurement/application/inventory/*`
+- rewired inventory composition, legacy inventory QWidget callers, procurement/reporting/data-exchange services, maintenance material-requirement callers, and `tests/test_service_architecture.py` to the new `src.core.modules.inventory_procurement.application.{catalog,inventory}` imports
+- deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control}/`
+- remaining Slice 3 work stays exactly on the plan: split inventory domain/contracts, move procurement and reporting/persistence, add module-local desktop/HTTP APIs, migrate inventory QML workspaces, regroup tests, and only then remove the broader legacy inventory paths
 
 ### Slice 4: Maintenance
 

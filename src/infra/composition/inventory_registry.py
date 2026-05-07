@@ -5,21 +5,25 @@ from dataclasses import dataclass
 from src.core.platform.access import ScopedRolePolicy
 from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
-    MaintenanceMaterialService,
     InventoryReferenceService,
-    InventoryService,
     InventoryReportingService,
-    ItemCategoryService,
-    ItemMasterService,
+    MaintenanceMaterialService,
     ProcurementService,
     PurchasingService,
-    ReservationService,
-    StockControlService,
 )
 from core.modules.inventory_procurement.access.policy import (
     STOREROOM_SCOPE_ROLE_CHOICES,
     normalize_storeroom_scope_role,
     resolve_storeroom_scope_permissions,
+)
+from src.core.modules.inventory_procurement.application.catalog import (
+    ItemCategoryService,
+    ItemMasterService,
+)
+from src.core.modules.inventory_procurement.application.inventory import (
+    InventoryService,
+    ReservationService,
+    StockControlService,
 )
 from infra.modules.inventory_procurement.db import (
     SqlAlchemyInventoryItemCategoryRepository,

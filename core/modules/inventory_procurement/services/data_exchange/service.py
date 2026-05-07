@@ -36,9 +36,9 @@ from core.modules.inventory_procurement.services.data_exchange.support import (
     stringify_bool,
     write_rows,
 )
-from core.modules.inventory_procurement.services.inventory import InventoryService
-from core.modules.inventory_procurement.services.item_master import ItemMasterService
 from core.modules.inventory_procurement.services.procurement import ProcurementService, PurchasingService
+from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.inventory import InventoryService
 from src.core.platform.exporting import (
     ExportArtifactDraft,
     ExportDefinitionRegistry,

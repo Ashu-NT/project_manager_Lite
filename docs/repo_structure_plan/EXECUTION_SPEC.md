@@ -1248,8 +1248,8 @@ Continue next:
 
 Hold status as of 2026-04-22:
 
-- resume Slice 2 with repo-structure transfer as the active track; QML remains part of Slice 2 but should follow the new structure instead of blocking it
-- continue PM domain/application/infrastructure/API moves first, then incorporate QML naturally on top of those slices
+- Slice 2 is now complete enough to advance to Slice 3; keep the completed PM structure stable while inventory work begins
+- QML remained part of Slice 2 and now has real typed screens for every planned PM workspace route, but final Widget deletion still waits for the global cutover
 - completed Slice 2 persistence/contracts/domain work remains valid and must not be reverted
 - active Widget UI under `src/ui/*` remains runnable during migration
 - final PM desktop UI target is now `src/ui_qml/modules/project_management/*`
@@ -1273,13 +1273,12 @@ Hold status as of 2026-04-22:
 - PM Timesheets QML now has API-backed assignment-period entry capture, period submission, review-queue detail, approve/reject, and lock/unlock flows; payroll-close integrations, richer review auditing, and eventual Widget deletion still remain to be completed
 - PM Collaboration QML now has API-backed notifications, mention inbox, recent activity, active presence, and mark-read mutations; task-level posting, attachments, shared-document linking, and task-presence touch/clear flows now run through the PM Tasks QML workspace, while the dedicated collaboration workspace itself remains read/review-focused
 
-Refactor-first priority for the remaining PM slice:
+Slice 2 close-out notes:
 
-- move the remaining legacy PM service packages under `core/modules/project_management/services/*` into their module-local homes under `src/core/modules/project_management/{application,infrastructure}/*`, while keeping completed `projects`, `tasks`, `scheduling`, `baseline`, `dashboard`, `resources`, `financials`, `risk`, and `reporting` transfers clean and facade-free
-- keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and keep the new PM service boundaries stable while API and UI regrouping continues
-- expand module-local PM desktop and HTTP APIs over those application handlers, not over the broad legacy service layer
-- regroup PM tests under `src/tests/project_management/*`
-- keep QML migration attached to those refactored module-local APIs instead of using it to drive slice ordering
+- the PM legacy roots are removed and the live PM code now sits under `src/core/modules/project_management/*`
+- old PM Widget trees remain only as migration fallback/reference until the final global QML cutover
+- remaining PM flat-test regrouping and final QWidget deletion are cleanup-phase work, not blockers for Slice 3
+- keep PM boundaries stable and facade-free while later slices progress
 
 Do:
 
@@ -1417,10 +1416,10 @@ Verified:
 
 Continue next:
 
-1. Continue the PM domain, service, API, and UI work before starting another module, with the legacy PM roots now fully removed and the remaining work happening only under `src/core/modules/project_management/*`.
-2. Prioritize the remaining PM repo-structure transfer under `src/core/modules/project_management/{application,infrastructure,api}` before further QML-first expansion.
-3. Regroup PM tests from the flat `tests/` area into `src/tests/project_management/*` as the feature slices settle.
-4. Add PM gateway contracts under `src/core/modules/project_management/contracts/gateways/*` only when real gateway boundaries are extracted; do not add facade re-exports.
+1. Start Slice 3 on inventory and procurement, keeping the PM boundaries stable instead of expanding PM scope further.
+2. Move inventory catalog and inventory/stock-control/reservation code into `src/core/modules/inventory_procurement/application/*`, then continue the remaining Slice 3 domain/contracts/persistence/procurement/reporting/API work.
+3. Keep old inventory QWidget trees only as migration/runtime fallback; do not do new QWidget-side restructuring there.
+4. Regroup inventory tests and add inventory desktop/HTTP APIs as the inventory feature slices settle.
 
 ### Slice 3: Inventory & Procurement
 
@@ -1432,6 +1431,14 @@ Do:
 4. Keep maintenance integration behind gateway contracts.
 5. Add inventory desktop API adapters.
 6. Rewrite imports and delete old inventory paths for the moved code.
+
+Status as of 2026-05-07:
+
+- started the first real inventory transfer by moving `services/item_master/*` into `src/core/modules/inventory_procurement/application/catalog/*`
+- started the first real inventory transfer by moving `services/inventory/*`, `services/reservation/service.py`, and `services/stock_control/*` into `src/core/modules/inventory_procurement/application/inventory/*`
+- rewired inventory composition, remaining inventory services, legacy inventory QWidget callers, and `tests/test_service_architecture.py` to the new `src.core.modules.inventory_procurement.application.{catalog,inventory}` imports
+- deleted the old source package roots under `core/modules/inventory_procurement/services/{item_master,inventory,reservation,stock_control}/`
+- remaining Slice 3 work still follows the existing plan: split domain/contracts, move procurement/reporting/persistence, add desktop/HTTP APIs, migrate `src/ui_qml/modules/inventory_procurement/*`, regroup tests, and then remove the broader legacy inventory paths
 
 ### Slice 4: Maintenance
 

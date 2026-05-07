@@ -19,8 +19,9 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.modules.inventory_procurement import InventoryService, ItemMasterService, StockControlService
 from core.modules.inventory_procurement.domain import StockBalance
+from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.inventory import InventoryService, StockControlService
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.notifications.domain_events import domain_events

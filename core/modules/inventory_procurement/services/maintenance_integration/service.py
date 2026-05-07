@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from core.modules.inventory_procurement.domain import PurchaseRequisition, StockReservation
-from core.modules.inventory_procurement.services.inventory import InventoryService
-from core.modules.inventory_procurement.services.item_master import ItemCategoryService, ItemMasterService
 from core.modules.inventory_procurement.services.maintenance_integration.contracts import (
     MaintenanceMaterialAvailability,
     MaintenanceMaterialAvailabilityStatus,
@@ -10,14 +8,21 @@ from core.modules.inventory_procurement.services.maintenance_integration.contrac
     MaintenanceMaterialProcurementEscalation,
 )
 from core.modules.inventory_procurement.services.procurement import ProcurementService
-from core.modules.inventory_procurement.services.reservation import ReservationService
-from core.modules.inventory_procurement.services.stock_control import StockControlService
 from core.modules.inventory_procurement.support import (
     convert_item_quantity,
     normalize_maintenance_source_reference_type,
     normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
+)
+from src.core.modules.inventory_procurement.application.catalog import (
+    ItemCategoryService,
+    ItemMasterService,
+)
+from src.core.modules.inventory_procurement.application.inventory import (
+    InventoryService,
+    ReservationService,
+    StockControlService,
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import domain_events

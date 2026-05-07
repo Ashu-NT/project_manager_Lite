@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 
 from core.modules.inventory_procurement.domain import StockReservation, StockReservationStatus
 from core.modules.inventory_procurement.interfaces import StockReservationRepository
-from core.modules.inventory_procurement.services.inventory import InventoryService
-from core.modules.inventory_procurement.services.item_master import ItemMasterService
-from core.modules.inventory_procurement.services.stock_control import StockControlService
+from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
+from src.core.modules.inventory_procurement.application.inventory.stock_control_service import (
+    StockControlService,
+)
 from core.modules.inventory_procurement.support import (
     RESERVATION_STATUS_TRANSITIONS,
     normalize_optional_text,

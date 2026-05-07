@@ -24,11 +24,15 @@ from core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     MaintenanceMaterialService,
     InventoryReferenceService,
-    InventoryService,
     InventoryReportingService,
+    PurchasingService,
+)
+from src.core.modules.inventory_procurement.application.catalog import (
     ItemCategoryService,
     ItemMasterService,
-    PurchasingService,
+)
+from src.core.modules.inventory_procurement.application.inventory import (
+    InventoryService,
     ReservationService,
     StockControlService,
 )

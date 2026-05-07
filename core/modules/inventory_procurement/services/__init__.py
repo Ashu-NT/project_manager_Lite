@@ -1,12 +1,14 @@
 from core.modules.inventory_procurement.services.data_exchange import InventoryDataExchangeService
-from core.modules.inventory_procurement.services.inventory import InventoryService
-from core.modules.inventory_procurement.services.item_master import ItemCategoryService, ItemMasterService
 from core.modules.inventory_procurement.services.maintenance_integration import MaintenanceMaterialService
 from core.modules.inventory_procurement.services.procurement import ProcurementService, PurchasingService
-from core.modules.inventory_procurement.services.reservation import ReservationService
 from core.modules.inventory_procurement.services.reference_service import InventoryReferenceService
 from core.modules.inventory_procurement.services.reporting import InventoryReportingService
-from core.modules.inventory_procurement.services.stock_control import StockControlService
+from src.core.modules.inventory_procurement.application.catalog import ItemCategoryService, ItemMasterService
+from src.core.modules.inventory_procurement.application.inventory import (
+    InventoryService,
+    ReservationService,
+    StockControlService,
+)
 
 __all__ = [
     "InventoryDataExchangeService",

@@ -3,12 +3,12 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from core.modules.inventory_procurement.interfaces import PurchaseRequisitionLineRepository, PurchaseRequisitionRepository
-from core.modules.inventory_procurement.services.inventory import InventoryService
-from core.modules.inventory_procurement.services.item_master import ItemMasterService
 from core.modules.inventory_procurement.services.procurement.procurement_approval import ProcurementApprovalMixin
 from core.modules.inventory_procurement.services.procurement.procurement_lifecycle import ProcurementLifecycleMixin
 from core.modules.inventory_procurement.services.procurement.procurement_queries import ProcurementQueryMixin
 from core.modules.inventory_procurement.services.procurement.procurement_support import ProcurementSupportMixin
+from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
+from src.core.modules.inventory_procurement.application.inventory import InventoryService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.party import PartyService

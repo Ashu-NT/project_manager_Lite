@@ -18,8 +18,8 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from core.modules.inventory_procurement import (
     InventoryReferenceService,
     InventoryReportingService,
-    InventoryService,
 )
+from src.core.modules.inventory_procurement.application.inventory import InventoryService
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.notifications.domain_events import domain_events
