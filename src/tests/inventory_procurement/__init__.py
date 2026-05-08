@@ -1,1 +1,1 @@
-"""Inventory and procurement tests."""
+"""Regrouped inventory and procurement tests."""

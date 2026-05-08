@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QDialog, QSizePolicy
 from openpyxl import load_workbook
 
 from src.core.platform.party.domain import PartyType
+from tests.path_rewrites import REPO_ROOT
 from tests.ui_runtime_helpers import login_as, make_settings_store, register_and_login
 from ui.modules.inventory_procurement.data_exchange.import_dialog import InventoryImportDialog
 from ui.modules.inventory_procurement.data_exchange.tab import InventoryDataExchangeTab
@@ -922,8 +923,7 @@ def test_main_window_exposes_inventory_workspaces_when_module_is_enabled(
 
 
 def test_inventory_ui_uses_qdialog_acceptance_constant_in_new_dialog_paths():
-    root = Path(__file__).resolve().parents[1]
-    inventory_ui = root / "ui" / "modules" / "inventory_procurement"
+    inventory_ui = REPO_ROOT / "ui" / "modules" / "inventory_procurement"
     texts = [
         (inventory_ui / "item_master" / "items_tab.py").read_text(encoding="utf-8", errors="ignore"),
         (inventory_ui / "procurement" / "purchase_orders" / "actions.py").read_text(encoding="utf-8", errors="ignore"),
