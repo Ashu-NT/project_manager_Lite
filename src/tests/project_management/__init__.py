@@ -1,1 +1,1 @@
-"""Project management tests."""
+"""Regrouped project-management-specific tests."""

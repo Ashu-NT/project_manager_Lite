@@ -1,1 +1,1 @@
-"""Platform tests."""
+"""Regrouped platform-specific tests."""

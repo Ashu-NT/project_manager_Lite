@@ -1,1 +1,1 @@
-"""Architecture dependency tests."""
+"""Regrouped architecture and guardrail tests."""

@@ -13,6 +13,7 @@ from src.core.platform.org import DepartmentService, EmployeeService, Organizati
 from src.core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.core.platform.time.application import TimeService
+from tests.path_rewrites import REPO_ROOT
 from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     MaintenanceMaterialService,
@@ -266,7 +267,7 @@ def test_legacy_service_imports_point_to_new_packages():
 
 def test_services_module_delegates_to_modular_registration_builders():
     text = (
-        Path(__file__).resolve().parents[1] / "src" / "infra" / "composition" / "app_container.py"
+        REPO_ROOT / "src" / "infra" / "composition" / "app_container.py"
     ).read_text(
         encoding="utf-8",
         errors="ignore",
@@ -282,7 +283,7 @@ def test_services_module_delegates_to_modular_registration_builders():
 
 
 def test_service_registration_package_is_split_by_platform_and_module():
-    root = Path(__file__).resolve().parents[1] / "src" / "infra" / "composition"
+    root = REPO_ROOT / "src" / "infra" / "composition"
 
     assert (root / "__init__.py").exists()
     assert (root / "repositories.py").exists()

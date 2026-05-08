@@ -1499,7 +1499,8 @@ The current repo already has the right high-level concepts, but not yet in the t
 - `src/ui_qml/legacy_widgets/migration_only/*` is the only temporary holding area for QWidget screens during an active migration window
 - old `src/ui/*` Widget folders are deleted screen-by-screen only after the matching QML screen, presenter, view model, route, and tests are complete
 - employee management currently lives in platform-oriented code, but the detailed guide says HR should own employee master data in the target structure
-- tests are currently mostly flat under `tests/`; the target expects grouped test packages under `tests/architecture`, `tests/platform`, `tests/project_management`, `tests/inventory_procurement`, `tests/maintenance`, and `tests/ui`
+- tests now regroup progressively under `src/tests/*`; `architecture`, `platform`, `project_management`, and `inventory_procurement` are already moved, while shared/UI/maintenance coverage still spans the root `tests/` tree during the remaining slices
+- when older verification snippets below still mention root `tests/test_*.py` paths for those regrouped suites, treat them as historical notes and use the current `src/tests/{architecture,platform,project_management,inventory_procurement}/*` paths instead
 
 ## Clarifications And Detailed Overrides
 
@@ -1638,8 +1639,8 @@ Goal: establish `src/`, move platform-owned runtime/composition/persistence/UI s
 | current platform dialogs | `src/ui/platform/dialogs/*` | consolidate platform-owned dialogs out of workspace folders |
 | cross-cutting UI helpers now under `ui/platform/shared/*` | `src/ui/shared/*` | move reusable widgets, dialogs, formatting, and UI models into the shared presentation layer required by the detailed guide |
 | platform-only UI helpers | `src/ui/platform/widgets/*` | keep platform-owned widgets separate from globally shared presentation helpers |
-| `tests/test_architecture_guardrails.py` | `src/tests/architecture/*` | split rules by dependency concern |
-| flat platform tests under `tests/` | `src/tests/platform/*` | regroup platform-specific tests |
+| regrouped architecture guardrails and service-architecture checks | `src/tests/architecture/*` | split rules by dependency concern |
+| regrouped platform-specific tests | `src/tests/platform/*` | keep platform/auth/admin/control/QML checks under the platform test package |
 
 #### Platform package split map
 
@@ -2193,7 +2194,7 @@ Goal: complete the full project management slice before moving to the next modul
 | none | `src/core/modules/project_management/api/desktop/*.py` and `api/http/*.py` | create module-local desktop adapters and HTTP routers |
 | `ui/modules/project_management/*` and active legacy `src/ui/modules/project_management/*` Widget screens | `src/ui_qml/modules/project_management/qml/workspaces/{projects,tasks,scheduling,resources,financials,risk,portfolio,register,collaboration,timesheets,dashboard}/*`, `qml/dialogs/*`, `qml/widgets/*`, `presenters/*`, `view_models/*` | migrate PM desktop UI from QWidget screens to QML, presenters, and view models |
 | `ui/platform/shell/project_management/workspaces.py` | shell adapter only | shell registration becomes a thin adapter over the new PM UI workspaces |
-| flat PM tests under `tests/` | `src/tests/project_management/*` | regroup PM tests under target test tree |
+| regrouped PM-specific tests | `src/tests/project_management/*` | keep PM workflow/API/QML checks under the PM test package |
 
 #### Detailed guide rules for Project Management
 
@@ -2261,7 +2262,7 @@ Slice 2 close-out notes:
 - keep the completed PM service-transfer set under `src/core/modules/project_management/{application,infrastructure}/*` clean and facade-free while later slices progress
 - keep dashboard/reporting reads infrastructure-owned on `src/core/modules/project_management/infrastructure/reporting/*` and keep the new PM service boundaries stable while later module work lands
 - do not resume QWidget-side PM restructuring; old Widget trees stay only as legacy runtime fallback/reference until the final global QML cutover
-- remaining PM flat-test regrouping into `src/tests/project_management/*` and final PM QWidget deletion are now cleanup-phase tasks, not blockers for starting Inventory
+- PM tests are now regrouped under `src/tests/project_management/*`; only final PM QWidget deletion remains deferred to the global cutover cleanup phase
 
 Completed in the clean/no-facade execution:
 

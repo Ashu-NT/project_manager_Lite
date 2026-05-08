@@ -7,6 +7,7 @@ from openpyxl import load_workbook
 
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
+from tests.path_rewrites import REPO_ROOT
 
 
 def _seed_finance_project(services) -> str:
@@ -140,7 +141,7 @@ def test_exporters_include_finance_sections_when_finance_service_is_provided(ser
 
 
 def test_finance_views_are_report_only_not_duplicated_in_cost_tab():
-    root = Path(__file__).resolve().parents[1]
+    root = REPO_ROOT
     cost_tab = (root / "ui" / "cost" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     report_surface = (root / "ui" / "report" / "surface.py").read_text(
         encoding="utf-8",

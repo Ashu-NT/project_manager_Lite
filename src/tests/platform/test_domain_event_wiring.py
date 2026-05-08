@@ -6,6 +6,7 @@ import pytest
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.platform.notifications.domain_events import domain_events
+from tests.path_rewrites import REPO_ROOT
 
 
 def _login_as(services, username: str, password: str) -> None:
@@ -199,7 +200,7 @@ def test_approve_baseline_request_emits_baseline_changed(services, monkeypatch):
 
 
 def test_report_tab_subscribes_to_project_changed_for_combo_refresh():
-    text = (Path(__file__).resolve().parents[1] / "ui" / "report" / "tab.py").read_text(
+    text = (REPO_ROOT / "ui" / "report" / "tab.py").read_text(
         encoding="utf-8", errors="ignore"
     )
     assert "domain_events.domain_changed.connect(self._on_domain_change)" in text
@@ -208,10 +209,10 @@ def test_report_tab_subscribes_to_project_changed_for_combo_refresh():
 
 
 def test_dashboard_subscribes_project_changes_to_catalog_refresh():
-    text = (Path(__file__).resolve().parents[1] / "ui" / "dashboard" / "tab.py").read_text(
+    text = (REPO_ROOT / "ui" / "dashboard" / "tab.py").read_text(
         encoding="utf-8", errors="ignore"
     )
-    ops_text = (Path(__file__).resolve().parents[1] / "ui" / "modules" / "project_management" / "dashboard" / "data_ops.py").read_text(
+    ops_text = (REPO_ROOT / "ui" / "modules" / "project_management" / "dashboard" / "data_ops.py").read_text(
         encoding="utf-8", errors="ignore"
     )
     assert "domain_events.domain_changed.connect(self._on_generic_domain_change)" in text
@@ -220,7 +221,7 @@ def test_dashboard_subscribes_project_changes_to_catalog_refresh():
 
 
 def test_tabs_subscribe_to_resources_changed_for_refresh():
-    root = Path(__file__).resolve().parents[1]
+    root = REPO_ROOT
     task_text = (root / "ui" / "task" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     cost_text = (root / "ui" / "cost" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     dash_text = (root / "ui" / "dashboard" / "tab.py").read_text(
@@ -251,7 +252,7 @@ def test_tabs_subscribe_to_resources_changed_for_refresh():
 
 
 def test_governance_tab_subscribes_to_approvals_changed_for_auto_refresh():
-    text = (Path(__file__).resolve().parents[1] / "ui" / "governance" / "tab.py").read_text(
+    text = (REPO_ROOT / "ui" / "governance" / "tab.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )
@@ -261,7 +262,7 @@ def test_governance_tab_subscribes_to_approvals_changed_for_auto_refresh():
 
 
 def test_governance_tab_subscribes_to_timesheet_period_events_for_auto_refresh():
-    text = (Path(__file__).resolve().parents[1] / "ui" / "governance" / "tab.py").read_text(
+    text = (REPO_ROOT / "ui" / "governance" / "tab.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )
@@ -271,7 +272,7 @@ def test_governance_tab_subscribes_to_timesheet_period_events_for_auto_refresh()
 
 
 def test_audit_tab_subscribes_to_domain_events_for_auto_refresh():
-    text = (Path(__file__).resolve().parents[1] / "ui" / "platform" / "control" / "audit" / "tab.py").read_text(
+    text = (REPO_ROOT / "ui" / "platform" / "control" / "audit" / "tab.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )
@@ -281,11 +282,11 @@ def test_audit_tab_subscribes_to_domain_events_for_auto_refresh():
 
 
 def test_dashboard_subscribes_to_baseline_changed_for_refresh():
-    text = (Path(__file__).resolve().parents[1] / "ui" / "dashboard" / "tab.py").read_text(
+    text = (REPO_ROOT / "ui" / "dashboard" / "tab.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )
-    ops_text = (Path(__file__).resolve().parents[1] / "ui" / "modules" / "project_management" / "dashboard" / "data_ops.py").read_text(
+    ops_text = (REPO_ROOT / "ui" / "modules" / "project_management" / "dashboard" / "data_ops.py").read_text(
         encoding="utf-8", errors="ignore"
     )
     assert "domain_events.domain_changed.connect(self._on_generic_domain_change)" in text
@@ -294,7 +295,7 @@ def test_dashboard_subscribes_to_baseline_changed_for_refresh():
 
 
 def test_enterprise_tabs_subscribe_to_domain_events_for_auto_refresh():
-    root = Path(__file__).resolve().parents[1]
+    root = REPO_ROOT
     access_text = (root / "ui" / "access" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     collaboration_text = (root / "ui" / "collaboration" / "tab.py").read_text(
         encoding="utf-8",

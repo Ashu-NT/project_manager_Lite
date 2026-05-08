@@ -1277,7 +1277,8 @@ Slice 2 close-out notes:
 
 - the PM legacy roots are removed and the live PM code now sits under `src/core/modules/project_management/*`
 - old PM Widget trees remain only as migration fallback/reference until the final global QML cutover
-- remaining PM flat-test regrouping and final QWidget deletion are cleanup-phase work, not blockers for Slice 3
+- PM tests are now regrouped under `src/tests/project_management/*`; only final QWidget deletion remains cleanup-phase work and is not a blocker for Slice 3 or Slice 4
+- historical verification snippets above may still show pre-regroup root `tests/test_*.py` paths; use the current `src/tests/{architecture,platform,project_management,inventory_procurement}/*` locations for the moved suites
 - keep PM boundaries stable and facade-free while later slices progress
 
 Do:

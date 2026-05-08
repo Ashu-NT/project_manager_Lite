@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.path_rewrites import REPO_ROOT
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.exporting import ExportDefinitionRegistry, ExportRuntime
@@ -19,7 +20,7 @@ from src.core.platform.importing import (
 from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 
 
 class _DummyImportDefinition:

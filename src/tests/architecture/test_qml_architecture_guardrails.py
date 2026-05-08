@@ -5,8 +5,9 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from tests.path_rewrites import REPO_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 SRC_ROOT = ROOT / "src"
 UI_QML_ROOT = SRC_ROOT / "ui_qml"
 CORE_ROOT = SRC_ROOT / "core"

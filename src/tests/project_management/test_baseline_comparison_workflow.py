@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from tests.path_rewrites import REPO_ROOT
 
 
 def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services):
@@ -101,11 +102,11 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
 
 
 def test_report_tab_wires_baseline_comparison_action():
-    surface_text = (Path(__file__).resolve().parents[1] / "ui" / "report" / "surface.py").read_text(
+    surface_text = (REPO_ROOT / "ui" / "report" / "surface.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )
-    actions_text = (Path(__file__).resolve().parents[1] / "ui" / "report" / "actions.py").read_text(
+    actions_text = (REPO_ROOT / "ui" / "report" / "actions.py").read_text(
         encoding="utf-8",
         errors="ignore",
     )

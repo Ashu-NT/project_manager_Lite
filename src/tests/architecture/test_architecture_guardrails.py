@@ -3,8 +3,9 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from tests.path_rewrites import REPO_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 
 _LARGE_MODULE_BUDGETS = {
     "core/modules/maintenance_management/domain.py": 1517,
@@ -12,10 +13,10 @@ _LARGE_MODULE_BUDGETS = {
     "src/infra/persistence/orm/maintenance/models.py": 1283,
     "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1335,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
-    "tests/test_project_management_desktop_api.py": 2990,
-    "tests/test_qml_project_management_presenters.py": 2185,
-    "tests/test_architecture_guardrails.py": 1500,
-    "tests/test_qml_platform_presenters.py": 2452,
+    "src/tests/project_management/test_project_management_desktop_api.py": 2990,
+    "src/tests/project_management/test_qml_project_management_presenters.py": 2185,
+    "src/tests/architecture/test_architecture_guardrails.py": 1500,
+    "src/tests/platform/test_qml_platform_presenters.py": 2452,
     "tests/test_maintenance_ui.py": 1450,
 }
 
@@ -603,11 +604,15 @@ def test_legacy_platform_db_facades_are_removed():
 def test_legacy_infra_platform_runtime_package_is_removed():
     assert not (ROOT / "infra" / "platform").exists()
 
+    legacy_from = "from " + "infra.platform"
+    legacy_import = "import " + "infra.platform"
     violations: list[str] = []
     for root in (ROOT / "src", ROOT / "infra" / "modules"):
         for path in _python_files(root):
+            if path == Path(__file__):
+                continue
             text = path.read_text(encoding="utf-8", errors="ignore")
-            if "from infra.platform" in text or "import infra.platform" in text:
+            if legacy_from in text or legacy_import in text:
                 violations.append(str(path.relative_to(ROOT)))
 
     assert not violations, f"Runtime code still imports legacy infra.platform: {violations}"

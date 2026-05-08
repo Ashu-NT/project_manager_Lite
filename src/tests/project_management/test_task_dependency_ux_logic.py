@@ -1,5 +1,6 @@
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
+from tests.path_rewrites import REPO_ROOT
 from ui.modules.project_management.task.dependency_dialogs import _dependency_direction
 
 
@@ -25,9 +26,7 @@ def test_dependency_direction_returns_none_for_unrelated_dependency():
 
 
 def test_dependency_add_dialog_shows_risk_and_action_suggestions():
-    from pathlib import Path
-
-    text = (Path(__file__).resolve().parents[1] / "ui" / "task" / "dependency_add_dialog.py").read_text(
+    text = (REPO_ROOT / "ui" / "task" / "dependency_add_dialog.py").read_text(
         encoding="utf-8", errors="ignore"
     )
     assert "Risk:" in text

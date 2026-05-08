@@ -10,6 +10,7 @@ from src.core.platform.modules import (
     build_default_module_catalog,
 )
 from tests.ui_runtime_helpers import make_settings_store
+from tests.path_rewrites import REPO_ROOT
 from src.ui.shell.main_window import MainWindow
 from src.ui.shell.workspaces import build_workspace_definitions
 from src.ui.shell.navigation import ShellNavigation as PlatformShellNavigation
@@ -135,7 +136,7 @@ def test_legacy_shell_package_reexports_platform_shell():
 
 
 def test_shell_workspace_builders_are_split_by_module_packages():
-    root = Path(__file__).resolve().parents[1] / "ui" / "platform" / "shell"
+    root = REPO_ROOT / "ui" / "platform" / "shell"
 
     assert (root / "common.py").exists()
     assert (root / "maintenance_management" / "__init__.py").exists()
@@ -157,7 +158,7 @@ def test_shell_workspace_builders_are_split_by_module_packages():
 
 
 def test_inventory_procurement_procurement_tabs_are_split_by_subpackages():
-    root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "inventory_procurement" / "procurement"
+    root = REPO_ROOT / "ui" / "modules" / "inventory_procurement" / "procurement"
 
     assert (root / "purchase_orders" / "__init__.py").exists()
     assert (root / "purchase_orders" / "surface.py").exists()
@@ -172,7 +173,7 @@ def test_inventory_procurement_procurement_tabs_are_split_by_subpackages():
 
 
 def test_maintenance_management_library_tabs_are_split_by_subpackages():
-    root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "maintenance_management"
+    root = REPO_ROOT / "ui" / "modules" / "maintenance_management"
 
     assert (root / "locations" / "__init__.py").exists()
     assert (root / "systems" / "__init__.py").exists()
@@ -191,7 +192,7 @@ def test_maintenance_management_library_tabs_are_split_by_subpackages():
 
 
 def test_inventory_procurement_removed_dead_top_level_wrappers():
-    root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "inventory_procurement"
+    root = REPO_ROOT / "ui" / "modules" / "inventory_procurement"
 
     removed = [
         "data_exchange_tab.py",
@@ -221,10 +222,10 @@ def test_inventory_procurement_removed_dead_top_level_wrappers():
 
 
 def test_maintenance_management_now_has_core_foundation_packages():
-    root = Path(__file__).resolve().parents[1] / "core" / "modules" / "maintenance_management"
-    infra_root = Path(__file__).resolve().parents[1] / "infra" / "modules" / "maintenance_management"
-    bundle_root = Path(__file__).resolve().parents[1] / "infra" / "platform" / "service_registration"
-    ui_root = Path(__file__).resolve().parents[1] / "ui" / "modules" / "maintenance_management"
+    root = REPO_ROOT / "core" / "modules" / "maintenance_management"
+    infra_root = REPO_ROOT / "infra" / "modules" / "maintenance_management"
+    bundle_root = REPO_ROOT / "infra" / "platform" / "service_registration"
+    ui_root = REPO_ROOT / "ui" / "modules" / "maintenance_management"
 
     assert (root / "domain.py").exists()
     assert (root / "interfaces.py").exists()

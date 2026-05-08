@@ -1,7 +1,8 @@
 from pathlib import Path
 
+from tests.path_rewrites import REPO_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 PERSISTENCE_ROOT = ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence"
 EXPECTED_AREAS = {
     "access",

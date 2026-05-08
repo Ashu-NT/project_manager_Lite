@@ -2,6 +2,7 @@ from datetime import date
 from pathlib import Path
 
 from src.core.platform.notifications.domain_events import domain_events
+from tests.path_rewrites import REPO_ROOT
 
 
 def test_dashboard_service_preview_resource_conflicts(services):
@@ -103,7 +104,7 @@ def test_dashboard_service_manual_shift_emits_tasks_changed_event(services):
 
 
 def test_dashboard_tab_wires_leveling_actions_and_conflict_grid():
-    root = Path(__file__).resolve().parents[1]
+    root = REPO_ROOT
     tab_text = (root / "ui" / "dashboard" / "tab.py").read_text(encoding="utf-8", errors="ignore")
     top_bar_text = (root / "ui" / "dashboard" / "top_bar.py").read_text(encoding="utf-8", errors="ignore")
     actions_text = (root / "ui" / "dashboard" / "workqueue_actions.py").read_text(

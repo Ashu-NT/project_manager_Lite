@@ -5,6 +5,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import src.infra.platform.diagnostics as diagnostics
+from tests.path_rewrites import REPO_ROOT
 from src.infra.platform.operational_support import (
     REDACTED,
     REDACTED_EMAIL,
@@ -118,7 +119,7 @@ def test_diagnostics_bundle_includes_incident_trace_and_support_events(tmp_path,
 
 
 def test_support_tab_wires_incident_tracing_and_operational_support():
-    root = Path(__file__).resolve().parents[1]
+    root = REPO_ROOT
     tab_text = (root / "ui" / "support" / "tab.py").read_text(
         encoding="utf-8",
         errors="ignore",
