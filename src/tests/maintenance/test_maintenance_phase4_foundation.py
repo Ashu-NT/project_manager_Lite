@@ -12,7 +12,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceSensorExceptionRepository,
     MaintenanceSensorSourceMappingRepository,
 )
-from core.modules.maintenance_management.services import (
+from src.core.modules.maintenance import (
     MaintenanceIntegrationSourceService,
     MaintenanceSensorExceptionService,
     MaintenanceSensorReadingService,

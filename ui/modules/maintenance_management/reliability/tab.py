@@ -16,14 +16,14 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenanceAssetService,
     MaintenanceFailureCodeService,
     MaintenanceLocationService,
     MaintenanceReliabilityService,
-    MaintenanceReportingService,
     MaintenanceSystemService,
 )
+from core.modules.maintenance_management import MaintenanceReportingService
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events

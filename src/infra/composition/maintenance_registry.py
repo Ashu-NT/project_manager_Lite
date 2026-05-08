@@ -3,26 +3,28 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.core.platform.access import ScopedRolePolicy
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
-    MaintenanceDocumentService,
-    MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
-    MaintenanceLaborService,
     MaintenanceLocationService,
-    MaintenancePreventiveGenerationService,
-    MaintenancePreventivePlanService,
-    MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
-    MaintenanceReportingService,
-    MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceSensorExceptionService,
     MaintenanceSensorReadingService,
     MaintenanceSensorService,
     MaintenanceSensorSourceMappingService,
     MaintenanceSystemService,
+)
+from core.modules.maintenance_management import (
+    MaintenanceDocumentService,
+    MaintenanceDowntimeEventService,
+    MaintenanceLaborService,
+    MaintenancePreventiveGenerationService,
+    MaintenancePreventivePlanService,
+    MaintenancePreventivePlanTaskService,
+    MaintenanceReportingService,
+    MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceTaskStepTemplateService,
     MaintenanceTaskTemplateService,
     MaintenanceWorkOrderService,

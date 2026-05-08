@@ -2551,8 +2551,11 @@ Current verified progress:
 
 - architecture, platform, project-management, inventory-procurement, and maintenance tests are already regrouped under `src/tests/{architecture,platform,project_management,inventory_procurement,maintenance}/*`
 - the first maintenance helper transfer is complete under `src/core/modules/maintenance/{access,application/common,infrastructure/{importers,exporters,reporting}}/*`
+- maintenance asset-side services now live under `src/core/modules/maintenance/application/assets/{asset_service,component_service,location_service,system_service}.py`
+- maintenance reliability/sensor services now live under `src/core/modules/maintenance/application/reliability/{failure_code_service,integration_source_service,reliability_service,sensor_service,sensor_exception_service,sensor_reading_service,sensor_source_mapping_service}.py`
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
 - old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `services/runtime_catalog.py` are removed after caller rewrites
+- old service roots `core/modules/maintenance_management/services/{asset,component,location,system,failure_code,integration_source,reliability,sensor,sensor_exception,sensor_reading,sensor_source_mapping}` are removed after import rewrites
 - maintenance Widget UI remains untouched structurally; Slice 4 UI work still means direct migration to `src/ui_qml/modules/maintenance/*`, not more QWidget refactoring
 
 #### Exact changes
@@ -2562,10 +2565,11 @@ Current verified progress:
 | `core/modules/maintenance_management/*` | `src/core/modules/maintenance/*` | rename the module package |
 | current flat maintenance domain files | `src/core/modules/maintenance/domain/assets/*`, `locations/*`, `work_requests/*`, `work_orders/*`, `preventive/*`, `reliability/*`, `documents/*` | split by business subdomain |
 | `services/asset/*`, `services/component/*` | `src/core/modules/maintenance/application/assets/*` | map asset workflows |
+| `services/location/*`, `services/system/*` | `src/core/modules/maintenance/application/assets/*` | keep asset-side location/system workflows with the asset application slice |
 | `services/work_request/*` | `src/core/modules/maintenance/application/work_requests/*` | map request workflows |
 | `services/work_order/*`, `services/work_order_task/*`, `services/work_order_task_step/*`, `services/material_requirement/*`, `services/labor/*` | `src/core/modules/maintenance/application/work_orders/*` | map work-order workflows |
 | `services/preventive/*`, `services/preventive_plan/*`, `services/preventive_plan_task/*` | `src/core/modules/maintenance/application/preventive/*` | map preventive workflows |
-| `services/reliability/*`, `services/sensor/*`, `services/sensor_reading/*`, `services/sensor_exception/*`, `services/failure_code/*`, `services/downtime_event/*` | `src/core/modules/maintenance/application/reliability/*` | map reliability workflows |
+| `services/reliability/*`, `services/sensor/*`, `services/sensor_reading/*`, `services/sensor_exception/*`, `services/failure_code/*`, `services/integration_source/*`, `services/downtime_event/*` | `src/core/modules/maintenance/application/reliability/*` | map reliability workflows |
 | `interfaces.py` | `src/core/modules/maintenance/contracts/repositories/*`, `gateways/*`, `events/*` | split contracts and events |
 | `infra/modules/maintenance_management/db/*` | `src/core/modules/maintenance/infrastructure/persistence/*` | move repositories/mappers/read models |
 | maintenance reporting/import/export helpers | `src/core/modules/maintenance/infrastructure/reporting/*`, `importers/*`, `exporters/*` | move adapters into target infrastructure layout |
@@ -2586,6 +2590,7 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
+- after the completed asset and reliability service transfers, the next backend maintenance targets are `preventive`, `work_requests`, `work_orders`, `documents`, and the module-local persistence move
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 

@@ -17,13 +17,15 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenanceAssetService,
-    MaintenancePreventiveGenerationService,
-    MaintenancePreventivePlanService,
     MaintenanceReliabilityService,
     MaintenanceSensorExceptionService,
     MaintenanceSystemService,
+)
+from core.modules.maintenance_management import (
+    MaintenancePreventiveGenerationService,
+    MaintenancePreventivePlanService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
     MaintenanceWorkRequestService,

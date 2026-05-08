@@ -17,7 +17,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderRepository,
 )
 from src.core.modules.maintenance.infrastructure.reporting import register_maintenance_report_definitions
-from core.modules.maintenance_management.services.reliability import MaintenanceReliabilityService
+from src.core.modules.maintenance.application.reliability import MaintenanceReliabilityService
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.org.contracts import OrganizationRepository, SiteRepository

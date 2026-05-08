@@ -1484,20 +1484,23 @@ Current verified progress:
 
 - regrouped test roots already live under `src/tests/architecture/*`, `src/tests/platform/*`, `src/tests/project_management/*`, `src/tests/inventory_procurement/*`, and `src/tests/maintenance/*`
 - the maintenance helper/contract layer has started on the target tree at `src/core/modules/maintenance/{access,application/common,infrastructure/{importers,exporters,reporting}}/*`
+- maintenance asset-side services now live under `src/core/modules/maintenance/application/assets/{asset_service,component_service,location_service,system_service}.py`
+- maintenance reliability/sensor services now live under `src/core/modules/maintenance/application/reliability/{failure_code_service,integration_source_service,reliability_service,sensor_service,sensor_exception_service,sensor_reading_service,sensor_source_mapping_service}.py`
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with the shared fixture bridge still provided by `src/tests/conftest.py`
 - caller rewrites remove the old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `core/modules/maintenance_management/services/runtime_catalog.py`
+- old service roots `core/modules/maintenance_management/services/{asset,component,location,system,failure_code,integration_source,reliability,sensor,sensor_exception,sensor_reading,sensor_source_mapping}` are removed after import rewrites
 - legacy maintenance QWidget screens stay in place only as temporary fallback/reference until the final QML cutover
 
 Do:
 
-1. Rename `maintenance_management` to `maintenance`.
+1. Continue the rename by moving the remaining `preventive`, `work_requests`, `work_orders`, and `documents` service groups from `maintenance_management` into `src/core/modules/maintenance/application/*`.
 2. Split domain by `assets`, `locations`, `work_requests`, `work_orders`, `preventive`, `reliability`, and `documents`.
 3. Split service files into command/query handlers.
 4. Move repositories, mappers, and read models into module infrastructure.
 5. Add planner and dashboard read models.
 6. Add maintenance desktop API adapters.
 7. Add presenters for planner and work orders.
-8. Rewrite imports and delete old maintenance-management paths.
+8. Rewrite imports and delete the remaining old maintenance-management paths.
 
 ### Slice 5: HR, Payroll, And QHSE Skeletons
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel, QTableWidgetItem, QVBoxLayout, QWidget, QDialog
 
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenanceIntegrationSourceService,
     MaintenanceSensorReadingService,
     MaintenanceSensorService,

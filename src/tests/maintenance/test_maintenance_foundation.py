@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.maintenance import (
+    MaintenanceAssetService,
+    MaintenanceAssetComponentService,
+    MaintenanceLocationService,
+    MaintenanceSystemService,
+)
 from core.modules.maintenance_management.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
@@ -22,10 +28,6 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkRequestRepository,
 )
 from core.modules.maintenance_management.services import (
-    MaintenanceAssetService,
-    MaintenanceAssetComponentService,
-    MaintenanceLocationService,
-    MaintenanceSystemService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkRequestService,

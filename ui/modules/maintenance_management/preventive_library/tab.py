@@ -15,13 +15,15 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenanceAssetComponentService,
     MaintenanceAssetService,
-    MaintenancePreventivePlanService,
-    MaintenancePreventivePlanTaskService,
     MaintenanceSensorService,
     MaintenanceSystemService,
+)
+from core.modules.maintenance_management import (
+    MaintenancePreventivePlanService,
+    MaintenancePreventivePlanTaskService,
     MaintenanceTaskTemplateService,
 )
 from core.modules.maintenance_management.domain import (
