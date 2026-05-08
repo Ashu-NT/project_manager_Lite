@@ -6,9 +6,9 @@ from pathlib import Path
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
-from core.modules.maintenance_management.exporting import MAINTENANCE_EXPORT_CONTRACTS
-from core.modules.maintenance_management.importing import MAINTENANCE_WORKBOOK_SHEETS
-from core.modules.maintenance_management.reporting import MAINTENANCE_REPORT_CONTRACTS
+from src.core.modules.maintenance.infrastructure.exporters import MAINTENANCE_EXPORT_CONTRACTS
+from src.core.modules.maintenance.infrastructure.importers import MAINTENANCE_WORKBOOK_SHEETS
+from src.core.modules.maintenance.infrastructure.reporting import MAINTENANCE_REPORT_CONTRACTS
 from src.core.platform.exporting import ensure_output_path, finalize_artifact
 from src.core.platform.report_runtime import MetricBlock, MetricRow, ReportDocument, ReportSection, TableBlock, TextBlock
 

@@ -12,7 +12,6 @@ from .preventive_plan import MaintenancePreventivePlanService
 from .preventive_plan_task import MaintenancePreventivePlanTaskService
 from .reliability import MaintenanceReliabilityService
 from .reporting import MaintenanceReportingService
-from .runtime_catalog import MaintenanceRuntimeContractCatalogService
 from .sensor_exception import MaintenanceSensorExceptionService
 from .sensor import MaintenanceSensorService
 from .sensor_reading import MaintenanceSensorReadingService
@@ -40,7 +39,6 @@ __all__ = [
     "MaintenanceReliabilityService",
     "MaintenanceReportingService",
     "MaintenanceWorkOrderMaterialRequirementService",
-    "MaintenanceRuntimeContractCatalogService",
     "MaintenanceSensorExceptionService",
     "MaintenanceSensorService",
     "MaintenanceSensorReadingService",

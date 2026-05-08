@@ -16,7 +16,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
 )
-from core.modules.maintenance_management.reporting import register_maintenance_management_report_definitions
+from src.core.modules.maintenance.infrastructure.reporting import register_maintenance_report_definitions
 from core.modules.maintenance_management.services.reliability import MaintenanceReliabilityService
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.common.exceptions import NotFoundError
@@ -88,7 +88,7 @@ class MaintenanceReportingService:
         self._module_catalog_service = module_catalog_service
 
         registry = report_registry or ReportDefinitionRegistry()
-        register_maintenance_management_report_definitions(
+        register_maintenance_report_definitions(
             registry,
             render_handlers={
                 "maintenance_backlog_excel": self._render_backlog_excel,

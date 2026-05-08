@@ -26,7 +26,7 @@ from core.modules.maintenance_management.services import (
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import domain_events
 from src.core.platform.org.domain import Organization, Site
-from tests.test_maintenance_foundation import (
+from .test_maintenance_foundation import (
     _AssetRepo,
     _ComponentRepo,
     _LocationRepo,
@@ -35,7 +35,7 @@ from tests.test_maintenance_foundation import (
     _SystemRepo,
     _user_session,
 )
-from tests.test_maintenance_sensor_foundation import _SensorRepo
+from .test_maintenance_sensor_foundation import _SensorRepo
 
 
 class _TaskTemplateRepo(MaintenanceTaskTemplateRepository):

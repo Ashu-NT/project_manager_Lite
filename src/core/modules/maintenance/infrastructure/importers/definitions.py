@@ -36,7 +36,7 @@ class CallbackImportDefinition:
         return self.execute_handler(list(rows))
 
 
-def register_maintenance_management_import_definitions(
+def register_maintenance_import_definitions(
     registry: ImportDefinitionRegistry,
     *,
     preview_handlers: Mapping[str, PreviewHandler],
@@ -61,5 +61,5 @@ def register_maintenance_management_import_definitions(
 
 __all__ = [
     "CallbackImportDefinition",
-    "register_maintenance_management_import_definitions",
+    "register_maintenance_import_definitions",
 ]

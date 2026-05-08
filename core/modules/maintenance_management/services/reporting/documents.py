@@ -8,7 +8,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,
 )
-from core.modules.maintenance_management.reporting import (
+from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceRecurringFailurePattern,
     MaintenanceReliabilityDashboard,
     MaintenanceRootCauseInsight,

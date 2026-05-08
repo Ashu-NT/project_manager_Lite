@@ -17,7 +17,7 @@ _LARGE_MODULE_BUDGETS = {
     "src/tests/project_management/test_qml_project_management_presenters.py": 2185,
     "src/tests/architecture/test_architecture_guardrails.py": 1500,
     "src/tests/platform/test_qml_platform_presenters.py": 2452,
-    "tests/test_maintenance_ui.py": 1450,
+    "src/tests/maintenance/test_maintenance_ui.py": 1450,
 }
 
 

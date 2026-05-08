@@ -2076,9 +2076,9 @@ Verified:
 - in `conda run -n pmenv`, combined runtime-tracking/platform adapter verification passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_db_facades_are_removed tests/test_architecture_guardrails.py::test_composition_imports_focused_persistence_adapters tests/test_platform_runtime_http_api.py tests/test_platform_runtime_desktop_api.py -q`
 - in `conda run -n pmenv`, report-runtime verification passes:
-  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py -q`
+  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py src/tests/maintenance/test_maintenance_runtime_contracts.py -q`
 - in `conda run -n pmenv`, import/export runtime verification plus legacy-package removal guardrail passes:
-  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py tests/test_maintenance_runtime_contracts.py tests/test_architecture_guardrails.py::test_legacy_platform_import_export_packages_are_removed -q`
+  - `pytest tests/test_platform_import_export_report_runtime.py tests/test_runtime_execution_tracking.py src/tests/maintenance/test_maintenance_runtime_contracts.py tests/test_architecture_guardrails.py::test_legacy_platform_import_export_packages_are_removed -q`
 - in `conda run -n pmenv`, time-runtime verification plus legacy-package removal guardrail passes:
   - `pytest tests/test_shared_collaboration_import_and_timesheets.py tests/test_service_architecture.py tests/test_architecture_guardrails.py::test_legacy_platform_time_package_is_removed -q`
 - in `conda run -n pmenv`, auth verification passes:
@@ -2094,11 +2094,11 @@ Verified:
 - in `conda run -n pmenv`, org verification plus contract/legacy-package guardrails passes:
   - `pytest tests/test_service_architecture.py tests/test_phase_b_user_admin_ui.py tests/test_platform_access_scopes.py tests/test_architecture_guardrails.py::test_legacy_platform_org_package_is_removed tests/test_architecture_guardrails.py::test_org_package_exports_services_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only -q`
 - in `conda run -n pmenv`, org maintenance integration verification passes:
-  - `pytest tests/test_maintenance_foundation.py tests/test_maintenance_reliability_foundation.py tests/test_maintenance_preventive_foundation.py tests/test_maintenance_phase4_foundation.py tests/test_maintenance_execution_foundation.py tests/test_maintenance_sensor_foundation.py tests/test_maintenance_reliability_analytics.py tests/test_maintenance_integration_foundation.py -q`
+  - `pytest src/tests/maintenance/test_maintenance_foundation.py src/tests/maintenance/test_maintenance_reliability_foundation.py src/tests/maintenance/test_maintenance_preventive_foundation.py src/tests/maintenance/test_maintenance_phase4_foundation.py src/tests/maintenance/test_maintenance_execution_foundation.py src/tests/maintenance/test_maintenance_sensor_foundation.py src/tests/maintenance/test_maintenance_reliability_analytics.py src/tests/maintenance/test_maintenance_integration_foundation.py -q`
 - in `conda run -n pmenv`, party verification plus legacy-package guardrails passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_party_package_is_removed tests/test_architecture_guardrails.py::test_party_package_exports_service_and_contracts tests/test_service_architecture.py -q`
 - in `conda run -n pmenv`, party inventory/maintenance integration verification passes:
-  - `pytest src/tests/inventory_procurement/test_inventory_import_export_reporting.py src/tests/inventory_procurement/test_inventory_maintenance_material_contracts.py src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_requisition.py src/tests/inventory_procurement/test_inventory_procurement_purchasing.py src/tests/inventory_procurement/test_inventory_procurement_scaffold.py src/tests/inventory_procurement/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_code_generation_ui.py -q`
+  - `pytest src/tests/inventory_procurement/test_inventory_import_export_reporting.py src/tests/inventory_procurement/test_inventory_maintenance_material_contracts.py src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_requisition.py src/tests/inventory_procurement/test_inventory_procurement_purchasing.py src/tests/inventory_procurement/test_inventory_procurement_scaffold.py src/tests/inventory_procurement/test_inventory_procurement_ui.py src/tests/maintenance/test_maintenance_foundation.py tests/test_code_generation_ui.py -q`
 - in `conda run -n pmenv`, approval verification plus contract/legacy-package guardrails passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_approval_package_is_removed tests/test_architecture_guardrails.py::test_approval_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_governance_tab_mode_toggle_ui.py tests/test_phase_b_approval_workflow.py tests/test_phase_b_session_permissions.py tests/test_phase_b_user_admin_ui.py tests/test_phase_b_audit_log.py tests/test_domain_event_wiring.py -q`
 - in `conda run -n pmenv`, approval procurement integration verification passes:
@@ -2106,21 +2106,21 @@ Verified:
 - in `conda run -n pmenv`, documents verification plus contract/legacy-package guardrails passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_documents_package_is_removed tests/test_architecture_guardrails.py::test_documents_package_exports_services_and_contracts tests/test_service_architecture.py tests/test_document_admin_ui.py -q`
 - in `conda run -n pmenv`, documents integration verification passes:
-  - `pytest src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py -q`
+  - `pytest src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_ui.py src/tests/maintenance/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py -q`
 - in `conda run -n pmenv`, notifications verification plus legacy-package/event-hub guardrails passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_notifications_package_is_removed tests/test_architecture_guardrails.py::test_notifications_package_exports_event_hub tests/test_domain_events.py tests/test_domain_event_wiring.py -q`
 - in `conda run -n pmenv`, notifications cross-module sweep passes:
-  - `pytest tests/test_dashboard_leveling_flow.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py src/tests/inventory_procurement/test_inventory_maintenance_material_contracts.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py tests/test_service_architecture.py -q`
+  - `pytest tests/test_dashboard_leveling_flow.py tests/test_project_management_platform_alignment.py tests/test_phase2_register_import_and_ui.py src/tests/inventory_procurement/test_inventory_maintenance_material_contracts.py src/tests/maintenance/test_maintenance_foundation.py src/tests/maintenance/test_maintenance_execution_foundation.py tests/test_service_architecture.py -q`
 - in `conda run -n pmenv`, audit verification plus contract/legacy-package guardrails passes:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_audit_package_is_removed tests/test_architecture_guardrails.py::test_audit_package_exports_service_and_contracts tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_service_architecture.py tests/test_phase_b_audit_log.py tests/test_phase_b_user_admin_ui.py tests/test_domain_event_wiring.py -q`
 - in `conda run -n pmenv`, audit cross-module sweep passes:
-  - `pytest src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_ui.py tests/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_phase2_register_import_and_ui.py tests/test_maintenance_execution_foundation.py -q`
+  - `pytest src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_ui.py src/tests/maintenance/test_maintenance_foundation.py tests/test_shared_collaboration_import_and_timesheets.py tests/test_phase2_register_import_and_ui.py src/tests/maintenance/test_maintenance_execution_foundation.py -q`
 - in `conda run -n pmenv`, common/data-exchange/settings guardrails pass:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_common_package_is_removed tests/test_architecture_guardrails.py::test_legacy_platform_data_exchange_package_is_removed tests/test_architecture_guardrails.py::test_common_package_exports_shared_utilities tests/test_architecture_guardrails.py::test_data_exchange_package_exports_service tests/test_architecture_guardrails.py::test_platform_common_interfaces_are_platform_only tests/test_architecture_guardrails.py::test_legacy_platform_settings_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_settings_package_exports_store -q`
 - in `conda run -n pmenv`, service graph, shared master-data exchange, settings persistence, shell navigation, and governance UI verification pass:
   - `pytest tests/test_service_architecture.py tests/test_shared_master_data_exchange.py tests/test_shared_master_reuse_access.py tests/test_ui_settings_persistence.py tests/test_main_window_shell_navigation.py tests/test_governance_tab_mode_toggle_ui.py -q`
 - in `conda run -n pmenv`, cross-module verification after the common/data-exchange/settings cutovers passes:
-  - `pytest tests/test_shared_collaboration_import_and_timesheets.py src/tests/inventory_procurement/test_inventory_import_export_reporting.py tests/test_maintenance_foundation.py -q`
+  - `pytest tests/test_shared_collaboration_import_and_timesheets.py src/tests/inventory_procurement/test_inventory_import_export_reporting.py src/tests/maintenance/test_maintenance_foundation.py -q`
 - in `conda run -n pmenv`, shared UI guardrails and focused shared/runtime UI tests pass:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_shared_ui_package_is_removed tests/test_architecture_guardrails.py::test_shared_dialogs_package_exports_dialog_helpers tests/test_architecture_guardrails.py::test_shared_formatting_package_exports_theme_and_ui_config tests/test_architecture_guardrails.py::test_shared_models_package_exports_runtime_helpers tests/test_architecture_guardrails.py::test_shared_widgets_package_exports_widget_helpers tests/test_async_job_runtime.py tests/test_code_generation_ui.py tests/test_ui_rbac_matrix_and_guards.py -q`
 - in `conda run -n pmenv`, shared formatting and shell/UI regression verification pass:
@@ -2130,7 +2130,7 @@ Verified:
 - in `conda run -n pmenv`, admin workspace/dialog/widget guardrails and admin UI regressions pass:
   - `pytest tests/test_architecture_guardrails.py::test_legacy_platform_admin_ui_package_is_removed tests/test_architecture_guardrails.py::test_platform_admin_workspace_package_exports_tabs tests/test_architecture_guardrails.py::test_platform_widgets_package_exports_admin_helpers tests/test_architecture_guardrails.py::test_platform_dialogs_package_exports_admin_and_document_dialogs tests/test_document_admin_ui.py tests/test_phase_b_user_admin_ui.py tests/test_tab_surface_consistency.py tests/test_code_generation_ui.py -q`
 - in `conda run -n pmenv`, admin cross-module regressions pass:
-  - `pytest tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py tests/test_maintenance_foundation.py tests/test_maintenance_execution_foundation.py -q`
+  - `pytest tests/test_enterprise_pm_foundation.py tests/test_enterprise_rbac_matrix.py src/tests/maintenance/test_maintenance_foundation.py src/tests/maintenance/test_maintenance_execution_foundation.py -q`
 - in `conda run -n pmenv`, ORM ownership guardrails pass:
   - `pytest tests/test_architecture_guardrails.py::test_project_management_persistence_imports_project_management_orm_models tests/test_architecture_guardrails.py::test_inventory_persistence_imports_inventory_orm_models tests/test_architecture_guardrails.py::test_orm_package_root_loads_all_model_packages -q`
 - in `conda run -n pmenv`, PM/inventory ORM regression verification passes:
@@ -2525,7 +2525,7 @@ Started in Slice 3:
 - regrouped the inventory-specific flat tests into `src/tests/inventory_procurement/*` and added `src/tests/conftest.py` as the shared fixture bridge back to the existing root test helpers
 - focused verification after the inventory procurement application/domain/contracts/reporting/persistence transfer passes:
   - `python -m compileall -q src/core/modules/inventory_procurement src/infra/composition core/modules/maintenance_management ui/modules/inventory_procurement tests`
-  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_requisition.py src/tests/inventory_procurement/test_inventory_procurement_purchasing.py src/tests/inventory_procurement/test_inventory_import_export_reporting.py src/tests/inventory_procurement/test_inventory_maintenance_material_contracts.py src/tests/inventory_procurement/test_inventory_procurement_ui.py tests/test_platform_access_scopes.py tests/test_maintenance_execution_foundation.py`
+  - `conda run -n pmenv python -m pytest -q tests/test_service_architecture.py tests/test_architecture_guardrails.py src/tests/inventory_procurement/test_inventory_procurement_foundation.py src/tests/inventory_procurement/test_inventory_procurement_requisition.py src/tests/inventory_procurement/test_inventory_procurement_purchasing.py src/tests/inventory_procurement/test_inventory_import_export_reporting.py src/tests/inventory_procurement/test_inventory_maintenance_material_contracts.py src/tests/inventory_procurement/test_inventory_procurement_ui.py tests/test_platform_access_scopes.py src/tests/maintenance/test_maintenance_execution_foundation.py`
   - observed results after the inventory structure-alignment transfer: `163 passed`
 - focused verification after the inventory desktop-API slice passes:
   - `python -m compileall -q src/core/modules/inventory_procurement/api src/api/desktop src/tests/inventory_procurement/test_inventory_procurement_desktop_api.py`
@@ -2546,6 +2546,14 @@ Started in Slice 3:
 ### Slice 4: Maintenance
 
 Goal: rename `maintenance_management` to `maintenance` and complete the full maintenance slice after inventory is stable.
+
+Current verified progress:
+
+- architecture, platform, project-management, inventory-procurement, and maintenance tests are already regrouped under `src/tests/{architecture,platform,project_management,inventory_procurement,maintenance}/*`
+- the first maintenance helper transfer is complete under `src/core/modules/maintenance/{access,application/common,infrastructure/{importers,exporters,reporting}}/*`
+- maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
+- old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `services/runtime_catalog.py` are removed after caller rewrites
+- maintenance Widget UI remains untouched structurally; Slice 4 UI work still means direct migration to `src/ui_qml/modules/maintenance/*`, not more QWidget refactoring
 
 #### Exact changes
 

@@ -18,7 +18,6 @@ from core.modules.maintenance_management import (
     MaintenanceReliabilityService,
     MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
-    MaintenanceRuntimeContractCatalogService,
     MaintenanceSensorExceptionService,
     MaintenanceSensorReadingService,
     MaintenanceSensorService,
@@ -40,11 +39,6 @@ from src.core.platform.infrastructure.persistence.repositories.documents import 
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
-)
-from core.modules.maintenance_management.access import (
-    MAINTENANCE_SCOPE_ROLE_CHOICES,
-    normalize_maintenance_scope_role,
-    resolve_maintenance_scope_permissions,
 )
 from infra.modules.maintenance_management.db import (
     SqlAlchemyMaintenanceAssetRepository,
@@ -75,6 +69,12 @@ from src.core.platform.infrastructure.persistence.repositories.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )
+from src.core.modules.maintenance.access import (
+    MAINTENANCE_SCOPE_ROLE_CHOICES,
+    normalize_maintenance_scope_role,
+    resolve_maintenance_scope_permissions,
+)
+from src.core.modules.maintenance.application.common import MaintenanceRuntimeContractCatalogService
 from src.infra.composition.inventory_registry import InventoryProcurementServiceBundle
 from src.infra.composition.platform_registry import PlatformServiceBundle
 

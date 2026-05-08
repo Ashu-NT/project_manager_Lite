@@ -5,6 +5,7 @@ import pytest
 from src.core.platform.access.authorization import require_scope_permission
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.modules.maintenance.access import resolve_maintenance_scope_permissions
 from src.core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
 from src.core.platform.org.access_policy import resolve_site_scope_permissions
@@ -203,8 +204,6 @@ def test_maintenance_scoped_access_filters_locations(services):
         user_id=user.id,
         scope_role="operator",
     )
-
-    from core.modules.maintenance_management.access.policy import resolve_maintenance_scope_permissions
 
     assert grant.scope_type == "maintenance"
     assert grant.scope_id == accessible.id

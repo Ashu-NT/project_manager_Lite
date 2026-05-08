@@ -23,7 +23,7 @@ class CallbackReportDefinition:
         return self.render_handler(request)
 
 
-def register_maintenance_management_report_definitions(
+def register_maintenance_report_definitions(
     registry: ReportDefinitionRegistry,
     *,
     render_handlers: Mapping[str, RenderHandler],
@@ -46,5 +46,5 @@ def register_maintenance_management_report_definitions(
 
 __all__ = [
     "CallbackReportDefinition",
-    "register_maintenance_management_report_definitions",
+    "register_maintenance_report_definitions",
 ]

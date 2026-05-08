@@ -36,6 +36,9 @@ from src.core.modules.inventory_procurement.application.inventory import (
     ReservationService,
     StockControlService,
 )
+from src.core.modules.maintenance.application.common import (
+    MaintenanceRuntimeContractCatalogService,
+)
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
@@ -51,7 +54,6 @@ from core.modules.maintenance_management import (
     MaintenanceReliabilityService,
     MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
-    MaintenanceRuntimeContractCatalogService,
     MaintenanceSensorExceptionService,
     MaintenanceSensorReadingService,
     MaintenanceSensorService,

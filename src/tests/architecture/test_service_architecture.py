@@ -31,6 +31,9 @@ from src.core.modules.inventory_procurement.application.inventory import (
     ReservationService,
     StockControlService,
 )
+from src.core.modules.maintenance.application.common import (
+    MaintenanceRuntimeContractCatalogService,
+)
 from core.modules.maintenance_management import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
@@ -46,7 +49,6 @@ from core.modules.maintenance_management import (
     MaintenanceReliabilityService,
     MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
-    MaintenanceRuntimeContractCatalogService,
     MaintenanceSensorExceptionService,
     MaintenanceSensorReadingService,
     MaintenanceSensorService,
@@ -256,6 +258,28 @@ def test_inventory_procurement_legacy_service_roots_are_removed():
             if path.is_file() and "__pycache__" not in path.parts
         ]
         assert not files, f"Legacy inventory-procurement root still contains files: {files}"
+
+
+def test_maintenance_helper_legacy_roots_are_removed():
+    legacy_roots = (
+        Path("core/modules/maintenance_management/access"),
+        Path("core/modules/maintenance_management/importing"),
+        Path("core/modules/maintenance_management/exporting"),
+        Path("core/modules/maintenance_management/reporting"),
+    )
+    legacy_files = (
+        Path("core/modules/maintenance_management/services/runtime_catalog.py"),
+    )
+
+    for root in legacy_roots:
+        files = [
+            path
+            for path in root.rglob("*")
+            if path.is_file() and "__pycache__" not in path.parts
+        ]
+        assert not files, f"Legacy maintenance helper root still contains files: {files}"
+    for path in legacy_files:
+        assert not path.exists(), f"Legacy maintenance helper file still exists: {path}"
 
 
 def test_legacy_service_imports_point_to_new_packages():

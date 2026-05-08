@@ -27,7 +27,7 @@ class CallbackExportDefinition:
         return self.export_handler(request)
 
 
-def register_maintenance_management_export_definitions(
+def register_maintenance_export_definitions(
     registry: ExportDefinitionRegistry,
     *,
     export_handlers: Mapping[str, ExportHandler],
@@ -49,5 +49,5 @@ def register_maintenance_management_export_definitions(
 
 __all__ = [
     "CallbackExportDefinition",
-    "register_maintenance_management_export_definitions",
+    "register_maintenance_export_definitions",
 ]

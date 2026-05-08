@@ -17,7 +17,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
 )
-from core.modules.maintenance_management.reporting import (
+from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceRecurringFailurePattern,
     MaintenanceReliabilityDashboard,
     MaintenanceRootCauseInsight,

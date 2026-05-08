@@ -19,9 +19,9 @@ from core.modules.maintenance_management.services import (
     MaintenanceSensorSourceMappingService,
 )
 from src.core.platform.org.domain import Organization, Site
-from tests.test_maintenance_foundation import _AssetRepo, _LocationRepo, _OrgRepo, _SiteRepo, _user_session
-from tests.test_maintenance_integration_foundation import _IntegrationSourceRepo
-from tests.test_maintenance_sensor_foundation import _SensorReadingRepo, _SensorRepo
+from .test_maintenance_foundation import _AssetRepo, _LocationRepo, _OrgRepo, _SiteRepo, _user_session
+from .test_maintenance_integration_foundation import _IntegrationSourceRepo
+from .test_maintenance_sensor_foundation import _SensorReadingRepo, _SensorRepo
 from core.modules.maintenance_management.domain import MaintenanceAsset
 
 

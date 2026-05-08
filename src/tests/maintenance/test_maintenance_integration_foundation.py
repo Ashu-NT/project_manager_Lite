@@ -4,7 +4,7 @@ from core.modules.maintenance_management.domain import MaintenanceIntegrationSou
 from core.modules.maintenance_management.interfaces import MaintenanceIntegrationSourceRepository
 from core.modules.maintenance_management.services import MaintenanceIntegrationSourceService
 from src.core.platform.org.domain import Organization
-from tests.test_maintenance_foundation import _OrgRepo, _user_session
+from .test_maintenance_foundation import _OrgRepo, _user_session
 
 
 class _IntegrationSourceRepo(MaintenanceIntegrationSourceRepository):

@@ -4,22 +4,22 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from core.modules.maintenance_management.exporting import (
+from src.core.modules.maintenance.application.common import MaintenanceRuntimeContractCatalogService
+from src.core.modules.maintenance.infrastructure.exporters import (
     MAINTENANCE_EXPORT_CONTRACTS,
-    register_maintenance_management_export_definitions,
+    register_maintenance_export_definitions,
 )
-from core.modules.maintenance_management.importing import (
+from src.core.modules.maintenance.infrastructure.importers import (
     MAINTENANCE_WORKBOOK_SHEETS,
     maintenance_import_schemas,
     maintenance_module_import_contracts,
     maintenance_reference_workbook_sheets,
-    register_maintenance_management_import_definitions,
+    register_maintenance_import_definitions,
 )
-from core.modules.maintenance_management.reporting import (
+from src.core.modules.maintenance.infrastructure.reporting import (
     MAINTENANCE_REPORT_CONTRACTS,
-    register_maintenance_management_report_definitions,
+    register_maintenance_report_definitions,
 )
-from core.modules.maintenance_management.services import MaintenanceRuntimeContractCatalogService
 from src.core.platform.exporting import ExportDefinitionRegistry
 from src.core.platform.importing import (
     ImportDefinitionRegistry,
@@ -115,7 +115,7 @@ def test_maintenance_import_definition_registration_uses_module_owned_contracts(
         if contract.operation_key
     }
 
-    register_maintenance_management_import_definitions(
+    register_maintenance_import_definitions(
         registry,
         preview_handlers=handlers,
         execution_handlers=execute_handlers,
@@ -134,7 +134,7 @@ def test_maintenance_export_contract_registration_exposes_known_operation_keys()
         for contract in MAINTENANCE_EXPORT_CONTRACTS
     }
 
-    register_maintenance_management_export_definitions(registry, export_handlers=handlers)
+    register_maintenance_export_definitions(registry, export_handlers=handlers)
 
     assert set(registry.list_operation_keys()) == {
         contract.operation_key for contract in MAINTENANCE_EXPORT_CONTRACTS
@@ -151,7 +151,7 @@ def test_maintenance_report_contract_registration_exposes_known_report_keys() ->
         for contract in MAINTENANCE_REPORT_CONTRACTS
     }
 
-    register_maintenance_management_report_definitions(registry, render_handlers=handlers)
+    register_maintenance_report_definitions(registry, render_handlers=handlers)
 
     assert set(registry.list_report_keys()) == {
         contract.report_key for contract in MAINTENANCE_REPORT_CONTRACTS
