@@ -18,12 +18,10 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from src.core.modules.maintenance import (
     MaintenanceAssetComponentService,
     MaintenanceAssetService,
-    MaintenanceSensorService,
-    MaintenanceSystemService,
-)
-from core.modules.maintenance_management import (
     MaintenancePreventivePlanService,
     MaintenancePreventivePlanTaskService,
+    MaintenanceSensorService,
+    MaintenanceSystemService,
     MaintenanceTaskTemplateService,
 )
 from core.modules.maintenance_management.domain import (

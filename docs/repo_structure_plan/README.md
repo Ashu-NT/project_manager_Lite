@@ -2552,10 +2552,13 @@ Current verified progress:
 - architecture, platform, project-management, inventory-procurement, and maintenance tests are already regrouped under `src/tests/{architecture,platform,project_management,inventory_procurement,maintenance}/*`
 - the first maintenance helper transfer is complete under `src/core/modules/maintenance/{access,application/common,infrastructure/{importers,exporters,reporting}}/*`
 - maintenance asset-side services now live under `src/core/modules/maintenance/application/assets/{asset_service,component_service,location_service,system_service}.py`
+- maintenance preventive services now live under `src/core/modules/maintenance/application/preventive/{preventive_generation_service,preventive_plan_service,preventive_plan_task_service,task_template_service,task_step_template_service,work_package}.py`
 - maintenance reliability/sensor services now live under `src/core/modules/maintenance/application/reliability/{failure_code_service,integration_source_service,reliability_service,sensor_service,sensor_exception_service,sensor_reading_service,sensor_source_mapping_service}.py`
+- maintenance work-request service now lives under `src/core/modules/maintenance/application/work_requests/{work_request_service,validation}.py`
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
 - old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `services/runtime_catalog.py` are removed after caller rewrites
 - old service roots `core/modules/maintenance_management/services/{asset,component,location,system,failure_code,integration_source,reliability,sensor,sensor_exception,sensor_reading,sensor_source_mapping}` are removed after import rewrites
+- legacy preventive and work-request service roots are no longer part of the live import graph; service entry files were removed after caller rewrites, and only empty cache shells may remain until final filesystem cleanup
 - maintenance Widget UI remains untouched structurally; Slice 4 UI work still means direct migration to `src/ui_qml/modules/maintenance/*`, not more QWidget refactoring
 
 #### Exact changes
@@ -2590,7 +2593,7 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
-- after the completed asset and reliability service transfers, the next backend maintenance targets are `preventive`, `work_requests`, `work_orders`, `documents`, and the module-local persistence move
+- after the completed asset, preventive, reliability, and work-request transfers, the next backend maintenance targets are `work_orders`, `documents`, `downtime_event`, and the module-local persistence move
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 

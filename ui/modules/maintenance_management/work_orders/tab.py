@@ -19,6 +19,7 @@ from src.core.modules.maintenance import (
     MaintenanceAssetService,
     MaintenanceLocationService,
     MaintenanceSystemService,
+    MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management import (
     MaintenanceDocumentService,
@@ -27,7 +28,6 @@ from core.modules.maintenance_management import (
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
-    MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management.domain import (
     MaintenancePriority,

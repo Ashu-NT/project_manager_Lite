@@ -17,7 +17,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceTaskStepTemplateRepository,
     MaintenanceTaskTemplateRepository,
 )
-from core.modules.maintenance_management.services import (
+from src.core.modules.maintenance import (
     MaintenancePreventivePlanService,
     MaintenancePreventivePlanTaskService,
     MaintenanceTaskStepTemplateService,

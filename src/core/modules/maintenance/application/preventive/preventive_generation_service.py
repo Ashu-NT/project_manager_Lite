@@ -30,13 +30,15 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceTaskStepTemplateRepository,
     MaintenanceTaskTemplateRepository,
 )
-from core.modules.maintenance_management.services.preventive.work_package import (
+from src.core.modules.maintenance.application.preventive.work_package import (
     MaintenancePreventiveWorkPackageBuilder,
 )
 from core.modules.maintenance_management.services.work_order.service import MaintenanceWorkOrderService
 from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService
 from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
-from core.modules.maintenance_management.services.work_request.service import MaintenanceWorkRequestService
+from src.core.modules.maintenance.application.work_requests.work_request_service import (
+    MaintenanceWorkRequestService,
+)
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission

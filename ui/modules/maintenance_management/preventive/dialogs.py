@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton, QTableWidgetItem, QVBoxLayout, QWidget
 
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
     MaintenancePreventivePlanTaskService,

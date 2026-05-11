@@ -19,16 +19,16 @@ from PySide6.QtWidgets import (
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.core.modules.maintenance import (
     MaintenanceAssetService,
+    MaintenancePreventiveGenerationService,
+    MaintenancePreventivePlanService,
     MaintenanceReliabilityService,
     MaintenanceSensorExceptionService,
     MaintenanceSystemService,
+    MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management import (
-    MaintenancePreventiveGenerationService,
-    MaintenancePreventivePlanService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
-    MaintenanceWorkRequestService,
 )
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError

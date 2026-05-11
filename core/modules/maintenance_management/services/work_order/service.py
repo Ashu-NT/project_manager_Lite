@@ -29,7 +29,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkRequestRepository,
 )
-from core.modules.maintenance_management.services.preventive.work_package import (
+from src.core.modules.maintenance.application.preventive.work_package import (
     MaintenancePreventiveWorkPackageBuilder,
 )
 from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService

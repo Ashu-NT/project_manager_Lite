@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenanceTaskStepTemplateService,
     MaintenanceTaskTemplateService,
 )
