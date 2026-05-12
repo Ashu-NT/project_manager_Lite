@@ -33,9 +33,15 @@ from core.modules.maintenance_management.interfaces import (
 from src.core.modules.maintenance.application.preventive.work_package import (
     MaintenancePreventiveWorkPackageBuilder,
 )
-from core.modules.maintenance_management.services.work_order.service import MaintenanceWorkOrderService
-from core.modules.maintenance_management.services.work_order_task.service import MaintenanceWorkOrderTaskService
-from core.modules.maintenance_management.services.work_order_task_step.service import MaintenanceWorkOrderTaskStepService
+from src.core.modules.maintenance.application.work_orders.work_order_service import (
+    MaintenanceWorkOrderService,
+)
+from src.core.modules.maintenance.application.work_orders.work_order_task_service import (
+    MaintenanceWorkOrderTaskService,
+)
+from src.core.modules.maintenance.application.work_orders.work_order_task_step_service import (
+    MaintenanceWorkOrderTaskStepService,
+)
 from src.core.modules.maintenance.application.work_requests.work_request_service import (
     MaintenanceWorkRequestService,
 )

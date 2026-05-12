@@ -11,8 +11,12 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceTaskStepTemplateRepository,
     MaintenanceTaskTemplateRepository,
 )
-from core.modules.maintenance_management.services.work_order_task import MaintenanceWorkOrderTaskService
-from core.modules.maintenance_management.services.work_order_task_step import MaintenanceWorkOrderTaskStepService
+from src.core.modules.maintenance.application.work_orders.work_order_task_service import (
+    MaintenanceWorkOrderTaskService,
+)
+from src.core.modules.maintenance.application.work_orders.work_order_task_step_service import (
+    MaintenanceWorkOrderTaskStepService,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 

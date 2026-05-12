@@ -14,8 +14,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
 )
-from src.core.modules.maintenance import MaintenanceFailureCodeService
-from core.modules.maintenance_management.services import MaintenanceDowntimeEventService
+from src.core.modules.maintenance import MaintenanceDowntimeEventService, MaintenanceFailureCodeService
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization

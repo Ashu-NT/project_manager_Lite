@@ -19,7 +19,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderTaskStepRepository,
 )
-from core.modules.maintenance_management.services import (
+from src.core.modules.maintenance import (
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,

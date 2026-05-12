@@ -39,8 +39,11 @@ from src.core.modules.inventory_procurement.application.inventory import (
 from src.core.modules.maintenance import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDocumentService,
+    MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
+    MaintenanceLaborService,
     MaintenanceLocationService,
     MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
@@ -53,20 +56,17 @@ from src.core.modules.maintenance import (
     MaintenanceSystemService,
     MaintenanceTaskStepTemplateService,
     MaintenanceTaskTemplateService,
+    MaintenanceWorkOrderMaterialRequirementService,
+    MaintenanceWorkOrderService,
+    MaintenanceWorkOrderTaskService,
+    MaintenanceWorkOrderTaskStepService,
     MaintenanceWorkRequestService,
 )
 from src.core.modules.maintenance.application.common import (
     MaintenanceRuntimeContractCatalogService,
 )
 from core.modules.maintenance_management import (
-    MaintenanceDocumentService,
-    MaintenanceDowntimeEventService,
-    MaintenanceLaborService,
     MaintenanceReportingService,
-    MaintenanceWorkOrderMaterialRequirementService,
-    MaintenanceWorkOrderService,
-    MaintenanceWorkOrderTaskService,
-    MaintenanceWorkOrderTaskStepService,
 )
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,

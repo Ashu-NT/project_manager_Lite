@@ -15,14 +15,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.core.modules.maintenance import MaintenanceWorkRequestService
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance import (
     MaintenanceDocumentService,
     MaintenanceLaborService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
+    MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management.domain import (
     MaintenanceTaskCompletionRule,

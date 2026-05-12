@@ -6,8 +6,11 @@ from src.core.platform.access import ScopedRolePolicy
 from src.core.modules.maintenance import (
     MaintenanceAssetService,
     MaintenanceAssetComponentService,
+    MaintenanceDocumentService,
+    MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
+    MaintenanceLaborService,
     MaintenanceLocationService,
     MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
@@ -20,19 +23,16 @@ from src.core.modules.maintenance import (
     MaintenanceSystemService,
     MaintenanceTaskStepTemplateService,
     MaintenanceTaskTemplateService,
-    MaintenanceWorkRequestService,
-)
-from core.modules.maintenance_management import (
-    MaintenanceDocumentService,
-    MaintenanceDowntimeEventService,
-    MaintenanceLaborService,
-    MaintenanceReportingService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
+    MaintenanceWorkRequestService,
 )
-from core.modules.maintenance_management.services.labor.adapters import (
+from core.modules.maintenance_management import (
+    MaintenanceReportingService,
+)
+from src.core.modules.maintenance.application.work_orders.labor_adapters import (
     MaintenanceEmployeeWorkResourceRepository,
     MaintenanceTaskWorkAllocationRepository,
     MaintenanceTaskWorkOwnerRepository,

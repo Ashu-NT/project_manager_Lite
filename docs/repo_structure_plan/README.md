@@ -2555,10 +2555,13 @@ Current verified progress:
 - maintenance preventive services now live under `src/core/modules/maintenance/application/preventive/{preventive_generation_service,preventive_plan_service,preventive_plan_task_service,task_template_service,task_step_template_service,work_package}.py`
 - maintenance reliability/sensor services now live under `src/core/modules/maintenance/application/reliability/{failure_code_service,integration_source_service,reliability_service,sensor_service,sensor_exception_service,sensor_reading_service,sensor_source_mapping_service}.py`
 - maintenance work-request service now lives under `src/core/modules/maintenance/application/work_requests/{work_request_service,validation}.py`
+- maintenance work-order services now live under `src/core/modules/maintenance/application/work_orders/{work_order_service,work_order_validation,work_order_task_service,work_order_task_validation,work_order_task_step_service,work_order_task_step_validation,work_order_material_requirement_service,labor_service,labor_adapters}.py`
+- maintenance document service now lives under `src/core/modules/maintenance/application/documents/document_service.py`
+- maintenance downtime-event service now lives under `src/core/modules/maintenance/application/reliability/downtime_event_service.py`
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
 - old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `services/runtime_catalog.py` are removed after caller rewrites
 - old service roots `core/modules/maintenance_management/services/{asset,component,location,system,failure_code,integration_source,reliability,sensor,sensor_exception,sensor_reading,sensor_source_mapping}` are removed after import rewrites
-- legacy preventive and work-request service roots are no longer part of the live import graph; service entry files were removed after caller rewrites, and only empty cache shells may remain until final filesystem cleanup
+- legacy preventive, work-request, work-order, document, and downtime-event service roots are no longer part of the live import graph; service entry files were removed after caller rewrites, and only empty cache shells may remain until final filesystem cleanup
 - maintenance Widget UI remains untouched structurally; Slice 4 UI work still means direct migration to `src/ui_qml/modules/maintenance/*`, not more QWidget refactoring
 
 #### Exact changes
@@ -2593,7 +2596,7 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
-- after the completed asset, preventive, reliability, and work-request transfers, the next backend maintenance targets are `work_orders`, `documents`, `downtime_event`, and the module-local persistence move
+- after the completed asset, preventive, reliability, work-request, work-order, document, and downtime-event transfers, the next maintenance targets are the module-local persistence move, then maintenance desktop API/QML migration
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 

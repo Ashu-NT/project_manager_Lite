@@ -17,17 +17,15 @@ from PySide6.QtWidgets import (
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.core.modules.maintenance import (
     MaintenanceAssetService,
-    MaintenanceLocationService,
-    MaintenanceSystemService,
-    MaintenanceWorkRequestService,
-)
-from core.modules.maintenance_management import (
     MaintenanceDocumentService,
     MaintenanceLaborService,
+    MaintenanceLocationService,
+    MaintenanceSystemService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkOrderTaskStepService,
+    MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management.domain import (
     MaintenancePriority,

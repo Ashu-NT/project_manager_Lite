@@ -7,6 +7,8 @@ from src.core.modules.maintenance import (
     MaintenanceAssetComponentService,
     MaintenanceLocationService,
     MaintenanceSystemService,
+    MaintenanceWorkOrderService,
+    MaintenanceWorkOrderTaskService,
     MaintenanceWorkRequestService,
 )
 from core.modules.maintenance_management.domain import (
@@ -27,10 +29,6 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
     MaintenanceWorkRequestRepository,
-)
-from core.modules.maintenance_management.services import (
-    MaintenanceWorkOrderService,
-    MaintenanceWorkOrderTaskService,
 )
 from src.core.platform.auth.domain import UserAccount
 from core.modules.maintenance_management.support import coerce_priority, coerce_trigger_mode

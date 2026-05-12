@@ -17,10 +17,12 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderTaskRepository,
     MaintenanceWorkOrderTaskStepRepository,
 )
-from core.modules.maintenance_management.services.work_order_task.validation import (
+from src.core.modules.maintenance.application.work_orders.work_order_task_validation import (
     MaintenanceWorkOrderTaskValidationMixin,
 )
-from core.modules.maintenance_management.services.work_order_task_step import task_steps_satisfy_completion_rule
+from src.core.modules.maintenance.application.work_orders.work_order_task_step_service import (
+    task_steps_satisfy_completion_rule,
+)
 from core.modules.maintenance_management.support import (
     coerce_optional_non_negative_int,
     coerce_task_completion_rule,

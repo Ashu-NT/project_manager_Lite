@@ -22,6 +22,7 @@ from src.core.modules.maintenance.application.preventive.task_template_service i
     MaintenanceTaskTemplateService,
 )
 from src.core.modules.maintenance.application.reliability import (
+    MaintenanceDowntimeEventService,
     MaintenanceFailureCodeService,
     MaintenanceIntegrationSourceService,
     MaintenanceReliabilityService,
@@ -33,12 +34,33 @@ from src.core.modules.maintenance.application.reliability import (
 from src.core.modules.maintenance.application.work_requests.work_request_service import (
     MaintenanceWorkRequestService,
 )
+from src.core.modules.maintenance.application.work_orders.labor_service import (
+    MaintenanceLaborService,
+)
+from src.core.modules.maintenance.application.work_orders.work_order_material_requirement_service import (
+    MaintenanceWorkOrderMaterialRequirementService,
+)
+from src.core.modules.maintenance.application.work_orders.work_order_service import (
+    MaintenanceWorkOrderService,
+)
+from src.core.modules.maintenance.application.work_orders.work_order_task_service import (
+    MaintenanceWorkOrderTaskService,
+)
+from src.core.modules.maintenance.application.work_orders.work_order_task_step_service import (
+    MaintenanceWorkOrderTaskStepService,
+)
+from src.core.modules.maintenance.application.documents.document_service import (
+    MaintenanceDocumentService,
+)
 
 __all__ = [
     "MaintenanceAssetComponentService",
     "MaintenanceAssetService",
+    "MaintenanceDocumentService",
+    "MaintenanceDowntimeEventService",
     "MaintenanceFailureCodeService",
     "MaintenanceIntegrationSourceService",
+    "MaintenanceLaborService",
     "MaintenanceLocationService",
     "MaintenancePreventiveGenerationService",
     "MaintenancePreventivePlanService",
@@ -51,5 +73,9 @@ __all__ = [
     "MaintenanceSystemService",
     "MaintenanceTaskStepTemplateService",
     "MaintenanceTaskTemplateService",
+    "MaintenanceWorkOrderMaterialRequirementService",
+    "MaintenanceWorkOrderService",
+    "MaintenanceWorkOrderTaskService",
+    "MaintenanceWorkOrderTaskStepService",
     "MaintenanceWorkRequestService",
 ]

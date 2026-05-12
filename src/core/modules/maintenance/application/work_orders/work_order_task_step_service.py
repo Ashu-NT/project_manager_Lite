@@ -18,7 +18,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderTaskRepository,
     MaintenanceWorkOrderTaskStepRepository,
 )
-from core.modules.maintenance_management.services.work_order_task_step.validation import (
+from src.core.modules.maintenance.application.work_orders.work_order_task_step_validation import (
     MaintenanceWorkOrderTaskStepValidationMixin,
 )
 from core.modules.maintenance_management.support import (

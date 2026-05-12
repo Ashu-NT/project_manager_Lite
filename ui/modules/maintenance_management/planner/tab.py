@@ -24,11 +24,9 @@ from src.core.modules.maintenance import (
     MaintenanceReliabilityService,
     MaintenanceSensorExceptionService,
     MaintenanceSystemService,
-    MaintenanceWorkRequestService,
-)
-from core.modules.maintenance_management import (
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
+    MaintenanceWorkRequestService,
 )
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError

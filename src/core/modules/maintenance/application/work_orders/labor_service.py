@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from core.modules.maintenance_management.services.work_order_task import MaintenanceWorkOrderTaskService
+from src.core.modules.maintenance.application.work_orders.work_order_task_service import (
+    MaintenanceWorkOrderTaskService,
+)
 from src.core.platform.auth.authorization import require_any_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events

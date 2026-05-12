@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from core.modules.maintenance_management import MaintenanceDocumentService
+from src.core.modules.maintenance import MaintenanceDocumentService
 from src.core.platform.documents import DocumentStructure, DocumentType
 from src.ui.shared.formatting.ui_config import UIConfig as CFG
 
