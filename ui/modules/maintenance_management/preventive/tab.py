@@ -27,7 +27,7 @@ from src.core.modules.maintenance import (
     MaintenanceSystemService,
     MaintenanceTaskTemplateService,
 )
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenancePlanStatus,
     MaintenancePlanTaskTriggerScope,
     MaintenancePlanType,

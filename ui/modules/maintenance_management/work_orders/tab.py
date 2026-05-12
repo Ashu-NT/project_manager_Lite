@@ -27,7 +27,7 @@ from src.core.modules.maintenance import (
     MaintenanceWorkOrderTaskStepService,
     MaintenanceWorkRequestService,
 )
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenancePriority,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,

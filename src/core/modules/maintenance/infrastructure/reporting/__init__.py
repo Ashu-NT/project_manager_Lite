@@ -7,11 +7,14 @@ from .models import (
     MaintenanceRootCauseSuggestion,
     ReportMetric,
 )
+from .service import MaintenanceReportRequest, MaintenanceReportingService
 
 __all__ = [
     "MAINTENANCE_REPORT_CONTRACTS",
     "MaintenanceRecurringFailurePattern",
     "MaintenanceReportContract",
+    "MaintenanceReportRequest",
+    "MaintenanceReportingService",
     "MaintenanceReliabilityDashboard",
     "MaintenanceRootCauseInsight",
     "MaintenanceRootCauseSuggestion",

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from core.modules.maintenance_management.domain import MaintenanceTaskStepTemplate, MaintenanceTemplateStatus
+from src.core.modules.maintenance.domain import MaintenanceTaskStepTemplate, MaintenanceTemplateStatus
 from src.ui.shared.widgets.code_generation import CodeFieldWidget
 
 

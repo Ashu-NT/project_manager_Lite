@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.maintenance_management.domain import MaintenanceWorkRequestStatus
+from src.core.modules.maintenance.domain import MaintenanceWorkRequestStatus
 
 from src.core.platform.common.exceptions import ValidationError
 

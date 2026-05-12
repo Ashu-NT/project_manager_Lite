@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceCalendarFrequencyUnit,
@@ -16,14 +16,14 @@ from core.modules.maintenance_management.domain import (
     MaintenanceSystem,
     MaintenanceTriggerMode,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenancePreventivePlanRepository,
     MaintenanceSensorRepository,
     MaintenanceSystemRepository,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_calendar_frequency_unit,
     coerce_generation_lead_unit,
     coerce_optional_datetime,

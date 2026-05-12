@@ -4,14 +4,14 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceLocation,
     MaintenanceSystem,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,
 )
-from core.modules.maintenance_management.reliability_domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceDowntimeEvent,
     MaintenanceFailureCode,
     MaintenanceFailureCodeType,

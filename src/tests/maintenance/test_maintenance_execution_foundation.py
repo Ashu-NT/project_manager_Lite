@@ -6,7 +6,7 @@ from src.core.modules.inventory_procurement.contracts.gateways import (
     MaintenanceMaterialAvailability,
     MaintenanceMaterialAvailabilityStatus,
 )
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceLocation,
     MaintenanceMaterialProcurementStatus,
@@ -15,7 +15,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceWorkOrderTaskStep,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderTaskStepRepository,
 )

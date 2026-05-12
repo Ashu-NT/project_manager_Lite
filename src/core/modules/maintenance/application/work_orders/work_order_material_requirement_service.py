@@ -14,17 +14,17 @@ from src.core.modules.inventory_procurement.contracts.gateways import (
 from src.core.modules.inventory_procurement.infrastructure.integrations import MaintenanceMaterialService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.inventory import InventoryService
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceMaterialProcurementStatus,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderMaterialRequirement,
     MaintenanceWorkOrderStatus,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderRepository,
 )
-from core.modules.maintenance_management.support import coerce_optional_decimal, normalize_optional_text
+from src.core.modules.maintenance.application.common.support import coerce_optional_decimal, normalize_optional_text
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission

@@ -65,7 +65,7 @@ from src.core.modules.maintenance import (
 from src.core.modules.maintenance.application.common import (
     MaintenanceRuntimeContractCatalogService,
 )
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceReportingService,
 )
 from src.core.modules.project_management.application.scheduling.baseline_service import (
@@ -91,7 +91,7 @@ from src.core.modules.project_management.infrastructure.reporting import Reporti
 from src.core.modules.project_management.application.tasks import CollaborationService, TaskService
 from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
-from src.infra.composition.maintenance_registry import build_maintenance_management_service_bundle
+from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
@@ -257,7 +257,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     repositories = build_repository_bundle(session)
     platform_services = build_platform_service_bundle(session, repositories)
     inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
-    maintenance_management_services = build_maintenance_management_service_bundle(
+    maintenance_services = build_maintenance_service_bundle(
         platform_services,
         inventory_procurement_services,
     )
@@ -293,32 +293,32 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_reservation_service=inventory_procurement_services.inventory_reservation_service,
         inventory_procurement_service=inventory_procurement_services.inventory_procurement_service,
         inventory_purchasing_service=inventory_procurement_services.inventory_purchasing_service,
-        maintenance_runtime_contract_catalog_service=maintenance_management_services.maintenance_runtime_contract_catalog_service,
-        maintenance_asset_service=maintenance_management_services.maintenance_asset_service,
-        maintenance_asset_component_service=maintenance_management_services.maintenance_asset_component_service,
-        maintenance_document_service=maintenance_management_services.maintenance_document_service,
-        maintenance_downtime_event_service=maintenance_management_services.maintenance_downtime_event_service,
-        maintenance_failure_code_service=maintenance_management_services.maintenance_failure_code_service,
-        maintenance_integration_source_service=maintenance_management_services.maintenance_integration_source_service,
-        maintenance_labor_service=maintenance_management_services.maintenance_labor_service,
-        maintenance_location_service=maintenance_management_services.maintenance_location_service,
-        maintenance_preventive_generation_service=maintenance_management_services.maintenance_preventive_generation_service,
-        maintenance_preventive_plan_service=maintenance_management_services.maintenance_preventive_plan_service,
-        maintenance_preventive_plan_task_service=maintenance_management_services.maintenance_preventive_plan_task_service,
-        maintenance_reliability_service=maintenance_management_services.maintenance_reliability_service,
-        maintenance_reporting_service=maintenance_management_services.maintenance_reporting_service,
-        maintenance_sensor_exception_service=maintenance_management_services.maintenance_sensor_exception_service,
-        maintenance_sensor_service=maintenance_management_services.maintenance_sensor_service,
-        maintenance_sensor_reading_service=maintenance_management_services.maintenance_sensor_reading_service,
-        maintenance_sensor_source_mapping_service=maintenance_management_services.maintenance_sensor_source_mapping_service,
-        maintenance_system_service=maintenance_management_services.maintenance_system_service,
-        maintenance_task_step_template_service=maintenance_management_services.maintenance_task_step_template_service,
-        maintenance_task_template_service=maintenance_management_services.maintenance_task_template_service,
-        maintenance_work_request_service=maintenance_management_services.maintenance_work_request_service,
-        maintenance_work_order_service=maintenance_management_services.maintenance_work_order_service,
-        maintenance_work_order_material_requirement_service=maintenance_management_services.maintenance_work_order_material_requirement_service,
-        maintenance_work_order_task_service=maintenance_management_services.maintenance_work_order_task_service,
-        maintenance_work_order_task_step_service=maintenance_management_services.maintenance_work_order_task_step_service,
+        maintenance_runtime_contract_catalog_service=maintenance_services.maintenance_runtime_contract_catalog_service,
+        maintenance_asset_service=maintenance_services.maintenance_asset_service,
+        maintenance_asset_component_service=maintenance_services.maintenance_asset_component_service,
+        maintenance_document_service=maintenance_services.maintenance_document_service,
+        maintenance_downtime_event_service=maintenance_services.maintenance_downtime_event_service,
+        maintenance_failure_code_service=maintenance_services.maintenance_failure_code_service,
+        maintenance_integration_source_service=maintenance_services.maintenance_integration_source_service,
+        maintenance_labor_service=maintenance_services.maintenance_labor_service,
+        maintenance_location_service=maintenance_services.maintenance_location_service,
+        maintenance_preventive_generation_service=maintenance_services.maintenance_preventive_generation_service,
+        maintenance_preventive_plan_service=maintenance_services.maintenance_preventive_plan_service,
+        maintenance_preventive_plan_task_service=maintenance_services.maintenance_preventive_plan_task_service,
+        maintenance_reliability_service=maintenance_services.maintenance_reliability_service,
+        maintenance_reporting_service=maintenance_services.maintenance_reporting_service,
+        maintenance_sensor_exception_service=maintenance_services.maintenance_sensor_exception_service,
+        maintenance_sensor_service=maintenance_services.maintenance_sensor_service,
+        maintenance_sensor_reading_service=maintenance_services.maintenance_sensor_reading_service,
+        maintenance_sensor_source_mapping_service=maintenance_services.maintenance_sensor_source_mapping_service,
+        maintenance_system_service=maintenance_services.maintenance_system_service,
+        maintenance_task_step_template_service=maintenance_services.maintenance_task_step_template_service,
+        maintenance_task_template_service=maintenance_services.maintenance_task_template_service,
+        maintenance_work_request_service=maintenance_services.maintenance_work_request_service,
+        maintenance_work_order_service=maintenance_services.maintenance_work_order_service,
+        maintenance_work_order_material_requirement_service=maintenance_services.maintenance_work_order_material_requirement_service,
+        maintenance_work_order_task_service=maintenance_services.maintenance_work_order_task_service,
+        maintenance_work_order_task_step_service=maintenance_services.maintenance_work_order_task_step_service,
         access_service=platform_services.access_service,
         audit_service=platform_services.audit_service,
         approval_service=platform_services.approval_service,

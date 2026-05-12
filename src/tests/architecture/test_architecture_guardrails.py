@@ -8,8 +8,8 @@ from tests.path_rewrites import REPO_ROOT
 ROOT = REPO_ROOT
 
 _LARGE_MODULE_BUDGETS = {
-    "core/modules/maintenance_management/domain.py": 1517,
-    "infra/modules/maintenance_management/db/repository.py": 1488,
+    "src/core/modules/maintenance/infrastructure/persistence/mappers/mapper.py": 1203,
+    "src/core/modules/maintenance/infrastructure/persistence/repositories/repository.py": 1489,
     "src/infra/persistence/orm/maintenance/models.py": 1283,
     "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1335,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,

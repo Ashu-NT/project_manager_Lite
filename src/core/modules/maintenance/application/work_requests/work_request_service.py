@@ -5,8 +5,8 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceFailureCodeType, MaintenanceWorkRequest
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceFailureCodeType, MaintenanceWorkRequest
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenanceFailureCodeRepository,
@@ -14,7 +14,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceSystemRepository,
     MaintenanceWorkRequestRepository,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_priority,
     coerce_work_request_source_type,
     coerce_work_request_status,
@@ -290,7 +290,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
 
         # Validate status transition
         if status is not None:
-            from core.modules.maintenance_management.domain import MaintenanceWorkRequestStatus
+            from src.core.modules.maintenance.domain import MaintenanceWorkRequestStatus
             new_status = coerce_work_request_status(status)
             self._validate_work_request_status_transition(work_request.status, new_status)
             work_request.status = new_status

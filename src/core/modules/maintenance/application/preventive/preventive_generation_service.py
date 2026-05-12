@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceCalendarFrequencyUnit,
     MaintenanceGenerationLeadUnit,
     MaintenancePlanStatus,
@@ -22,7 +22,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceSensorQualityState,
     MaintenanceTriggerMode,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenancePreventivePlanInstanceRepository,
     MaintenancePreventivePlanRepository,
     MaintenancePreventivePlanTaskRepository,

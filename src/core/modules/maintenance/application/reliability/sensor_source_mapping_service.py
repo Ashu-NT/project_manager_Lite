@@ -5,13 +5,13 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceSensorSourceMapping
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceSensorSourceMapping
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceIntegrationSourceRepository,
     MaintenanceSensorRepository,
     MaintenanceSensorSourceMappingRepository,
 )
-from core.modules.maintenance_management.support import normalize_maintenance_name, normalize_optional_text
+from src.core.modules.maintenance.application.common.support import normalize_maintenance_name, normalize_optional_text
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.platform.audit.helpers import record_audit
 from src.core.platform.auth.authorization import require_permission

@@ -52,6 +52,9 @@ from src.core.modules.maintenance.application.work_orders.work_order_task_step_s
 from src.core.modules.maintenance.application.documents.document_service import (
     MaintenanceDocumentService,
 )
+from src.core.modules.maintenance.infrastructure.reporting import (
+    MaintenanceReportingService,
+)
 
 __all__ = [
     "MaintenanceAssetComponentService",
@@ -66,6 +69,7 @@ __all__ = [
     "MaintenancePreventivePlanService",
     "MaintenancePreventivePlanTaskService",
     "MaintenanceReliabilityService",
+    "MaintenanceReportingService",
     "MaintenanceSensorExceptionService",
     "MaintenanceSensorReadingService",
     "MaintenanceSensorService",

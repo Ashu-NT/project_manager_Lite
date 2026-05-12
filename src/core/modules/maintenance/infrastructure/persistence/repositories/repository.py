@@ -5,7 +5,7 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceIntegrationSource,
@@ -25,7 +25,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrderTaskStep,
     MaintenanceWorkRequest,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetRepository,
     MaintenanceAssetComponentRepository,
     MaintenanceIntegrationSourceRepository,
@@ -45,7 +45,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkOrderTaskStepRepository,
     MaintenanceWorkRequestRepository,
 )
-from infra.modules.maintenance_management.db.mapper import (
+from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_asset_from_orm,
     maintenance_asset_component_from_orm,
     maintenance_asset_component_to_orm,
@@ -1486,3 +1486,4 @@ __all__ = [
     "SqlAlchemyMaintenanceWorkOrderTaskStepRepository",
     "SqlAlchemyMaintenanceWorkRequestRepository",
 ]
+

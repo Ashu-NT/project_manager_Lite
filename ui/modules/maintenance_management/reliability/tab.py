@@ -23,7 +23,7 @@ from src.core.modules.maintenance import (
     MaintenanceReliabilityService,
     MaintenanceSystemService,
 )
-from core.modules.maintenance_management import MaintenanceReportingService
+from src.core.modules.maintenance.infrastructure.reporting import MaintenanceReportingService
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events

@@ -11,7 +11,7 @@ from src.core.modules.maintenance import (
     MaintenanceWorkOrderTaskService,
     MaintenanceWorkRequestService,
 )
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceCriticality,
@@ -21,7 +21,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrderTask,
     MaintenanceWorkRequest,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetRepository,
     MaintenanceAssetComponentRepository,
     MaintenanceLocationRepository,
@@ -31,7 +31,7 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceWorkRequestRepository,
 )
 from src.core.platform.auth.domain import UserAccount
-from core.modules.maintenance_management.support import coerce_priority, coerce_trigger_mode
+from src.core.modules.maintenance.application.common.support import coerce_priority, coerce_trigger_mode
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import ValidationError

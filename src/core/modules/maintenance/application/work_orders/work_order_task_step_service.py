@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceTaskCompletionRule,
     MaintenanceWorkOrderStatus,
     MaintenanceWorkOrderTask,
@@ -13,7 +13,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkOrderTaskStep,
     MaintenanceWorkOrderTaskStepStatus,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
     MaintenanceWorkOrderTaskStepRepository,
@@ -21,7 +21,7 @@ from core.modules.maintenance_management.interfaces import (
 from src.core.modules.maintenance.application.work_orders.work_order_task_step_validation import (
     MaintenanceWorkOrderTaskStepValidationMixin,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_work_order_task_step_status,
     normalize_maintenance_name,
     normalize_optional_text,

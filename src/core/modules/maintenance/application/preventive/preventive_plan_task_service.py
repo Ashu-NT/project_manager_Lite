@@ -6,21 +6,21 @@ from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenancePlanTaskTriggerScope,
     MaintenancePreventivePlan,
     MaintenancePreventivePlanTask,
     MaintenanceSensor,
     MaintenanceTriggerMode,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenancePreventivePlanRepository,
     MaintenancePreventivePlanTaskRepository,
     MaintenanceSensorRepository,
     MaintenanceTaskTemplateRepository,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_calendar_frequency_unit,
     coerce_optional_decimal_value,
     coerce_optional_non_negative_int,

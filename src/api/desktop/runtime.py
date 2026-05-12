@@ -56,6 +56,10 @@ from src.core.modules.inventory_procurement.api.desktop import (
     build_inventory_procurement_reservations_desktop_api,
     build_inventory_procurement_workspace_desktop_api,
 )
+from src.core.modules.maintenance.api.desktop import (
+    MaintenanceWorkspaceDesktopApi,
+    build_maintenance_workspace_desktop_api,
+)
 from src.core.modules.inventory_procurement import (
     InventoryReferenceService,
     InventoryReportingService,
@@ -136,6 +140,7 @@ class DesktopApiRegistry:
     inventory_procurement_procurement: InventoryProcurementProcurementDesktopApi
     inventory_procurement_dashboard: InventoryProcurementDashboardDesktopApi
     inventory_procurement_pricing: InventoryProcurementPricingDesktopApi
+    maintenance_workspaces: MaintenanceWorkspaceDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -436,6 +441,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             item_service=inventory_item_desktop_service,
             user_session=services.get("user_session"),
         ),
+        maintenance_workspaces=build_maintenance_workspace_desktop_api(),
     )
 
 

@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceSensor, MaintenanceSensorReading
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceSensor, MaintenanceSensorReading
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceSensorReadingRepository,
     MaintenanceSensorRepository,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_decimal_value,
     coerce_optional_datetime,
     coerce_sensor_quality_state,

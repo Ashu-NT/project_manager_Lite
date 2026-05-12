@@ -2558,10 +2558,15 @@ Current verified progress:
 - maintenance work-order services now live under `src/core/modules/maintenance/application/work_orders/{work_order_service,work_order_validation,work_order_task_service,work_order_task_validation,work_order_task_step_service,work_order_task_step_validation,work_order_material_requirement_service,labor_service,labor_adapters}.py`
 - maintenance document service now lives under `src/core/modules/maintenance/application/documents/document_service.py`
 - maintenance downtime-event service now lives under `src/core/modules/maintenance/application/reliability/downtime_event_service.py`
+- maintenance domain now lives under `src/core/modules/maintenance/domain/{assets,locations,work_requests,work_orders,preventive,reliability,documents}/*`, with enums centralized in `domain/enums.py`
+- maintenance repository contracts now live under `src/core/modules/maintenance/contracts/repositories/{assets,work_requests,work_orders,preventive,reliability}.py`
+- maintenance support/reporting now live under `src/core/modules/maintenance/application/common/support.py` and `src/core/modules/maintenance/infrastructure/reporting/{service,documents,renderers}.py`
+- maintenance persistence adapters now live under `src/core/modules/maintenance/infrastructure/persistence/{repositories,mappers}/*`
+- maintenance desktop API has started under `src/core/modules/maintenance/api/desktop/{__init__,workspaces}.py`, and the shared desktop registry now exposes `maintenance_workspaces`
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
-- old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `services/runtime_catalog.py` are removed after caller rewrites
-- old service roots `core/modules/maintenance_management/services/{asset,component,location,system,failure_code,integration_source,reliability,sensor,sensor_exception,sensor_reading,sensor_source_mapping}` are removed after import rewrites
-- legacy preventive, work-request, work-order, document, and downtime-event service roots are no longer part of the live import graph; service entry files were removed after caller rewrites, and only empty cache shells may remain until final filesystem cleanup
+- caller rewrites remove the old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `core/modules/maintenance_management/services/runtime_catalog.py`
+- the old flat maintenance backend files `core/modules/maintenance_management/{domain.py,interfaces.py,preventive_schedule_domain.py,reliability_domain.py,support.py}` are removed after direct import rewrites
+- the old backend roots `core/modules/maintenance_management/*` and `infra/modules/maintenance_management/*` are now removed after the last live callers were rewritten to `src`
 - maintenance Widget UI remains untouched structurally; Slice 4 UI work still means direct migration to `src/ui_qml/modules/maintenance/*`, not more QWidget refactoring
 
 #### Exact changes
@@ -2596,7 +2601,7 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
-- after the completed asset, preventive, reliability, work-request, work-order, document, and downtime-event transfers, the next maintenance targets are the module-local persistence move, then maintenance desktop API/QML migration
+- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, and workspace desktop-API transfers, the next maintenance targets are richer maintenance desktop adapters and then maintenance QML migration
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 

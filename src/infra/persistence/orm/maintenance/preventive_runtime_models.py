@@ -17,7 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.modules.maintenance_management.domain import MaintenancePreventiveInstanceStatus
+from src.core.modules.maintenance.domain import MaintenancePreventiveInstanceStatus
 from src.infra.persistence.orm.base import Base
 
 

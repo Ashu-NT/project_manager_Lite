@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceDowntimeEvent,
     MaintenanceFailureCode,
     MaintenanceWorkOrder,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenanceDowntimeEventRepository,

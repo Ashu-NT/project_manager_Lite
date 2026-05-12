@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenancePreventivePlan,
     MaintenancePreventivePlanTask,
     MaintenanceWorkOrder,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceTaskStepTemplateRepository,
     MaintenanceTaskTemplateRepository,
 )

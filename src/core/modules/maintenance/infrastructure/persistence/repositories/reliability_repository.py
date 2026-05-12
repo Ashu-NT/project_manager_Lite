@@ -3,12 +3,12 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceDowntimeEvent, MaintenanceFailureCode
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceDowntimeEvent, MaintenanceFailureCode
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceDowntimeEventRepository,
     MaintenanceFailureCodeRepository,
 )
-from infra.modules.maintenance_management.db.mapper import (
+from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_downtime_event_from_orm,
     maintenance_downtime_event_to_orm,
     maintenance_failure_code_from_orm,
@@ -165,3 +165,4 @@ __all__ = [
     "SqlAlchemyMaintenanceDowntimeEventRepository",
     "SqlAlchemyMaintenanceFailureCodeRepository",
 ]
+

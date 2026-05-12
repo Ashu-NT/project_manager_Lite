@@ -3,9 +3,9 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenancePreventivePlanInstance
-from core.modules.maintenance_management.interfaces import MaintenancePreventivePlanInstanceRepository
-from infra.modules.maintenance_management.db.mapper import (
+from src.core.modules.maintenance.domain import MaintenancePreventivePlanInstance
+from src.core.modules.maintenance.contracts.repositories import MaintenancePreventivePlanInstanceRepository
+from src.core.modules.maintenance.infrastructure.persistence.mappers import (
     maintenance_preventive_plan_instance_from_orm,
     maintenance_preventive_plan_instance_to_orm,
 )
@@ -98,3 +98,4 @@ class SqlAlchemyMaintenancePreventivePlanInstanceRepository(MaintenancePreventiv
 
 
 __all__ = ["SqlAlchemyMaintenancePreventivePlanInstanceRepository"]
+

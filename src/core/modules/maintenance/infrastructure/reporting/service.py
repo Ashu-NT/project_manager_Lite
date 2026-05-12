@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from core.modules.maintenance_management.domain import MaintenanceWorkOrder, MaintenanceWorkOrderStatus
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceWorkOrder, MaintenanceWorkOrderStatus
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenanceDowntimeEventRepository,
@@ -16,7 +16,6 @@ from core.modules.maintenance_management.interfaces import (
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
 )
-from src.core.modules.maintenance.infrastructure.reporting import register_maintenance_report_definitions
 from src.core.modules.maintenance.application.reliability import MaintenanceReliabilityService
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.common.exceptions import NotFoundError
@@ -24,6 +23,7 @@ from src.core.platform.org.contracts import OrganizationRepository, SiteReposito
 from src.core.platform.exporting import ensure_output_path, finalize_artifact
 from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
+from .definitions import register_maintenance_report_definitions
 from .documents import (
     MaintenanceReportLookups,
     build_backlog_report_document,
@@ -588,3 +588,4 @@ __all__ = [
     "MaintenanceReportRequest",
     "MaintenanceReportingService",
 ]
+

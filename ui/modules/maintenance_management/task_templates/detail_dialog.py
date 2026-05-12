@@ -17,7 +17,7 @@ from src.core.modules.maintenance import (
     MaintenanceTaskStepTemplateService,
     MaintenanceTaskTemplateService,
 )
-from core.modules.maintenance_management.domain import MaintenanceTaskStepTemplate
+from src.core.modules.maintenance.domain import MaintenanceTaskStepTemplate
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events
 from ui.modules.maintenance_management.shared import (

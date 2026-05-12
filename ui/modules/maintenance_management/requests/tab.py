@@ -23,7 +23,7 @@ from src.core.modules.maintenance import (
     MaintenanceWorkOrderService,
     MaintenanceWorkRequestService,
 )
-from core.modules.maintenance_management.domain import MaintenancePriority, MaintenanceWorkRequestStatus
+from src.core.modules.maintenance.domain import MaintenancePriority, MaintenanceWorkRequestStatus
 from src.core.platform.auth import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.notifications.domain_events import DomainChangeEvent, domain_events

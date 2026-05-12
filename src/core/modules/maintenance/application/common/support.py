@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceCalendarFrequencyUnit,
     MaintenanceCriticality,
     MaintenanceFailureCodeType,
@@ -483,6 +483,9 @@ def calculate_downtime_minutes(
 
 
 __all__ = [
+    "calculate_downtime_minutes",
+    "coerce_failure_code_type",
+    "coerce_generation_lead_unit",
     "coerce_criticality",
     "coerce_calendar_frequency_unit",
     "coerce_decimal_value",
@@ -496,7 +499,9 @@ __all__ = [
     "coerce_plan_status",
     "coerce_plan_task_trigger_scope",
     "coerce_plan_type",
+    "coerce_preventive_instance_status",
     "coerce_priority",
+    "coerce_schedule_policy",
     "coerce_sensor_direction",
     "coerce_sensor_exception_status",
     "coerce_sensor_exception_type",
@@ -514,3 +519,4 @@ __all__ = [
     "normalize_maintenance_name",
     "normalize_optional_text",
 ]
+

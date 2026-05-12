@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
-from core.modules.maintenance_management.domain import MaintenanceWorkOrder, MaintenanceWorkOrderTask
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceWorkOrder, MaintenanceWorkOrderTask
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
 )

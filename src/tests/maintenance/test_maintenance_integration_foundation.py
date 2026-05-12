@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from core.modules.maintenance_management.domain import MaintenanceIntegrationSource
-from core.modules.maintenance_management.interfaces import MaintenanceIntegrationSourceRepository
+from src.core.modules.maintenance.domain import MaintenanceIntegrationSource
+from src.core.modules.maintenance.contracts.repositories import MaintenanceIntegrationSourceRepository
 from src.core.modules.maintenance import MaintenanceIntegrationSourceService
 from src.core.platform.org.domain import Organization
 from .test_maintenance_foundation import _OrgRepo, _user_session

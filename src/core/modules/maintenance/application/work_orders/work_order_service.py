@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceCalendarFrequencyUnit,
     MaintenanceFailureCodeType,
     MaintenancePreventiveInstanceStatus,
@@ -15,7 +15,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceWorkRequestStatus,
     MaintenanceWorkOrder,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenanceFailureCodeRepository,
@@ -38,7 +38,7 @@ from src.core.modules.maintenance.application.work_orders.work_order_task_servic
 from src.core.modules.maintenance.application.work_orders.work_order_task_step_service import (
     MaintenanceWorkOrderTaskStepService,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_priority,
     coerce_work_order_status,
     coerce_work_order_type,
@@ -399,7 +399,7 @@ class MaintenanceWorkOrderService(MaintenanceWorkOrderValidationMixin):
 
             # Validate status transition
         if status is not None:
-            from core.modules.maintenance_management.domain import MaintenanceWorkOrderStatus
+            from src.core.modules.maintenance.domain import MaintenanceWorkOrderStatus
             prior_status = work_order.status
             new_status = coerce_work_order_status(status)
             self._validate_work_order_status_transition(work_order.status, new_status)

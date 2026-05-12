@@ -5,15 +5,15 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceDowntimeEvent, MaintenanceWorkOrder
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceDowntimeEvent, MaintenanceWorkOrder
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenanceDowntimeEventRepository,
     MaintenanceSystemRepository,
     MaintenanceWorkOrderRepository,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     calculate_downtime_minutes,
     coerce_optional_datetime,
     normalize_maintenance_name,

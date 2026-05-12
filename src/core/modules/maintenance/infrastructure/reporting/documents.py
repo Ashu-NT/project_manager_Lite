@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceSensorException,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,
 )
-from src.core.modules.maintenance.infrastructure.reporting import (
+from .models import (
     MaintenanceRecurringFailurePattern,
     MaintenanceReliabilityDashboard,
     MaintenanceRootCauseInsight,
@@ -546,3 +546,4 @@ __all__ = [
     "build_pm_compliance_report_document",
     "build_recurring_failure_report_document",
 ]
+

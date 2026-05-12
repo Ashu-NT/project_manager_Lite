@@ -10,7 +10,7 @@ from src.core.modules.maintenance import (
     MaintenancePreventivePlanService,
     MaintenancePreventivePlanTaskService,
 )
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenancePlanTaskTriggerScope,
     MaintenancePreventivePlan,
     MaintenancePreventivePlanTask,

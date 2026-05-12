@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceAssetComponent,
     MaintenanceDowntimeEvent,
@@ -1161,6 +1161,12 @@ __all__ = [
     "maintenance_asset_component_from_orm",
     "maintenance_asset_component_to_orm",
     "maintenance_asset_to_orm",
+    "maintenance_downtime_event_from_orm",
+    "maintenance_downtime_event_to_orm",
+    "maintenance_failure_code_from_orm",
+    "maintenance_failure_code_to_orm",
+    "maintenance_integration_source_from_orm",
+    "maintenance_integration_source_to_orm",
     "maintenance_location_from_orm",
     "maintenance_location_to_orm",
     "maintenance_preventive_plan_instance_from_orm",
@@ -1169,6 +1175,14 @@ __all__ = [
     "maintenance_preventive_plan_task_from_orm",
     "maintenance_preventive_plan_task_to_orm",
     "maintenance_preventive_plan_to_orm",
+    "maintenance_sensor_exception_from_orm",
+    "maintenance_sensor_exception_to_orm",
+    "maintenance_sensor_from_orm",
+    "maintenance_sensor_reading_from_orm",
+    "maintenance_sensor_reading_to_orm",
+    "maintenance_sensor_source_mapping_from_orm",
+    "maintenance_sensor_source_mapping_to_orm",
+    "maintenance_sensor_to_orm",
     "maintenance_work_order_material_requirement_from_orm",
     "maintenance_work_order_material_requirement_to_orm",
     "maintenance_system_from_orm",
@@ -1186,3 +1200,4 @@ __all__ = [
     "maintenance_work_request_from_orm",
     "maintenance_work_request_to_orm",
 ]
+

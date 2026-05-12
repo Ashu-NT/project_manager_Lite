@@ -5,13 +5,13 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceAsset
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.domain import MaintenanceAsset
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetRepository,
     MaintenanceLocationRepository,
     MaintenanceSystemRepository,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_criticality,
     coerce_lifecycle_status,
     coerce_optional_date,

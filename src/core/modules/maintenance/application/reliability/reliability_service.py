@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenancePriority,
     MaintenanceWorkOrder,
     MaintenanceWorkOrderStatus,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
     MaintenanceDowntimeEventRepository,
@@ -24,7 +24,7 @@ from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceRootCauseSuggestion,
     ReportMetric,
 )
-from core.modules.maintenance_management.support import normalize_maintenance_code
+from src.core.modules.maintenance.application.common.support import normalize_maintenance_code
 from src.core.platform.access.authorization import filter_scope_rows
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError

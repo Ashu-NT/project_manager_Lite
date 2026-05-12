@@ -5,17 +5,17 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceSensorException,
     MaintenanceSensorExceptionStatus,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceIntegrationSourceRepository,
     MaintenanceSensorExceptionRepository,
     MaintenanceSensorRepository,
     MaintenanceSensorSourceMappingRepository,
 )
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.application.common.support import (
     coerce_optional_datetime,
     coerce_sensor_exception_status,
     coerce_sensor_exception_type,

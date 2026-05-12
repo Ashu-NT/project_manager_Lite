@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.modules.maintenance_management.domain import MaintenanceIntegrationSource
-from core.modules.maintenance_management.interfaces import MaintenanceIntegrationSourceRepository
-from core.modules.maintenance_management.support import (
+from src.core.modules.maintenance.domain import MaintenanceIntegrationSource
+from src.core.modules.maintenance.contracts.repositories import MaintenanceIntegrationSourceRepository
+from src.core.modules.maintenance.application.common.support import (
     coerce_optional_datetime,
     normalize_maintenance_code,
     normalize_maintenance_name,

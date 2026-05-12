@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceIntegrationSource,
     MaintenanceLocation,
     MaintenanceSensor,
@@ -8,7 +8,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceSensorReading,
     MaintenanceSensorSourceMapping,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSensorExceptionRepository,
     MaintenanceSensorSourceMappingRepository,
 )
@@ -22,7 +22,7 @@ from src.core.platform.org.domain import Organization, Site
 from .test_maintenance_foundation import _AssetRepo, _LocationRepo, _OrgRepo, _SiteRepo, _user_session
 from .test_maintenance_integration_foundation import _IntegrationSourceRepo
 from .test_maintenance_sensor_foundation import _SensorReadingRepo, _SensorRepo
-from core.modules.maintenance_management.domain import MaintenanceAsset
+from src.core.modules.maintenance.domain import MaintenanceAsset
 
 
 class _SensorSourceMappingRepo(MaintenanceSensorSourceMappingRepository):

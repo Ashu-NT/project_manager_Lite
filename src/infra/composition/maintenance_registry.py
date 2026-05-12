@@ -29,7 +29,7 @@ from src.core.modules.maintenance import (
     MaintenanceWorkOrderTaskStepService,
     MaintenanceWorkRequestService,
 )
-from core.modules.maintenance_management import (
+from src.core.modules.maintenance.infrastructure.reporting import (
     MaintenanceReportingService,
 )
 from src.core.modules.maintenance.application.work_orders.labor_adapters import (
@@ -42,7 +42,7 @@ from src.core.platform.infrastructure.persistence.repositories.documents import 
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from infra.modules.maintenance_management.db import (
+from src.core.modules.maintenance.infrastructure.persistence.repositories import (
     SqlAlchemyMaintenanceAssetRepository,
     SqlAlchemyMaintenanceAssetComponentRepository,
     SqlAlchemyMaintenanceDowntimeEventRepository,
@@ -82,7 +82,7 @@ from src.infra.composition.platform_registry import PlatformServiceBundle
 
 
 @dataclass(frozen=True)
-class MaintenanceManagementServiceBundle:
+class MaintenanceServiceBundle:
     maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
     maintenance_asset_service: MaintenanceAssetService
     maintenance_asset_component_service: MaintenanceAssetComponentService
@@ -111,10 +111,10 @@ class MaintenanceManagementServiceBundle:
     maintenance_work_order_task_step_service: MaintenanceWorkOrderTaskStepService
 
 
-def build_maintenance_management_service_bundle(
+def build_maintenance_service_bundle(
     platform_services: PlatformServiceBundle,
     inventory_services: InventoryProcurementServiceBundle,
-) -> MaintenanceManagementServiceBundle:
+) -> MaintenanceServiceBundle:
     location_repo = SqlAlchemyMaintenanceLocationRepository(platform_services.session)
     system_repo = SqlAlchemyMaintenanceSystemRepository(platform_services.session)
     asset_repo = SqlAlchemyMaintenanceAssetRepository(platform_services.session)
@@ -455,7 +455,7 @@ def build_maintenance_management_service_bundle(
         user_session=platform_services.user_session,
         audit_service=platform_services.audit_service,
     )
-    return MaintenanceManagementServiceBundle(
+    return MaintenanceServiceBundle(
         maintenance_runtime_contract_catalog_service=maintenance_runtime_contract_catalog_service,
         maintenance_asset_service=maintenance_asset_service,
         maintenance_asset_component_service=maintenance_asset_component_service,
@@ -486,6 +486,6 @@ def build_maintenance_management_service_bundle(
 
 
 __all__ = [
-    "MaintenanceManagementServiceBundle",
-    "build_maintenance_management_service_bundle",
+    "MaintenanceServiceBundle",
+    "build_maintenance_service_bundle",
 ]

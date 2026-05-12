@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from core.modules.maintenance_management.domain import (
+from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceLocation,
     MaintenancePreventivePlan,
@@ -11,7 +11,7 @@ from core.modules.maintenance_management.domain import (
     MaintenanceTaskStepTemplate,
     MaintenanceTaskTemplate,
 )
-from core.modules.maintenance_management.interfaces import (
+from src.core.modules.maintenance.contracts.repositories import (
     MaintenancePreventivePlanRepository,
     MaintenancePreventivePlanTaskRepository,
     MaintenanceTaskStepTemplateRepository,
