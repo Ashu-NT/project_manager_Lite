@@ -57,8 +57,29 @@ from src.core.modules.inventory_procurement.api.desktop import (
     build_inventory_procurement_workspace_desktop_api,
 )
 from src.core.modules.maintenance.api.desktop import (
+    MaintenanceAssetsDesktopApi,
+    MaintenancePlannerDesktopApi,
+    MaintenanceWorkOrdersDesktopApi,
+    MaintenanceWorkRequestsDesktopApi,
     MaintenanceWorkspaceDesktopApi,
+    build_maintenance_assets_desktop_api,
+    build_maintenance_planner_desktop_api,
+    build_maintenance_work_orders_desktop_api,
+    build_maintenance_work_requests_desktop_api,
     build_maintenance_workspace_desktop_api,
+)
+from src.core.modules.maintenance import (
+    MaintenanceAssetComponentService,
+    MaintenanceAssetService,
+    MaintenanceLocationService,
+    MaintenancePreventiveGenerationService,
+    MaintenancePreventivePlanService,
+    MaintenanceReliabilityService,
+    MaintenanceSensorExceptionService,
+    MaintenanceSystemService,
+    MaintenanceWorkOrderMaterialRequirementService,
+    MaintenanceWorkOrderService,
+    MaintenanceWorkRequestService,
 )
 from src.core.modules.inventory_procurement import (
     InventoryReferenceService,
@@ -141,6 +162,10 @@ class DesktopApiRegistry:
     inventory_procurement_dashboard: InventoryProcurementDashboardDesktopApi
     inventory_procurement_pricing: InventoryProcurementPricingDesktopApi
     maintenance_workspaces: MaintenanceWorkspaceDesktopApi
+    maintenance_assets: MaintenanceAssetsDesktopApi
+    maintenance_planner: MaintenancePlannerDesktopApi
+    maintenance_work_requests: MaintenanceWorkRequestsDesktopApi
+    maintenance_work_orders: MaintenanceWorkOrdersDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -193,6 +218,67 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     inventory_procurement_service = services.get("inventory_procurement_service")
     inventory_purchasing_service = services.get("inventory_purchasing_service")
     inventory_reporting_service = services.get("inventory_reporting_service")
+    maintenance_location_service = services.get("maintenance_location_service")
+    if not isinstance(maintenance_location_service, MaintenanceLocationService):
+        maintenance_location_service = None
+    maintenance_system_service = services.get("maintenance_system_service")
+    if not isinstance(maintenance_system_service, MaintenanceSystemService):
+        maintenance_system_service = None
+    maintenance_asset_service = services.get("maintenance_asset_service")
+    if not isinstance(maintenance_asset_service, MaintenanceAssetService):
+        maintenance_asset_service = None
+    maintenance_component_service = services.get("maintenance_asset_component_service")
+    if not isinstance(
+        maintenance_component_service,
+        MaintenanceAssetComponentService,
+    ):
+        maintenance_component_service = None
+    maintenance_work_request_service = services.get("maintenance_work_request_service")
+    if not isinstance(
+        maintenance_work_request_service,
+        MaintenanceWorkRequestService,
+    ):
+        maintenance_work_request_service = None
+    maintenance_work_order_service = services.get("maintenance_work_order_service")
+    if not isinstance(
+        maintenance_work_order_service,
+        MaintenanceWorkOrderService,
+    ):
+        maintenance_work_order_service = None
+    maintenance_material_requirement_service = services.get(
+        "maintenance_work_order_material_requirement_service"
+    )
+    if not isinstance(
+        maintenance_material_requirement_service,
+        MaintenanceWorkOrderMaterialRequirementService,
+    ):
+        maintenance_material_requirement_service = None
+    maintenance_preventive_plan_service = services.get("maintenance_preventive_plan_service")
+    if not isinstance(
+        maintenance_preventive_plan_service,
+        MaintenancePreventivePlanService,
+    ):
+        maintenance_preventive_plan_service = None
+    maintenance_preventive_generation_service = services.get(
+        "maintenance_preventive_generation_service"
+    )
+    if not isinstance(
+        maintenance_preventive_generation_service,
+        MaintenancePreventiveGenerationService,
+    ):
+        maintenance_preventive_generation_service = None
+    maintenance_reliability_service = services.get("maintenance_reliability_service")
+    if not isinstance(
+        maintenance_reliability_service,
+        MaintenanceReliabilityService,
+    ):
+        maintenance_reliability_service = None
+    maintenance_sensor_exception_service = services.get("maintenance_sensor_exception_service")
+    if not isinstance(
+        maintenance_sensor_exception_service,
+        MaintenanceSensorExceptionService,
+    ):
+        maintenance_sensor_exception_service = None
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
     )
@@ -442,6 +528,45 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             user_session=services.get("user_session"),
         ),
         maintenance_workspaces=build_maintenance_workspace_desktop_api(),
+        maintenance_assets=build_maintenance_assets_desktop_api(
+            location_service=maintenance_location_service,
+            system_service=maintenance_system_service,
+            asset_service=maintenance_asset_service,
+            component_service=maintenance_component_service,
+            site_service=site_service,
+            party_service=party_service,
+        ),
+        maintenance_planner=build_maintenance_planner_desktop_api(
+            site_service=site_service,
+            asset_service=maintenance_asset_service,
+            system_service=maintenance_system_service,
+            work_request_service=maintenance_work_request_service,
+            work_order_service=maintenance_work_order_service,
+            material_requirement_service=maintenance_material_requirement_service,
+            preventive_plan_service=maintenance_preventive_plan_service,
+            preventive_generation_service=maintenance_preventive_generation_service,
+            reliability_service=maintenance_reliability_service,
+            sensor_exception_service=maintenance_sensor_exception_service,
+        ),
+        maintenance_work_requests=build_maintenance_work_requests_desktop_api(
+            work_request_service=maintenance_work_request_service,
+            site_service=site_service,
+            location_service=maintenance_location_service,
+            system_service=maintenance_system_service,
+            asset_service=maintenance_asset_service,
+            component_service=maintenance_component_service,
+        ),
+        maintenance_work_orders=build_maintenance_work_orders_desktop_api(
+            work_order_service=maintenance_work_order_service,
+            work_request_service=maintenance_work_request_service,
+            site_service=site_service,
+            employee_service=employee_service,
+            party_service=party_service,
+            location_service=maintenance_location_service,
+            system_service=maintenance_system_service,
+            asset_service=maintenance_asset_service,
+            component_service=maintenance_component_service,
+        ),
     )
 
 

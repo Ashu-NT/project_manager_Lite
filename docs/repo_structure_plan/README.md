@@ -2563,6 +2563,11 @@ Current verified progress:
 - maintenance support/reporting now live under `src/core/modules/maintenance/application/common/support.py` and `src/core/modules/maintenance/infrastructure/reporting/{service,documents,renderers}.py`
 - maintenance persistence adapters now live under `src/core/modules/maintenance/infrastructure/persistence/{repositories,mappers}/*`
 - maintenance desktop API has started under `src/core/modules/maintenance/api/desktop/{__init__,workspaces}.py`, and the shared desktop registry now exposes `maintenance_workspaces`
+- maintenance desktop API support is now shared under `src/core/modules/maintenance/api/desktop/{_support.py,shared_options.py}`
+- maintenance assets desktop API now lives under `src/core/modules/maintenance/api/desktop/assets/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_assets` for lifecycle/criticality descriptors, site/party options, plus location/system/asset/component CRUD and option lists
+- maintenance planner desktop API now lives under `src/core/modules/maintenance/api/desktop/planner/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_planner` for site/asset/system filters plus planner snapshot sections covering request intake, backlog, material risk, preventive readiness, and recurring-failure review
+- maintenance work-requests desktop API now lives under `src/core/modules/maintenance/api/desktop/work_requests/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_work_requests` for priority/source/status descriptors, maintenance-context options, and work-request CRUD/status transitions
+- maintenance work-orders desktop API now lives under `src/core/modules/maintenance/api/desktop/work_orders/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_work_orders` for priority/status/type descriptors, source-work-request conversion options, assignee/vendor/context options, and work-order CRUD/status transitions
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
 - caller rewrites remove the old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `core/modules/maintenance_management/services/runtime_catalog.py`
 - the old flat maintenance backend files `core/modules/maintenance_management/{domain.py,interfaces.py,preventive_schedule_domain.py,reliability_domain.py,support.py}` are removed after direct import rewrites
@@ -2601,7 +2606,7 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
-- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, and workspace desktop-API transfers, the next maintenance targets are richer maintenance desktop adapters and then maintenance QML migration
+- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, workspace desktop-API, assets desktop-API, work-requests desktop-API, work-orders desktop-API, and planner desktop-API transfers, the next maintenance targets are reliability/dashboard read adapters and then maintenance QML migration
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 
