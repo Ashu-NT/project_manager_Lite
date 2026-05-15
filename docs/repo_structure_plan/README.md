@@ -2565,7 +2565,9 @@ Current verified progress:
 - maintenance desktop API has started under `src/core/modules/maintenance/api/desktop/{__init__,workspaces}.py`, and the shared desktop registry now exposes `maintenance_workspaces`
 - maintenance desktop API support is now shared under `src/core/modules/maintenance/api/desktop/{_support.py,shared_options.py}`
 - maintenance assets desktop API now lives under `src/core/modules/maintenance/api/desktop/assets/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_assets` for lifecycle/criticality descriptors, site/party options, plus location/system/asset/component CRUD and option lists
+- maintenance dashboard desktop API now lives under `src/core/modules/maintenance/api/desktop/dashboard/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_dashboard` for site/asset/system/location filters plus overview, backlog, root-cause, and recurring-failure read snapshots
 - maintenance planner desktop API now lives under `src/core/modules/maintenance/api/desktop/planner/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_planner` for site/asset/system filters plus planner snapshot sections covering request intake, backlog, material risk, preventive readiness, and recurring-failure review
+- maintenance reliability desktop API now lives under `src/core/modules/maintenance/api/desktop/reliability/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_reliability` for site/asset/system/location/failure filters plus suggestion, root-cause, and recurring-failure analysis snapshots
 - maintenance work-requests desktop API now lives under `src/core/modules/maintenance/api/desktop/work_requests/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_work_requests` for priority/source/status descriptors, maintenance-context options, and work-request CRUD/status transitions
 - maintenance work-orders desktop API now lives under `src/core/modules/maintenance/api/desktop/work_orders/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_work_orders` for priority/status/type descriptors, source-work-request conversion options, assignee/vendor/context options, and work-order CRUD/status transitions
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
@@ -2606,7 +2608,7 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
-- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, workspace desktop-API, assets desktop-API, work-requests desktop-API, work-orders desktop-API, and planner desktop-API transfers, the next maintenance targets are reliability/dashboard read adapters and then maintenance QML migration
+- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, workspace desktop-API, assets desktop-API, dashboard desktop-API, planner desktop-API, reliability desktop-API, work-requests desktop-API, and work-orders desktop-API transfers, the next maintenance target is the maintenance QML migration
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 

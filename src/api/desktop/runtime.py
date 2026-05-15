@@ -58,12 +58,16 @@ from src.core.modules.inventory_procurement.api.desktop import (
 )
 from src.core.modules.maintenance.api.desktop import (
     MaintenanceAssetsDesktopApi,
+    MaintenanceDashboardDesktopApi,
     MaintenancePlannerDesktopApi,
+    MaintenanceReliabilityDesktopApi,
     MaintenanceWorkOrdersDesktopApi,
     MaintenanceWorkRequestsDesktopApi,
     MaintenanceWorkspaceDesktopApi,
     build_maintenance_assets_desktop_api,
+    build_maintenance_dashboard_desktop_api,
     build_maintenance_planner_desktop_api,
+    build_maintenance_reliability_desktop_api,
     build_maintenance_work_orders_desktop_api,
     build_maintenance_work_requests_desktop_api,
     build_maintenance_workspace_desktop_api,
@@ -71,6 +75,7 @@ from src.core.modules.maintenance.api.desktop import (
 from src.core.modules.maintenance import (
     MaintenanceAssetComponentService,
     MaintenanceAssetService,
+    MaintenanceFailureCodeService,
     MaintenanceLocationService,
     MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
@@ -163,7 +168,9 @@ class DesktopApiRegistry:
     inventory_procurement_pricing: InventoryProcurementPricingDesktopApi
     maintenance_workspaces: MaintenanceWorkspaceDesktopApi
     maintenance_assets: MaintenanceAssetsDesktopApi
+    maintenance_dashboard: MaintenanceDashboardDesktopApi
     maintenance_planner: MaintenancePlannerDesktopApi
+    maintenance_reliability: MaintenanceReliabilityDesktopApi
     maintenance_work_requests: MaintenanceWorkRequestsDesktopApi
     maintenance_work_orders: MaintenanceWorkOrdersDesktopApi
 
@@ -279,6 +286,12 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         MaintenanceSensorExceptionService,
     ):
         maintenance_sensor_exception_service = None
+    maintenance_failure_code_service = services.get("maintenance_failure_code_service")
+    if not isinstance(
+        maintenance_failure_code_service,
+        MaintenanceFailureCodeService,
+    ):
+        maintenance_failure_code_service = None
     pm_project_service = (
         project_service if isinstance(project_service, ProjectService) else None
     )
@@ -536,6 +549,13 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             site_service=site_service,
             party_service=party_service,
         ),
+        maintenance_dashboard=build_maintenance_dashboard_desktop_api(
+            reliability_service=maintenance_reliability_service,
+            site_service=site_service,
+            asset_service=maintenance_asset_service,
+            location_service=maintenance_location_service,
+            system_service=maintenance_system_service,
+        ),
         maintenance_planner=build_maintenance_planner_desktop_api(
             site_service=site_service,
             asset_service=maintenance_asset_service,
@@ -547,6 +567,14 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             preventive_generation_service=maintenance_preventive_generation_service,
             reliability_service=maintenance_reliability_service,
             sensor_exception_service=maintenance_sensor_exception_service,
+        ),
+        maintenance_reliability=build_maintenance_reliability_desktop_api(
+            reliability_service=maintenance_reliability_service,
+            failure_code_service=maintenance_failure_code_service,
+            site_service=site_service,
+            asset_service=maintenance_asset_service,
+            location_service=maintenance_location_service,
+            system_service=maintenance_system_service,
         ),
         maintenance_work_requests=build_maintenance_work_requests_desktop_api(
             work_request_service=maintenance_work_request_service,
