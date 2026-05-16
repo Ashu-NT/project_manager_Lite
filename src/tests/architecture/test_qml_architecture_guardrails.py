@@ -361,6 +361,54 @@ def test_inventory_pricing_workspace_no_longer_uses_placeholder_page() -> None:
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_maintenance_dashboard_workspace_no_longer_uses_placeholder_page() -> None:
+    dashboard_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "maintenance"
+        / "qml"
+        / "workspaces"
+        / "dashboard"
+        / "DashboardWorkspace.qml"
+    )
+    text = dashboard_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "DashboardWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
+def test_maintenance_reliability_workspace_no_longer_uses_placeholder_page() -> None:
+    reliability_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "maintenance"
+        / "qml"
+        / "workspaces"
+        / "reliability"
+        / "ReliabilityWorkspace.qml"
+    )
+    text = reliability_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "ReliabilityWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
+def test_maintenance_planner_workspace_no_longer_uses_placeholder_page() -> None:
+    planner_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "maintenance"
+        / "qml"
+        / "workspaces"
+        / "planner"
+        / "PlannerWorkspace.qml"
+    )
+    text = planner_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PlannerWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     qmllint_path = shutil.which("pyside6-qmllint")
     if qmllint_path is None:
@@ -372,6 +420,7 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         str(UI_QML_ROOT / "platform" / "qml"),
         str(UI_QML_ROOT / "modules" / "project_management" / "qml"),
         str(UI_QML_ROOT / "modules" / "inventory_procurement" / "qml"),
+        str(UI_QML_ROOT / "modules" / "maintenance" / "qml"),
     ]
     targets = [
         UI_QML_ROOT / "platform" / "qml" / "workspaces" / "admin" / "AdminWorkspace.qml",
@@ -429,6 +478,12 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingExportsSection.qml",
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingStockSection.qml",
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingSupplierPricingSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityFiltersSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "WorkspacePlaceholderPage.qml",
     ]
     command = [qmllint_path]

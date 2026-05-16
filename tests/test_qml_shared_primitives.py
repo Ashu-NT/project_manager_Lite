@@ -27,6 +27,15 @@ QML_INV_DIALOGS = Path(
 QML_INV_WIDGETS = Path(
     "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Widgets"
 )
+QML_MAINT_CONTROLLERS = Path(
+    "src/ui_qml/modules/maintenance/qml/Maintenance/Controllers"
+)
+QML_MAINT_DIALOGS = Path(
+    "src/ui_qml/modules/maintenance/qml/Maintenance/Dialogs"
+)
+QML_MAINT_WIDGETS = Path(
+    "src/ui_qml/modules/maintenance/qml/Maintenance/Widgets"
+)
 
 
 def test_qml_shared_theme_primitives_exist() -> None:
@@ -62,6 +71,9 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_INV_CONTROLLERS / "qmldir": "module InventoryProcurement.Controllers",
         QML_INV_DIALOGS / "qmldir": "module InventoryProcurement.Dialogs",
         QML_INV_WIDGETS / "qmldir": "module InventoryProcurement.Widgets",
+        QML_MAINT_CONTROLLERS / "qmldir": "module Maintenance.Controllers",
+        QML_MAINT_DIALOGS / "qmldir": "module Maintenance.Dialogs",
+        QML_MAINT_WIDGETS / "qmldir": "module Maintenance.Widgets",
     }
 
     for path, module_name in expected_modules.items():
@@ -76,6 +88,7 @@ def test_qmlls_import_paths_cover_named_qml_modules() -> None:
         "src/ui_qml/platform/qml",
         "src/ui_qml/modules/project_management/qml",
         "src/ui_qml/modules/inventory_procurement/qml",
+        "src/ui_qml/modules/maintenance/qml",
     ]
 
     for expected_path in expected_paths:
@@ -225,6 +238,52 @@ def test_qml_inventory_procurement_modules_exist() -> None:
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingExportsSection.qml",
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingStockSection.qml",
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingSupplierPricingSection.qml",
+    ]
+
+    assert all(path.exists() for path in expected_files)
+
+
+def test_qml_maintenance_modules_exist() -> None:
+    expected_files = [
+        QML_MAINT_CONTROLLERS / "qmldir",
+        QML_MAINT_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
+        QML_MAINT_DIALOGS / "qmldir",
+        QML_MAINT_WIDGETS / "qmldir",
+        QML_MAINT_WIDGETS / "RecordListCard.qml",
+        QML_MAINT_WIDGETS / "WorkspacePlaceholderPage.qml",
+        QML_MAINT_WIDGETS / "WorkspaceStateBanner.qml",
+        QML_MAINT_WIDGETS / "WorkspaceStatusSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspace.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardMetricsSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardBacklogSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardRootCausesSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardRecurringSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityWorkspace.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityMetricsSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilitySuggestionsSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityRootCausesSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityRecurringSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsWorkspace.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsWorkspace.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersWorkspace.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveWorkspace.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerWorkspace.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerMetricsSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerRequestsSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerBacklogSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerMaterialRisksSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerPreventiveSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerRecurringSection.qml",
     ]
 
     assert all(path.exists() for path in expected_files)

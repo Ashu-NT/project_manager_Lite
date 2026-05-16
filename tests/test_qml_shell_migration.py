@@ -53,6 +53,13 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
         ("inventory_procurement.reservations", "Reservations"),
         ("inventory_procurement.procurement", "Procurement"),
         ("inventory_procurement.pricing", "Pricing"),
+        ("maintenance_management.dashboard", "Maintenance Dashboard"),
+        ("maintenance_management.assets", "Assets"),
+        ("maintenance_management.work_requests", "Work Requests"),
+        ("maintenance_management.work_orders", "Work Orders"),
+        ("maintenance_management.preventive", "Preventive"),
+        ("maintenance_management.reliability", "Reliability"),
+        ("maintenance_management.planner", "Planner"),
     ]
 
 
@@ -86,6 +93,13 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
         "inventory_procurement.reservations",
         "inventory_procurement.procurement",
         "inventory_procurement.pricing",
+        "maintenance_management.dashboard",
+        "maintenance_management.assets",
+        "maintenance_management.work_requests",
+        "maintenance_management.work_orders",
+        "maintenance_management.preventive",
+        "maintenance_management.reliability",
+        "maintenance_management.planner",
     ]
     assert context.navigationItems[0]["qmlSource"] == route_by_id["shell.home"].qml_path.as_uri()
 
@@ -115,6 +129,7 @@ def test_qml_engine_registers_named_import_roots() -> None:
     assert Path("src/ui_qml/platform/qml").resolve() in import_roots
     assert Path("src/ui_qml/modules/project_management/qml").resolve() in import_roots
     assert Path("src/ui_qml/modules/inventory_procurement/qml").resolve() in import_roots
+    assert Path("src/ui_qml/modules/maintenance/qml").resolve() in import_roots
 
 
 def test_qml_shell_does_not_replace_widget_entrypoint_yet() -> None:

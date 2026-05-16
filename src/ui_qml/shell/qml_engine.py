@@ -7,6 +7,9 @@ from PySide6.QtQml import QQmlApplicationEngine
 from src.ui_qml.modules.inventory_procurement.qml_type_registration import (
     register_inventory_procurement_qml_types,
 )
+from src.ui_qml.modules.maintenance.qml_type_registration import (
+    register_maintenance_qml_types,
+)
 from src.ui_qml.modules.project_management.qml_type_registration import (
     register_project_management_qml_types,
 )
@@ -27,6 +30,7 @@ def create_qml_engine() -> QQmlApplicationEngine:
     register_platform_qml_types()
     register_project_management_qml_types()
     register_inventory_procurement_qml_types()
+    register_maintenance_qml_types()
     engine = QQmlApplicationEngine()
     for import_root in QML_IMPORT_ROOTS:
         if import_root.exists():

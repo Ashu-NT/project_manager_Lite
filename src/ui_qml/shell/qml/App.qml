@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import InventoryProcurement.Controllers 1.0 as InventoryProcurementControllers
+import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Platform.Controllers 1.0 as PlatformControllers
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import Shell.Context 1.0 as ShellContexts
@@ -12,6 +13,7 @@ ApplicationWindow {
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property InventoryProcurementControllers.InventoryProcurementWorkspaceCatalog inventoryCatalog
+    property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
 
     width: 1280
     height: 800
@@ -25,5 +27,6 @@ ApplicationWindow {
         platformCatalog: app.platformCatalog
         pmCatalog: app.pmCatalog
         inventoryCatalog: app.inventoryCatalog
+        maintenanceCatalog: app.maintenanceCatalog
     }
 }

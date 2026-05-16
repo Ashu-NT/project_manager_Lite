@@ -1,0 +1,344 @@
+from __future__ import annotations
+
+from src.ui_qml.modules.maintenance.view_models.dashboard import (
+    MaintenanceDashboardWorkspaceViewModel,
+)
+from src.ui_qml.modules.maintenance.view_models.planner import (
+    MaintenancePlannerWorkspaceViewModel,
+)
+from src.ui_qml.modules.maintenance.view_models.reliability import (
+    MaintenanceReliabilityWorkspaceViewModel,
+)
+from src.ui_qml.modules.maintenance.view_models.workspace import (
+    MaintenanceWorkspaceViewModel,
+)
+
+
+def serialize_workspace_view_model(
+    view_model: MaintenanceWorkspaceViewModel,
+) -> dict[str, str]:
+    return {
+        "routeId": view_model.route_id,
+        "title": view_model.title,
+        "summary": view_model.summary,
+        "migrationStatus": view_model.migration_status,
+        "legacyRuntimeStatus": view_model.legacy_runtime_status,
+    }
+
+
+def serialize_selector_options(view_models) -> list[dict[str, object]]:
+    return [
+        {
+            "value": view_model.value,
+            "label": view_model.label,
+        }
+        for view_model in view_models
+    ]
+
+
+def serialize_dashboard_workspace_state(
+    view_model: MaintenanceDashboardWorkspaceViewModel,
+) -> dict[str, object]:
+    return {
+        "overview": {
+            "title": view_model.overview.title,
+            "subtitle": view_model.overview.subtitle,
+            "metrics": [
+                {
+                    "label": metric.label,
+                    "value": metric.value,
+                    "supportingText": metric.supporting_text,
+                }
+                for metric in view_model.overview.metrics
+            ],
+        },
+        "siteOptions": serialize_selector_options(view_model.site_options),
+        "selectedSiteFilter": view_model.selected_site_filter,
+        "assetOptions": serialize_selector_options(view_model.asset_options),
+        "selectedAssetFilter": view_model.selected_asset_filter,
+        "systemOptions": serialize_selector_options(view_model.system_options),
+        "selectedSystemFilter": view_model.selected_system_filter,
+        "locationOptions": serialize_selector_options(view_model.location_options),
+        "selectedLocationFilter": view_model.selected_location_filter,
+        "windowOptions": serialize_selector_options(view_model.window_options),
+        "selectedDaysFilter": view_model.selected_days_filter,
+        "backlogRows": [
+            {
+                "id": f"{row.group}:{row.label}",
+                "title": row.label,
+                "subtitle": row.group.title(),
+                "statusLabel": row.value,
+                "supportingText": "Current dashboard metric",
+                "metaText": "",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.backlog_rows
+        ],
+        "rootCauseRows": [
+            {
+                "id": f"{row.failure_name}:{row.root_cause_name}",
+                "title": row.failure_name,
+                "subtitle": row.root_cause_name,
+                "statusLabel": str(row.work_order_count),
+                "supportingText": (
+                    f"Downtime minutes: {row.total_downtime_minutes} | "
+                    f"Open work orders: {row.open_work_orders}"
+                ),
+                "metaText": f"Latest occurrence: {row.latest_occurrence_at_label}",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.root_cause_rows
+        ],
+        "recurringRows": [
+            {
+                "id": f"{row.anchor_label}:{row.failure_name}",
+                "title": row.anchor_label,
+                "subtitle": row.failure_name,
+                "statusLabel": str(row.occurrence_count),
+                "supportingText": (
+                    f"Lead cause: {row.leading_root_cause_name or '-'} | "
+                    f"Open work orders: {row.open_work_orders}"
+                ),
+                "metaText": (
+                    f"Downtime minutes: {row.total_downtime_minutes} | "
+                    f"Mean interval: {row.mean_interval_hours_label}"
+                ),
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.recurring_rows
+        ],
+        "emptyState": view_model.empty_state,
+    }
+
+
+def serialize_reliability_workspace_state(
+    view_model: MaintenanceReliabilityWorkspaceViewModel,
+) -> dict[str, object]:
+    return {
+        "overview": {
+            "title": view_model.overview.title,
+            "subtitle": view_model.overview.subtitle,
+            "metrics": [
+                {
+                    "label": metric.label,
+                    "value": metric.value,
+                    "supportingText": metric.supporting_text,
+                }
+                for metric in view_model.overview.metrics
+            ],
+        },
+        "siteOptions": serialize_selector_options(view_model.site_options),
+        "selectedSiteFilter": view_model.selected_site_filter,
+        "assetOptions": serialize_selector_options(view_model.asset_options),
+        "selectedAssetFilter": view_model.selected_asset_filter,
+        "systemOptions": serialize_selector_options(view_model.system_options),
+        "selectedSystemFilter": view_model.selected_system_filter,
+        "locationOptions": serialize_selector_options(view_model.location_options),
+        "selectedLocationFilter": view_model.selected_location_filter,
+        "failureSymptomOptions": [
+            {
+                "value": view_model_option.value,
+                "label": view_model_option.label,
+                "failureCode": view_model_option.failure_code,
+                "name": view_model_option.name,
+                "isActive": view_model_option.is_active,
+            }
+            for view_model_option in view_model.failure_symptom_options
+        ],
+        "selectedFailureCodeFilter": view_model.selected_failure_code_filter,
+        "daysOptions": serialize_selector_options(view_model.days_options),
+        "selectedDaysFilter": view_model.selected_days_filter,
+        "limitOptions": serialize_selector_options(view_model.limit_options),
+        "selectedLimitFilter": view_model.selected_limit_filter,
+        "thresholdOptions": serialize_selector_options(view_model.threshold_options),
+        "selectedThresholdFilter": view_model.selected_threshold_filter,
+        "suggestionRows": [
+            {
+                "id": f"{row.match_scope_label}:{row.root_cause_name}",
+                "title": row.root_cause_name,
+                "subtitle": row.match_scope_label,
+                "statusLabel": str(row.occurrence_count),
+                "supportingText": f"Downtime minutes: {row.total_downtime_minutes}",
+                "metaText": f"Latest occurrence: {row.latest_occurrence_at_label}",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.suggestion_rows
+        ],
+        "rootCauseRows": [
+            {
+                "id": f"{row.failure_name}:{row.root_cause_name}",
+                "title": row.failure_name,
+                "subtitle": row.root_cause_name,
+                "statusLabel": str(row.work_order_count),
+                "supportingText": (
+                    f"Downtime minutes: {row.total_downtime_minutes} | "
+                    f"Open work orders: {row.open_work_orders}"
+                ),
+                "metaText": "",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.root_cause_rows
+        ],
+        "recurringRows": [
+            {
+                "id": f"{row.anchor_label}:{row.failure_name}",
+                "title": row.anchor_label,
+                "subtitle": row.failure_name,
+                "statusLabel": str(row.occurrence_count),
+                "supportingText": (
+                    f"Lead cause: {row.leading_root_cause_name or '-'} | "
+                    f"Open work orders: {row.open_work_orders}"
+                ),
+                "metaText": f"Mean interval: {row.mean_interval_hours_label}",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.recurring_rows
+        ],
+        "emptyState": view_model.empty_state,
+    }
+
+
+def serialize_planner_workspace_state(
+    view_model: MaintenancePlannerWorkspaceViewModel,
+) -> dict[str, object]:
+    return {
+        "overview": {
+            "title": view_model.overview.title,
+            "subtitle": view_model.overview.subtitle,
+            "metrics": [
+                {
+                    "label": metric.label,
+                    "value": metric.value,
+                    "supportingText": metric.supporting_text,
+                }
+                for metric in view_model.overview.metrics
+            ],
+        },
+        "siteOptions": serialize_selector_options(view_model.site_options),
+        "selectedSiteFilter": view_model.selected_site_filter,
+        "assetOptions": serialize_selector_options(view_model.asset_options),
+        "selectedAssetFilter": view_model.selected_asset_filter,
+        "systemOptions": serialize_selector_options(view_model.system_options),
+        "selectedSystemFilter": view_model.selected_system_filter,
+        "requestQueueOptions": serialize_selector_options(
+            view_model.request_queue_options
+        ),
+        "selectedRequestQueue": view_model.selected_request_queue,
+        "workOrderQueueOptions": serialize_selector_options(
+            view_model.work_order_queue_options
+        ),
+        "selectedWorkOrderQueue": view_model.selected_work_order_queue,
+        "searchText": view_model.search_text,
+        "requestRows": [
+            {
+                "id": row.id,
+                "title": row.request_label,
+                "subtitle": row.anchor_label,
+                "statusLabel": row.status_label,
+                "supportingText": f"Priority: {row.priority_label}",
+                "metaText": "",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.request_rows
+        ],
+        "workOrderRows": [
+            {
+                "id": row.id,
+                "title": row.work_order_label,
+                "subtitle": row.work_order_type_label,
+                "statusLabel": row.status_label,
+                "supportingText": f"Priority: {row.priority_label}",
+                "metaText": f"Plan window: {row.plan_window_label}",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.work_order_rows
+        ],
+        "materialRows": [
+            {
+                "id": row.id,
+                "title": row.material_label,
+                "subtitle": row.work_order_label,
+                "statusLabel": row.procurement_status_label,
+                "supportingText": f"Quantity: {row.quantity_label}",
+                "metaText": f"Storeroom: {row.storeroom_label}",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.material_rows
+        ],
+        "preventiveRows": [
+            {
+                "id": row.plan_id,
+                "title": row.plan_label,
+                "subtitle": row.anchor_label,
+                "statusLabel": row.due_state_label,
+                "supportingText": (
+                    f"{row.generation_target_label} | {row.trigger_label}"
+                ),
+                "metaText": f"Next due: {row.next_due_label} | {row.due_reason}",
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {
+                    "isDueSoon": row.is_due_soon,
+                },
+            }
+            for row in view_model.preventive_rows
+        ],
+        "recurringRows": [
+            {
+                "id": row.anchor_id,
+                "title": row.anchor_label,
+                "subtitle": row.failure_name,
+                "statusLabel": str(row.occurrence_count),
+                "supportingText": (
+                    f"Lead cause: {row.leading_root_cause_name} | "
+                    f"Open work orders: {row.open_work_orders}"
+                ),
+                "metaText": (
+                    f"Open sensor exceptions: {row.sensor_exception_count}"
+                ),
+                "canPrimaryAction": False,
+                "canSecondaryAction": False,
+                "canTertiaryAction": False,
+                "state": {},
+            }
+            for row in view_model.recurring_rows
+        ],
+        "emptyState": view_model.empty_state,
+    }
+
+
+__all__ = [
+    "serialize_dashboard_workspace_state",
+    "serialize_planner_workspace_state",
+    "serialize_reliability_workspace_state",
+    "serialize_selector_options",
+    "serialize_workspace_view_model",
+]
