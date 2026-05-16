@@ -409,6 +409,38 @@ def test_maintenance_planner_workspace_no_longer_uses_placeholder_page() -> None
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_maintenance_work_requests_workspace_no_longer_uses_placeholder_page() -> None:
+    work_requests_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "maintenance"
+        / "qml"
+        / "workspaces"
+        / "work_requests"
+        / "WorkRequestsWorkspace.qml"
+    )
+    text = work_requests_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "WorkRequestsWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
+def test_maintenance_work_orders_workspace_no_longer_uses_placeholder_page() -> None:
+    work_orders_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "maintenance"
+        / "qml"
+        / "workspaces"
+        / "work_orders"
+        / "WorkOrdersWorkspace.qml"
+    )
+    text = work_orders_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "WorkOrdersWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     qmllint_path = shutil.which("pyside6-qmllint")
     if qmllint_path is None:
@@ -484,6 +516,20 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerFiltersSection.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsCatalogSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestDetailSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsDialogHost.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkRequestEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkRequestStatusDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersCatalogSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrderDetailSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersDialogHost.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkOrderEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkOrderStatusDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "WorkspacePlaceholderPage.qml",
     ]
     command = [qmllint_path]

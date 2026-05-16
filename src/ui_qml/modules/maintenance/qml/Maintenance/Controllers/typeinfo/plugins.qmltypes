@@ -74,6 +74,89 @@ Module {
     }
 
     Component {
+        name: "MaintenanceWorkRequestsWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "MaintenanceWorkspaceControllerBase"
+        exports: ["Maintenance.Controllers/MaintenanceWorkRequestsWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "priorityOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "assetOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedSiteFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedPriorityFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedAssetFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "workRequests"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedWorkRequest"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedWorkRequestId"; type: "QString"; isReadonly: true }
+        Property { name: "formSiteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formLocationOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formSystemOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formAssetOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formComponentOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formSourceTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formPriorityOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setSiteFilter"; Parameter { name: "siteId"; type: "QString" } }
+        Method { name: "setStatusFilter"; Parameter { name: "status"; type: "QString" } }
+        Method { name: "setPriorityFilter"; Parameter { name: "priority"; type: "QString" } }
+        Method { name: "setAssetFilter"; Parameter { name: "assetId"; type: "QString" } }
+        Method { name: "selectWorkRequest"; Parameter { name: "workRequestId"; type: "QString" } }
+        Method { name: "createWorkRequest"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateWorkRequest"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "setWorkRequestStatus"; type: "QVariantMap"; Parameter { name: "workRequestId"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    }
+
+    Component {
+        name: "MaintenanceWorkOrdersWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "MaintenanceWorkspaceControllerBase"
+        exports: ["Maintenance.Controllers/MaintenanceWorkOrdersWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "priorityOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "workOrderTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "assetOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedSiteFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedStatusFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedPriorityFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedWorkOrderTypeFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedAssetFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "workOrders"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedWorkOrder"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedWorkOrderId"; type: "QString"; isReadonly: true }
+        Property { name: "formSiteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formLocationOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formSystemOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formAssetOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formComponentOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formSourceTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formSourceWorkRequestOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formWorkOrderTypeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formPriorityOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formEmployeeOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formVendorOptions"; type: "QVariantList"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setSiteFilter"; Parameter { name: "siteId"; type: "QString" } }
+        Method { name: "setStatusFilter"; Parameter { name: "status"; type: "QString" } }
+        Method { name: "setPriorityFilter"; Parameter { name: "priority"; type: "QString" } }
+        Method { name: "setWorkOrderTypeFilter"; Parameter { name: "workOrderType"; type: "QString" } }
+        Method { name: "setAssetFilter"; Parameter { name: "assetId"; type: "QString" } }
+        Method { name: "selectWorkOrder"; Parameter { name: "workOrderId"; type: "QString" } }
+        Method { name: "createWorkOrder"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateWorkOrder"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "setWorkOrderStatus"; type: "QVariantMap"; Parameter { name: "workOrderId"; type: "QString" } Parameter { name: "status"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    }
+
+    Component {
         name: "MaintenanceReliabilityWorkspaceController"
         accessSemantics: "reference"
         prototype: "MaintenanceWorkspaceControllerBase"
@@ -116,6 +199,8 @@ Module {
         exports: ["Maintenance.Controllers/MaintenanceWorkspaceCatalog 1.0"]
         Property { name: "dashboardWorkspace"; type: "MaintenanceDashboardWorkspaceController"; isReadonly: true }
         Property { name: "plannerWorkspace"; type: "MaintenancePlannerWorkspaceController"; isReadonly: true }
+        Property { name: "workRequestsWorkspace"; type: "MaintenanceWorkRequestsWorkspaceController"; isReadonly: true }
+        Property { name: "workOrdersWorkspace"; type: "MaintenanceWorkOrdersWorkspaceController"; isReadonly: true }
         Property { name: "reliabilityWorkspace"; type: "MaintenanceReliabilityWorkspaceController"; isReadonly: true }
         Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     }

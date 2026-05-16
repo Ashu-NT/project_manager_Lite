@@ -2572,7 +2572,7 @@ Current verified progress:
 - maintenance work-orders desktop API now lives under `src/core/modules/maintenance/api/desktop/work_orders/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_work_orders` for priority/status/type descriptors, source-work-request conversion options, assignee/vendor/context options, and work-order CRUD/status transitions
 - maintenance QML module now lives under `src/ui_qml/modules/maintenance/*`, with shell/runtime wiring, typed `Maintenance.Controllers`, `Maintenance.Widgets`, and `Maintenance.Dialogs` namespaces, plus a typed `MaintenanceWorkspaceCatalog`
 - maintenance `dashboard`, `planner`, and `reliability` are now real QML workspaces under `src/ui_qml/modules/maintenance/qml/workspaces/{dashboard,planner,reliability}/*`, backed by typed presenters/controllers and the module-local desktop APIs
-- maintenance `assets`, `work_requests`, `work_orders`, and `preventive` now have typed QML landing-zone routes under `src/ui_qml/modules/maintenance/qml/workspaces/*` so navigation and future slice work stay on the new QML path
+- maintenance `work_requests` and `work_orders` have now moved beyond their landing zones into real typed QML workflows, while `assets` and `preventive` remain queued on typed QML landing-zone routes under `src/ui_qml/modules/maintenance/qml/workspaces/*`
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
 - caller rewrites remove the old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `core/modules/maintenance_management/services/runtime_catalog.py`
 - the old flat maintenance backend files `core/modules/maintenance_management/{domain.py,interfaces.py,preventive_schedule_domain.py,reliability_domain.py,support.py}` are removed after direct import rewrites
@@ -2611,7 +2611,7 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
-- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, workspace desktop-API, assets desktop-API, dashboard desktop-API, planner desktop-API, reliability desktop-API, work-requests desktop-API, and work-orders desktop-API transfers, maintenance QML now has dashboard/planner/reliability active and the remaining maintenance workspaces queued as typed landing zones
+- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, workspace desktop-API, assets desktop-API, dashboard desktop-API, planner desktop-API, reliability desktop-API, work-requests desktop-API, and work-orders desktop-API transfers, maintenance QML now has dashboard/planner/reliability/work_requests/work_orders active and the remaining maintenance workspaces queued as typed landing zones
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 

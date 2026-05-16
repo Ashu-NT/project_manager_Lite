@@ -1,1 +1,5 @@
 module Maintenance.Dialogs
+WorkRequestEditorDialog 1.0 WorkRequestEditorDialog.qml
+WorkRequestStatusDialog 1.0 WorkRequestStatusDialog.qml
+WorkOrderEditorDialog 1.0 WorkOrderEditorDialog.qml
+WorkOrderStatusDialog 1.0 WorkOrderStatusDialog.qml

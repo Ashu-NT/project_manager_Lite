@@ -30,6 +30,8 @@ class MaintenanceWorkspacePresenter:
             "maintenance_management.dashboard": "QML analytics dashboard slice active",
             "maintenance_management.planner": "QML planner review slice active",
             "maintenance_management.reliability": "QML reliability analytics slice active",
+            "maintenance_management.work_orders": "QML work-order slice active",
+            "maintenance_management.work_requests": "QML work-request slice active",
         }.get(self._route_id, "QML landing zone ready")
         return MaintenanceWorkspaceViewModel(
             route_id=route.route_id,

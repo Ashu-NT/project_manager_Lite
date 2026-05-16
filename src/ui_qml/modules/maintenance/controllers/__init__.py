@@ -10,10 +10,18 @@ from src.ui_qml.modules.maintenance.controllers.planner import (
 from src.ui_qml.modules.maintenance.controllers.reliability import (
     MaintenanceReliabilityWorkspaceController,
 )
+from src.ui_qml.modules.maintenance.controllers.work_orders import (
+    MaintenanceWorkOrdersWorkspaceController,
+)
+from src.ui_qml.modules.maintenance.controllers.work_requests import (
+    MaintenanceWorkRequestsWorkspaceController,
+)
 
 __all__ = [
     "MaintenanceDashboardWorkspaceController",
     "MaintenancePlannerWorkspaceController",
     "MaintenanceReliabilityWorkspaceController",
+    "MaintenanceWorkOrdersWorkspaceController",
+    "MaintenanceWorkRequestsWorkspaceController",
     "MaintenanceWorkspaceControllerBase",
 ]

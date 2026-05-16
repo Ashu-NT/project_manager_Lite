@@ -6,6 +6,8 @@ from src.ui_qml.modules.maintenance.controllers import (
     MaintenanceDashboardWorkspaceController,
     MaintenancePlannerWorkspaceController,
     MaintenanceReliabilityWorkspaceController,
+    MaintenanceWorkOrdersWorkspaceController,
+    MaintenanceWorkRequestsWorkspaceController,
 )
 from src.ui_qml.modules.maintenance.controllers.common import (
     serialize_workspace_view_model,
@@ -14,6 +16,8 @@ from src.ui_qml.modules.maintenance.presenters import (
     MaintenanceDashboardWorkspacePresenter,
     MaintenancePlannerWorkspacePresenter,
     MaintenanceReliabilityWorkspacePresenter,
+    MaintenanceWorkOrdersWorkspacePresenter,
+    MaintenanceWorkRequestsWorkspacePresenter,
     MaintenanceWorkspacePresenter,
     build_maintenance_workspace_presenters,
 )
@@ -42,6 +46,16 @@ class MaintenanceWorkspaceCatalog(QObject):
             "maintenance_planner",
             None,
         )
+        work_requests_api = getattr(
+            desktop_api_registry,
+            "maintenance_work_requests",
+            None,
+        )
+        work_orders_api = getattr(
+            desktop_api_registry,
+            "maintenance_work_orders",
+            None,
+        )
         self._dashboard_workspace = MaintenanceDashboardWorkspaceController(
             workspace_presenter=MaintenanceWorkspacePresenter(
                 "maintenance_management.dashboard"
@@ -57,6 +71,24 @@ class MaintenanceWorkspaceCatalog(QObject):
             ),
             planner_workspace_presenter=MaintenancePlannerWorkspacePresenter(
                 desktop_api=planner_api
+            ),
+            parent=self,
+        )
+        self._work_requests_workspace = MaintenanceWorkRequestsWorkspaceController(
+            workspace_presenter=MaintenanceWorkspacePresenter(
+                "maintenance_management.work_requests"
+            ),
+            work_requests_workspace_presenter=MaintenanceWorkRequestsWorkspacePresenter(
+                desktop_api=work_requests_api
+            ),
+            parent=self,
+        )
+        self._work_orders_workspace = MaintenanceWorkOrdersWorkspaceController(
+            workspace_presenter=MaintenanceWorkspacePresenter(
+                "maintenance_management.work_orders"
+            ),
+            work_orders_workspace_presenter=MaintenanceWorkOrdersWorkspacePresenter(
+                desktop_api=work_orders_api
             ),
             parent=self,
         )
@@ -77,6 +109,14 @@ class MaintenanceWorkspaceCatalog(QObject):
     @Property(MaintenancePlannerWorkspaceController, constant=True)
     def plannerWorkspace(self) -> MaintenancePlannerWorkspaceController:
         return self._planner_workspace
+
+    @Property(MaintenanceWorkRequestsWorkspaceController, constant=True)
+    def workRequestsWorkspace(self) -> MaintenanceWorkRequestsWorkspaceController:
+        return self._work_requests_workspace
+
+    @Property(MaintenanceWorkOrdersWorkspaceController, constant=True)
+    def workOrdersWorkspace(self) -> MaintenanceWorkOrdersWorkspaceController:
+        return self._work_orders_workspace
 
     @Property(MaintenanceReliabilityWorkspaceController, constant=True)
     def reliabilityWorkspace(self) -> MaintenanceReliabilityWorkspaceController:

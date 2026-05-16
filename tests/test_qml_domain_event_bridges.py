@@ -193,6 +193,50 @@ def test_maintenance_planner_workspace_refreshes_on_maintenance_and_site_events(
     assert refresh_calls == ["refresh", "refresh"]
 
 
+def test_maintenance_work_requests_workspace_refreshes_on_maintenance_and_site_events(
+    monkeypatch,
+) -> None:
+    catalog = MaintenanceWorkspaceCatalog()
+    controller = catalog.workRequestsWorkspace
+    refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="module",
+            scope_code="maintenance_management",
+            entity_type="maintenance_work_request",
+            entity_id="wr-1",
+            source_event="manual_test",
+        )
+    )
+    domain_events.sites_changed.emit("site-1")
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
+def test_maintenance_work_orders_workspace_refreshes_on_maintenance_and_site_events(
+    monkeypatch,
+) -> None:
+    catalog = MaintenanceWorkspaceCatalog()
+    controller = catalog.workOrdersWorkspace
+    refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="module",
+            scope_code="maintenance_management",
+            entity_type="maintenance_work_order",
+            entity_id="wo-1",
+            source_event="manual_test",
+        )
+    )
+    domain_events.sites_changed.emit("site-1")
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
 def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None:
     root = Path(__file__).resolve().parents[1]
     controller_expectations = {
@@ -258,6 +302,14 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
             'scope_code="maintenance_management"',
         ),
         "src/ui_qml/modules/maintenance/controllers/planner/planner_workspace_controller.py": (
+            "self._bind_domain_events()",
+            'scope_code="maintenance_management"',
+        ),
+        "src/ui_qml/modules/maintenance/controllers/work_requests/work_requests_workspace_controller.py": (
+            "self._bind_domain_events()",
+            'scope_code="maintenance_management"',
+        ),
+        "src/ui_qml/modules/maintenance/controllers/work_orders/work_orders_workspace_controller.py": (
             "self._bind_domain_events()",
             'scope_code="maintenance_management"',
         ),

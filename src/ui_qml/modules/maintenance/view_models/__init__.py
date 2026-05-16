@@ -30,6 +30,24 @@ from src.ui_qml.modules.maintenance.view_models.reliability import (
     MaintenanceReliabilitySuggestionRowViewModel,
     MaintenanceReliabilityWorkspaceViewModel,
 )
+from src.ui_qml.modules.maintenance.view_models.work_requests import (
+    MaintenanceWorkRequestDetailFieldViewModel,
+    MaintenanceWorkRequestDetailViewModel,
+    MaintenanceWorkRequestMetricViewModel,
+    MaintenanceWorkRequestOptionViewModel,
+    MaintenanceWorkRequestOverviewViewModel,
+    MaintenanceWorkRequestRecordViewModel,
+    MaintenanceWorkRequestsWorkspaceViewModel,
+)
+from src.ui_qml.modules.maintenance.view_models.work_orders import (
+    MaintenanceWorkOrderDetailFieldViewModel,
+    MaintenanceWorkOrderDetailViewModel,
+    MaintenanceWorkOrderMetricViewModel,
+    MaintenanceWorkOrderOptionViewModel,
+    MaintenanceWorkOrderOverviewViewModel,
+    MaintenanceWorkOrderRecordViewModel,
+    MaintenanceWorkOrdersWorkspaceViewModel,
+)
 from src.ui_qml.modules.maintenance.view_models.workspace import (
     MaintenanceWorkspaceViewModel,
 )
@@ -59,5 +77,19 @@ __all__ = [
     "MaintenanceReliabilityRecurringRowViewModel",
     "MaintenanceReliabilitySuggestionRowViewModel",
     "MaintenanceReliabilityWorkspaceViewModel",
+    "MaintenanceWorkRequestDetailFieldViewModel",
+    "MaintenanceWorkRequestDetailViewModel",
+    "MaintenanceWorkRequestMetricViewModel",
+    "MaintenanceWorkRequestOptionViewModel",
+    "MaintenanceWorkRequestOverviewViewModel",
+    "MaintenanceWorkRequestRecordViewModel",
+    "MaintenanceWorkRequestsWorkspaceViewModel",
+    "MaintenanceWorkOrderDetailFieldViewModel",
+    "MaintenanceWorkOrderDetailViewModel",
+    "MaintenanceWorkOrderMetricViewModel",
+    "MaintenanceWorkOrderOptionViewModel",
+    "MaintenanceWorkOrderOverviewViewModel",
+    "MaintenanceWorkOrderRecordViewModel",
+    "MaintenanceWorkOrdersWorkspaceViewModel",
     "MaintenanceWorkspaceViewModel",
 ]
