@@ -1,0 +1,43 @@
+from src.core.modules.maintenance.api.desktop.preventive.api import (
+    MaintenancePreventiveDesktopApi,
+    build_maintenance_preventive_desktop_api,
+)
+from src.core.modules.maintenance.api.desktop.preventive.models import (
+    MaintenancePreventiveChoiceDescriptor,
+    MaintenancePreventiveForecastRowDescriptor,
+    MaintenancePreventiveGenerationResultDescriptor,
+    MaintenancePreventivePlanCreateCommand,
+    MaintenancePreventivePlanDesktopDto,
+    MaintenancePreventivePlanTaskCreateCommand,
+    MaintenancePreventivePlanTaskDesktopDto,
+    MaintenancePreventivePlanTaskUpdateCommand,
+    MaintenancePreventivePlanUpdateCommand,
+    MaintenancePreventiveQueueRowDescriptor,
+    MaintenanceTaskStepTemplateCreateCommand,
+    MaintenanceTaskStepTemplateDesktopDto,
+    MaintenanceTaskStepTemplateUpdateCommand,
+    MaintenanceTaskTemplateCreateCommand,
+    MaintenanceTaskTemplateDesktopDto,
+    MaintenanceTaskTemplateUpdateCommand,
+)
+
+__all__ = [
+    "MaintenancePreventiveChoiceDescriptor",
+    "MaintenancePreventiveDesktopApi",
+    "MaintenancePreventiveForecastRowDescriptor",
+    "MaintenancePreventiveGenerationResultDescriptor",
+    "MaintenancePreventivePlanCreateCommand",
+    "MaintenancePreventivePlanDesktopDto",
+    "MaintenancePreventivePlanTaskCreateCommand",
+    "MaintenancePreventivePlanTaskDesktopDto",
+    "MaintenancePreventivePlanTaskUpdateCommand",
+    "MaintenancePreventivePlanUpdateCommand",
+    "MaintenancePreventiveQueueRowDescriptor",
+    "MaintenanceTaskStepTemplateCreateCommand",
+    "MaintenanceTaskStepTemplateDesktopDto",
+    "MaintenanceTaskStepTemplateUpdateCommand",
+    "MaintenanceTaskTemplateCreateCommand",
+    "MaintenanceTaskTemplateDesktopDto",
+    "MaintenanceTaskTemplateUpdateCommand",
+    "build_maintenance_preventive_desktop_api",
+]

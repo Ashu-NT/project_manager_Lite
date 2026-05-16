@@ -6,6 +6,7 @@ from src.ui_qml.modules.maintenance.controllers import (
     MaintenanceAssetsWorkspaceController,
     MaintenanceDashboardWorkspaceController,
     MaintenancePlannerWorkspaceController,
+    MaintenancePreventiveWorkspaceController,
     MaintenanceReliabilityWorkspaceController,
     MaintenanceWorkOrdersWorkspaceController,
     MaintenanceWorkRequestsWorkspaceController,
@@ -17,6 +18,7 @@ from src.ui_qml.modules.maintenance.presenters import (
     MaintenanceAssetsWorkspacePresenter,
     MaintenanceDashboardWorkspacePresenter,
     MaintenancePlannerWorkspacePresenter,
+    MaintenancePreventiveWorkspacePresenter,
     MaintenanceReliabilityWorkspacePresenter,
     MaintenanceWorkOrdersWorkspacePresenter,
     MaintenanceWorkRequestsWorkspacePresenter,
@@ -53,6 +55,11 @@ class MaintenanceWorkspaceCatalog(QObject):
             "maintenance_planner",
             None,
         )
+        preventive_api = getattr(
+            desktop_api_registry,
+            "maintenance_preventive",
+            None,
+        )
         work_requests_api = getattr(
             desktop_api_registry,
             "maintenance_work_requests",
@@ -87,6 +94,15 @@ class MaintenanceWorkspaceCatalog(QObject):
             ),
             planner_workspace_presenter=MaintenancePlannerWorkspacePresenter(
                 desktop_api=planner_api
+            ),
+            parent=self,
+        )
+        self._preventive_workspace = MaintenancePreventiveWorkspaceController(
+            workspace_presenter=MaintenanceWorkspacePresenter(
+                "maintenance_management.preventive"
+            ),
+            preventive_workspace_presenter=MaintenancePreventiveWorkspacePresenter(
+                desktop_api=preventive_api
             ),
             parent=self,
         )
@@ -129,6 +145,10 @@ class MaintenanceWorkspaceCatalog(QObject):
     @Property(MaintenancePlannerWorkspaceController, constant=True)
     def plannerWorkspace(self) -> MaintenancePlannerWorkspaceController:
         return self._planner_workspace
+
+    @Property(MaintenancePreventiveWorkspaceController, constant=True)
+    def preventiveWorkspace(self) -> MaintenancePreventiveWorkspaceController:
+        return self._preventive_workspace
 
     @Property(MaintenanceWorkRequestsWorkspaceController, constant=True)
     def workRequestsWorkspace(self) -> MaintenanceWorkRequestsWorkspaceController:

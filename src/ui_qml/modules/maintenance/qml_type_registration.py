@@ -7,6 +7,7 @@ from src.ui_qml.modules.maintenance.controllers import (
     MaintenanceAssetsWorkspaceController,
     MaintenanceDashboardWorkspaceController,
     MaintenancePlannerWorkspaceController,
+    MaintenancePreventiveWorkspaceController,
     MaintenanceReliabilityWorkspaceController,
     MaintenanceWorkOrdersWorkspaceController,
     MaintenanceWorkRequestsWorkspaceController,
@@ -52,6 +53,14 @@ def register_maintenance_qml_types() -> None:
         1,
         0,
         "MaintenancePlannerWorkspaceController",
+        "Maintenance workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        MaintenancePreventiveWorkspaceController,
+        "Maintenance.Controllers",
+        1,
+        0,
+        "MaintenancePreventiveWorkspaceController",
         "Maintenance workspace controllers are provided by the shell runtime.",
     )
     qmlRegisterUncreatableType(

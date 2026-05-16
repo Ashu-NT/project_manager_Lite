@@ -60,6 +60,7 @@ from src.core.modules.maintenance.api.desktop import (
     MaintenanceAssetsDesktopApi,
     MaintenanceDashboardDesktopApi,
     MaintenancePlannerDesktopApi,
+    MaintenancePreventiveDesktopApi,
     MaintenanceReliabilityDesktopApi,
     MaintenanceWorkOrdersDesktopApi,
     MaintenanceWorkRequestsDesktopApi,
@@ -67,6 +68,7 @@ from src.core.modules.maintenance.api.desktop import (
     build_maintenance_assets_desktop_api,
     build_maintenance_dashboard_desktop_api,
     build_maintenance_planner_desktop_api,
+    build_maintenance_preventive_desktop_api,
     build_maintenance_reliability_desktop_api,
     build_maintenance_work_orders_desktop_api,
     build_maintenance_work_requests_desktop_api,
@@ -79,8 +81,12 @@ from src.core.modules.maintenance import (
     MaintenanceLocationService,
     MaintenancePreventiveGenerationService,
     MaintenancePreventivePlanService,
+    MaintenancePreventivePlanTaskService,
     MaintenanceReliabilityService,
+    MaintenanceSensorService,
     MaintenanceSensorExceptionService,
+    MaintenanceTaskStepTemplateService,
+    MaintenanceTaskTemplateService,
     MaintenanceSystemService,
     MaintenanceWorkOrderMaterialRequirementService,
     MaintenanceWorkOrderService,
@@ -170,6 +176,7 @@ class DesktopApiRegistry:
     maintenance_assets: MaintenanceAssetsDesktopApi
     maintenance_dashboard: MaintenanceDashboardDesktopApi
     maintenance_planner: MaintenancePlannerDesktopApi
+    maintenance_preventive: MaintenancePreventiveDesktopApi
     maintenance_reliability: MaintenanceReliabilityDesktopApi
     maintenance_work_requests: MaintenanceWorkRequestsDesktopApi
     maintenance_work_orders: MaintenanceWorkOrdersDesktopApi
@@ -274,12 +281,40 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         MaintenancePreventiveGenerationService,
     ):
         maintenance_preventive_generation_service = None
+    maintenance_preventive_plan_task_service = services.get(
+        "maintenance_preventive_plan_task_service"
+    )
+    if not isinstance(
+        maintenance_preventive_plan_task_service,
+        MaintenancePreventivePlanTaskService,
+    ):
+        maintenance_preventive_plan_task_service = None
+    maintenance_task_template_service = services.get("maintenance_task_template_service")
+    if not isinstance(
+        maintenance_task_template_service,
+        MaintenanceTaskTemplateService,
+    ):
+        maintenance_task_template_service = None
+    maintenance_task_step_template_service = services.get(
+        "maintenance_task_step_template_service"
+    )
+    if not isinstance(
+        maintenance_task_step_template_service,
+        MaintenanceTaskStepTemplateService,
+    ):
+        maintenance_task_step_template_service = None
     maintenance_reliability_service = services.get("maintenance_reliability_service")
     if not isinstance(
         maintenance_reliability_service,
         MaintenanceReliabilityService,
     ):
         maintenance_reliability_service = None
+    maintenance_sensor_service = services.get("maintenance_sensor_service")
+    if not isinstance(
+        maintenance_sensor_service,
+        MaintenanceSensorService,
+    ):
+        maintenance_sensor_service = None
     maintenance_sensor_exception_service = services.get("maintenance_sensor_exception_service")
     if not isinstance(
         maintenance_sensor_exception_service,
@@ -567,6 +602,18 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             preventive_generation_service=maintenance_preventive_generation_service,
             reliability_service=maintenance_reliability_service,
             sensor_exception_service=maintenance_sensor_exception_service,
+        ),
+        maintenance_preventive=build_maintenance_preventive_desktop_api(
+            site_service=site_service,
+            asset_service=maintenance_asset_service,
+            component_service=maintenance_component_service,
+            system_service=maintenance_system_service,
+            sensor_service=maintenance_sensor_service,
+            task_template_service=maintenance_task_template_service,
+            task_step_template_service=maintenance_task_step_template_service,
+            preventive_plan_service=maintenance_preventive_plan_service,
+            preventive_plan_task_service=maintenance_preventive_plan_task_service,
+            preventive_generation_service=maintenance_preventive_generation_service,
         ),
         maintenance_reliability=build_maintenance_reliability_desktop_api(
             reliability_service=maintenance_reliability_service,

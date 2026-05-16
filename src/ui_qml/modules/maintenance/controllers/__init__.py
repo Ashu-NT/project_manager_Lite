@@ -10,6 +10,9 @@ from src.ui_qml.modules.maintenance.controllers.dashboard import (
 from src.ui_qml.modules.maintenance.controllers.planner import (
     MaintenancePlannerWorkspaceController,
 )
+from src.ui_qml.modules.maintenance.controllers.preventive import (
+    MaintenancePreventiveWorkspaceController,
+)
 from src.ui_qml.modules.maintenance.controllers.reliability import (
     MaintenanceReliabilityWorkspaceController,
 )
@@ -24,6 +27,7 @@ __all__ = [
     "MaintenanceAssetsWorkspaceController",
     "MaintenanceDashboardWorkspaceController",
     "MaintenancePlannerWorkspaceController",
+    "MaintenancePreventiveWorkspaceController",
     "MaintenanceReliabilityWorkspaceController",
     "MaintenanceWorkOrdersWorkspaceController",
     "MaintenanceWorkRequestsWorkspaceController",

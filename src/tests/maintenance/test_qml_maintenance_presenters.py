@@ -4,11 +4,15 @@ from types import SimpleNamespace
 from src.api.desktop.runtime import build_desktop_api_registry
 from src.core.modules.maintenance.api.desktop import (
     MaintenanceLocationCreateCommand,
+    MaintenancePreventivePlanCreateCommand,
+    MaintenancePreventivePlanTaskCreateCommand,
+    MaintenanceTaskTemplateCreateCommand,
     MaintenanceWorkRequestCreateCommand,
     MaintenanceWorkOrderCreateCommand,
     build_maintenance_assets_desktop_api,
     build_maintenance_dashboard_desktop_api,
     build_maintenance_planner_desktop_api,
+    build_maintenance_preventive_desktop_api,
     build_maintenance_reliability_desktop_api,
     build_maintenance_work_orders_desktop_api,
     build_maintenance_work_requests_desktop_api,
@@ -217,6 +221,111 @@ def test_maintenance_workspace_catalog_exposes_typed_planner_controller(
     assert controller.selectedRequestQueue == "ALL_REQUESTS"
 
 
+def test_maintenance_workspace_catalog_exposes_typed_preventive_controller(
+    services,
+) -> None:
+    site = services["site_service"].create_site(
+        site_code="MNT-PREV",
+        name="Maintenance Preventive Site",
+        city="Bonn",
+        currency_code="EUR",
+    )
+    location = services["maintenance_location_service"].create_location(
+        site_id=site.id,
+        location_code="LOC-PREV-QML",
+        name="Preventive Area",
+    )
+    system = services["maintenance_system_service"].create_system(
+        site_id=site.id,
+        location_id=location.id,
+        system_code="SYS-PREV-QML",
+        name="Preventive Line",
+    )
+    asset = services["maintenance_asset_service"].create_asset(
+        site_id=site.id,
+        location_id=location.id,
+        system_id=system.id,
+        asset_code="AST-PREV-QML",
+        name="Preventive Pump",
+    )
+    sensor = services["maintenance_sensor_service"].create_sensor(
+        site_id=site.id,
+        asset_id=asset.id,
+        system_id=system.id,
+        sensor_code="RUN-HRS-QML",
+        sensor_name="Run Hours",
+        sensor_type="running_hours",
+        source_type="manual",
+        unit="H",
+    )
+    preventive_api = build_maintenance_preventive_desktop_api(
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        component_service=services["maintenance_asset_component_service"],
+        system_service=services["maintenance_system_service"],
+        sensor_service=services["maintenance_sensor_service"],
+        task_template_service=services["maintenance_task_template_service"],
+        task_step_template_service=services["maintenance_task_step_template_service"],
+        preventive_plan_service=services["maintenance_preventive_plan_service"],
+        preventive_plan_task_service=services["maintenance_preventive_plan_task_service"],
+        preventive_generation_service=services["maintenance_preventive_generation_service"],
+    )
+    task_template = preventive_api.create_task_template(
+        MaintenanceTaskTemplateCreateCommand(
+            task_template_code="PM-QML-TPL",
+            name="Monthly inspection",
+            maintenance_type="PREVENTIVE",
+            template_status="ACTIVE",
+            estimated_minutes=30,
+        )
+    )
+    plan = preventive_api.create_preventive_plan(
+        MaintenancePreventivePlanCreateCommand(
+            site_id=site.id,
+            plan_code="PM-QML-PLAN",
+            name="Monthly route",
+            asset_id=asset.id,
+            system_id=system.id,
+            trigger_mode="SENSOR",
+            sensor_id=sensor.id,
+            sensor_threshold="1000",
+            sensor_direction="GREATER_OR_EQUAL",
+            generation_horizon_count=3,
+            generation_lead_value=1,
+            generation_lead_unit="DAYS",
+            status="ACTIVE",
+        )
+    )
+    preventive_api.create_plan_task(
+        MaintenancePreventivePlanTaskCreateCommand(
+            plan_id=plan.id,
+            task_template_id=task_template.id,
+            sequence_no=1,
+            trigger_scope="INHERIT_PLAN",
+        )
+    )
+    catalog = MaintenanceWorkspaceCatalog(
+        desktop_api_registry=SimpleNamespace(
+            maintenance_preventive=preventive_api,
+        )
+    )
+
+    controller = catalog.preventiveWorkspace
+
+    assert controller.workspace["routeId"] == "maintenance_management.preventive"
+    assert controller.workspace["migrationStatus"] == "QML preventive slice active"
+    assert controller.overview["title"] == "Preventive"
+    assert controller.queueState["plans"]["items"][0]["title"] == "PM-QML-PLAN - Monthly route"
+    assert controller.planLibraryState["plans"]["items"][0]["title"] == "PM-QML-PLAN - Monthly route"
+    assert controller.templateLibraryState["templates"]["items"][0]["title"] == "PM-QML-TPL - Monthly inspection"
+
+    controller.setQueueDueStateFilter("DUE")
+    controller.selectPlan(plan.id)
+
+    assert controller.queueState["selectedDueStateFilter"] == "DUE"
+    assert controller.planLibraryState["selectedPlanId"] == plan.id
+
+
 def test_maintenance_workspace_catalog_exposes_typed_work_requests_controller(
     services,
 ) -> None:
@@ -357,6 +466,7 @@ def test_maintenance_routes_are_in_desktop_registry(services) -> None:
     assert registry.maintenance_workspaces.list_workspaces()[0].key == "dashboard"
     assert registry.maintenance_dashboard.build_snapshot().overview.title == "Maintenance Dashboard"
     assert registry.maintenance_planner.build_snapshot().overview.title == "Planner"
+    assert registry.maintenance_preventive.list_plan_statuses()[0].value == "DRAFT"
     assert registry.maintenance_reliability.build_snapshot().overview.title == "Reliability"
     assert registry.maintenance_work_requests.list_statuses()[0].value == "NEW"
     assert registry.maintenance_work_orders.list_statuses()[0].value == "DRAFT"

@@ -259,6 +259,28 @@ def test_maintenance_work_orders_workspace_refreshes_on_maintenance_and_site_eve
     assert refresh_calls == ["refresh", "refresh"]
 
 
+def test_maintenance_preventive_workspace_refreshes_on_maintenance_and_site_events(
+    monkeypatch,
+) -> None:
+    catalog = MaintenanceWorkspaceCatalog()
+    controller = catalog.preventiveWorkspace
+    refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="module",
+            scope_code="maintenance_management",
+            entity_type="maintenance_preventive_plan",
+            entity_id="plan-1",
+            source_event="manual_test",
+        )
+    )
+    domain_events.sites_changed.emit("site-1")
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
 def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None:
     root = Path(__file__).resolve().parents[1]
     controller_expectations = {
@@ -336,6 +358,10 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
             'scope_code="maintenance_management"',
         ),
         "src/ui_qml/modules/maintenance/controllers/work_orders/work_orders_workspace_controller.py": (
+            "self._bind_domain_events()",
+            'scope_code="maintenance_management"',
+        ),
+        "src/ui_qml/modules/maintenance/controllers/preventive/preventive_workspace_controller.py": (
             "self._bind_domain_events()",
             'scope_code="maintenance_management"',
         ),

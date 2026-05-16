@@ -457,6 +457,22 @@ def test_maintenance_work_orders_workspace_no_longer_uses_placeholder_page() -> 
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_maintenance_preventive_workspace_no_longer_uses_placeholder_page() -> None:
+    preventive_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "maintenance"
+        / "qml"
+        / "workspaces"
+        / "preventive"
+        / "PreventiveWorkspace.qml"
+    )
+    text = preventive_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "PreventiveWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     qmllint_path = shutil.which("pyside6-qmllint")
     if qmllint_path is None:
@@ -553,8 +569,19 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersCatalogSection.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrderDetailSection.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersDialogHost.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveMetricsSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveDetailSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveQueueSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventivePlansSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveTemplatesSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveDialogHost.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkOrderEditorDialog.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkOrderStatusDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "PreventivePlanEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "PreventivePlanTaskEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "TaskTemplateEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "TaskStepTemplateEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "WorkspacePlaceholderPage.qml",
     ]
     command = [qmllint_path]

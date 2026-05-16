@@ -9,6 +9,9 @@ from src.ui_qml.modules.maintenance.presenters.dashboard_workspace_presenter imp
 from src.ui_qml.modules.maintenance.presenters.planner_workspace_presenter import (
     MaintenancePlannerWorkspacePresenter,
 )
+from src.ui_qml.modules.maintenance.presenters.preventive_workspace_presenter import (
+    MaintenancePreventiveWorkspacePresenter,
+)
 from src.ui_qml.modules.maintenance.presenters.reliability_workspace_presenter import (
     MaintenanceReliabilityWorkspacePresenter,
 )
@@ -27,6 +30,7 @@ __all__ = [
     "MaintenanceAssetsWorkspacePresenter",
     "MaintenanceDashboardWorkspacePresenter",
     "MaintenancePlannerWorkspacePresenter",
+    "MaintenancePreventiveWorkspacePresenter",
     "MaintenanceReliabilityWorkspacePresenter",
     "MaintenanceWorkOrdersWorkspacePresenter",
     "MaintenanceWorkRequestsWorkspacePresenter",

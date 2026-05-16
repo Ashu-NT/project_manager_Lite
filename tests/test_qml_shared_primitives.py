@@ -290,6 +290,12 @@ def test_qml_maintenance_modules_exist() -> None:
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersDialogHost.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveWorkspace.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveMetricsSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveDetailSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveQueueSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventivePlansSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveTemplatesSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveDialogHost.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerWorkspace.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerFiltersSection.qml",
@@ -307,6 +313,10 @@ def test_qml_maintenance_modules_exist() -> None:
         QML_MAINT_DIALOGS / "WorkRequestStatusDialog.qml",
         QML_MAINT_DIALOGS / "WorkOrderEditorDialog.qml",
         QML_MAINT_DIALOGS / "WorkOrderStatusDialog.qml",
+        QML_MAINT_DIALOGS / "PreventivePlanEditorDialog.qml",
+        QML_MAINT_DIALOGS / "PreventivePlanTaskEditorDialog.qml",
+        QML_MAINT_DIALOGS / "TaskTemplateEditorDialog.qml",
+        QML_MAINT_DIALOGS / "TaskStepTemplateEditorDialog.qml",
     ]
 
     assert all(path.exists() for path in expected_files)
