@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from src.ui_qml.shell.context import build_shell_context
-from src.ui_qml.shell.login import LoginViewModel
+from src.ui_qml.shell.login import LoginViewModel, ShellLoginController
 from src.ui_qml.shell.main_window import build_main_window_navigation
 from src.ui_qml.shell.qml_engine import QML_IMPORT_ROOTS
 from src.ui_qml.shell.qml_registry import QmlRouteRegistry, build_qml_route_registry
@@ -122,6 +122,23 @@ def test_qml_login_view_model_keeps_empty_credentials_by_default() -> None:
     assert not view_model.is_busy
 
 
+def test_qml_login_controller_authenticates_and_updates_session(services) -> None:
+    services["user_session"].clear()
+    controller = ShellLoginController(
+        auth_service=services["auth_service"],
+        user_session=services["user_session"],
+    )
+
+    controller.setUsername("admin")
+    controller.setPassword("ChangeMe123!")
+    controller.signIn()
+
+    assert controller.isAuthenticated is True
+    assert controller.errorMessage == ""
+    assert controller.password == ""
+    assert services["user_session"].is_authenticated() is True
+
+
 def test_qml_engine_registers_named_import_roots() -> None:
     import_roots = {path.resolve() for path in QML_IMPORT_ROOTS}
 
@@ -132,8 +149,8 @@ def test_qml_engine_registers_named_import_roots() -> None:
     assert Path("src/ui_qml/modules/maintenance/qml").resolve() in import_roots
 
 
-def test_qml_shell_does_not_replace_widget_entrypoint_yet() -> None:
+def test_qml_shell_replaces_widget_entrypoint() -> None:
     entrypoint = Path("main_qt.py").read_text(encoding="utf-8")
 
-    assert "from src.ui.shell.app import main" in entrypoint
-    assert "src.ui_qml.shell.app" not in entrypoint
+    assert "from src.ui_qml.shell.app import main" in entrypoint
+    assert "src.ui.shell.app" not in entrypoint

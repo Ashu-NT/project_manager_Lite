@@ -1,0 +1,21 @@
+import QtQuick.tooling 1.2
+
+Module {
+    Component {
+        name: "ShellLoginController"
+        accessSemantics: "reference"
+        prototype: "QObject"
+        exports: ["Shell.Controllers/ShellLoginController 1.0"]
+        Property { name: "username"; type: "QString" }
+        Property { name: "password"; type: "QString" }
+        Property { name: "errorMessage"; type: "QString"; isReadonly: true }
+        Property { name: "isBusy"; type: "bool"; isReadonly: true }
+        Property { name: "isAuthenticated"; type: "bool"; isReadonly: true }
+        Method { name: "setUsername"; Parameter { name: "value"; type: "QString" } }
+        Method { name: "setPassword"; Parameter { name: "value"; type: "QString" } }
+        Method { name: "signIn" }
+        Method { name: "cancel" }
+        Signal { name: "accepted" }
+        Signal { name: "rejected" }
+    }
+}

@@ -6,14 +6,14 @@ from uuid import uuid4
 
 from PySide6.QtCore import QSettings
 
-from src.ui.platform.settings.main_window_store import MainWindowSettingsStore
+from src.infra.platform.app_settings import AppSettingsStore
 
 
-def make_settings_store(root: Path, *, prefix: str) -> MainWindowSettingsStore:
+def make_settings_store(root: Path, *, prefix: str) -> AppSettingsStore:
     settings_path = root / f"{prefix}-{uuid4().hex}.ini"
     settings = QSettings(str(settings_path), QSettings.IniFormat)
     settings.clear()
-    return MainWindowSettingsStore(settings)
+    return AppSettingsStore(settings)
 
 
 def login_as(services, username: str, password: str):

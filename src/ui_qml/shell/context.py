@@ -92,4 +92,23 @@ def build_shell_context(navigation_items: list[NavigationItemViewModel]) -> Shel
     )
 
 
-__all__ = ["ShellContext", "build_shell_context"]
+def update_shell_runtime_state(
+    shell_context: ShellContext,
+    *,
+    theme_mode: str | None = None,
+    user_display_name: str | None = None,
+) -> None:
+    if theme_mode is not None:
+        normalized_theme = (theme_mode or "light").strip().lower()
+        normalized_theme = "dark" if normalized_theme == "dark" else "light"
+        if normalized_theme != shell_context._theme_mode:  # noqa: SLF001
+            shell_context._theme_mode = normalized_theme  # noqa: SLF001
+            shell_context.themeModeChanged.emit()
+    if user_display_name is not None:
+        normalized_name = (user_display_name or "").strip()
+        if normalized_name != shell_context._user_display_name:  # noqa: SLF001
+            shell_context._user_display_name = normalized_name  # noqa: SLF001
+            shell_context.userDisplayNameChanged.emit()
+
+
+__all__ = ["ShellContext", "build_shell_context", "update_shell_runtime_state"]

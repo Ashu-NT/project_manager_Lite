@@ -4,8 +4,6 @@ import pytest
 from sqlalchemy import text
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from tests.ui_runtime_helpers import make_settings_store
-from src.ui.shell.main_window import MainWindow
 
 
 def test_module_catalog_service_bootstraps_persistent_defaults(services):
@@ -69,28 +67,6 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
     assert "hr_management" in rows
     assert "payroll" not in rows
 
-
-def test_main_window_rebuilds_when_modules_change(qapp, services, repo_workspace, monkeypatch):
-    store = make_settings_store(repo_workspace, prefix="main-window-module-refresh")
-    monkeypatch.setattr("src.ui.shell.main_window.MainWindowSettingsStore", lambda: store)
-    monkeypatch.setattr(MainWindow, "_run_startup_update_check", lambda self: None)
-
-    window = MainWindow(services)
-    labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
-    assert "Projects" in labels
-    assert "Modules" in labels
-
-    services["module_catalog_service"].set_module_state("project_management", enabled=False)
-    qapp.processEvents()
-    labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
-    assert "Home" in labels
-    assert "Modules" in labels
-    assert "Projects" not in labels
-
-    services["module_catalog_service"].set_module_state("project_management", enabled=True)
-    qapp.processEvents()
-    labels = [window.tabs.tabText(i) for i in range(window.tabs.count())]
-    assert "Projects" in labels
 
 
 def test_project_management_services_block_direct_calls_when_module_disabled(services):

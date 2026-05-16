@@ -31,8 +31,8 @@ Rectangle {
 
         Label {
             text: header.shellModel
-                ? (header.shellModel.userDisplayName || "QML migration shell")
-                : "QML migration shell"
+                ? (header.shellModel.userDisplayName || "Workspace shell")
+                : "Workspace shell"
             color: Theme.AppTheme.textOnAccent
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.bodySize
