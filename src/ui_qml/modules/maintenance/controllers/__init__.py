@@ -1,3 +1,6 @@
+from src.ui_qml.modules.maintenance.controllers.assets import (
+    MaintenanceAssetsWorkspaceController,
+)
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
 )
@@ -18,6 +21,7 @@ from src.ui_qml.modules.maintenance.controllers.work_requests import (
 )
 
 __all__ = [
+    "MaintenanceAssetsWorkspaceController",
     "MaintenanceDashboardWorkspaceController",
     "MaintenancePlannerWorkspaceController",
     "MaintenanceReliabilityWorkspaceController",

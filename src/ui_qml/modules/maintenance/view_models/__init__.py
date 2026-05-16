@@ -1,5 +1,15 @@
 """Maintenance QML view models."""
 
+from src.ui_qml.modules.maintenance.view_models.assets import (
+    MaintenanceAssetLibraryCatalogViewModel,
+    MaintenanceAssetLibraryDetailFieldViewModel,
+    MaintenanceAssetLibraryDetailViewModel,
+    MaintenanceAssetLibraryMetricViewModel,
+    MaintenanceAssetLibraryOptionViewModel,
+    MaintenanceAssetLibraryOverviewViewModel,
+    MaintenanceAssetLibraryRecordViewModel,
+    MaintenanceAssetsWorkspaceViewModel,
+)
 from src.ui_qml.modules.maintenance.view_models.dashboard import (
     MaintenanceDashboardBacklogRowViewModel,
     MaintenanceDashboardOverviewViewModel,
@@ -53,6 +63,14 @@ from src.ui_qml.modules.maintenance.view_models.workspace import (
 )
 
 __all__ = [
+    "MaintenanceAssetLibraryCatalogViewModel",
+    "MaintenanceAssetLibraryDetailFieldViewModel",
+    "MaintenanceAssetLibraryDetailViewModel",
+    "MaintenanceAssetLibraryMetricViewModel",
+    "MaintenanceAssetLibraryOptionViewModel",
+    "MaintenanceAssetLibraryOverviewViewModel",
+    "MaintenanceAssetLibraryRecordViewModel",
+    "MaintenanceAssetsWorkspaceViewModel",
     "MaintenanceDashboardBacklogRowViewModel",
     "MaintenanceDashboardOverviewViewModel",
     "MaintenanceDashboardRecurringRowViewModel",

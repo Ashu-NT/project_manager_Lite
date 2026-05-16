@@ -1,5 +1,8 @@
 """Maintenance QML presenters."""
 
+from src.ui_qml.modules.maintenance.presenters.assets_workspace_presenter import (
+    MaintenanceAssetsWorkspacePresenter,
+)
 from src.ui_qml.modules.maintenance.presenters.dashboard_workspace_presenter import (
     MaintenanceDashboardWorkspacePresenter,
 )
@@ -21,6 +24,7 @@ from src.ui_qml.modules.maintenance.presenters.workspace_presenter import (
 )
 
 __all__ = [
+    "MaintenanceAssetsWorkspacePresenter",
     "MaintenanceDashboardWorkspacePresenter",
     "MaintenancePlannerWorkspacePresenter",
     "MaintenanceReliabilityWorkspacePresenter",

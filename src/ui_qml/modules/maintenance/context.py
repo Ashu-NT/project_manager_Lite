@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 
 from src.ui_qml.modules.maintenance.controllers import (
+    MaintenanceAssetsWorkspaceController,
     MaintenanceDashboardWorkspaceController,
     MaintenancePlannerWorkspaceController,
     MaintenanceReliabilityWorkspaceController,
@@ -13,6 +14,7 @@ from src.ui_qml.modules.maintenance.controllers.common import (
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.maintenance.presenters import (
+    MaintenanceAssetsWorkspacePresenter,
     MaintenanceDashboardWorkspacePresenter,
     MaintenancePlannerWorkspacePresenter,
     MaintenanceReliabilityWorkspacePresenter,
@@ -34,6 +36,11 @@ class MaintenanceWorkspaceCatalog(QObject):
         dashboard_api = getattr(
             desktop_api_registry,
             "maintenance_dashboard",
+            None,
+        )
+        assets_api = getattr(
+            desktop_api_registry,
+            "maintenance_assets",
             None,
         )
         reliability_api = getattr(
@@ -62,6 +69,15 @@ class MaintenanceWorkspaceCatalog(QObject):
             ),
             dashboard_workspace_presenter=MaintenanceDashboardWorkspacePresenter(
                 desktop_api=dashboard_api
+            ),
+            parent=self,
+        )
+        self._assets_workspace = MaintenanceAssetsWorkspaceController(
+            workspace_presenter=MaintenanceWorkspacePresenter(
+                "maintenance_management.assets"
+            ),
+            assets_workspace_presenter=MaintenanceAssetsWorkspacePresenter(
+                desktop_api=assets_api
             ),
             parent=self,
         )
@@ -105,6 +121,10 @@ class MaintenanceWorkspaceCatalog(QObject):
     @Property(MaintenanceDashboardWorkspaceController, constant=True)
     def dashboardWorkspace(self) -> MaintenanceDashboardWorkspaceController:
         return self._dashboard_workspace
+
+    @Property(MaintenanceAssetsWorkspaceController, constant=True)
+    def assetsWorkspace(self) -> MaintenanceAssetsWorkspaceController:
+        return self._assets_workspace
 
     @Property(MaintenancePlannerWorkspaceController, constant=True)
     def plannerWorkspace(self) -> MaintenancePlannerWorkspaceController:

@@ -28,6 +28,7 @@ class MaintenanceWorkspacePresenter:
         summary = descriptor.summary if descriptor is not None else ""
         migration_status = {
             "maintenance_management.dashboard": "QML analytics dashboard slice active",
+            "maintenance_management.assets": "QML asset-library slice active",
             "maintenance_management.planner": "QML planner review slice active",
             "maintenance_management.reliability": "QML reliability analytics slice active",
             "maintenance_management.work_orders": "QML work-order slice active",

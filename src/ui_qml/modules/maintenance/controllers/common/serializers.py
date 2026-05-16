@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.maintenance.view_models.assets import (
+    MaintenanceAssetLibraryCatalogViewModel,
+    MaintenanceAssetLibraryDetailViewModel,
+    MaintenanceAssetsWorkspaceViewModel,
+)
 from src.ui_qml.modules.maintenance.view_models.dashboard import (
     MaintenanceDashboardWorkspaceViewModel,
 )
@@ -40,6 +45,131 @@ def serialize_selector_options(view_models) -> list[dict[str, object]]:
         }
         for view_model in view_models
     ]
+
+
+def _serialize_asset_library_catalog(
+    view_model: MaintenanceAssetLibraryCatalogViewModel,
+) -> dict[str, object]:
+    return {
+        "title": view_model.title,
+        "subtitle": view_model.subtitle,
+        "emptyState": view_model.empty_state,
+        "items": [
+            {
+                "id": row.id,
+                "title": row.title,
+                "subtitle": row.subtitle,
+                "statusLabel": row.status_label,
+                "supportingText": row.supporting_text,
+                "metaText": row.meta_text,
+                "canPrimaryAction": bool(row.state.get("canPrimaryAction", False)),
+                "canSecondaryAction": bool(row.state.get("canSecondaryAction", False)),
+                "canTertiaryAction": False,
+                "state": row.state,
+            }
+            for row in view_model.items
+        ],
+    }
+
+
+def _serialize_asset_library_detail(
+    view_model: MaintenanceAssetLibraryDetailViewModel,
+) -> dict[str, object]:
+    return {
+        "id": view_model.id,
+        "title": view_model.title,
+        "statusLabel": view_model.status_label,
+        "subtitle": view_model.subtitle,
+        "description": view_model.description,
+        "emptyState": view_model.empty_state,
+        "fields": [
+            {
+                "label": field.label,
+                "value": field.value,
+                "supportingText": field.supporting_text,
+            }
+            for field in view_model.fields
+        ],
+        "state": view_model.state,
+    }
+
+
+def serialize_assets_workspace_state(
+    view_model: MaintenanceAssetsWorkspaceViewModel,
+) -> dict[str, object]:
+    return {
+        "overview": {
+            "title": view_model.overview.title,
+            "subtitle": view_model.overview.subtitle,
+            "metrics": [
+                {
+                    "label": metric.label,
+                    "value": metric.value,
+                    "supportingText": metric.supporting_text,
+                }
+                for metric in view_model.overview.metrics
+            ],
+        },
+        "siteOptions": serialize_selector_options(view_model.site_options),
+        "activeFilterOptions": serialize_selector_options(
+            view_model.active_filter_options
+        ),
+        "selectedSiteFilter": view_model.selected_site_filter,
+        "selectedActiveFilter": view_model.selected_active_filter,
+        "searchText": view_model.search_text,
+        "locations": _serialize_asset_library_catalog(view_model.locations),
+        "systems": _serialize_asset_library_catalog(view_model.systems),
+        "assets": _serialize_asset_library_catalog(view_model.assets),
+        "components": _serialize_asset_library_catalog(view_model.components),
+        "selectedLocationId": view_model.selected_location_id,
+        "selectedSystemId": view_model.selected_system_id,
+        "selectedAssetId": view_model.selected_asset_id,
+        "selectedComponentId": view_model.selected_component_id,
+        "selectedLocation": _serialize_asset_library_detail(
+            view_model.selected_location_detail
+        ),
+        "selectedSystem": _serialize_asset_library_detail(
+            view_model.selected_system_detail
+        ),
+        "selectedAsset": _serialize_asset_library_detail(
+            view_model.selected_asset_detail
+        ),
+        "selectedComponent": _serialize_asset_library_detail(
+            view_model.selected_component_detail
+        ),
+        "formSiteOptions": serialize_selector_options(view_model.form_site_options),
+        "formLocationOptions": serialize_selector_options(
+            view_model.form_location_options
+        ),
+        "formParentLocationOptions": serialize_selector_options(
+            view_model.form_parent_location_options
+        ),
+        "formSystemOptions": serialize_selector_options(view_model.form_system_options),
+        "formParentSystemOptions": serialize_selector_options(
+            view_model.form_parent_system_options
+        ),
+        "formAssetOptions": serialize_selector_options(view_model.form_asset_options),
+        "formParentAssetOptions": serialize_selector_options(
+            view_model.form_parent_asset_options
+        ),
+        "formComponentOptions": serialize_selector_options(
+            view_model.form_component_options
+        ),
+        "formParentComponentOptions": serialize_selector_options(
+            view_model.form_parent_component_options
+        ),
+        "formStatusOptions": serialize_selector_options(view_model.form_status_options),
+        "formCriticalityOptions": serialize_selector_options(
+            view_model.form_criticality_options
+        ),
+        "formManufacturerOptions": serialize_selector_options(
+            view_model.form_manufacturer_options
+        ),
+        "formSupplierOptions": serialize_selector_options(
+            view_model.form_supplier_options
+        ),
+        "emptyState": view_model.empty_state,
+    }
 
 
 def serialize_dashboard_workspace_state(
@@ -530,6 +660,7 @@ def serialize_work_order_workspace_state(
 
 
 __all__ = [
+    "serialize_assets_workspace_state",
     "serialize_dashboard_workspace_state",
     "serialize_planner_workspace_state",
     "serialize_reliability_workspace_state",

@@ -377,6 +377,22 @@ def test_maintenance_dashboard_workspace_no_longer_uses_placeholder_page() -> No
     assert "WorkspacePlaceholderPage" not in text
 
 
+def test_maintenance_assets_workspace_no_longer_uses_placeholder_page() -> None:
+    assets_workspace = (
+        UI_QML_ROOT
+        / "modules"
+        / "maintenance"
+        / "qml"
+        / "workspaces"
+        / "assets"
+        / "AssetsWorkspace.qml"
+    )
+    text = assets_workspace.read_text(encoding="utf-8", errors="ignore")
+
+    assert "AssetsWorkspacePage" in text
+    assert "WorkspacePlaceholderPage" not in text
+
+
 def test_maintenance_reliability_workspace_no_longer_uses_placeholder_page() -> None:
     reliability_workspace = (
         UI_QML_ROOT
@@ -516,6 +532,15 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerFiltersSection.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsFiltersSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetLibraryCatalogSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetLibraryDetailSection.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsDialogHost.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "LocationEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "SystemEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "AssetEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "ComponentEditorDialog.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsFiltersSection.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsCatalogSection.qml",

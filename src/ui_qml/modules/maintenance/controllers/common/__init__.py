@@ -2,6 +2,7 @@ from src.ui_qml.modules.maintenance.controllers.common.mutation_runner import (
     run_mutation,
 )
 from src.ui_qml.modules.maintenance.controllers.common.serializers import (
+    serialize_assets_workspace_state,
     serialize_dashboard_workspace_state,
     serialize_planner_workspace_state,
     serialize_reliability_workspace_state,
@@ -17,6 +18,7 @@ from src.ui_qml.modules.maintenance.controllers.common.workspace_controller_base
 __all__ = [
     "MaintenanceWorkspaceControllerBase",
     "run_mutation",
+    "serialize_assets_workspace_state",
     "serialize_dashboard_workspace_state",
     "serialize_planner_workspace_state",
     "serialize_reliability_workspace_state",

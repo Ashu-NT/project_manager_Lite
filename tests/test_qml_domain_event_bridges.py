@@ -145,6 +145,28 @@ def test_maintenance_dashboard_workspace_refreshes_on_maintenance_and_site_event
     assert refresh_calls == ["refresh", "refresh"]
 
 
+def test_maintenance_assets_workspace_refreshes_on_maintenance_and_site_events(
+    monkeypatch,
+) -> None:
+    catalog = MaintenanceWorkspaceCatalog()
+    controller = catalog.assetsWorkspace
+    refresh_calls: list[str] = []
+    monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
+
+    domain_events.domain_changed.emit(
+        DomainChangeEvent(
+            category="module",
+            scope_code="maintenance_management",
+            entity_type="maintenance_asset",
+            entity_id="asset-1",
+            source_event="manual_test",
+        )
+    )
+    domain_events.sites_changed.emit("site-1")
+
+    assert refresh_calls == ["refresh", "refresh"]
+
+
 def test_maintenance_reliability_workspace_queues_domain_refresh_while_busy(
     monkeypatch,
 ) -> None:
@@ -298,6 +320,10 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
             "domain_events.organizations_changed",
         ),
         "src/ui_qml/modules/maintenance/controllers/dashboard/dashboard_workspace_controller.py": (
+            "self._bind_domain_events()",
+            'scope_code="maintenance_management"',
+        ),
+        "src/ui_qml/modules/maintenance/controllers/assets/assets_workspace_controller.py": (
             "self._bind_domain_events()",
             'scope_code="maintenance_management"',
         ),

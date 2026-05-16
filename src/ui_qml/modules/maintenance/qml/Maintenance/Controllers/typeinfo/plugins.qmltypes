@@ -16,6 +16,64 @@ Module {
     }
 
     Component {
+        name: "MaintenanceAssetsWorkspaceController"
+        accessSemantics: "reference"
+        prototype: "MaintenanceWorkspaceControllerBase"
+        exports: ["Maintenance.Controllers/MaintenanceAssetsWorkspaceController 1.0"]
+        Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "activeFilterOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "selectedSiteFilter"; type: "QString"; isReadonly: true }
+        Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
+        Property { name: "searchText"; type: "QString"; isReadonly: true }
+        Property { name: "locations"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "systems"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "assets"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "components"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedLocation"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedSystem"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedAsset"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedComponent"; type: "QVariantMap"; isReadonly: true }
+        Property { name: "selectedLocationId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedSystemId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedAssetId"; type: "QString"; isReadonly: true }
+        Property { name: "selectedComponentId"; type: "QString"; isReadonly: true }
+        Property { name: "formSiteOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formLocationOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formParentLocationOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formSystemOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formParentSystemOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formAssetOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formParentAssetOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formComponentOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formParentComponentOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formStatusOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formCriticalityOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formManufacturerOptions"; type: "QVariantList"; isReadonly: true }
+        Property { name: "formSupplierOptions"; type: "QVariantList"; isReadonly: true }
+        Method { name: "refresh" }
+        Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+        Method { name: "setSiteFilter"; Parameter { name: "siteId"; type: "QString" } }
+        Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
+        Method { name: "selectLocation"; Parameter { name: "locationId"; type: "QString" } }
+        Method { name: "selectSystem"; Parameter { name: "systemId"; type: "QString" } }
+        Method { name: "selectAsset"; Parameter { name: "assetId"; type: "QString" } }
+        Method { name: "selectComponent"; Parameter { name: "componentId"; type: "QString" } }
+        Method { name: "createLocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateLocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleLocationActive"; type: "QVariantMap"; Parameter { name: "locationId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+        Method { name: "createSystem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateSystem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleSystemActive"; type: "QVariantMap"; Parameter { name: "systemId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+        Method { name: "createAsset"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateAsset"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleAssetActive"; type: "QVariantMap"; Parameter { name: "assetId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+        Method { name: "createComponent"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "updateComponent"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+        Method { name: "toggleComponentActive"; type: "QVariantMap"; Parameter { name: "componentId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    }
+
+    Component {
         name: "MaintenanceDashboardWorkspaceController"
         accessSemantics: "reference"
         prototype: "MaintenanceWorkspaceControllerBase"
@@ -198,6 +256,7 @@ Module {
         prototype: "QObject"
         exports: ["Maintenance.Controllers/MaintenanceWorkspaceCatalog 1.0"]
         Property { name: "dashboardWorkspace"; type: "MaintenanceDashboardWorkspaceController"; isReadonly: true }
+        Property { name: "assetsWorkspace"; type: "MaintenanceAssetsWorkspaceController"; isReadonly: true }
         Property { name: "plannerWorkspace"; type: "MaintenancePlannerWorkspaceController"; isReadonly: true }
         Property { name: "workRequestsWorkspace"; type: "MaintenanceWorkRequestsWorkspaceController"; isReadonly: true }
         Property { name: "workOrdersWorkspace"; type: "MaintenanceWorkOrdersWorkspaceController"; isReadonly: true }

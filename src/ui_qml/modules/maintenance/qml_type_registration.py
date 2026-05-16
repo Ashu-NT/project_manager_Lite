@@ -4,6 +4,7 @@ from PySide6.QtQml import qmlRegisterModule, qmlRegisterUncreatableType
 
 from src.ui_qml.modules.maintenance.context import MaintenanceWorkspaceCatalog
 from src.ui_qml.modules.maintenance.controllers import (
+    MaintenanceAssetsWorkspaceController,
     MaintenanceDashboardWorkspaceController,
     MaintenancePlannerWorkspaceController,
     MaintenanceReliabilityWorkspaceController,
@@ -35,6 +36,14 @@ def register_maintenance_qml_types() -> None:
         1,
         0,
         "MaintenanceDashboardWorkspaceController",
+        "Maintenance workspace controllers are provided by the shell runtime.",
+    )
+    qmlRegisterUncreatableType(
+        MaintenanceAssetsWorkspaceController,
+        "Maintenance.Controllers",
+        1,
+        0,
+        "MaintenanceAssetsWorkspaceController",
         "Maintenance workspace controllers are provided by the shell runtime.",
     )
     qmlRegisterUncreatableType(

@@ -1,4 +1,8 @@
 module Maintenance.Dialogs
+LocationEditorDialog 1.0 LocationEditorDialog.qml
+SystemEditorDialog 1.0 SystemEditorDialog.qml
+AssetEditorDialog 1.0 AssetEditorDialog.qml
+ComponentEditorDialog 1.0 ComponentEditorDialog.qml
 WorkRequestEditorDialog 1.0 WorkRequestEditorDialog.qml
 WorkRequestStatusDialog 1.0 WorkRequestStatusDialog.qml
 WorkOrderEditorDialog 1.0 WorkOrderEditorDialog.qml
