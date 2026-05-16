@@ -19,9 +19,13 @@ from src.core.modules.maintenance.api.desktop import (
 )
 from src.ui_qml.modules.maintenance.context import MaintenanceWorkspaceCatalog
 from src.ui_qml.modules.maintenance.presenters import (
+    MaintenancePreventiveWorkspacePresenter,
     build_maintenance_workspace_presenters,
 )
 from src.ui_qml.modules.maintenance.routes import build_maintenance_routes
+from src.ui_qml.modules.maintenance.view_models import (
+    MaintenancePreventiveWorkspaceViewModel,
+)
 
 
 def test_maintenance_workspace_presenters_match_qml_routes() -> None:
@@ -324,6 +328,29 @@ def test_maintenance_workspace_catalog_exposes_typed_preventive_controller(
 
     assert controller.queueState["selectedDueStateFilter"] == "DUE"
     assert controller.planLibraryState["selectedPlanId"] == plan.id
+
+
+def test_maintenance_preventive_presenter_returns_typed_workspace_view_model(
+    services,
+) -> None:
+    preventive_api = build_maintenance_preventive_desktop_api(
+        site_service=services["site_service"],
+        asset_service=services["maintenance_asset_service"],
+        component_service=services["maintenance_asset_component_service"],
+        system_service=services["maintenance_system_service"],
+        sensor_service=services["maintenance_sensor_service"],
+        task_template_service=services["maintenance_task_template_service"],
+        task_step_template_service=services["maintenance_task_step_template_service"],
+        preventive_plan_service=services["maintenance_preventive_plan_service"],
+        preventive_plan_task_service=services["maintenance_preventive_plan_task_service"],
+        preventive_generation_service=services["maintenance_preventive_generation_service"],
+    )
+    presenter = MaintenancePreventiveWorkspacePresenter(desktop_api=preventive_api)
+
+    view_model = presenter.build_workspace_state()
+
+    assert isinstance(view_model, MaintenancePreventiveWorkspaceViewModel)
+    assert view_model.overview.title == "Preventive"
 
 
 def test_maintenance_workspace_catalog_exposes_typed_work_requests_controller(

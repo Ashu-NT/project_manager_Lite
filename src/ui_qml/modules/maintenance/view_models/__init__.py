@@ -30,6 +30,11 @@ from src.ui_qml.modules.maintenance.view_models.planner import (
     MaintenancePlannerWorkOrderRowViewModel,
     MaintenancePlannerWorkspaceViewModel,
 )
+from src.ui_qml.modules.maintenance.view_models.preventive import (
+    MaintenancePreventiveMetricViewModel,
+    MaintenancePreventiveOverviewViewModel,
+    MaintenancePreventiveWorkspaceViewModel,
+)
 from src.ui_qml.modules.maintenance.view_models.reliability import (
     MaintenanceFailureSymptomOptionViewModel,
     MaintenanceReliabilityInsightRowViewModel,
@@ -88,6 +93,9 @@ __all__ = [
     "MaintenancePlannerRequestRowViewModel",
     "MaintenancePlannerWorkOrderRowViewModel",
     "MaintenancePlannerWorkspaceViewModel",
+    "MaintenancePreventiveMetricViewModel",
+    "MaintenancePreventiveOverviewViewModel",
+    "MaintenancePreventiveWorkspaceViewModel",
     "MaintenanceReliabilityInsightRowViewModel",
     "MaintenanceReliabilityMetricViewModel",
     "MaintenanceReliabilityOptionViewModel",

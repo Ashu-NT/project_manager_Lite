@@ -1,0 +1,1 @@
+"""Payroll repository placeholder package."""

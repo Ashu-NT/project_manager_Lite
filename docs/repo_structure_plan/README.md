@@ -2571,8 +2571,8 @@ Current verified progress:
 - maintenance work-requests desktop API now lives under `src/core/modules/maintenance/api/desktop/work_requests/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_work_requests` for priority/source/status descriptors, maintenance-context options, and work-request CRUD/status transitions
 - maintenance work-orders desktop API now lives under `src/core/modules/maintenance/api/desktop/work_orders/{api,models,serializers,__init__}.py`, and the shared desktop registry now exposes `maintenance_work_orders` for priority/status/type descriptors, source-work-request conversion options, assignee/vendor/context options, and work-order CRUD/status transitions
 - maintenance QML module now lives under `src/ui_qml/modules/maintenance/*`, with shell/runtime wiring, typed `Maintenance.Controllers`, `Maintenance.Widgets`, and `Maintenance.Dialogs` namespaces, plus a typed `MaintenanceWorkspaceCatalog`
-- maintenance `dashboard`, `assets`, `planner`, and `reliability` are now real QML workspaces under `src/ui_qml/modules/maintenance/qml/workspaces/{dashboard,assets,planner,reliability}/*`, backed by typed presenters/controllers and the module-local desktop APIs
-- maintenance `assets`, `work_requests`, and `work_orders` have now moved beyond their landing zones into real typed QML workflows, while `preventive` remains queued on a typed QML landing-zone route under `src/ui_qml/modules/maintenance/qml/workspaces/*`
+- maintenance `dashboard`, `assets`, `planner`, `preventive`, and `reliability` are now real QML workspaces under `src/ui_qml/modules/maintenance/qml/workspaces/{dashboard,assets,planner,preventive,reliability}/*`, backed by typed presenters/controllers and the module-local desktop APIs
+- maintenance `assets`, `work_requests`, `work_orders`, and `preventive` now all run as real typed QML workflows; the preventive slice also follows the same typed `view_models -> serializers -> controller` path as the other completed maintenance workspaces
 - maintenance-specific tests now live under `src/tests/maintenance/*`, with shared fixtures still bridged through `src/tests/conftest.py`
 - caller rewrites remove the old helper roots `core/modules/maintenance_management/{access,importing,exporting,reporting}` and `core/modules/maintenance_management/services/runtime_catalog.py`
 - the old flat maintenance backend files `core/modules/maintenance_management/{domain.py,interfaces.py,preventive_schedule_domain.py,reliability_domain.py,support.py}` are removed after direct import rewrites
@@ -2611,11 +2611,16 @@ Safe handling:
 - library-style UIs fold into `assets` and `preventive` workspaces
 - planner and dashboard must be assigned final homes before the maintenance slice is closed
 - runtime catalog helpers stay as adapters until the target runtime contract boundaries are finalized
-- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, workspace desktop-API, assets desktop-API, dashboard desktop-API, planner desktop-API, reliability desktop-API, work-requests desktop-API, and work-orders desktop-API transfers, maintenance QML now has dashboard/assets/planner/reliability/work_requests/work_orders active and the remaining maintenance workspace queued as a typed landing zone
+- after the completed asset, preventive, reliability, work-request, work-order, document, downtime-event, domain/contracts, persistence/reporting, workspace desktop-API, assets desktop-API, dashboard desktop-API, planner desktop-API, reliability desktop-API, work-requests desktop-API, and work-orders desktop-API transfers, maintenance QML now has dashboard/assets/planner/preventive/reliability/work_requests/work_orders active, and Slice 4 is complete enough to advance to Slice 5 while legacy QWidget maintenance screens stay in place until the final cutover
 
 ### Slice 5: HR Management, Payroll, And QHSE Placeholders
 
 Goal: make the repo shape match the uploaded structure without inventing business behavior that does not exist yet.
+
+Current verified progress:
+
+- placeholder module roots already exist under `src/core/modules/{hr_management,payroll,qhse}/*`, `src/ui_qml/modules/{hr_management,payroll,qhse}/*`, `src/tests/{hr_management,payroll,qhse}/*`, and `src/infra/composition/{hr_registry,payroll_registry,qhse_registry}.py`
+- module-local placeholder persistence skeletons now exist under `src/core/modules/{hr_management,payroll,qhse}/infrastructure/persistence/{orm,mappers,repositories}/*`
 
 #### Exact changes
 

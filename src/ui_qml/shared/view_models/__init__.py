@@ -1,1 +1,0 @@
-"""Shared QML view models."""

@@ -5,6 +5,7 @@ from PySide6.QtCore import Property, Signal, Slot
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
     run_mutation,
+    serialize_preventive_workspace_state,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.maintenance.presenters import (
@@ -112,28 +113,30 @@ class MaintenancePreventiveWorkspaceController(MaintenanceWorkspaceControllerBas
                     self._workspace_presenter.build_view_model()
                 )
             )
-            state = self._preventive_workspace_presenter.build_workspace_state(
-                queue_site_filter=self._queue_site_filter,
-                queue_due_state_filter=self._queue_due_state_filter,
-                queue_search_text=self._queue_search_text,
-                selected_queue_plan_id=self._selected_queue_plan_id or None,
-                plan_site_filter=self._plan_site_filter,
-                plan_asset_filter=self._plan_asset_filter,
-                plan_system_filter=self._plan_system_filter,
-                plan_active_filter=self._plan_active_filter,
-                plan_status_filter=self._plan_status_filter,
-                plan_type_filter=self._plan_type_filter,
-                plan_trigger_mode_filter=self._plan_trigger_mode_filter,
-                plan_search_text=self._plan_search_text,
-                selected_plan_id=self._selected_plan_id or None,
-                selected_plan_task_id=self._selected_plan_task_id or None,
-                template_active_filter=self._template_active_filter,
-                template_maintenance_type_filter=self._template_maintenance_type_filter,
-                template_status_filter=self._template_status_filter,
-                template_search_text=self._template_search_text,
-                selected_task_template_id=self._selected_task_template_id or None,
-                selected_task_step_id=self._selected_task_step_id or None,
-                generation_results=self._latest_generation_results,
+            state = serialize_preventive_workspace_state(
+                self._preventive_workspace_presenter.build_workspace_state(
+                    queue_site_filter=self._queue_site_filter,
+                    queue_due_state_filter=self._queue_due_state_filter,
+                    queue_search_text=self._queue_search_text,
+                    selected_queue_plan_id=self._selected_queue_plan_id or None,
+                    plan_site_filter=self._plan_site_filter,
+                    plan_asset_filter=self._plan_asset_filter,
+                    plan_system_filter=self._plan_system_filter,
+                    plan_active_filter=self._plan_active_filter,
+                    plan_status_filter=self._plan_status_filter,
+                    plan_type_filter=self._plan_type_filter,
+                    plan_trigger_mode_filter=self._plan_trigger_mode_filter,
+                    plan_search_text=self._plan_search_text,
+                    selected_plan_id=self._selected_plan_id or None,
+                    selected_plan_task_id=self._selected_plan_task_id or None,
+                    template_active_filter=self._template_active_filter,
+                    template_maintenance_type_filter=self._template_maintenance_type_filter,
+                    template_status_filter=self._template_status_filter,
+                    template_search_text=self._template_search_text,
+                    selected_task_template_id=self._selected_task_template_id or None,
+                    selected_task_step_id=self._selected_task_step_id or None,
+                    generation_results=self._latest_generation_results,
+                )
             )
             self._set_overview(state["overview"])
             self._set_queue_state(state["queueState"])
