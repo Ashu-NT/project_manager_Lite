@@ -3,9 +3,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property string title: ""
@@ -20,25 +21,29 @@ Rectangle {
     property bool actionsEnabled: true
     property var items: []
 
+    // Additive: row selection state
+    property string selectedItemId: ""
+    signal itemSelected(string itemId)
+
+    // Preserved signals — same API as before
     signal primaryActionRequested(string itemId)
     signal secondaryActionRequested(string itemId)
     signal tertiaryActionRequested(string itemId)
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
     implicitWidth: 420
-    implicitHeight: 260
+    implicitHeight: headerCol.implicitHeight + listCol.implicitHeight
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
-        spacing: Theme.AppTheme.spacingMd
+        spacing: 0
 
+        // Header — only rendered when title/subtitle present
         ColumnLayout {
+            id: headerCol
             Layout.fillWidth: true
             visible: root.title.length > 0 || root.subtitle.length > 0
             spacing: Theme.AppTheme.spacingXs
+            Layout.bottomMargin: Theme.AppTheme.spacingSm
 
             Label {
                 Layout.fillWidth: true
@@ -61,139 +66,165 @@ Rectangle {
             }
         }
 
-        Label {
+        // Empty state
+        AppWidgets.EmptyState {
             Layout.fillWidth: true
             visible: root.items.length === 0 && root.emptyState.length > 0
-            text: root.emptyState
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
+            title: root.emptyState
         }
 
-        Repeater {
-            model: root.items
+        // Row list
+        ColumnLayout {
+            id: listCol
+            Layout.fillWidth: true
+            spacing: 0
 
-            delegate: Rectangle {
-                id: recordCardDelegate
-                required property var modelData
-                property string statusText: String(recordCardDelegate.modelData.statusLabel || "")
-                property string subtitleText: String(recordCardDelegate.modelData.subtitle || "")
-                property string supportingTextValue: String(recordCardDelegate.modelData.supportingText || "")
-                property string metaTextValue: String(recordCardDelegate.modelData.metaText || "")
+            Repeater {
+                model: root.items
 
-                Layout.fillWidth: true
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceAlt
-                border.color: Theme.AppTheme.border
-                implicitHeight: contentColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
+                delegate: Item {
+                    id: rowDelegate
+                    required property var modelData
 
-                ColumnLayout {
-                    id: contentColumn
+                    Layout.fillWidth: true
+                    height: rowContent.implicitHeight
 
-                    anchors.fill: parent
-                    anchors.margins: Theme.AppTheme.marginMd
-                    spacing: Theme.AppTheme.spacingXs
+                    readonly property bool isSelected: root.selectedItemId === String(rowDelegate.modelData.id || "")
+                    readonly property string statusText: String(rowDelegate.modelData.statusLabel || "")
+                    readonly property string subtitleText: String(rowDelegate.modelData.subtitle || "")
+                    readonly property string metaText: String(rowDelegate.modelData.metaText || "")
+                    readonly property bool hasActions: root.primaryActionLabel.length > 0
+                        || root.secondaryActionLabel.length > 0
+                        || root.tertiaryActionLabel.length > 0
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.AppTheme.spacingSm
+                    // Row background — selected / hover / default
+                    Rectangle {
+                        anchors.fill: parent
+                        color: rowDelegate.isSelected
+                            ? Theme.AppTheme.selectedSurface
+                            : rowHoverArea.containsMouse
+                                ? Theme.AppTheme.hoverSurface
+                                : "transparent"
+
+                        // Selected accent left rail
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: 3
+                            color: Theme.AppTheme.accent
+                            visible: rowDelegate.isSelected
+                        }
+                    }
+
+                    ColumnLayout {
+                        id: rowContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: rowDelegate.isSelected
+                            ? Theme.AppTheme.marginMd - 3
+                            : Theme.AppTheme.marginMd
+                        anchors.rightMargin: Theme.AppTheme.marginMd
+                        anchors.topMargin: Theme.AppTheme.spacingSm
+                        anchors.bottomMargin: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingXs
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: String(rowDelegate.modelData.title || "")
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.bodySize
+                                font.bold: rowDelegate.isSelected
+                                elide: Text.ElideRight
+                            }
+
+                            AppWidgets.StatusChip {
+                                visible: rowDelegate.statusText.length > 0
+                                status: rowDelegate.statusText
+                            }
+                        }
 
                         Label {
                             Layout.fillWidth: true
-                            text: recordCardDelegate.modelData.title
-                            color: Theme.AppTheme.textPrimary
+                            visible: rowDelegate.subtitleText.length > 0
+                            text: rowDelegate.subtitleText
+                            color: Theme.AppTheme.textSecondary
                             font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.bodySize
-                            font.bold: true
-                            wrapMode: Text.WordWrap
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            elide: Text.ElideRight
                         }
 
-                        Rectangle {
-                            visible: recordCardDelegate.statusText.length > 0
-                            radius: Theme.AppTheme.radiusMd
-                            color: Theme.AppTheme.accentSoft
-                            border.color: Theme.AppTheme.accent
-                            implicitHeight: 28
-                            implicitWidth: statusLabel.implicitWidth + (Theme.AppTheme.marginMd * 2)
-
-                            Label {
-                                id: statusLabel
-
-                                anchors.centerIn: parent
-                                text: recordCardDelegate.statusText
-                                color: Theme.AppTheme.accent
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold: true
-                            }
-                        }
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        visible: recordCardDelegate.subtitleText.length > 0
-                        text: recordCardDelegate.subtitleText
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        visible: recordCardDelegate.supportingTextValue.length > 0
-                        text: recordCardDelegate.supportingTextValue
-                        color: Theme.AppTheme.textSecondary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        visible: recordCardDelegate.metaTextValue.length > 0
-                        text: recordCardDelegate.metaTextValue
-                        color: Theme.AppTheme.textMuted
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: root.primaryActionLabel.length > 0
-                            || root.secondaryActionLabel.length > 0
-                            || root.tertiaryActionLabel.length > 0
-                        spacing: Theme.AppTheme.spacingSm
-
-                        AppControls.PrimaryButton {
-                            visible: root.primaryActionLabel.length > 0 && recordCardDelegate.modelData.canPrimaryAction
-                            enabled: root.actionsEnabled
-                            text: root.primaryActionLabel
-                            danger: root.primaryDanger
-                            onClicked: root.primaryActionRequested(recordCardDelegate.modelData.id)
-                        }
-
-                        AppControls.PrimaryButton {
-                            visible: root.secondaryActionLabel.length > 0 && recordCardDelegate.modelData.canSecondaryAction
-                            enabled: root.actionsEnabled
-                            text: root.secondaryActionLabel
-                            danger: root.secondaryDanger
-                            onClicked: root.secondaryActionRequested(recordCardDelegate.modelData.id)
-                        }
-
-                        AppControls.PrimaryButton {
-                            visible: root.tertiaryActionLabel.length > 0 && recordCardDelegate.modelData.canTertiaryAction
-                            enabled: root.actionsEnabled
-                            text: root.tertiaryActionLabel
-                            danger: root.tertiaryDanger
-                            onClicked: root.tertiaryActionRequested(recordCardDelegate.modelData.id)
-                        }
-
-                        Item {
+                        Label {
                             Layout.fillWidth: true
+                            visible: rowDelegate.metaText.length > 0
+                            text: rowDelegate.metaText
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            elide: Text.ElideRight
                         }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: rowDelegate.hasActions
+                            spacing: Theme.AppTheme.spacingSm
+
+                            AppControls.PrimaryButton {
+                                visible: root.primaryActionLabel.length > 0
+                                    && (rowDelegate.modelData.canPrimaryAction ?? true)
+                                enabled: root.actionsEnabled
+                                text: root.primaryActionLabel
+                                danger: root.primaryDanger
+                                onClicked: root.primaryActionRequested(String(rowDelegate.modelData.id))
+                            }
+
+                            AppControls.SecondaryButton {
+                                visible: root.secondaryActionLabel.length > 0
+                                    && (rowDelegate.modelData.canSecondaryAction ?? true)
+                                enabled: root.actionsEnabled
+                                text: root.secondaryActionLabel
+                                danger: root.secondaryDanger
+                                onClicked: root.secondaryActionRequested(String(rowDelegate.modelData.id))
+                            }
+
+                            AppControls.SecondaryButton {
+                                visible: root.tertiaryActionLabel.length > 0
+                                    && (rowDelegate.modelData.canTertiaryAction ?? true)
+                                enabled: root.actionsEnabled
+                                text: root.tertiaryActionLabel
+                                danger: root.tertiaryDanger
+                                onClicked: root.tertiaryActionRequested(String(rowDelegate.modelData.id))
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
+                    }
+
+                    // Row click — selection
+                    MouseArea {
+                        id: rowHoverArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            const itemId = String(rowDelegate.modelData.id || "")
+                            root.selectedItemId = itemId
+                            root.itemSelected(itemId)
+                        }
+                    }
+
+                    // Bottom divider
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Theme.AppTheme.divider
                     }
                 }
             }

@@ -9,8 +9,8 @@ AppLayouts.WorkspaceFrame {
     id: root
     property ShellContexts.ShellContext shellModel
 
-    title: "QML shell ready for migrated workspaces"
-    subtitle: "Current route: " + (root.shellModel ? root.shellModel.currentRouteId : "")
+    title: "Home"
+    subtitle: "Select a workspace from the navigation to get started."
 
     ColumnLayout {
         anchors.fill: parent
@@ -22,34 +22,9 @@ AppLayouts.WorkspaceFrame {
 
             AppWidgets.MetricCard {
                 Layout.preferredWidth: 220
-                label: "Migration mode"
-                value: "QML"
-                supportingText: "Widget shell stays active until parity is verified."
-            }
-
-            AppWidgets.MetricCard {
-                Layout.preferredWidth: 220
-                label: "Routes"
+                label: "Workspaces"
                 value: root.shellModel ? root.shellModel.navigationItems.length + "" : "0"
-                supportingText: "Navigable QML routes currently registered."
-            }
-        }
-
-        Flow {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
-
-            Repeater {
-                model: root.shellModel ? root.shellModel.navigationItems : []
-
-                delegate: AppWidgets.MetricCard {
-                    required property var modelData
-
-                    width: 220
-                    label: modelData.title
-                    value: modelData.moduleLabel
-                    supportingText: modelData.groupLabel
-                }
+                supportingText: "Registered navigable workspaces."
             }
         }
     }

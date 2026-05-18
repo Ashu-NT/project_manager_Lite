@@ -1,2 +1,3 @@
 module App.Layouts
+MasterDetailLayout 1.0 MasterDetailLayout.qml
 WorkspaceFrame 1.0 WorkspaceFrame.qml

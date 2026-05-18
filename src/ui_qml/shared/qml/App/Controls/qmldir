@@ -1,2 +1,3 @@
 module App.Controls
 PrimaryButton 1.0 PrimaryButton.qml
+SecondaryButton 1.0 SecondaryButton.qml

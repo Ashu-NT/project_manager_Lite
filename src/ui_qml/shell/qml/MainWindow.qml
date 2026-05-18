@@ -15,38 +15,49 @@ Item {
     property InventoryProcurementControllers.InventoryProcurementWorkspaceCatalog inventoryCatalog
     property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
 
+    // Full-bleed layout: header at top, sidebar + content fill the rest
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
-        spacing: Theme.AppTheme.spacingMd
+        spacing: 0
 
         ShellHeader {
             Layout.fillWidth: true
             shellModel: root.shellModel
         }
 
+        // Single-pixel divider below header
+        Rectangle {
+            Layout.fillWidth: true
+            height: 1
+            color: Theme.AppTheme.divider
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Theme.AppTheme.spacingMd
+            spacing: 0
 
             ShellDrawer {
-                Layout.preferredWidth: 280
+                Layout.preferredWidth: 240
                 Layout.fillHeight: true
                 shellModel: root.shellModel
             }
 
+            // Vertical divider between drawer and content
             Rectangle {
+                Layout.fillHeight: true
+                width: 1
+                color: Theme.AppTheme.divider
+            }
+
+            // Main workspace content — no border wrapper
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: Theme.AppTheme.radiusLg
-                color: Theme.AppTheme.surface
-                border.color: Theme.AppTheme.border
 
                 Loader {
                     id: workspaceLoader
                     anchors.fill: parent
-                    anchors.margins: Theme.AppTheme.marginLg
                     source: root.shellModel ? root.shellModel.currentRouteSource : ""
 
                     onLoaded: {

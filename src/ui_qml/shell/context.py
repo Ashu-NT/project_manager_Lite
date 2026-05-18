@@ -49,6 +49,13 @@ class ShellContext(QObject):
             return ""
         return item.qml_source
 
+    @Property(str, notify=currentRouteIdChanged)
+    def currentRouteTitle(self) -> str:
+        item = self._navigation_item_by_route_id.get(self._current_route_id)
+        if item is None:
+            return ""
+        return item.title
+
     @Property("QVariantList", notify=navigationItemsChanged)
     def navigationItems(self) -> list[dict[str, str]]:
         return [
