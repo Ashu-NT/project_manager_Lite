@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import App.Theme 1.0 as Theme
 
 Rectangle {
