@@ -33,7 +33,6 @@ Popup {
     background: Rectangle {
         radius: Theme.AppTheme.radiusMd
         color: Theme.AppTheme.surface
-        border.color: Theme.AppTheme.border
         border.width: 1
 
         layer.enabled: true

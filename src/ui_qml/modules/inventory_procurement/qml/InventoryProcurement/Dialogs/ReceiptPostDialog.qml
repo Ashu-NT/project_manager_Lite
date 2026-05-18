@@ -94,7 +94,6 @@ Dialog {
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
         color: Theme.AppTheme.surface
-        border.color: Theme.AppTheme.border
     }
 
     contentItem: ColumnLayout {
@@ -164,7 +163,6 @@ Dialog {
                         Layout.fillWidth: true
                         radius: Theme.AppTheme.radiusMd
                         color: Theme.AppTheme.surfaceAlt
-                        border.color: Theme.AppTheme.border
                         implicitHeight: lineLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
 
                         ColumnLayout {

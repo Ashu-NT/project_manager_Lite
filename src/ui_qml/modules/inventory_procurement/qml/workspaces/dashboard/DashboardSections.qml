@@ -22,7 +22,6 @@ ColumnLayout {
             Layout.fillWidth: true
             radius: Theme.AppTheme.radiusLg
             color: Theme.AppTheme.surface
-            border.color: Theme.AppTheme.border
             implicitHeight: sectionColumn.implicitHeight + Theme.AppTheme.marginLg * 2
 
             ColumnLayout {
@@ -60,7 +59,6 @@ ColumnLayout {
                             Layout.fillWidth: true
                             radius: Theme.AppTheme.radiusMd
                             color: Theme.AppTheme.surfaceAlt
-                            border.color: Theme.AppTheme.border
                             implicitHeight: rowColumn.implicitHeight + Theme.AppTheme.spacingMd * 2
 
                             ColumnLayout {

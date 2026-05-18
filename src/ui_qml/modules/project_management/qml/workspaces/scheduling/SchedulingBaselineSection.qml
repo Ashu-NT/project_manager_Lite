@@ -51,7 +51,6 @@ Item {
             Layout.fillWidth: true
             radius: Theme.AppTheme.radiusLg
             color: Theme.AppTheme.surface
-            border.color: Theme.AppTheme.border
             implicitHeight: controlsColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
 
             ColumnLayout {

@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var summaryModel: ({
@@ -13,16 +13,12 @@ Rectangle {
         "fields": []
     })
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surfaceAlt
-    border.color: Theme.AppTheme.border
-    implicitHeight: contentColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentColumn.implicitHeight
 
     ColumnLayout {
         id: contentColumn
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingSm
 
         Label {

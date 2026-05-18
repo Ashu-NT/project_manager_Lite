@@ -59,7 +59,6 @@ ColumnLayout {
         visible: (root.notes || []).length > 0
         radius: Theme.AppTheme.radiusLg
         color: Theme.AppTheme.surface
-        border.color: Theme.AppTheme.border
         implicitHeight: notesColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
 
         ColumnLayout {

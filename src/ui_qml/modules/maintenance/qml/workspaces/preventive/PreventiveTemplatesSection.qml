@@ -54,7 +54,6 @@ ColumnLayout {
         Layout.fillWidth: true
         radius: Theme.AppTheme.radiusLg
         color: Theme.AppTheme.surface
-        border.color: Theme.AppTheme.border
         implicitHeight: filtersLayout.implicitHeight + (Theme.AppTheme.marginLg * 2)
 
         GridLayout {

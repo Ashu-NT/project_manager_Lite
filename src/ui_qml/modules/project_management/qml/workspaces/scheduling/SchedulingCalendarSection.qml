@@ -64,7 +64,6 @@ Item {
             Layout.alignment: Qt.AlignTop
             radius: Theme.AppTheme.radiusLg
             color: Theme.AppTheme.surface
-            border.color: Theme.AppTheme.border
             implicitHeight: settingsColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
 
             ColumnLayout {
@@ -159,7 +158,6 @@ Item {
             Layout.alignment: Qt.AlignTop
             radius: Theme.AppTheme.radiusLg
             color: Theme.AppTheme.surface
-            border.color: Theme.AppTheme.border
             implicitHeight: calculatorColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
 
             ColumnLayout {
@@ -226,7 +224,6 @@ Item {
             Layout.alignment: Qt.AlignTop
             radius: Theme.AppTheme.radiusLg
             color: Theme.AppTheme.surface
-            border.color: Theme.AppTheme.border
             implicitHeight: holidaysColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
 
             ColumnLayout {

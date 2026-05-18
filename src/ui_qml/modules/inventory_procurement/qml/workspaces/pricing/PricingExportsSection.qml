@@ -61,7 +61,6 @@ Item {
                 Layout.fillWidth: true
                 radius: Theme.AppTheme.radiusMd
                 color: Theme.AppTheme.surfaceAlt
-                border.color: Theme.AppTheme.border
                 implicitHeight: stockColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
 
                 ColumnLayout {
@@ -112,7 +111,6 @@ Item {
                 Layout.fillWidth: true
                 radius: Theme.AppTheme.radiusMd
                 color: Theme.AppTheme.surfaceAlt
-                border.color: Theme.AppTheme.border
                 implicitHeight: procurementColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
 
                 ColumnLayout {

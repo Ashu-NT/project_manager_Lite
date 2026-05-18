@@ -85,7 +85,6 @@ Item {
         background: Rectangle {
             radius: Theme.AppTheme.radiusLg
             color: Theme.AppTheme.surface
-            border.color: Theme.AppTheme.border
         }
 
         contentItem: ColumnLayout {
