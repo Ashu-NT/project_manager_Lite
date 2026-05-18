@@ -4,8 +4,7 @@ import os
 import sys
 
 from PySide6.QtCore import QEventLoop
-from PySide6.QtGui import QFont, QIcon
-from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QFont, QGuiApplication, QIcon
 
 from src.api.desktop.runtime import build_desktop_api_registry
 from src.infra.composition.app_container import build_service_dict
@@ -42,7 +41,7 @@ def build_services() -> dict[str, object]:
     return services
 
 
-def _configure_runtime_environment(app: QApplication, *, settings_store: AppSettingsStore) -> tuple[str, str]:
+def _configure_runtime_environment(app: QGuiApplication, *, settings_store: AppSettingsStore) -> tuple[str, str]:
     startup_theme = settings_store.load_theme_mode(default_mode=os.getenv("PM_THEME", "light"))
     startup_governance = settings_store.load_governance_mode(
         default_mode=os.getenv("PM_GOVERNANCE_MODE", "off")
@@ -87,7 +86,7 @@ def _prompt_for_login_qml(*, auth_service, user_session) -> bool:
 
 def main(argv: list[str] | None = None, desktop_api_registry: object | None = None) -> int:
     setup_logging()
-    app = QApplication(argv or sys.argv)
+    app = QGuiApplication(argv or sys.argv)
     settings_store = AppSettingsStore()
     startup_theme, _startup_governance = _configure_runtime_environment(
         app,
