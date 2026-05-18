@@ -295,8 +295,8 @@ Files:
 11. ✅ ShellContext.currentRouteTitle property added (context.py)
 12. ✅ Platform RecordListCard — column-row style, StatusChip, row selection, dividers
 13. ✅ Static checks passed — all legacy tokens preserved, qmldir modules correct
-14. ⬜ HomeWorkspace.qml — remove developer placeholder
-15. ⬜ DataTable.qml framework (Phase 3)
+14. ✅ HomeWorkspace.qml — remove developer placeholder
+15. 🔄 DataTable.qml framework (Phase 3)
 16. ⬜ Platform workspace border cleanup (Phase 4.2+)
 17. ⬜ Module workspace improvements (Phases 5–7)
 18. ⬜ Cross-cutting border audit (Phase 8)
