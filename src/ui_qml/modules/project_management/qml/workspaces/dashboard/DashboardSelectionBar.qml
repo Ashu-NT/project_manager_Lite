@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var projectOptions: []
@@ -30,16 +30,12 @@ Rectangle {
     readonly property bool baselineSelectionLocked: (root.baselineOptions || []).length === 1
         && String(root.baselineOptions[0].label || "") === "Portfolio view"
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: selectionColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: selectionColumn.implicitHeight
 
     ColumnLayout {
         id: selectionColumn
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         RowLayout {

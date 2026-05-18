@@ -4,7 +4,7 @@ import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
-Rectangle {
+Item {
     id: root
 
     property var assignmentsModel: ({
@@ -23,16 +23,12 @@ Rectangle {
     signal setHoursRequested(var assignmentData)
     signal deleteRequested(var assignmentData)
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: sectionLayout.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: sectionLayout.implicitHeight
 
     ColumnLayout {
         id: sectionLayout
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         RowLayout {

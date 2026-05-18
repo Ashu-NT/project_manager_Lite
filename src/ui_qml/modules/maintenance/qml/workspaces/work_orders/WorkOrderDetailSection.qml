@@ -4,8 +4,9 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
-Rectangle {
+Item {
     id: root
 
     property var workOrderDetail: ({
@@ -23,15 +24,11 @@ Rectangle {
     signal editRequested()
     signal statusRequested()
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: contentColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentColumn.implicitHeight
 
     ColumnLayout {
         id: contentColumn
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         RowLayout {
@@ -62,23 +59,9 @@ Rectangle {
                 }
             }
 
-            Rectangle {
+            AppWidgets.StatusChip {
                 visible: String(root.workOrderDetail.statusLabel || "").length > 0
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.accentSoft
-                border.color: Theme.AppTheme.accent
-                implicitHeight: 30
-                implicitWidth: statusLabel.implicitWidth + (Theme.AppTheme.marginMd * 2)
-
-                Label {
-                    id: statusLabel
-                    anchors.centerIn: parent
-                    text: root.workOrderDetail.statusLabel
-                    color: Theme.AppTheme.accent
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    font.bold: true
-                }
+                status: root.workOrderDetail.statusLabel || ""
             }
         }
 
@@ -112,7 +95,6 @@ Rectangle {
                 Layout.fillWidth: true
                 radius: Theme.AppTheme.radiusMd
                 color: Theme.AppTheme.surfaceAlt
-                border.color: Theme.AppTheme.border
                 implicitHeight: fieldLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
 
                 ColumnLayout {

@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var projectOptions: []
@@ -31,16 +31,12 @@ Rectangle {
         return 0
     }
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: toolbarLayout.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: toolbarLayout.implicitHeight
 
     GridLayout {
         id: toolbarLayout
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         columns: root.width > 1200 ? 5 : 2
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingMd

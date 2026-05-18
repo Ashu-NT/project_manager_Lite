@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var activeOptions: []
@@ -27,9 +27,6 @@ Rectangle {
     signal createCategoryRequested()
     signal createItemRequested()
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
 
     function indexForValue(options, targetValue) {
         for (var index = 0; index < options.length; index += 1) {
@@ -42,7 +39,6 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         Label {

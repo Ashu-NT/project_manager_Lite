@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var statusOptions: []
@@ -54,16 +54,12 @@ Rectangle {
     onStatusOptionsChanged: syncSelectedStatusValue()
     Component.onCompleted: syncSelectedStatusValue()
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: contentLayout.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentLayout.implicitHeight
 
     ColumnLayout {
         id: contentLayout
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingSm
 
         RowLayout {

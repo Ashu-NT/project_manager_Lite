@@ -7,7 +7,7 @@ import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
-Rectangle {
+Item {
     id: root
 
     property var projectOptions: []
@@ -51,16 +51,12 @@ Rectangle {
         return nextValues
     }
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: contentColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentColumn.implicitHeight
 
     ColumnLayout {
         id: contentColumn
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         Label {

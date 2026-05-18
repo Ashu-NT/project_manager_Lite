@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var statusOptions: []
@@ -26,16 +26,12 @@ Rectangle {
         return 0
     }
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: controlsLayout.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: controlsLayout.implicitHeight
 
     RowLayout {
         id: controlsLayout
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         TextField {

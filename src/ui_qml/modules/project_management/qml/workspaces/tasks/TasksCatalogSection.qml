@@ -4,9 +4,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var tasksModel: ({
@@ -34,16 +35,12 @@ Rectangle {
         return false
     }
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: contentColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentColumn.implicitHeight
 
     ColumnLayout {
         id: contentColumn
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         ColumnLayout {
@@ -99,7 +96,6 @@ Rectangle {
                 Layout.fillWidth: true
                 radius: Theme.AppTheme.radiusMd
                 color: recordCardDelegate.selected ? Theme.AppTheme.accentSoft : Theme.AppTheme.surfaceAlt
-                border.color: recordCardDelegate.selected ? Theme.AppTheme.accent : Theme.AppTheme.border
                 implicitHeight: contentLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
 
                 TapHandler {
@@ -133,24 +129,9 @@ Rectangle {
                             wrapMode: Text.WordWrap
                         }
 
-                        Rectangle {
+                        AppWidgets.StatusChip {
                             visible: recordCardDelegate.statusText.length > 0
-                            radius: Theme.AppTheme.radiusMd
-                            color: Theme.AppTheme.surface
-                            border.color: Theme.AppTheme.accent
-                            implicitHeight: 28
-                            implicitWidth: statusLabel.implicitWidth + (Theme.AppTheme.marginMd * 2)
-
-                            Label {
-                                id: statusLabel
-
-                                anchors.centerIn: parent
-                                text: recordCardDelegate.statusText
-                                color: Theme.AppTheme.accent
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold: true
-                            }
+                            status: recordCardDelegate.statusText
                         }
                     }
 

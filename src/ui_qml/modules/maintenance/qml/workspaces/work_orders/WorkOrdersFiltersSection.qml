@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var siteOptions: []
@@ -29,10 +29,7 @@ Rectangle {
     signal refreshRequested()
     signal createRequested()
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: contentLayout.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentLayout.implicitHeight
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -47,7 +44,6 @@ Rectangle {
         id: contentLayout
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         RowLayout {

@@ -4,23 +4,19 @@ import QtQuick.Controls
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property bool isBusy: false
 
     signal refreshRequested()
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    implicitHeight: contentLayout.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentLayout.implicitHeight
 
     RowLayout {
         id: contentLayout
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         ColumnLayout {
