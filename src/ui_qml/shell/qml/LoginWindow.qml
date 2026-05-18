@@ -45,11 +45,14 @@ ApplicationWindow {
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width - 48, 440)
+        height: Math.max(loginLayout.implicitHeight + Theme.AppTheme.marginLg * 2, 360)
         radius: Theme.AppTheme.radiusLg
         color: Theme.AppTheme.surface
         border.color: Theme.AppTheme.border
 
         ColumnLayout {
+            id: loginLayout
+            
             anchors.fill: parent
             anchors.margins: Theme.AppTheme.marginLg
             spacing: Theme.AppTheme.spacingMd
