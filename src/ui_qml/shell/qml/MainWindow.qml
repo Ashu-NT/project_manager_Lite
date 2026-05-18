@@ -23,6 +23,8 @@ Item {
         ShellHeader {
             Layout.fillWidth: true
             shellModel: root.shellModel
+            sidebarCollapsed: shellDrawer.collapsed
+            onToggleSidebar: shellDrawer.collapsed = !shellDrawer.collapsed
         }
 
         // Single-pixel divider below header
@@ -38,7 +40,8 @@ Item {
             spacing: 0
 
             ShellDrawer {
-                Layout.preferredWidth: 240
+                id: shellDrawer
+                Layout.preferredWidth: shellDrawer.implicitWidth
                 Layout.fillHeight: true
                 shellModel: root.shellModel
             }

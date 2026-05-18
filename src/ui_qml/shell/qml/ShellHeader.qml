@@ -6,16 +6,55 @@ import App.Theme 1.0 as Theme
 
 Rectangle {
     id: header
+
     property ShellContexts.ShellContext shellModel
+    property bool sidebarCollapsed: false
+
+    signal toggleSidebar()
 
     height: 48
     color: Theme.AppTheme.surface
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Theme.AppTheme.marginLg
+        anchors.leftMargin: Theme.AppTheme.spacingMd
         anchors.rightMargin: Theme.AppTheme.marginMd
-        spacing: Theme.AppTheme.spacingMd
+        spacing: 0
+
+        // Sidebar toggle button
+        Rectangle {
+            width: 32
+            height: 32
+            radius: Theme.AppTheme.radiusSm
+            color: toggleHover.containsMouse
+                ? Theme.AppTheme.hoverSurface
+                : "transparent"
+
+            Text {
+                anchors.centerIn: parent
+                font.family: "Segoe MDL2 Assets"
+                font.pixelSize: 14
+                renderType: Text.NativeRendering
+                color: Theme.AppTheme.textMuted
+                Component.onCompleted: text = String.fromCodePoint(0xE700)
+            }
+
+            MouseArea {
+                id: toggleHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: header.toggleSidebar()
+            }
+
+            ToolTip {
+                visible: toggleHover.containsMouse
+                text: header.sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                delay: 500
+            }
+        }
+
+        Item { width: Theme.AppTheme.spacingMd }
 
         // App identity
         Label {
@@ -26,16 +65,18 @@ Rectangle {
             font.bold: true
         }
 
-        // Module context separator
+        // Divider
         Rectangle {
             width: 1
             height: 20
             color: Theme.AppTheme.divider
+            Layout.leftMargin: Theme.AppTheme.spacingMd
+            Layout.rightMargin: Theme.AppTheme.spacingMd
         }
 
         // Current workspace title
         Label {
-            Layout.preferredWidth: 200
+            Layout.preferredWidth: 220
             text: header.shellModel ? (header.shellModel.currentRouteTitle || "") : ""
             color: Theme.AppTheme.textSecondary
             font.family: Theme.AppTheme.fontFamily
@@ -45,20 +86,20 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
-        // Notifications placeholder
+        // Notifications
         Rectangle {
-            width: 28
-            height: 28
-            radius: 14
+            width: 30
+            height: 30
+            radius: 15
             color: notifHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
-            Label {
+            Text {
                 anchors.centerIn: parent
-                text: ""
                 font.family: "Segoe MDL2 Assets"
                 font.pixelSize: 14
-                color: Theme.AppTheme.textMuted
                 renderType: Text.NativeRendering
+                color: Theme.AppTheme.textMuted
+                Component.onCompleted: text = String.fromCodePoint(0xEA8F)
             }
 
             MouseArea {
@@ -68,6 +109,8 @@ Rectangle {
                 cursorShape: Qt.PointingHandCursor
             }
         }
+
+        Item { width: Theme.AppTheme.spacingSm }
 
         // User avatar + name
         RowLayout {

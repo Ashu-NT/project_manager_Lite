@@ -81,4 +81,7 @@ QtObject {
     readonly property int normalRowHeight: 40
     readonly property int toolbarHeight: 40
     readonly property int sidebarRowHeight: 36
+    readonly property int sidebarWidth: 240
+    readonly property int sidebarCollapsedWidth: 48
+    readonly property int headerHeight: 48
 }

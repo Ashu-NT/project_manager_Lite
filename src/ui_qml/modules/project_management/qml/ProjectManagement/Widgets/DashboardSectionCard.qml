@@ -2,9 +2,10 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property string title: ""
@@ -12,23 +13,19 @@ Rectangle {
     property string emptyState: ""
     property var items: []
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
     implicitWidth: 420
-    implicitHeight: contentColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: sectionLayout.implicitHeight
 
     ColumnLayout {
-        id: contentColumn
-
+        id: sectionLayout
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
-        spacing: Theme.AppTheme.spacingMd
+        spacing: 0
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingXs
+            spacing: 2
             visible: root.title.length > 0 || root.subtitle.length > 0
+            Layout.bottomMargin: Theme.AppTheme.spacingSm
 
             Label {
                 Layout.fillWidth: true
@@ -38,7 +35,6 @@ Rectangle {
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.bodySize
                 font.bold: true
-                wrapMode: Text.WordWrap
             }
 
             Label {
@@ -52,39 +48,31 @@ Rectangle {
             }
         }
 
-        Label {
+        AppWidgets.EmptyState {
             Layout.fillWidth: true
             visible: root.items.length === 0 && root.emptyState.length > 0
-            text: root.emptyState
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
+            title: root.emptyState
         }
 
         Repeater {
             model: root.items
 
-            delegate: Rectangle {
+            delegate: ColumnLayout {
                 id: sectionItem
-
                 required property var modelData
-                property string statusText: String(sectionItem.modelData.statusLabel || "")
-                property string subtitleText: String(sectionItem.modelData.subtitle || "")
-                property string supportingTextValue: String(sectionItem.modelData.supportingText || "")
-                property string metaTextValue: String(sectionItem.modelData.metaText || "")
+
+                readonly property string statusText: String(sectionItem.modelData.statusLabel || "")
+                readonly property string subtitleText: String(sectionItem.modelData.subtitle || "")
+                readonly property string supportingText: String(sectionItem.modelData.supportingText || "")
+                readonly property string metaText: String(sectionItem.modelData.metaText || "")
 
                 Layout.fillWidth: true
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceAlt
-                border.color: Theme.AppTheme.border
-                implicitHeight: itemColumn.implicitHeight + (Theme.AppTheme.marginMd * 2)
+                spacing: 2
 
                 ColumnLayout {
-                    id: itemColumn
-
-                    anchors.fill: parent
-                    anchors.margins: Theme.AppTheme.marginMd
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.AppTheme.spacingXs
+                    Layout.bottomMargin: Theme.AppTheme.spacingXs
                     spacing: Theme.AppTheme.spacingXs
 
                     RowLayout {
@@ -93,32 +81,17 @@ Rectangle {
 
                         Label {
                             Layout.fillWidth: true
-                            text: sectionItem.modelData.title
+                            text: String(sectionItem.modelData.title || "")
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.bodySize
                             font.bold: true
-                            wrapMode: Text.WordWrap
+                            elide: Text.ElideRight
                         }
 
-                        Rectangle {
+                        AppWidgets.StatusChip {
                             visible: sectionItem.statusText.length > 0
-                            radius: Theme.AppTheme.radiusMd
-                            color: Theme.AppTheme.accentSoft
-                            border.color: Theme.AppTheme.accent
-                            implicitHeight: 28
-                            implicitWidth: statusLabel.implicitWidth + (Theme.AppTheme.marginMd * 2)
-
-                            Label {
-                                id: statusLabel
-
-                                anchors.centerIn: parent
-                                text: sectionItem.statusText
-                                color: Theme.AppTheme.accent
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold: true
-                            }
+                            status: sectionItem.statusText
                         }
                     }
 
@@ -126,31 +99,37 @@ Rectangle {
                         Layout.fillWidth: true
                         visible: sectionItem.subtitleText.length > 0
                         text: sectionItem.subtitleText
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        visible: sectionItem.supportingTextValue.length > 0
-                        text: sectionItem.supportingTextValue
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
+                        elide: Text.ElideRight
                     }
 
                     Label {
                         Layout.fillWidth: true
-                        visible: sectionItem.metaTextValue.length > 0
-                        text: sectionItem.metaTextValue
-                        color: Theme.AppTheme.textMuted
+                        visible: sectionItem.supportingText.length > 0
+                        text: sectionItem.supportingText
+                        color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
+                        elide: Text.ElideRight
                     }
+
+                    Label {
+                        Layout.fillWidth: true
+                        visible: sectionItem.metaText.length > 0
+                        text: sectionItem.metaText
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: Theme.AppTheme.divider
                 }
             }
         }

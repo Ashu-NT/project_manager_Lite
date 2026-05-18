@@ -4,7 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property string title: ""
@@ -41,11 +41,8 @@ Rectangle {
         }
     }
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
     implicitWidth: 420
-    implicitHeight: contentColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: contentColumn.implicitHeight
 
     onPointsChanged: lineCanvas.requestPaint()
     onWidthChanged: lineCanvas.requestPaint()
@@ -55,7 +52,6 @@ Rectangle {
         id: contentColumn
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         ColumnLayout {
@@ -257,7 +253,6 @@ Rectangle {
                         implicitHeight: 10
                         radius: 5
                         color: Theme.AppTheme.surfaceAlt
-                        border.color: Theme.AppTheme.border
 
                         Rectangle {
                             anchors.left: parent.left
