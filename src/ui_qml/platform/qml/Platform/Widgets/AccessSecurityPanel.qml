@@ -74,116 +74,100 @@ ColumnLayout {
         feedbackMessage: root.controller !== null ? root.controller.feedbackMessage : ""
     }
 
-    Rectangle {
+    RowLayout {
         Layout.fillWidth: true
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-        border.color: Theme.AppTheme.border
-        implicitHeight: controlsColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+        spacing: Theme.AppTheme.spacingMd
 
-        ColumnLayout {
-            id: controlsColumn
+        ComboBox {
+            id: scopeTypeCombo
 
-            anchors.fill: parent
-            anchors.margins: Theme.AppTheme.marginLg
-            spacing: Theme.AppTheme.spacingMd
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingMd
-
-                ComboBox {
-                    id: scopeTypeCombo
-
-                    Layout.fillWidth: true
-                    enabled: root.controller !== null ? !root.controller.isBusy : false
-                    model: root.controller !== null ? root.controller.scopeTypeOptions : []
-                    textRole: "label"
-                    currentIndex: root.indexOfOption(
-                        root.controller !== null ? root.controller.scopeTypeOptions : [],
-                        root.controller !== null ? root.controller.selectedScopeType : ""
-                    )
-                    onActivated: {
-                        if (root.controller !== null) {
-                            root.controller.setScopeType(root.optionValue(root.controller.scopeTypeOptions, currentIndex))
-                        }
-                    }
+            Layout.fillWidth: true
+            enabled: root.controller !== null ? !root.controller.isBusy : false
+            model: root.controller !== null ? root.controller.scopeTypeOptions : []
+            textRole: "label"
+            currentIndex: root.indexOfOption(
+                root.controller !== null ? root.controller.scopeTypeOptions : [],
+                root.controller !== null ? root.controller.selectedScopeType : ""
+            )
+            onActivated: {
+                if (root.controller !== null) {
+                    root.controller.setScopeType(root.optionValue(root.controller.scopeTypeOptions, currentIndex))
                 }
-
-                ComboBox {
-                    id: scopeCombo
-
-                    Layout.fillWidth: true
-                    enabled: root.controller !== null ? !root.controller.isBusy : false
-                    model: root.controller !== null ? root.controller.scopeOptions : []
-                    textRole: "label"
-                    currentIndex: root.indexOfOption(
-                        root.controller !== null ? root.controller.scopeOptions : [],
-                        root.controller !== null ? root.controller.selectedScopeId : ""
-                    )
-                    onActivated: {
-                        if (root.controller !== null) {
-                            root.controller.setScopeId(root.optionValue(root.controller.scopeOptions, currentIndex))
-                        }
-                    }
-                }
-
-                ComboBox {
-                    id: userCombo
-
-                    Layout.fillWidth: true
-                    enabled: root.controller !== null ? !root.controller.isBusy : false
-                    model: root.controller !== null ? root.controller.userOptions : []
-                    textRole: "label"
-                    currentIndex: root.indexOfOption(
-                        root.controller !== null ? root.controller.userOptions : [],
-                        root.controller !== null ? root.controller.selectedUserId : ""
-                    )
-                    onActivated: {
-                        if (root.controller !== null) {
-                            root.controller.setSelectedUserId(root.optionValue(root.controller.userOptions, currentIndex))
-                        }
-                    }
-                }
-
-                ComboBox {
-                    id: roleCombo
-
-                    Layout.fillWidth: true
-                    enabled: root.controller !== null ? !root.controller.isBusy : false
-                    model: root.controller !== null ? root.controller.roleOptions : []
-                    textRole: "label"
-                    currentIndex: root.indexOfOption(
-                        root.controller !== null ? root.controller.roleOptions : [],
-                        root.controller !== null ? root.controller.selectedRole : ""
-                    )
-                    onActivated: {
-                        if (root.controller !== null) {
-                            root.controller.setSelectedRole(root.optionValue(root.controller.roleOptions, currentIndex))
-                        }
-                    }
-                }
-
-                AppControls.PrimaryButton {
-                    enabled: root.controller !== null ? !root.controller.isBusy : false
-                    text: "Assign"
-                    onClicked: {
-                        if (root.controller !== null) {
-                            root.controller.assignMembership()
-                        }
-                    }
-                }
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: root.controller !== null ? root.controller.scopeHint : ""
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
             }
         }
+
+        ComboBox {
+            id: scopeCombo
+
+            Layout.fillWidth: true
+            enabled: root.controller !== null ? !root.controller.isBusy : false
+            model: root.controller !== null ? root.controller.scopeOptions : []
+            textRole: "label"
+            currentIndex: root.indexOfOption(
+                root.controller !== null ? root.controller.scopeOptions : [],
+                root.controller !== null ? root.controller.selectedScopeId : ""
+            )
+            onActivated: {
+                if (root.controller !== null) {
+                    root.controller.setScopeId(root.optionValue(root.controller.scopeOptions, currentIndex))
+                }
+            }
+        }
+
+        ComboBox {
+            id: userCombo
+
+            Layout.fillWidth: true
+            enabled: root.controller !== null ? !root.controller.isBusy : false
+            model: root.controller !== null ? root.controller.userOptions : []
+            textRole: "label"
+            currentIndex: root.indexOfOption(
+                root.controller !== null ? root.controller.userOptions : [],
+                root.controller !== null ? root.controller.selectedUserId : ""
+            )
+            onActivated: {
+                if (root.controller !== null) {
+                    root.controller.setSelectedUserId(root.optionValue(root.controller.userOptions, currentIndex))
+                }
+            }
+        }
+
+        ComboBox {
+            id: roleCombo
+
+            Layout.fillWidth: true
+            enabled: root.controller !== null ? !root.controller.isBusy : false
+            model: root.controller !== null ? root.controller.roleOptions : []
+            textRole: "label"
+            currentIndex: root.indexOfOption(
+                root.controller !== null ? root.controller.roleOptions : [],
+                root.controller !== null ? root.controller.selectedRole : ""
+            )
+            onActivated: {
+                if (root.controller !== null) {
+                    root.controller.setSelectedRole(root.optionValue(root.controller.roleOptions, currentIndex))
+                }
+            }
+        }
+
+        AppControls.PrimaryButton {
+            enabled: root.controller !== null ? !root.controller.isBusy : false
+            text: "Assign"
+            onClicked: {
+                if (root.controller !== null) {
+                    root.controller.assignMembership()
+                }
+            }
+        }
+    }
+
+    Label {
+        Layout.fillWidth: true
+        text: root.controller !== null ? root.controller.scopeHint : ""
+        color: Theme.AppTheme.textSecondary
+        font.family: Theme.AppTheme.fontFamily
+        font.pixelSize: Theme.AppTheme.smallSize
+        wrapMode: Text.WordWrap
     }
 
     GridLayout {

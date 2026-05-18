@@ -10,9 +10,8 @@ Rectangle {
     property string value: ""
     property string supportingText: ""
 
-    radius: Theme.AppTheme.radiusLg
+    radius: Theme.AppTheme.radiusMd
     color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
     implicitWidth: 220
     implicitHeight: 132
 

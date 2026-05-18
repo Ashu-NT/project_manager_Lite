@@ -1,28 +1,27 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property string title: ""
     property string emptyState: ""
     property var rows: []
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
     implicitWidth: 320
-    implicitHeight: 220
+    implicitHeight: sectionLayout.implicitHeight
 
     ColumnLayout {
+        id: sectionLayout
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
-        spacing: Theme.AppTheme.spacingSm
+        spacing: 0
 
         Label {
             Layout.fillWidth: true
+            Layout.bottomMargin: Theme.AppTheme.spacingSm
             text: root.title
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
@@ -43,19 +42,17 @@ Rectangle {
         Repeater {
             model: root.rows
 
-            delegate: Rectangle {
+            delegate: ColumnLayout {
                 id: sectionRow
                 required property var modelData
 
                 Layout.fillWidth: true
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceAlt
-                border.color: Theme.AppTheme.border
-                implicitHeight: 74
+                spacing: 2
 
                 ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: Theme.AppTheme.marginMd
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.AppTheme.spacingXs
+                    Layout.bottomMargin: Theme.AppTheme.spacingXs
                     spacing: 2
 
                     Label {
@@ -86,6 +83,12 @@ Rectangle {
                         font.pixelSize: Theme.AppTheme.smallSize
                         wrapMode: Text.WordWrap
                     }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color: Theme.AppTheme.divider
                 }
             }
         }

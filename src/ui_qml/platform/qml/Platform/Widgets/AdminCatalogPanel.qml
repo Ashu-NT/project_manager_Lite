@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
 ColumnLayout {
@@ -27,18 +28,21 @@ ColumnLayout {
     signal secondaryActionRequested(string itemId)
     signal tertiaryActionRequested(string itemId)
 
-    spacing: Theme.AppTheme.spacingSm
+    spacing: 0
 
+    // Section title row — no heavy border box
     RowLayout {
         Layout.fillWidth: true
+        Layout.bottomMargin: Theme.AppTheme.spacingXs
         spacing: Theme.AppTheme.spacingMd
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingXs
+            spacing: 2
 
             Label {
                 Layout.fillWidth: true
+                visible: root.title.length > 0
                 text: root.title
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
@@ -50,9 +54,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: root.summary.length > 0
                 text: root.summary
-                color: Theme.AppTheme.textSecondary
+                color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
+                font.pixelSize: Theme.AppTheme.captionSize
                 wrapMode: Text.WordWrap
             }
         }
@@ -63,6 +67,14 @@ ColumnLayout {
             text: root.createActionLabel
             onClicked: root.createRequested()
         }
+    }
+
+    // Divider under header
+    Rectangle {
+        Layout.fillWidth: true
+        height: 1
+        color: Theme.AppTheme.divider
+        visible: root.title.length > 0
     }
 
     RecordListCard {
@@ -78,16 +90,8 @@ ColumnLayout {
         secondaryDanger: root.secondaryDanger
         tertiaryDanger: root.tertiaryDanger
 
-        onPrimaryActionRequested: function(itemId) {
-            root.primaryActionRequested(itemId)
-        }
-
-        onSecondaryActionRequested: function(itemId) {
-            root.secondaryActionRequested(itemId)
-        }
-
-        onTertiaryActionRequested: function(itemId) {
-            root.tertiaryActionRequested(itemId)
-        }
+        onPrimaryActionRequested: function(itemId) { root.primaryActionRequested(itemId) }
+        onSecondaryActionRequested: function(itemId) { root.secondaryActionRequested(itemId) }
+        onTertiaryActionRequested: function(itemId) { root.tertiaryActionRequested(itemId) }
     }
 }

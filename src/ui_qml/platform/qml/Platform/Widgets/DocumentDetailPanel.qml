@@ -1,10 +1,12 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var details: ({
@@ -26,17 +28,13 @@ Rectangle {
 
     signal openRequested(string targetUrl)
 
-    radius: Theme.AppTheme.radiusLg
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
     implicitWidth: 420
-    implicitHeight: detailColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+    implicitHeight: detailColumn.implicitHeight
 
     ColumnLayout {
         id: detailColumn
 
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
         spacing: Theme.AppTheme.spacingMd
 
         Label {
@@ -70,9 +68,8 @@ Rectangle {
                     id: badgeChip
                     required property var modelData
 
-                    radius: Theme.AppTheme.radiusMd
+                    radius: height / 2
                     color: Theme.AppTheme.surfaceAlt
-                    border.color: Theme.AppTheme.border
                     implicitHeight: badgeLabel.implicitHeight + Theme.AppTheme.marginSm * 2
                     implicitWidth: badgeLabel.implicitWidth + Theme.AppTheme.marginMd * 2
 
@@ -81,7 +78,7 @@ Rectangle {
 
                         anchors.centerIn: parent
                         text: String(badgeChip.modelData.label || "") + ": " + String(badgeChip.modelData.value || "")
-                        color: Theme.AppTheme.textPrimary
+                        color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
                         font.bold: true
@@ -90,70 +87,52 @@ Rectangle {
             }
         }
 
-        Rectangle {
+        ColumnLayout {
             Layout.fillWidth: true
-            radius: Theme.AppTheme.radiusMd
-            color: Theme.AppTheme.surfaceAlt
-            border.color: Theme.AppTheme.border
-            implicitHeight: previewColumn.implicitHeight + Theme.AppTheme.marginMd * 2
+            spacing: Theme.AppTheme.spacingSm
 
-            ColumnLayout {
-                id: previewColumn
-
-                anchors.fill: parent
-                anchors.margins: Theme.AppTheme.marginMd
+            RowLayout {
+                Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingSm
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: "Preview"
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        font.bold: true
-                    }
-
-                    Rectangle {
-                        radius: Theme.AppTheme.radiusMd
-                        color: Theme.AppTheme.accentSoft
-                        border.color: Theme.AppTheme.accent
-                        implicitHeight: previewStatusLabel.implicitHeight + Theme.AppTheme.marginSm * 2
-                        implicitWidth: previewStatusLabel.implicitWidth + Theme.AppTheme.marginMd * 2
-
-                        Label {
-                            id: previewStatusLabel
-
-                            anchors.centerIn: parent
-                            text: root.previewState.statusLabel || "No document selected"
-                            color: Theme.AppTheme.accent
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            font.bold: true
-                        }
-                    }
-                }
 
                 Label {
                     Layout.fillWidth: true
-                    text: root.previewState.summary || ""
-                    color: Theme.AppTheme.textSecondary
+                    text: "Preview"
+                    color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
-                    wrapMode: Text.WordWrap
+                    font.bold: true
+                    font.capitalization: Font.AllUppercase
                 }
 
-                AppControls.PrimaryButton {
-                    visible: true
-                    enabled: root.actionsEnabled
-                        && Boolean(root.previewState.canOpen)
-                        && String(root.previewState.openTargetUrl || "").length > 0
-                    text: root.previewState.openLabel || "Open Source"
-                    onClicked: root.openRequested(String(root.previewState.openTargetUrl || ""))
+                AppWidgets.StatusChip {
+                    status: root.previewState.statusLabel || "No document selected"
                 }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 1
+                color: Theme.AppTheme.divider
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: String(root.previewState.summary || "").length > 0
+                text: root.previewState.summary || ""
+                color: Theme.AppTheme.textSecondary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.PrimaryButton {
+                visible: true
+                enabled: root.actionsEnabled
+                    && Boolean(root.previewState.canOpen)
+                    && String(root.previewState.openTargetUrl || "").length > 0
+                text: root.previewState.openLabel || "Open Source"
+                onClicked: root.openRequested(String(root.previewState.openTargetUrl || ""))
             }
         }
 

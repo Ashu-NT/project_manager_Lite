@@ -12,30 +12,34 @@ Rectangle {
     property string feedbackMessage: ""
 
     visible: root.isLoading || root.isBusy || root.errorMessage.length > 0 || root.feedbackMessage.length > 0
-    radius: Theme.AppTheme.radiusMd
+    radius: Theme.AppTheme.radiusSm
     color: root.errorMessage.length > 0
-        ? "#FDECEC"
+        ? Theme.AppTheme.dangerSoft
         : root.feedbackMessage.length > 0
-            ? Theme.AppTheme.accentSoft
+            ? Theme.AppTheme.infoSoft
             : Theme.AppTheme.surfaceAlt
-    border.color: root.errorMessage.length > 0 ? "#E28B8B" : Theme.AppTheme.border
-    implicitHeight: bannerText.implicitHeight + (Theme.AppTheme.marginMd * 2)
+    border.color: root.errorMessage.length > 0
+        ? Theme.AppTheme.danger
+        : root.feedbackMessage.length > 0
+            ? Theme.AppTheme.accent
+            : Theme.AppTheme.subtleBorder
+    border.width: 1
+    implicitHeight: bannerRow.implicitHeight + (Theme.AppTheme.spacingSm * 2)
 
     RowLayout {
+        id: bannerRow
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginMd
+        anchors.margins: Theme.AppTheme.spacingSm
         spacing: Theme.AppTheme.spacingSm
 
         BusyIndicator {
             visible: root.isLoading || root.isBusy
             running: visible
-            implicitWidth: 24
-            implicitHeight: 24
+            implicitWidth: 20
+            implicitHeight: 20
         }
 
         Label {
-            id: bannerText
-
             Layout.fillWidth: true
             text: root.errorMessage.length > 0
                 ? root.errorMessage
@@ -44,7 +48,9 @@ Rectangle {
                     : root.isBusy
                         ? "Applying change..."
                         : "Loading workspace..."
-            color: root.errorMessage.length > 0 ? "#8B1E1E" : Theme.AppTheme.textPrimary
+            color: root.errorMessage.length > 0
+                ? Theme.AppTheme.danger
+                : Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.smallSize
             wrapMode: Text.WordWrap

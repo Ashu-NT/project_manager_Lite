@@ -1,5 +1,6 @@
 module App.Widgets
 AppDivider 1.0 AppDivider.qml
+DataTable 1.0 DataTable.qml
 EmptyState 1.0 EmptyState.qml
 FilterBar 1.0 FilterBar.qml
 InlineMessage 1.0 InlineMessage.qml
@@ -8,3 +9,5 @@ MetricCard 1.0 MetricCard.qml
 PageHeader 1.0 PageHeader.qml
 SectionHeader 1.0 SectionHeader.qml
 StatusChip 1.0 StatusChip.qml
+TableColumnCustomizer 1.0 TableColumnCustomizer.qml
+TableToolbar 1.0 TableToolbar.qml
