@@ -58,6 +58,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             ProjectManagementWidgets.WorkspaceStatusSection {
+                visible: false
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
                     ? "QML timesheet capture and review slice active"

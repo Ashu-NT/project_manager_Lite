@@ -14,15 +14,15 @@ Rectangle {
     property bool showCreate: false
     property string createLabel: "New"
     property bool isBusy: false
-    property bool showColumnCustomizer: false
+    property bool showFilter: false
 
     default property alias filterContent: filterSlot.data
 
     signal searchChanged(string text)
+    signal filterIconClicked()
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
-    signal customizeColumnsRequested()
 
     implicitHeight: Theme.AppTheme.toolbarHeight
     color: Theme.AppTheme.surface
@@ -76,12 +76,13 @@ Rectangle {
 
         Item { Layout.fillWidth: true }
 
-        // Column customizer
+        // Filter flyout trigger
         AppControls.SecondaryButton {
-            visible: root.showColumnCustomizer
-            text: "Columns"
+            visible: root.showFilter
+            text: "Filter ▾"
             implicitWidth: 80
-            onClicked: root.customizeColumnsRequested()
+            enabled: !root.isBusy
+            onClicked: root.filterIconClicked()
         }
 
         // Refresh

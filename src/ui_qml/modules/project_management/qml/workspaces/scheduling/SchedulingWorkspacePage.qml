@@ -83,6 +83,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             ProjectManagementWidgets.WorkspaceStatusSection {
+                visible: false
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
                     ? "QML scheduling operations slice active"

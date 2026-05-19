@@ -112,6 +112,7 @@ AppLayouts.WorkspaceFrame {
         }
 
         ProjectManagementWidgets.WorkspaceStatusSection {
+            visible: false
             Layout.fillWidth: true
             migrationStatus: root.workspaceController
                 ? "QML CRUD resources slice active"
@@ -128,46 +129,8 @@ AppLayouts.WorkspaceFrame {
             showCreate: true
             createLabel: "New Resource"
             showRefresh: true
+            showFilter: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-            // Active filter
-            ComboBox {
-                implicitWidth: 150
-                model: [
-                    { "label": "All",      "value": "all"    },
-                    { "label": "Active",   "value": "active" },
-                    { "label": "Inactive", "value": "inactive" }
-                ]
-                textRole: "label"
-                enabled: !tableToolbar.isBusy
-                currentIndex: {
-                    const v = root.workspaceController ? root.workspaceController.selectedActiveFilter : "all"
-                    return v === "active" ? 1 : v === "inactive" ? 2 : 0
-                }
-                onActivated: function(index) {
-                    const vals = ["all", "active", "inactive"]
-                    if (root.workspaceController !== null) root.workspaceController.setActiveFilter(vals[index] || "all")
-                }
-            }
-
-            // Category filter
-            ComboBox {
-                implicitWidth: 180
-                model: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
-                textRole: "label"
-                enabled: !tableToolbar.isBusy
-                currentIndex: root._categoryIndexForValue(
-                    root.workspaceController ? root.workspaceController.selectedCategoryFilter : "all"
-                )
-                onActivated: function(index) {
-                    const opt = root.workspaceController
-                        ? (root.workspaceController.categoryOptions || [])[index]
-                        : null
-                    if (opt && root.workspaceController) {
-                        root.workspaceController.setCategoryFilter(String(opt.value || "all"))
-                    }
-                }
-            }
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
@@ -176,49 +139,126 @@ AppLayouts.WorkspaceFrame {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: dialogHost.openCreateDialog()
+            onFilterIconClicked: filterPopup.open()
         }
 
-        RowLayout {
+        // Filter flyout popup
+        Popup {
+            id: filterPopup
+            parent: tableToolbar
+            width: 260
+            padding: 12
+            y: tableToolbar.height + 4
+            x: tableToolbar.width - width
+            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+            Column {
+                width: parent.width
+                spacing: 8
+
+                Label {
+                    text: "Active Status"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: [
+                        { "label": "All",      "value": "all"      },
+                        { "label": "Active",   "value": "active"   },
+                        { "label": "Inactive", "value": "inactive" }
+                    ]
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    currentIndex: {
+                        const v = root.workspaceController ? root.workspaceController.selectedActiveFilter : "all"
+                        return v === "active" ? 1 : v === "inactive" ? 2 : 0
+                    }
+                    onActivated: function(index) {
+                        const vals = ["all", "active", "inactive"]
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setActiveFilter(vals[index] || "all")
+                    }
+                }
+
+                Label {
+                    text: "Category"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    currentIndex: root._categoryIndexForValue(
+                        root.workspaceController ? root.workspaceController.selectedCategoryFilter : "all"
+                    )
+                    onActivated: function(index) {
+                        const opt = root.workspaceController
+                            ? (root.workspaceController.categoryOptions || [])[index]
+                            : null
+                        if (opt && root.workspaceController)
+                            root.workspaceController.setCategoryFilter(String(opt.value || "all"))
+                    }
+                }
+            }
+        }
+
+        // ── Full-width table with slide-over detail panel ────────────────
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Theme.AppTheme.spacingMd
+            clip: true
 
             AppWidgets.DataTable {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.fill: parent
                 columns: root._tableColumns
                 rows: root.resourcesModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedResourceId : ""
 
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
+                    detailPanel.open = true
                 }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
-                    dialogHost.openEditDialog(root.selectedResourceModel)
+                    detailPanel.open = true
                 }
                 onSortRequested: function(key) {}
             }
 
-            ResourcesDetailSection {
-                visible: root.selectedResourceModel && root.selectedResourceModel.id !== ""
-                Layout.preferredWidth: 320
-                Layout.fillHeight: true
-                resourceDetail: root.selectedResourceModel
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            AppWidgets.SlideOverPanel {
+                id: detailPanel
+                anchors.fill: parent
+                panelWidth: 360
+                title: root.selectedResourceModel.title || "Details"
+                open: root.selectedResourceModel && root.selectedResourceModel.id !== ""
+                onCloseRequested: detailPanel.open = false
 
-                onEditRequested: dialogHost.openEditDialog(root.selectedResourceModel)
-                onToggleRequested: {
-                    const state = root.selectedResourceModel && root.selectedResourceModel.state
-                        ? root.selectedResourceModel.state : {}
-                    if (root.workspaceController !== null && state.resourceId) {
-                        root.workspaceController.toggleResourceActive(
-                            String(state.resourceId || ""),
-                            parseInt(String(state.version || "0"), 10)
-                        )
+                ResourcesDetailSection {
+                    anchors.fill: parent
+                    resourceDetail: root.selectedResourceModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onEditRequested: dialogHost.openEditDialog(root.selectedResourceModel)
+                    onToggleRequested: {
+                        const state = root.selectedResourceModel && root.selectedResourceModel.state
+                            ? root.selectedResourceModel.state : {}
+                        if (root.workspaceController !== null && state.resourceId) {
+                            root.workspaceController.toggleResourceActive(
+                                String(state.resourceId || ""),
+                                parseInt(String(state.version || "0"), 10)
+                            )
+                        }
                     }
+                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedResourceModel)
                 }
-                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedResourceModel)
             }
         }
     }

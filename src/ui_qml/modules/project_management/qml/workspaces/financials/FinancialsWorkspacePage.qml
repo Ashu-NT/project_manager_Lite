@@ -114,6 +114,7 @@ AppLayouts.WorkspaceFrame {
         }
 
         ProjectManagementWidgets.WorkspaceStatusSection {
+            visible: false
             Layout.fillWidth: true
             migrationStatus: root.workspaceController
                 ? "QML financials operations slice active"
@@ -123,7 +124,7 @@ AppLayouts.WorkspaceFrame {
             architectureSummary: "Cost-item CRUD, finance KPI summary, cashflow, ledger trail, and analytics now run through a typed PM controller backed by the financials desktop API."
         }
 
-        // Toolbar: project selector + cost type filter + search + export + create
+        // Toolbar: search + filter flyout + refresh + export + create
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
@@ -132,45 +133,8 @@ AppLayouts.WorkspaceFrame {
             createLabel: "Add Cost"
             showRefresh: true
             showExport: true
+            showFilter: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-            // Project selector
-            ComboBox {
-                implicitWidth: 200
-                model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                textRole: "label"
-                enabled: !tableToolbar.isBusy
-                currentIndex: root._projectIndexForValue(
-                    root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                )
-                onActivated: function(index) {
-                    const opt = root.workspaceController
-                        ? (root.workspaceController.projectOptions || [])[index]
-                        : null
-                    if (opt && root.workspaceController) {
-                        root.workspaceController.selectProject(String(opt.value || ""))
-                    }
-                }
-            }
-
-            // Cost type filter
-            ComboBox {
-                implicitWidth: 160
-                model: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
-                textRole: "label"
-                enabled: !tableToolbar.isBusy
-                currentIndex: root._costTypeIndexForValue(
-                    root.workspaceController ? root.workspaceController.selectedCostType : "all"
-                )
-                onActivated: function(index) {
-                    const opt = root.workspaceController
-                        ? (root.workspaceController.costTypeOptions || [])[index]
-                        : null
-                    if (opt && root.workspaceController) {
-                        root.workspaceController.setCostTypeFilter(String(opt.value || "all"))
-                    }
-                }
-            }
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
@@ -179,41 +143,110 @@ AppLayouts.WorkspaceFrame {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: dialogHost.openCreateDialog()
+            onFilterIconClicked: filterPopup.open()
         }
 
-        // ── Cost register table (fixed viewport) ─────────────────────────
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 380
+        // Filter flyout popup
+        Popup {
+            id: filterPopup
+            parent: tableToolbar
+            width: 260
+            padding: 12
+            y: tableToolbar.height + 4
+            x: tableToolbar.width - width
+            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-            RowLayout {
-                anchors.fill: parent
-                spacing: Theme.AppTheme.spacingMd
+            Column {
+                width: parent.width
+                spacing: 8
 
-                AppWidgets.DataTable {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    columns: root._tableColumns
-                    rows: root.costsModel.items || []
-                    selectedRowId: root.workspaceController ? root.workspaceController.selectedCostId : ""
-
-                    onRowSelected: function(rowId) {
-                        if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
-                    }
-                    onRowActivated: function(rowId) {
-                        if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
-                        dialogHost.openEditDialog(root.selectedCostModel)
-                    }
-                    onSortRequested: function(key) {}
+                Label {
+                    text: "Project"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
                 }
 
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    currentIndex: root._projectIndexForValue(
+                        root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                    )
+                    onActivated: function(index) {
+                        const opt = root.workspaceController
+                            ? (root.workspaceController.projectOptions || [])[index]
+                            : null
+                        if (opt && root.workspaceController)
+                            root.workspaceController.selectProject(String(opt.value || ""))
+                    }
+                }
+
+                Label {
+                    text: "Cost Type"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    currentIndex: root._costTypeIndexForValue(
+                        root.workspaceController ? root.workspaceController.selectedCostType : "all"
+                    )
+                    onActivated: function(index) {
+                        const opt = root.workspaceController
+                            ? (root.workspaceController.costTypeOptions || [])[index]
+                            : null
+                        if (opt && root.workspaceController)
+                            root.workspaceController.setCostTypeFilter(String(opt.value || "all"))
+                    }
+                }
+            }
+        }
+
+        // ── Cost register table with slide-over detail ───────────────────
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 340
+            clip: true
+
+            AppWidgets.DataTable {
+                anchors.fill: parent
+                columns: root._tableColumns
+                rows: root.costsModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedCostId : ""
+
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
+                    detailPanel.open = true
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
+                    detailPanel.open = true
+                }
+                onSortRequested: function(key) {}
+            }
+
+            AppWidgets.SlideOverPanel {
+                id: detailPanel
+                anchors.fill: parent
+                panelWidth: 320
+                title: root.selectedCostModel.title || "Cost Details"
+                open: root.selectedCostModel && root.selectedCostModel.id !== ""
+                onCloseRequested: detailPanel.open = false
+
                 FinancialsDetailSection {
-                    visible: root.selectedCostModel && root.selectedCostModel.id !== ""
-                    Layout.preferredWidth: 300
-                    Layout.fillHeight: true
+                    anchors.fill: parent
                     costDetail: root.selectedCostModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
                     onEditRequested: dialogHost.openEditDialog(root.selectedCostModel)
                     onDeleteRequested: dialogHost.openDeleteDialog(root.selectedCostModel)
                 }

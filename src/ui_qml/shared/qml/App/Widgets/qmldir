@@ -12,6 +12,7 @@ PageHeader 1.0 PageHeader.qml
 ProgressBar 1.0 ProgressBar.qml
 SectionCard 1.0 SectionCard.qml
 SectionHeader 1.0 SectionHeader.qml
+SlideOverPanel 1.0 SlideOverPanel.qml
 StatusChip 1.0 StatusChip.qml
 TableColumnCustomizer 1.0 TableColumnCustomizer.qml
 TableToolbar 1.0 TableToolbar.qml

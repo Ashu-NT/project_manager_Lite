@@ -58,6 +58,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             ProjectManagementWidgets.WorkspaceStatusSection {
+                visible: false
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
                     ? "QML portfolio planning slice active"

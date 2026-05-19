@@ -107,6 +107,7 @@ AppLayouts.WorkspaceFrame {
         }
 
         ProjectManagementWidgets.WorkspaceStatusSection {
+            visible: false
             Layout.fillWidth: true
             migrationStatus: root.workspaceController
                 ? "QML CRUD projects slice active"
@@ -116,7 +117,7 @@ AppLayouts.WorkspaceFrame {
             architectureSummary: "Project list, filters, create, edit, status, and delete flows now run through a typed PM controller backed by the project desktop API."
         }
 
-        // Table toolbar: search + status filter + refresh + create
+        // Toolbar: search + filter flyout + refresh + create
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
@@ -124,26 +125,8 @@ AppLayouts.WorkspaceFrame {
             showCreate: true
             createLabel: "New Project"
             showRefresh: true
+            showFilter: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-            // Status filter in the toolbar filter slot
-            ComboBox {
-                implicitWidth: 200
-                model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                textRole: "label"
-                enabled: !tableToolbar.isBusy
-                currentIndex: root._statusIndexForValue(
-                    root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-                )
-                onActivated: function(index) {
-                    const opt = root.workspaceController
-                        ? (root.workspaceController.statusOptions || [])[index]
-                        : null
-                    if (opt && root.workspaceController) {
-                        root.workspaceController.setStatusFilter(String(opt.value || "all"))
-                    }
-                }
-            }
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
@@ -152,44 +135,91 @@ AppLayouts.WorkspaceFrame {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: dialogHost.openCreateDialog()
+            onFilterIconClicked: filterPopup.open()
         }
 
-        // ── Main table area ──────────────────────────────────────────────
-        RowLayout {
+        // Filter flyout popup
+        Popup {
+            id: filterPopup
+            parent: tableToolbar
+            width: 260
+            padding: 12
+            y: tableToolbar.height + 4
+            x: tableToolbar.width - width
+            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+            Column {
+                width: parent.width
+                spacing: 8
+
+                Label {
+                    text: "Status"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    currentIndex: root._statusIndexForValue(
+                        root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                    )
+                    onActivated: function(index) {
+                        const opt = root.workspaceController
+                            ? (root.workspaceController.statusOptions || [])[index]
+                            : null
+                        if (opt && root.workspaceController)
+                            root.workspaceController.setStatusFilter(String(opt.value || "all"))
+                    }
+                }
+            }
+        }
+
+        // ── Full-width table with slide-over detail panel ────────────────
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Theme.AppTheme.spacingMd
+            clip: true
 
             AppWidgets.DataTable {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.fill: parent
                 columns: root._tableColumns
                 rows: root.projectsModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
 
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
+                    detailPanel.open = true
                 }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
-                    dialogHost.openEditDialog(root.selectedProjectModel)
+                    detailPanel.open = true
                 }
-                onSortRequested: function(key) {
-                    // Wire to controller sort when backend supports it
-                }
+                onSortRequested: function(key) {}
             }
 
-            // Detail panel — shown when a project is selected
-            ProjectsDetailSection {
-                visible: root.selectedProjectModel && root.selectedProjectModel.id !== ""
-                Layout.preferredWidth: 320
-                Layout.fillHeight: true
-                projectDetail: root.selectedProjectModel
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            AppWidgets.SlideOverPanel {
+                id: detailPanel
+                anchors.fill: parent
+                panelWidth: 360
+                title: root.selectedProjectModel.title || "Details"
+                open: root.selectedProjectModel && root.selectedProjectModel.id !== ""
+                onCloseRequested: {
+                    detailPanel.open = false
+                }
 
-                onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
-                onStatusRequested: dialogHost.openStatusDialog(root.selectedProjectModel)
-                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
+                ProjectsDetailSection {
+                    anchors.fill: parent
+                    projectDetail: root.selectedProjectModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
+                    onStatusRequested: dialogHost.openStatusDialog(root.selectedProjectModel)
+                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
+                }
             }
         }
     }

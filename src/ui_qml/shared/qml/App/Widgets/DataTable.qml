@@ -8,15 +8,9 @@ import App.Widgets 1.0 as AppWidgets
 // Reusable enterprise data table.
 // columns: [{key, label, flex, minWidth, sortable, type, visible}]
 // rows:    [{id, ...fieldValues}]
-// type values: "text" (default) | "status" | "number" | "date" | "progress"
-//   progress type expects rawValue: { value: 0.0-1.0, label: "72%" }
-// flex 0 = fixed minWidth column; flex > 0 = proportional fill
-
-// Reusable enterprise data table.
-// columns: [{key, label, flex, minWidth, sortable, type, visible}]
-// rows:    [{id, ...fieldValues}]
-// type values: "text" (default) | "status" | "number" | "date"
-// flex 0 = fixed minWidth column; flex > 0 = proportional fill
+// type values: "text" | "status" | "progress"
+//   progress expects rawValue: { value: 0.0-1.0, label: "72%" }
+// flex 0 = fixed minWidth; flex > 0 = proportional fill
 Item {
     id: root
 
@@ -25,6 +19,7 @@ Item {
     property string selectedRowId: ""
     property string sortKey: ""
     property int sortDirection: Qt.AscendingOrder
+    property bool reorderEnabled: true
 
     property bool multiSelect: false
     property var selectedRowIds: []
@@ -34,6 +29,7 @@ Item {
     signal sortRequested(string key)
     signal rowSelectionToggled(string rowId, bool selected)
     signal selectAllToggled(bool allSelected)
+    signal columnsReordered(var newColumns)
 
     function _isRowChecked(rowId) {
         const ids = root.selectedRowIds || []
@@ -75,6 +71,43 @@ Item {
         return Math.max(minW, (root._dataWidth * flex) / root._flexTotal)
     }
 
+    function _applyReorder(fromVisIdx, dropCenterX) {
+        if (!root.reorderEnabled) return
+        let toVisIdx = fromVisIdx
+        let x = root.multiSelect ? 36 : 0
+        const vis = root._visibleColumns
+        for (let i = 0; i < vis.length; i++) {
+            if (dropCenterX <= x + root._colWidth(vis[i]) / 2) { toVisIdx = i; break }
+            x += root._colWidth(vis[i])
+            toVisIdx = vis.length - 1
+        }
+        if (fromVisIdx === toVisIdx) return
+        function _vToF(vi) {
+            let c = -1
+            for (let i = 0; i < root.columns.length; i++) {
+                if (root.columns[i].visible !== false && ++c === vi) return i
+            }
+            return root.columns.length - 1
+        }
+        const newCols = root.columns.slice()
+        const moved = newCols.splice(_vToF(fromVisIdx), 1)[0]
+        newCols.splice(_vToF(toVisIdx), 0, moved)
+        root.columns = newCols
+        root.columnsReordered(newCols)
+    }
+
+    function _applyColumnVisibility(updatedDraft) {
+        const vm = {}
+        for (let j = 0; j < updatedDraft.length; j++) vm[updatedDraft[j].key] = updatedDraft[j].visible
+        const newCols = []
+        for (let i = 0; i < root.columns.length; i++) {
+            const c = JSON.parse(JSON.stringify(root.columns[i]))
+            if (c.key in vm) c.visible = vm[c.key]
+            newCols.push(c)
+        }
+        root.columns = newCols
+    }
+
     // ── Sticky header ──────────────────────────────────────────────────
     Rectangle {
         id: tableHeader
@@ -113,18 +146,43 @@ Item {
                     required property int index
 
                     readonly property bool isSorted: root.sortKey === headerCell.modelData.key
+                    property bool _isDragging: false
+                    property real _dragOffset: 0
 
                     width: root._colWidth(headerCell.modelData)
                     height: 32
+                    z: headerCell._isDragging ? 5 : 0
 
-                    // Column separator
+                    transform: Translate {
+                        x: headerCell._dragOffset
+                        Behavior on x {
+                            enabled: !headerCell._isDragging
+                            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+                        }
+                    }
+
                     Rectangle {
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.bottom: parent.bottom
-                        width: 1
-                        color: Theme.AppTheme.divider
-                        visible: headerCell.index < root._visibleColumns.length - 1
+                        anchors.fill: parent
+                        color: Theme.AppTheme.accent
+                        opacity: headerCell._isDragging ? 0.12 : 0
+                        radius: 2
+                    }
+
+                    DragHandler {
+                        id: headerDrag
+                        enabled: root.reorderEnabled
+                        yAxis.enabled: false
+                        onActiveChanged: {
+                            headerCell._isDragging = active
+                            if (!active) {
+                                const cx = headerCell.x + headerCell._dragOffset + headerCell.width / 2
+                                root._applyReorder(headerCell.index, cx)
+                                headerCell._dragOffset = 0
+                            }
+                        }
+                        onTranslationChanged: {
+                            if (active) headerCell._dragOffset = translation.x
+                        }
                     }
 
                     RowLayout {
@@ -155,11 +213,61 @@ Item {
 
                     MouseArea {
                         anchors.fill: parent
-                        enabled: headerCell.modelData.sortable !== false
-                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        enabled: headerCell.modelData.sortable !== false && !headerCell._isDragging
+                        cursorShape: headerCell._isDragging
+                            ? Qt.ClosedHandCursor
+                            : (enabled ? Qt.PointingHandCursor : Qt.ArrowCursor)
                         onClicked: root.sortRequested(headerCell.modelData.key)
                     }
                 }
+            }
+        }
+
+        // Gear icon — opens column visibility customizer
+        Item {
+            id: customizerArea
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 28
+            z: 2
+            visible: root.columns.length > 0
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.topMargin: 5
+                anchors.bottomMargin: 5
+                anchors.leftMargin: 2
+                anchors.rightMargin: 4
+                radius: Theme.AppTheme.radiusSm
+                color: gearHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: "⚙"
+                color: Theme.AppTheme.textMuted
+                font.pixelSize: 11
+                font.family: Theme.AppTheme.fontFamily
+            }
+
+            AppWidgets.TableColumnCustomizer {
+                id: columnCustomizer
+                parent: customizerArea
+                x: -(width - customizerArea.width)
+                y: customizerArea.height + 2
+                columns: root.columns
+                onColumnVisibilityChanged: function(updatedColumns) {
+                    root._applyColumnVisibility(updatedColumns)
+                }
+            }
+
+            MouseArea {
+                id: gearHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: columnCustomizer.open()
             }
         }
     }
@@ -296,16 +404,6 @@ Item {
 
                         width: root._colWidth(cellDelegate.modelData)
                         height: Theme.AppTheme.compactRowHeight
-
-                        // Column separator
-                        Rectangle {
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            width: 1
-                            color: Theme.AppTheme.divider
-                            visible: cellDelegate.index < root._visibleColumns.length - 1
-                        }
 
                         // Status chip cell
                         AppWidgets.StatusChip {

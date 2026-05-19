@@ -90,6 +90,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             ProjectManagementWidgets.WorkspaceStatusSection {
+                visible: false
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
                     ? "QML collaboration inbox slice active"

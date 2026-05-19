@@ -110,6 +110,7 @@ AppLayouts.WorkspaceFrame {
         }
 
         ProjectManagementWidgets.WorkspaceStatusSection {
+            visible: false
             Layout.fillWidth: true
             migrationStatus: root.workspaceController
                 ? "QML governance register slice active"
@@ -119,48 +120,128 @@ AppLayouts.WorkspaceFrame {
             architectureSummary: "Cross-project risks, issues, changes, and governance review flows now run through a typed PM controller backed by the register desktop API."
         }
 
-        ProjectManagementWidgets.RegisterFiltersSection {
+        // Toolbar: search + filter flyout + refresh + create
+        AppWidgets.TableToolbar {
+            id: tableToolbar
             Layout.fillWidth: true
-            projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-            typeOptions: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-            statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-            severityOptions: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
-            selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : "all"
-            selectedTypeFilter: root.workspaceController ? root.workspaceController.selectedTypeFilter : "all"
-            selectedStatusFilter: root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-            selectedSeverityFilter: root.workspaceController ? root.workspaceController.selectedSeverityFilter : "all"
-            searchText: root.workspaceController ? root.workspaceController.searchText : ""
+            searchPlaceholder: "Search register entries…"
+            showCreate: true
+            createLabel: "New Entry"
+            showRefresh: true
+            showFilter: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            showTypeFilter: true
-            createButtonLabel: "New Entry"
 
-            onProjectChanged: function(projectId) {
-                if (root.workspaceController !== null) root.workspaceController.selectProject(projectId)
+            onSearchChanged: function(text) {
+                if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
             }
-            onTypeChanged: function(typeValue) {
-                if (root.workspaceController !== null) root.workspaceController.setTypeFilter(typeValue)
-            }
-            onStatusChanged: function(statusValue) {
-                if (root.workspaceController !== null) root.workspaceController.setStatusFilter(statusValue)
-            }
-            onSeverityChanged: function(severityValue) {
-                if (root.workspaceController !== null) root.workspaceController.setSeverityFilter(severityValue)
-            }
-            onSearchTextUpdated: function(searchText) {
-                if (root.workspaceController !== null) root.workspaceController.setSearchText(searchText)
-            }
-            onRefreshRequested: function() {
+            onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
-            onCreateRequested: function() { dialogHost.openCreateDialog() }
+            onCreateRequested: dialogHost.openCreateDialog()
+            onFilterIconClicked: filterPopup.open()
         }
 
-        // ── Master/detail split ──────────────────────────────────────────
-        AppLayouts.MasterDetailLayout {
+        // Filter flyout popup
+        Popup {
+            id: filterPopup
+            parent: tableToolbar
+            width: 260
+            padding: 12
+            y: tableToolbar.height + 4
+            x: tableToolbar.width - width
+            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+            Column {
+                width: parent.width
+                spacing: 8
+
+                Label {
+                    text: "Project"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onActivated: function(index) {
+                        const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                        if (root.workspaceController !== null && opts[index])
+                            root.workspaceController.selectProject(String(opts[index].value || "all"))
+                    }
+                }
+
+                Label {
+                    text: "Type"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onActivated: function(index) {
+                        const opts = root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                        if (root.workspaceController !== null && opts[index])
+                            root.workspaceController.setTypeFilter(String(opts[index].value || "all"))
+                    }
+                }
+
+                Label {
+                    text: "Status"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onActivated: function(index) {
+                        const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                        if (root.workspaceController !== null && opts[index])
+                            root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
+                    }
+                }
+
+                Label {
+                    text: "Severity"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+
+                ComboBox {
+                    width: parent.width
+                    model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                    textRole: "label"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onActivated: function(index) {
+                        const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                        if (root.workspaceController !== null && opts[index])
+                            root.workspaceController.setSeverityFilter(String(opts[index].value || "all"))
+                    }
+                }
+            }
+        }
+
+        // ── Full-width table with slide-over detail panel ────────────────
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            masterMinWidth: 420
-            detailMinWidth: 300
+            clip: true
 
             AppWidgets.DataTable {
                 anchors.fill: parent
@@ -170,26 +251,34 @@ AppLayouts.WorkspaceFrame {
 
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
+                    detailPanel.open = true
                 }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
-                    dialogHost.openEditDialog(root.selectedEntryModel)
+                    detailPanel.open = true
                 }
                 onSortRequested: function(key) {}
             }
 
-            detailContent: RegisterDetailPanel {
+            AppWidgets.SlideOverPanel {
+                id: detailPanel
                 anchors.fill: parent
+                panelWidth: 380
+                title: root.selectedEntryModel.title || "Entry Details"
+                open: root.selectedEntryModel && root.selectedEntryModel.id !== ""
+                onCloseRequested: detailPanel.open = false
 
-                entryDetail: root.selectedEntryModel
-                urgentModel: root.urgentModel
-                selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
-                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
-                onUrgentEntrySelected: function(entryId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
+                RegisterDetailPanel {
+                    anchors.fill: parent
+                    entryDetail: root.selectedEntryModel
+                    urgentModel: root.urgentModel
+                    selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
+                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
+                    onUrgentEntrySelected: function(entryId) {
+                        if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
+                    }
                 }
             }
         }
