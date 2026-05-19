@@ -240,6 +240,7 @@ Item {
         id: deleteDialog
 
         modal: true
+        width: 420
         title: "Delete Task"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
@@ -287,6 +288,7 @@ Item {
         id: bulkDeleteDialog
 
         modal: true
+        width: 420
         title: "Bulk Delete Tasks"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
@@ -327,6 +329,7 @@ Item {
         id: deleteAssignmentDialog
 
         modal: true
+        width: 420
         title: "Remove Assignment"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
@@ -374,6 +377,7 @@ Item {
         id: deleteDependencyDialog
 
         modal: true
+        width: 420
         title: "Remove Dependency"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape

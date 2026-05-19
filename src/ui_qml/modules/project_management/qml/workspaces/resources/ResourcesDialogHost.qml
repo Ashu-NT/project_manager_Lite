@@ -67,6 +67,7 @@ Item {
         id: deleteDialog
 
         modal: true
+        width: 420
         title: "Delete Resource"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape

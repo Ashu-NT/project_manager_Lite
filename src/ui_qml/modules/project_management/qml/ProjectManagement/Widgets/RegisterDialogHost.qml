@@ -73,6 +73,7 @@ Item {
         id: deleteDialog
 
         modal: true
+        width: 420
         title: "Delete " + root.entryLabel
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
