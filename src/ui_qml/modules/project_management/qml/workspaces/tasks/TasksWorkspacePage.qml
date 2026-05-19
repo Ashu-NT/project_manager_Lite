@@ -201,6 +201,16 @@ AppLayouts.WorkspaceFrame {
             feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
+        ProjectManagementWidgets.WorkspaceStatusSection {
+            Layout.fillWidth: true
+            migrationStatus: root.workspaceController
+                ? "QML task execution, advanced filters, saved views, bulk actions, collaboration, and time-entry slice active"
+                : (root.workspaceModel.migrationStatus || "")
+            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
+            architectureStatus: "Desktop API + typed controller"
+            architectureSummary: "Task catalog, advanced task-query filters, saved filter views, bulk status/delete plus undo/redo flows, collaboration status signals, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
+        }
+
         // Advanced filter row (project, status, priority, schedule, saved views, create)
         TasksFiltersSection {
             Layout.fillWidth: true
