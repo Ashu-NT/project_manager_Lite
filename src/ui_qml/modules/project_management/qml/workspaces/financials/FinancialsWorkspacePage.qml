@@ -55,11 +55,12 @@ AppLayouts.WorkspaceFrame {
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
     readonly property var _tableColumns: [
-        { "key": "title",          "label": "Description",    "flex": 2.5, "sortable": true  },
-        { "key": "statusLabel",    "label": "Type",           "flex": 0,   "minWidth": 110, "type": "status" },
-        { "key": "subtitle",       "label": "Project / Task", "flex": 2,   "sortable": true  },
-        { "key": "supportingText", "label": "Category",       "flex": 1.5                    },
-        { "key": "metaText",       "label": "Amount",         "flex": 0,   "minWidth": 120   }
+        { "key": "title",                "label": "Description", "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",          "label": "Type",        "flex": 0,   "minWidth": 110, "type": "status" },
+        { "key": "taskName",             "label": "Task",        "flex": 1.5, "sortable": true  },
+        { "key": "plannedAmountLabel",   "label": "Budget",      "flex": 0,   "minWidth": 100   },
+        { "key": "actualAmountLabel",    "label": "Actual",      "flex": 0,   "minWidth": 100   },
+        { "key": "incurredDateLabel",    "label": "Date",        "flex": 0,   "minWidth": 90    }
     ]
 
     function _projectIndexForValue(v) {

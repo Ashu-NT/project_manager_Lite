@@ -63,11 +63,12 @@ AppLayouts.WorkspaceFrame {
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
     readonly property var _tableColumns: [
-        { "key": "title",          "label": "Risk",       "flex": 2.5, "sortable": true  },
-        { "key": "statusLabel",    "label": "Status",     "flex": 0,   "minWidth": 100, "type": "status" },
-        { "key": "supportingText", "label": "Severity",   "flex": 0,   "minWidth": 90,  "type": "status" },
-        { "key": "subtitle",       "label": "Category",   "flex": 1.5, "sortable": true  },
-        { "key": "ownerName",      "label": "Owner",      "flex": 1.5                    }
+        { "key": "title",        "label": "Risk",     "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",  "label": "Severity", "flex": 0,   "minWidth": 100, "type": "status" },
+        { "key": "entryStatus",  "label": "Status",   "flex": 0,   "minWidth": 90,  "type": "status" },
+        { "key": "projectName",  "label": "Project",  "flex": 1.5, "sortable": true  },
+        { "key": "ownerName",    "label": "Owner",    "flex": 1.5                    },
+        { "key": "dueDateLabel", "label": "Due",      "flex": 0,   "minWidth": 90    }
     ]
 
     ProjectManagementWidgets.RegisterDialogHost {
