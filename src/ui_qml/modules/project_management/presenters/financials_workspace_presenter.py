@@ -429,13 +429,18 @@ class ProjectFinancialsWorkspacePresenter:
             "costId": cost.id,
             "projectId": cost.project_id,
             "taskId": cost.task_id or "",
+            "taskName": cost.task_name or "",
             "description": cost.description,
             "plannedAmount": f"{cost.planned_amount:.2f}",
+            "plannedAmountLabel": cost.planned_amount_label,
             "committedAmount": f"{cost.committed_amount:.2f}",
+            "committedAmountLabel": cost.committed_amount_label,
             "actualAmount": f"{cost.actual_amount:.2f}",
+            "actualAmountLabel": cost.actual_amount_label,
             "costType": cost.cost_type,
             "currency": cost.currency_code or "",
             "incurredDate": cost.incurred_date.isoformat() if cost.incurred_date else "",
+            "incurredDateLabel": cost.incurred_date_label,
             "version": cost.version,
         }
 

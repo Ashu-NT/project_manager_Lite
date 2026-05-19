@@ -116,11 +116,13 @@ AppLayouts.WorkspaceFrame {
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
     readonly property var _tableColumns: [
-        { "key": "title",          "label": "Task",          "flex": 2.5, "sortable": true  },
-        { "key": "statusLabel",    "label": "Status",        "flex": 0,   "minWidth": 100, "type": "status" },
-        { "key": "supportingText", "label": "Priority",      "flex": 0,   "minWidth": 90,  "type": "status" },
-        { "key": "subtitle",       "label": "Project",       "flex": 2,   "sortable": true  },
-        { "key": "progressValue",  "label": "Progress",      "flex": 1,   "minWidth": 110, "type": "progress" }
+        { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",    "label": "Status",    "flex": 0,   "minWidth": 100, "type": "status" },
+        { "key": "projectName",    "label": "Project",   "flex": 1.5, "sortable": true  },
+        { "key": "priorityLabel",  "label": "Priority",  "flex": 0,   "minWidth": 80, "type": "status"   },
+        { "key": "startDateLabel", "label": "Start",     "flex": 0,   "minWidth": 90    },
+        { "key": "endDateLabel",   "label": "Finish",    "flex": 0,   "minWidth": 90    },
+        { "key": "progressValue",  "label": "Progress",  "flex": 1,   "minWidth": 110, "type": "progress" }
     ]
 
     TasksDialogHost {

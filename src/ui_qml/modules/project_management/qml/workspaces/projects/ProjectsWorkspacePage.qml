@@ -55,10 +55,13 @@ AppLayouts.WorkspaceFrame {
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
     readonly property var _tableColumns: [
-        { "key": "title",       "label": "Project",  "flex": 2, "sortable": true  },
-        { "key": "statusLabel", "label": "Status",   "flex": 0, "minWidth": 120, "type": "status" },
-        { "key": "subtitle",    "label": "Client",   "flex": 2, "sortable": true  },
-        { "key": "metaText",    "label": "Info",     "flex": 1, "minWidth": 90    }
+        { "key": "title",              "label": "Project",  "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",        "label": "Status",   "flex": 0,   "minWidth": 110, "type": "status" },
+        { "key": "clientName",         "label": "Client",   "flex": 1.5, "sortable": true  },
+        { "key": "clientContact",      "label": "Contact",  "flex": 1.5                    },
+        { "key": "startDateLabel",     "label": "Start",    "flex": 0,   "minWidth": 90    },
+        { "key": "endDateLabel",       "label": "Finish",   "flex": 0,   "minWidth": 90    },
+        { "key": "plannedBudgetLabel", "label": "Budget",   "flex": 0,   "minWidth": 100   }
     ]
 
     function _statusIndexForValue(statusValue) {
