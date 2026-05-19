@@ -97,7 +97,6 @@ AppLayouts.WorkspaceFrame {
             metrics: root.overviewModel.metrics || []
         }
 
-        // Inline state feedback (loading spinner / error / success)
         ProjectManagementWidgets.WorkspaceStateBanner {
             Layout.fillWidth: true
             isLoading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -117,7 +116,6 @@ AppLayouts.WorkspaceFrame {
             architectureSummary: "Project list, filters, create, edit, status, and delete flows now run through a typed PM controller backed by the project desktop API."
         }
 
-        // Toolbar: search + filter flyout + refresh + create
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
@@ -125,7 +123,6 @@ AppLayouts.WorkspaceFrame {
             showCreate: true
             createLabel: "New Project"
             showRefresh: true
-            showFilter: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
@@ -135,82 +132,86 @@ AppLayouts.WorkspaceFrame {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: dialogHost.openCreateDialog()
-            onFilterIconClicked: filterPopup.open()
         }
 
-        // Filter flyout popup
-        Popup {
-            id: filterPopup
-            parent: tableToolbar
-            width: 260
-            padding: 12
-            y: tableToolbar.height + 4
-            x: tableToolbar.width - width
-            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-            Column {
-                width: parent.width
-                spacing: 8
-
-                Label {
-                    text: "Status"
-                    font.bold: true
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    font.family: Theme.AppTheme.fontFamily
-                    color: Theme.AppTheme.textMuted
-                }
-
-                ComboBox {
-                    width: parent.width
-                    model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                    textRole: "label"
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    currentIndex: root._statusIndexForValue(
-                        root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-                    )
-                    onActivated: function(index) {
-                        const opt = root.workspaceController
-                            ? (root.workspaceController.statusOptions || [])[index]
-                            : null
-                        if (opt && root.workspaceController)
-                            root.workspaceController.setStatusFilter(String(opt.value || "all"))
-                    }
-                }
-            }
-        }
-
-        // ── Full-width table with slide-over detail panel ────────────────
+        // ── Full-width table with full-page detail view ───────────────
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
 
             AppWidgets.DataTable {
+                id: projectsTable
                 anchors.fill: parent
                 columns: root._tableColumns
                 rows: root.projectsModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                showFilter: true
 
+                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
-                    detailPanel.open = true
                 }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
-                    detailPanel.open = true
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
+                    detailPage.open = true
                 }
                 onSortRequested: function(key) {}
             }
 
-            AppWidgets.SlideOverPanel {
-                id: detailPanel
-                anchors.fill: parent
-                panelWidth: 360
-                title: root.selectedProjectModel.title || "Details"
-                open: root.selectedProjectModel && root.selectedProjectModel.id !== ""
-                onCloseRequested: {
-                    detailPanel.open = false
+            Popup {
+                id: filterPopup
+                parent: projectsTable
+                width: 260
+                padding: 12
+                x: projectsTable.width - width - 4
+                y: 30
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Label {
+                        text: "Status"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._statusIndexForValue(
+                            root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                        )
+                        onActivated: function(index) {
+                            const opt = root.workspaceController
+                                ? (root.workspaceController.statusOptions || [])[index]
+                                : null
+                            if (opt && root.workspaceController)
+                                root.workspaceController.setStatusFilter(String(opt.value || "all"))
+                        }
+                    }
                 }
+            }
+
+            AppWidgets.RecordDetailPage {
+                id: detailPage
+                anchors.fill: parent
+                title: root.selectedProjectModel.title || "Project Details"
+                open: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                onBackRequested: detailPage.open = false
+                onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
+                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
 
                 ProjectsDetailSection {
                     anchors.fill: parent

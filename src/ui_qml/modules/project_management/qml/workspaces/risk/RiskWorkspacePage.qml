@@ -120,7 +120,6 @@ AppLayouts.WorkspaceFrame {
             architectureSummary: "Project risk triage, severity filters, mitigation detail, and create/edit/delete flows now run through a typed PM controller backed by the register desktop API."
         }
 
-        // Toolbar: search + filter flyout + refresh + create
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
@@ -128,7 +127,6 @@ AppLayouts.WorkspaceFrame {
             showCreate: true
             createLabel: "New Risk"
             showRefresh: true
-            showFilter: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
@@ -138,115 +136,123 @@ AppLayouts.WorkspaceFrame {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: dialogHost.openCreateDialog()
-            onFilterIconClicked: filterPopup.open()
         }
 
-        // Filter flyout popup
-        Popup {
-            id: filterPopup
-            parent: tableToolbar
-            width: 260
-            padding: 12
-            y: tableToolbar.height + 4
-            x: tableToolbar.width - width
-            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-            Column {
-                width: parent.width
-                spacing: 8
-
-                Label {
-                    text: "Project"
-                    font.bold: true
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    font.family: Theme.AppTheme.fontFamily
-                    color: Theme.AppTheme.textMuted
-                }
-
-                ComboBox {
-                    width: parent.width
-                    model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                    textRole: "label"
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onActivated: function(index) {
-                        const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                        if (root.workspaceController !== null && opts[index])
-                            root.workspaceController.selectProject(String(opts[index].value || "all"))
-                    }
-                }
-
-                Label {
-                    text: "Status"
-                    font.bold: true
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    font.family: Theme.AppTheme.fontFamily
-                    color: Theme.AppTheme.textMuted
-                }
-
-                ComboBox {
-                    width: parent.width
-                    model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                    textRole: "label"
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onActivated: function(index) {
-                        const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                        if (root.workspaceController !== null && opts[index])
-                            root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
-                    }
-                }
-
-                Label {
-                    text: "Severity"
-                    font.bold: true
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    font.family: Theme.AppTheme.fontFamily
-                    color: Theme.AppTheme.textMuted
-                }
-
-                ComboBox {
-                    width: parent.width
-                    model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
-                    textRole: "label"
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onActivated: function(index) {
-                        const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []
-                        if (root.workspaceController !== null && opts[index])
-                            root.workspaceController.setSeverityFilter(String(opts[index].value || "all"))
-                    }
-                }
-            }
-        }
-
-        // ── Full-width table with slide-over detail panel ────────────────
+        // ── Full-width table with full-page detail view ───────────────
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
 
             AppWidgets.DataTable {
+                id: riskTable
                 anchors.fill: parent
                 columns: root._tableColumns
                 rows: root.entriesModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                showFilter: true
 
+                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
-                    detailPanel.open = true
                 }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
-                    detailPanel.open = true
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
+                    detailPage.open = true
                 }
                 onSortRequested: function(key) {}
             }
 
-            AppWidgets.SlideOverPanel {
-                id: detailPanel
+            // Filter flyout popup — anchored to DataTable
+            Popup {
+                id: filterPopup
+                parent: riskTable
+                width: 260
+                padding: 12
+                x: riskTable.width - width - 4
+                y: 30
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Label {
+                        text: "Project"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.selectProject(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Status"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Severity"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setSeverityFilter(String(opts[index].value || "all"))
+                        }
+                    }
+                }
+            }
+
+            // Full-page detail view
+            AppWidgets.RecordDetailPage {
+                id: detailPage
                 anchors.fill: parent
-                panelWidth: 380
                 title: root.selectedEntryModel.title || "Risk Details"
-                open: root.selectedEntryModel && root.selectedEntryModel.id !== ""
-                onCloseRequested: detailPanel.open = false
+                open: false
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                onBackRequested: detailPage.open = false
+                onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
+                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
 
                 RiskDetailPanel {
                     anchors.fill: parent

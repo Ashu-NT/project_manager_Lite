@@ -4,6 +4,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
+import App.Icons 1.0 as AppIcons
 
 // Reusable enterprise data table.
 // columns: [{key, label, flex, minWidth, sortable, type, visible}]
@@ -19,7 +20,7 @@ Item {
     property string selectedRowId: ""
     property string sortKey: ""
     property int sortDirection: Qt.AscendingOrder
-    property bool reorderEnabled: true
+    property bool showFilter: false
 
     property bool multiSelect: false
     property var selectedRowIds: []
@@ -29,7 +30,8 @@ Item {
     signal sortRequested(string key)
     signal rowSelectionToggled(string rowId, bool selected)
     signal selectAllToggled(bool allSelected)
-    signal columnsReordered(var newColumns)
+    signal filterClicked()
+    signal viewDetailRequested(string rowId)
 
     function _isRowChecked(rowId) {
         const ids = root.selectedRowIds || []
@@ -43,8 +45,11 @@ Item {
         && (root.selectedRowIds || []).length >= root.rows.length
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
-    // Width available for data columns (subtract checkbox column if multiSelect)
-    readonly property real _dataWidth: root.multiSelect ? root.width - 36 : root.width
+    // Fixed-width column reserved for the "View Details" action button
+    readonly property int _actionColWidth: 56
+
+    // Width available for data columns (subtract checkbox + action columns)
+    readonly property real _dataWidth: (root.multiSelect ? root.width - 36 : root.width) - root._actionColWidth
 
     // Only columns where visible !== false
     readonly property var _visibleColumns: {
@@ -71,31 +76,6 @@ Item {
         return Math.max(minW, (root._dataWidth * flex) / root._flexTotal)
     }
 
-    function _applyReorder(fromVisIdx, dropCenterX) {
-        if (!root.reorderEnabled) return
-        let toVisIdx = fromVisIdx
-        let x = root.multiSelect ? 36 : 0
-        const vis = root._visibleColumns
-        for (let i = 0; i < vis.length; i++) {
-            if (dropCenterX <= x + root._colWidth(vis[i]) / 2) { toVisIdx = i; break }
-            x += root._colWidth(vis[i])
-            toVisIdx = vis.length - 1
-        }
-        if (fromVisIdx === toVisIdx) return
-        function _vToF(vi) {
-            let c = -1
-            for (let i = 0; i < root.columns.length; i++) {
-                if (root.columns[i].visible !== false && ++c === vi) return i
-            }
-            return root.columns.length - 1
-        }
-        const newCols = root.columns.slice()
-        const moved = newCols.splice(_vToF(fromVisIdx), 1)[0]
-        newCols.splice(_vToF(toVisIdx), 0, moved)
-        root.columns = newCols
-        root.columnsReordered(newCols)
-    }
-
     function _applyColumnVisibility(updatedDraft) {
         const vm = {}
         for (let j = 0; j < updatedDraft.length; j++) vm[updatedDraft[j].key] = updatedDraft[j].visible
@@ -108,10 +88,130 @@ Item {
         root.columns = newCols
     }
 
-    // ── Sticky header ──────────────────────────────────────────────────
+    // ── Action bar (Filter / Customize) above column headers ─────────
+    Rectangle {
+        id: actionBar
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 28
+        color: Theme.AppTheme.surface
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            height: 1
+            color: Theme.AppTheme.divider
+        }
+
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 2
+
+            // Filter button
+            Item {
+                id: filterBtn
+                visible: root.showFilter
+                width: 60
+                height: 22
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.AppTheme.radiusSm
+                    color: filterHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
+                    border.color: filterHover.containsMouse ? Theme.AppTheme.subtleBorder : "transparent"
+                    border.width: 1
+                }
+
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 4
+
+                    AppIcons.AppIcon {
+                        name: "filter"
+                        size: 11
+                        iconColor: Theme.AppTheme.textMuted
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Text {
+                        text: "Filter"
+                        color: Theme.AppTheme.textMuted
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                MouseArea {
+                    id: filterHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.filterClicked()
+                }
+            }
+
+            Rectangle {
+                visible: root.showFilter
+                width: 1
+                height: 14
+                color: Theme.AppTheme.divider
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            // Customize button
+            Item {
+                id: customizeBtn
+                visible: root.columns.length > 0
+                width: 76
+                height: 22
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.AppTheme.radiusSm
+                    color: custHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
+                    border.color: custHover.containsMouse ? Theme.AppTheme.subtleBorder : "transparent"
+                    border.width: 1
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Customize"
+                    color: Theme.AppTheme.textMuted
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                }
+
+                AppWidgets.TableColumnCustomizer {
+                    id: columnCustomizer
+                    parent: actionBar
+                    x: actionBar.width - width - 4
+                    y: actionBar.height + 2
+                    columns: root.columns
+                    onColumnVisibilityChanged: function(updatedColumns) {
+                        root._applyColumnVisibility(updatedColumns)
+                    }
+                }
+
+                MouseArea {
+                    id: custHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: columnCustomizer.open()
+                }
+            }
+        }
+    }
+
+    // ── Sticky column header ──────────────────────────────────────────
     Rectangle {
         id: tableHeader
-        anchors.top: parent.top
+        anchors.top: actionBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         height: 32
@@ -121,7 +221,7 @@ Item {
         Row {
             anchors.fill: parent
 
-            // Checkbox select-all header
+            // Select-all checkbox header
             Item {
                 width: 36
                 height: 32
@@ -137,6 +237,7 @@ Item {
                 }
             }
 
+            // Column header cells
             Repeater {
                 model: root._visibleColumns
 
@@ -146,44 +247,9 @@ Item {
                     required property int index
 
                     readonly property bool isSorted: root.sortKey === headerCell.modelData.key
-                    property bool _isDragging: false
-                    property real _dragOffset: 0
 
                     width: root._colWidth(headerCell.modelData)
                     height: 32
-                    z: headerCell._isDragging ? 5 : 0
-
-                    transform: Translate {
-                        x: headerCell._dragOffset
-                        Behavior on x {
-                            enabled: !headerCell._isDragging
-                            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
-                        }
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: Theme.AppTheme.accent
-                        opacity: headerCell._isDragging ? 0.12 : 0
-                        radius: 2
-                    }
-
-                    DragHandler {
-                        id: headerDrag
-                        enabled: root.reorderEnabled
-                        yAxis.enabled: false
-                        onActiveChanged: {
-                            headerCell._isDragging = active
-                            if (!active) {
-                                const cx = headerCell.x + headerCell._dragOffset + headerCell.width / 2
-                                root._applyReorder(headerCell.index, cx)
-                                headerCell._dragOffset = 0
-                            }
-                        }
-                        onTranslationChanged: {
-                            if (active) headerCell._dragOffset = translation.x
-                        }
-                    }
 
                     RowLayout {
                         anchors.fill: parent
@@ -213,61 +279,17 @@ Item {
 
                     MouseArea {
                         anchors.fill: parent
-                        enabled: headerCell.modelData.sortable !== false && !headerCell._isDragging
-                        cursorShape: headerCell._isDragging
-                            ? Qt.ClosedHandCursor
-                            : (enabled ? Qt.PointingHandCursor : Qt.ArrowCursor)
+                        enabled: headerCell.modelData.sortable !== false
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: root.sortRequested(headerCell.modelData.key)
                     }
                 }
             }
-        }
 
-        // Gear icon — opens column visibility customizer
-        Item {
-            id: customizerArea
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            width: 28
-            z: 2
-            visible: root.columns.length > 0
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.topMargin: 5
-                anchors.bottomMargin: 5
-                anchors.leftMargin: 2
-                anchors.rightMargin: 4
-                radius: Theme.AppTheme.radiusSm
-                color: gearHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-            }
-
-            Text {
-                anchors.centerIn: parent
-                text: "⚙"
-                color: Theme.AppTheme.textMuted
-                font.pixelSize: 11
-                font.family: Theme.AppTheme.fontFamily
-            }
-
-            AppWidgets.TableColumnCustomizer {
-                id: columnCustomizer
-                parent: customizerArea
-                x: -(width - customizerArea.width)
-                y: customizerArea.height + 2
-                columns: root.columns
-                onColumnVisibilityChanged: function(updatedColumns) {
-                    root._applyColumnVisibility(updatedColumns)
-                }
-            }
-
-            MouseArea {
-                id: gearHover
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: columnCustomizer.open()
+            // Empty header placeholder for the action column
+            Item {
+                width: root._actionColWidth
+                height: 32
             }
         }
     }
@@ -292,6 +314,10 @@ Item {
         model: root.rows
         keyNavigationEnabled: true
         focus: true
+
+        ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+        }
 
         Keys.onUpPressed: {
             if (rowList.currentIndex > 0) rowList.decrementCurrentIndex()
@@ -338,7 +364,6 @@ Item {
                             ? Theme.AppTheme.surfaceSunken
                             : "transparent"
 
-                // Accent left rail on selected / checked row
                 Rectangle {
                     anchors.left: parent.left
                     anchors.top: parent.top
@@ -349,11 +374,14 @@ Item {
                 }
             }
 
-            // Cells
+            // Data cells row
             Row {
-                anchors.fill: parent
+                id: cellRow
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
 
-                // Per-row checkbox (multiSelect mode)
+                // Per-row checkbox
                 Item {
                     width: 36
                     height: Theme.AppTheme.compactRowHeight
@@ -371,7 +399,7 @@ Item {
 
                     delegate: Item {
                         id: cellDelegate
-                        required property var modelData  // column descriptor
+                        required property var modelData
                         required property int index
 
                         readonly property var rawValue: rowDelegate.modelData[cellDelegate.modelData.key] !== undefined
@@ -405,7 +433,6 @@ Item {
                         width: root._colWidth(cellDelegate.modelData)
                         height: Theme.AppTheme.compactRowHeight
 
-                        // Status chip cell
                         AppWidgets.StatusChip {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
@@ -414,7 +441,6 @@ Item {
                             status: cellDelegate.cellText
                         }
 
-                        // Progress cell
                         Item {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
@@ -445,7 +471,6 @@ Item {
                             }
                         }
 
-                        // Text cell
                         Label {
                             anchors.fill: parent
                             anchors.leftMargin: Theme.AppTheme.spacingSm
@@ -473,9 +498,13 @@ Item {
                 color: Theme.AppTheme.divider
             }
 
+            // Row hover/click — covers data area only (not the action column)
             MouseArea {
                 id: rowHover
-                anchors.fill: parent
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                width: parent.width - root._actionColWidth
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
@@ -485,6 +514,39 @@ Item {
                     rowList.currentIndex = rowDelegate.index
                 }
                 onDoubleClicked: root.rowActivated(rowDelegate.rowId)
+            }
+
+            // View Details action button — always visible, right-side column
+            Item {
+                id: actionCell
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: root._actionColWidth
+
+                AppIcons.AppIcon {
+                    name: "chevron_right"
+                    size: 13
+                    iconColor: rowHover.containsMouse || rowDelegate.isHighlighted
+                        ? Theme.AppTheme.accent
+                        : Theme.AppTheme.textMuted
+                    anchors.centerIn: parent
+                    opacity: rowHover.containsMouse || rowDelegate.isHighlighted ? 1.0 : 0.35
+
+                    Behavior on opacity {
+                        NumberAnimation { duration: 120 }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.selectedRowId = rowDelegate.rowId
+                        root.rowSelected(rowDelegate.rowId)
+                        root.viewDetailRequested(rowDelegate.rowId)
+                    }
+                }
             }
         }
     }

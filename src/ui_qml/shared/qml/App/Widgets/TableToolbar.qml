@@ -14,12 +14,10 @@ Rectangle {
     property bool showCreate: false
     property string createLabel: "New"
     property bool isBusy: false
-    property bool showFilter: false
 
     default property alias filterContent: filterSlot.data
 
     signal searchChanged(string text)
-    signal filterIconClicked()
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
@@ -75,15 +73,6 @@ Rectangle {
         }
 
         Item { Layout.fillWidth: true }
-
-        // Filter flyout trigger
-        AppControls.SecondaryButton {
-            visible: root.showFilter
-            text: "Filter ▾"
-            implicitWidth: 80
-            enabled: !root.isBusy
-            onClicked: root.filterIconClicked()
-        }
 
         // Refresh
         AppControls.SecondaryButton {
