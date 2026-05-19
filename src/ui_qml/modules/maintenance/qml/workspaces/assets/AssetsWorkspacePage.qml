@@ -3,6 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 
@@ -109,12 +111,39 @@ AppLayouts.WorkspaceFrame {
             "fields": [],
             "state": {}
         })
+    readonly property var _activeDetailModel: {
+        if (libraryTabs.currentIndex === 1) return root.selectedSystemModel
+        if (libraryTabs.currentIndex === 2) return root.selectedAssetModel
+        if (libraryTabs.currentIndex === 3) return root.selectedComponentModel
+        return root.selectedLocationModel
+    }
     readonly property string currentCreateLabel: ({
         0: "New Location",
         1: "New System",
         2: "New Asset",
         3: "New Component"
     })[libraryTabs.currentIndex] || "New Record"
+
+    readonly property var _locationColumns: [
+        { "key": "title",       "label": "Name",   "flex": 2, "sortable": true },
+        { "key": "subtitle",    "label": "Parent", "flex": 2                   },
+        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
+    ]
+    readonly property var _systemColumns: [
+        { "key": "title",       "label": "Name",     "flex": 2, "sortable": true },
+        { "key": "subtitle",    "label": "Location", "flex": 2                   },
+        { "key": "statusLabel", "label": "Status",   "flex": 0, "minWidth": 100, "type": "status" }
+    ]
+    readonly property var _assetColumns: [
+        { "key": "title",       "label": "Name",   "flex": 2, "sortable": true },
+        { "key": "subtitle",    "label": "System", "flex": 2                   },
+        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
+    ]
+    readonly property var _componentColumns: [
+        { "key": "title",       "label": "Name",   "flex": 2, "sortable": true },
+        { "key": "subtitle",    "label": "Asset",  "flex": 2                   },
+        { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 100, "type": "status" }
+    ]
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
@@ -125,18 +154,20 @@ AppLayouts.WorkspaceFrame {
 
     function openCreateDialogForCurrentTab() {
         switch (libraryTabs.currentIndex) {
-        case 0:
-            dialogHost.openCreateLocationDialog()
-            break
-        case 1:
-            dialogHost.openCreateSystemDialog()
-            break
-        case 2:
-            dialogHost.openCreateAssetDialog()
-            break
-        default:
-            dialogHost.openCreateComponentDialog()
-            break
+        case 0: dialogHost.openCreateLocationDialog(); break
+        case 1: dialogHost.openCreateSystemDialog(); break
+        case 2: dialogHost.openCreateAssetDialog(); break
+        default: dialogHost.openCreateComponentDialog(); break
+        }
+    }
+
+    function _openEditDialogForCurrentTab() {
+        const mdl = root._activeDetailModel
+        switch (libraryTabs.currentIndex) {
+        case 0: dialogHost.openEditLocationDialog(mdl); break
+        case 1: dialogHost.openEditSystemDialog(mdl); break
+        case 2: dialogHost.openEditAssetDialog(mdl); break
+        default: dialogHost.openEditComponentDialog(mdl); break
         }
     }
 
@@ -168,6 +199,15 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
+    function _toggleActiveForCurrentTab() {
+        switch (libraryTabs.currentIndex) {
+        case 0: root.toggleLocationFromState(root.selectedLocationModel); break
+        case 1: root.toggleSystemFromState(root.selectedSystemModel); break
+        case 2: root.toggleAssetFromState(root.selectedAssetModel); break
+        default: root.toggleComponentFromState(root.selectedComponentModel); break
+        }
+    }
+
     AssetsDialogHost {
         id: dialogHost
 
@@ -186,358 +226,261 @@ AppLayouts.WorkspaceFrame {
         supplierOptions: root.workspaceController ? (root.workspaceController.formSupplierOptions || []) : []
 
         onCreateLocationRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createLocation(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.createLocation(payload)
         }
-
         onUpdateLocationRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateLocation(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.updateLocation(payload)
         }
-
         onCreateSystemRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createSystem(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.createSystem(payload)
         }
-
         onUpdateSystemRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateSystem(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.updateSystem(payload)
         }
-
         onCreateAssetRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createAsset(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.createAsset(payload)
         }
-
         onUpdateAssetRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateAsset(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.updateAsset(payload)
         }
-
         onCreateComponentRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createComponent(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.createComponent(payload)
         }
-
         onUpdateComponentRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateComponent(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.updateComponent(payload)
         }
     }
 
-    Flickable {
+    ColumnLayout {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: contentColumn.implicitHeight
-        clip: true
+        spacing: Theme.AppTheme.spacingSm
 
-        ColumnLayout {
-            id: contentColumn
+        AppWidgets.KpiStrip {
+            Layout.fillWidth: true
+            metrics: root.overviewModel.metrics || []
+        }
 
-            width: parent.width
-            spacing: 12
+        MaintenanceWidgets.WorkspaceStateBanner {
+            Layout.fillWidth: true
+            isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
+            feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+        }
 
-            AssetsMetricsSection {
-                Layout.fillWidth: true
-                metrics: root.overviewModel.metrics || []
+        MaintenanceWidgets.WorkspaceStatusSection {
+            visible: false
+            Layout.fillWidth: true
+            migrationStatus: root.workspaceController
+                ? "QML asset-library slice active"
+                : (root.workspaceModel.migrationStatus || "")
+            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
+            architectureStatus: "Desktop API + typed controller"
+            architectureSummary: "Locations, systems, assets, and components now migrate through one typed maintenance controller backed by the maintenance assets desktop API."
+        }
+
+        TabBar {
+            id: libraryTabs
+            Layout.fillWidth: true
+            onCurrentIndexChanged: detailPage.open = false
+
+            TabButton { text: "Locations" }
+            TabButton { text: "Systems" }
+            TabButton { text: "Assets" }
+            TabButton { text: "Components" }
+        }
+
+        AppWidgets.TableToolbar {
+            id: tableToolbar
+            Layout.fillWidth: true
+            searchPlaceholder: "Search assets…"
+            showCreate: true
+            createLabel: root.currentCreateLabel
+            showRefresh: true
+            showFilter: true
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+            onSearchChanged: function(text) {
+                if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
+            }
+            onRefreshRequested: {
+                if (root.workspaceController !== null) root.workspaceController.refresh()
+            }
+            onCreateRequested: root.openCreateDialogForCurrentTab()
+            onFilterClicked: filterPopup.open()
+        }
+
+        // ── Full-width table with full-page detail view ───────────────
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+
+            AppWidgets.DataTable {
+                id: locationsTable
+                anchors.fill: parent
+                visible: libraryTabs.currentIndex === 0
+                columns: root._locationColumns
+                rows: root.locationModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedLocationId : ""
+                showFilter: true
+
+                onFilterClicked: filterPopup.open()
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectLocation(rowId)
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectLocation(rowId)
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectLocation(rowId)
+                    detailPage.open = true
+                }
+                onSortRequested: function(key) {}
             }
 
-            MaintenanceWidgets.WorkspaceStateBanner {
-                Layout.fillWidth: true
-                isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+            AppWidgets.DataTable {
+                id: systemsTable
+                anchors.fill: parent
+                visible: libraryTabs.currentIndex === 1
+                columns: root._systemColumns
+                rows: root.systemModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedSystemId : ""
+                showFilter: true
+
+                onFilterClicked: filterPopup.open()
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectSystem(rowId)
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectSystem(rowId)
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectSystem(rowId)
+                    detailPage.open = true
+                }
+                onSortRequested: function(key) {}
+            }
+
+            AppWidgets.DataTable {
+                id: assetsTable
+                anchors.fill: parent
+                visible: libraryTabs.currentIndex === 2
+                columns: root._assetColumns
+                rows: root.assetModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedAssetId : ""
+                showFilter: true
+
+                onFilterClicked: filterPopup.open()
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectAsset(rowId)
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectAsset(rowId)
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectAsset(rowId)
+                    detailPage.open = true
+                }
+                onSortRequested: function(key) {}
+            }
+
+            AppWidgets.DataTable {
+                id: componentsTable
+                anchors.fill: parent
+                visible: libraryTabs.currentIndex === 3
+                columns: root._componentColumns
+                rows: root.componentModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedComponentId : ""
+                showFilter: true
+
+                onFilterClicked: filterPopup.open()
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectComponent(rowId)
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectComponent(rowId)
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectComponent(rowId)
+                    detailPage.open = true
+                }
+                onSortRequested: function(key) {}
+            }
+
+            Popup {
+                id: filterPopup
+                parent: tableToolbar
+                width: 260
+                padding: 12
+                x: tableToolbar.width - width - 4
+                y: tableToolbar.height + 4
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Label {
+                        text: "Site"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setSiteFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Active Status"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.activeFilterOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.activeFilterOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setActiveFilter(String(opts[index].value || "all"))
+                        }
+                    }
+                }
+            }
+
+            AppWidgets.SectionDetailPage {
+                id: detailPage
+                anchors.fill: parent
+                title: root._activeDetailModel.title || "Asset Details"
+                open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-                feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-            }
+                sections: ["Overview", "Details", "Actions"]
 
-            MaintenanceWidgets.WorkspaceStatusSection {
-                Layout.fillWidth: true
-                migrationStatus: root.workspaceController
-                    ? "QML asset-library slice active"
-                    : (root.workspaceModel.migrationStatus || "")
-                legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-                architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Locations, systems, assets, and components now migrate through one typed maintenance controller backed by the maintenance assets desktop API."
-            }
+                onBackRequested: detailPage.open = false
+                onEditRequested: root._openEditDialogForCurrentTab()
+                onDeleteRequested: detailPage.open = false
 
-            AssetsFiltersSection {
-                Layout.fillWidth: true
-                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
-                activeFilterOptions: root.workspaceController ? (root.workspaceController.activeFilterOptions || []) : []
-                selectedSiteFilter: root.workspaceController ? root.workspaceController.selectedSiteFilter : "all"
-                selectedActiveFilter: root.workspaceController ? root.workspaceController.selectedActiveFilter : "all"
-                searchText: root.workspaceController ? root.workspaceController.searchText : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                AssetLibraryDetailSection {
+                    width: parent.width
+                    detailPage: detailPage
+                    detailModel: root._activeDetailModel
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                onSearchTextUpdated: function(searchText) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSearchText(searchText)
-                    }
-                }
-
-                onSiteFilterUpdated: function(siteId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSiteFilter(siteId)
-                    }
-                }
-
-                onActiveFilterUpdated: function(activeFilter) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setActiveFilter(activeFilter)
-                    }
-                }
-
-                onRefreshRequested: function() {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.refresh()
-                    }
-                }
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                TabBar {
-                    id: libraryTabs
-                    Layout.fillWidth: true
-
-                    TabButton { text: "Locations" }
-                    TabButton { text: "Systems" }
-                    TabButton { text: "Assets" }
-                    TabButton { text: "Components" }
-                }
-
-                AppControls.PrimaryButton {
-                    text: root.currentCreateLabel
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onClicked: root.openCreateDialogForCurrentTab()
-                }
-            }
-
-            StackLayout {
-                Layout.fillWidth: true
-                currentIndex: libraryTabs.currentIndex
-
-                Item {
-                    implicitWidth: locationLayout.implicitWidth
-                    implicitHeight: locationLayout.implicitHeight
-
-                    GridLayout {
-                        id: locationLayout
-
-                        width: parent.width
-                        columns: root.width > 1180 ? 2 : 1
-                        columnSpacing: 12
-                        rowSpacing: 12
-
-                        AssetLibraryCatalogSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            catalogModel: root.locationModel
-                            selectedItemId: root.workspaceController ? root.workspaceController.selectedLocationId : ""
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onItemChosen: function(itemId) {
-                                if (root.workspaceController !== null) {
-                                    root.workspaceController.selectLocation(itemId)
-                                }
-                            }
-
-                            onPrimaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectLocation(itemData.id)
-                                }
-                                dialogHost.openEditLocationDialog(itemData)
-                            }
-
-                            onSecondaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectLocation(itemData.id)
-                                }
-                                root.toggleLocationFromState(itemData)
-                            }
-                        }
-
-                        AssetLibraryDetailSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            emptyTitle: "No location selected"
-                            detailModel: root.selectedLocationModel
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onPrimaryActionRequested: dialogHost.openEditLocationDialog(root.selectedLocationModel)
-                            onSecondaryActionRequested: root.toggleLocationFromState(root.selectedLocationModel)
-                        }
-                    }
-                }
-
-                Item {
-                    implicitWidth: systemLayout.implicitWidth
-                    implicitHeight: systemLayout.implicitHeight
-
-                    GridLayout {
-                        id: systemLayout
-
-                        width: parent.width
-                        columns: root.width > 1180 ? 2 : 1
-                        columnSpacing: 12
-                        rowSpacing: 12
-
-                        AssetLibraryCatalogSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            catalogModel: root.systemModel
-                            selectedItemId: root.workspaceController ? root.workspaceController.selectedSystemId : ""
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onItemChosen: function(itemId) {
-                                if (root.workspaceController !== null) {
-                                    root.workspaceController.selectSystem(itemId)
-                                }
-                            }
-
-                            onPrimaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectSystem(itemData.id)
-                                }
-                                dialogHost.openEditSystemDialog(itemData)
-                            }
-
-                            onSecondaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectSystem(itemData.id)
-                                }
-                                root.toggleSystemFromState(itemData)
-                            }
-                        }
-
-                        AssetLibraryDetailSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            emptyTitle: "No system selected"
-                            detailModel: root.selectedSystemModel
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onPrimaryActionRequested: dialogHost.openEditSystemDialog(root.selectedSystemModel)
-                            onSecondaryActionRequested: root.toggleSystemFromState(root.selectedSystemModel)
-                        }
-                    }
-                }
-
-                Item {
-                    implicitWidth: assetLayout.implicitWidth
-                    implicitHeight: assetLayout.implicitHeight
-
-                    GridLayout {
-                        id: assetLayout
-
-                        width: parent.width
-                        columns: root.width > 1180 ? 2 : 1
-                        columnSpacing: 12
-                        rowSpacing: 12
-
-                        AssetLibraryCatalogSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            catalogModel: root.assetModel
-                            selectedItemId: root.workspaceController ? root.workspaceController.selectedAssetId : ""
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onItemChosen: function(itemId) {
-                                if (root.workspaceController !== null) {
-                                    root.workspaceController.selectAsset(itemId)
-                                }
-                            }
-
-                            onPrimaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectAsset(itemData.id)
-                                }
-                                dialogHost.openEditAssetDialog(itemData)
-                            }
-
-                            onSecondaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectAsset(itemData.id)
-                                }
-                                root.toggleAssetFromState(itemData)
-                            }
-                        }
-
-                        AssetLibraryDetailSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            emptyTitle: "No asset selected"
-                            detailModel: root.selectedAssetModel
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onPrimaryActionRequested: dialogHost.openEditAssetDialog(root.selectedAssetModel)
-                            onSecondaryActionRequested: root.toggleAssetFromState(root.selectedAssetModel)
-                        }
-                    }
-                }
-
-                Item {
-                    implicitWidth: componentLayout.implicitWidth
-                    implicitHeight: componentLayout.implicitHeight
-
-                    GridLayout {
-                        id: componentLayout
-
-                        width: parent.width
-                        columns: root.width > 1180 ? 2 : 1
-                        columnSpacing: 12
-                        rowSpacing: 12
-
-                        AssetLibraryCatalogSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            catalogModel: root.componentModel
-                            selectedItemId: root.workspaceController ? root.workspaceController.selectedComponentId : ""
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onItemChosen: function(itemId) {
-                                if (root.workspaceController !== null) {
-                                    root.workspaceController.selectComponent(itemId)
-                                }
-                            }
-
-                            onPrimaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectComponent(itemData.id)
-                                }
-                                dialogHost.openEditComponentDialog(itemData)
-                            }
-
-                            onSecondaryActionChosen: function(itemData) {
-                                if (itemData && itemData.id && root.workspaceController !== null) {
-                                    root.workspaceController.selectComponent(itemData.id)
-                                }
-                                root.toggleComponentFromState(itemData)
-                            }
-                        }
-
-                        AssetLibraryDetailSection {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            emptyTitle: "No component selected"
-                            detailModel: root.selectedComponentModel
-                            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                            onPrimaryActionRequested: dialogHost.openEditComponentDialog(root.selectedComponentModel)
-                            onSecondaryActionRequested: root.toggleComponentFromState(root.selectedComponentModel)
-                        }
-                    }
+                    onPrimaryActionRequested: root._openEditDialogForCurrentTab()
+                    onSecondaryActionRequested: root._toggleActiveForCurrentTab()
                 }
             }
         }

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 
@@ -103,12 +104,13 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            PlannerMetricsSection {
+            AppWidgets.KpiStrip {
                 Layout.fillWidth: true
                 metrics: root.overviewModel.metrics || []
             }
 
             MaintenanceWidgets.WorkspaceStatusSection {
+                visible: false
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceModel.migrationStatus || ""
                 legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""

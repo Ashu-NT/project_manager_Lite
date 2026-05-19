@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 
@@ -105,7 +106,7 @@ AppLayouts.WorkspaceFrame {
             width: parent.width
             spacing: 12
 
-            PreventiveMetricsSection {
+            AppWidgets.KpiStrip {
                 Layout.fillWidth: true
                 metrics: root.overviewModel.metrics || []
             }
@@ -119,6 +120,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             MaintenanceWidgets.WorkspaceStatusSection {
+                visible: false
                 Layout.fillWidth: true
                 migrationStatus: root.workspaceController
                     ? "QML preventive slice active"
