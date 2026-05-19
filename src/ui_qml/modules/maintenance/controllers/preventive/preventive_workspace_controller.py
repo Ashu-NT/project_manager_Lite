@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.maintenance.controllers.common import (
     MaintenanceWorkspaceControllerBase,
@@ -13,7 +14,12 @@ from src.ui_qml.modules.maintenance.presenters import (
     MaintenanceWorkspacePresenter,
 )
 
+QML_IMPORT_NAME = "Maintenance.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Maintenance workspace controllers are provided by the shell runtime.")
 class MaintenancePreventiveWorkspaceController(MaintenanceWorkspaceControllerBase):
     overviewChanged = Signal()
     queueStateChanged = Signal()

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import domain_events
 from src.ui_qml.platform.presenters.admin_presenter import PlatformAdminWorkspacePresenter
@@ -29,7 +30,12 @@ from .site_controller import PlatformSiteController
 from .user_controller import PlatformUserController
 from ..common import PlatformWorkspaceControllerBase, serialize_workspace_overview
 
+QML_IMPORT_NAME = "Platform.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Platform workspace controllers are provided by the shell runtime.")
 class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     organizationsChanged = Signal()
     sitesChanged = Signal()

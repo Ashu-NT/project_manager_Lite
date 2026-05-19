@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Property, QObject, Signal, Slot, QUrl
 from PySide6.QtGui import QDesktopServices, QGuiApplication
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.platform.presenters.support_workspace_presenter import (
     PlatformSupportWorkspacePresenter,
@@ -15,7 +16,12 @@ from ..common import (
     serialize_operation_result,
 )
 
+QML_IMPORT_NAME = "Platform.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Platform workspace controllers are provided by the shell runtime.")
 class PlatformSupportWorkspaceController(PlatformWorkspaceControllerBase):
     supportSettingsChanged = Signal()
     supportPathsChanged = Signal()

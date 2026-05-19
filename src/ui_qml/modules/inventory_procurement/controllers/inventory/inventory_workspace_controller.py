@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, Signal, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.inventory_procurement.controllers.common import (
     InventoryProcurementWorkspaceControllerBase,
@@ -16,7 +17,12 @@ from src.ui_qml.modules.inventory_procurement.presenters import (
     InventoryProcurementWorkspacePresenter,
 )
 
+QML_IMPORT_NAME = "InventoryProcurement.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Inventory workspace controllers are provided by the shell runtime.")
 class InventoryProcurementInventoryWorkspaceController(
     InventoryProcurementWorkspaceControllerBase
 ):

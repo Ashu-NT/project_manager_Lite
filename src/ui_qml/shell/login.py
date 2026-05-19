@@ -3,9 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.auth import AuthService, UserSessionContext
 from src.core.platform.common.exceptions import ValidationError
+
+QML_IMPORT_NAME = "Shell.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -20,6 +24,8 @@ class LoginViewModel:
     is_busy: bool = False
 
 
+@QmlElement
+@QmlUncreatable("Shell login controllers are provided by the application shell.")
 class ShellLoginController(QObject):
     accepted = Signal()
     rejected = Signal()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.api.desktop.platform import PlatformRuntimeDesktopApi
 from src.ui_qml.platform.controllers.admin import (
@@ -30,7 +31,12 @@ from src.ui_qml.platform.presenters import (
 )
 from src.ui_qml.platform.routes import build_platform_routes
 
+QML_IMPORT_NAME = "Platform.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Platform workspace catalogs are provided by the shell runtime.")
 class PlatformWorkspaceCatalog(QObject):
     def __init__(
         self,

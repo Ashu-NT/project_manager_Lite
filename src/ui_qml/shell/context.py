@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shell.navigation import NavigationItemViewModel
 
+QML_IMPORT_NAME = "Shell.Context"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Shell runtime context is provided by the application shell.")
 class ShellContext(QObject):
     appTitleChanged = Signal()
     currentRouteIdChanged = Signal()

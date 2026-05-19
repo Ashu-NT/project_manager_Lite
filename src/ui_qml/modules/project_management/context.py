@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementCollaborationWorkspaceController,
@@ -33,7 +34,12 @@ from src.ui_qml.modules.project_management.presenters import (
     build_project_management_workspace_presenters,
 )
 
+QML_IMPORT_NAME = "ProjectManagement.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Project management workspace catalogs are provided by the shell runtime.")
 class ProjectManagementWorkspaceCatalog(QObject):
     def __init__(
         self,

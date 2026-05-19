@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
@@ -17,7 +18,12 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
 )
 
+QML_IMPORT_NAME = "ProjectManagement.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
 class ProjectManagementFinancialsWorkspaceController(
     ProjectManagementWorkspaceControllerBase
 ):

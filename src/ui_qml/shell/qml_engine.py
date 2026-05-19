@@ -4,17 +4,44 @@ from pathlib import Path
 from typing import Any
 from PySide6.QtQml import QQmlApplicationEngine
 
-from src.ui_qml.modules.inventory_procurement.qml_type_registration import (
-    register_inventory_procurement_qml_types,
-)
-from src.ui_qml.modules.maintenance.qml_type_registration import (
-    register_maintenance_qml_types,
-)
-from src.ui_qml.modules.project_management.qml_type_registration import (
-    register_project_management_qml_types,
-)
-from src.ui_qml.platform.qml_type_registration import register_platform_qml_types
-from src.ui_qml.shell.qml_type_registration import register_shell_qml_types
+import src.ui_qml.shell.context  # noqa: F401
+import src.ui_qml.shell.login  # noqa: F401
+import src.ui_qml.platform.context  # noqa: F401
+import src.ui_qml.platform.controllers.common.workspace_controller_base  # noqa: F401
+import src.ui_qml.platform.controllers.admin.admin_console_controller  # noqa: F401
+import src.ui_qml.platform.controllers.admin.access_workspace_controller  # noqa: F401
+import src.ui_qml.platform.controllers.admin.support_workspace_controller  # noqa: F401
+import src.ui_qml.platform.controllers.control.control_workspace_controller  # noqa: F401
+import src.ui_qml.platform.controllers.settings.settings_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.context  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.common.workspace_controller_base  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.projects.projects_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.collaboration.collaboration_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.financials.financials_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.portfolio.portfolio_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.scheduling.scheduling_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.tasks.tasks_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.resources.resources_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.register.register_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
+import src.ui_qml.modules.project_management.controllers.timesheets.timesheets_workspace_controller  # noqa: F401
+import src.ui_qml.modules.maintenance.context  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.common.workspace_controller_base  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.assets.assets_workspace_controller  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.planner.planner_workspace_controller  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.preventive.preventive_workspace_controller  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.reliability.reliability_workspace_controller  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.work_orders.work_orders_workspace_controller  # noqa: F401
+import src.ui_qml.modules.maintenance.controllers.work_requests.work_requests_workspace_controller  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.context  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.controllers.catalog.catalog_workspace_controller  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.controllers.inventory.inventory_workspace_controller  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.controllers.pricing.pricing_workspace_controller  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.controllers.procurement.procurement_workspace_controller  # noqa: F401
+import src.ui_qml.modules.inventory_procurement.controllers.reservations.reservations_workspace_controller  # noqa: F401
 
 UI_QML_ROOT = Path(__file__).resolve().parents[1]
 QML_IMPORT_ROOTS = (
@@ -26,11 +53,6 @@ QML_IMPORT_ROOTS = (
 
 
 def create_qml_engine() -> QQmlApplicationEngine:
-    register_shell_qml_types()
-    register_platform_qml_types()
-    register_project_management_qml_types()
-    register_inventory_procurement_qml_types()
-    register_maintenance_qml_types()
     engine = QQmlApplicationEngine()
     for import_root in QML_IMPORT_ROOTS:
         if import_root.exists():

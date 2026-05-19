@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Property, QObject, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.maintenance.controllers import (
     MaintenanceAssetsWorkspaceController,
@@ -26,7 +27,12 @@ from src.ui_qml.modules.maintenance.presenters import (
     build_maintenance_workspace_presenters,
 )
 
+QML_IMPORT_NAME = "Maintenance.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Maintenance workspace catalogs are provided by the shell runtime.")
 class MaintenanceWorkspaceCatalog(QObject):
     def __init__(
         self,

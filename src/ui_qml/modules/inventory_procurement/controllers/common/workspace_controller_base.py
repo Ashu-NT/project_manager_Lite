@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import (
     DomainChangeEvent,
@@ -11,7 +12,12 @@ from src.core.platform.notifications.domain_events import (
 )
 from src.core.platform.notifications.signal import Signal as DomainSignal
 
+QML_IMPORT_NAME = "InventoryProcurement.Controllers"
+QML_IMPORT_MAJOR_VERSION = 1
 
+
+@QmlElement
+@QmlUncreatable("Inventory workspace controllers are provided by the shell runtime.")
 class InventoryProcurementWorkspaceControllerBase(QObject):
     workspaceChanged = Signal()
     isLoadingChanged = Signal()
