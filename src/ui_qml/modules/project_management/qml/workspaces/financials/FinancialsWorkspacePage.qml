@@ -235,19 +235,21 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            AppWidgets.RecordDetailPage {
+            AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
                 title: root.selectedCostModel.title || "Cost Details"
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: ["Details", "Timeline", "Notes"]
 
                 onBackRequested: detailPage.open = false
                 onEditRequested: dialogHost.openEditDialog(root.selectedCostModel)
                 onDeleteRequested: dialogHost.openDeleteDialog(root.selectedCostModel)
 
                 FinancialsDetailSection {
-                    anchors.fill: parent
+                    width: parent.width
+                    detailPage: detailPage
                     costDetail: root.selectedCostModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onEditRequested: dialogHost.openEditDialog(root.selectedCostModel)

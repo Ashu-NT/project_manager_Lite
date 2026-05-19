@@ -5,7 +5,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
-Rectangle {
+Item {
     id: root
 
     property var entryDetail: ({
@@ -18,99 +18,103 @@ Rectangle {
     })
     property string selectedEntryId: ""
     property bool isBusy: false
+    property var detailPage: null
 
     signal editRequested()
     signal deleteRequested()
     signal urgentEntrySelected(string entryId)
 
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    border.width: 1
-    radius: Theme.AppTheme.radiusMd
-    clip: true
+    implicitHeight: _mainCol.implicitHeight
 
-    ColumnLayout {
-        anchors.fill: parent
+    Column {
+        id: _mainCol
+        width: parent.width
         spacing: 0
 
-        AppWidgets.DetailTabBar {
-            id: tabBar
-            Layout.fillWidth: true
-            tabs: ["Details", "Mitigation", "Urgent Queue", "Activity"]
-            currentIndex: 0
-            onTabSelected: function(index) { tabBar.currentIndex = index }
+        // ── Section 0: Details ───────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Details" }
+
+        Item {
+            width: parent.width
+            implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+            ProjectManagementWidgets.RegisterDetailSection {
+                id: detailSection
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
+
+                entryDetail: root.entryDetail
+                isBusy: root.isBusy
+                onEditRequested: root.editRequested()
+                onDeleteRequested: root.deleteRequested()
+            }
         }
 
-        StackLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            currentIndex: tabBar.currentIndex
+        // ── Section 1: Impact ────────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Impact" }
 
-            // Tab 0: Details
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: detailSection.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+        Rectangle {
+            width: parent.width
+            height: 80
+            color: "transparent"
 
-                ProjectManagementWidgets.RegisterDetailSection {
-                    id: detailSection
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-
-                    entryDetail: root.entryDetail
-                    isBusy: root.isBusy
-                    onEditRequested: root.editRequested()
-                    onDeleteRequested: root.deleteRequested()
-                }
+            Label {
+                anchors.centerIn: parent
+                text: "Mitigation actions and owner assignments coming soon"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                width: parent.width - Theme.AppTheme.spacingLg * 2
             }
+        }
 
-            // Tab 1: Mitigation (placeholder)
-            Item {
-                Label {
-                    anchors.centerIn: parent
-                    text: "Mitigation actions and owner assignments coming soon"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                    width: parent.width - Theme.AppTheme.spacingLg * 2
-                }
+        // ── Section 2: Response ──────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Response" }
+
+        Item {
+            width: parent.width
+            implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+            ProjectManagementWidgets.RegisterUrgentSection {
+                id: urgentSection
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
+
+                urgentModel: root.urgentModel
+                selectedEntryId: root.selectedEntryId
+
+                onEntrySelected: function(entryId) { root.urgentEntrySelected(entryId) }
             }
+        }
 
-            // Tab 2: Urgent Queue
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+        // ── Section 3: Links ─────────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 3; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Links" }
 
-                ProjectManagementWidgets.RegisterUrgentSection {
-                    id: urgentSection
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+        Rectangle {
+            width: parent.width
+            height: 80
+            color: "transparent"
 
-                    urgentModel: root.urgentModel
-                    selectedEntryId: root.selectedEntryId
-
-                    onEntrySelected: function(entryId) { root.urgentEntrySelected(entryId) }
-                }
-            }
-
-            // Tab 3: Activity (placeholder)
-            Item {
-                Label {
-                    anchors.centerIn: parent
-                    text: "Activity feed coming soon"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                }
+            Label {
+                anchors.centerIn: parent
+                text: "Activity feed coming soon"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
             }
         }
     }

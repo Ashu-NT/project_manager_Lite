@@ -205,19 +205,21 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            AppWidgets.RecordDetailPage {
+            AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
                 title: root.selectedProjectModel.title || "Project Details"
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: ["Overview", "Activity", "Settings"]
 
                 onBackRequested: detailPage.open = false
                 onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
                 onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
 
                 ProjectsDetailSection {
-                    anchors.fill: parent
+                    width: parent.width
+                    detailPage: detailPage
                     projectDetail: root.selectedProjectModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)

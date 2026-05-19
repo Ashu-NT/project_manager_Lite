@@ -229,19 +229,21 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            AppWidgets.RecordDetailPage {
+            AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
                 title: root.selectedResourceModel.title || "Resource Details"
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: ["Profile", "Assignments", "Capacity"]
 
                 onBackRequested: detailPage.open = false
                 onEditRequested: dialogHost.openEditDialog(root.selectedResourceModel)
                 onDeleteRequested: dialogHost.openDeleteDialog(root.selectedResourceModel)
 
                 ResourcesDetailSection {
-                    anchors.fill: parent
+                    width: parent.width
+                    detailPage: detailPage
                     resourceDetail: root.selectedResourceModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onEditRequested: dialogHost.openEditDialog(root.selectedResourceModel)

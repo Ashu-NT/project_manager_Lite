@@ -11,8 +11,11 @@ MetricCard 1.0 MetricCard.qml
 PageHeader 1.0 PageHeader.qml
 ProgressBar 1.0 ProgressBar.qml
 RecordDetailPage 1.0 RecordDetailPage.qml
+SectionAnchor 1.0 SectionAnchor.qml
 SectionCard 1.0 SectionCard.qml
+SectionDetailPage 1.0 SectionDetailPage.qml
 SectionHeader 1.0 SectionHeader.qml
+SectionHeading 1.0 SectionHeading.qml
 SlideOverPanel 1.0 SlideOverPanel.qml
 StatusChip 1.0 StatusChip.qml
 TableColumnCustomizer 1.0 TableColumnCustomizer.qml

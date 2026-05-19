@@ -6,7 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     // ── Core detail ──────────────────────────────────────────────────────
@@ -15,6 +15,7 @@ Rectangle {
         "description": "", "emptyState": "", "fields": [], "state": {}
     })
     property bool isBusy: false
+    property var detailPage: null
 
     // ── Sub-panel data ────────────────────────────────────────────────────
     property var assignmentsModel: ({
@@ -77,348 +78,344 @@ Rectangle {
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
 
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    border.width: 1
-    radius: Theme.AppTheme.radiusMd
-    clip: true
+    implicitHeight: _mainCol.implicitHeight
 
-    ColumnLayout {
-        anchors.fill: parent
+    Column {
+        id: _mainCol
+        width: parent.width
         spacing: 0
 
-        // ── Tab bar ──────────────────────────────────────────────────────
-        AppWidgets.DetailTabBar {
-            id: tabBar
-            Layout.fillWidth: true
-            tabs: ["Details", "Assignments", "Dependencies", "Time", "Activity"]
-            currentIndex: 0
-            onTabSelected: function(index) { tabBar.currentIndex = index }
-        }
+        // ── Section 0: Details ───────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Details" }
 
-        // ── Tab content ──────────────────────────────────────────────────
-        StackLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            currentIndex: tabBar.currentIndex
+        Item {
+            width: parent.width
+            implicitHeight: detailsContent.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-            // ── Tab 0: Details ───────────────────────────────────────────
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: detailsContent.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+            ColumnLayout {
+                id: detailsContent
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                spacing: Theme.AppTheme.spacingMd
 
-                ColumnLayout {
-                    id: detailsContent
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.margins: Theme.AppTheme.spacingMd
-                    spacing: Theme.AppTheme.spacingMd
+                // Header: title + status chip
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingSm
 
-                    // Header: title + status chip
-                    RowLayout {
+                    ColumnLayout {
                         Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.taskDetail.title || "Task Detail"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.bodySize
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.taskDetail.subtitle || "Select a task to inspect details."
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    AppWidgets.StatusChip {
+                        visible: String(root.taskDetail.statusLabel || "").length > 0
+                        status: root.taskDetail.statusLabel || ""
+                    }
+                }
+
+                // Empty state
+                Label {
+                    Layout.fillWidth: true
+                    visible: String(root.taskDetail.emptyState || "").length > 0
+                        && String(root.taskDetail.id || "").length === 0
+                    text: root.taskDetail.emptyState || ""
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                // Progress bar strip
+                Item {
+                    Layout.fillWidth: true
+                    height: 28
+                    visible: String(root.taskDetail.id || "").length > 0 && _progressValue > 0
+
+                    readonly property real _progressValue: {
+                        const state = root.taskDetail.state || {}
+                        return parseFloat(state.percentComplete || "0") / 100.0
+                    }
+                    readonly property string _progressLabel: {
+                        const state = root.taskDetail.state || {}
+                        return state.percentCompleteLabel || ""
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
                         spacing: Theme.AppTheme.spacingSm
 
-                        ColumnLayout {
+                        Label {
+                            text: "Progress"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+
+                        AppWidgets.ProgressBar {
                             Layout.fillWidth: true
+                            value: parent.parent._progressValue
+                            implicitHeight: 6
+                        }
+
+                        Label {
+                            text: parent.parent._progressLabel
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                        }
+                    }
+                }
+
+                // Description
+                Label {
+                    Layout.fillWidth: true
+                    visible: String(root.taskDetail.id || "").length > 0
+                        && String(root.taskDetail.description || "").length > 0
+                    text: root.taskDetail.description || ""
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    wrapMode: Text.WordWrap
+                }
+
+                // Field cards
+                Repeater {
+                    model: root.taskDetail.fields || []
+
+                    delegate: Rectangle {
+                        id: fieldCard
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceAlt
+                        implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                        ColumnLayout {
+                            id: fieldLayout
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.spacingMd
                             spacing: Theme.AppTheme.spacingXs
 
                             Label {
                                 Layout.fillWidth: true
-                                text: root.taskDetail.title || "Task Detail"
+                                text: String(fieldCard.modelData.label || "")
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: String(fieldCard.modelData.value || "")
                                 color: Theme.AppTheme.textPrimary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.bodySize
-                                font.bold: true
                                 wrapMode: Text.WordWrap
                             }
 
                             Label {
                                 Layout.fillWidth: true
-                                text: root.taskDetail.subtitle || "Select a task to inspect details."
+                                visible: String(fieldCard.modelData.supportingText || "").length > 0
+                                text: String(fieldCard.modelData.supportingText || "")
                                 color: Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
                                 wrapMode: Text.WordWrap
                             }
                         }
+                    }
+                }
 
-                        AppWidgets.StatusChip {
-                            visible: String(root.taskDetail.statusLabel || "").length > 0
-                            status: root.taskDetail.statusLabel || ""
-                        }
+                // Action buttons
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: String(root.taskDetail.id || "").length > 0
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.PrimaryButton {
+                        text: "Edit"
+                        enabled: !root.isBusy
+                        onClicked: root.editRequested()
                     }
 
-                    // Empty state
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(root.taskDetail.emptyState || "").length > 0
-                            && String(root.taskDetail.id || "").length === 0
-                        text: root.taskDetail.emptyState || ""
-                        color: Theme.AppTheme.textMuted
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
+                    AppControls.PrimaryButton {
+                        text: "Progress"
+                        enabled: !root.isBusy
+                        onClicked: root.progressRequested()
                     }
 
-                    // Progress bar strip
-                    Item {
-                        Layout.fillWidth: true
-                        height: 28
-                        visible: String(root.taskDetail.id || "").length > 0 && _progressValue > 0
-
-                        readonly property real _progressValue: {
-                            const state = root.taskDetail.state || {}
-                            return parseFloat(state.percentComplete || "0") / 100.0
-                        }
-                        readonly property string _progressLabel: {
-                            const state = root.taskDetail.state || {}
-                            return state.percentCompleteLabel || ""
-                        }
-
-                        RowLayout {
-                            anchors.fill: parent
-                            spacing: Theme.AppTheme.spacingSm
-
-                            Label {
-                                text: "Progress"
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.bold: true
-                            }
-
-                            AppWidgets.ProgressBar {
-                                Layout.fillWidth: true
-                                value: parent.parent._progressValue
-                                implicitHeight: 6
-                            }
-
-                            Label {
-                                text: parent.parent._progressLabel
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                            }
-                        }
+                    AppControls.PrimaryButton {
+                        text: "Delete"
+                        danger: true
+                        enabled: !root.isBusy
+                        onClicked: root.deleteRequested()
                     }
 
-                    // Description
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(root.taskDetail.id || "").length > 0
-                            && String(root.taskDetail.description || "").length > 0
-                        text: root.taskDetail.description || ""
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        wrapMode: Text.WordWrap
-                    }
-
-                    // Field cards
-                    Repeater {
-                        model: root.taskDetail.fields || []
-
-                        delegate: Rectangle {
-                            id: fieldCard
-                            required property var modelData
-
-                            Layout.fillWidth: true
-                            radius: Theme.AppTheme.radiusMd
-                            color: Theme.AppTheme.surfaceAlt
-                            implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: fieldLayout
-                                anchors.fill: parent
-                                anchors.margins: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingXs
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: String(fieldCard.modelData.label || "")
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: true
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: String(fieldCard.modelData.value || "")
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.bodySize
-                                    wrapMode: Text.WordWrap
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    visible: String(fieldCard.modelData.supportingText || "").length > 0
-                                    text: String(fieldCard.modelData.supportingText || "")
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode: Text.WordWrap
-                                }
-                            }
-                        }
-                    }
-
-                    // Action buttons
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: String(root.taskDetail.id || "").length > 0
-                        spacing: Theme.AppTheme.spacingSm
-
-                        AppControls.PrimaryButton {
-                            text: "Edit"
-                            enabled: !root.isBusy
-                            onClicked: root.editRequested()
-                        }
-
-                        AppControls.PrimaryButton {
-                            text: "Progress"
-                            enabled: !root.isBusy
-                            onClicked: root.progressRequested()
-                        }
-
-                        AppControls.PrimaryButton {
-                            text: "Delete"
-                            danger: true
-                            enabled: !root.isBusy
-                            onClicked: root.deleteRequested()
-                        }
-
-                        Item { Layout.fillWidth: true }
-                    }
+                    Item { Layout.fillWidth: true }
                 }
             }
+        }
 
-            // ── Tab 1: Assignments ───────────────────────────────────────
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: assignmentsInner.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+        // ── Section 1: Assignments ───────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Assignments" }
 
-                TasksAssignmentsSection {
-                    id: assignmentsInner
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+        Item {
+            width: parent.width
+            implicitHeight: assignmentsInner.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-                    assignmentsModel: root.assignmentsModel
-                    selectedAssignmentId: root.selectedAssignmentId
-                    isBusy: root.isBusy
-                    canCreate: String(root.taskDetail.id || "").length > 0
-                        && root.assignmentOptions.length > 0
+            TasksAssignmentsSection {
+                id: assignmentsInner
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
 
-                    onCreateRequested: root.createAssignmentRequested()
-                    onAssignmentSelected: function(assignmentId) {
-                        root.assignmentSelected(assignmentId)
-                    }
-                    onEditAllocationRequested: function(assignmentData) {
-                        root.editAllocationRequested(assignmentData)
-                    }
-                    onSetHoursRequested: function(assignmentData) {
-                        root.setHoursRequested(assignmentData)
-                    }
-                    onDeleteRequested: function(assignmentData) {
-                        root.deleteAssignmentRequested(assignmentData)
-                    }
+                assignmentsModel: root.assignmentsModel
+                selectedAssignmentId: root.selectedAssignmentId
+                isBusy: root.isBusy
+                canCreate: String(root.taskDetail.id || "").length > 0
+                    && root.assignmentOptions.length > 0
+
+                onCreateRequested: root.createAssignmentRequested()
+                onAssignmentSelected: function(assignmentId) {
+                    root.assignmentSelected(assignmentId)
+                }
+                onEditAllocationRequested: function(assignmentData) {
+                    root.editAllocationRequested(assignmentData)
+                }
+                onSetHoursRequested: function(assignmentData) {
+                    root.setHoursRequested(assignmentData)
+                }
+                onDeleteRequested: function(assignmentData) {
+                    root.deleteAssignmentRequested(assignmentData)
                 }
             }
+        }
 
-            // ── Tab 2: Dependencies ──────────────────────────────────────
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: dependenciesInner.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+        // ── Section 2: Dependencies ──────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Dependencies" }
 
-                TasksDependenciesSection {
-                    id: dependenciesInner
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+        Item {
+            width: parent.width
+            implicitHeight: dependenciesInner.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-                    dependenciesModel: root.dependenciesModel
-                    isBusy: root.isBusy
-                    canCreate: String(root.taskDetail.id || "").length > 0
-                        && root.dependencyTaskOptions.length > 0
+            TasksDependenciesSection {
+                id: dependenciesInner
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
 
-                    onCreateRequested: root.createDependencyRequested()
-                    onDeleteRequested: function(dependencyData) {
-                        root.deleteDependencyRequested(dependencyData)
-                    }
+                dependenciesModel: root.dependenciesModel
+                isBusy: root.isBusy
+                canCreate: String(root.taskDetail.id || "").length > 0
+                    && root.dependencyTaskOptions.length > 0
+
+                onCreateRequested: root.createDependencyRequested()
+                onDeleteRequested: function(dependencyData) {
+                    root.deleteDependencyRequested(dependencyData)
                 }
             }
+        }
 
-            // ── Tab 3: Time ──────────────────────────────────────────────
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: timeInner.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+        // ── Section 3: Time ──────────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 3; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Time" }
 
-                TasksTimeEntriesSection {
-                    id: timeInner
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+        Item {
+            width: parent.width
+            implicitHeight: timeInner.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-                    assignmentSummary: root.timeAssignmentSummaryModel
-                    periodOptions: root.periodOptions
-                    selectedPeriodStart: root.selectedPeriodStart
-                    entriesModel: root.timeEntriesModel
-                    selectedEntryDetail: root.selectedTimeEntryModel
-                    selectedEntryId: root.selectedEntryId
-                    isBusy: root.isBusy
+            TasksTimeEntriesSection {
+                id: timeInner
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
 
-                    onPeriodChanged: function(periodStart) { root.periodChanged(periodStart) }
-                    onEntrySelected: function(entryId) { root.entrySelected(entryId) }
-                    onAddRequested: function(payload) { root.timeAddRequested(payload) }
-                    onUpdateRequested: function(payload) { root.timeUpdateRequested(payload) }
-                    onDeleteRequested: function(entryId) { root.timeDeleteRequested(entryId) }
-                    onSubmitRequested: function(payload) { root.timeSubmitRequested(payload) }
-                    onLockRequested: function(payload) { root.timeLockRequested(payload) }
-                    onUnlockRequested: function(payload) { root.timeUnlockRequested(payload) }
-                }
+                assignmentSummary: root.timeAssignmentSummaryModel
+                periodOptions: root.periodOptions
+                selectedPeriodStart: root.selectedPeriodStart
+                entriesModel: root.timeEntriesModel
+                selectedEntryDetail: root.selectedTimeEntryModel
+                selectedEntryId: root.selectedEntryId
+                isBusy: root.isBusy
+
+                onPeriodChanged: function(periodStart) { root.periodChanged(periodStart) }
+                onEntrySelected: function(entryId) { root.entrySelected(entryId) }
+                onAddRequested: function(payload) { root.timeAddRequested(payload) }
+                onUpdateRequested: function(payload) { root.timeUpdateRequested(payload) }
+                onDeleteRequested: function(entryId) { root.timeDeleteRequested(entryId) }
+                onSubmitRequested: function(payload) { root.timeSubmitRequested(payload) }
+                onLockRequested: function(payload) { root.timeLockRequested(payload) }
+                onUnlockRequested: function(payload) { root.timeUnlockRequested(payload) }
             }
+        }
 
-            // ── Tab 4: Activity ──────────────────────────────────────────
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: collaborationInner.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+        // ── Section 4: Activity ──────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 4; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Activity" }
 
-                TasksCollaborationSection {
-                    id: collaborationInner
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
+        Item {
+            width: parent.width
+            implicitHeight: collaborationInner.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-                    commentsModel: root.collaborationCommentsModel
-                    presenceModel: root.collaborationPresenceModel
-                    selectedTaskId: root.selectedTaskId
-                    isBusy: root.isBusy
-                    canCompose: String(root.taskDetail.id || "").length > 0
+            TasksCollaborationSection {
+                id: collaborationInner
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
 
-                    onComposeRequested: root.composeRequested()
-                    onMarkReadRequested: function(taskId) { root.markReadRequested(taskId) }
-                    onRefreshRequested: root.collaborationRefreshRequested()
-                }
+                commentsModel: root.collaborationCommentsModel
+                presenceModel: root.collaborationPresenceModel
+                selectedTaskId: root.selectedTaskId
+                isBusy: root.isBusy
+                canCompose: String(root.taskDetail.id || "").length > 0
+
+                onComposeRequested: root.composeRequested()
+                onMarkReadRequested: function(taskId) { root.markReadRequested(taskId) }
+                onRefreshRequested: root.collaborationRefreshRequested()
             }
         }
     }

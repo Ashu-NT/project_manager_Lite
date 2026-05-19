@@ -45,8 +45,8 @@ Item {
         && (root.selectedRowIds || []).length >= root.rows.length
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
-    // Fixed-width column reserved for the "View Details" action button
-    readonly property int _actionColWidth: 56
+    // Fixed-width column reserved for the "Details" action button
+    readonly property int _actionColWidth: 68
 
     // Width available for data columns (subtract checkbox + action columns)
     readonly property real _dataWidth: (root.multiSelect ? root.width - 36 : root.width) - root._actionColWidth
@@ -516,7 +516,7 @@ Item {
                 onDoubleClicked: root.rowActivated(rowDelegate.rowId)
             }
 
-            // View Details action button — always visible, right-side column
+            // "Details" action button — right-side fixed column
             Item {
                 id: actionCell
                 anchors.right: parent.right
@@ -524,14 +524,16 @@ Item {
                 anchors.bottom: parent.bottom
                 width: root._actionColWidth
 
-                AppIcons.AppIcon {
-                    name: "chevron_right"
-                    size: 13
-                    iconColor: rowHover.containsMouse || rowDelegate.isHighlighted
+                Text {
+                    anchors.centerIn: parent
+                    text: "Details"
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.family: Theme.AppTheme.fontFamily
+                    font.bold: true
+                    color: rowHover.containsMouse || rowDelegate.isHighlighted
                         ? Theme.AppTheme.accent
                         : Theme.AppTheme.textMuted
-                    anchors.centerIn: parent
-                    opacity: rowHover.containsMouse || rowDelegate.isHighlighted ? 1.0 : 0.35
+                    opacity: rowHover.containsMouse || rowDelegate.isHighlighted ? 1.0 : 0.40
 
                     Behavior on opacity {
                         NumberAnimation { duration: 120 }

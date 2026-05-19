@@ -244,19 +244,21 @@ AppLayouts.WorkspaceFrame {
             }
 
             // Full-page detail view
-            AppWidgets.RecordDetailPage {
+            AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
                 title: root.selectedEntryModel.title || "Risk Details"
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: ["Details", "Impact", "Response", "Links"]
 
                 onBackRequested: detailPage.open = false
                 onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
                 onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
 
                 RiskDetailPanel {
-                    anchors.fill: parent
+                    width: parent.width
+                    detailPage: detailPage
                     entryDetail: root.selectedEntryModel
                     urgentModel: root.urgentModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""

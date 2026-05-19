@@ -6,7 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-Rectangle {
+Item {
     id: root
 
     property var projectDetail: ({
@@ -20,205 +20,206 @@ Rectangle {
         "state": {}
     })
     property bool isBusy: false
+    property var detailPage: null
 
     signal editRequested()
     signal statusRequested()
     signal deleteRequested()
 
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    border.width: 1
-    radius: Theme.AppTheme.radiusMd
-    clip: true
+    implicitHeight: _mainCol.implicitHeight
 
-    ColumnLayout {
-        anchors.fill: parent
+    Column {
+        id: _mainCol
+        width: parent.width
         spacing: 0
 
-        AppWidgets.DetailTabBar {
-            id: tabBar
-            Layout.fillWidth: true
-            tabs: ["Overview", "Activity", "Settings"]
-            currentIndex: 0
-            onTabSelected: function(index) { tabBar.currentIndex = index }
-        }
+        // ── Section 0: Overview ──────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Overview" }
 
-        StackLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            currentIndex: tabBar.currentIndex
+        Item {
+            width: parent.width
+            implicitHeight: overviewContent.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-            // Tab 0: Overview
-            Flickable {
-                clip: true
-                contentWidth: width
-                contentHeight: overviewContent.implicitHeight + Theme.AppTheme.spacingLg
-                ScrollBar.vertical: ScrollBar {}
+            ColumnLayout {
+                id: overviewContent
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                spacing: Theme.AppTheme.spacingMd
 
-                ColumnLayout {
-                    id: overviewContent
-                    width: parent.width
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.margins: Theme.AppTheme.spacingMd
-                    spacing: Theme.AppTheme.spacingMd
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingSm
 
-                    RowLayout {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.projectDetail.title || "Project Detail"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.bodySize
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.projectDetail.subtitle || "Select a project to inspect details."
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    AppWidgets.StatusChip {
+                        visible: String(root.projectDetail.statusLabel || "").length > 0
+                        status: root.projectDetail.statusLabel || ""
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: String(root.projectDetail.emptyState || "").length > 0
+                        && String(root.projectDetail.id || "").length === 0
+                    text: root.projectDetail.emptyState || ""
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: String(root.projectDetail.id || "").length > 0
+                        && String(root.projectDetail.description || "").length > 0
+                    text: root.projectDetail.description || ""
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    wrapMode: Text.WordWrap
+                }
+
+                Repeater {
+                    model: root.projectDetail.fields || []
+
+                    delegate: Rectangle {
+                        id: fieldCard
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceAlt
+                        implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
 
                         ColumnLayout {
-                            Layout.fillWidth: true
+                            id: fieldLayout
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.spacingMd
                             spacing: Theme.AppTheme.spacingXs
 
                             Label {
                                 Layout.fillWidth: true
-                                text: root.projectDetail.title || "Project Detail"
+                                text: String(fieldCard.modelData.label || "")
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: String(fieldCard.modelData.value || "")
                                 color: Theme.AppTheme.textPrimary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.bodySize
-                                font.bold: true
                                 wrapMode: Text.WordWrap
                             }
 
                             Label {
                                 Layout.fillWidth: true
-                                text: root.projectDetail.subtitle || "Select a project to inspect details."
+                                visible: String(fieldCard.modelData.supportingText || "").length > 0
+                                text: String(fieldCard.modelData.supportingText || "")
                                 color: Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
                                 wrapMode: Text.WordWrap
                             }
                         }
+                    }
+                }
 
-                        AppWidgets.StatusChip {
-                            visible: String(root.projectDetail.statusLabel || "").length > 0
-                            status: root.projectDetail.statusLabel || ""
-                        }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: String(root.projectDetail.id || "").length > 0
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.PrimaryButton {
+                        text: "Edit"
+                        enabled: !root.isBusy
+                        onClicked: root.editRequested()
                     }
 
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(root.projectDetail.emptyState || "").length > 0
-                            && String(root.projectDetail.id || "").length === 0
-                        text: root.projectDetail.emptyState || ""
-                        color: Theme.AppTheme.textMuted
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
+                    AppControls.PrimaryButton {
+                        text: "Status"
+                        enabled: !root.isBusy
+                        onClicked: root.statusRequested()
                     }
 
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(root.projectDetail.id || "").length > 0
-                            && String(root.projectDetail.description || "").length > 0
-                        text: root.projectDetail.description || ""
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        wrapMode: Text.WordWrap
+                    AppControls.PrimaryButton {
+                        text: "Delete"
+                        danger: true
+                        enabled: !root.isBusy
+                        onClicked: root.deleteRequested()
                     }
 
-                    Repeater {
-                        model: root.projectDetail.fields || []
-
-                        delegate: Rectangle {
-                            id: fieldCard
-                            required property var modelData
-
-                            Layout.fillWidth: true
-                            radius: Theme.AppTheme.radiusMd
-                            color: Theme.AppTheme.surfaceAlt
-                            implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                            ColumnLayout {
-                                id: fieldLayout
-                                anchors.fill: parent
-                                anchors.margins: Theme.AppTheme.spacingMd
-                                spacing: Theme.AppTheme.spacingXs
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: String(fieldCard.modelData.label || "")
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: true
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: String(fieldCard.modelData.value || "")
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.bodySize
-                                    wrapMode: Text.WordWrap
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    visible: String(fieldCard.modelData.supportingText || "").length > 0
-                                    text: String(fieldCard.modelData.supportingText || "")
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode: Text.WordWrap
-                                }
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: String(root.projectDetail.id || "").length > 0
-                        spacing: Theme.AppTheme.spacingSm
-
-                        AppControls.PrimaryButton {
-                            text: "Edit"
-                            enabled: !root.isBusy
-                            onClicked: root.editRequested()
-                        }
-
-                        AppControls.PrimaryButton {
-                            text: "Status"
-                            enabled: !root.isBusy
-                            onClicked: root.statusRequested()
-                        }
-
-                        AppControls.PrimaryButton {
-                            text: "Delete"
-                            danger: true
-                            enabled: !root.isBusy
-                            onClicked: root.deleteRequested()
-                        }
-
-                        Item { Layout.fillWidth: true }
-                    }
+                    Item { Layout.fillWidth: true }
                 }
             }
+        }
 
-            // Tab 1: Activity (placeholder)
-            Item {
-                Label {
-                    anchors.centerIn: parent
-                    text: "Project activity feed coming soon"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                }
+        // ── Section 1: Activity ──────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Activity" }
+
+        Rectangle {
+            width: parent.width
+            height: 80
+            color: "transparent"
+
+            Label {
+                anchors.centerIn: parent
+                text: "Project activity feed coming soon"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
             }
+        }
 
-            // Tab 2: Settings (placeholder)
-            Item {
-                Label {
-                    anchors.centerIn: parent
-                    text: "Project settings coming soon"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                }
+        // ── Section 2: Settings ──────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Settings" }
+
+        Rectangle {
+            width: parent.width
+            height: 80
+            color: "transparent"
+
+            Label {
+                anchors.centerIn: parent
+                text: "Project settings coming soon"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
             }
         }
     }

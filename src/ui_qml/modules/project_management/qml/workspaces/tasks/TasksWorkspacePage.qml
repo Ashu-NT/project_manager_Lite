@@ -469,19 +469,21 @@ AppLayouts.WorkspaceFrame {
             }
 
             // Full-page detail view
-            AppWidgets.RecordDetailPage {
+            AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
                 title: root.selectedTaskModel.title || "Task Details"
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                sections: ["Details", "Assignments", "Dependencies", "Time", "Activity"]
 
                 onBackRequested: detailPage.open = false
                 onEditRequested: dialogHost.openEditDialog(root.selectedTaskModel)
                 onDeleteRequested: dialogHost.openDeleteDialog(root.selectedTaskModel)
 
                 TasksDetailPanel {
-                    anchors.fill: parent
+                    width: parent.width
+                    detailPage: detailPage
                     taskDetail: root.selectedTaskModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
