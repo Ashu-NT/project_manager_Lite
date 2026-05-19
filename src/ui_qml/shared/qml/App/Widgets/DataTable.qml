@@ -19,9 +19,29 @@ Item {
     property string sortKey: ""
     property int sortDirection: Qt.AscendingOrder
 
+    property bool multiSelect: false
+    property var selectedRowIds: []
+
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
     signal sortRequested(string key)
+    signal rowSelectionToggled(string rowId, bool selected)
+    signal selectAllToggled(bool allSelected)
+
+    function _isRowChecked(rowId) {
+        const ids = root.selectedRowIds || []
+        for (let i = 0; i < ids.length; i++) {
+            if (String(ids[i]) === String(rowId)) return true
+        }
+        return false
+    }
+
+    readonly property bool _allChecked: root.rows.length > 0
+        && (root.selectedRowIds || []).length >= root.rows.length
+    readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
+
+    // Width available for data columns (subtract checkbox column if multiSelect)
+    readonly property real _dataWidth: root.multiSelect ? root.width - 36 : root.width
 
     // Only columns where visible !== false
     readonly property var _visibleColumns: {
@@ -45,7 +65,7 @@ Item {
         const minW = col.minWidth !== undefined ? col.minWidth : 80
         const flex = col.flex !== undefined ? col.flex : 1
         if (flex === 0) return minW
-        return Math.max(minW, (root.width * flex) / root._flexTotal)
+        return Math.max(minW, (root._dataWidth * flex) / root._flexTotal)
     }
 
     // ── Sticky header ──────────────────────────────────────────────────
@@ -60,6 +80,22 @@ Item {
 
         Row {
             anchors.fill: parent
+
+            // Checkbox select-all header
+            Item {
+                width: 36
+                height: 32
+                visible: root.multiSelect
+
+                CheckBox {
+                    anchors.centerIn: parent
+                    checkState: root._allChecked
+                        ? Qt.Checked
+                        : root._someChecked ? Qt.PartiallyChecked : Qt.Unchecked
+                    tristate: true
+                    onClicked: root.selectAllToggled(!root._allChecked)
+                }
+            }
 
             Repeater {
                 model: root._visibleColumns
@@ -199,6 +235,19 @@ Item {
             // Cells
             Row {
                 anchors.fill: parent
+
+                // Per-row checkbox (multiSelect mode)
+                Item {
+                    width: 36
+                    height: Theme.AppTheme.compactRowHeight
+                    visible: root.multiSelect
+
+                    CheckBox {
+                        anchors.centerIn: parent
+                        checked: root._isRowChecked(rowDelegate.rowId)
+                        onToggled: root.rowSelectionToggled(rowDelegate.rowId, checked)
+                    }
+                }
 
                 Repeater {
                     model: root._visibleColumns
