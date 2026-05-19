@@ -113,6 +113,16 @@ AppLayouts.WorkspaceFrame {
             feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
+        ProjectManagementWidgets.WorkspaceStatusSection {
+            Layout.fillWidth: true
+            migrationStatus: root.workspaceController
+                ? "QML financials operations slice active"
+                : (root.workspaceModel.migrationStatus || "")
+            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
+            architectureStatus: "Desktop API + typed controller"
+            architectureSummary: "Cost-item CRUD, finance KPI summary, cashflow, ledger trail, and analytics now run through a typed PM controller backed by the financials desktop API."
+        }
+
         // Toolbar: project selector + cost type filter + search + export + create
         AppWidgets.TableToolbar {
             id: tableToolbar

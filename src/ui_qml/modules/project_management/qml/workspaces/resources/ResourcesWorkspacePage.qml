@@ -111,6 +111,16 @@ AppLayouts.WorkspaceFrame {
             feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
+        ProjectManagementWidgets.WorkspaceStatusSection {
+            Layout.fillWidth: true
+            migrationStatus: root.workspaceController
+                ? "QML CRUD resources slice active"
+                : (root.workspaceModel.migrationStatus || "")
+            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
+            architectureStatus: "Desktop API + typed controller"
+            architectureSummary: "Resource pool filters, employee-linked worker setup, create, edit, active toggle, and delete flows now run through a typed PM controller backed by the resources desktop API."
+        }
+
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true

@@ -107,6 +107,16 @@ AppLayouts.WorkspaceFrame {
             feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
+        ProjectManagementWidgets.WorkspaceStatusSection {
+            Layout.fillWidth: true
+            migrationStatus: root.workspaceController
+                ? "QML CRUD projects slice active"
+                : (root.workspaceModel.migrationStatus || "")
+            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
+            architectureStatus: "Desktop API + typed controller"
+            architectureSummary: "Project list, filters, create, edit, status, and delete flows now run through a typed PM controller backed by the project desktop API."
+        }
+
         // Table toolbar: search + status filter + refresh + create
         AppWidgets.TableToolbar {
             id: tableToolbar
