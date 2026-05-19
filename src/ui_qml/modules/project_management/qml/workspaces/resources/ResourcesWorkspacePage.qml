@@ -55,11 +55,11 @@ AppLayouts.WorkspaceFrame {
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
     readonly property var _tableColumns: [
-        { "key": "title",          "label": "Resource",      "flex": 2,   "sortable": true  },
-        { "key": "statusLabel",    "label": "Status",        "flex": 0,   "minWidth": 100, "type": "status" },
-        { "key": "subtitle",       "label": "Category",      "flex": 1.5, "sortable": true  },
-        { "key": "supportingText", "label": "Role / Type",   "flex": 2                      },
-        { "key": "metaText",       "label": "Capacity",      "flex": 1,   "minWidth": 90    }
+        { "key": "title",            "label": "Resource",   "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",      "label": "Status",     "flex": 0,   "minWidth": 100, "type": "status" },
+        { "key": "subtitle",         "label": "Category",   "flex": 1.5, "sortable": true  },
+        { "key": "supportingText",   "label": "Role / Type","flex": 1.5                    },
+        { "key": "utilizationValue", "label": "Capacity",   "flex": 0,   "minWidth": 110, "type": "progress" }
     ]
 
     function _activeIndexForValue(v) {
@@ -98,7 +98,7 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        ResourcesMetricsSection {
+        AppWidgets.KpiStrip {
             Layout.fillWidth: true
             metrics: root.overviewModel.metrics || []
         }

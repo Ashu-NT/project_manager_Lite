@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
@@ -21,61 +22,82 @@ ColumnLayout {
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingMd
 
-        ProjectManagementWidgets.RecordListCard {
+        AppWidgets.SectionCard {
             Layout.fillWidth: true
             title: root.cashflowModel.title || "Cashflow"
-            subtitle: root.cashflowModel.subtitle || ""
-            emptyState: root.cashflowModel.emptyState || ""
-            items: root.cashflowModel.items || []
+            implicitHeight: cashflowList.implicitHeight + 32 + Theme.AppTheme.spacingMd
+
+            ProjectManagementWidgets.RecordListCard {
+                id: cashflowList
+                anchors.fill: parent
+                anchors.margins: Theme.AppTheme.spacingSm
+                title: ""
+                subtitle: root.cashflowModel.subtitle || ""
+                emptyState: root.cashflowModel.emptyState || ""
+                items: root.cashflowModel.items || []
+            }
         }
 
-        ProjectManagementWidgets.RecordListCard {
+        AppWidgets.SectionCard {
             Layout.fillWidth: true
             title: root.ledgerModel.title || "Ledger Trail"
-            subtitle: root.ledgerModel.subtitle || ""
-            emptyState: root.ledgerModel.emptyState || ""
-            items: root.ledgerModel.items || []
+            implicitHeight: ledgerList.implicitHeight + 32 + Theme.AppTheme.spacingMd
+
+            ProjectManagementWidgets.RecordListCard {
+                id: ledgerList
+                anchors.fill: parent
+                anchors.margins: Theme.AppTheme.spacingSm
+                title: ""
+                subtitle: root.ledgerModel.subtitle || ""
+                emptyState: root.ledgerModel.emptyState || ""
+                items: root.ledgerModel.items || []
+            }
         }
 
-        ProjectManagementWidgets.RecordListCard {
+        AppWidgets.SectionCard {
             Layout.fillWidth: true
             title: root.sourceAnalyticsModel.title || "Source Breakdown"
-            subtitle: root.sourceAnalyticsModel.subtitle || ""
-            emptyState: root.sourceAnalyticsModel.emptyState || ""
-            items: root.sourceAnalyticsModel.items || []
+            implicitHeight: sourceList.implicitHeight + 32 + Theme.AppTheme.spacingMd
+
+            ProjectManagementWidgets.RecordListCard {
+                id: sourceList
+                anchors.fill: parent
+                anchors.margins: Theme.AppTheme.spacingSm
+                title: ""
+                subtitle: root.sourceAnalyticsModel.subtitle || ""
+                emptyState: root.sourceAnalyticsModel.emptyState || ""
+                items: root.sourceAnalyticsModel.items || []
+            }
         }
 
-        ProjectManagementWidgets.RecordListCard {
+        AppWidgets.SectionCard {
             Layout.fillWidth: true
             title: root.costTypeAnalyticsModel.title || "Cost Type Breakdown"
-            subtitle: root.costTypeAnalyticsModel.subtitle || ""
-            emptyState: root.costTypeAnalyticsModel.emptyState || ""
-            items: root.costTypeAnalyticsModel.items || []
+            implicitHeight: costTypeList.implicitHeight + 32 + Theme.AppTheme.spacingMd
+
+            ProjectManagementWidgets.RecordListCard {
+                id: costTypeList
+                anchors.fill: parent
+                anchors.margins: Theme.AppTheme.spacingSm
+                title: ""
+                subtitle: root.costTypeAnalyticsModel.subtitle || ""
+                emptyState: root.costTypeAnalyticsModel.emptyState || ""
+                items: root.costTypeAnalyticsModel.items || []
+            }
         }
     }
 
-    Rectangle {
+    AppWidgets.SectionCard {
         Layout.fillWidth: true
         visible: (root.notes || []).length > 0
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
-        implicitHeight: notesColumn.implicitHeight + (Theme.AppTheme.marginLg * 2)
+        title: "Finance Notes"
+        implicitHeight: notesContent.implicitHeight + 32 + Theme.AppTheme.spacingMd
 
         ColumnLayout {
-            id: notesColumn
-
+            id: notesContent
             anchors.fill: parent
-            anchors.margins: Theme.AppTheme.marginLg
+            anchors.margins: Theme.AppTheme.spacingMd
             spacing: Theme.AppTheme.spacingSm
-
-            Label {
-                Layout.fillWidth: true
-                text: "Finance Notes"
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
-                font.bold: true
-            }
 
             Repeater {
                 model: root.notes || []
@@ -84,7 +106,7 @@ ColumnLayout {
                     required property var modelData
 
                     Layout.fillWidth: true
-                    text: "- " + String(modelData || "")
+                    text: "• " + String(modelData || "")
                     color: Theme.AppTheme.textSecondary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize

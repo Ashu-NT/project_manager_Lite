@@ -115,13 +115,12 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
-    // Task grid column schema
     readonly property var _tableColumns: [
         { "key": "title",          "label": "Task",          "flex": 2.5, "sortable": true  },
         { "key": "statusLabel",    "label": "Status",        "flex": 0,   "minWidth": 100, "type": "status" },
         { "key": "supportingText", "label": "Priority",      "flex": 0,   "minWidth": 90,  "type": "status" },
         { "key": "subtitle",       "label": "Project",       "flex": 2,   "sortable": true  },
-        { "key": "metaText",       "label": "Due / Progress","flex": 1,   "minWidth": 110   }
+        { "key": "progressValue",  "label": "Progress",      "flex": 1,   "minWidth": 110, "type": "progress" }
     ]
 
     TasksDialogHost {
@@ -181,18 +180,15 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Page layout: table section (fill-height) + sub-panels (scroll) ──
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        // Compact KPI strip
-        TasksMetricsSection {
+        AppWidgets.KpiStrip {
             Layout.fillWidth: true
             metrics: root.overviewModel.metrics || []
         }
 
-        // Loading / error / feedback banner
         ProjectManagementWidgets.WorkspaceStateBanner {
             Layout.fillWidth: true
             isLoading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -211,7 +207,6 @@ AppLayouts.WorkspaceFrame {
             architectureSummary: "Task catalog, advanced task-query filters, saved filter views, bulk status/delete plus undo/redo flows, collaboration status signals, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
         }
 
-        // Advanced filter row (project, status, priority, schedule, saved views, create)
         TasksFiltersSection {
             Layout.fillWidth: true
             projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
@@ -263,7 +258,6 @@ AppLayouts.WorkspaceFrame {
             onCreateRequested: dialogHost.openCreateDialog()
         }
 
-        // Contextual bulk-actions bar (visible when rows are checked)
         TasksBulkActionsSection {
             Layout.fillWidth: true
             statusOptions: root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
@@ -298,15 +292,16 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        // ── Primary task grid + detail panel ────────────────────────────
-        RowLayout {
+        // ── Master/detail split: task grid (master) + detail panel ───────
+        AppLayouts.MasterDetailLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: Theme.AppTheme.spacingMd
+            masterMinWidth: 400
+            detailMinWidth: 340
 
+            // Master: multi-select DataTable
             AppWidgets.DataTable {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.fill: parent
                 multiSelect: true
                 columns: root._tableColumns
                 rows: root.tasksModel.items || []
@@ -332,41 +327,36 @@ AppLayouts.WorkspaceFrame {
                 onSortRequested: function(key) {}
             }
 
-            // Task detail + context panel
-            TasksDetailSection {
-                visible: root.selectedTaskModel && root.selectedTaskModel.id !== ""
-                Layout.preferredWidth: 320
-                Layout.fillHeight: true
+            // Detail: 5-tab panel
+            detailContent: TasksDetailPanel {
+                anchors.fill: parent
+
                 taskDetail: root.selectedTaskModel
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                assignmentsModel: root.assignmentsModel
+                selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
+                assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+
+                dependenciesModel: root.dependenciesModel
+                dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+
+                timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
+                timeEntriesModel: root.timeEntriesModel
+                selectedTimeEntryModel: root.selectedTimeEntryModel
+                selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
+                periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
+                selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
+
+                collaborationCommentsModel: root.collaborationCommentsModel
+                collaborationPresenceModel: root.collaborationPresenceModel
+                selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
 
                 onEditRequested: dialogHost.openEditDialog(root.selectedTaskModel)
                 onProgressRequested: dialogHost.openProgressDialog(root.selectedTaskModel)
                 onDeleteRequested: dialogHost.openDeleteDialog(root.selectedTaskModel)
-            }
-        }
 
-        // ── Context sub-panels: scroll below the grid ────────────────────
-        // These panels are context-sensitive to the selected task; they sit
-        // below the fixed-height grid and the outer WorkspaceFrame scrolls
-        // when the window is too short to show all of them.
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: root.width > 1100 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingMd
-
-            TasksAssignmentsSection {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                assignmentsModel: root.assignmentsModel
-                selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                canCreate: !!(root.selectedTaskModel && root.selectedTaskModel.id)
-                    && ((root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []).length > 0)
-
-                onCreateRequested: dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
+                onCreateAssignmentRequested: dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
                 onAssignmentSelected: function(assignmentId) {
                     if (root.workspaceController !== null) root.workspaceController.selectAssignment(assignmentId)
                 }
@@ -376,76 +366,47 @@ AppLayouts.WorkspaceFrame {
                 onSetHoursRequested: function(assignmentData) {
                     dialogHost.openAssignmentHoursDialog(assignmentData)
                 }
-                onDeleteRequested: function(assignmentData) {
+                onDeleteAssignmentRequested: function(assignmentData) {
                     dialogHost.openDeleteAssignmentDialog(assignmentData)
                 }
-            }
 
-            TasksDependenciesSection {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                dependenciesModel: root.dependenciesModel
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                canCreate: !!(root.selectedTaskModel && root.selectedTaskModel.id)
-                    && ((root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []).length > 0)
-
-                onCreateRequested: dialogHost.openCreateDependencyDialog(root.selectedTaskModel)
-                onDeleteRequested: function(dependencyData) {
+                onCreateDependencyRequested: dialogHost.openCreateDependencyDialog(root.selectedTaskModel)
+                onDeleteDependencyRequested: function(dependencyData) {
                     dialogHost.openDeleteDependencyDialog(dependencyData)
                 }
-            }
-        }
 
-        TasksTimeEntriesSection {
-            Layout.fillWidth: true
-            assignmentSummary: root.timeAssignmentSummaryModel
-            periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
-            selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
-            entriesModel: root.timeEntriesModel
-            selectedEntryDetail: root.selectedTimeEntryModel
-            selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                onPeriodChanged: function(periodStart) {
+                    if (root.workspaceController !== null) root.workspaceController.selectTimePeriod(periodStart)
+                }
+                onEntrySelected: function(entryId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectTimeEntry(entryId)
+                }
+                onTimeAddRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.addTaskTimeEntry(payload)
+                }
+                onTimeUpdateRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.updateTaskTimeEntry(payload)
+                }
+                onTimeDeleteRequested: function(entryId) {
+                    if (root.workspaceController !== null) root.workspaceController.deleteTaskTimeEntry(entryId)
+                }
+                onTimeSubmitRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.submitTaskPeriod(payload)
+                }
+                onTimeLockRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.lockTaskPeriod(payload)
+                }
+                onTimeUnlockRequested: function(payload) {
+                    if (root.workspaceController !== null) root.workspaceController.unlockTaskPeriod(payload)
+                }
 
-            onPeriodChanged: function(periodStart) {
-                if (root.workspaceController !== null) root.workspaceController.selectTimePeriod(periodStart)
-            }
-            onEntrySelected: function(entryId) {
-                if (root.workspaceController !== null) root.workspaceController.selectTimeEntry(entryId)
-            }
-            onAddRequested: function(payload) {
-                if (root.workspaceController !== null) root.workspaceController.addTaskTimeEntry(payload)
-            }
-            onUpdateRequested: function(payload) {
-                if (root.workspaceController !== null) root.workspaceController.updateTaskTimeEntry(payload)
-            }
-            onDeleteRequested: function(entryId) {
-                if (root.workspaceController !== null) root.workspaceController.deleteTaskTimeEntry(entryId)
-            }
-            onSubmitRequested: function(payload) {
-                if (root.workspaceController !== null) root.workspaceController.submitTaskPeriod(payload)
-            }
-            onLockRequested: function(payload) {
-                if (root.workspaceController !== null) root.workspaceController.lockTaskPeriod(payload)
-            }
-            onUnlockRequested: function(payload) {
-                if (root.workspaceController !== null) root.workspaceController.unlockTaskPeriod(payload)
-            }
-        }
-
-        TasksCollaborationSection {
-            Layout.fillWidth: true
-            commentsModel: root.collaborationCommentsModel
-            presenceModel: root.collaborationPresenceModel
-            selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            canCompose: !!(root.selectedTaskModel && root.selectedTaskModel.id)
-
-            onComposeRequested: dialogHost.openTaskCollaborationDialog(root.selectedTaskModel)
-            onMarkReadRequested: function(taskId) {
-                if (root.workspaceController !== null) root.workspaceController.markTaskCollaborationRead(taskId)
-            }
-            onRefreshRequested: function() {
-                if (root.workspaceController !== null) root.workspaceController.refresh()
+                onComposeRequested: dialogHost.openTaskCollaborationDialog(root.selectedTaskModel)
+                onMarkReadRequested: function(taskId) {
+                    if (root.workspaceController !== null) root.workspaceController.markTaskCollaborationRead(taskId)
+                }
+                onCollaborationRefreshRequested: {
+                    if (root.workspaceController !== null) root.workspaceController.refresh()
+                }
             }
         }
     }

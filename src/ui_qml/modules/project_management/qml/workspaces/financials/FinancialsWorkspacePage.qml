@@ -100,7 +100,7 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        FinancialsMetricsSection {
+        AppWidgets.KpiStrip {
             Layout.fillWidth: true
             metrics: root.overviewModel.metrics || []
         }

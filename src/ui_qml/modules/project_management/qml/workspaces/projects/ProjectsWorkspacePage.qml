@@ -92,8 +92,7 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        // Compact metrics strip
-        ProjectsMetricsSection {
+        AppWidgets.KpiStrip {
             Layout.fillWidth: true
             metrics: root.overviewModel.metrics || []
         }

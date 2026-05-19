@@ -8,6 +8,13 @@ import App.Widgets 1.0 as AppWidgets
 // Reusable enterprise data table.
 // columns: [{key, label, flex, minWidth, sortable, type, visible}]
 // rows:    [{id, ...fieldValues}]
+// type values: "text" (default) | "status" | "number" | "date" | "progress"
+//   progress type expects rawValue: { value: 0.0-1.0, label: "72%" }
+// flex 0 = fixed minWidth column; flex > 0 = proportional fill
+
+// Reusable enterprise data table.
+// columns: [{key, label, flex, minWidth, sortable, type, visible}]
+// rows:    [{id, ...fieldValues}]
 // type values: "text" (default) | "status" | "number" | "date"
 // flex 0 = fixed minWidth column; flex > 0 = proportional fill
 Item {
@@ -270,6 +277,22 @@ Item {
                             || cellDelegate.modelData.key === "status"
                             || (cellDelegate.modelData.key !== undefined
                                 && cellDelegate.modelData.key.indexOf("StatusLabel") >= 0)
+                        readonly property bool isProgressCell: cellDelegate.modelData.type === "progress"
+
+                        readonly property real _progressValue: {
+                            if (!cellDelegate.isProgressCell) return 0.0
+                            const rv = cellDelegate.rawValue
+                            if (rv === null || rv === undefined || rv === "") return 0.0
+                            if (typeof rv === "object") return parseFloat(rv.value || 0)
+                            return parseFloat(rv) || 0.0
+                        }
+                        readonly property string _progressLabel: {
+                            if (!cellDelegate.isProgressCell) return ""
+                            const rv = cellDelegate.rawValue
+                            if (rv !== null && rv !== undefined && typeof rv === "object")
+                                return String(rv.label || "")
+                            return ""
+                        }
 
                         width: root._colWidth(cellDelegate.modelData)
                         height: Theme.AppTheme.compactRowHeight
@@ -293,12 +316,43 @@ Item {
                             status: cellDelegate.cellText
                         }
 
+                        // Progress cell
+                        Item {
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: Theme.AppTheme.spacingSm
+                            anchors.rightMargin: Theme.AppTheme.spacingSm
+                            height: 20
+                            visible: cellDelegate.isProgressCell
+
+                            AppWidgets.ProgressBar {
+                                id: progressFill
+                                anchors.left: parent.left
+                                anchors.right: progressPct.visible ? progressPct.left : parent.right
+                                anchors.rightMargin: progressPct.visible ? Theme.AppTheme.spacingXs : 0
+                                anchors.verticalCenter: parent.verticalCenter
+                                value: cellDelegate._progressValue
+                            }
+
+                            Label {
+                                id: progressPct
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: cellDelegate._progressLabel !== ""
+                                text: cellDelegate._progressLabel
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                            }
+                        }
+
                         // Text cell
                         Label {
                             anchors.fill: parent
                             anchors.leftMargin: Theme.AppTheme.spacingSm
                             anchors.rightMargin: Theme.AppTheme.spacingXs
-                            visible: !cellDelegate.isStatusCell
+                            visible: !cellDelegate.isStatusCell && !cellDelegate.isProgressCell
                             text: cellDelegate.cellText
                             verticalAlignment: Text.AlignVCenter
                             color: rowDelegate.isHighlighted

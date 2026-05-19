@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
@@ -43,7 +44,7 @@ AppLayouts.WorkspaceFrame {
             width: parent.width
             spacing: 12
 
-            ProjectManagementWidgets.RegisterMetricsSection {
+            AppWidgets.KpiStrip {
                 Layout.fillWidth: true
                 metrics: root.overviewModel.metrics || []
             }

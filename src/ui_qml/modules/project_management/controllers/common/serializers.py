@@ -472,6 +472,10 @@ def serialize_resource_record_view_models(
             "canPrimaryAction": view_model.can_primary_action,
             "canSecondaryAction": view_model.can_secondary_action,
             "canTertiaryAction": view_model.can_tertiary_action,
+            "utilizationValue": {
+                "value": float(view_model.state.get("capacityPercent", "0") or "0") / 100.0,
+                "label": view_model.state.get("capacityLabel", "—"),
+            },
             "state": dict(view_model.state),
         }
         for view_model in view_models
@@ -531,6 +535,12 @@ def serialize_register_record_view_models(
             "canPrimaryAction": view_model.can_primary_action,
             "canSecondaryAction": view_model.can_secondary_action,
             "canTertiaryAction": view_model.can_tertiary_action,
+            "ownerName": str(view_model.state.get("ownerName", "")),
+            "dueDateLabel": str(view_model.state.get("dueDateLabel", "")),
+            "severityValue": {
+                "value": float(view_model.state.get("severityScore", "0") or "0") / 100.0,
+                "label": view_model.state.get("severityLabel", "—"),
+            },
             "state": dict(view_model.state),
         }
         for view_model in view_models
@@ -601,6 +611,10 @@ def serialize_task_record_view_models(
             "canPrimaryAction": view_model.can_primary_action,
             "canSecondaryAction": view_model.can_secondary_action,
             "canTertiaryAction": view_model.can_tertiary_action,
+            "progressValue": {
+                "value": float(view_model.state.get("percentComplete", "0") or "0") / 100.0,
+                "label": view_model.state.get("percentCompleteLabel", "0%"),
+            },
             "state": dict(view_model.state),
         }
         for view_model in view_models
