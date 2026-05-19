@@ -94,8 +94,8 @@ Item {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 28
-        color: Theme.AppTheme.surface
+        height: Theme.AppTheme.toolbarHeight - 6
+        color: Theme.AppTheme.surfaceRaised
 
         Rectangle {
             anchors.left: parent.left
@@ -116,14 +116,14 @@ Item {
                 id: filterBtn
                 visible: root.showFilter
                 width: 60
-                height: 22
+                height: Theme.AppTheme.inputHeight - 8
 
                 Rectangle {
                     anchors.fill: parent
                     radius: Theme.AppTheme.radiusSm
-                    color: filterHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-                    border.color: filterHover.containsMouse ? Theme.AppTheme.subtleBorder : "transparent"
-                    border.width: 1
+                    color: filterHover.containsMouse
+                        ? Theme.AppTheme.hoverSurface
+                        : Theme.AppTheme.surfaceOverlay
                 }
 
                 Row {
@@ -167,15 +167,15 @@ Item {
             Item {
                 id: customizeBtn
                 visible: root.columns.length > 0
-                width: 76
-                height: 22
+                width: 84
+                height: Theme.AppTheme.inputHeight - 8
 
                 Rectangle {
                     anchors.fill: parent
                     radius: Theme.AppTheme.radiusSm
-                    color: custHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-                    border.color: custHover.containsMouse ? Theme.AppTheme.subtleBorder : "transparent"
-                    border.width: 1
+                    color: custHover.containsMouse
+                        ? Theme.AppTheme.hoverSurface
+                        : Theme.AppTheme.surfaceOverlay
                 }
 
                 Text {
@@ -214,7 +214,7 @@ Item {
         anchors.top: actionBar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        height: 32
+        height: Theme.AppTheme.normalRowHeight
         color: Theme.AppTheme.surfaceAlt
         z: 1
 
@@ -224,7 +224,7 @@ Item {
             // Select-all checkbox header
             Item {
                 width: 36
-                height: 32
+                height: Theme.AppTheme.normalRowHeight
                 visible: root.multiSelect
 
                 CheckBox {
@@ -249,7 +249,7 @@ Item {
                     readonly property bool isSorted: root.sortKey === headerCell.modelData.key
 
                     width: root._colWidth(headerCell.modelData)
-                    height: 32
+                    height: Theme.AppTheme.normalRowHeight
 
                     RowLayout {
                         anchors.fill: parent
@@ -289,7 +289,7 @@ Item {
             // Empty header placeholder for the action column
             Item {
                 width: root._actionColWidth
-                height: 32
+                height: Theme.AppTheme.normalRowHeight
             }
         }
     }
@@ -300,7 +300,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         height: 1
-        color: Theme.AppTheme.border
+        color: Theme.AppTheme.divider
     }
 
     // ── Virtualized row list ───────────────────────────────────────────
@@ -361,7 +361,7 @@ Item {
                     : rowHover.containsMouse
                         ? Theme.AppTheme.hoverSurface
                         : rowDelegate.index % 2 !== 0
-                            ? Theme.AppTheme.surfaceSunken
+                            ? Theme.AppTheme.surfaceOverlay
                             : "transparent"
 
                 Rectangle {

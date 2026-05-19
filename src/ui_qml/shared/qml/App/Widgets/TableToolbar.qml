@@ -2,9 +2,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 
-// Toolbar for enterprise tables: search | filters | refresh | export | create
 Rectangle {
     id: root
 
@@ -12,87 +12,144 @@ Rectangle {
     property bool showRefresh: true
     property bool showExport: false
     property bool showCreate: false
+    property bool showFilter: false
     property string createLabel: "New"
     property bool isBusy: false
 
     default property alias filterContent: filterSlot.data
 
     signal searchChanged(string text)
+    signal filterClicked()
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
 
     implicitHeight: Theme.AppTheme.toolbarHeight
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.subtleBorder
-    border.width: 1
-    radius: Theme.AppTheme.radiusSm
+    color: Theme.AppTheme.surfaceRaised
+    radius: Theme.AppTheme.radiusMd
 
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Theme.AppTheme.spacingMd
-        anchors.rightMargin: Theme.AppTheme.spacingMd
+        anchors.leftMargin: Theme.AppTheme.marginMd
+        anchors.rightMargin: Theme.AppTheme.marginMd
         spacing: Theme.AppTheme.spacingSm
 
-        // Search
-        TextField {
-            id: searchField
-            Layout.preferredWidth: 220
-            placeholderText: root.searchPlaceholder
-            enabled: !root.isBusy
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            leftPadding: Theme.AppTheme.spacingSm
-            rightPadding: Theme.AppTheme.spacingSm
-            background: Rectangle {
-                radius: Theme.AppTheme.radiusSm
-                color: Theme.AppTheme.surfaceSunken
-                border.color: searchField.activeFocus
-                    ? Theme.AppTheme.focusBorder
-                    : Theme.AppTheme.border
-                border.width: searchField.activeFocus ? 1.5 : 1
-            }
+        Rectangle {
+            Layout.preferredWidth: 260
+            implicitHeight: Theme.AppTheme.inputHeight
+            radius: Theme.AppTheme.radiusSm
+            color: Theme.AppTheme.surface
+            border.color: searchInput.activeFocus
+                ? Theme.AppTheme.focusBorder
+                : Theme.AppTheme.subtleBorder
+            border.width: 1
 
-            Timer {
-                id: debounce
-                interval: 280
-                onTriggered: root.searchChanged(searchField.text)
-            }
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.AppTheme.spacingSm
+                anchors.rightMargin: Theme.AppTheme.spacingSm
+                spacing: Theme.AppTheme.spacingXs
 
-            onTextChanged: debounce.restart()
-            Keys.onReturnPressed: {
-                debounce.stop()
-                root.searchChanged(searchField.text)
+                AppIcons.AppIcon {
+                    name: "search"
+                    size: 12
+                    iconColor: Theme.AppTheme.textMuted
+                }
+
+                TextField {
+                    id: searchInput
+                    Layout.fillWidth: true
+                    placeholderText: root.searchPlaceholder
+                    enabled: !root.isBusy
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    color: Theme.AppTheme.textPrimary
+                    leftPadding: 0
+                    rightPadding: 0
+                    topPadding: 0
+                    bottomPadding: 0
+                    background: Item {}
+
+                    Timer {
+                        id: debounce
+                        interval: 280
+                        onTriggered: root.searchChanged(searchInput.text)
+                    }
+
+                    onTextChanged: debounce.restart()
+                    Keys.onReturnPressed: {
+                        debounce.stop()
+                        root.searchChanged(searchInput.text)
+                    }
+                }
             }
         }
 
-        // Custom filter slot
         Row {
             id: filterSlot
             spacing: Theme.AppTheme.spacingSm
         }
 
-        Item { Layout.fillWidth: true }
+        Rectangle {
+            visible: root.showFilter
+            implicitWidth: filterRow.implicitWidth + 14
+            implicitHeight: Theme.AppTheme.inputHeight - 4
+            radius: Theme.AppTheme.radiusSm
+            color: filterHover.containsMouse
+                ? Theme.AppTheme.hoverSurface
+                : Theme.AppTheme.surfaceOverlay
 
-        // Refresh
+            Row {
+                id: filterRow
+                anchors.centerIn: parent
+                spacing: Theme.AppTheme.spacingXs
+
+                AppIcons.AppIcon {
+                    name: "filter"
+                    size: 11
+                    iconColor: Theme.AppTheme.textMuted
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                    text: "Filters"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            MouseArea {
+                id: filterHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.filterClicked()
+            }
+        }
+
+        Item {
+            Layout.fillWidth: true
+        }
+
         AppControls.SecondaryButton {
             visible: root.showRefresh
             text: "Refresh"
             enabled: !root.isBusy
-            implicitWidth: 80
+            implicitWidth: 88
             onClicked: root.refreshRequested()
         }
 
-        // Export
         AppControls.SecondaryButton {
             visible: root.showExport
             text: "Export"
             enabled: !root.isBusy
-            implicitWidth: 80
+            implicitWidth: 88
             onClicked: root.exportRequested()
         }
 
-        // Create / New
         AppControls.PrimaryButton {
             visible: root.showCreate
             text: root.createLabel

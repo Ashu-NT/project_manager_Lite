@@ -13,6 +13,7 @@ Item {
     id: root
 
     property string label: ""
+    property string text: ""
 
     width: parent ? parent.width : 0
     height: 40
@@ -30,7 +31,7 @@ Item {
             left: parent.left
             leftMargin: Theme.AppTheme.spacingMd
         }
-        text: root.label.toUpperCase()
+        text: (root.label || root.text).toUpperCase()
         font.pixelSize: Theme.AppTheme.smallSize
         font.bold: true
         font.family: Theme.AppTheme.fontFamily

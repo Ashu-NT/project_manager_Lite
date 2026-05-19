@@ -329,9 +329,13 @@ def test_qml_maintenance_modules_exist() -> None:
 def test_qml_shared_theme_matches_legacy_widget_tokens() -> None:
     theme_qml = (QML_SHARED_ROOT / "Theme" / "AppTheme.qml").read_text(encoding="utf-8")
 
-    assert 'readonly property color appBackground: "#F7F9FC"' in theme_qml
-    assert 'readonly property color surface: "#FFFFFF"' in theme_qml
+    assert 'property string densityMode: "compact"' in theme_qml
+    assert 'readonly property color appBackground: "#F3F6FA"' in theme_qml
+    assert "readonly property color background: appBackground" in theme_qml
+    assert "readonly property color workspaceBackground:" in theme_qml
     assert 'readonly property color accent: "#0A66A8"' in theme_qml
+    assert "readonly property int toolbarHeight:" in theme_qml
+    assert "readonly property int compactRowHeight:" in theme_qml
     assert 'readonly property string fontFamily: "Segoe UI Variable Text"' in theme_qml
 
 

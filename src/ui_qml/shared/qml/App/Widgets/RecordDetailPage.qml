@@ -5,21 +5,6 @@ import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
 import App.Controls 1.0 as AppControls
 
-// Full-workspace-area detail page.
-// Shown in place of the table view when a record is opened.
-// Put the workspace's detail panel as a child — it fills the content area.
-//
-// Usage (inside the table container Item):
-//   AppWidgets.RecordDetailPage {
-//       id: detailPage
-//       anchors.fill: parent
-//       title: selectedModel.title
-//       open: false
-//       onBackRequested: detailPage.open = false
-//       onEditRequested: dialogHost.openEditDialog(selectedModel)
-//       onDeleteRequested: dialogHost.openDeleteDialog(selectedModel)
-//       XxxDetailPanel { anchors.fill: parent; ... }
-//   }
 Item {
     id: root
 
@@ -39,50 +24,48 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.workspaceBackground
 
         ColumnLayout {
             anchors.fill: parent
             spacing: 0
 
-            // ── Header ────────────────────────────────────────────────
             Rectangle {
                 Layout.fillWidth: true
-                height: 44
-                color: Theme.AppTheme.surfaceAlt
+                Layout.preferredHeight: Theme.AppTheme.panelHeaderHeight
+                color: Theme.AppTheme.surfaceRaised
 
                 Rectangle {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     height: 1
-                    color: Theme.AppTheme.border
+                    color: Theme.AppTheme.divider
                 }
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.AppTheme.spacingMd
-                    anchors.rightMargin: Theme.AppTheme.spacingMd
+                    anchors.leftMargin: Theme.AppTheme.marginMd
+                    anchors.rightMargin: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingSm
 
-                    // Back button
                     Item {
-                        id: backBtn
-                        implicitWidth: backRow.implicitWidth + 12
-                        implicitHeight: 28
+                        id: backButton
+                        implicitWidth: backRow.implicitWidth + 14
+                        implicitHeight: Theme.AppTheme.inputHeight
 
                         Rectangle {
                             anchors.fill: parent
                             radius: Theme.AppTheme.radiusSm
-                            color: backHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-                            border.color: backHover.containsMouse ? Theme.AppTheme.subtleBorder : "transparent"
-                            border.width: 1
+                            color: backHover.containsMouse
+                                ? Theme.AppTheme.hoverSurface
+                                : Theme.AppTheme.surfaceOverlay
                         }
 
                         Row {
                             id: backRow
                             anchors.centerIn: parent
-                            spacing: 4
+                            spacing: Theme.AppTheme.spacingXs
 
                             AppIcons.AppIcon {
                                 name: "chevron_left"
@@ -95,7 +78,8 @@ Item {
                                 text: "Back"
                                 color: Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -110,8 +94,8 @@ Item {
                     }
 
                     Rectangle {
-                        width: 1
-                        height: 18
+                        implicitWidth: 1
+                        implicitHeight: 18
                         color: Theme.AppTheme.divider
                     }
 
@@ -120,7 +104,7 @@ Item {
                         text: root.title
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
+                        font.pixelSize: Theme.AppTheme.sectionSize
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -129,7 +113,7 @@ Item {
                         text: "Edit"
                         visible: root.showEdit
                         enabled: !root.isBusy
-                        implicitWidth: 60
+                        implicitWidth: 72
                         onClicked: root.editRequested()
                     }
 
@@ -137,13 +121,13 @@ Item {
                         text: "Delete"
                         visible: root.showDelete
                         enabled: !root.isBusy
-                        implicitWidth: 66
+                        implicitWidth: 80
+                        danger: true
                         onClicked: root.deleteRequested()
                     }
                 }
             }
 
-            // ── Content area ──────────────────────────────────────────
             Item {
                 id: contentSlot
                 Layout.fillWidth: true

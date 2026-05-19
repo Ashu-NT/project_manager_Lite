@@ -9,13 +9,18 @@ import App.Theme 1.0 as Theme
 
 Item {
     id: root
+
     property ShellContexts.ShellContext shellModel
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property InventoryProcurementControllers.InventoryProcurementWorkspaceCatalog inventoryCatalog
     property MaintenanceControllers.MaintenanceWorkspaceCatalog maintenanceCatalog
 
-    // Full-bleed layout: header at top, sidebar + content fill the rest
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.AppTheme.appBackground
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -25,13 +30,6 @@ Item {
             shellModel: root.shellModel
             sidebarCollapsed: shellDrawer.collapsed
             onToggleSidebar: shellDrawer.collapsed = !shellDrawer.collapsed
-        }
-
-        // Single-pixel divider below header
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.AppTheme.divider
         }
 
         RowLayout {
@@ -46,17 +44,16 @@ Item {
                 shellModel: root.shellModel
             }
 
-            // Vertical divider between drawer and content
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 1
                 color: Theme.AppTheme.divider
             }
 
-            // Main workspace content — no border wrapper
-            Item {
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                color: Theme.AppTheme.workspaceBackground
 
                 Loader {
                     id: workspaceLoader

@@ -8,30 +8,34 @@ Rectangle {
 
     property string title: ""
     property string actionLabel: ""
+    property bool outlined: false
     default property alias content: contentArea.data
 
     signal actionClicked()
 
     radius: Theme.AppTheme.radiusMd
-    color: Theme.AppTheme.surface
-    border.color: Theme.AppTheme.border
-    border.width: 1
+    color: Theme.AppTheme.surfaceRaised
+    border.color: root.outlined ? Theme.AppTheme.subtleBorder : "transparent"
+    border.width: root.outlined ? 1 : 0
     clip: true
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // Header strip
-        Rectangle {
+        Item {
             Layout.fillWidth: true
-            height: 32
-            color: Theme.AppTheme.surfaceAlt
+            implicitHeight: headerRow.implicitHeight + (Theme.AppTheme.spacingMd * 2)
+            visible: root.title.length > 0 || root.actionLabel.length > 0
 
             RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingSm
+                id: headerRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.marginMd
+                anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
                 Label {
@@ -41,18 +45,18 @@ Rectangle {
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.captionSize
                     font.bold: true
+                    font.letterSpacing: 0.5
                     elide: Text.ElideRight
                 }
 
-                // Action button
                 Rectangle {
                     visible: root.actionLabel !== ""
-                    implicitWidth: actionText.implicitWidth + 12
-                    height: 22
-                    radius: 3
-                    color: actionHover.containsMouse ? Theme.AppTheme.accentSoft : "transparent"
-                    border.color: actionHover.containsMouse ? Theme.AppTheme.accent : "transparent"
-                    border.width: 1
+                    implicitWidth: actionText.implicitWidth + 14
+                    implicitHeight: 24
+                    radius: Theme.AppTheme.radiusSm
+                    color: actionHover.containsMouse
+                        ? Theme.AppTheme.hoverSurface
+                        : Theme.AppTheme.surfaceOverlay
 
                     Label {
                         id: actionText
@@ -74,17 +78,15 @@ Rectangle {
                 }
             }
 
-            // Bottom border of header
             Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 height: 1
-                color: Theme.AppTheme.border
+                color: Theme.AppTheme.divider
             }
         }
 
-        // Content area
         Item {
             id: contentArea
             Layout.fillWidth: true
