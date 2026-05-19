@@ -96,7 +96,7 @@ def test_main_qt_loads_theme_from_settings_before_qml_shell(repo_workspace, serv
             return 0
 
     monkeypatch.setenv("PM_SKIP_LOGIN", "1")
-    monkeypatch.setattr(shell_app, "QApplication", _FakeApp)
+    monkeypatch.setattr(shell_app, "QGuiApplication", _FakeApp)
     monkeypatch.setattr(shell_app, "QIcon", lambda path: path)
     monkeypatch.setattr(shell_app, "QFont", lambda family, size: (family, size))
     monkeypatch.setattr(shell_app, "resource_path", lambda rel_path: rel_path)
@@ -156,7 +156,7 @@ def test_main_qt_skip_login_does_not_bypass_unauthenticated_services(
         return False
 
     monkeypatch.setenv("PM_SKIP_LOGIN", "1")
-    monkeypatch.setattr(shell_app, "QApplication", _FakeApp)
+    monkeypatch.setattr(shell_app, "QGuiApplication", _FakeApp)
     monkeypatch.setattr(shell_app, "QIcon", lambda path: path)
     monkeypatch.setattr(shell_app, "QFont", lambda family, size: (family, size))
     monkeypatch.setattr(shell_app, "resource_path", lambda rel_path: rel_path)

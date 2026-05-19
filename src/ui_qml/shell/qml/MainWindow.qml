@@ -30,7 +30,7 @@ Item {
         // Single-pixel divider below header
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
         }
 
@@ -49,7 +49,7 @@ Item {
             // Vertical divider between drawer and content
             Rectangle {
                 Layout.fillHeight: true
-                width: 1
+                Layout.preferredWidth: 1
                 color: Theme.AppTheme.divider
             }
 

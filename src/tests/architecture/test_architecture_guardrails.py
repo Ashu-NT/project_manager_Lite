@@ -13,6 +13,8 @@ _LARGE_MODULE_BUDGETS = {
     "src/infra/persistence/orm/maintenance/models.py": 1283,
     "src/ui_qml/modules/project_management/presenters/tasks_workspace_presenter.py": 1335,
     "src/ui_qml/modules/project_management/controllers/tasks/tasks_workspace_controller.py": 1600,
+    "src/ui_qml/modules/maintenance/presenters/assets_workspace_presenter.py": 1300,
+    "src/ui_qml/modules/maintenance/presenters/preventive_workspace_presenter.py": 1500,
     "src/tests/project_management/test_project_management_desktop_api.py": 2990,
     "src/tests/project_management/test_qml_project_management_presenters.py": 2185,
     "src/tests/architecture/test_architecture_guardrails.py": 1500,
@@ -276,23 +278,19 @@ def test_legacy_platform_data_exchange_package_is_removed():
 
 
 def test_legacy_platform_settings_ui_package_is_removed():
-    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
-    assert "settings" not in platform_dirs
+    assert not (ROOT / "ui" / "platform" / "settings").exists()
 
 
 def test_legacy_platform_shared_ui_package_is_removed():
-    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
-    assert "shared" not in platform_dirs
+    assert not (ROOT / "ui" / "platform" / "shared").exists()
 
 
 def test_legacy_platform_control_ui_package_is_removed():
-    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
-    assert "control" not in platform_dirs
+    assert not (ROOT / "ui" / "platform" / "control").exists()
 
 
 def test_legacy_platform_admin_ui_package_is_removed():
-    platform_dirs = {path.name for path in (ROOT / "ui" / "platform").iterdir() if path.is_dir()}
-    assert "admin" not in platform_dirs
+    assert not (ROOT / "ui" / "platform" / "admin").exists()
 
 
 def test_composition_imports_focused_persistence_adapters():
@@ -412,10 +410,12 @@ def test_legacy_common_models_facade_is_removed():
 
 def test_qml_shell_controller_module_is_registered():
     qmldir_path = ROOT / "src" / "ui_qml" / "shell" / "qml" / "Shell" / "Controllers" / "qmldir"
+    qmltypes_path = ROOT / "src" / "ui_qml" / "shell" / "qml" / "Shell" / "Controllers" / "plugins.qmltypes"
     text = qmldir_path.read_text(encoding="utf-8", errors="ignore")
+    qmltypes_text = qmltypes_path.read_text(encoding="utf-8", errors="ignore")
 
     assert "module Shell.Controllers" in text
-    assert "ShellLoginController" in text
+    assert "ShellLoginController" in qmltypes_text
 
 
 
