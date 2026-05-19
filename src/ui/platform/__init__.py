@@ -1,1 +1,0 @@
-"""Platform desktop presentation."""

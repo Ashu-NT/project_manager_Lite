@@ -1,1 +1,0 @@
-"""Temporary QWidget migration area."""

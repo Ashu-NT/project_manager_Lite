@@ -2,7 +2,19 @@
 
 This document captures the exact target structure from `UpdateCodeBaseStructure.md`, the QML UI migration target from `PySide6_Widgets_to_QML_Migration_Spec.docx`, and a safe execution plan to reach it without breaking the current desktop app, runtime wiring, or test suite.
 
-This is a planning document only. No runtime code is changed by this step.
+## Current Status
+
+As of 2026-05-19, the migration/cutover is complete at the desktop-runtime level:
+
+- `main_qt.py` now runs the QML shell from `src/ui_qml/shell/app.py`
+- legacy QWidget trees `ui/*` and `src/ui/*` are deleted
+- legacy `main.py` is deleted
+- legacy widget-only tests are deleted
+- temporary `src/ui_qml/legacy_widgets/*` migration holding folders are deleted
+- module UI work now lives only under `src/ui_qml/*`
+- future HTTP work remains deferred
+
+Historical notes later in this document are kept as migration trace, but if they describe QWidget paths as still active, the current status above wins.
 
 ## Instruction Precedence
 
@@ -32,7 +44,7 @@ Execution rule:
 
 ## Active Pivot: QML UI Migration
 
-Slice 2 project-management restructuring is paused as of 2026-04-22 while the desktop UI target is updated from PySide6 Widgets to QML.
+The desktop UI target moved from PySide6 Widgets to QML and the runtime cutover is now completed.
 
 New final UI rule:
 
@@ -43,10 +55,9 @@ New final UI rule:
 - presenters own UI behavior and orchestration
 - view models expose UI-shaped state only
 - presenters call module-owned desktop APIs under `src/core/modules/<module>/api/desktop/*`
-- `ui/*` and `src/ui/*` remain temporary legacy QWidget sources/runtime fallback only while QML migration is in progress
-- new desktop UI work should land directly in `src/ui_qml/*`, not in new or reshaped QWidget paths
-- old QWidget paths stay in place even after an individual screen reaches parity; delete them only after all planned slices are migrated, the QML runtime cutover is approved, imports/navigation are rewritten, and tests pass
-- no new QWidget screens should be added for migrated modules
+- legacy `ui/*` and `src/ui/*` paths are removed
+- new desktop UI work lands only in `src/ui_qml/*`
+- no new QWidget screens should be added
 
 QML scaffold status:
 
@@ -104,8 +115,7 @@ QML scaffold status:
 - project-management portfolio QML now renders the next real PM planning slice through `PortfolioWorkspacePage.qml`, `PortfolioToolbarSection.qml`, `PortfolioIntakeSection.qml`, `PortfolioTemplatesSection.qml`, `PortfolioScenariosSection.qml`, `PortfolioDependenciesSection.qml`, `PortfolioExecutiveSection.qml`, and `PortfolioSummaryCard.qml`
 - project-management timesheets now has a workflow desktop API contract under `src/core/modules/project_management/api/desktop/timesheets.py`, with typed project/assignment/period/review-queue selectors plus time-entry, submit, approve, reject, lock, and unlock commands mapped onto the refactored `application/resources/timesheet_service.py`
 - project-management timesheets QML now renders the next real PM labor-capture slice through `TimesheetsWorkspacePage.qml`, `TimesheetsToolbarSection.qml`, `TimesheetsEntriesSection.qml`, and `TimesheetsReviewSection.qml`
-- shared, platform, module, and `legacy_widgets/migration_only/*` folders exist for screen-by-screen migration
-- the scaffold is intentionally not wired into `main_qt.py` yet, so the active QWidget app remains unchanged
+- `main_qt.py` is wired to the QML shell and the QWidget runtime is retired
 - focused QML shell migration smoke coverage exists in `tests/test_qml_shell_migration.py`
 - focused shared QML primitive coverage exists in `tests/test_qml_shared_primitives.py`
 - focused platform QML route coverage exists in `tests/test_qml_platform_routes.py`

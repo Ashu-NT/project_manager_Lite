@@ -12,13 +12,25 @@ It captures the practical refactor rules from the provided specs, including `PyS
 
 When this file and the original downloaded execution spec differ, this file wins for migration mechanics because it reflects the no-facade decision.
 
+## Current Status
+
+As of 2026-05-19, the desktop-runtime cutover is complete:
+
+- `main_qt.py` now boots `src.ui_qml.shell.app`
+- legacy QWidget trees `ui/*` and `src/ui/*` are deleted
+- legacy `main.py` is deleted
+- legacy widget-only tests are deleted
+- temporary `src/ui_qml/legacy_widgets/*` migration holding folders are deleted
+- HTTP transport remains deferred
+
+Later entries that describe QWidget trees as still active are historical migration notes; this section is the current truth.
+
 For desktop UI migration, `PySide6_Widgets_to_QML_Migration_Spec.docx` wins over older Widget-oriented wording:
 
 - final desktop UI lives under `src/ui_qml/*`
-- active Widget UI under `src/ui/*` remains temporary legacy UI/reference while QML migration is in progress
 - new desktop UI work should land directly in `src/ui_qml/*`, not in new or reshaped Widget paths
-- old Widget paths stay in place even after a matching QML screen reaches parity; delete them only after all planned slices are migrated, the QML runtime cutover is approved, and tests are complete
-- `src/ui_qml/*` is scaffolded and the initial shell route/registry/navigation/QML engine foundation exists, but it must not become the active entrypoint until the QML shell is complete and tested end-to-end
+- legacy Widget paths are removed
+- `src/ui_qml/*` is the active entrypoint and desktop UI runtime
 
 ## Purpose
 

@@ -1,15 +1,15 @@
-# QML UI Migration Scaffold
+# QML Desktop UI
 
-This package is the final desktop UI target for the PySide6 Widgets to QML migration.
+This package is now the active desktop UI runtime.
 
-Current rule:
+Current state:
 
-- `src/ui/*` remains the active legacy QWidget UI until each screen is migrated.
-- QML screens are added here one workspace or dialog at a time.
-- Old QWidget files are deleted only after the matching QML screen, presenter, view model, route, and tests are complete.
-- The QML scaffold is not wired into `main_qt.py` yet.
+- `main_qt.py` loads `src.ui_qml.shell.app`
+- legacy `ui/*` and `src/ui/*` QWidget trees are removed
+- legacy `main.py` CLI bootstrap is removed
+- migration-only `src/ui_qml/legacy_widgets/*` is removed
 
-Final structure:
+Active structure:
 
 ```text
 src/ui_qml/
@@ -17,5 +17,4 @@ src/ui_qml/
   shared/
   platform/
   modules/
-  legacy_widgets/migration_only/
 ```
