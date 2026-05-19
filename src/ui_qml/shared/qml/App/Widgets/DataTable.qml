@@ -206,6 +206,8 @@ Item {
 
             readonly property string rowId: String(rowDelegate.modelData.id || String(rowDelegate.index))
             readonly property bool isSelected: root.selectedRowId === rowDelegate.rowId
+            readonly property bool isChecked: root.multiSelect && root._isRowChecked(rowDelegate.rowId)
+            readonly property bool isHighlighted: rowDelegate.isSelected || rowDelegate.isChecked
 
             width: rowList.width
             height: Theme.AppTheme.compactRowHeight
@@ -213,7 +215,7 @@ Item {
             // Row background
             Rectangle {
                 anchors.fill: parent
-                color: rowDelegate.isSelected
+                color: rowDelegate.isHighlighted
                     ? Theme.AppTheme.selectedSurface
                     : rowHover.containsMouse
                         ? Theme.AppTheme.hoverSurface
@@ -221,14 +223,14 @@ Item {
                             ? Theme.AppTheme.surfaceSunken
                             : "transparent"
 
-                // Accent left rail on selected row
+                // Accent left rail on selected / checked row
                 Rectangle {
                     anchors.left: parent.left
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
                     width: 2
                     color: Theme.AppTheme.accent
-                    visible: rowDelegate.isSelected
+                    visible: rowDelegate.isHighlighted
                 }
             }
 
@@ -299,7 +301,7 @@ Item {
                             visible: !cellDelegate.isStatusCell
                             text: cellDelegate.cellText
                             verticalAlignment: Text.AlignVCenter
-                            color: rowDelegate.isSelected
+                            color: rowDelegate.isHighlighted
                                 ? Theme.AppTheme.textPrimary
                                 : Theme.AppTheme.textSecondary
                             font.family: Theme.AppTheme.fontFamily
