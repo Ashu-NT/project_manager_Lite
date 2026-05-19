@@ -149,8 +149,8 @@ AppLayouts.WorkspaceFrame {
 
                                 AppIcons.AppIcon {
                                     anchors.centerIn: parent
-                                    icon: root.iconForModule(moduleDelegate.modelData.label)
-                                    color: Theme.AppTheme.accent
+                                    name: root.iconForModule(moduleDelegate.modelData.label)
+                                    iconColor: Theme.AppTheme.accent
                                     size: 18
                                 }
                             }

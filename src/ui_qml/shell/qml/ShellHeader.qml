@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Shell.Context 1.0 as ShellContexts
+import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 
 Rectangle {
@@ -30,13 +31,11 @@ Rectangle {
                 ? Theme.AppTheme.hoverSurface
                 : "transparent"
 
-            Text {
+            AppIcons.AppIcon {
                 anchors.centerIn: parent
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 14
-                renderType: Text.NativeRendering
-                color: Theme.AppTheme.textMuted
-                Component.onCompleted: text = String.fromCodePoint(0xE700)
+                name: "menu"
+                size: 14
+                iconColor: Theme.AppTheme.textMuted
             }
 
             MouseArea {
@@ -93,13 +92,11 @@ Rectangle {
             radius: 15
             color: notifHover.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
-            Text {
+            AppIcons.AppIcon {
                 anchors.centerIn: parent
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 14
-                renderType: Text.NativeRendering
-                color: Theme.AppTheme.textMuted
-                Component.onCompleted: text = String.fromCodePoint(0xEA8F)
+                name: "notifications"
+                size: 14
+                iconColor: Theme.AppTheme.textMuted
             }
 
             MouseArea {

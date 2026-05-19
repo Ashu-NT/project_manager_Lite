@@ -202,14 +202,11 @@ Rectangle {
                                     elide: Text.ElideRight
                                 }
 
-                                Text {
-                                    text: drawer._isMod(navDelegate.modelData.moduleLabel)
-                                        ? ""
-                                        : ""
-                                    color: Theme.AppTheme.textMuted
-                                    font.family: "Segoe MDL2 Assets"
-                                    font.pixelSize: 9
-                                    renderType: Text.NativeRendering
+                                AppIcons.AppIcon {
+                                    name: drawer._isMod(navDelegate.modelData.moduleLabel)
+                                        ? "chevron_right" : "chevron_down"
+                                    size: 9
+                                    iconColor: Theme.AppTheme.textMuted
                                 }
                             }
 
@@ -328,14 +325,12 @@ Rectangle {
             }
 
             // Collapsed: single chevron centered
-            Text {
+            AppIcons.AppIcon {
                 anchors.centerIn: parent
                 visible: drawer.collapsed
-                text: ""
-                color: Theme.AppTheme.textMuted
-                font.family: "Segoe MDL2 Assets"
-                font.pixelSize: 10
-                renderType: Text.NativeRendering
+                name: "chevron_right"
+                size: 10
+                iconColor: Theme.AppTheme.textMuted
             }
 
             // Expanded: "Collapse" label + chevron
@@ -354,12 +349,10 @@ Rectangle {
                     font.pixelSize: Theme.AppTheme.smallSize
                 }
 
-                Text {
-                    text: ""
-                    color: Theme.AppTheme.textMuted
-                    font.family: "Segoe MDL2 Assets"
-                    font.pixelSize: 10
-                    renderType: Text.NativeRendering
+                AppIcons.AppIcon {
+                    name: "chevron_left"
+                    size: 10
+                    iconColor: Theme.AppTheme.textMuted
                 }
             }
 
