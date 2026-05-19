@@ -1,6 +1,9 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 
@@ -51,6 +54,15 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
+    readonly property var _tableColumns: [
+        { "key": "title",          "label": "Code",        "flex": 1,   "sortable": true  },
+        { "key": "subtitle",       "label": "Description", "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",    "label": "Status",      "flex": 0,   "minWidth": 110, "type": "status" },
+        { "key": "priorityLabel",  "label": "Priority",    "flex": 0,   "minWidth": 90,  "type": "status" },
+        { "key": "assetLabel",     "label": "Asset",       "flex": 1.5                    },
+        { "key": "requestedAt",    "label": "Requested",   "flex": 0,   "minWidth": 100   }
+    ]
+
     WorkRequestsDialogHost {
         id: dialogHost
 
@@ -64,153 +76,199 @@ AppLayouts.WorkspaceFrame {
         statusOptions: root.workspaceController ? (root.workspaceController.formStatusOptions || []) : []
 
         onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createWorkRequest(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.createWorkRequest(payload)
         }
-
         onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateWorkRequest(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.updateWorkRequest(payload)
         }
-
         onStatusChangeRequested: function(workRequestId, statusValue, expectedVersion) {
-            if (root.workspaceController !== null) {
+            if (root.workspaceController !== null)
                 root.workspaceController.setWorkRequestStatus(workRequestId, statusValue, expectedVersion)
-            }
         }
     }
 
-    Flickable {
+    ColumnLayout {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: contentColumn.implicitHeight
-        clip: true
+        spacing: Theme.AppTheme.spacingSm
 
-        ColumnLayout {
-            id: contentColumn
+        AppWidgets.KpiStrip {
+            Layout.fillWidth: true
+            metrics: root.overviewModel.metrics || []
+        }
 
-            width: parent.width
-            spacing: 12
+        MaintenanceWidgets.WorkspaceStateBanner {
+            Layout.fillWidth: true
+            isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
+            feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+        }
 
-            WorkRequestsMetricsSection {
-                Layout.fillWidth: true
-                metrics: root.overviewModel.metrics || []
+        MaintenanceWidgets.WorkspaceStatusSection {
+            visible: false
+            Layout.fillWidth: true
+            migrationStatus: root.workspaceController
+                ? "QML work-request slice active"
+                : (root.workspaceModel.migrationStatus || "")
+            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
+            architectureStatus: "Desktop API + typed controller"
+            architectureSummary: "Work-request filters, intake edits, and triage status changes now run through a typed maintenance controller backed by the work-requests desktop API."
+        }
+
+        AppWidgets.TableToolbar {
+            id: tableToolbar
+            Layout.fillWidth: true
+            searchPlaceholder: "Search work requests…"
+            showCreate: true
+            createLabel: "New Request"
+            showRefresh: true
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+            onSearchChanged: function(text) {
+                if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
+            }
+            onRefreshRequested: {
+                if (root.workspaceController !== null) root.workspaceController.refresh()
+            }
+            onCreateRequested: dialogHost.openCreateDialog()
+        }
+
+        // ── Full-width table with full-page detail view ───────────────
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+
+            AppWidgets.DataTable {
+                id: workRequestsTable
+                anchors.fill: parent
+                columns: root._tableColumns
+                rows: root.workRequestsModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedWorkRequestId : ""
+                showFilter: true
+
+                onFilterClicked: filterPopup.open()
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectWorkRequest(rowId)
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectWorkRequest(rowId)
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectWorkRequest(rowId)
+                    detailPage.open = true
+                }
+                onSortRequested: function(key) {}
             }
 
-            MaintenanceWidgets.WorkspaceStateBanner {
-                Layout.fillWidth: true
-                isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+            Popup {
+                id: filterPopup
+                parent: workRequestsTable
+                width: 260
+                padding: 12
+                x: workRequestsTable.width - width - 4
+                y: 30
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Label {
+                        text: "Site"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setSiteFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Status"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Priority"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setPriorityFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Asset"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.assetOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.assetOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setAssetFilter(String(opts[index].value || "all"))
+                        }
+                    }
+                }
+            }
+
+            AppWidgets.SectionDetailPage {
+                id: detailPage
+                anchors.fill: parent
+                title: root.selectedWorkRequestModel.title || "Work Request Details"
+                open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-                feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-            }
+                sections: ["Overview", "Details", "Actions"]
 
-            MaintenanceWidgets.WorkspaceStatusSection {
-                Layout.fillWidth: true
-                migrationStatus: root.workspaceController
-                    ? "QML work-request slice active"
-                    : (root.workspaceModel.migrationStatus || "")
-                legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-                architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Work-request filters, intake edits, and triage status changes now run through a typed maintenance controller backed by the work-requests desktop API."
-            }
-
-            WorkRequestsFiltersSection {
-                Layout.fillWidth: true
-                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
-                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                priorityOptions: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
-                assetOptions: root.workspaceController ? (root.workspaceController.assetOptions || []) : []
-                selectedSiteFilter: root.workspaceController ? root.workspaceController.selectedSiteFilter : "all"
-                selectedStatusFilter: root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-                selectedPriorityFilter: root.workspaceController ? root.workspaceController.selectedPriorityFilter : "all"
-                selectedAssetFilter: root.workspaceController ? root.workspaceController.selectedAssetFilter : "all"
-                searchText: root.workspaceController ? root.workspaceController.searchText : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                onSearchTextUpdated: function(searchText) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSearchText(searchText)
-                    }
-                }
-
-                onSiteFilterUpdated: function(siteId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSiteFilter(siteId)
-                    }
-                }
-
-                onStatusFilterUpdated: function(statusValue) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setStatusFilter(statusValue)
-                    }
-                }
-
-                onPriorityFilterUpdated: function(priorityValue) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setPriorityFilter(priorityValue)
-                    }
-                }
-
-                onAssetFilterUpdated: function(assetId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setAssetFilter(assetId)
-                    }
-                }
-
-                onRefreshRequested: function() {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.refresh()
-                    }
-                }
-
-                onCreateRequested: function() {
-                    dialogHost.openCreateDialog()
-                }
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 1180 ? 2 : 1
-                columnSpacing: 12
-                rowSpacing: 12
-
-                WorkRequestsCatalogSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    workRequestsModel: root.workRequestsModel
-                    selectedWorkRequestId: root.workspaceController ? root.workspaceController.selectedWorkRequestId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onWorkRequestSelected: function(workRequestId) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.selectWorkRequest(workRequestId)
-                        }
-                    }
-
-                    onEditRequested: function(workRequestData) {
-                        if (workRequestData && workRequestData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectWorkRequest(workRequestData.id)
-                        }
-                        dialogHost.openEditDialog(workRequestData)
-                    }
-
-                    onStatusRequested: function(workRequestData) {
-                        if (workRequestData && workRequestData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectWorkRequest(workRequestData.id)
-                        }
-                        dialogHost.openStatusDialog(workRequestData)
-                    }
-                }
+                onBackRequested: detailPage.open = false
+                onEditRequested: dialogHost.openEditDialog(root.selectedWorkRequestModel)
+                onDeleteRequested: detailPage.open = false
 
                 WorkRequestDetailSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
+                    width: parent.width
+                    detailPage: detailPage
                     workRequestDetail: root.selectedWorkRequestModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
                     onEditRequested: dialogHost.openEditDialog(root.selectedWorkRequestModel)
                     onStatusRequested: dialogHost.openStatusDialog(root.selectedWorkRequestModel)
                 }

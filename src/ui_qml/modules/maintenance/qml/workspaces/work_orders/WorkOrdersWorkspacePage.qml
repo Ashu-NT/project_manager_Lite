@@ -1,6 +1,9 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 import Maintenance.Controllers 1.0 as MaintenanceControllers
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 
@@ -51,6 +54,16 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
+    readonly property var _tableColumns: [
+        { "key": "title",              "label": "Code",     "flex": 1,   "sortable": true  },
+        { "key": "subtitle",           "label": "Title",    "flex": 2,   "sortable": true  },
+        { "key": "statusLabel",        "label": "Status",   "flex": 0,   "minWidth": 110, "type": "status" },
+        { "key": "priorityLabel",      "label": "Priority", "flex": 0,   "minWidth": 90,  "type": "status" },
+        { "key": "workOrderTypeLabel", "label": "Type",     "flex": 1,   "sortable": true  },
+        { "key": "assetLabel",         "label": "Asset",    "flex": 1.5                    },
+        { "key": "plannedStart",       "label": "Planned",  "flex": 0,   "minWidth": 100   }
+    ]
+
     WorkOrdersDialogHost {
         id: dialogHost
 
@@ -67,161 +80,218 @@ AppLayouts.WorkspaceFrame {
         vendorOptions: root.workspaceController ? (root.workspaceController.formVendorOptions || []) : []
 
         onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createWorkOrder(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.createWorkOrder(payload)
         }
-
         onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateWorkOrder(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.updateWorkOrder(payload)
         }
-
         onStatusChangeRequested: function(workOrderId, statusValue, expectedVersion) {
-            if (root.workspaceController !== null) {
+            if (root.workspaceController !== null)
                 root.workspaceController.setWorkOrderStatus(workOrderId, statusValue, expectedVersion)
-            }
         }
     }
 
-    Flickable {
+    ColumnLayout {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: contentColumn.implicitHeight
-        clip: true
+        spacing: Theme.AppTheme.spacingSm
 
-        ColumnLayout {
-            id: contentColumn
+        AppWidgets.KpiStrip {
+            Layout.fillWidth: true
+            metrics: root.overviewModel.metrics || []
+        }
 
-            width: parent.width
-            spacing: 12
+        MaintenanceWidgets.WorkspaceStateBanner {
+            Layout.fillWidth: true
+            isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
+            feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+        }
 
-            WorkOrdersMetricsSection {
-                Layout.fillWidth: true
-                metrics: root.overviewModel.metrics || []
+        MaintenanceWidgets.WorkspaceStatusSection {
+            visible: false
+            Layout.fillWidth: true
+            migrationStatus: root.workspaceController
+                ? "QML work-order slice active"
+                : (root.workspaceModel.migrationStatus || "")
+            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
+            architectureStatus: "Desktop API + typed controller"
+            architectureSummary: "Work-order filters, execution-scope edits, and lifecycle status changes now run through a typed maintenance controller backed by the work-orders desktop API."
+        }
+
+        AppWidgets.TableToolbar {
+            id: tableToolbar
+            Layout.fillWidth: true
+            searchPlaceholder: "Search work orders…"
+            showCreate: true
+            createLabel: "New Work Order"
+            showRefresh: true
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+            onSearchChanged: function(text) {
+                if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
+            }
+            onRefreshRequested: {
+                if (root.workspaceController !== null) root.workspaceController.refresh()
+            }
+            onCreateRequested: dialogHost.openCreateDialog()
+        }
+
+        // ── Full-width table with full-page detail view ───────────────
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+
+            AppWidgets.DataTable {
+                id: workOrdersTable
+                anchors.fill: parent
+                columns: root._tableColumns
+                rows: root.workOrdersModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedWorkOrderId : ""
+                showFilter: true
+
+                onFilterClicked: filterPopup.open()
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectWorkOrder(rowId)
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectWorkOrder(rowId)
+                }
+                onViewDetailRequested: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectWorkOrder(rowId)
+                    detailPage.open = true
+                }
+                onSortRequested: function(key) {}
             }
 
-            MaintenanceWidgets.WorkspaceStateBanner {
-                Layout.fillWidth: true
-                isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+            Popup {
+                id: filterPopup
+                parent: workOrdersTable
+                width: 260
+                padding: 12
+                x: workOrdersTable.width - width - 4
+                y: 30
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                Column {
+                    width: parent.width
+                    spacing: 8
+
+                    Label {
+                        text: "Site"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setSiteFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Status"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Priority"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setPriorityFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Type"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.workOrderTypeOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.workOrderTypeOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setWorkOrderTypeFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    Label {
+                        text: "Asset"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+                    ComboBox {
+                        width: parent.width
+                        model: root.workspaceController ? (root.workspaceController.assetOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.assetOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.setAssetFilter(String(opts[index].value || "all"))
+                        }
+                    }
+                }
+            }
+
+            AppWidgets.SectionDetailPage {
+                id: detailPage
+                anchors.fill: parent
+                title: root.selectedWorkOrderModel.title || "Work Order Details"
+                open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-                feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-            }
+                sections: ["Overview", "Details", "Actions"]
 
-            MaintenanceWidgets.WorkspaceStatusSection {
-                Layout.fillWidth: true
-                migrationStatus: root.workspaceController
-                    ? "QML work-order slice active"
-                    : (root.workspaceModel.migrationStatus || "")
-                legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-                architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Work-order filters, execution-scope edits, and lifecycle status changes now run through a typed maintenance controller backed by the work-orders desktop API."
-            }
-
-            WorkOrdersFiltersSection {
-                Layout.fillWidth: true
-                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
-                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                priorityOptions: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
-                workOrderTypeOptions: root.workspaceController ? (root.workspaceController.workOrderTypeOptions || []) : []
-                assetOptions: root.workspaceController ? (root.workspaceController.assetOptions || []) : []
-                selectedSiteFilter: root.workspaceController ? root.workspaceController.selectedSiteFilter : "all"
-                selectedStatusFilter: root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-                selectedPriorityFilter: root.workspaceController ? root.workspaceController.selectedPriorityFilter : "all"
-                selectedWorkOrderTypeFilter: root.workspaceController ? root.workspaceController.selectedWorkOrderTypeFilter : "all"
-                selectedAssetFilter: root.workspaceController ? root.workspaceController.selectedAssetFilter : "all"
-                searchText: root.workspaceController ? root.workspaceController.searchText : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                onSearchTextUpdated: function(searchText) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSearchText(searchText)
-                    }
-                }
-
-                onSiteFilterUpdated: function(siteId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSiteFilter(siteId)
-                    }
-                }
-
-                onStatusFilterUpdated: function(statusValue) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setStatusFilter(statusValue)
-                    }
-                }
-
-                onPriorityFilterUpdated: function(priorityValue) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setPriorityFilter(priorityValue)
-                    }
-                }
-
-                onWorkOrderTypeFilterUpdated: function(workOrderTypeValue) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setWorkOrderTypeFilter(workOrderTypeValue)
-                    }
-                }
-
-                onAssetFilterUpdated: function(assetId) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setAssetFilter(assetId)
-                    }
-                }
-
-                onRefreshRequested: function() {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.refresh()
-                    }
-                }
-
-                onCreateRequested: function() {
-                    dialogHost.openCreateDialog()
-                }
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 1180 ? 2 : 1
-                columnSpacing: 12
-                rowSpacing: 12
-
-                WorkOrdersCatalogSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    workOrdersModel: root.workOrdersModel
-                    selectedWorkOrderId: root.workspaceController ? root.workspaceController.selectedWorkOrderId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onWorkOrderSelected: function(workOrderId) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.selectWorkOrder(workOrderId)
-                        }
-                    }
-
-                    onEditRequested: function(workOrderData) {
-                        if (workOrderData && workOrderData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectWorkOrder(workOrderData.id)
-                        }
-                        dialogHost.openEditDialog(workOrderData)
-                    }
-
-                    onStatusRequested: function(workOrderData) {
-                        if (workOrderData && workOrderData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectWorkOrder(workOrderData.id)
-                        }
-                        dialogHost.openStatusDialog(workOrderData)
-                    }
-                }
+                onBackRequested: detailPage.open = false
+                onEditRequested: dialogHost.openEditDialog(root.selectedWorkOrderModel)
+                onDeleteRequested: detailPage.open = false
 
                 WorkOrderDetailSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
+                    width: parent.width
+                    detailPage: detailPage
                     workOrderDetail: root.selectedWorkOrderModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
                     onEditRequested: dialogHost.openEditDialog(root.selectedWorkOrderModel)
                     onStatusRequested: dialogHost.openStatusDialog(root.selectedWorkOrderModel)
                 }

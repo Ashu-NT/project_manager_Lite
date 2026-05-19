@@ -23,140 +23,187 @@ Item {
         "state": {}
     })
     property bool isBusy: false
+    property var detailPage: null
 
     signal primaryActionRequested()
     signal secondaryActionRequested()
 
-    implicitHeight: contentColumn.implicitHeight
+    implicitHeight: _mainCol.implicitHeight
 
-    ColumnLayout {
-        id: contentColumn
+    Column {
+        id: _mainCol
+        width: parent.width
+        spacing: 0
 
-        anchors.fill: parent
-        spacing: Theme.AppTheme.spacingMd
+        AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { width: parent.width; text: "Overview" }
 
-        RowLayout {
-            Layout.fillWidth: true
+        Item {
+            width: parent.width
+            height: overviewCol.implicitHeight + Theme.AppTheme.spacingMd * 2
 
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingXs
+                id: overviewCol
+                anchors {
+                    left: parent.left; right: parent.right
+                    top: parent.top
+                    margins: Theme.AppTheme.spacingMd
+                }
+                spacing: Theme.AppTheme.spacingMd
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.detailModel.id ? (root.detailModel.title || root.emptyTitle) : root.emptyTitle
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.bodySize
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.detailModel.subtitle || root.detailModel.emptyState || ""
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    AppWidgets.StatusChip {
+                        visible: String(root.detailModel.statusLabel || "").length > 0
+                        status: root.detailModel.statusLabel || ""
+                    }
+                }
 
                 Label {
                     Layout.fillWidth: true
-                    text: root.detailModel.id ? (root.detailModel.title || root.emptyTitle) : root.emptyTitle
+                    visible: !root.detailModel.id && String(root.detailModel.emptyState || "").length > 0
+                    text: root.detailModel.emptyState
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    wrapMode: Text.WordWrap
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: !!root.detailModel.id
+                    text: root.detailModel.description || ""
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.bodySize
-                    font.bold: true
-                    wrapMode: Text.WordWrap
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    text: root.detailModel.subtitle || root.detailModel.emptyState || ""
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
                     wrapMode: Text.WordWrap
                 }
             }
-
-            AppWidgets.StatusChip {
-                visible: String(root.detailModel.statusLabel || "").length > 0
-                status: root.detailModel.statusLabel || ""
-            }
         }
 
-        Label {
-            Layout.fillWidth: true
-            visible: !root.detailModel.id && String(root.detailModel.emptyState || "").length > 0
-            text: root.detailModel.emptyState
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
+        AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { width: parent.width; text: "Details" }
 
-        Label {
-            Layout.fillWidth: true
+        Item {
+            width: parent.width
+            height: detailsCol.implicitHeight + Theme.AppTheme.spacingMd * 2
             visible: !!root.detailModel.id
-            text: root.detailModel.description || ""
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.bodySize
-            wrapMode: Text.WordWrap
-        }
 
-        Repeater {
-            model: root.detailModel.fields || []
+            ColumnLayout {
+                id: detailsCol
+                anchors {
+                    left: parent.left; right: parent.right
+                    top: parent.top
+                    margins: Theme.AppTheme.spacingMd
+                }
+                spacing: Theme.AppTheme.spacingSm
 
-            delegate: Rectangle {
-                id: fieldCard
-                required property var modelData
+                Repeater {
+                    model: root.detailModel.fields || []
 
-                Layout.fillWidth: true
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceAlt
-                implicitHeight: fieldLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
+                    delegate: Rectangle {
+                        id: fieldCard
+                        required property var modelData
 
-                ColumnLayout {
-                    id: fieldLayout
-
-                    anchors.fill: parent
-                    anchors.margins: Theme.AppTheme.marginMd
-                    spacing: Theme.AppTheme.spacingXs
-
-                    Label {
                         Layout.fillWidth: true
-                        text: String(fieldCard.modelData.label || "")
-                        color: Theme.AppTheme.textMuted
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        font.bold: true
-                    }
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceAlt
+                        implicitHeight: fieldLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
 
-                    Label {
-                        Layout.fillWidth: true
-                        text: String(fieldCard.modelData.value || "")
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        wrapMode: Text.WordWrap
-                    }
+                        ColumnLayout {
+                            id: fieldLayout
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.marginMd
+                            spacing: Theme.AppTheme.spacingXs
 
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(fieldCard.modelData.supportingText || "").length > 0
-                        text: String(fieldCard.modelData.supportingText || "")
-                        color: Theme.AppTheme.textSecondary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
+                            Label {
+                                Layout.fillWidth: true
+                                text: String(fieldCard.modelData.label || "")
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: String(fieldCard.modelData.value || "")
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.bodySize
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                visible: String(fieldCard.modelData.supportingText || "").length > 0
+                                text: String(fieldCard.modelData.supportingText || "")
+                                color: Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                wrapMode: Text.WordWrap
+                            }
+                        }
                     }
                 }
             }
         }
 
-        RowLayout {
-            Layout.fillWidth: true
+        AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { width: parent.width; text: "Actions" }
+
+        Item {
+            width: parent.width
+            height: actionsRow.implicitHeight + Theme.AppTheme.spacingMd * 2
             visible: !!root.detailModel.id
-            spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
-                text: root.primaryActionLabel
-                enabled: !root.isBusy && !!(root.detailModel.state && root.detailModel.state.canPrimaryAction)
-                onClicked: root.primaryActionRequested()
-            }
+            RowLayout {
+                id: actionsRow
+                anchors {
+                    left: parent.left; right: parent.right
+                    top: parent.top
+                    margins: Theme.AppTheme.spacingMd
+                }
+                spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
-                text: root.secondaryActionLabel
-                enabled: !root.isBusy && !!(root.detailModel.state && root.detailModel.state.canSecondaryAction)
-                onClicked: root.secondaryActionRequested()
-            }
+                AppControls.PrimaryButton {
+                    text: root.primaryActionLabel
+                    enabled: !root.isBusy && !!(root.detailModel.state && root.detailModel.state.canPrimaryAction)
+                    onClicked: root.primaryActionRequested()
+                }
 
-            Item {
-                Layout.fillWidth: true
+                AppControls.PrimaryButton {
+                    text: root.secondaryActionLabel
+                    enabled: !root.isBusy && !!(root.detailModel.state && root.detailModel.state.canSecondaryAction)
+                    onClicked: root.secondaryActionRequested()
+                }
+
+                Item { Layout.fillWidth: true }
             }
         }
     }

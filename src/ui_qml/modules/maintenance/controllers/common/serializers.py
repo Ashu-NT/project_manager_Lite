@@ -538,6 +538,11 @@ def serialize_work_request_workspace_state(
                     "statusLabel": row.status_label,
                     "supportingText": row.supporting_text,
                     "metaText": row.meta_text,
+                    "priorityLabel": str(row.state.get("priorityLabel", "") or ""),
+                    "assetLabel": str(row.state.get("assetLabel", "") or ""),
+                    "locationLabel": str(row.state.get("locationLabel", "") or ""),
+                    "requestedAt": str(row.state.get("requestedAt", "") or ""),
+                    "requestedByName": str(row.state.get("requestedByName", "") or ""),
                     "canPrimaryAction": bool(
                         row.state.get("canPrimaryAction", False)
                     ),
@@ -629,6 +634,11 @@ def serialize_work_order_workspace_state(
                     "statusLabel": row.status_label,
                     "supportingText": row.supporting_text,
                     "metaText": row.meta_text,
+                    "priorityLabel": str(row.state.get("priorityLabel", "") or ""),
+                    "workOrderTypeLabel": str(row.state.get("workOrderTypeLabel", "") or ""),
+                    "assetLabel": str(row.state.get("assetLabel", "") or ""),
+                    "assignedEmployeeLabel": str(row.state.get("assignedEmployeeLabel", "") or ""),
+                    "plannedStart": str(row.state.get("plannedStart", "") or ""),
                     "canPrimaryAction": bool(
                         row.state.get("canPrimaryAction", False)
                     ),
