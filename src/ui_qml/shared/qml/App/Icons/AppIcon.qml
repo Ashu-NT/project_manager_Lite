@@ -8,24 +8,33 @@ Item {
     property string name:      "default"
     property color  iconColor: Theme.AppTheme.textSecondary
     property int    size:      16
-    property bool   active:    false    // renders in accent color
-    property bool   disabled:  false    // 38% opacity + muted tint
+    property bool   active:    false
+    property bool   disabled:  false
 
     // Sizing follows the rendered glyph
     implicitWidth:  _glyph.implicitWidth
     implicitHeight: _glyph.implicitHeight
 
     opacity: root.disabled ? 0.38 : 1.0
-    Behavior on opacity { NumberAnimation { duration: 150 } }
 
-    // Color: disabled -> muted, active -> accent, else iconColor
+    Behavior on opacity {
+        NumberAnimation {
+            duration: 150
+        }
+    }
+
+    // Effective color
     readonly property color _effectiveColor: root.disabled
         ? Theme.AppTheme.textMuted
         : (root.active ? Theme.AppTheme.accent : root.iconColor)
 
+    // Primary + fallback font
+    readonly property string _iconFontFamily:
+        Qt.fontFamilies().indexOf("Segoe Fluent Icons") !== -1
+            ? "Segoe Fluent Icons"
+            : "Segoe MDL2 Assets"
+
     // Icon registry
-    // Codepoints target Segoe Fluent Icons (Windows 11) with
-    // Segoe MDL2 Assets as fallback. Both fonts share this PUA range.
     readonly property var _map: ({
         // Navigation and Shell
         "home":           "\uE80F",
@@ -90,15 +99,27 @@ Item {
     // Glyph renderer
     Text {
         id: _glyph
-        anchors.centerIn: parent
-        text: root._map[root.name] !== undefined ? root._map[root.name] : root._map["default"]
-        color: root._effectiveColor
-        font.families:       ["Segoe Fluent Icons", "Segoe MDL2 Assets"]
-        font.pixelSize:      root.size
-        renderType:          Text.NativeRendering
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment:   Text.AlignVCenter
 
-        Behavior on color { ColorAnimation { duration: 150 } }
+        anchors.centerIn: parent
+
+        text: root._map[root.name] !== undefined
+              ? root._map[root.name]
+              : root._map["default"]
+
+        color: root._effectiveColor
+
+        font.family: root._iconFontFamily
+        font.pixelSize: root.size
+
+        renderType: Text.NativeRendering
+
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+
+        Behavior on color {
+            ColorAnimation {
+                duration: 150
+            }
+        }
     }
 }
