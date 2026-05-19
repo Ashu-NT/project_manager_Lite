@@ -1,6 +1,9 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
@@ -51,152 +54,133 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
+    readonly property var _tableColumns: [
+        { "key": "title",       "label": "Project",  "flex": 2, "sortable": true  },
+        { "key": "statusLabel", "label": "Status",   "flex": 0, "minWidth": 120, "type": "status" },
+        { "key": "subtitle",    "label": "Client",   "flex": 2, "sortable": true  },
+        { "key": "metaText",    "label": "Info",     "flex": 1, "minWidth": 90    }
+    ]
+
+    function _statusIndexForValue(statusValue) {
+        const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+        for (let i = 0; i < opts.length; i++) {
+            if (String(opts[i].value || "") === String(statusValue || "")) return i
+        }
+        return 0
+    }
+
     ProjectsDialogHost {
         id: dialogHost
 
         statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
 
         onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.createProject(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.createProject(payload)
         }
-
         onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.updateProject(payload)
-            }
+            if (root.workspaceController !== null) root.workspaceController.updateProject(payload)
         }
-
         onStatusChangeRequested: function(projectId, statusValue) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.setProjectStatus(projectId, statusValue)
-            }
+            if (root.workspaceController !== null) root.workspaceController.setProjectStatus(projectId, statusValue)
         }
-
         onDeleteRequested: function(projectId) {
-            if (root.workspaceController !== null) {
-                root.workspaceController.deleteProject(projectId)
-            }
+            if (root.workspaceController !== null) root.workspaceController.deleteProject(projectId)
         }
     }
 
-    Flickable {
+    ColumnLayout {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: contentColumn.implicitHeight
-        clip: true
+        spacing: Theme.AppTheme.spacingSm
 
-        ColumnLayout {
-            id: contentColumn
+        // Compact metrics strip
+        ProjectsMetricsSection {
+            Layout.fillWidth: true
+            metrics: root.overviewModel.metrics || []
+        }
 
-            width: parent.width
-            spacing: 12
+        // Inline state feedback (loading spinner / error / success)
+        ProjectManagementWidgets.WorkspaceStateBanner {
+            Layout.fillWidth: true
+            isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
+            feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+        }
 
-            ProjectsMetricsSection {
-                Layout.fillWidth: true
-                metrics: root.overviewModel.metrics || []
+        // Table toolbar: search + status filter + refresh + create
+        AppWidgets.TableToolbar {
+            id: tableToolbar
+            Layout.fillWidth: true
+            searchPlaceholder: "Search projects…"
+            showCreate: true
+            createLabel: "New Project"
+            showRefresh: true
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+            // Status filter in the toolbar filter slot
+            ComboBox {
+                implicitWidth: 200
+                model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                textRole: "label"
+                enabled: !tableToolbar.isBusy
+                currentIndex: root._statusIndexForValue(
+                    root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                )
+                onActivated: function(index) {
+                    const opt = root.workspaceController
+                        ? (root.workspaceController.statusOptions || [])[index]
+                        : null
+                    if (opt && root.workspaceController) {
+                        root.workspaceController.setStatusFilter(String(opt.value || "all"))
+                    }
+                }
             }
 
-            ProjectManagementWidgets.WorkspaceStateBanner {
+            onSearchChanged: function(text) {
+                if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
+            }
+            onRefreshRequested: {
+                if (root.workspaceController !== null) root.workspaceController.refresh()
+            }
+            onCreateRequested: dialogHost.openCreateDialog()
+        }
+
+        // ── Main table area ──────────────────────────────────────────────
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: Theme.AppTheme.spacingMd
+
+            AppWidgets.DataTable {
                 Layout.fillWidth: true
-                isLoading: root.workspaceController ? root.workspaceController.isLoading : false
+                Layout.fillHeight: true
+                columns: root._tableColumns
+                rows: root.projectsModel.items || []
+                selectedRowId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+
+                onRowSelected: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
+                }
+                onRowActivated: function(rowId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
+                    dialogHost.openEditDialog(root.selectedProjectModel)
+                }
+                onSortRequested: function(key) {
+                    // Wire to controller sort when backend supports it
+                }
+            }
+
+            // Detail panel — shown when a project is selected
+            ProjectsDetailSection {
+                visible: root.selectedProjectModel && root.selectedProjectModel.id !== ""
+                Layout.preferredWidth: 320
+                Layout.fillHeight: true
+                projectDetail: root.selectedProjectModel
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-                feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-            }
 
-            ProjectManagementWidgets.WorkspaceStatusSection {
-                Layout.fillWidth: true
-                migrationStatus: root.workspaceController
-                    ? "QML CRUD projects slice active"
-                    : (root.workspaceModel.migrationStatus || "")
-                legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-                architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Project list, filters, create, edit, status, and delete flows now run through a typed PM controller backed by the project desktop API."
-            }
-
-            ProjectsFiltersSection {
-                Layout.fillWidth: true
-                statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                selectedStatusFilter: root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-                searchText: root.workspaceController ? root.workspaceController.searchText : ""
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                onSearchTextUpdated: function(searchText) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setSearchText(searchText)
-                    }
-                }
-
-                onStatusFilterUpdated: function(statusValue) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setStatusFilter(statusValue)
-                    }
-                }
-
-                onRefreshRequested: function() {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.refresh()
-                    }
-                }
-
-                onCreateRequested: function() {
-                    dialogHost.openCreateDialog()
-                }
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 1180 ? 2 : 1
-                columnSpacing: 12
-                rowSpacing: 12
-
-                ProjectsCatalogSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    projectsModel: root.projectsModel
-                    selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onProjectSelected: function(projectId) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.selectProject(projectId)
-                        }
-                    }
-
-                    onEditRequested: function(projectData) {
-                        if (projectData && projectData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectProject(projectData.id)
-                        }
-                        dialogHost.openEditDialog(projectData)
-                    }
-
-                    onStatusRequested: function(projectData) {
-                        if (projectData && projectData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectProject(projectData.id)
-                        }
-                        dialogHost.openStatusDialog(projectData)
-                    }
-
-                    onDeleteRequested: function(projectData) {
-                        if (projectData && projectData.id && root.workspaceController !== null) {
-                            root.workspaceController.selectProject(projectData.id)
-                        }
-                        dialogHost.openDeleteDialog(projectData)
-                    }
-                }
-
-                ProjectsDetailSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    projectDetail: root.selectedProjectModel
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
-                    onStatusRequested: dialogHost.openStatusDialog(root.selectedProjectModel)
-                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
-                }
+                onEditRequested: dialogHost.openEditDialog(root.selectedProjectModel)
+                onStatusRequested: dialogHost.openStatusDialog(root.selectedProjectModel)
+                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedProjectModel)
             }
         }
     }
