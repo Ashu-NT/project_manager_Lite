@@ -180,8 +180,7 @@ AppLayouts.WorkspaceFrame {
                     color: Theme.AppTheme.surfaceRaised
                 }
 
-                ColumnLayout {
-                    width: parent.width
+                contentItem: ColumnLayout {
                     spacing: 8
 
                     Label {
