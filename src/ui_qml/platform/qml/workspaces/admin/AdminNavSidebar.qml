@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import App.Icons 1.0 as AppIcons
@@ -115,25 +117,27 @@ Item {
         ]
 
         delegate: Item {
-            // modelData and index are provided by ListView for array models
-            property var  _d:  modelData
-            property int  _i:  index
-            property bool _isGroup: _d.type === "group"
-            property bool _isItem:  _d.type === "item"
+            id: navDelegate
 
-            width:   _navList.width
-            height:  _isGroup ? (root.collapsed ? 0 : 24) : 34
-            visible: _isGroup ? !root.collapsed : true
+            required property var modelData
+
+            readonly property var itemData: navDelegate.modelData
+            readonly property bool isGroup: navDelegate.itemData.type === "group"
+            readonly property bool isItem:  navDelegate.itemData.type === "item"
+
+            width:   ListView.view ? ListView.view.width : 0
+            height:  navDelegate.isGroup ? (root.collapsed ? 0 : 24) : 34
+            visible: navDelegate.isGroup ? !root.collapsed : true
             clip:    true
 
             // ── Group header ──────────────────────────────────────
             Label {
-                visible:         _isGroup
+                visible:         navDelegate.isGroup
                 anchors.left:    parent.left
                 anchors.leftMargin: 14
                 anchors.bottom:  parent.bottom
                 anchors.bottomMargin: 3
-                text:            _d.label || ""
+                text:            navDelegate.itemData.label || ""
                 color:           Theme.AppTheme.textMuted
                 font.family:     Theme.AppTheme.fontFamily
                 font.pixelSize:  Theme.AppTheme.captionSize
@@ -144,13 +148,13 @@ Item {
             // ── Nav item ──────────────────────────────────────────
             Rectangle {
                 id: _itemBg
-                visible:  _isItem
+                visible:  navDelegate.isItem
                 anchors.fill:        parent
                 anchors.leftMargin:  4
                 anchors.rightMargin: 4
                 radius: 4
 
-                readonly property bool _active: root.activeSection === (_d.section || "")
+                readonly property bool _active: root.activeSection === (navDelegate.itemData.section || "")
 
                 color: _active
                     ? Theme.AppTheme.navSelectedBackground
@@ -171,7 +175,7 @@ Item {
                     anchors.left:           parent.left
                     anchors.leftMargin:     root.collapsed ? 13 : 11
                     anchors.verticalCenter: parent.verticalCenter
-                    name:      _d.icon || "settings"
+                    name:      navDelegate.itemData.icon || "settings"
                     size:      13
                     iconColor: _itemBg._active ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
                 }
@@ -183,7 +187,7 @@ Item {
                     anchors.right:          parent.right
                     anchors.rightMargin:    8
                     anchors.verticalCenter: parent.verticalCenter
-                    text:           _d.label || ""
+                    text:           navDelegate.itemData.label || ""
                     color:          _itemBg._active ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
                     font.family:    Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
@@ -192,7 +196,7 @@ Item {
                 }
 
                 ToolTip.visible: root.collapsed && _itemMA.containsMouse
-                ToolTip.text:    _d.label || ""
+                ToolTip.text:    navDelegate.itemData.label || ""
                 ToolTip.delay:   700
 
                 MouseArea {
@@ -201,7 +205,7 @@ Item {
                     hoverEnabled: true
                     cursorShape:  Qt.PointingHandCursor
                     onClicked: {
-                        const s = _d.section || ""
+                        const s = navDelegate.itemData.section || ""
                         if (s.length > 0) root.sectionChanged(s)
                     }
                 }
