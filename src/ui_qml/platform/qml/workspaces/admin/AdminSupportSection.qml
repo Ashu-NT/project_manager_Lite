@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
@@ -12,16 +13,11 @@ GridLayout {
     id: root
 
     property PlatformControllers.PlatformSupportWorkspaceController supportController
-    property var supportSettings: root.supportController ? root.supportController.supportSettings : ({})
-    property var supportPaths: root.supportController ? root.supportController.supportPaths : ({})
-    property var updateStatus: root.supportController ? root.supportController.updateStatus : ({})
-    property var activityFeed: root.supportController ? root.supportController.activityFeed : ({
-        "title": "Support Activity",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
-    property var bundleState: root.supportController ? root.supportController.bundleState : ({})
+    property var supportSettings: root.supportController ? root.supportController.supportSettings : AppMock.MockFactory.emptyObject()
+    property var supportPaths: root.supportController ? root.supportController.supportPaths : AppMock.MockFactory.emptyObject()
+    property var updateStatus: root.supportController ? root.supportController.updateStatus : AppMock.MockFactory.emptyObject()
+    property var activityFeed: root.supportController ? root.supportController.activityFeed : AppMock.MockFactory.catalog("Support Activity")
+    property var bundleState: root.supportController ? root.supportController.bundleState : AppMock.MockFactory.emptyObject()
 
     columns: width > 1320 ? 2 : 1
     columnSpacing: Theme.AppTheme.spacingMd
