@@ -101,10 +101,11 @@ ColumnLayout {
         }
     }
 
-    // ── Table toolbar ─────────────────────────────────────────────
+    // ── Table toolbar — hidden while a row is selected ────────────
     AppWidgets.TableToolbar {
         id: _tableToolbar
         Layout.fillWidth: true
+        visible:       root.selectedRowId.length === 0
         showCreate:    root.entityLabel.length > 0
         createLabel:   "New " + root.entityLabel
         showRefresh:   true
@@ -115,7 +116,7 @@ ColumnLayout {
         onCustomizeClicked: _dataTable.openColumnCustomizer()
     }
 
-    // ── Contextual action toolbar — visible when a row is selected ─
+    // ── Contextual action toolbar — replaces TableToolbar on selection
     AppWidgets.ContextualActionToolbar {
         Layout.fillWidth: true
         visible:  root.selectedRowId.length > 0
