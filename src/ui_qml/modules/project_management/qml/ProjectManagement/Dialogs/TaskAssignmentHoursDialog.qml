@@ -15,6 +15,7 @@ Dialog {
     width: 460
     title: "Update Assignment Effort"
     closePolicy: Popup.CloseOnEscape
+    padding: Theme.AppTheme.marginMd
 
     function assignmentState() {
         return root.assignmentData && root.assignmentData.state
@@ -29,7 +30,9 @@ Dialog {
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.surfaceRaised
+        border.color: Theme.AppTheme.divider
+        border.width: 1
     }
 
     contentItem: ColumnLayout {
@@ -75,6 +78,7 @@ Dialog {
         }
 
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: "Save Hours"
             iconName: "save"
             onClicked: root.submitted({

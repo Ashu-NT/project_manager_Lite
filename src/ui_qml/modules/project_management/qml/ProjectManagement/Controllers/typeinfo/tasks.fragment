@@ -55,6 +55,7 @@ Component {
     Method { name: "saveCurrentTaskView"; type: "QVariantMap"; Parameter { name: "viewName"; type: "QString" } }
     Method { name: "applySelectedTaskView"; type: "QVariantMap" }
     Method { name: "deleteSelectedTaskView"; type: "QVariantMap" }
+    Method { name: "exportTasks"; type: "QVariantMap" }
     Method { name: "selectTask"; Parameter { name: "taskId"; type: "QString" } }
     Method { name: "setTaskBulkSelection"; Parameter { name: "taskId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
     Method { name: "selectVisibleTasks" }

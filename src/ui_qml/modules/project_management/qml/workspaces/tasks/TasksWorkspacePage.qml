@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -6,7 +8,6 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -21,8 +22,8 @@ AppLayouts.WorkspaceFrame {
             "routeId": "project_management.tasks",
             "title": "Tasks",
             "summary": "Task planning, progress, dependencies, assignments, and execution state.",
-            "migrationStatus": "QML landing zone ready",
-            "legacyRuntimeStatus": "Existing QWidget tasks workspace remains active"
+            "migrationStatus": "QML task execution workspace active",
+            "legacyRuntimeStatus": "QML runtime is active"
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
@@ -113,18 +114,43 @@ AppLayouts.WorkspaceFrame {
             "items": []
         })
 
-    title: root.overviewModel.title || root.workspaceModel.title
-    subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
-
     readonly property var _tableColumns: [
         { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true  },
         { "key": "statusLabel",    "label": "Status",    "flex": 0,   "minWidth": 100, "type": "status" },
         { "key": "projectName",    "label": "Project",   "flex": 1.5, "sortable": true  },
-        { "key": "priorityLabel",  "label": "Priority",  "flex": 0,   "minWidth": 80, "type": "status"   },
+        { "key": "priorityLabel",  "label": "Priority",  "flex": 0,   "minWidth": 80, "type": "status" },
         { "key": "startDateLabel", "label": "Start",     "flex": 0,   "minWidth": 90    },
         { "key": "endDateLabel",   "label": "Finish",    "flex": 0,   "minWidth": 90    },
         { "key": "progressValue",  "label": "Progress",  "flex": 1,   "minWidth": 110, "type": "progress" }
     ]
+
+    readonly property var _bulkChangeProperties: {
+        const properties = []
+        const statusOptions = root.workspaceController
+            ? (root.workspaceController.bulkStatusOptions || [])
+            : []
+        if (statusOptions.length > 0) {
+            properties.push({
+                "id": "status",
+                "label": "Status",
+                "values": statusOptions
+            })
+        }
+        return properties
+    }
+
+    title: root.overviewModel.title || root.workspaceModel.title
+    subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
+
+    function _optionIndexForValue(options, value) {
+        const optionList = options || []
+        for (let i = 0; i < optionList.length; i += 1) {
+            if (String(optionList[i].value || "") === String(value || "")) {
+                return i
+            }
+        }
+        return 0
+    }
 
     TasksDialogHost {
         id: dialogHost
@@ -140,46 +166,74 @@ AppLayouts.WorkspaceFrame {
         selectedTaskIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
 
         onCreateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createTask(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.createTask(payload)
+            }
         }
         onUpdateRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateTask(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.updateTask(payload)
+            }
         }
         onProgressRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateProgress(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.updateProgress(payload)
+            }
         }
         onDeleteRequested: function(taskId) {
-            if (root.workspaceController !== null) root.workspaceController.deleteTask(taskId)
+            if (root.workspaceController !== null) {
+                root.workspaceController.deleteTask(taskId)
+            }
         }
         onCreateAssignmentRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createAssignment(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.createAssignment(payload)
+            }
         }
         onUpdateAssignmentAllocationRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.updateAssignmentAllocation(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.updateAssignmentAllocation(payload)
+            }
         }
         onSetAssignmentHoursRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.setAssignmentHours(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.setAssignmentHours(payload)
+            }
         }
         onDeleteAssignmentRequested: function(assignmentId) {
-            if (root.workspaceController !== null) root.workspaceController.deleteAssignment(assignmentId)
+            if (root.workspaceController !== null) {
+                root.workspaceController.deleteAssignment(assignmentId)
+            }
         }
         onCreateDependencyRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.createDependency(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.createDependency(payload)
+            }
         }
         onDeleteDependencyRequested: function(dependencyId) {
-            if (root.workspaceController !== null) root.workspaceController.deleteDependency(dependencyId)
+            if (root.workspaceController !== null) {
+                root.workspaceController.deleteDependency(dependencyId)
+            }
         }
         onPostTaskCommentRequested: function(payload) {
-            if (root.workspaceController !== null) root.workspaceController.postTaskComment(payload)
+            if (root.workspaceController !== null) {
+                root.workspaceController.postTaskComment(payload)
+            }
         }
         onBulkDeleteRequested: function(taskIds) {
-            if (root.workspaceController !== null) root.workspaceController.bulkDeleteTasks(taskIds)
+            if (root.workspaceController !== null) {
+                root.workspaceController.bulkDeleteTasks(taskIds)
+            }
         }
         onTaskPresenceStarted: function(taskId, activity) {
-            if (root.workspaceController !== null) root.workspaceController.beginTaskPresence(taskId, activity)
+            if (root.workspaceController !== null) {
+                root.workspaceController.beginTaskPresence(taskId, activity)
+            }
         }
         onTaskPresenceEnded: function(taskId) {
-            if (root.workspaceController !== null) root.workspaceController.endTaskPresence(taskId)
+            if (root.workspaceController !== null) {
+                root.workspaceController.endTaskPresence(taskId)
+            }
         }
     }
 
@@ -192,71 +246,74 @@ AppLayouts.WorkspaceFrame {
             metrics: root.overviewModel.metrics || []
         }
 
-        ProjectManagementWidgets.WorkspaceStateBanner {
+        AppWidgets.InlineMessage {
             Layout.fillWidth: true
-            isLoading: root.workspaceController ? root.workspaceController.isLoading : false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-            feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+            visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                && !(root.workspaceController ? root.workspaceController.isBusy : false)
+                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+            tone: "info"
+            message: "Loading tasks..."
         }
 
-        ProjectManagementWidgets.WorkspaceStatusSection {
-            visible: false
+        AppWidgets.InlineMessage {
             Layout.fillWidth: true
-            migrationStatus: root.workspaceController
-                ? "QML task execution, advanced filters, saved views, bulk actions, collaboration, and time-entry slice active"
-                : (root.workspaceModel.migrationStatus || "")
-            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-            architectureStatus: "Desktop API + typed controller"
-            architectureSummary: "Task catalog, advanced task-query filters, saved filter views, bulk status/delete plus undo/redo flows, collaboration status signals, progress updates, assignment management, dependency flows, task-level collaboration, and assignment-period labor capture now run through typed PM controllers backed by the task, collaboration, and timesheets desktop APIs."
+            visible: root.workspaceController
+                ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
+                : false
+            tone: "info"
+            message: "Saving task changes..."
+        }
+
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+            tone: "danger"
+            message: root.workspaceController ? root.workspaceController.errorMessage : ""
+        }
+
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+            tone: "success"
+            message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true
-            searchPlaceholder: "Search tasks…"
+            searchText: root.workspaceController ? root.workspaceController.searchText : ""
+            searchPlaceholder: "Search tasks..."
             showCreate: true
             createLabel: "New Task"
             showFilter: true
             showCustomize: true
             showViews: true
             showRefresh: true
+            showExport: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
-                if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
+                if (root.workspaceController !== null) {
+                    root.workspaceController.setSearchText(text)
+                }
             }
-            onFilterClicked:   filterPopup.open()
+            onFilterClicked: filterPopup.open()
             onCustomizeClicked: tasksTable.openColumnCustomizer()
-            onViewsClicked:    viewsPopup.open()
+            onViewsClicked: savedViewsPopup.open()
             onRefreshRequested: {
-                if (root.workspaceController !== null) root.workspaceController.refresh()
+                if (root.workspaceController !== null) {
+                    root.workspaceController.refresh()
+                }
+            }
+            onExportRequested: {
+                if (root.workspaceController !== null) {
+                    root.workspaceController.exportTasks()
+                }
             }
             onCreateRequested: dialogHost.openCreateDialog()
         }
 
-        // Contextual action toolbar — shown when a task row is selected
-        AppWidgets.ContextualActionToolbar {
-            Layout.fillWidth: true
-            visible:  String(root.selectedTaskModel.id || "").length > 0
-            title:    root.selectedTaskModel.title || ""
-            subtitle: root.selectedTaskModel.statusLabel || ""
-            busy:     root.workspaceController ? root.workspaceController.isBusy : false
-            actions: [
-                { id: "details",  label: "Details",  icon: "view",   enabled: true,  danger: false },
-                { id: "edit",     label: "Edit",     icon: "edit",   enabled: true,  danger: false },
-                { id: "progress", label: "Progress", icon: "approve",enabled: true,  danger: false },
-                { id: "delete",   label: "Delete",   icon: "delete", enabled: true,  danger: true  }
-            ]
-            onActionTriggered: function(id) {
-                if (id === "details")  { detailPage.open = true }
-                else if (id === "edit")     { dialogHost.openEditDialog(root.selectedTaskModel) }
-                else if (id === "progress") { dialogHost.openProgressDialog(root.selectedTaskModel) }
-                else if (id === "delete")   { dialogHost.openDeleteDialog(root.selectedTaskModel) }
-            }
-        }
-
-        // ── Full-width table with full-page detail view ───────────────
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -268,51 +325,58 @@ AppLayouts.WorkspaceFrame {
                 multiSelect: true
                 columns: root._tableColumns
                 rows: root.tasksModel.items || []
+                loading: root.workspaceController ? root.workspaceController.isLoading : false
+                emptyText: root.tasksModel.emptyState || "No tasks available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
                 selectedRowIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
 
                 onRowSelected: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectTask(rowId)
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectTask(rowId)
+                    }
                 }
                 onRowActivated: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectTask(rowId)
-                }
-                onViewDetailRequested: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectTask(rowId)
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.selectTask(rowId)
+                    }
                     detailPage.open = true
                 }
                 onRowSelectionToggled: function(rowId, selected) {
-                    if (root.workspaceController !== null) root.workspaceController.setTaskBulkSelection(rowId, selected)
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.setTaskBulkSelection(rowId, selected)
+                    }
                 }
                 onSelectAllToggled: function(allSelected) {
-                    if (root.workspaceController !== null) {
-                        if (allSelected) root.workspaceController.selectVisibleTasks()
-                        else root.workspaceController.clearTaskBulkSelection()
+                    if (root.workspaceController === null) {
+                        return
+                    }
+                    if (allSelected) {
+                        root.workspaceController.selectVisibleTasks()
+                    } else {
+                        root.workspaceController.clearTaskBulkSelection()
                     }
                 }
                 onSortRequested: function(key) {}
             }
 
-            // Filter flyout popup anchored to the DataTable
             Popup {
                 id: filterPopup
                 parent: tasksTable
-                width: 280
-                padding: 12
-                x: tasksTable.width - width - 4
-                y: 30
+                width: 304
+                padding: Theme.AppTheme.marginMd
+                x: Math.max(Theme.AppTheme.spacingSm, tasksTable.width - width - Theme.AppTheme.spacingSm)
+                y: Theme.AppTheme.spacingSm
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 background: Rectangle {
-                    radius:       Theme.AppTheme.radiusLg
-                    color:        Theme.AppTheme.surfaceRaised
+                    radius: Theme.AppTheme.radiusLg
+                    color: Theme.AppTheme.surfaceRaised
                     border.color: Theme.AppTheme.divider
                     border.width: 1
                 }
 
-                ColumnLayout {
-                    width: parent.width
-                    spacing: 8
+                contentItem: ColumnLayout {
+                    spacing: Theme.AppTheme.spacingSm
 
                     Label {
                         text: "Project"
@@ -321,15 +385,23 @@ AppLayouts.WorkspaceFrame {
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
+
                     ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                        )
                         onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.selectProject(String(opts[index].value || ""))
+                            const options = root.workspaceController
+                                ? (root.workspaceController.projectOptions || [])
+                                : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.selectProject(String(options[index].value || ""))
+                            }
                         }
                     }
 
@@ -340,15 +412,23 @@ AppLayouts.WorkspaceFrame {
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
+
                     ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.statusOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                        )
                         onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
+                            const options = root.workspaceController
+                                ? (root.workspaceController.statusOptions || [])
+                                : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.setStatusFilter(String(options[index].value || "all"))
+                            }
                         }
                     }
 
@@ -359,15 +439,23 @@ AppLayouts.WorkspaceFrame {
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
+
                     ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.priorityOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedPriorityFilter : "all"
+                        )
                         onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.setPriorityFilter(String(opts[index].value || "all"))
+                            const options = root.workspaceController
+                                ? (root.workspaceController.priorityOptions || [])
+                                : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.setPriorityFilter(String(options[index].value || "all"))
+                            }
                         }
                     }
 
@@ -378,15 +466,50 @@ AppLayouts.WorkspaceFrame {
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
                     }
+
                     ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.scheduleOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.scheduleOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedScheduleFilter : "all"
+                        )
                         onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.scheduleOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.setScheduleFilter(String(opts[index].value || "all"))
+                            const options = root.workspaceController
+                                ? (root.workspaceController.scheduleOptions || [])
+                                : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.setScheduleFilter(String(options[index].value || "all"))
+                            }
+                        }
+                    }
+
+                    Label {
+                        text: "Saved View"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                    }
+
+                    ComboBox {
+                        Layout.fillWidth: true
+                        model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.taskViewOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedTaskViewName : ""
+                        )
+                        onActivated: function(index) {
+                            const options = root.workspaceController
+                                ? (root.workspaceController.taskViewOptions || [])
+                                : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.selectTaskView(String(options[index].value || ""))
+                            }
                         }
                     }
 
@@ -399,17 +522,22 @@ AppLayouts.WorkspaceFrame {
                             text: "Clear"
                             iconName: "close"
                             onClicked: {
-                                if (root.workspaceController !== null) root.workspaceController.clearFilters()
+                                if (root.workspaceController !== null) {
+                                    root.workspaceController.clearFilters()
+                                }
                                 filterPopup.close()
                             }
                         }
 
                         AppControls.PrimaryButton {
                             Layout.fillWidth: true
-                            text: "Apply"
-                            iconName: "filter"
+                            text: "Apply View"
+                            iconName: "register"
+                            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                             onClicked: {
-                                if (root.workspaceController !== null) root.workspaceController.applySelectedTaskView()
+                                if (root.workspaceController !== null) {
+                                    root.workspaceController.applySelectedTaskView()
+                                }
                                 filterPopup.close()
                             }
                         }
@@ -417,25 +545,23 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            // Saved views popup
             Popup {
-                id: viewsPopup
+                id: savedViewsPopup
                 parent: tasksTable
-                width: 220
+                width: 260
                 padding: Theme.AppTheme.marginMd
-                x: tasksTable.width - width - 4
-                y: 30
+                x: Math.max(Theme.AppTheme.spacingSm, tasksTable.width - width - Theme.AppTheme.spacingSm)
+                y: Theme.AppTheme.spacingSm
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 background: Rectangle {
-                    radius:       Theme.AppTheme.radiusLg
-                    color:        Theme.AppTheme.surfaceRaised
+                    radius: Theme.AppTheme.radiusLg
+                    color: Theme.AppTheme.surfaceRaised
                     border.color: Theme.AppTheme.divider
                     border.width: 1
                 }
 
-                ColumnLayout {
-                    width: parent.width
+                contentItem: ColumnLayout {
                     spacing: Theme.AppTheme.spacingSm
 
                     Label {
@@ -447,15 +573,21 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     ComboBox {
-                        id: _viewsCombo
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        currentIndex: root._optionIndexForValue(
+                            root.workspaceController ? (root.workspaceController.taskViewOptions || []) : [],
+                            root.workspaceController ? root.workspaceController.selectedTaskViewName : ""
+                        )
                         onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.selectTaskView(String(opts[index].value || ""))
+                            const options = root.workspaceController
+                                ? (root.workspaceController.taskViewOptions || [])
+                                : []
+                            if (root.workspaceController !== null && options[index]) {
+                                root.workspaceController.selectTaskView(String(options[index].value || ""))
+                            }
                         }
                     }
 
@@ -465,16 +597,17 @@ AppLayouts.WorkspaceFrame {
                         iconName: "register"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                         onClicked: {
-                            if (root.workspaceController !== null) root.workspaceController.applySelectedTaskView()
-                            viewsPopup.close()
+                            if (root.workspaceController !== null) {
+                                root.workspaceController.applySelectedTaskView()
+                            }
+                            savedViewsPopup.close()
                         }
                     }
                 }
             }
 
-            // Floating bulk action bar
             AppWidgets.BulkActionBar {
-                id: bulkBar
+                id: bulkActionBar
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: Theme.AppTheme.spacingMd
@@ -482,62 +615,81 @@ AppLayouts.WorkspaceFrame {
                 selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
                 actions: [
-                    { id: "delete",          label: "Delete",          icon: "delete", danger: true,  enabled: true },
-                    { id: "change_property", label: "Change Property", icon: "edit",   danger: false, enabled: true }
+                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
+                    { "id": "change_property", "label": "Change Property", "icon": "edit", "danger": false, "enabled": true }
                 ]
+
                 onCancelRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.clearTaskBulkSelection()
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.clearTaskBulkSelection()
+                    }
                 }
-                onActionTriggered: function(id) {
-                    if (id === "delete") {
+                onActionTriggered: function(actionId) {
+                    if (actionId === "delete") {
                         dialogHost.openBulkDeleteDialog(
                             root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
                         )
-                    } else if (id === "change_property") {
-                        changePropertyPopup.parent = bulkBar
-                        changePropertyPopup.x = (bulkBar.width - changePropertyPopup.width) / 2
-                        changePropertyPopup.y = -changePropertyPopup.height - Theme.AppTheme.spacingXs
-                        changePropertyPopup.open()
+                    } else if (actionId === "change_property") {
+                        bulkChangePropertyPopup.open()
                     }
                 }
             }
 
-            // Bulk change property popup
             AppWidgets.BulkChangePropertyPopup {
-                id: changePropertyPopup
+                id: bulkChangePropertyPopup
+                parent: bulkActionBar
+                x: Math.round((bulkActionBar.width - width) / 2)
+                y: -height - Theme.AppTheme.spacingXs
                 selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
-                properties: [
-                    {
-                        id: "status",
-                        label: "Status",
-                        values: root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
-                    }
-                ]
+                properties: root._bulkChangeProperties
+
                 onApplyRequested: function(payload) {
-                    if (root.workspaceController !== null && payload.propertyId === "status") {
-                        root.workspaceController.applyBulkStatus({ status: payload.value })
+                    if (root.workspaceController === null) {
+                        return
+                    }
+                    if (payload.propertyId === "status") {
+                        root.workspaceController.applyBulkStatus({ "status": payload.value })
                     }
                 }
             }
 
-            // Full-page detail view
             AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
-                title: root.selectedTaskModel.title || "Task Details"
                 open: false
+                showHeader: false
+                showEdit: false
+                showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: ["Details", "Assignments", "Dependencies", "Time", "Activity"]
-                showEdit: true
-                showDelete: true
 
-                onBackRequested: detailPage.open = false
-                onEditRequested: dialogHost.openEditDialog(root.selectedTaskModel)
-                onDeleteRequested: dialogHost.openDeleteDialog(root.selectedTaskModel)
+                AppWidgets.ContextualActionToolbar {
+                    width: parent ? parent.width : 0
+                    showBack: true
+                    title: root.selectedTaskModel.title || "Task Details"
+                    subtitle: root.selectedTaskModel.statusLabel || root.selectedTaskModel.subtitle || ""
+                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                    actions: [
+                        { "id": "edit", "label": "Edit", "icon": "edit", "enabled": true, "danger": false },
+                        { "id": "progress", "label": "Progress", "icon": "approve", "enabled": true, "danger": false },
+                        { "id": "delete", "label": "Delete", "icon": "delete", "enabled": true, "danger": true }
+                    ]
+
+                    onBackRequested: detailPage.open = false
+                    onActionTriggered: function(actionId) {
+                        if (actionId === "edit") {
+                            dialogHost.openEditDialog(root.selectedTaskModel)
+                        } else if (actionId === "progress") {
+                            dialogHost.openProgressDialog(root.selectedTaskModel)
+                        } else if (actionId === "delete") {
+                            dialogHost.openDeleteDialog(root.selectedTaskModel)
+                        }
+                    }
+                }
 
                 TasksDetailPanel {
-                    width: parent.width
+                    width: parent ? parent.width : 0
                     detailPage: detailPage
                     taskDetail: root.selectedTaskModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -560,13 +712,11 @@ AppLayouts.WorkspaceFrame {
                     collaborationPresenceModel: root.collaborationPresenceModel
                     selectedTaskId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
 
-                    onEditRequested: dialogHost.openEditDialog(root.selectedTaskModel)
-                    onProgressRequested: dialogHost.openProgressDialog(root.selectedTaskModel)
-                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedTaskModel)
-
                     onCreateAssignmentRequested: dialogHost.openCreateAssignmentDialog(root.selectedTaskModel)
                     onAssignmentSelected: function(assignmentId) {
-                        if (root.workspaceController !== null) root.workspaceController.selectAssignment(assignmentId)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectAssignment(assignmentId)
+                        }
                     }
                     onEditAllocationRequested: function(assignmentData) {
                         dialogHost.openEditAssignmentAllocationDialog(assignmentData, root.selectedTaskModel)
@@ -584,36 +734,56 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onPeriodChanged: function(periodStart) {
-                        if (root.workspaceController !== null) root.workspaceController.selectTimePeriod(periodStart)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectTimePeriod(periodStart)
+                        }
                     }
                     onEntrySelected: function(entryId) {
-                        if (root.workspaceController !== null) root.workspaceController.selectTimeEntry(entryId)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.selectTimeEntry(entryId)
+                        }
                     }
                     onTimeAddRequested: function(payload) {
-                        if (root.workspaceController !== null) root.workspaceController.addTaskTimeEntry(payload)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.addTaskTimeEntry(payload)
+                        }
                     }
                     onTimeUpdateRequested: function(payload) {
-                        if (root.workspaceController !== null) root.workspaceController.updateTaskTimeEntry(payload)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.updateTaskTimeEntry(payload)
+                        }
                     }
                     onTimeDeleteRequested: function(entryId) {
-                        if (root.workspaceController !== null) root.workspaceController.deleteTaskTimeEntry(entryId)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.deleteTaskTimeEntry(entryId)
+                        }
                     }
                     onTimeSubmitRequested: function(payload) {
-                        if (root.workspaceController !== null) root.workspaceController.submitTaskPeriod(payload)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.submitTaskPeriod(payload)
+                        }
                     }
                     onTimeLockRequested: function(payload) {
-                        if (root.workspaceController !== null) root.workspaceController.lockTaskPeriod(payload)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.lockTaskPeriod(payload)
+                        }
                     }
                     onTimeUnlockRequested: function(payload) {
-                        if (root.workspaceController !== null) root.workspaceController.unlockTaskPeriod(payload)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.unlockTaskPeriod(payload)
+                        }
                     }
 
                     onComposeRequested: dialogHost.openTaskCollaborationDialog(root.selectedTaskModel)
                     onMarkReadRequested: function(taskId) {
-                        if (root.workspaceController !== null) root.workspaceController.markTaskCollaborationRead(taskId)
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.markTaskCollaborationRead(taskId)
+                        }
                     }
                     onCollaborationRefreshRequested: {
-                        if (root.workspaceController !== null) root.workspaceController.refresh()
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.refresh()
+                        }
                     }
                 }
             }

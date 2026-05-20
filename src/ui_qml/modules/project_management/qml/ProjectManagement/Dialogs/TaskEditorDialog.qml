@@ -21,6 +21,7 @@ Dialog {
     height: Math.min(640, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 640)
     title: root.modeTitle
     closePolicy: Popup.CloseOnEscape
+    padding: Theme.AppTheme.marginMd
 
     function statusIndexForValue(statusValue) {
         for (let index = 0; index < root.workflowStatusOptions.length; index += 1) {
@@ -59,7 +60,9 @@ Dialog {
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.surfaceRaised
+        border.color: Theme.AppTheme.divider
+        border.width: 1
     }
 
     contentItem: Flickable {

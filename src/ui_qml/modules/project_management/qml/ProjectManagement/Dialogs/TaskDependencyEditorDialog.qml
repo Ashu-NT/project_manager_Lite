@@ -27,6 +27,7 @@ Dialog {
     width: 560
     title: "Create Dependency"
     closePolicy: Popup.CloseOnEscape
+    padding: Theme.AppTheme.marginMd
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -63,7 +64,9 @@ Dialog {
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.surfaceRaised
+        border.color: Theme.AppTheme.divider
+        border.width: 1
     }
 
     contentItem: Flickable {
@@ -196,6 +199,7 @@ Dialog {
         }
 
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: "Create Dependency"
             iconName: "add"
             enabled: (root.taskOptions || []).length > 0

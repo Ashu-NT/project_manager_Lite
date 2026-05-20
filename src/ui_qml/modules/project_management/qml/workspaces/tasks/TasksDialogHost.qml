@@ -131,6 +131,7 @@ Item {
 
     ProjectManagementDialogs.TaskEditorDialog {
         id: editorDialog
+        objectName: "taskEditorDialog"
 
         statusOptions: root.statusOptions
 
@@ -161,6 +162,7 @@ Item {
 
     ProjectManagementDialogs.TaskProgressDialog {
         id: progressDialog
+        objectName: "taskProgressDialog"
 
         statusOptions: root.statusOptions
 
@@ -181,6 +183,7 @@ Item {
 
     ProjectManagementDialogs.TaskAssignmentEditorDialog {
         id: assignmentEditorDialog
+        objectName: "taskAssignmentEditorDialog"
 
         resourceOptions: root.assignmentOptions
 
@@ -196,6 +199,7 @@ Item {
 
     ProjectManagementDialogs.TaskAssignmentHoursDialog {
         id: assignmentHoursDialog
+        objectName: "taskAssignmentHoursDialog"
 
         onSubmitted: function(payload) {
             root.setAssignmentHoursRequested(payload)
@@ -205,6 +209,7 @@ Item {
 
     ProjectManagementDialogs.TaskDependencyEditorDialog {
         id: dependencyEditorDialog
+        objectName: "taskDependencyEditorDialog"
 
         taskOptions: root.dependencyTaskOptions
         dependencyTypeOptions: root.dependencyTypeOptions
@@ -217,6 +222,7 @@ Item {
 
     ProjectManagementDialogs.TaskCollaborationComposerDialog {
         id: collaborationComposerDialog
+        objectName: "taskCollaborationComposerDialog"
 
         mentionOptions: root.collaborationMentionOptions
         documentOptions: root.collaborationDocumentOptions
@@ -238,6 +244,7 @@ Item {
 
     Dialog {
         id: deleteDialog
+        objectName: "taskDeleteDialog"
 
         modal: true
         width: 420
@@ -289,6 +296,7 @@ Item {
 
     Dialog {
         id: bulkDeleteDialog
+        objectName: "taskBulkDeleteDialog"
 
         modal: true
         width: 420
@@ -333,6 +341,7 @@ Item {
 
     Dialog {
         id: deleteAssignmentDialog
+        objectName: "taskDeleteAssignmentDialog"
 
         modal: true
         width: 420
@@ -384,6 +393,7 @@ Item {
 
     Dialog {
         id: deleteDependencyDialog
+        objectName: "taskDeleteDependencyDialog"
 
         modal: true
         width: 420

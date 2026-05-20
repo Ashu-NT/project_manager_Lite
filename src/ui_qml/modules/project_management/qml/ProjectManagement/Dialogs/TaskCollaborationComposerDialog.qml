@@ -21,6 +21,7 @@ Dialog {
     height: Math.min(720, parent ? parent.height - (Theme.AppTheme.marginLg * 2) : 720)
     title: "Post Task Update"
     closePolicy: Popup.CloseOnEscape
+    padding: Theme.AppTheme.marginMd
 
     function selectedTaskState() {
         return root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
@@ -96,7 +97,9 @@ Dialog {
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.surfaceRaised
+        border.color: Theme.AppTheme.divider
+        border.width: 1
     }
 
     FileDialog {
@@ -267,6 +270,7 @@ Dialog {
         }
 
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: "Post Update"
             iconName: "collaboration"
             enabled: String(root.selectedTaskState().taskId || root.selectedTaskState().id || "").length > 0

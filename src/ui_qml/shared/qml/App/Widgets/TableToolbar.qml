@@ -8,6 +8,7 @@ import App.Theme 1.0 as Theme
 Rectangle {
     id: root
 
+    property string searchText: ""
     property string searchPlaceholder: "Search..."
     property bool showRefresh: true
     property bool showExport: false
@@ -242,6 +243,18 @@ Rectangle {
             iconName: "add"
             enabled: !root.isBusy
             onClicked: root.createRequested()
+        }
+    }
+
+    onSearchTextChanged: {
+        if (searchInput.text !== root.searchText) {
+            searchInput.text = root.searchText
+        }
+    }
+
+    Component.onCompleted: {
+        if (searchInput.text !== root.searchText) {
+            searchInput.text = root.searchText
         }
     }
 }
