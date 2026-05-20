@@ -55,7 +55,7 @@ ColumnLayout {
             }
         }
 
-        Button {
+        AppControls.SecondaryButton {
             enabled: root.controller !== null ? !root.controller.isBusy : false
             text: "Refresh"
             onClicked: {

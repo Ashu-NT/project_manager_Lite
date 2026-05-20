@@ -83,6 +83,9 @@ Execution progress:
   - shell header/drawer/main-window refresh
   - shared primitive refresh for buttons, headers, cards, inline messages, table toolbar/filter bar, detail pages, table styling, and overlays
   - QML guardrail/test alignment for the QML-only repo state
+  - representative workspace polish for the live platform admin document/support flow and PM projects/tasks flow
+  - representative workspace polish for maintenance assets/preventive and inventory storeroom/balance/procurement detail flows
+  - removal of obsolete PM workspace helper QML files after their behavior was consolidated into the active page-level compositions
 - Next:
-  - representative workspace polish on top of the refreshed shared system
+  - finish the remaining representative pages still carrying local boxed detail treatments and raw dialog buttons
   - module-by-module removal of remaining overly boxed local section treatments

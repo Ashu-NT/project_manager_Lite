@@ -29,6 +29,11 @@ Dialog {
         return 0
     }
 
+    function submitDialog() {
+        const option = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "DRAFT" }
+        root.submitted(String(option.value || "DRAFT"))
+    }
+
     onOpened: {
         const state = root.workOrderData && root.workOrderData.state ? root.workOrderData.state : (root.workOrderData || {})
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "DRAFT")
@@ -55,6 +60,7 @@ Dialog {
 
         ComboBox {
             id: statusCombo
+            objectName: "statusCombo"
 
             Layout.fillWidth: true
             model: root.workflowStatusOptions
@@ -67,17 +73,16 @@ Dialog {
 
         Item { Layout.fillWidth: true }
 
-        Button {
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             text: "Cancel"
             onClicked: root.close()
         }
 
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: "Update Status"
-            onClicked: {
-                const option = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "DRAFT" }
-                root.submitted(String(option.value || "DRAFT"))
-            }
+            onClicked: root.submitDialog()
         }
     }
 }

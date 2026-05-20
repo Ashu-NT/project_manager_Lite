@@ -69,7 +69,7 @@ Item {
                     required property var modelData
 
                     radius: height / 2
-                    color: Theme.AppTheme.surfaceAlt
+                    color: Theme.AppTheme.surfaceOverlay
                     implicitHeight: badgeLabel.implicitHeight + Theme.AppTheme.marginSm * 2
                     implicitWidth: badgeLabel.implicitWidth + Theme.AppTheme.marginMd * 2
 
@@ -112,7 +112,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
                 color: Theme.AppTheme.divider
             }
 
@@ -126,7 +126,7 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 visible: true
                 enabled: root.actionsEnabled
                     && Boolean(root.previewState.canOpen)

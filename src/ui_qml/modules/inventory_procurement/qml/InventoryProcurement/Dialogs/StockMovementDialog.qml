@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
 Dialog {
@@ -117,7 +118,7 @@ Dialog {
             ComboBox { id: storeroomCombo; Layout.fillWidth: true; model: root.storeroomOptions; textRole: "label" }
 
             Label { text: "Quantity" }
-            TextField { id: quantityField; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
+            TextField { id: quantityField; objectName: "quantityField"; Layout.fillWidth: true; placeholderText: "1.000"; inputMethodHints: Qt.ImhFormattedNumbersOnly }
 
             Label { text: "UOM" }
             TextField { id: uomField; Layout.fillWidth: true; placeholderText: "EA" }
@@ -197,12 +198,14 @@ Dialog {
             Layout.fillWidth: true
         }
 
-        Button {
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             text: "Cancel"
             onClicked: root.close()
         }
 
-        Button {
+        AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: root.submitLabel
             onClicked: root.submitDialog()
         }

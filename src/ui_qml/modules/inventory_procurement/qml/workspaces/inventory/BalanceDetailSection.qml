@@ -90,24 +90,26 @@ Item {
         Repeater {
             model: root.balanceDetail.fields || []
 
-            delegate: Rectangle {
-                id: fieldCard
+            delegate: Item {
+                id: fieldRow
                 required property var modelData
 
                 Layout.fillWidth: true
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceAlt
-                implicitHeight: fieldLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
+                implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd + 1
 
                 ColumnLayout {
                     id: fieldLayout
-                    anchors.fill: parent
-                    anchors.margins: Theme.AppTheme.marginMd
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: Theme.AppTheme.spacingSm
+                    anchors.rightMargin: Theme.AppTheme.spacingSm
+                    anchors.topMargin: Theme.AppTheme.spacingSm
                     spacing: Theme.AppTheme.spacingXs
 
                     Label {
                         Layout.fillWidth: true
-                        text: String(fieldCard.modelData.label || "")
+                        text: String(fieldRow.modelData.label || "")
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -116,7 +118,7 @@ Item {
 
                     Label {
                         Layout.fillWidth: true
-                        text: String(fieldCard.modelData.value || "")
+                        text: String(fieldRow.modelData.value || "")
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.bodySize
@@ -125,13 +127,21 @@ Item {
 
                     Label {
                         Layout.fillWidth: true
-                        visible: String(fieldCard.modelData.supportingText || "").length > 0
-                        text: String(fieldCard.modelData.supportingText || "")
+                        visible: String(fieldRow.modelData.supportingText || "").length > 0
+                        text: String(fieldRow.modelData.supportingText || "")
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
                         wrapMode: Text.WordWrap
                     }
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: Theme.AppTheme.divider
                 }
             }
         }
@@ -141,7 +151,7 @@ Item {
             visible: String(root.balanceDetail.id || "").length > 0
             spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Adjust"
                 enabled: !root.isBusy
                 onClicked: root.adjustmentRequested()
@@ -153,13 +163,13 @@ Item {
                 onClicked: root.issueRequested()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Return"
                 enabled: !root.isBusy
                 onClicked: root.returnRequested()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Transfer"
                 enabled: !root.isBusy
                 onClicked: root.transferRequested()

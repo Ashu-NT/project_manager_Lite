@@ -154,9 +154,10 @@ Item {
 
                 // Progress bar strip
                 Item {
+                    id: progressStrip
                     Layout.fillWidth: true
-                    height: 28
-                    visible: String(root.taskDetail.id || "").length > 0 && _progressValue > 0
+                    Layout.preferredHeight: 28
+                    visible: String(root.taskDetail.id || "").length > 0 && progressStrip._progressValue > 0
 
                     readonly property real _progressValue: {
                         const state = root.taskDetail.state || {}
@@ -181,12 +182,12 @@ Item {
 
                         AppWidgets.ProgressBar {
                             Layout.fillWidth: true
-                            value: parent.parent._progressValue
+                            value: progressStrip._progressValue
                             implicitHeight: 6
                         }
 
                         Label {
-                            text: parent.parent._progressLabel
+                            text: progressStrip._progressLabel
                             color: Theme.AppTheme.textMuted
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.captionSize
@@ -210,19 +211,21 @@ Item {
                 Repeater {
                     model: root.taskDetail.fields || []
 
-                    delegate: Rectangle {
+                    delegate: Item {
                         id: fieldCard
                         required property var modelData
 
                         Layout.fillWidth: true
-                        radius: Theme.AppTheme.radiusMd
-                        color: Theme.AppTheme.surfaceAlt
-                        implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
+                        implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd + 1
 
                         ColumnLayout {
                             id: fieldLayout
-                            anchors.fill: parent
-                            anchors.margins: Theme.AppTheme.spacingMd
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.leftMargin: Theme.AppTheme.spacingSm
+                            anchors.rightMargin: Theme.AppTheme.spacingSm
+                            anchors.topMargin: Theme.AppTheme.spacingSm
                             spacing: Theme.AppTheme.spacingXs
 
                             Label {
@@ -253,6 +256,14 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
                         }
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 1
+                            color: Theme.AppTheme.divider
+                        }
                     }
                 }
 
@@ -268,13 +279,13 @@ Item {
                         onClicked: root.editRequested()
                     }
 
-                    AppControls.PrimaryButton {
+                    AppControls.SecondaryButton {
                         text: "Progress"
                         enabled: !root.isBusy
                         onClicked: root.progressRequested()
                     }
 
-                    AppControls.PrimaryButton {
+                    AppControls.SecondaryButton {
                         text: "Delete"
                         danger: true
                         enabled: !root.isBusy

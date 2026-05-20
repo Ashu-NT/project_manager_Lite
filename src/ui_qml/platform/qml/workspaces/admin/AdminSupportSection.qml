@@ -125,7 +125,7 @@ GridLayout {
                     Layout.fillWidth: true
                 }
 
-                Button {
+                AppControls.SecondaryButton {
                     text: "Cancel"
                     onClicked: installDialog.close()
                 }
@@ -159,7 +159,7 @@ GridLayout {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
         }
 
@@ -304,7 +304,7 @@ GridLayout {
                 onClicked: root.supportController.saveSettings(root.settingsPayload())
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Check Updates"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.checkForUpdates(root.settingsPayload())
@@ -321,7 +321,7 @@ GridLayout {
                 onClicked: installDialog.open()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Open Download"
                 enabled: root.supportController
                     ? (!root.supportController.isBusy && Boolean(root.updateStatus.canOpenDownload))
@@ -350,7 +350,7 @@ GridLayout {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
         }
 
@@ -379,13 +379,13 @@ GridLayout {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "New Trace"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.newIncidentId()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Copy Trace"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.copyIncidentId()
@@ -473,7 +473,7 @@ GridLayout {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Export Diagnostics"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: diagnosticsSaveDialog.open()
@@ -490,19 +490,19 @@ GridLayout {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Open Logs"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.openLogsFolder()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Open Data"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.openDataFolder()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Open Diagnostics"
                 enabled: root.supportController
                     ? (!root.supportController.isBusy && String(root.bundleState.lastDiagnosticsUrl || "").length > 0)
@@ -510,7 +510,7 @@ GridLayout {
                 onClicked: root.supportController.openLatestDiagnostics()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Open Incident Package"
                 enabled: root.supportController
                     ? (!root.supportController.isBusy && String(root.bundleState.lastIncidentReportUrl || "").length > 0)

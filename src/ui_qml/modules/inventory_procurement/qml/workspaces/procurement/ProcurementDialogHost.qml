@@ -83,6 +83,7 @@ Item {
 
     InventoryDialogs.RequisitionEditorDialog {
         id: requisitionEditor
+        objectName: "requisitionEditorDialog"
 
         siteOptions: root.siteOptions
         storeroomOptions: root.storeroomOptions
@@ -102,6 +103,7 @@ Item {
 
     InventoryDialogs.RequisitionLineDialog {
         id: requisitionLineDialog
+        objectName: "requisitionLineDialog"
 
         itemOptions: root.itemOptions
         supplierOptions: root.supplierOptions
@@ -114,6 +116,7 @@ Item {
 
     InventoryDialogs.PurchaseOrderEditorDialog {
         id: purchaseOrderEditor
+        objectName: "purchaseOrderEditorDialog"
 
         siteOptions: root.siteOptions
         supplierOptions: root.supplierOptions
@@ -134,6 +137,7 @@ Item {
 
     InventoryDialogs.PurchaseOrderLineDialog {
         id: purchaseOrderLineDialog
+        objectName: "purchaseOrderLineDialog"
 
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
@@ -147,6 +151,7 @@ Item {
 
     InventoryDialogs.ReceiptPostDialog {
         id: receiptDialog
+        objectName: "receiptPostDialog"
 
         onSubmitted: function(payload) {
             root.postReceiptRequested(payload)

@@ -323,9 +323,7 @@ AppLayouts.WorkspaceFrame {
                 columns: root._locationColumns
                 rows: root.locationModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedLocationId : ""
-                showFilter: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectLocation(rowId)
                 }
@@ -346,9 +344,7 @@ AppLayouts.WorkspaceFrame {
                 columns: root._systemColumns
                 rows: root.systemModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedSystemId : ""
-                showFilter: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectSystem(rowId)
                 }
@@ -369,9 +365,7 @@ AppLayouts.WorkspaceFrame {
                 columns: root._assetColumns
                 rows: root.assetModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedAssetId : ""
-                showFilter: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectAsset(rowId)
                 }
@@ -392,9 +386,7 @@ AppLayouts.WorkspaceFrame {
                 columns: root._componentColumns
                 rows: root.componentModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedComponentId : ""
-                showFilter: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectComponent(rowId)
                 }
@@ -417,11 +409,17 @@ AppLayouts.WorkspaceFrame {
                 y: tableToolbar.height + 4
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                Column {
+                background: Rectangle {
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceRaised
+                }
+
+                ColumnLayout {
                     width: parent.width
-                    spacing: 8
+                    spacing: Theme.AppTheme.spacingSm
 
                     Label {
+                        Layout.fillWidth: true
                         text: "Site"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
@@ -429,7 +427,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -441,6 +439,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     Label {
+                        Layout.fillWidth: true
                         text: "Active Status"
                         font.bold: true
                         font.pixelSize: Theme.AppTheme.captionSize
@@ -448,7 +447,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.activeFilterOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -456,6 +455,31 @@ AppLayouts.WorkspaceFrame {
                             const opts = root.workspaceController ? (root.workspaceController.activeFilterOptions || []) : []
                             if (root.workspaceController !== null && opts[index])
                                 root.workspaceController.setActiveFilter(String(opts[index].value || "all"))
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.SecondaryButton {
+                            text: "Clear"
+                            onClicked: {
+                                if (root.workspaceController !== null) {
+                                    root.workspaceController.setSiteFilter("all")
+                                    root.workspaceController.setActiveFilter("all")
+                                }
+                                filterPopup.close()
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        AppControls.SecondaryButton {
+                            text: "Close"
+                            onClicked: filterPopup.close()
                         }
                     }
                 }

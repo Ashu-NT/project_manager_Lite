@@ -80,6 +80,7 @@ Item {
 
     InventoryDialogs.CategoryEditorDialog {
         id: categoryEditor
+        objectName: "categoryEditorDialog"
 
         categoryTypeOptions: root.categoryTypeOptions
 
@@ -98,6 +99,7 @@ Item {
 
     InventoryDialogs.ItemEditorDialog {
         id: itemEditor
+        objectName: "itemEditorDialog"
 
         itemStatusOptions: root.itemStatusOptions
         categoryOptions: root.categoryOptions
@@ -118,6 +120,7 @@ Item {
 
     InventoryDialogs.DocumentLinkDialog {
         id: documentLinkDialog
+        objectName: "documentLinkDialog"
 
         onSubmitted: function(documentId) {
             var state = root.linkTarget && root.linkTarget.state ? root.linkTarget.state : (root.linkTarget || {})

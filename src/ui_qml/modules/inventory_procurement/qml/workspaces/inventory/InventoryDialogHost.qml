@@ -126,6 +126,7 @@ Item {
 
     InventoryDialogs.StoreroomEditorDialog {
         id: storeroomEditor
+        objectName: "storeroomEditorDialog"
 
         siteOptions: root.siteOptions
         statusOptions: root.storeroomStatusOptions
@@ -146,6 +147,7 @@ Item {
 
     InventoryDialogs.StockMovementDialog {
         id: movementDialog
+        objectName: "stockMovementDialog"
 
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
@@ -166,6 +168,7 @@ Item {
 
     InventoryDialogs.StockTransferDialog {
         id: transferDialog
+        objectName: "stockTransferDialog"
 
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
