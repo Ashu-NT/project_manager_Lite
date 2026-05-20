@@ -171,12 +171,14 @@ ColumnLayout {
 
                 AppControls.PrimaryButton {
                     text: "Refresh"
+                    iconName: "refresh"
                     enabled: !root.isBusy
                     onClicked: root.refreshRequested()
                 }
 
                 AppControls.PrimaryButton {
                     text: "New Plan"
+                    iconName: "add"
                     enabled: !root.isBusy
                     onClicked: root.createPlanRequested()
                 }
@@ -185,6 +187,7 @@ ColumnLayout {
 
                 AppControls.PrimaryButton {
                     text: "New Plan Task"
+                    iconName: "add"
                     enabled: !root.isBusy && String(root.planLibraryState.selectedPlanId || "").length > 0
                     onClicked: root.createPlanTaskRequested(String(root.planLibraryState.selectedPlanId || ""))
                 }
@@ -207,7 +210,9 @@ ColumnLayout {
             items: root.planLibraryState.plans.items || []
             selectedItemId: root.planLibraryState.selectedPlanId || ""
             primaryActionLabel: "Edit"
+            primaryActionIcon: "edit"
             secondaryActionLabel: "Toggle Active"
+            secondaryActionIcon: "workflow"
             actionsEnabled: !root.isBusy
 
             onItemSelected: function(planId) {
@@ -252,6 +257,7 @@ ColumnLayout {
             items: root.planLibraryState.planTasks.items || []
             selectedItemId: root.planLibraryState.selectedPlanTaskId || ""
             primaryActionLabel: "Edit"
+            primaryActionIcon: "edit"
             actionsEnabled: !root.isBusy
 
             onItemSelected: function(planTaskId) {

@@ -330,6 +330,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: root.modeTitle === "Create Resource" ? "Create Resource" : "Save Changes"
+            iconName: root.modeTitle === "Create Resource" ? "add" : "save"
             onClicked: root.submitDialog()
         }
     }

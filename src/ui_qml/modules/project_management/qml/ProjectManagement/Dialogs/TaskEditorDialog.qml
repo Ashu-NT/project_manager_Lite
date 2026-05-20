@@ -145,6 +145,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: root.modeTitle === "Create Task" ? "Create Task" : "Save Changes"
+            iconName: root.modeTitle === "Create Task" ? "add" : "save"
             onClicked: root.submitted(root.buildPayload())
         }
     }

@@ -161,6 +161,7 @@ Item {
                     AppControls.SecondaryButton {
                         visible: root.showEdit
                         text: "Edit"
+                        iconName: "edit"
                         enabled: !root.isBusy
                         implicitWidth: 72
                         onClicked: root.editRequested()
@@ -169,6 +170,7 @@ Item {
                     AppControls.SecondaryButton {
                         visible: root.showDelete
                         text: "Delete"
+                        iconName: "delete"
                         danger: true
                         enabled: !root.isBusy
                         implicitWidth: 80

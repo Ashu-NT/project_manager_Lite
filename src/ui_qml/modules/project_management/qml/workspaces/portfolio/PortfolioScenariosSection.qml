@@ -162,6 +162,7 @@ Item {
 
         AppControls.PrimaryButton {
             text: "Save Scenario"
+            iconName: "save"
             enabled: !root.isBusy
             onClicked: {
                 root.createRequested({

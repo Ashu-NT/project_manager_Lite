@@ -169,6 +169,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: root.mode === "create" ? "Assign Resource" : "Save Allocation"
+            iconName: root.mode === "create" ? "resources" : "save"
             enabled: root.mode !== "create" || (root.resourceOptions || []).length > 0
             onClicked: root.submitted(root.buildPayload())
         }

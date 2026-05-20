@@ -93,18 +93,21 @@ Item {
 
             AppControls.SecondaryButton {
                 text: "Select Visible"
+                iconName: "view"
                 enabled: !root.isBusy && root.visibleTaskCount > 0
                 onClicked: root.selectVisibleRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Clear"
+                iconName: "close"
                 enabled: !root.isBusy && root.selectedTaskCount > 0
                 onClicked: root.clearRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Undo"
+                iconName: "history"
                 enabled: !root.isBusy && root.canUndoTaskAction
                 onClicked: root.undoRequested()
 
@@ -114,6 +117,7 @@ Item {
 
             AppControls.SecondaryButton {
                 text: "Redo"
+                iconName: "history"
                 enabled: !root.isBusy && root.canRedoTaskAction
                 onClicked: root.redoRequested()
 
@@ -163,6 +167,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Apply Status"
+                iconName: "approve"
                 enabled: !root.isBusy && root.selectedTaskCount > 0 && root.selectedStatusValue.length > 0
                 onClicked: root.applyStatusRequested({
                     "status": root.selectedStatusValue,
@@ -172,6 +177,7 @@ Item {
 
             AppControls.SecondaryButton {
                 text: "Bulk Delete"
+                iconName: "delete"
                 danger: true
                 enabled: !root.isBusy && root.selectedTaskCount > 1
                 onClicked: root.bulkDeleteRequested()

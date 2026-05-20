@@ -225,6 +225,7 @@ Dialog {
                 enabled: departmentCodeField.text.trim().length > 0
                     && nameField.text.trim().length > 0
                 text: root.mode === "create" ? "Create" : "Save"
+                iconName: root.mode === "create" ? "add" : "save"
                 onClicked: root.saveRequested(root.mode, root.formData)
             }
         }

@@ -91,6 +91,7 @@ Item {
 
                     AppControls.PrimaryButton {
                         text: "Create Baseline"
+                        iconName: "add"
                         enabled: !root.isBusy && String(root.selectedProjectId || "").length > 0
                         onClicked: root.createBaselineRequested({
                             "projectId": root.selectedProjectId,
@@ -164,6 +165,7 @@ Item {
                     AppControls.PrimaryButton {
                         Layout.columnSpan: width > 920 ? 2 : 1
                         text: "Delete Selected Baseline"
+                        iconName: "delete"
                         danger: true
                         enabled: !root.isBusy && root.deleteTargetBaselineId().length > 0
                         onClicked: root.deleteBaselineRequested(root.deleteTargetBaselineId())

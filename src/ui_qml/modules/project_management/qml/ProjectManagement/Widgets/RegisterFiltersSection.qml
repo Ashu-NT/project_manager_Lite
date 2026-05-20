@@ -65,6 +65,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: root.createButtonLabel
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createRequested()
             }

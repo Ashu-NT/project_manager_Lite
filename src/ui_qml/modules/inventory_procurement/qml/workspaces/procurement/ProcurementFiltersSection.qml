@@ -61,18 +61,21 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "New Requisition"
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createRequisitionRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "New Purchase Order"
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createPurchaseOrderRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Refresh"
+                iconName: "refresh"
                 enabled: !root.isBusy
                 onClicked: root.refreshRequested()
             }

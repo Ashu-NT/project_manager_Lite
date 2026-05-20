@@ -152,18 +152,21 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Edit"
+                iconName: "edit"
                 enabled: !root.isBusy
                 onClicked: root.editRequested()
             }
 
             AppControls.SecondaryButton {
                 text: root.storeroomDetail.state && root.storeroomDetail.state.isActive ? "Deactivate" : "Activate"
+                iconName: root.storeroomDetail.state && root.storeroomDetail.state.isActive ? "reject" : "approve"
                 enabled: !root.isBusy
                 onClicked: root.toggleRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Opening Balance"
+                iconName: "import"
                 enabled: !root.isBusy
                 onClicked: root.openingBalanceRequested()
             }

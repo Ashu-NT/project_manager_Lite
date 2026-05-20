@@ -64,6 +64,7 @@ Item {
 
         AppControls.PrimaryButton {
             text: "Recalculate"
+            iconName: "refresh"
             enabled: !root.isBusy && String(root.selectedProjectId || "").length > 0
             onClicked: root.recalculateRequested()
         }

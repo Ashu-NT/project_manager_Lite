@@ -66,18 +66,21 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Post Update"
+                iconName: "collaboration"
                 enabled: root.canCompose && !root.isBusy
                 onClicked: root.composeRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Mark Mentions Read"
+                iconName: "approve"
                 enabled: root.selectedTaskId.length > 0 && !root.isBusy
                 onClicked: root.markReadRequested(root.selectedTaskId)
             }
 
             AppControls.PrimaryButton {
                 text: "Refresh"
+                iconName: "refresh"
                 enabled: !root.isBusy
                 onClicked: root.refreshRequested()
             }

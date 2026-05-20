@@ -58,6 +58,7 @@ ColumnLayout {
         AppControls.SecondaryButton {
             enabled: root.controller !== null ? !root.controller.isBusy : false
             text: "Refresh"
+            iconName: "refresh"
             onClicked: {
                 if (root.controller !== null) {
                     root.controller.refresh()
@@ -153,6 +154,7 @@ ColumnLayout {
         AppControls.PrimaryButton {
             enabled: root.controller !== null ? !root.controller.isBusy : false
             text: "Assign"
+            iconName: "approve"
             onClicked: {
                 if (root.controller !== null) {
                     root.controller.assignMembership()

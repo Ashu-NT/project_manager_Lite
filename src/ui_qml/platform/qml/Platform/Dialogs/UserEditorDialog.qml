@@ -192,6 +192,7 @@ Dialog {
                 enabled: usernameField.text.trim().length > 0
                     && (root.mode === "edit" || passwordField.text.length > 0)
                 text: root.mode === "create" ? "Create" : "Save"
+                iconName: root.mode === "create" ? "add" : "save"
                 onClicked: root.saveRequested(root.mode, root.formData)
             }
         }

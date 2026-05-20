@@ -57,12 +57,14 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "New Request"
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Refresh"
+                iconName: "refresh"
                 enabled: !root.isBusy
                 onClicked: root.refreshRequested()
             }

@@ -85,6 +85,7 @@ Dialog {
 
             AppControls.PrimaryButton {
                 text: root.mode === "reject" ? "Reject" : "Approve"
+                iconName: root.mode === "reject" ? "reject" : "approve"
                 danger: root.mode === "reject"
                 enabled: root.requestId.length > 0
                 onClicked: root.decisionConfirmed(root.mode, root.requestId, noteField.text)

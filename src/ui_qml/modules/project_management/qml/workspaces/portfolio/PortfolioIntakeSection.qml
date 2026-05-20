@@ -89,6 +89,7 @@ Item {
 
         AppControls.PrimaryButton {
             text: "Add Intake Item"
+            iconName: "add"
             enabled: !root.isBusy
             onClicked: {
                 var templateOption = templateCombo.currentIndex >= 0 ? root.templateOptions[templateCombo.currentIndex] : null

@@ -146,30 +146,35 @@ Item {
 
             AppControls.SecondaryButton {
                 text: "Edit"
+                iconName: "edit"
                 enabled: !root.isBusy && !!(root.purchaseOrderDetail.state && root.purchaseOrderDetail.state.canEdit)
                 onClicked: root.editRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Add Line"
+                iconName: "add"
                 enabled: !root.isBusy && !!(root.purchaseOrderDetail.state && root.purchaseOrderDetail.state.canAddLine)
                 onClicked: root.addLineRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Submit"
+                iconName: "approve"
                 enabled: !root.isBusy && !!(root.purchaseOrderDetail.state && root.purchaseOrderDetail.state.canSubmit)
                 onClicked: root.submitRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Send"
+                iconName: "export"
                 enabled: !root.isBusy && !!(root.purchaseOrderDetail.state && root.purchaseOrderDetail.state.canSend)
                 onClicked: root.sendRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Cancel"
+                iconName: "close"
                 danger: true
                 enabled: !root.isBusy && !!(root.purchaseOrderDetail.state && root.purchaseOrderDetail.state.canCancel)
                 onClicked: root.cancelRequested()
@@ -177,12 +182,14 @@ Item {
 
             AppControls.SecondaryButton {
                 text: "Close"
+                iconName: "close"
                 enabled: !root.isBusy && !!(root.purchaseOrderDetail.state && root.purchaseOrderDetail.state.canClose)
                 onClicked: root.closeRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Post Receipt"
+                iconName: "approve"
                 enabled: !root.isBusy && !!(root.purchaseOrderDetail.state && root.purchaseOrderDetail.state.canPostReceipt)
                 onClicked: root.postReceiptRequested()
             }

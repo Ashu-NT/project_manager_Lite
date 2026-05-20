@@ -127,11 +127,13 @@ GridLayout {
 
                 AppControls.SecondaryButton {
                     text: "Cancel"
+                    iconName: "close"
                     onClicked: installDialog.close()
                 }
 
                 AppControls.PrimaryButton {
                     text: "Install Now"
+                    iconName: "approve"
                     enabled: root.supportController ? !root.supportController.isBusy : false
                     onClicked: {
                         installDialog.close()
@@ -300,12 +302,14 @@ GridLayout {
 
             AppControls.PrimaryButton {
                 text: "Save Settings"
+                iconName: "save"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.saveSettings(root.settingsPayload())
             }
 
             AppControls.SecondaryButton {
                 text: "Check Updates"
+                iconName: "refresh"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.checkForUpdates(root.settingsPayload())
             }
@@ -313,6 +317,7 @@ GridLayout {
             AppControls.PrimaryButton {
                 visible: Qt.platform.os === "windows"
                 text: "Install Now"
+                iconName: "approve"
                 enabled: root.supportController
                     ? (!root.supportController.isBusy
                         && Boolean(root.updateStatus.updateAvailable)
@@ -323,6 +328,7 @@ GridLayout {
 
             AppControls.SecondaryButton {
                 text: "Open Download"
+                iconName: "view"
                 enabled: root.supportController
                     ? (!root.supportController.isBusy && Boolean(root.updateStatus.canOpenDownload))
                     : false
@@ -381,12 +387,14 @@ GridLayout {
 
             AppControls.SecondaryButton {
                 text: "New Trace"
+                iconName: "add"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.newIncidentId()
             }
 
             AppControls.SecondaryButton {
                 text: "Copy Trace"
+                iconName: "export"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.copyIncidentId()
             }
@@ -475,12 +483,14 @@ GridLayout {
 
             AppControls.SecondaryButton {
                 text: "Export Diagnostics"
+                iconName: "export"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: diagnosticsSaveDialog.open()
             }
 
             AppControls.PrimaryButton {
                 text: "Report Incident"
+                iconName: "approve"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.reportIncident()
             }
@@ -492,18 +502,21 @@ GridLayout {
 
             AppControls.SecondaryButton {
                 text: "Open Logs"
+                iconName: "view"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.openLogsFolder()
             }
 
             AppControls.SecondaryButton {
                 text: "Open Data"
+                iconName: "view"
                 enabled: root.supportController ? !root.supportController.isBusy : false
                 onClicked: root.supportController.openDataFolder()
             }
 
             AppControls.SecondaryButton {
                 text: "Open Diagnostics"
+                iconName: "view"
                 enabled: root.supportController
                     ? (!root.supportController.isBusy && String(root.bundleState.lastDiagnosticsUrl || "").length > 0)
                     : false
@@ -512,6 +525,7 @@ GridLayout {
 
             AppControls.SecondaryButton {
                 text: "Open Incident Package"
+                iconName: "view"
                 enabled: root.supportController
                     ? (!root.supportController.isBusy && String(root.bundleState.lastIncidentReportUrl || "").length > 0)
                     : false

@@ -132,6 +132,7 @@ Item {
                     && Boolean(root.previewState.canOpen)
                     && String(root.previewState.openTargetUrl || "").length > 0
                 text: root.previewState.openLabel || "Open Source"
+                iconName: "view"
                 onClicked: root.openRequested(String(root.previewState.openTargetUrl || ""))
             }
         }

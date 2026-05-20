@@ -163,12 +163,14 @@ Item {
 
                     AppControls.PrimaryButton {
                         text: "Edit"
+                        iconName: "edit"
                         enabled: !root.isBusy
                         onClicked: root.editRequested()
                     }
 
                     AppControls.PrimaryButton {
                         text: "Delete"
+                        iconName: "delete"
                         danger: true
                         enabled: !root.isBusy
                         onClicked: root.deleteRequested()

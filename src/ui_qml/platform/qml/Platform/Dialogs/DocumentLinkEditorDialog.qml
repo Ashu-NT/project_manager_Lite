@@ -97,6 +97,7 @@ Dialog {
                     && entityTypeField.text.trim().length > 0
                     && entityIdField.text.trim().length > 0
                 text: "Add Link"
+                iconName: "add"
                 onClicked: root.saveRequested(root.formData)
             }
         }

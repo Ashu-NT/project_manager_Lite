@@ -92,6 +92,11 @@ Item {
         "chevron_right":  "\uE76C",
         "chevron_left":   "\uE76D",
 
+        // Additional actions
+        "save":           "\uE74E",
+        "view":           "\uE8A0",
+        "upload":         "\uE898",
+
         // Fallback
         "default":        "\uE8B7"
     })

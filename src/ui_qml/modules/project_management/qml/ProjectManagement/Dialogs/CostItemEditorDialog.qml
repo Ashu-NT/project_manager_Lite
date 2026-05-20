@@ -247,6 +247,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: root.editingExistingCost ? "Save Changes" : "Create Cost Item"
+            iconName: root.editingExistingCost ? "save" : "add"
             onClicked: root.submitDialog()
         }
     }

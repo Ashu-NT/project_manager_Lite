@@ -191,12 +191,14 @@ Item {
 
                 AppControls.PrimaryButton {
                     text: "Edit"
+                    iconName: "edit"
                     enabled: !root.isBusy && !!(root.workOrderDetail.state && root.workOrderDetail.state.canPrimaryAction)
                     onClicked: root.editRequested()
                 }
 
                 AppControls.PrimaryButton {
                     text: "Status"
+                    iconName: "workflow"
                     enabled: !root.isBusy && !!(root.workOrderDetail.state && root.workOrderDetail.state.canSecondaryAction)
                     onClicked: root.statusRequested()
                 }

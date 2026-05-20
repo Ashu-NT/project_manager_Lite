@@ -101,6 +101,7 @@ Dialog {
 
             AppControls.PrimaryButton {
                 text: "Apply"
+                iconName: "approve"
                 enabled: root.moduleCode.length > 0 && root._selectedValue().length > 0
                 onClicked: root.statusConfirmed(root.moduleCode, root._selectedValue())
             }

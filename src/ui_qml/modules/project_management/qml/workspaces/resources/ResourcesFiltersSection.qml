@@ -91,6 +91,7 @@ Item {
 
         AppControls.PrimaryButton {
             text: "New Resource"
+            iconName: "add"
             enabled: !root.isBusy
             onClicked: root.createRequested()
         }

@@ -145,6 +145,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Approve"
+                iconName: "approve"
                 enabled: !root.isBusy && Boolean(root.reviewDetail.state.periodId)
                 onClicked: root.approveRequested({
                     "periodId": root.reviewDetail.state.periodId || "",
@@ -154,6 +155,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Reject"
+                iconName: "reject"
                 enabled: !root.isBusy && Boolean(root.reviewDetail.state.periodId)
                 danger: true
                 onClicked: root.rejectRequested({

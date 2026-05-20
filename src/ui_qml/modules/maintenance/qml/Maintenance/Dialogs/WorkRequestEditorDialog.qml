@@ -230,12 +230,14 @@ Dialog {
         AppControls.SecondaryButton {
             objectName: "dialogCancelButton"
             text: "Cancel"
+            iconName: "close"
             onClicked: root.close()
         }
 
         AppControls.PrimaryButton {
             objectName: "dialogSubmitButton"
             text: root.modeTitle === "Create Work Request" ? "Create Request" : "Save Changes"
+            iconName: root.modeTitle === "Create Work Request" ? "add" : "save"
             onClicked: root.submitDialog()
         }
     }

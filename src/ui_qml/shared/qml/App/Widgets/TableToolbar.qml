@@ -137,6 +137,7 @@ Rectangle {
         AppControls.SecondaryButton {
             visible: root.showRefresh
             text: "Refresh"
+            iconName: "refresh"
             enabled: !root.isBusy
             implicitWidth: 88
             onClicked: root.refreshRequested()
@@ -145,6 +146,7 @@ Rectangle {
         AppControls.SecondaryButton {
             visible: root.showExport
             text: "Export"
+            iconName: "export"
             enabled: !root.isBusy
             implicitWidth: 88
             onClicked: root.exportRequested()
@@ -153,6 +155,7 @@ Rectangle {
         AppControls.PrimaryButton {
             visible: root.showCreate
             text: root.createLabel
+            iconName: "add"
             enabled: !root.isBusy
             onClicked: root.createRequested()
         }

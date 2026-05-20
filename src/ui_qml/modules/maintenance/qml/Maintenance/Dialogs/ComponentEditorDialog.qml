@@ -221,11 +221,13 @@ Dialog {
         AppControls.SecondaryButton {
             objectName: "dialogCancelButton"
             text: "Cancel"
+            iconName: "close"
             onClicked: root.close()
         }
         AppControls.PrimaryButton {
             objectName: "dialogSubmitButton"
             text: root.modeTitle === "Create Component" ? "Create Component" : "Save Changes"
+            iconName: root.modeTitle === "Create Component" ? "add" : "save"
             onClicked: root.submitDialog()
         }
     }

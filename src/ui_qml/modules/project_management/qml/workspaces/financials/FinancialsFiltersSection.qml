@@ -87,6 +87,7 @@ Item {
 
         AppControls.PrimaryButton {
             text: "New Cost"
+            iconName: "add"
             enabled: !root.isBusy && root.selectedProjectId.length > 0
             onClicked: root.createRequested()
         }

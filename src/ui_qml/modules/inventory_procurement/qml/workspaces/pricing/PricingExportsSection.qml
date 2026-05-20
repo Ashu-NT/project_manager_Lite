@@ -94,12 +94,14 @@ Item {
 
                         AppControls.PrimaryButton {
                             text: "Export CSV"
+                            iconName: "export"
                             enabled: root.canExport && !root.isBusy
                             onClicked: root.stockCsvRequested()
                         }
 
                         AppControls.PrimaryButton {
                             text: "Export Excel"
+                            iconName: "export"
                             enabled: root.canExport && !root.isBusy
                             onClicked: root.stockExcelRequested()
                         }
@@ -144,12 +146,14 @@ Item {
 
                         AppControls.PrimaryButton {
                             text: "Export CSV"
+                            iconName: "export"
                             enabled: root.canExport && !root.isBusy
                             onClicked: root.procurementCsvRequested()
                         }
 
                         AppControls.PrimaryButton {
                             text: "Export Excel"
+                            iconName: "export"
                             enabled: root.canExport && !root.isBusy
                             onClicked: root.procurementExcelRequested()
                         }

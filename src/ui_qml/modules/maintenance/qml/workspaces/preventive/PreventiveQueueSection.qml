@@ -98,6 +98,7 @@ ColumnLayout {
 
                 AppControls.PrimaryButton {
                     text: "Refresh"
+                    iconName: "refresh"
                     enabled: !root.isBusy
                     onClicked: root.refreshRequested()
                 }
@@ -122,7 +123,9 @@ ColumnLayout {
             items: root.queueState.plans.items || []
             selectedItemId: root.queueState.selectedPlanId || ""
             primaryActionLabel: "Refresh Schedule"
+            primaryActionIcon: "refresh"
             secondaryActionLabel: "Generate Work"
+            secondaryActionIcon: "add"
             actionsEnabled: !root.isBusy
 
             onItemSelected: function(planId) {
@@ -145,7 +148,9 @@ ColumnLayout {
             Layout.alignment: Qt.AlignTop
             emptyTitle: "No queue plan selected"
             primaryActionLabel: "Refresh Schedule"
+            primaryActionIcon: "refresh"
             secondaryActionLabel: "Generate Work"
+            secondaryActionIcon: "add"
             detailModel: root.queueState.selectedPlan || ({})
             isBusy: root.isBusy
 

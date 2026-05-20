@@ -21,7 +21,9 @@ MaintenanceWidgets.RecordListCard {
     emptyState: root.catalogModel.emptyState || ""
     items: root.catalogModel.items || []
     primaryActionLabel: "Edit"
+    primaryActionIcon: "edit"
     secondaryActionLabel: "Toggle Active"
+    secondaryActionIcon: "workflow"
     actionsEnabled: !root.isBusy
 
     onItemSelected: function(itemId) {

@@ -62,6 +62,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Assign Resource"
+                iconName: "resources"
                 enabled: root.canCreate && !root.isBusy
                 onClicked: root.createRequested()
             }

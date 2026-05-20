@@ -143,24 +143,28 @@ Item {
 
             AppControls.SecondaryButton {
                 text: "Edit"
+                iconName: "edit"
                 enabled: !root.isBusy && !!(root.requisitionDetail.state && root.requisitionDetail.state.canEdit)
                 onClicked: root.editRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Add Line"
+                iconName: "add"
                 enabled: !root.isBusy && !!(root.requisitionDetail.state && root.requisitionDetail.state.canAddLine)
                 onClicked: root.addLineRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Submit"
+                iconName: "approve"
                 enabled: !root.isBusy && !!(root.requisitionDetail.state && root.requisitionDetail.state.canSubmit)
                 onClicked: root.submitRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Cancel"
+                iconName: "close"
                 danger: true
                 enabled: !root.isBusy && !!(root.requisitionDetail.state && root.requisitionDetail.state.canCancel)
                 onClicked: root.cancelRequested()

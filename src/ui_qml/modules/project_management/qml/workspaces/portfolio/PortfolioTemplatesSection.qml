@@ -69,6 +69,7 @@ Item {
 
         AppControls.PrimaryButton {
             text: "Create Template"
+            iconName: "add"
             enabled: !root.isBusy
             onClicked: {
                 root.createRequested({

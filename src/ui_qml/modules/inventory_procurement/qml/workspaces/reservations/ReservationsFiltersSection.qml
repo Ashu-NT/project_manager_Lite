@@ -54,12 +54,14 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "New Reservation"
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createReservationRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Refresh"
+                iconName: "refresh"
                 enabled: !root.isBusy
                 onClicked: root.refreshRequested()
             }

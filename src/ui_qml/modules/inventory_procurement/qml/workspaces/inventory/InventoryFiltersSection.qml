@@ -61,18 +61,21 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Create Storeroom"
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createStoreroomRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Opening Balance"
+                iconName: "import"
                 enabled: !root.isBusy
                 onClicked: root.openOpeningBalanceRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Refresh"
+                iconName: "refresh"
                 enabled: !root.isBusy
                 onClicked: root.refreshRequested()
             }

@@ -112,18 +112,21 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Refresh"
+                iconName: "refresh"
                 enabled: !root.isBusy
                 onClicked: root.refreshRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "New Category"
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createCategoryRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "New Item"
+                iconName: "add"
                 enabled: !root.isBusy
                 onClicked: root.createItemRequested()
             }

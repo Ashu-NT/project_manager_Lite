@@ -98,12 +98,14 @@ Item {
             AppControls.SecondaryButton {
                 objectName: "dialogCancelButton"
                 text: "Cancel"
+                iconName: "close"
                 onClicked: confirmationDialog.close()
             }
 
             AppControls.PrimaryButton {
                 objectName: "dialogSubmitButton"
                 text: root.confirmationMode === "cancel" ? "Cancel Reservation" : "Release Reservation"
+                iconName: root.confirmationMode === "cancel" ? "close" : "approve"
                 onClicked: confirmationDialog.accept()
             }
         }

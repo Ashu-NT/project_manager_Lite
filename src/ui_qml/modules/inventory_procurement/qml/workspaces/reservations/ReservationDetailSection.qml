@@ -142,18 +142,21 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Issue"
+                iconName: "approve"
                 enabled: !root.isBusy && !!(root.reservationDetail.state && root.reservationDetail.state.canIssue)
                 onClicked: root.issueRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Release"
+                iconName: "approve"
                 enabled: !root.isBusy && !!(root.reservationDetail.state && root.reservationDetail.state.canRelease)
                 onClicked: root.releaseRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Cancel"
+                iconName: "close"
                 enabled: !root.isBusy && !!(root.reservationDetail.state && root.reservationDetail.state.canCancel)
                 danger: true
                 onClicked: root.cancelRequested()

@@ -425,6 +425,7 @@ AppLayouts.WorkspaceFrame {
                         AppControls.SecondaryButton {
                             Layout.fillWidth: true
                             text: "Clear"
+                            iconName: "close"
                             onClicked: {
                                 if (root.workspaceController !== null) root.workspaceController.clearFilters()
                                 filterPopup.close()
@@ -434,6 +435,7 @@ AppLayouts.WorkspaceFrame {
                         AppControls.PrimaryButton {
                             Layout.fillWidth: true
                             text: "Apply View"
+                            iconName: "filter"
                             onClicked: {
                                 if (root.workspaceController !== null) root.workspaceController.applySelectedTaskView()
                                 filterPopup.close()

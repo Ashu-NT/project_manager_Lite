@@ -23,7 +23,9 @@ MaintenanceWidgets.RecordListCard {
     items: root.workRequestsModel.items || []
     selectedItemId: root.selectedWorkRequestId
     primaryActionLabel: "Edit"
+    primaryActionIcon: "edit"
     secondaryActionLabel: "Status"
+    secondaryActionIcon: "workflow"
     actionsEnabled: !root.isBusy
 
     onItemSelected: function(workRequestId) {

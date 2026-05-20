@@ -195,6 +195,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: "Create Dependency"
+            iconName: "add"
             enabled: (root.taskOptions || []).length > 0
             onClicked: root.submitted(root.buildPayload())
         }

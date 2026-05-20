@@ -102,6 +102,7 @@ Item {
                 Layout.alignment: Qt.AlignBottom
                 enabled: !root.isLoading
                 text: "Refresh"
+                iconName: "refresh"
                 onClicked: root.refreshRequested()
             }
         }

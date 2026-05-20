@@ -175,18 +175,21 @@ Item {
 
                     AppControls.PrimaryButton {
                         text: "Edit"
+                        iconName: "edit"
                         enabled: !root.isBusy
                         onClicked: root.editRequested()
                     }
 
                     AppControls.SecondaryButton {
                         text: "Status"
+                        iconName: "approve"
                         enabled: !root.isBusy
                         onClicked: root.statusRequested()
                     }
 
                     AppControls.SecondaryButton {
                         text: "Delete"
+                        iconName: "delete"
                         danger: true
                         enabled: !root.isBusy
                         onClicked: root.deleteRequested()

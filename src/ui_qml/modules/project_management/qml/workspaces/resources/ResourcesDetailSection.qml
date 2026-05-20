@@ -165,6 +165,7 @@ Item {
 
                     AppControls.PrimaryButton {
                         text: "Edit"
+                        iconName: "edit"
                         enabled: !root.isBusy
                         onClicked: root.editRequested()
                     }
@@ -172,12 +173,15 @@ Item {
                     AppControls.PrimaryButton {
                         text: root.resourceDetail.state && root.resourceDetail.state.isActive
                             ? "Deactivate" : "Activate"
+                        iconName: root.resourceDetail.state && root.resourceDetail.state.isActive
+                            ? "close" : "approve"
                         enabled: !root.isBusy
                         onClicked: root.toggleRequested()
                     }
 
                     AppControls.PrimaryButton {
                         text: "Delete"
+                        iconName: "delete"
                         danger: true
                         enabled: !root.isBusy
                         onClicked: root.deleteRequested()

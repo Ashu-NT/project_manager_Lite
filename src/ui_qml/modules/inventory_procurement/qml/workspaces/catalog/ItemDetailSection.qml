@@ -164,6 +164,7 @@ Item {
 
                     AppControls.PrimaryButton {
                         text: "Link Document"
+                        iconName: "import"
                         enabled: !root.isBusy
                         onClicked: root.linkDocumentRequested()
                     }
@@ -222,6 +223,7 @@ Item {
 
                             AppControls.PrimaryButton {
                                 text: "Unlink"
+                                iconName: "delete"
                                 enabled: !root.isBusy
                                 onClicked: root.unlinkDocumentRequested(docCard.modelData)
                             }
@@ -238,12 +240,14 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Edit"
+                iconName: "edit"
                 enabled: !root.isBusy
                 onClicked: root.editRequested()
             }
 
             AppControls.PrimaryButton {
                 text: root.itemDetail.state && root.itemDetail.state.isActive ? "Deactivate" : "Activate"
+                iconName: root.itemDetail.state && root.itemDetail.state.isActive ? "reject" : "approve"
                 enabled: !root.isBusy
                 onClicked: root.toggleRequested()
             }

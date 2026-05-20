@@ -263,6 +263,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: root.modeTitle.indexOf("Create") === 0 ? "Create Entry" : "Save Changes"
+            iconName: root.modeTitle.indexOf("Create") === 0 ? "add" : "save"
             onClicked: root.submitDialog()
         }
     }

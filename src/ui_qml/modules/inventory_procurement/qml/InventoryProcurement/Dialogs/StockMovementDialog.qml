@@ -201,12 +201,14 @@ Dialog {
         AppControls.SecondaryButton {
             objectName: "dialogCancelButton"
             text: "Cancel"
+            iconName: "close"
             onClicked: root.close()
         }
 
         AppControls.PrimaryButton {
             objectName: "dialogSubmitButton"
             text: root.submitLabel
+            iconName: "approve"
             onClicked: root.submitDialog()
         }
     }

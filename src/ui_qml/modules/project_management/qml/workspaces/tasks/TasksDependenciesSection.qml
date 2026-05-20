@@ -58,6 +58,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Create Dependency"
+                iconName: "add"
                 enabled: root.canCreate && !root.isBusy
                 onClicked: root.createRequested()
             }

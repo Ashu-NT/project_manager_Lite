@@ -194,6 +194,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Add Entry"
+                iconName: "add"
                 enabled: !root.isBusy && Boolean(root.assignmentSummary.state.assignmentId)
                 onClicked: {
                     root.addRequested({
@@ -207,6 +208,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Update Entry"
+                iconName: "save"
                 enabled: !root.isBusy && Boolean(root.selectedEntryDetail.state.entryId)
                 onClicked: {
                     root.updateRequested({
@@ -220,6 +222,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Delete Entry"
+                iconName: "delete"
                 enabled: !root.isBusy && Boolean(root.selectedEntryDetail.state.entryId)
                 danger: true
                 onClicked: root.deleteRequested(String(root.selectedEntryDetail.state.entryId || ""))
@@ -255,6 +258,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Submit Period"
+                iconName: "approve"
                 enabled: !root.isBusy && Boolean(root.assignmentSummary.state.resourceId) && Boolean(root.assignmentSummary.state.periodStart)
                 onClicked: root.submitRequested({
                     "resourceId": root.assignmentSummary.state.resourceId || "",
@@ -265,6 +269,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Lock Period"
+                iconName: "approve"
                 enabled: !root.isBusy && Boolean(root.assignmentSummary.state.resourceId) && Boolean(root.assignmentSummary.state.periodStart)
                 onClicked: root.lockRequested({
                     "resourceId": root.assignmentSummary.state.resourceId || "",
@@ -275,6 +280,7 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Unlock Period"
+                iconName: "close"
                 enabled: !root.isBusy && Boolean(root.assignmentSummary.state.periodId)
                 onClicked: root.unlockRequested({
                     "periodId": root.assignmentSummary.state.periodId || "",

@@ -143,6 +143,7 @@ Item {
 
                     AppControls.PrimaryButton {
                         text: "Save Calendar"
+                        iconName: "save"
                         enabled: !root.isBusy
                         onClicked: root.saveCalendarRequested({
                             "workingDays": root.selectedWorkingDays(),
@@ -201,6 +202,7 @@ Item {
 
                 AppControls.PrimaryButton {
                     text: "Calculate"
+                    iconName: "filter"
                     enabled: !root.isBusy
                     onClicked: root.calculateRequested({
                         "startDate": calculatorStartDateField.text,
@@ -263,6 +265,7 @@ Item {
 
                 AppControls.PrimaryButton {
                     text: "Add Non-Working Day"
+                    iconName: "add"
                     enabled: !root.isBusy
                     onClicked: root.addHolidayRequested({
                         "holidayDate": holidayDateField.text,

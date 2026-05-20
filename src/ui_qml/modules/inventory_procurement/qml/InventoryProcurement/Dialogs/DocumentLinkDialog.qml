@@ -77,12 +77,14 @@ Dialog {
         AppControls.SecondaryButton {
             objectName: "dialogCancelButton"
             text: "Cancel"
+            iconName: "close"
             onClicked: root.close()
         }
 
         AppControls.PrimaryButton {
             objectName: "dialogSubmitButton"
             text: "Link"
+            iconName: "import"
             enabled: root.documentOptions.length > 0
             onClicked: root.submitDialog()
         }

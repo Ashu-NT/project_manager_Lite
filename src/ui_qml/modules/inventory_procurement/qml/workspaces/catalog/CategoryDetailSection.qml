@@ -131,12 +131,14 @@ Item {
 
             AppControls.PrimaryButton {
                 text: "Edit"
+                iconName: "edit"
                 enabled: !root.isBusy
                 onClicked: root.editRequested()
             }
 
             AppControls.PrimaryButton {
                 text: root.categoryDetail.state && root.categoryDetail.state.isActive ? "Deactivate" : "Activate"
+                iconName: root.categoryDetail.state && root.categoryDetail.state.isActive ? "reject" : "approve"
                 enabled: !root.isBusy
                 onClicked: root.toggleRequested()
             }

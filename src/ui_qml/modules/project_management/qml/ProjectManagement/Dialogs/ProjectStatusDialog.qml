@@ -76,6 +76,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: "Update Status"
+            iconName: "approve"
             onClicked: {
                 var option = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "PLANNED" }
                 root.submitted(String(option.value || "PLANNED"))

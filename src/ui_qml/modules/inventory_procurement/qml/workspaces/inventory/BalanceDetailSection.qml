@@ -153,24 +153,28 @@ Item {
 
             AppControls.SecondaryButton {
                 text: "Adjust"
+                iconName: "edit"
                 enabled: !root.isBusy
                 onClicked: root.adjustmentRequested()
             }
 
             AppControls.PrimaryButton {
                 text: "Issue"
+                iconName: "approve"
                 enabled: !root.isBusy
                 onClicked: root.issueRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Return"
+                iconName: "import"
                 enabled: !root.isBusy
                 onClicked: root.returnRequested()
             }
 
             AppControls.SecondaryButton {
                 text: "Transfer"
+                iconName: "export"
                 enabled: !root.isBusy
                 onClicked: root.transferRequested()
             }

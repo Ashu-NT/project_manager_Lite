@@ -74,6 +74,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: "Save Hours"
+            iconName: "save"
             onClicked: root.submitted({
                 "assignmentId": String(root.assignmentState().assignmentId || ""),
                 "hoursLogged": hoursField.text

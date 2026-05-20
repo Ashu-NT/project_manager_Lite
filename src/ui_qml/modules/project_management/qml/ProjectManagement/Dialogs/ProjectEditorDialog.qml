@@ -235,6 +235,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: root.modeTitle === "Create Project" ? "Create Project" : "Save Changes"
+            iconName: root.modeTitle === "Create Project" ? "add" : "save"
             onClicked: root.submitted(root.buildPayload())
         }
     }

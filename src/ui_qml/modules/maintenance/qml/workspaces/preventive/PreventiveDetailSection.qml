@@ -12,6 +12,8 @@ Item {
     property string emptyTitle: "No record selected"
     property string primaryActionLabel: "Edit"
     property string secondaryActionLabel: "Toggle Active"
+    property string primaryActionIcon: "edit"
+    property string secondaryActionIcon: "workflow"
     property var detailModel: ({
         "id": "",
         "title": "",
@@ -156,6 +158,7 @@ Item {
             AppControls.PrimaryButton {
                 visible: root.primaryActionLabel.length > 0
                 text: root.primaryActionLabel
+                iconName: root.primaryActionIcon
                 enabled: !root.isBusy && !!(root.detailModel.state && root.detailModel.state.canPrimaryAction)
                 onClicked: root.primaryActionRequested()
             }
@@ -163,6 +166,7 @@ Item {
             AppControls.SecondaryButton {
                 visible: root.secondaryActionLabel.length > 0
                 text: root.secondaryActionLabel
+                iconName: root.secondaryActionIcon
                 enabled: !root.isBusy && !!(root.detailModel.state && root.detailModel.state.canSecondaryAction)
                 onClicked: root.secondaryActionRequested()
             }

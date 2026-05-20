@@ -154,6 +154,7 @@ Popup {
 
             AppControls.SecondaryButton {
                 text: "Reset"
+                iconName: "refresh"
                 implicitWidth: 70
                 onClicked: {
                     const reset = []
@@ -173,12 +174,14 @@ Popup {
 
             AppControls.SecondaryButton {
                 text: "Cancel"
+                iconName: "close"
                 implicitWidth: 70
                 onClicked: root.close()
             }
 
             AppControls.PrimaryButton {
                 text: "Apply"
+                iconName: "approve"
                 implicitWidth: 70
                 onClicked: {
                     root.columnVisibilityChanged(root._draft)

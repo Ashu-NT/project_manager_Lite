@@ -76,12 +76,14 @@ Dialog {
         AppControls.SecondaryButton {
             objectName: "dialogCancelButton"
             text: "Cancel"
+            iconName: "close"
             onClicked: root.close()
         }
 
         AppControls.PrimaryButton {
             objectName: "dialogSubmitButton"
             text: "Update Status"
+            iconName: "workflow"
             onClicked: root.submitDialog()
         }
     }

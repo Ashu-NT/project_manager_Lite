@@ -170,6 +170,7 @@ Dialog {
 
                     AppControls.PrimaryButton {
                         text: "Insert"
+                        iconName: "collaboration"
                         enabled: (root.mentionOptions || []).length > 0
                         onClicked: root.insertSelectedMention()
                     }
@@ -194,6 +195,7 @@ Dialog {
 
                     AppControls.PrimaryButton {
                         text: "Queue"
+                        iconName: "collaboration"
                         enabled: (root.documentOptions || []).length > 0
                         onClicked: root.queueSelectedDocument()
                     }
@@ -221,6 +223,7 @@ Dialog {
 
                 AppControls.PrimaryButton {
                     text: "Attach File"
+                    iconName: "upload"
                     onClicked: attachmentDialog.open()
                 }
 
@@ -263,6 +266,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: "Post Update"
+            iconName: "collaboration"
             enabled: String(root.selectedTaskState().taskId || root.selectedTaskState().id || "").length > 0
                 && String(commentArea.text || "").trim().length > 0
             onClicked: root.submitted(root.buildPayload())

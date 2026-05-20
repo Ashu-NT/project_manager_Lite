@@ -69,6 +69,7 @@ Item {
 
         AppControls.PrimaryButton {
             text: "Add Dependency"
+            iconName: "add"
             enabled: !root.isBusy
             onClicked: {
                 var predecessor = predecessorCombo.currentIndex >= 0 ? root.projectOptions[predecessorCombo.currentIndex] : null

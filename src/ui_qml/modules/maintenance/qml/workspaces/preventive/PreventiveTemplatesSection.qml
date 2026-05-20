@@ -112,12 +112,14 @@ ColumnLayout {
 
                 AppControls.PrimaryButton {
                     text: "Refresh"
+                    iconName: "refresh"
                     enabled: !root.isBusy
                     onClicked: root.refreshRequested()
                 }
 
                 AppControls.PrimaryButton {
                     text: "New Template"
+                    iconName: "add"
                     enabled: !root.isBusy
                     onClicked: root.createTaskTemplateRequested()
                 }
@@ -126,6 +128,7 @@ ColumnLayout {
 
                 AppControls.PrimaryButton {
                     text: "New Step"
+                    iconName: "add"
                     enabled: !root.isBusy && String(root.templateLibraryState.selectedTaskTemplateId || "").length > 0
                     onClicked: root.createTaskStepRequested(String(root.templateLibraryState.selectedTaskTemplateId || ""))
                 }
@@ -148,7 +151,9 @@ ColumnLayout {
             items: root.templateLibraryState.templates.items || []
             selectedItemId: root.templateLibraryState.selectedTaskTemplateId || ""
             primaryActionLabel: "Edit"
+            primaryActionIcon: "edit"
             secondaryActionLabel: "Toggle Active"
+            secondaryActionIcon: "workflow"
             actionsEnabled: !root.isBusy
 
             onItemSelected: function(taskTemplateId) {
@@ -193,7 +198,9 @@ ColumnLayout {
             items: root.templateLibraryState.steps.items || []
             selectedItemId: root.templateLibraryState.selectedTaskStepId || ""
             primaryActionLabel: "Edit"
+            primaryActionIcon: "edit"
             secondaryActionLabel: "Toggle Active"
+            secondaryActionIcon: "workflow"
             actionsEnabled: !root.isBusy
 
             onItemSelected: function(taskStepTemplateId) {

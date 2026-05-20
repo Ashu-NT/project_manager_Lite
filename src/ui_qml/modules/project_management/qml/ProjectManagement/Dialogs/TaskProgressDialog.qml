@@ -86,6 +86,7 @@ Dialog {
 
         AppControls.PrimaryButton {
             text: "Update Progress"
+            iconName: "approve"
             onClicked: {
                 var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
                 var option = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "TODO" }

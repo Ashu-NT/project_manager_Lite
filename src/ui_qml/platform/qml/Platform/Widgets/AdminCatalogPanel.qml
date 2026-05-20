@@ -65,6 +65,7 @@ ColumnLayout {
             visible: root.createActionLabel.length > 0
             enabled: root.createEnabled
             text: root.createActionLabel
+            iconName: "add"
             onClicked: root.createRequested()
         }
     }

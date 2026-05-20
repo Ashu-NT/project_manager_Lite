@@ -462,6 +462,7 @@ AppLayouts.WorkspaceFrame {
 
                         AppControls.SecondaryButton {
                             text: "Clear"
+                            iconName: "close"
                             onClicked: {
                                 if (root.workspaceController !== null) {
                                     root.workspaceController.setSiteFilter("all")
@@ -477,6 +478,7 @@ AppLayouts.WorkspaceFrame {
 
                         AppControls.SecondaryButton {
                             text: "Close"
+                            iconName: "close"
                             onClicked: filterPopup.close()
                         }
                     }
