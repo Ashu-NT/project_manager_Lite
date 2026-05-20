@@ -70,14 +70,12 @@ AppLayouts.WorkspaceFrame {
     property string _activeSection: "organizations"
     property string _selectedRowId: ""
 
-    // Detail panel visible for entity sections only (not forms)
     readonly property bool _detailOpen: {
         const s = root._activeSection
         return root._selectedRowId.length > 0
             && s !== "access" && s !== "support" && s !== "audit"
     }
 
-    // Resolve selected catalog item for the detail panel inspector
     readonly property var _detailItem: {
         const section = root._activeSection
         const rowId   = root._selectedRowId
@@ -99,7 +97,6 @@ AppLayouts.WorkspaceFrame {
         return null
     }
 
-    // ── Shared column definition (catalog items expose these keys) ─
     readonly property var _entityColumns: [
         { key: "title",       label: "Name",    flex: 3, minWidth: 160, sortable: true,  visible: true },
         { key: "subtitle",    label: "Details", flex: 3, minWidth: 120, sortable: false, visible: true },
@@ -108,13 +105,12 @@ AppLayouts.WorkspaceFrame {
         { key: "metaText",    label: "Info",    flex: 2, minWidth: 120, sortable: false, visible: true }
     ]
 
-    // ── Helper shortcuts ──────────────────────────────────────────
-    readonly property bool _busy: root.workspaceController ? root.workspaceController.isBusy     : false
-    readonly property bool _load: root.workspaceController ? root.workspaceController.isLoading  : false
-    readonly property string _err: root.workspaceController ? root.workspaceController.errorMessage    : ""
-    readonly property string _ok:  root.workspaceController ? root.workspaceController.feedbackMessage : ""
+    readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy        : false
+    readonly property bool   _load: root.workspaceController ? root.workspaceController.isLoading     : false
+    readonly property string _err:  root.workspaceController ? root.workspaceController.errorMessage  : ""
+    readonly property string _ok:   root.workspaceController ? root.workspaceController.feedbackMessage : ""
 
-    // ── Existing helper functions (preserved) ─────────────────────
+    // ── Helper functions ──────────────────────────────────────────
     function catalogItemById(catalog, itemId) {
         const items = catalog.items || []
         for (let i = 0; i < items.length; i++) {
@@ -188,7 +184,7 @@ AppLayouts.WorkspaceFrame {
         // ── Left navigation sidebar ───────────────────────────────
         AdminNavSidebar {
             id: _sidebar
-            Layout.fillHeight:    true
+            Layout.fillHeight:     true
             Layout.preferredWidth: implicitWidth
             activeSection: root._activeSection
             onSectionChanged: function(section) {
@@ -204,226 +200,168 @@ AppLayouts.WorkspaceFrame {
 
             // ── Organizations ─────────────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "organizations"
-                sectionTitle:  "Organizations"
-                entityLabel:   "Organization"
-                catalog:       root.organizationCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "organizations"
+                sectionTitle:    "Organizations"
+                entityLabel:     "Organization"
+                catalog:         root.organizationCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Set Active"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openOrganizationCreate()
-                onPrimaryActionRequested:     function(id) { root.openOrganizationEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.setActiveOrganization(id)
-                }
-                onRowSelected:  function(id) { root._selectedRowId = id }
-                onRowActivated: function(id) { root.openOrganizationEdit(id) }
+                onCreateRequested:  dialogHost.openOrganizationCreate()
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openOrganizationEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Sites ─────────────────────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "sites"
-                sectionTitle:  "Sites"
-                entityLabel:   "Site"
-                catalog:       root.siteCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "sites"
+                sectionTitle:    "Sites"
+                entityLabel:     "Site"
+                catalog:         root.siteCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Toggle Active"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openSiteCreate()
-                onPrimaryActionRequested:     function(id) { root.openSiteEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.toggleSiteActive(id)
-                }
-                onRowSelected:  function(id) { root._selectedRowId = id }
-                onRowActivated: function(id) { root.openSiteEdit(id) }
+                onCreateRequested:  dialogHost.openSiteCreate()
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openSiteEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Departments ───────────────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "departments"
-                sectionTitle:  "Departments"
-                entityLabel:   "Department"
-                catalog:       root.departmentCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "departments"
+                sectionTitle:    "Departments"
+                entityLabel:     "Department"
+                catalog:         root.departmentCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Toggle Active"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openDepartmentCreate()
-                onPrimaryActionRequested:     function(id) { root.openDepartmentEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.toggleDepartmentActive(id)
-                }
-                onRowSelected:  function(id) { root._selectedRowId = id }
-                onRowActivated: function(id) { root.openDepartmentEdit(id) }
+                onCreateRequested:  dialogHost.openDepartmentCreate()
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openDepartmentEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Employees ─────────────────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "employees"
-                sectionTitle:  "Employees"
-                entityLabel:   "Employee"
-                catalog:       root.employeeCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "employees"
+                sectionTitle:    "Employees"
+                entityLabel:     "Employee"
+                catalog:         root.employeeCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Toggle Active"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openEmployeeCreate()
-                onPrimaryActionRequested:     function(id) { root.openEmployeeEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.toggleEmployeeActive(id)
-                }
-                onRowSelected:  function(id) { root._selectedRowId = id }
-                onRowActivated: function(id) { root.openEmployeeEdit(id) }
+                onCreateRequested:  dialogHost.openEmployeeCreate()
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openEmployeeEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Users ─────────────────────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "users"
-                sectionTitle:  "Users"
-                entityLabel:   "User"
-                catalog:       root.userCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "users"
+                sectionTitle:    "Users"
+                entityLabel:     "User"
+                catalog:         root.userCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Toggle Active"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openUserCreate()
-                onPrimaryActionRequested:     function(id) { root.openUserEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.toggleUserActive(id)
-                }
-                onRowSelected:  function(id) { root._selectedRowId = id }
-                onRowActivated: function(id) { root.openUserEdit(id) }
+                onCreateRequested:  dialogHost.openUserCreate()
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openUserEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Parties ───────────────────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "parties"
-                sectionTitle:  "Parties"
-                entityLabel:   "Party"
-                catalog:       root.partyCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "parties"
+                sectionTitle:    "Parties"
+                entityLabel:     "Party"
+                catalog:         root.partyCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Toggle Active"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openPartyCreate()
-                onPrimaryActionRequested:     function(id) { root.openPartyEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.togglePartyActive(id)
-                }
-                onRowSelected:  function(id) { root._selectedRowId = id }
-                onRowActivated: function(id) { root.openPartyEdit(id) }
+                onCreateRequested:  dialogHost.openPartyCreate()
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openPartyEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Documents ─────────────────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "documents"
-                sectionTitle:  "Documents"
-                entityLabel:   "Document"
-                catalog:       root.documentCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "documents"
+                sectionTitle:    "Documents"
+                entityLabel:     "Document"
+                catalog:         root.documentCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Toggle Active"
-                tertiaryActionLabel:  "Add Link"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openDocumentCreate()
-                onPrimaryActionRequested:     function(id) { root.openDocumentEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.toggleDocumentActive(id)
-                }
-                onTertiaryActionRequested:    function(id) { root.openDocumentLinkCreate() }
-                onRowSelected:  function(id) {
+                onCreateRequested:  dialogHost.openDocumentCreate()
+                onRowSelected:      function(id) {
                     root._selectedRowId = id
                     root.inspectDocument(id)
                 }
-                onRowActivated: function(id) { root.openDocumentEdit(id) }
+                onRowActivated:     function(id) { root.openDocumentEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
             // ── Document Structures ───────────────────────────────
             AdminEntityWorkspace {
-                anchors.fill:  parent
-                visible:       root._activeSection === "structures"
-                sectionTitle:  "Document Structures"
-                entityLabel:   "Structure"
-                catalog:       root.documentStructureCatalog
-                columns:       root._entityColumns
-                isBusy:        root._busy
-                isLoading:     root._load
-                errorMessage:  root._err
+                anchors.fill:    parent
+                visible:         root._activeSection === "structures"
+                sectionTitle:    "Document Structures"
+                entityLabel:     "Structure"
+                catalog:         root.documentStructureCatalog
+                columns:         root._entityColumns
+                isBusy:          root._busy
+                isLoading:       root._load
+                errorMessage:    root._err
                 feedbackMessage: root._ok
-                selectedRowId:    root._selectedRowId
-                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
-                primaryActionLabel:   "Edit"
-                secondaryActionLabel: "Toggle Active"
+                selectedRowId:   root._selectedRowId
 
-                onCreateRequested:            dialogHost.openDocumentStructureCreate()
-                onPrimaryActionRequested:     function(id) { root.openDocumentStructureEdit(id) }
-                onSecondaryActionRequested:   function(id) {
-                    if (root.workspaceController) root.workspaceController.toggleDocumentStructureActive(id)
-                }
-                onRowSelected:  function(id) { root._selectedRowId = id }
-                onRowActivated: function(id) { root.openDocumentStructureEdit(id) }
+                onCreateRequested:  dialogHost.openDocumentStructureCreate()
+                onRowSelected:      function(id) { root._selectedRowId = id }
+                onRowActivated:     function(id) { root.openDocumentStructureEdit(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
-            // ── Roles & Access (form-based, not table) ────────────
+            // ── Roles & Access ────────────────────────────────────
             Item {
                 anchors.fill: parent
                 visible:      root._activeSection === "access"
@@ -433,7 +371,6 @@ AppLayouts.WorkspaceFrame {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Toolbar header
                     Rectangle {
                         Layout.fillWidth: true
                         height: Theme.AppTheme.toolbarHeight - 6
@@ -488,7 +425,7 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            // ── Support (form-based) ──────────────────────────────
+            // ── Support ───────────────────────────────────────────
             Item {
                 anchors.fill: parent
                 visible:      root._activeSection === "support"
@@ -626,14 +563,14 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        // ── Right contextual detail panel ─────────────────────────
+        // ── Right detail panel ────────────────────────────────────
         Rectangle {
             id: _detailPanel
-            Layout.fillHeight:    true
+            Layout.fillHeight:     true
             Layout.preferredWidth: 288
-            visible:              root._detailOpen
-            color:                Theme.AppTheme.surface
-            z:                    1
+            visible:               root._detailOpen
+            color:                 Theme.AppTheme.surface
+            z:                     1
 
             Rectangle {
                 anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
@@ -661,8 +598,8 @@ AppLayouts.WorkspaceFrame {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.right:          _closeBtn.left
                         anchors.rightMargin:    4
-                        text:           "Details"
-                        color:          Theme.AppTheme.textMuted
+                        text:           root._detailItem ? (root._detailItem.title || "Details") : "Details"
+                        color:          Theme.AppTheme.textPrimary
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                         font.bold:      true
@@ -693,7 +630,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // Panel content (scrollable)
+                // Panel body (scrollable)
                 Flickable {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
@@ -707,7 +644,7 @@ AppLayouts.WorkspaceFrame {
                         width: parent.width
                         spacing: 0
 
-                        // ── Document detail (documents section only) ──────
+                        // ── Document inspector ────────────────────────────
                         ColumnLayout {
                             Layout.fillWidth: true
                             visible: root._activeSection === "documents"
@@ -724,13 +661,57 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            // Document links strip
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.topMargin: Theme.AppTheme.spacingSm
                                 height: 1; color: Theme.AppTheme.divider
                             }
 
+                            // Document actions
+                            RowLayout {
+                                Layout.fillWidth:    true
+                                Layout.leftMargin:   Theme.AppTheme.marginMd
+                                Layout.rightMargin:  Theme.AppTheme.marginMd
+                                Layout.topMargin:    Theme.AppTheme.spacingSm
+                                Layout.bottomMargin: Theme.AppTheme.spacingXs
+                                spacing: Theme.AppTheme.spacingXs
+
+                                AppControls.PrimaryButton {
+                                    Layout.fillWidth: true
+                                    text:     "Edit"
+                                    iconName: "edit"
+                                    enabled:  root.workspaceController ? !root.workspaceController.isBusy : false
+                                    onClicked: root.openDocumentEdit(root._selectedRowId)
+                                }
+
+                                AppControls.SecondaryButton {
+                                    text:     "Toggle"
+                                    iconName: "approve"
+                                    enabled:  root.workspaceController ? !root.workspaceController.isBusy : false
+                                    onClicked: {
+                                        if (root.workspaceController)
+                                            root.workspaceController.toggleDocumentActive(root._selectedRowId)
+                                    }
+                                }
+                            }
+
+                            AppControls.SecondaryButton {
+                                Layout.fillWidth:    true
+                                Layout.leftMargin:   Theme.AppTheme.marginMd
+                                Layout.rightMargin:  Theme.AppTheme.marginMd
+                                Layout.bottomMargin: Theme.AppTheme.spacingSm
+                                text:     "Delete"
+                                iconName: "delete"
+                                danger:   true
+                                enabled:  root.workspaceController ? !root.workspaceController.isBusy : false
+                                onClicked: { /* root.workspaceController.deleteDocument(root._selectedRowId) */ }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1; color: Theme.AppTheme.divider
+                            }
+
+                            // Linked records header
                             RowLayout {
                                 Layout.fillWidth:    true
                                 Layout.leftMargin:   Theme.AppTheme.marginMd
@@ -741,7 +722,7 @@ AppLayouts.WorkspaceFrame {
 
                                 Label {
                                     Layout.fillWidth: true
-                                    text: "Linked Records"
+                                    text:           "Linked Records"
                                     color:          Theme.AppTheme.textMuted
                                     font.family:    Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
@@ -834,12 +815,12 @@ AppLayouts.WorkspaceFrame {
                             }
                         }
 
-                        // ── Generic entity inspector (all other sections) ──
+                        // ── Generic entity inspector ──────────────────────
                         ColumnLayout {
-                            Layout.fillWidth:    true
-                            Layout.margins:      Theme.AppTheme.marginMd
-                            visible:             root._activeSection !== "documents"
-                            spacing:             Theme.AppTheme.spacingSm
+                            Layout.fillWidth: true
+                            Layout.margins:   Theme.AppTheme.marginMd
+                            visible:          root._activeSection !== "documents"
+                            spacing:          Theme.AppTheme.spacingSm
 
                             // Entity name
                             Label {
@@ -862,11 +843,11 @@ AppLayouts.WorkspaceFrame {
                             // Divider
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.topMargin: 4; Layout.bottomMargin: 4
+                                Layout.topMargin: 2; Layout.bottomMargin: 2
                                 height: 1; color: Theme.AppTheme.divider
                             }
 
-                            // Subtitle detail
+                            // Details field
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
@@ -890,7 +871,7 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            // Meta info
+                            // Info field
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
@@ -914,21 +895,22 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            // Divider before actions
+                            // Action divider
                             Rectangle {
                                 Layout.fillWidth: true
-                                Layout.topMargin: 4
+                                Layout.topMargin: 2
                                 height: 1; color: Theme.AppTheme.divider
                                 visible: root._detailItem !== null
                             }
 
-                            // Quick actions
+                            // Primary actions: Edit + Set Active / Toggle
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: Theme.AppTheme.spacingXs
                                 visible: root._detailItem !== null
 
                                 AppControls.PrimaryButton {
+                                    Layout.fillWidth: true
                                     text:     "Edit"
                                     iconName: "edit"
                                     enabled:  !root._busy
@@ -946,10 +928,10 @@ AppLayouts.WorkspaceFrame {
                                 }
 
                                 AppControls.SecondaryButton {
-                                    visible: root._activeSection === "organizations"
-                                    text:    "Set Active"
+                                    visible:  root._activeSection === "organizations"
+                                    text:     "Set Active"
                                     iconName: "approve"
-                                    enabled: !root._busy
+                                    enabled:  !root._busy
                                     onClicked: {
                                         if (root.workspaceController)
                                             root.workspaceController.setActiveOrganization(root._selectedRowId)
@@ -957,10 +939,10 @@ AppLayouts.WorkspaceFrame {
                                 }
 
                                 AppControls.SecondaryButton {
-                                    visible: root._activeSection !== "organizations"
-                                    text:    "Toggle"
+                                    visible:  root._activeSection !== "organizations"
+                                    text:     "Toggle"
                                     iconName: "approve"
-                                    enabled: !root._busy
+                                    enabled:  !root._busy
                                     onClicked: {
                                         const id = root._selectedRowId
                                         const s  = root._activeSection
@@ -975,6 +957,16 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
+                            // Delete action
+                            AppControls.SecondaryButton {
+                                Layout.fillWidth: true
+                                visible:  root._detailItem !== null
+                                text:     "Delete"
+                                iconName: "delete"
+                                danger:   true
+                                enabled:  !root._busy
+                                onClicked: { /* root.workspaceController.deleteEntity(root._selectedRowId) */ }
+                            }
                         }
                     }
                 }
@@ -982,7 +974,7 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Dialog host (unchanged) ───────────────────────────────────
+    // ── Dialog host ───────────────────────────────────────────────
     AdminDialogHost {
         id: dialogHost
         workspaceController: root.workspaceController
