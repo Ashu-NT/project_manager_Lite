@@ -12,7 +12,7 @@ import Platform.Dialogs 1.0 as PlatformDialogs
 AppLayouts.WorkspaceFrame {
     id: root
 
-    // ── Public API (backward-compatible) ─────────────────────────
+    // ── Public API ────────────────────────────────────────────────
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
     property var workspaceModel: root.platformCatalog
         ? root.platformCatalog.workspace("platform.control")
@@ -41,6 +41,7 @@ AppLayouts.WorkspaceFrame {
 
     // ── Internal state ────────────────────────────────────────────
     property string _selectedRowId: ""
+    property string _searchText:    ""
 
     readonly property bool _detailOpen: root._selectedRowId.length > 0
 
@@ -55,10 +56,10 @@ AppLayouts.WorkspaceFrame {
         return null
     }
 
-    readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy           : false
-    readonly property bool   _load: root.workspaceController ? root.workspaceController.isLoading        : false
-    readonly property string _err:  root.workspaceController ? root.workspaceController.errorMessage     : ""
-    readonly property string _ok:   root.workspaceController ? root.workspaceController.feedbackMessage  : ""
+    readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy          : false
+    readonly property bool   _load: root.workspaceController ? root.workspaceController.isLoading       : false
+    readonly property string _err:  root.workspaceController ? root.workspaceController.errorMessage    : ""
+    readonly property string _ok:   root.workspaceController ? root.workspaceController.feedbackMessage : ""
 
     readonly property int _queueCount: root.workspaceController
         ? (root.workspaceController.approvalQueue.items || []).length : 0
@@ -105,19 +106,19 @@ AppLayouts.WorkspaceFrame {
             message: root._ok
         }
 
-        // ── Main content: queue (center) + detail (right) ─────────
+        // ── Main content: center queue + right inspector ──────────
         RowLayout {
             Layout.fillWidth:  true
             Layout.fillHeight: true
             spacing: 0
 
-            // ── Center column: queue table + audit feed ───────────
+            // ── Center column ─────────────────────────────────────
             ColumnLayout {
                 Layout.fillWidth:  true
                 Layout.fillHeight: true
                 spacing: 0
 
-                // ── Approval Queue toolbar ────────────────────────
+                // ── Approval Queue section title ──────────────────
                 Rectangle {
                     Layout.fillWidth: true
                     height: Theme.AppTheme.toolbarHeight - 6
@@ -153,52 +154,24 @@ AppLayouts.WorkspaceFrame {
                         }
 
                         Item { Layout.fillWidth: true }
-
-                        Rectangle {
-                            width: 26; height: 26; radius: 4
-                            color: _refreshMA.containsMouse
-                                ? Theme.AppTheme.hoverSurface : "transparent"
-
-                            AppIcons.AppIcon {
-                                anchors.centerIn: parent
-                                name: "refresh"; size: 12
-                                iconColor: Theme.AppTheme.textMuted
-                            }
-
-                            MouseArea {
-                                id: _refreshMA
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape:  Qt.PointingHandCursor
-                                enabled:      !root._busy
-                                onClicked: {
-                                    if (root.workspaceController) root.workspaceController.refresh()
-                                }
-                            }
-                        }
                     }
                 }
 
-                // ── Contextual action toolbar — visible when request selected ─
-                AppWidgets.ContextualActionToolbar {
-                    Layout.fillWidth: true
-                    visible:  root._selectedRowId.length > 0
-                    title:    root._queueItem ? (root._queueItem.title || "") : ""
-                    subtitle: root._queueItem ? (root._queueItem.statusLabel || "") : ""
-                    busy:     root._busy
-                    actions: [
-                        { id: "approve", label: "Approve", icon: "approve", enabled: true,  danger: false },
-                        { id: "reject",  label: "Reject",  icon: "reject",  enabled: true,  danger: true  }
-                    ]
-                    onActionTriggered: function(id) {
-                        const item = root._queueItem
-                        if (item === null) return
-                        if (id === "approve") decisionDialog.openForDecision("approve", item)
-                        else if (id === "reject") decisionDialog.openForDecision("reject", item)
-                    }
+                // ── Approval Queue toolbar ────────────────────────
+                AppWidgets.TableToolbar {
+                    Layout.fillWidth:  true
+                    searchPlaceholder: "Search approvals..."
+                    showFilter:        true
+                    showViews:         true
+                    showRefresh:       true
+                    isBusy:            root._busy
+                    onSearchChanged:   function(text) { root._searchText = text }
+                    onFilterClicked:   approvalFilterPopup.open()
+                    onViewsClicked:    approvalViewsPopup.open()
+                    onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
                 }
 
-                // ── Approval Queue DataTable (fills center) ───────
+                // ── Approval Queue DataTable ──────────────────────
                 AppWidgets.DataTable {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
@@ -212,9 +185,7 @@ AppLayouts.WorkspaceFrame {
                         : "No pending requests"
                     loading: root._load
 
-                    onRowSelected: function(id) {
-                        root._selectedRowId = id
-                    }
+                    onRowSelected:  function(id) { root._selectedRowId = id }
                     onRowActivated: function(id) {
                         root._selectedRowId = id
                         const item = root.approvalItemById(id)
@@ -222,7 +193,7 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Audit Feed header ─────────────────────────────
+                // ── Activity feed header ──────────────────────────
                 Rectangle {
                     Layout.fillWidth: true
                     height: Theme.AppTheme.toolbarHeight - 6
@@ -266,69 +237,96 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Audit Feed compact list ────────────────────────
+                // ── Activity timeline feed ────────────────────────
                 Item {
                     Layout.fillWidth:       true
-                    Layout.preferredHeight: 160
+                    Layout.preferredHeight: 180
 
                     ListView {
                         id: _feedList
-                        anchors.fill:   parent
-                        clip:           true
-                        boundsBehavior: Flickable.StopAtBounds
+                        anchors.fill:    parent
+                        anchors.topMargin: 4
+                        clip:            true
+                        boundsBehavior:  Flickable.StopAtBounds
+                        spacing:         0
                         model: root.workspaceController
                             ? (root.workspaceController.auditFeed.items || []) : []
 
                         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                        delegate: Rectangle {
+                        delegate: Item {
+                            id: _feedRow
                             required property var modelData
                             required property int index
 
                             width:  _feedList.width
-                            height: 32
-                            color:  _feedRowMA.containsMouse
-                                ? Theme.AppTheme.hoverSurface : "transparent"
+                            height: 44
 
+                            // Timeline dot
                             Rectangle {
-                                anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                                height: 1; color: Theme.AppTheme.divider
+                                id: _dot
+                                anchors.left:           parent.left
+                                anchors.leftMargin:     Theme.AppTheme.marginMd
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 7; height: 7; radius: 4
+                                color: {
+                                    const s = (_feedRow.modelData.statusLabel || "").toLowerCase()
+                                    if (s.includes("approv") || s.includes("success") || s === "active") return Theme.AppTheme.success
+                                    if (s.includes("reject") || s.includes("fail")    || s.includes("error")) return Theme.AppTheme.danger
+                                    if (s.includes("warn"))  return Theme.AppTheme.warning
+                                    return Theme.AppTheme.textMuted
+                                }
                             }
 
-                            RowLayout {
-                                anchors.fill:        parent
-                                anchors.leftMargin:  Theme.AppTheme.marginMd
-                                anchors.rightMargin: Theme.AppTheme.marginSm
-                                spacing:             Theme.AppTheme.spacingSm
+                            // Vertical connector to next item
+                            Rectangle {
+                                visible:              _feedRow.index < _feedList.count - 1
+                                anchors.horizontalCenter: _dot.horizontalCenter
+                                anchors.top:          _dot.bottom
+                                anchors.topMargin:    2
+                                anchors.bottom:       parent.bottom
+                                width: 1
+                                color: Theme.AppTheme.divider
+                            }
 
-                                Label {
+                            // Feed item content
+                            ColumnLayout {
+                                anchors {
+                                    left:           _dot.right
+                                    leftMargin:     Theme.AppTheme.spacingSm
+                                    right:          parent.right
+                                    rightMargin:    Theme.AppTheme.marginSm
+                                    verticalCenter: parent.verticalCenter
+                                }
+                                spacing: 2
+
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    text:           modelData.title || ""
-                                    color:          Theme.AppTheme.textPrimary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    elide:          Text.ElideRight
-                                }
+                                    spacing:          Theme.AppTheme.spacingXs
 
-                                AppWidgets.StatusChip {
-                                    visible: (modelData.statusLabel || "").length > 0
-                                    status:  modelData.statusLabel || ""
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text:           _feedRow.modelData.title || ""
+                                        color:          Theme.AppTheme.textPrimary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        elide:          Text.ElideRight
+                                    }
+
+                                    AppWidgets.StatusChip {
+                                        visible: (_feedRow.modelData.statusLabel || "").length > 0
+                                        status:  _feedRow.modelData.statusLabel || ""
+                                    }
                                 }
 
                                 Label {
-                                    visible: (modelData.metaText || "").length > 0
-                                    text:    modelData.metaText || ""
-                                    color:   Theme.AppTheme.textMuted
+                                    visible:        (_feedRow.modelData.metaText || "").length > 0
+                                    text:           _feedRow.modelData.metaText || ""
+                                    color:          Theme.AppTheme.textMuted
                                     font.family:    Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.captionSize
                                     elide:          Text.ElideRight
                                 }
-                            }
-
-                            MouseArea {
-                                id: _feedRowMA
-                                anchors.fill: parent
-                                hoverEnabled: true
                             }
                         }
                     }
@@ -344,15 +342,16 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            // ── Right contextual detail panel ─────────────────────
+            // ── Right detail inspector ────────────────────────────
             Rectangle {
                 id: _detailPanel
                 Layout.fillHeight:     true
-                Layout.preferredWidth: 288
+                Layout.preferredWidth: 300
                 visible:               root._detailOpen
-                color:                 Theme.AppTheme.surface
+                color:                 Theme.AppTheme.surfaceRaised
                 z:                     1
 
+                // Left border
                 Rectangle {
                     anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
                     width: 1; color: Theme.AppTheme.divider
@@ -362,7 +361,7 @@ AppLayouts.WorkspaceFrame {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Panel header — ContextualActionToolbar for request actions
+                    // ── Inspector header: Approve / Reject ────────
                     AppWidgets.ContextualActionToolbar {
                         Layout.fillWidth: true
                         showBack: true
@@ -378,11 +377,11 @@ AppLayouts.WorkspaceFrame {
                             const item = root._queueItem
                             if (item === null) return
                             if (id === "approve") decisionDialog.openForDecision("approve", item)
-                            else if (id === "reject") decisionDialog.openForDecision("reject", item)
+                            else if (id === "reject")  decisionDialog.openForDecision("reject",  item)
                         }
                     }
 
-                    // Panel content (scrollable)
+                    // ── Scrollable inspector body ─────────────────
                     Flickable {
                         Layout.fillWidth:  true
                         Layout.fillHeight: true
@@ -394,95 +393,298 @@ AppLayouts.WorkspaceFrame {
                         ColumnLayout {
                             id: _panelContent
                             width:   parent.width
-                            spacing: Theme.AppTheme.spacingSm
+                            spacing: 0
 
-                            // Request title
-                            Label {
-                                Layout.fillWidth:   true
-                                Layout.leftMargin:  Theme.AppTheme.marginMd
-                                Layout.rightMargin: Theme.AppTheme.marginMd
-                                Layout.topMargin:   Theme.AppTheme.marginMd
-                                text:           root._queueItem ? (root._queueItem.title || "") : ""
-                                color:          Theme.AppTheme.textPrimary
-                                font.family:    Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.sectionSize
-                                font.bold:      true
-                                wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                            }
+                            // Request identity
+                            ColumnLayout {
+                                Layout.fillWidth:    true
+                                Layout.leftMargin:   Theme.AppTheme.marginMd
+                                Layout.rightMargin:  Theme.AppTheme.marginMd
+                                Layout.topMargin:    Theme.AppTheme.marginMd
+                                Layout.bottomMargin: Theme.AppTheme.spacingSm
+                                spacing:             Theme.AppTheme.spacingSm
 
-                            // Status chip
-                            AppWidgets.StatusChip {
-                                Layout.leftMargin: Theme.AppTheme.marginMd
-                                visible: root._queueItem
-                                    ? (root._queueItem.statusLabel || "").length > 0 : false
-                                status: root._queueItem
-                                    ? (root._queueItem.statusLabel || "") : ""
+                                Label {
+                                    Layout.fillWidth: true
+                                    text:           root._queueItem ? (root._queueItem.title || "") : ""
+                                    color:          Theme.AppTheme.textPrimary
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.sectionSize
+                                    font.bold:      true
+                                    wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
+                                }
+
+                                AppWidgets.StatusChip {
+                                    visible: root._queueItem
+                                        ? (root._queueItem.statusLabel || "").length > 0 : false
+                                    status: root._queueItem ? (root._queueItem.statusLabel || "") : ""
+                                }
                             }
 
                             Rectangle {
-                                Layout.fillWidth:   true
-                                Layout.leftMargin:  Theme.AppTheme.marginMd
-                                Layout.rightMargin: Theme.AppTheme.marginMd
+                                Layout.fillWidth: true
                                 height: 1; color: Theme.AppTheme.divider
                             }
 
-                            // Submitted by
-                            ColumnLayout {
-                                Layout.fillWidth:   true
-                                Layout.leftMargin:  Theme.AppTheme.marginMd
-                                Layout.rightMargin: Theme.AppTheme.marginMd
-                                spacing: 2
-                                visible: root._queueItem
-                                    ? (root._queueItem.subtitle || "").length > 0 : false
+                            // ── Request Details section ───────────
+                            AppWidgets.SectionHeading {
+                                Layout.fillWidth: true
+                                label: "Request Details"
+                            }
 
-                                Label {
-                                    text:           "Submitted by"
-                                    color:          Theme.AppTheme.textMuted
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold:      true
+                            ColumnLayout {
+                                Layout.fillWidth:    true
+                                Layout.leftMargin:   Theme.AppTheme.marginMd
+                                Layout.rightMargin:  Theme.AppTheme.marginMd
+                                Layout.bottomMargin: Theme.AppTheme.spacingMd
+                                spacing:             Theme.AppTheme.spacingSm
+
+                                // Submitted by
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    visible: root._queueItem
+                                        ? (root._queueItem.subtitle || "").length > 0 : false
+
+                                    Label {
+                                        text:           "Submitted by"
+                                        color:          Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold:      true
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text:    root._queueItem ? (root._queueItem.subtitle || "") : ""
+                                        color:   Theme.AppTheme.textSecondary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                    }
                                 }
 
-                                Label {
+                                // Module / source
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    text:           root._queueItem
-                                        ? (root._queueItem.subtitle || "") : ""
-                                    color:          Theme.AppTheme.textSecondary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
+                                    spacing: 2
+                                    visible: root._queueItem
+                                        ? (root._queueItem.metaText || "").length > 0 : false
+
+                                    Label {
+                                        text:           "Module / Source"
+                                        color:          Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold:      true
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text:    root._queueItem ? (root._queueItem.metaText || "") : ""
+                                        color:   Theme.AppTheme.textSecondary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                    }
+                                }
+
+                                // Context / supporting text
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    visible: root._queueItem
+                                        ? (root._queueItem.supportingText || "").length > 0 : false
+
+                                    Label {
+                                        text:           "Context"
+                                        color:          Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold:      true
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text:    root._queueItem ? (root._queueItem.supportingText || "") : ""
+                                        color:   Theme.AppTheme.textSecondary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                    }
                                 }
                             }
 
-                            // Module / info
-                            ColumnLayout {
-                                Layout.fillWidth:   true
-                                Layout.leftMargin:  Theme.AppTheme.marginMd
-                                Layout.rightMargin: Theme.AppTheme.marginMd
-                                spacing: 2
-                                visible: root._queueItem
-                                    ? (root._queueItem.metaText || "").length > 0 : false
-
-                                Label {
-                                    text:           "Info"
-                                    color:          Theme.AppTheme.textMuted
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.bold:      true
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text:           root._queueItem
-                                        ? (root._queueItem.metaText || "") : ""
-                                    color:          Theme.AppTheme.textSecondary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
-                                }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1; color: Theme.AppTheme.divider
+                                visible: root._queueItem !== null
                             }
 
+                            // ── Governance section ────────────────
+                            AppWidgets.SectionHeading {
+                                Layout.fillWidth: true
+                                label: "Governance"
+                                visible: root._queueItem !== null
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth:    true
+                                Layout.leftMargin:   Theme.AppTheme.marginMd
+                                Layout.rightMargin:  Theme.AppTheme.marginMd
+                                Layout.bottomMargin: Theme.AppTheme.spacingMd
+                                spacing:             Theme.AppTheme.spacingSm
+                                visible: root._queueItem !== null
+
+                                // Required action
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    Label {
+                                        text:           "Required action"
+                                        color:          Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold:      true
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: {
+                                            if (!root._queueItem) return ""
+                                            const s = (root._queueItem.statusLabel || "").toLowerCase()
+                                            return s.includes("pending") ? "Awaiting your decision"
+                                                                         : "Decision already recorded"
+                                        }
+                                        color:   Theme.AppTheme.textSecondary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                                    }
+                                }
+
+                                // Request ID
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    Label {
+                                        text:           "Request ID"
+                                        color:          Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold:      true
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text:  root._queueItem ? String(root._queueItem.id || "") : ""
+                                        color: Theme.AppTheme.textSecondary
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Filter popup ──────────────────────────────────────────────
+    Popup {
+        id: approvalFilterPopup
+        parent:      Overlay.overlay
+        anchors.centerIn: parent
+        width:       320
+        padding:     Theme.AppTheme.marginMd
+        modal:       true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color:        Theme.AppTheme.surfaceRaised
+            radius:       Theme.AppTheme.radiusMd
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+        }
+
+        ColumnLayout {
+            width:   parent.width
+            spacing: Theme.AppTheme.spacingMd
+
+            Label {
+                text:           "Filter Approvals"
+                color:          Theme.AppTheme.textPrimary
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
+                font.bold:      true
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text:    "Status, module, and date filters will appear here."
+                color:   Theme.AppTheme.textMuted
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.SecondaryButton {
+                Layout.alignment: Qt.AlignRight
+                text:     "Close"
+                onClicked: approvalFilterPopup.close()
+            }
+        }
+    }
+
+    // ── Views popup ───────────────────────────────────────────────
+    Popup {
+        id: approvalViewsPopup
+        parent:      Overlay.overlay
+        anchors.centerIn: parent
+        width:       220
+        padding:     4
+        modal:       true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color:        Theme.AppTheme.surfaceRaised
+            radius:       Theme.AppTheme.radiusMd
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+        }
+
+        Column {
+            width:   parent.width
+            spacing: 2
+
+            Repeater {
+                model: ["Pending Only", "Rejected", "Recent Decisions", "High Risk", "My Reviews"]
+
+                delegate: Rectangle {
+                    required property string modelData
+                    required property int    index
+                    width:  parent.width
+                    height: 34
+                    radius: Theme.AppTheme.radiusMd
+                    color:  _viewMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
+
+                    Label {
+                        anchors {
+                            left:           parent.left
+                            leftMargin:     Theme.AppTheme.spacingMd
+                            verticalCenter: parent.verticalCenter
+                        }
+                        text:           modelData
+                        color:          Theme.AppTheme.textPrimary
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
+
+                    MouseArea {
+                        id: _viewMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape:  Qt.PointingHandCursor
+                        onClicked:    approvalViewsPopup.close()
                     }
                 }
             }
