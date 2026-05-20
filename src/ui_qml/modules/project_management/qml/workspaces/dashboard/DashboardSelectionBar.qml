@@ -30,33 +30,44 @@ Item {
     readonly property bool baselineSelectionLocked: (root.baselineOptions || []).length === 1
         && String(root.baselineOptions[0].label || "") === "Portfolio view"
 
-    implicitHeight: selectionColumn.implicitHeight
+    implicitHeight: toolbarColumn.implicitHeight
 
     ColumnLayout {
-        id: selectionColumn
+        id: toolbarColumn
 
         anchors.fill: parent
-        spacing: Theme.AppTheme.spacingMd
+        spacing: Theme.AppTheme.spacingXs
 
-        RowLayout {
+        Rectangle {
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
+            radius: Theme.AppTheme.radiusMd
+            color: Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.subtleBorder
+            border.width: 1
+            implicitHeight: toolbarRow.implicitHeight + (Theme.AppTheme.spacingSm * 2)
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingXs
+            RowLayout {
+                id: toolbarRow
+                anchors.fill: parent
+                anchors.leftMargin: Theme.AppTheme.marginMd
+                anchors.rightMargin: Theme.AppTheme.marginMd
+                anchors.topMargin: Theme.AppTheme.spacingSm
+                anchors.bottomMargin: Theme.AppTheme.spacingSm
+                spacing: Theme.AppTheme.spacingSm
 
                 Label {
-                    text: "Project scope"
+                    text: "Project"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
                     font.bold: true
+                    Layout.alignment: Qt.AlignVCenter
                 }
 
                 ComboBox {
                     id: projectCombo
 
+                    Layout.preferredWidth: Math.max(220, root.width * 0.34)
                     Layout.fillWidth: true
                     enabled: !root.isLoading
                     model: root.projectOptions || []
@@ -68,11 +79,6 @@ Item {
                         root.projectSelected(String(option && option.value ? option.value : ""))
                     }
                 }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingXs
 
                 Label {
                     text: "Baseline"
@@ -80,12 +86,13 @@ Item {
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
                     font.bold: true
+                    Layout.alignment: Qt.AlignVCenter
                 }
 
                 ComboBox {
                     id: baselineCombo
 
-                    Layout.fillWidth: true
+                    Layout.preferredWidth: Math.max(190, root.width * 0.25)
                     enabled: !root.isLoading && !root.baselineSelectionLocked
                     model: root.baselineOptions || []
                     textRole: "label"
@@ -96,22 +103,26 @@ Item {
                         root.baselineSelected(String(option && option.value ? option.value : ""))
                     }
                 }
-            }
 
-            AppControls.SecondaryButton {
-                Layout.alignment: Qt.AlignBottom
-                enabled: !root.isLoading
-                text: "Refresh"
-                iconName: "refresh"
-                onClicked: root.refreshRequested()
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                AppControls.SecondaryButton {
+                    enabled: !root.isLoading
+                    text: "Refresh"
+                    iconName: "refresh"
+                    onClicked: root.refreshRequested()
+                }
             }
         }
 
         Label {
             Layout.fillWidth: true
+            visible: root.baselineSelectionLocked
             text: root.baselineSelectionLocked
                 ? "Portfolio mode summarizes the full portfolio and keeps baseline selection locked."
-                : "Switch project scope or baseline to inspect read-only schedule, resource, and delivery health."
+                : ""
             color: Theme.AppTheme.textSecondary
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.smallSize
