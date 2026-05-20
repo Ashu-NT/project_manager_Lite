@@ -93,41 +93,21 @@ ColumnLayout {
             }
 
             Item { Layout.fillWidth: true }
-
-            Rectangle {
-                visible: root.entityLabel.length > 0
-                width: 1; height: 14
-                color: Theme.AppTheme.divider
-            }
-
-            AppControls.PrimaryButton {
-                visible:  root.entityLabel.length > 0
-                text:     "New " + root.entityLabel
-                iconName: "add"
-                enabled:  !root.isBusy
-                onClicked: root.createRequested()
-            }
-
-            Rectangle {
-                width: 26; height: 26; radius: 4
-                color: _refreshMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
-
-                AppIcons.AppIcon {
-                    anchors.centerIn: parent
-                    name: "refresh"; size: 12
-                    iconColor: Theme.AppTheme.textMuted
-                }
-
-                MouseArea {
-                    id: _refreshMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape:  Qt.PointingHandCursor
-                    enabled:      !root.isBusy
-                    onClicked:    root.refreshRequested()
-                }
-            }
         }
+    }
+
+    // ── Table toolbar ─────────────────────────────────────────────
+    AppWidgets.TableToolbar {
+        id: _tableToolbar
+        Layout.fillWidth: true
+        showCreate:    root.entityLabel.length > 0
+        createLabel:   "New " + root.entityLabel
+        showRefresh:   true
+        showCustomize: root.columns.length > 0
+        isBusy:        root.isBusy
+        onCreateRequested:  root.createRequested()
+        onRefreshRequested: root.refreshRequested()
+        onCustomizeClicked: _dataTable.openColumnCustomizer()
     }
 
     // ── Contextual action toolbar — visible when a row is selected ─
@@ -168,6 +148,7 @@ ColumnLayout {
 
     // ── Data table ────────────────────────────────────────────────
     AppWidgets.DataTable {
+        id: _dataTable
         Layout.fillWidth:  true
         Layout.fillHeight: true
 

@@ -127,114 +127,20 @@ Item {
     // Notify the header's columnWidthProvider when visible-column set changes.
     on_VisColsChanged: Qt.callLater(function() { _mainView.forceLayout() })
 
-    // ── Action bar ────────────────────────────────────────────────────
-    Rectangle {
-        id: _actionBar
-        anchors.top:   parent.top
-        anchors.left:  parent.left
-        anchors.right: parent.right
-        height: Theme.AppTheme.toolbarHeight - 6
-        color:  Theme.AppTheme.surfaceRaised
-
-        Rectangle {
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: 1; color: Theme.AppTheme.divider
-        }
-
-        Row {
-            anchors.right:          parent.right
-            anchors.rightMargin:    8
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
-
-            Item {
-                visible: root.showFilter
-                width:  60
-                height: Theme.AppTheme.inputHeight - 8
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.AppTheme.radiusSm
-                    color: _filterMA.containsMouse
-                        ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
-                }
-                Row {
-                    anchors.centerIn: parent
-                    spacing: 4
-                    AppIcons.AppIcon {
-                        name: "filter"; size: 11
-                        iconColor: Theme.AppTheme.textMuted
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        text:           "Filter"
-                        color:          Theme.AppTheme.textMuted
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family:    Theme.AppTheme.fontFamily
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-                MouseArea {
-                    id: _filterMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape:  Qt.PointingHandCursor
-                    onClicked:    root.filterClicked()
-                }
-            }
-
-            Rectangle {
-                visible: root.showFilter
-                width: 1; height: 14
-                color: Theme.AppTheme.divider
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            Item {
-                visible: root.columns.length > 0
-                width:  84
-                height: Theme.AppTheme.inputHeight - 8
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: Theme.AppTheme.radiusSm
-                    color: _custMA.containsMouse
-                        ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
-                }
-                Text {
-                    anchors.centerIn: parent
-                    text:           "Customize"
-                    color:          Theme.AppTheme.textMuted
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    font.family:    Theme.AppTheme.fontFamily
-                }
-
-                AppWidgets.TableColumnCustomizer {
-                    id: _colCustomizer
-                    parent:  _actionBar
-                    x: _actionBar.width - width - 4
-                    y: _actionBar.height + 2
-                    columns: root.columns
-                    onColumnVisibilityChanged: function(draft) {
-                        root._applyColumnVisibility(draft)
-                    }
-                }
-
-                MouseArea {
-                    id: _custMA
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape:  Qt.PointingHandCursor
-                    onClicked:    _colCustomizer.open()
-                }
-            }
+    AppWidgets.TableColumnCustomizer {
+        id: _colCustomizer
+        x: root.width - width - 4
+        y: 2
+        columns: root.columns
+        onColumnVisibilityChanged: function(draft) {
+            root._applyColumnVisibility(draft)
         }
     }
 
     // ── Sticky column header ──────────────────────────────────────────
     Rectangle {
         id: _header
-        anchors.top:   _actionBar.bottom
+        anchors.top:   parent.top
         anchors.left:  parent.left
         anchors.right: parent.right
         height: Theme.AppTheme.normalRowHeight
