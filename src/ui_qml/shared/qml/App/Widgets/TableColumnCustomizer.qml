@@ -68,69 +68,61 @@ Popup {
         }
 
         // Column list
-        Flickable {
+        ListView {
+            id: _colList
             Layout.fillWidth: true
-            implicitHeight: Math.min(colList.implicitHeight, 280)
-            contentHeight: colList.implicitHeight
+            Layout.preferredHeight: Math.min(contentHeight, 280)
             clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            model: root._draft
 
-            ColumnLayout {
-                id: colList
-                width: parent.width
-                spacing: 0
+            delegate: Rectangle {
+                id: checkRow
+                required property var modelData
+                required property int index
 
-                Repeater {
-                    model: root._draft
+                width: _colList.width
+                height: 36
+                color: _checkRowHover.containsMouse
+                    ? Theme.AppTheme.hoverSurface
+                    : "transparent"
 
-                    delegate: Rectangle {
-                        id: checkRow
-                        required property var modelData
-                        required property int index
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin:  Theme.AppTheme.marginMd
+                    anchors.rightMargin: Theme.AppTheme.marginMd
+                    spacing: Theme.AppTheme.spacingSm
 
-                        Layout.fillWidth: true
-                        height: 36
-                        color: checkRowHover.containsMouse
-                            ? Theme.AppTheme.hoverSurface
-                            : "transparent"
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: Theme.AppTheme.marginMd
-                            anchors.rightMargin: Theme.AppTheme.marginMd
-                            spacing: Theme.AppTheme.spacingSm
-
-                            CheckBox {
-                                id: colCheck
-                                checked: checkRow.modelData.visible
-                                onToggled: {
-                                    root._draft[checkRow.index].visible = checked
-                                }
-                            }
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: checkRow.modelData.label || checkRow.modelData.key
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
-                                elide: Text.ElideRight
-                            }
-                        }
-
-                        MouseArea {
-                            id: checkRowHover
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: colCheck.toggle()
+                    CheckBox {
+                        id: _colCheck
+                        checked: checkRow.modelData.visible
+                        onToggled: {
+                            root._draft[checkRow.index].visible = checked
                         }
                     }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text:           checkRow.modelData.label || checkRow.modelData.key
+                        color:          Theme.AppTheme.textPrimary
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.bodySize
+                        elide:          Text.ElideRight
+                    }
+                }
+
+                MouseArea {
+                    id: _checkRowHover
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: _colCheck.toggle()
                 }
             }
         }
 
         Rectangle {
             Layout.fillWidth: true
-           Layout.preferredHeight: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
         }
 

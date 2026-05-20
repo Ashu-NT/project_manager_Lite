@@ -5,17 +5,21 @@ import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import App.Icons 1.0 as AppIcons
+import App.Models 1.0 as AppModels
 
-// Enterprise data table backed by a virtualized ListView.
+// Enterprise data table — Qt 6 TableView, true 2-D cell-based delegates.
 //
 // Public API (backward-compatible):
 //   columns  [{key, label, flex, minWidth, sortable, type, visible}]
 //   rows     [{id, ...fieldValues}]
 //   type     "text" | "status" | "progress"
-//            progress rawValue: number 0-1  OR  {value: 0-1, label: "72%"}
-//   flex  0  → fixed minWidth column; flex > 0 → proportional fill
+//            progress rawValue: number 0-1  OR  {value:0-1, label:"72%"}
+//   flex  0  → fixed minWidth; flex > 0 → proportional fill
 //
-// New optional props: loading, emptyText
+// Internals:
+//   _frozenView  – narrow single-column TableView for the checkbox column
+//   _mainView    – main N×M TableView backed by DynamicTableModel (_tableModel)
+//   Each _mainView delegate = one cell at (row, column)
 Item {
     id: root
 
@@ -28,7 +32,6 @@ Item {
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
-
     property bool   multiSelect:    false
     property var    selectedRowIds: []
 
@@ -41,6 +44,9 @@ Item {
     signal viewDetailRequested(string rowId)
 
     // ── Private helpers ───────────────────────────────────────────────
+    property int _hoveredRow:  -1
+    property int _currentRow:  -1
+
     function _isRowChecked(rowId) {
         const ids = root.selectedRowIds || []
         for (let i = 0; i < ids.length; i++) {
@@ -53,7 +59,7 @@ Item {
         && (root.selectedRowIds || []).length >= root.rows.length
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
-    readonly property int  _cbColW: 32          // checkbox column width (sticky, not scrolled)
+    readonly property int _cbColW: 32
 
     readonly property var _visCols: {
         const r = []
@@ -72,7 +78,9 @@ Item {
         return t > 0 ? t : 1
     }
 
-    // Sum of all column minWidths — threshold for triggering horizontal scroll
+    // Width available for data columns (viewport minus frozen checkbox column)
+    readonly property real _dataAreaW: root.width - (root.multiSelect ? root._cbColW : 0)
+
     readonly property real _minDataW: {
         let w = 0
         for (let i = 0; i < root._visCols.length; i++) {
@@ -82,33 +90,17 @@ Item {
         return w
     }
 
-    // Width available for data columns (excludes checkbox column)
-    readonly property real _dataAreaW: root.width - (root.multiSelect ? root._cbColW : 0)
-
-    // Effective data width — at least as wide as the viewport so flex columns fill it
+    // Effective data width: at least fills viewport, scrolls when columns are wider
     readonly property real _dataW: Math.max(root._dataAreaW, root._minDataW)
 
-    // Total scrollable content width including the sticky checkbox column
-    readonly property real _totalW: (root.multiSelect ? root._cbColW : 0) + root._dataW
-
-    // Horizontal scroll is needed when columns exceed the viewport
-    readonly property bool _needsHScroll: root._minDataW > root._dataAreaW + 1
-
-    // Horizontal scroll offset (pixels) — driven by ScrollBar and WheelHandler
-    property real _contentX: 0
-
-    // Reset offset if scroll is no longer needed after a column visibility change
-    onColumnsChanged: { if (!root._needsHScroll) root._contentX = 0 }
-
-    // Compute pixel width for a single column descriptor
     function _colWidth(col) {
+        if (!col) return 80
         const minW = col.minWidth !== undefined ? col.minWidth : 80
         const flex  = col.flex    !== undefined ? col.flex    : 1
         if (flex === 0) return minW
         return Math.max(minW, (root._dataW * flex) / root._flexTotal)
     }
 
-    // Apply a column-visibility draft from TableColumnCustomizer
     function _applyColumnVisibility(draft) {
         const vm = {}
         for (let j = 0; j < draft.length; j++) vm[draft[j].key] = draft[j].visible
@@ -121,31 +113,19 @@ Item {
         root.columns = next
     }
 
-    // ── Horizontal wheel / trackpad handler ───────────────────────────
-    // Intercepts horizontal trackpad scroll and Shift+wheel.
-    // Drives _hScrollBar.position which then sets _contentX via onPositionChanged.
-    WheelHandler {
-        id: _wheelH
-        target:          null
-        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-        onWheel: function(event) {
-            if (!root._needsHScroll) return
-            const dx = event.angleDelta.x
-            const dy = event.angleDelta.y
-            const isHoriz = Math.abs(dx) > Math.abs(dy)
-                || (event.modifiers & Qt.ShiftModifier)
-            if (!isHoriz) return
-
-            const delta  = (dx !== 0) ? dx : dy
-            const maxX   = Math.max(0, root._totalW - root.width)
-            const newX   = Math.max(0, Math.min(root._contentX - delta * 0.5, maxX))
-            if (root._totalW > root.width)
-                _hScrollBar.position = newX / root._totalW
-            event.accepted = true
-        }
+    // ── Python-backed 2-D model ───────────────────────────────────────
+    // rows/columns are bound directly; the model filters visible columns
+    // internally and emits modelReset whenever either list changes.
+    AppModels.DynamicTableModel {
+        id: _tableModel
+        rows:    root.rows
+        columns: root.columns
     }
 
-    // ── Action bar (Customize columns + optional Filter) ──────────────
+    // Notify the header's columnWidthProvider when visible-column set changes.
+    on_VisColsChanged: Qt.callLater(function() { _mainView.forceLayout() })
+
+    // ── Action bar ────────────────────────────────────────────────────
     Rectangle {
         id: _actionBar
         anchors.top:   parent.top
@@ -156,8 +136,7 @@ Item {
 
         Rectangle {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: 1
-            color:  Theme.AppTheme.divider
+            height: 1; color: Theme.AppTheme.divider
         }
 
         Row {
@@ -174,7 +153,7 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: Theme.AppTheme.radiusSm
-                    color:  _filterMA.containsMouse
+                    color: _filterMA.containsMouse
                         ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
                 }
                 Row {
@@ -217,7 +196,7 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: Theme.AppTheme.radiusSm
-                    color:  _custMA.containsMouse
+                    color: _custMA.containsMouse
                         ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceOverlay
                 }
                 Text {
@@ -230,7 +209,7 @@ Item {
 
                 AppWidgets.TableColumnCustomizer {
                     id: _colCustomizer
-                    parent: _actionBar
+                    parent:  _actionBar
                     x: _actionBar.width - width - 4
                     y: _actionBar.height + 2
                     columns: root.columns
@@ -263,7 +242,7 @@ Item {
         Row {
             anchors.fill: parent
 
-            // Select-all checkbox — sticky, not scrolled
+            // Checkbox select-all header (fixed, not scrolled)
             Item {
                 width:   root._cbColW
                 height:  parent.height
@@ -276,8 +255,7 @@ Item {
                               : root._someChecked ? Qt.PartiallyChecked
                                                   : Qt.Unchecked
                     tristate: true
-                    padding:  0
-                    spacing:  0
+                    padding:  0; spacing: 0
 
                     indicator: Rectangle {
                         implicitWidth: 14; implicitHeight: 14; radius: 2
@@ -288,7 +266,7 @@ Item {
                         border.width: 1
                         Text {
                             anchors.centerIn: parent
-                            text:  _headerCb.checkState === Qt.PartiallyChecked ? "—" : "✓"
+                            text: _headerCb.checkState === Qt.PartiallyChecked ? "—" : "✓"
                             color: "white"
                             font.pixelSize: 9; font.bold: true
                             visible: _headerCb.checkState !== Qt.Unchecked
@@ -299,14 +277,14 @@ Item {
                 }
             }
 
-            // Scrollable header cells — clip + offset by _contentX
+            // Scrollable header cells — offset synced with _mainView.contentX
             Item {
                 width:  parent.width - (root.multiSelect ? root._cbColW : 0)
                 height: parent.height
                 clip:   true
 
                 Row {
-                    x:      -root._contentX
+                    x:      -_mainView.contentX
                     height: parent.height
 
                     Repeater {
@@ -351,16 +329,15 @@ Item {
                                 anchors.right:  parent.right
                                 anchors.top:    parent.top
                                 anchors.bottom: parent.bottom
-                                width:   1
-                                color:   Theme.AppTheme.divider
+                                width: 1; color: Theme.AppTheme.divider
                                 visible: _hCell.index < root._visCols.length - 1
                             }
 
                             MouseArea {
                                 anchors.fill: parent
-                                enabled:     _hCell.modelData.sortable !== false
-                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                onClicked:   root.sortRequested(_hCell.modelData.key)
+                                enabled:      _hCell.modelData.sortable !== false
+                                cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked:    root.sortRequested(_hCell.modelData.key)
                             }
                         }
                     }
@@ -368,260 +345,319 @@ Item {
             }
         }
 
-        // Header bottom border
         Rectangle {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
             height: 1; color: Theme.AppTheme.divider
         }
     }
 
-    // ── Horizontal scrollbar ──────────────────────────────────────────
-    ScrollBar {
-        id: _hScrollBar
-        anchors.left:   parent.left
-        anchors.right:  parent.right
-        anchors.bottom: parent.bottom
-        orientation: Qt.Horizontal
-        height:  root._needsHScroll ? 10 : 0
-        visible: root._needsHScroll
-        size:    root._needsHScroll
-            ? Math.min(1.0, root.width / root._totalW) : 1.0
-        policy:  root._needsHScroll ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
-
-        onPositionChanged: {
-            if (!root._needsHScroll) return
-            const maxScroll = Math.max(0, root._totalW - root.width)
-            root._contentX  = Math.max(0, Math.min(position * root._totalW, maxScroll))
-        }
-    }
-
-    // ── Virtualized row list ──────────────────────────────────────────
-    ListView {
-        id: _rowList
+    // ── Frozen checkbox column TableView ──────────────────────────────
+    // Single-column, N-row TableView for checkboxes.
+    // syncView keeps it aligned vertically with _mainView.
+    TableView {
+        id: _frozenView
         anchors.top:    _header.bottom
         anchors.left:   parent.left
-        anchors.right:  parent.right
         anchors.bottom: _hScrollBar.top
-        clip:                  true
-        model:                 root.rows
-        reuseItems:            true
-        keyNavigationEnabled:  true
-        focus:                 true
-        boundsBehavior:        Flickable.StopAtBounds
-        highlightMoveDuration: 0
+        width:   root.multiSelect ? root._cbColW : 0
+        visible: root.multiSelect
+        clip:    true
 
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        model:          root.rows.length
+        reuseItems:     true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive:    false  // vertical scroll driven by _mainView via syncView
 
-        Keys.onUpPressed:     { if (currentIndex > 0) decrementCurrentIndex() }
-        Keys.onDownPressed:   { if (currentIndex < count - 1) incrementCurrentIndex() }
-        Keys.onReturnPressed: {
-            if (currentIndex >= 0 && root.rows[currentIndex])
-                root.rowActivated(String(root.rows[currentIndex].id || ""))
+        syncView:      _mainView
+        syncDirection: Qt.Vertical
+
+        rowHeightProvider:   function()    { return Theme.AppTheme.compactRowHeight }
+        columnWidthProvider: function()    { return root._cbColW }
+
+        // Redirect wheel events over the frozen area to the main view
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: function(event) {
+                const dy = event.angleDelta.y
+                _mainView.contentY = Math.max(
+                    0,
+                    Math.min(_mainView.contentY - dy * 0.5,
+                             _mainView.contentHeight - _mainView.height)
+                )
+                event.accepted = true
+            }
         }
 
         delegate: Item {
-            id: _row
-            required property var modelData
-            required property int index
+            id: _cbCell
+            required property int row
 
-            readonly property string _rid: String(_row.modelData.id || String(_row.index))
-            readonly property bool   _sel: root.selectedRowId === _row._rid
-            readonly property bool   _chk: root.multiSelect && root._isRowChecked(_row._rid)
-            readonly property bool   _hi:  _row._sel || _row._chk
+            readonly property var    _rowData: root.rows[row] || {}
+            readonly property string _rid: {
+                const rawId = _rowData.id
+                return String(rawId !== undefined && rawId !== null ? rawId : row)
+            }
+            readonly property bool _sel: root.selectedRowId === _rid
+            readonly property bool _chk: root._isRowChecked(_rid)
+            readonly property bool _hi:  _sel || _chk
 
-            width:  _rowList.width
-            height: Theme.AppTheme.compactRowHeight
+            implicitWidth:  root._cbColW
+            implicitHeight: Theme.AppTheme.compactRowHeight
 
-            // ── Row background + selection accent ─────────────────────
+            // Row background (matches _mainView row colors)
             Rectangle {
                 anchors.fill: parent
-                color: _row._hi
+                color: _cbCell._hi
                     ? Theme.AppTheme.selectedSurface
-                    : _rowMA.containsMouse
+                    : root._hoveredRow === _cbCell.row
                         ? Theme.AppTheme.hoverSurface
-                        : _row.index % 2 !== 0
+                        : _cbCell.row % 2 !== 0
                             ? Theme.AppTheme.surfaceOverlay : "transparent"
 
+                // Left selection accent bar
                 Rectangle {
                     width: 2
                     anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
                     color:   Theme.AppTheme.accent
-                    visible: _row._hi
+                    visible: _cbCell._hi
                 }
             }
 
-            // ── Row content ───────────────────────────────────────────
-            Row {
-                anchors.fill: parent
+            CheckBox {
+                id: _cb
+                anchors.centerIn: parent
+                checked: root._isRowChecked(_cbCell._rid)
+                padding: 0; spacing: 0
 
-                // Sticky checkbox (does not scroll)
-                Item {
-                    width:   root._cbColW
-                    height:  Theme.AppTheme.compactRowHeight
-                    visible: root.multiSelect
-
-                    CheckBox {
-                        id: _rowCb
+                indicator: Rectangle {
+                    implicitWidth: 14; implicitHeight: 14; radius: 2
+                    color: _cb.checked ? Theme.AppTheme.accent : "transparent"
+                    border.color: _cb.checked
+                        ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+                    border.width: 1
+                    Text {
                         anchors.centerIn: parent
-                        checked: root._isRowChecked(_row._rid)
-                        padding: 0; spacing: 0
-
-                        indicator: Rectangle {
-                            implicitWidth: 14; implicitHeight: 14; radius: 2
-                            color: _rowCb.checked ? Theme.AppTheme.accent : "transparent"
-                            border.color:  _rowCb.checked
-                                ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
-                            border.width: 1
-                            Text {
-                                anchors.centerIn: parent
-                                text: "✓"; color: "white"
-                                font.pixelSize: 9; font.bold: true
-                                visible: _rowCb.checked
-                            }
-                        }
-                        contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
-                        onToggled: root.rowSelectionToggled(_row._rid, checked)
+                        text: "✓"; color: "white"
+                        font.pixelSize: 9; font.bold: true
+                        visible: _cb.checked
                     }
                 }
-
-                // Scrollable data cells — clip + offset by _contentX
-                Item {
-                    width:  parent.width - (root.multiSelect ? root._cbColW : 0)
-                    height: Theme.AppTheme.compactRowHeight
-                    clip:   true
-
-                    Row {
-                        x:      -root._contentX
-                        height: parent.height
-
-                        Repeater {
-                            model: root._visCols
-
-                            delegate: Item {
-                                id: _cell
-                                required property var modelData
-                                required property int index
-
-                                readonly property var    _raw:  _row.modelData[_cell.modelData.key] !== undefined
-                                    ? _row.modelData[_cell.modelData.key] : ""
-                                readonly property string _txt:  _cell._raw !== null ? String(_cell._raw) : ""
-
-                                readonly property bool _isSt: _cell.modelData.type === "status"
-                                    || _cell.modelData.key === "statusLabel"
-                                    || _cell.modelData.key === "status"
-                                    || (typeof _cell.modelData.key === "string"
-                                        && _cell.modelData.key.indexOf("StatusLabel") >= 0)
-
-                                readonly property bool _isPr: _cell.modelData.type === "progress"
-
-                                readonly property real _pVal: {
-                                    if (!_cell._isPr) return 0.0
-                                    const rv = _cell._raw
-                                    if (rv === null || rv === undefined || rv === "") return 0.0
-                                    if (typeof rv === "object") return parseFloat(rv.value || 0)
-                                    return parseFloat(rv) || 0.0
-                                }
-                                readonly property string _pLbl: {
-                                    if (!_cell._isPr) return ""
-                                    const rv = _cell._raw
-                                    return (rv && typeof rv === "object") ? String(rv.label || "") : ""
-                                }
-
-                                width:  root._colWidth(_cell.modelData)
-                                height: Theme.AppTheme.compactRowHeight
-
-                                // Status chip
-                                AppWidgets.StatusChip {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.left:       parent.left
-                                    anchors.leftMargin: Theme.AppTheme.spacingSm
-                                    visible: _cell._isSt && _cell._txt.length > 0
-                                    status:  _cell._txt
-                                }
-
-                                // Progress bar + label
-                                Item {
-                                    anchors.verticalCenter:  parent.verticalCenter
-                                    anchors.left:            parent.left
-                                    anchors.right:           parent.right
-                                    anchors.leftMargin:      Theme.AppTheme.spacingSm
-                                    anchors.rightMargin:     Theme.AppTheme.spacingSm
-                                    height:  20
-                                    visible: _cell._isPr
-
-                                    AppWidgets.ProgressBar {
-                                        anchors.left:           parent.left
-                                        anchors.right:          _pPct.visible ? _pPct.left : parent.right
-                                        anchors.rightMargin:    _pPct.visible ? Theme.AppTheme.spacingXs : 0
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        value: _cell._pVal
-                                    }
-
-                                    Label {
-                                        id: _pPct
-                                        anchors.right:          parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        visible:        _cell._pLbl.length > 0
-                                        text:           _cell._pLbl
-                                        color:          Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                    }
-                                }
-
-                                // Plain text (default)
-                                Label {
-                                    anchors.fill:        parent
-                                    anchors.leftMargin:  Theme.AppTheme.spacingSm
-                                    anchors.rightMargin: Theme.AppTheme.spacingXs
-                                    visible:            !_cell._isSt && !_cell._isPr
-                                    text:                _cell._txt
-                                    verticalAlignment:   Text.AlignVCenter
-                                    color: _row._hi
-                                        ? Theme.AppTheme.textPrimary
-                                        : Theme.AppTheme.textSecondary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    elide:          Text.ElideRight
-                                }
-                            }
-                        }
-                    }
-                }
+                contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
+                onToggled: root.rowSelectionToggled(_cbCell._rid, checked)
             }
 
-            // Row bottom divider
             Rectangle {
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
                 height: 1; color: Theme.AppTheme.divider
             }
 
-            // Row click area — starts after checkbox column so checkboxes own their events
-            MouseArea {
-                id: _rowMA
-                anchors.top:        parent.top
-                anchors.bottom:     parent.bottom
-                anchors.left:       parent.left
-                anchors.leftMargin: root.multiSelect ? root._cbColW : 0
-                anchors.right:      parent.right
-                hoverEnabled:  true
-                cursorShape:   Qt.PointingHandCursor
-
-                onClicked: {
-                    root.selectedRowId = _row._rid
-                    root.rowSelected(_row._rid)
-                    _rowList.forceActiveFocus()
-                    _rowList.currentIndex = _row.index
+            // Hover tracking (HoverHandler does not interfere with CheckBox events)
+            HoverHandler {
+                onHoveredChanged: {
+                    if (hovered) root._hoveredRow = _cbCell.row
+                    else if (root._hoveredRow === _cbCell.row) root._hoveredRow = -1
                 }
-                onDoubleClicked: root.rowActivated(_row._rid)
             }
         }
     }
 
+    // ── Main 2-D data TableView ───────────────────────────────────────
+    // Each delegate = one cell at (row, column).
+    TableView {
+        id: _mainView
+        anchors.top:    _header.bottom
+        anchors.left:   _frozenView.right
+        anchors.right:  parent.right
+        anchors.bottom: _hScrollBar.top
+        clip:           true
+        focus:          true
+
+        model:          _tableModel
+        reuseItems:     true
+        boundsBehavior: Flickable.StopAtBounds
+
+        rowHeightProvider:   function()    { return Theme.AppTheme.compactRowHeight }
+        columnWidthProvider: function(col) {
+            const c = root._visCols[col]
+            return c ? root._colWidth(c) : 0
+        }
+
+        onWidthChanged:  forceLayout()
+
+        ScrollBar.vertical:   ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.horizontal: _hScrollBar
+
+        // ── Keyboard navigation ───────────────────────────────────────
+        Keys.onUpPressed: {
+            if (root._currentRow > 0) {
+                root._currentRow--
+                _mainView.positionViewAtRow(root._currentRow, TableView.Contain)
+            }
+        }
+        Keys.onDownPressed: {
+            if (root._currentRow < root.rows.length - 1) {
+                root._currentRow++
+                _mainView.positionViewAtRow(root._currentRow, TableView.Contain)
+            }
+        }
+        Keys.onReturnPressed: {
+            if (root._currentRow >= 0 && root._currentRow < root.rows.length) {
+                const rd = root.rows[root._currentRow]
+                if (rd) root.rowActivated(String(rd.id !== undefined ? rd.id : ""))
+            }
+        }
+
+        // ── Cell delegate ─────────────────────────────────────────────
+        delegate: Item {
+            id: _cell
+            // TableView injects row/column; DynamicTableModel injects the rest.
+            required property int    row
+            required property int    column
+            required property string display     // Qt.DisplayRole — ready-to-show text
+            required property var    rawValue    // unformatted cell value
+            required property string rowId       // row's id field (or row index as string)
+            required property string columnType  // "text" | "status" | "progress"
+
+            readonly property bool _sel: root.selectedRowId === _cell.rowId
+            readonly property bool _chk: root.multiSelect && root._isRowChecked(_cell.rowId)
+            readonly property bool _hi:  _sel || _chk
+
+            readonly property bool _isSt: _cell.columnType === "status"
+            readonly property bool _isPr: _cell.columnType === "progress"
+
+            readonly property real _pVal: {
+                if (!_isPr) return 0.0
+                const rv = _cell.rawValue
+                if (rv === null || rv === undefined || rv === "") return 0.0
+                if (typeof rv === "object") return parseFloat(rv.value || 0)
+                return parseFloat(rv) || 0.0
+            }
+            readonly property string _pLbl: {
+                if (!_isPr) return ""
+                const rv = _cell.rawValue
+                return (rv && typeof rv === "object") ? String(rv.label || "") : ""
+            }
+
+            implicitHeight: Theme.AppTheme.compactRowHeight
+
+            // ── Cell background ───────────────────────────────────────
+            Rectangle {
+                anchors.fill: parent
+                color: _cell._hi
+                    ? Theme.AppTheme.selectedSurface
+                    : root._hoveredRow === _cell.row
+                        ? Theme.AppTheme.hoverSurface
+                        : _cell.row % 2 !== 0
+                            ? Theme.AppTheme.surfaceOverlay : "transparent"
+
+                // Left selection accent bar on the first column only
+                Rectangle {
+                    visible: _cell.column === 0 && _cell._hi
+                    width: 2
+                    anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
+                    color: Theme.AppTheme.accent
+                }
+            }
+
+            // ── Status chip ───────────────────────────────────────────
+            AppWidgets.StatusChip {
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left:           parent.left
+                anchors.leftMargin:     Theme.AppTheme.spacingSm
+                visible: _cell._isSt && _cell.display.length > 0
+                status:  _cell.display
+            }
+
+            // ── Progress bar + label ──────────────────────────────────
+            Item {
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left:           parent.left
+                anchors.right:          parent.right
+                anchors.leftMargin:     Theme.AppTheme.spacingSm
+                anchors.rightMargin:    Theme.AppTheme.spacingSm
+                height:  20
+                visible: _cell._isPr
+
+                AppWidgets.ProgressBar {
+                    anchors.left:           parent.left
+                    anchors.right:          _pPct.visible ? _pPct.left : parent.right
+                    anchors.rightMargin:    _pPct.visible ? Theme.AppTheme.spacingXs : 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    value: _cell._pVal
+                }
+
+                Label {
+                    id: _pPct
+                    anchors.right:          parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible:        _cell._pLbl.length > 0
+                    text:           _cell._pLbl
+                    color:          Theme.AppTheme.textMuted
+                    font.family:    Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                }
+            }
+
+            // ── Plain text ────────────────────────────────────────────
+            Label {
+                anchors.fill:        parent
+                anchors.leftMargin:  Theme.AppTheme.spacingSm
+                anchors.rightMargin: Theme.AppTheme.spacingXs
+                visible:             !_cell._isSt && !_cell._isPr
+                text:                _cell.display
+                verticalAlignment:   Text.AlignVCenter
+                color: _cell._hi
+                    ? Theme.AppTheme.textPrimary
+                    : Theme.AppTheme.textSecondary
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                elide:          Text.ElideRight
+            }
+
+            // ── Cell bottom divider ───────────────────────────────────
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: 1; color: Theme.AppTheme.divider
+            }
+
+            // ── Mouse area: click + double-click ─────────────────────
+            MouseArea {
+                anchors.fill:  parent
+                cursorShape:   Qt.PointingHandCursor
+                onClicked: {
+                    root.selectedRowId = _cell.rowId
+                    root.rowSelected(_cell.rowId)
+                    root._currentRow = _cell.row
+                    _mainView.forceActiveFocus()
+                }
+                onDoubleClicked: root.rowActivated(_cell.rowId)
+            }
+
+            // ── Hover tracking ────────────────────────────────────────
+            HoverHandler {
+                onHoveredChanged: {
+                    if (hovered) root._hoveredRow = _cell.row
+                    else if (root._hoveredRow === _cell.row) root._hoveredRow = -1
+                }
+            }
+        }
+    }
+
+    // ── Horizontal scrollbar (shared between header + _mainView) ─────
+    ScrollBar {
+        id: _hScrollBar
+        anchors.left:   _frozenView.right
+        anchors.right:  parent.right
+        anchors.bottom: parent.bottom
+        orientation: Qt.Horizontal
+        policy:      ScrollBar.AsNeeded
+        height:      12
+    }
+
     // ── Empty state ───────────────────────────────────────────────────
     AppWidgets.EmptyState {
-        anchors.centerIn: _rowList
-        width:   Math.min(_rowList.width, 320)
+        anchors.centerIn: _mainView
+        width:   Math.min(_mainView.width, 320)
         visible: root.rows.length === 0 && !root.loading
         title:   root.emptyText
     }
@@ -637,8 +673,8 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color:   Theme.AppTheme.workspaceBackground
-            opacity: 0.75
+            color:        Theme.AppTheme.workspaceBackground
+            opacity:      0.75
         }
 
         BusyIndicator {

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 from PySide6.QtQml import QQmlApplicationEngine
 
+import src.ui_qml.shared.models.data_table_model  # noqa: F401
 import src.ui_qml.shell.context  # noqa: F401
 import src.ui_qml.shell.login  # noqa: F401
 import src.ui_qml.platform.context  # noqa: F401
