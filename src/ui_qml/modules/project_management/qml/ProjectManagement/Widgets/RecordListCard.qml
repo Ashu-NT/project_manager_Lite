@@ -13,8 +13,11 @@ Item {
     property string subtitle: ""
     property string emptyState: ""
     property string primaryActionLabel: ""
+    property string primaryActionIcon: ""
     property string secondaryActionLabel: ""
+    property string secondaryActionIcon: ""
     property string tertiaryActionLabel: ""
+    property string tertiaryActionIcon: ""
     property bool primaryDanger: false
     property bool secondaryDanger: false
     property bool tertiaryDanger: false
@@ -182,6 +185,7 @@ Item {
                                     && (rowDelegate.modelData.canPrimaryAction ?? true)
                                 enabled: root.actionsEnabled
                                 text: root.primaryActionLabel
+                                iconName: root.primaryActionIcon
                                 danger: root.primaryDanger
                                 onClicked: root.primaryActionRequested(rowDelegate.modelData)
                             }
@@ -191,6 +195,7 @@ Item {
                                     && (rowDelegate.modelData.canSecondaryAction ?? true)
                                 enabled: root.actionsEnabled
                                 text: root.secondaryActionLabel
+                                iconName: root.secondaryActionIcon
                                 danger: root.secondaryDanger
                                 onClicked: root.secondaryActionRequested(rowDelegate.modelData)
                             }
@@ -200,6 +205,7 @@ Item {
                                     && (rowDelegate.modelData.canTertiaryAction ?? true)
                                 enabled: root.actionsEnabled
                                 text: root.tertiaryActionLabel
+                                iconName: root.tertiaryActionIcon
                                 danger: root.tertiaryDanger
                                 onClicked: root.tertiaryActionRequested(rowDelegate.modelData)
                             }
