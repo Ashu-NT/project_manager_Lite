@@ -19,6 +19,7 @@ Dialog {
     width: 520
     title: root.modeTitle
     closePolicy: Popup.CloseOnEscape
+    padding: Theme.AppTheme.marginMd
 
     function indexForValue(options, targetValue) {
         for (let index = 0; index < options.length; index += 1) {
@@ -69,7 +70,9 @@ Dialog {
 
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.surfaceRaised
+        border.color: Theme.AppTheme.divider
+        border.width: 1
     }
 
     contentItem: ColumnLayout {
@@ -170,6 +173,7 @@ Dialog {
         }
 
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: root.mode === "create" ? "Assign Resource" : "Save Allocation"
             iconName: root.mode === "create" ? "resources" : "save"
             enabled: root.mode !== "create" || (root.resourceOptions || []).length > 0

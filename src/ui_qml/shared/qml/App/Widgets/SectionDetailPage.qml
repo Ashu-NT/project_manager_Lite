@@ -12,6 +12,7 @@ Item {
     property bool open: false
     property string title: ""
     property bool isBusy: false
+    property bool showHeader: true
     property bool showEdit: true
     property bool showDelete: true
     property var sections: []
@@ -74,7 +75,8 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Theme.AppTheme.panelHeaderHeight
+                Layout.preferredHeight: root.showHeader ? Theme.AppTheme.panelHeaderHeight : 0
+                visible: root.showHeader
                 color: Theme.AppTheme.surfaceRaised
 
                 Rectangle {

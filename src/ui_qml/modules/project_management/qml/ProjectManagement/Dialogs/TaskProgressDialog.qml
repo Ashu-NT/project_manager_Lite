@@ -19,6 +19,7 @@ Dialog {
     width: 460
     title: "Update Progress"
     closePolicy: Popup.CloseOnEscape
+    padding: Theme.AppTheme.marginMd
 
     function statusIndexForValue(statusValue) {
         for (let index = 0; index < root.workflowStatusOptions.length; index += 1) {
@@ -29,7 +30,7 @@ Dialog {
         return 0
     }
 
-    onOpened: {
+    function populateFromTask() {
         var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
         percentField.text = String(state.percentComplete || "")
         actualStartField.text = String(state.actualStart || "")
@@ -37,9 +38,13 @@ Dialog {
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "TODO")
     }
 
+    onOpened: root.populateFromTask()
+
     background: Rectangle {
         radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surface
+        color: Theme.AppTheme.surfaceRaised
+        border.color: Theme.AppTheme.divider
+        border.width: 1
     }
 
     contentItem: ColumnLayout {

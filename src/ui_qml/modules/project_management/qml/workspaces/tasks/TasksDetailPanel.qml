@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -250,21 +249,6 @@ Item {
                     }
                 }
 
-                // Action buttons
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: String(root.taskDetail.id || "").length > 0
-                    spacing: Theme.AppTheme.spacingSm
-
-                    AppControls.SecondaryButton {
-                        text: "Progress"
-                        iconName: "approve"
-                        enabled: !root.isBusy
-                        onClicked: root.progressRequested()
-                    }
-
-                    Item { Layout.fillWidth: true }
-                }
             }
         }
 

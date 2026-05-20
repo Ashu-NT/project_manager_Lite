@@ -563,6 +563,13 @@ class ProjectManagementTasksWorkspaceController(
 
     # ── Backward-compat mutation delegates ───────────────────────────
 
+    @Slot(result="QVariantMap")
+    def exportTasks(self) -> dict[str, object]:
+        message = "Task export is not implemented yet in the QML workspace."
+        self._set_error_message("")
+        self._set_feedback_message(message)
+        return {"ok": True, "message": message}
+
     @Slot("QVariantMap", result="QVariantMap")
     def createTask(self, payload: dict[str, object]) -> dict[str, object]:
         return self._task_list.createTask(payload)
