@@ -33,7 +33,7 @@ Item {
         spacing: 0
 
         AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { width: parent.width; text: "Overview" }
+        AppWidgets.SectionHeading { width: parent.width; label: "Overview" }
 
         Item {
             width: parent.width
@@ -105,7 +105,7 @@ Item {
         }
 
         AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { width: parent.width; text: "Details" }
+        AppWidgets.SectionHeading { width: parent.width; label: "Details" }
 
         Item {
             width: parent.width
@@ -173,7 +173,7 @@ Item {
         }
 
         AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { width: parent.width; text: "Actions" }
+        AppWidgets.SectionHeading { width: parent.width; label: "Actions" }
 
         Item {
             width: parent.width

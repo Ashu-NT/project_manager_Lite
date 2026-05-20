@@ -297,7 +297,6 @@ AppLayouts.WorkspaceFrame {
             showCreate: true
             createLabel: root.currentCreateLabel
             showRefresh: true
-            showFilter: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
@@ -307,7 +306,6 @@ AppLayouts.WorkspaceFrame {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: root.openCreateDialogForCurrentTab()
-            onFilterClicked: filterPopup.open()
         }
 
         // ── Full-width table with full-page detail view ───────────────
