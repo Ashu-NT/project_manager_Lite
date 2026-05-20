@@ -45,11 +45,8 @@ Item {
         && (root.selectedRowIds || []).length >= root.rows.length
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
-    // Fixed-width column reserved for the "Details" action button
-    readonly property int _actionColWidth: 68
-
-    // Width available for data columns (subtract checkbox + action columns)
-    readonly property real _dataWidth: (root.multiSelect ? root.width - 36 : root.width) - root._actionColWidth
+    // Width reserved for the checkbox column when multiSelect is on
+    readonly property int _checkboxColWidth: 32
 
     // Only columns where visible !== false
     readonly property var _visibleColumns: {
@@ -68,6 +65,31 @@ Item {
         }
         return total > 0 ? total : 1
     }
+
+    // Minimum data width = sum of all column minWidths (for horizontal scroll threshold)
+    readonly property real _minContentDataWidth: {
+        let w = 0
+        for (let i = 0; i < root._visibleColumns.length; i++) {
+            const col = root._visibleColumns[i]
+            w += col.minWidth !== undefined ? col.minWidth : 80
+        }
+        return w
+    }
+
+    // Viewport data width (space available for data columns)
+    readonly property real _viewportDataWidth: root.width - (root.multiSelect ? root._checkboxColWidth : 0)
+
+    // Effective data width — expands to fill viewport, never below min-content
+    readonly property real _dataWidth: Math.max(root._viewportDataWidth, root._minContentDataWidth)
+
+    // Total content width including checkbox column
+    readonly property real _effectiveContentWidth: (root.multiSelect ? root._checkboxColWidth : 0) + root._dataWidth
+
+    // Whether horizontal scrolling is needed
+    readonly property bool _needsHScroll: root._effectiveContentWidth > root.width + 1
+
+    // Current horizontal scroll offset in pixels
+    property real _scrollX: 0
 
     function _colWidth(col) {
         const minW = col.minWidth !== undefined ? col.minWidth : 80
@@ -111,7 +133,6 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 2
 
-            // Filter button
             Item {
                 id: filterBtn
                 visible: root.showFilter
@@ -163,7 +184,6 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
 
-            // Customize button
             Item {
                 id: customizeBtn
                 visible: root.columns.length > 0
@@ -221,75 +241,105 @@ Item {
         Row {
             anchors.fill: parent
 
-            // Select-all checkbox header
+            // Select-all checkbox (sticky, does not scroll)
             Item {
-                width: 36
+                width: root._checkboxColWidth
                 height: Theme.AppTheme.normalRowHeight
                 visible: root.multiSelect
 
                 CheckBox {
+                    id: _headerCheck
                     anchors.centerIn: parent
                     checkState: root._allChecked
                         ? Qt.Checked
                         : root._someChecked ? Qt.PartiallyChecked : Qt.Unchecked
                     tristate: true
+                    padding: 0
+                    spacing: 0
+
+                    indicator: Rectangle {
+                        implicitWidth: 14
+                        implicitHeight: 14
+                        radius: 2
+                        color: _headerCheck.checkState !== Qt.Unchecked ? Theme.AppTheme.accent : "transparent"
+                        border.color: _headerCheck.checkState !== Qt.Unchecked
+                            ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: _headerCheck.checkState === Qt.PartiallyChecked ? "—" : "✓"
+                            color: "white"
+                            font.pixelSize: 9
+                            font.bold: true
+                            visible: _headerCheck.checkState !== Qt.Unchecked
+                        }
+                    }
+
+                    contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
+
                     onClicked: root.selectAllToggled(!root._allChecked)
                 }
             }
 
-            // Column header cells
-            Repeater {
-                model: root._visibleColumns
+            // Scrollable column header area
+            Item {
+                width: parent.width - (root.multiSelect ? root._checkboxColWidth : 0)
+                height: Theme.AppTheme.normalRowHeight
+                clip: true
 
-                delegate: Item {
-                    id: headerCell
-                    required property var modelData
-                    required property int index
+                Row {
+                    x: -root._scrollX
+                    height: parent.height
 
-                    readonly property bool isSorted: root.sortKey === headerCell.modelData.key
+                    Repeater {
+                        model: root._visibleColumns
 
-                    width: root._colWidth(headerCell.modelData)
-                    height: Theme.AppTheme.normalRowHeight
+                        delegate: Item {
+                            id: headerCell
+                            required property var modelData
+                            required property int index
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: Theme.AppTheme.spacingSm
-                        anchors.rightMargin: Theme.AppTheme.spacingXs
-                        spacing: 3
+                            readonly property bool isSorted: root.sortKey === headerCell.modelData.key
 
-                        Label {
-                            Layout.fillWidth: true
-                            text: headerCell.modelData.label || ""
-                            color: headerCell.isSorted
-                                ? Theme.AppTheme.accent
-                                : Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: true
-                            elide: Text.ElideRight
+                            width: root._colWidth(headerCell.modelData)
+                            height: Theme.AppTheme.normalRowHeight
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.AppTheme.spacingSm
+                                anchors.rightMargin: Theme.AppTheme.spacingXs
+                                spacing: 3
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: headerCell.modelData.label || ""
+                                    color: headerCell.isSorted
+                                        ? Theme.AppTheme.accent
+                                        : Theme.AppTheme.textMuted
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    visible: headerCell.isSorted
+                                    text: root.sortDirection === Qt.AscendingOrder ? "▲" : "▼"
+                                    color: Theme.AppTheme.accent
+                                    font.pixelSize: 7
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: headerCell.modelData.sortable !== false
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: root.sortRequested(headerCell.modelData.key)
+                            }
                         }
-
-                        Text {
-                            visible: headerCell.isSorted
-                            text: root.sortDirection === Qt.AscendingOrder ? "▲" : "▼"
-                            color: Theme.AppTheme.accent
-                            font.pixelSize: 7
-                        }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        enabled: headerCell.modelData.sortable !== false
-                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: root.sortRequested(headerCell.modelData.key)
                     }
                 }
-            }
-
-            // Empty header placeholder for the action column
-            Item {
-                width: root._actionColWidth
-                height: Theme.AppTheme.normalRowHeight
             }
         }
     }
@@ -303,13 +353,33 @@ Item {
         color: Theme.AppTheme.divider
     }
 
+    // ── Horizontal scrollbar ──────────────────────────────────────────
+    ScrollBar {
+        id: _hScrollBar
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        orientation: Qt.Horizontal
+        height: root._needsHScroll ? 10 : 0
+        visible: root._needsHScroll
+        size: root._needsHScroll ? Math.min(1.0, root.width / root._effectiveContentWidth) : 1.0
+        policy: root._needsHScroll ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+
+        onPositionChanged: {
+            if (root._needsHScroll) {
+                const maxScroll = root._effectiveContentWidth - root.width
+                root._scrollX = Math.max(0, Math.min(position * root._effectiveContentWidth, maxScroll))
+            }
+        }
+    }
+
     // ── Virtualized row list ───────────────────────────────────────────
     ListView {
         id: rowList
         anchors.top: headerDivider.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.bottom: _hScrollBar.top
         clip: true
         model: root.rows
         keyNavigationEnabled: true
@@ -332,7 +402,6 @@ Item {
             }
         }
 
-        // Empty state
         AppWidgets.EmptyState {
             anchors.centerIn: parent
             visible: rowList.count === 0
@@ -374,116 +443,152 @@ Item {
                 }
             }
 
-            // Data cells row
             Row {
-                id: cellRow
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
+                anchors.right: parent.right
 
-                // Per-row checkbox
+                // Per-row checkbox (sticky, does not scroll)
                 Item {
-                    width: 36
+                    width: root._checkboxColWidth
                     height: Theme.AppTheme.compactRowHeight
                     visible: root.multiSelect
 
                     CheckBox {
+                        id: _rowCheck
                         anchors.centerIn: parent
                         checked: root._isRowChecked(rowDelegate.rowId)
+                        padding: 0
+                        spacing: 0
+
+                        indicator: Rectangle {
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 2
+                            color: _rowCheck.checked ? Theme.AppTheme.accent : "transparent"
+                            border.color: _rowCheck.checked
+                                ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+                            border.width: 1
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: "white"
+                                font.pixelSize: 9
+                                font.bold: true
+                                visible: _rowCheck.checked
+                            }
+                        }
+
+                        contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
+
                         onToggled: root.rowSelectionToggled(rowDelegate.rowId, checked)
                     }
                 }
 
-                Repeater {
-                    model: root._visibleColumns
+                // Scrollable data cells
+                Item {
+                    width: parent.width - (root.multiSelect ? root._checkboxColWidth : 0)
+                    height: Theme.AppTheme.compactRowHeight
+                    clip: true
 
-                    delegate: Item {
-                        id: cellDelegate
-                        required property var modelData
-                        required property int index
+                    Row {
+                        x: -root._scrollX
+                        height: parent.height
 
-                        readonly property var rawValue: rowDelegate.modelData[cellDelegate.modelData.key] !== undefined
-                            ? rowDelegate.modelData[cellDelegate.modelData.key]
-                            : ""
-                        readonly property string cellText: cellDelegate.rawValue !== null
-                            ? String(cellDelegate.rawValue)
-                            : ""
-                        readonly property bool isStatusCell: cellDelegate.modelData.type === "status"
-                            || cellDelegate.modelData.key === "statusLabel"
-                            || cellDelegate.modelData.key === "status"
-                            || (cellDelegate.modelData.key !== undefined
-                                && cellDelegate.modelData.key.indexOf("StatusLabel") >= 0)
-                        readonly property bool isProgressCell: cellDelegate.modelData.type === "progress"
+                        Repeater {
+                            model: root._visibleColumns
 
-                        readonly property real _progressValue: {
-                            if (!cellDelegate.isProgressCell) return 0.0
-                            const rv = cellDelegate.rawValue
-                            if (rv === null || rv === undefined || rv === "") return 0.0
-                            if (typeof rv === "object") return parseFloat(rv.value || 0)
-                            return parseFloat(rv) || 0.0
-                        }
-                        readonly property string _progressLabel: {
-                            if (!cellDelegate.isProgressCell) return ""
-                            const rv = cellDelegate.rawValue
-                            if (rv !== null && rv !== undefined && typeof rv === "object")
-                                return String(rv.label || "")
-                            return ""
-                        }
+                            delegate: Item {
+                                id: cellDelegate
+                                required property var modelData
+                                required property int index
 
-                        width: root._colWidth(cellDelegate.modelData)
-                        height: Theme.AppTheme.compactRowHeight
+                                readonly property var rawValue: rowDelegate.modelData[cellDelegate.modelData.key] !== undefined
+                                    ? rowDelegate.modelData[cellDelegate.modelData.key]
+                                    : ""
+                                readonly property string cellText: cellDelegate.rawValue !== null
+                                    ? String(cellDelegate.rawValue)
+                                    : ""
+                                readonly property bool isStatusCell: cellDelegate.modelData.type === "status"
+                                    || cellDelegate.modelData.key === "statusLabel"
+                                    || cellDelegate.modelData.key === "status"
+                                    || (cellDelegate.modelData.key !== undefined
+                                        && cellDelegate.modelData.key.indexOf("StatusLabel") >= 0)
+                                readonly property bool isProgressCell: cellDelegate.modelData.type === "progress"
 
-                        AppWidgets.StatusChip {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.leftMargin: Theme.AppTheme.spacingSm
-                            visible: cellDelegate.isStatusCell && cellDelegate.cellText.length > 0
-                            status: cellDelegate.cellText
-                        }
+                                readonly property real _progressValue: {
+                                    if (!cellDelegate.isProgressCell) return 0.0
+                                    const rv = cellDelegate.rawValue
+                                    if (rv === null || rv === undefined || rv === "") return 0.0
+                                    if (typeof rv === "object") return parseFloat(rv.value || 0)
+                                    return parseFloat(rv) || 0.0
+                                }
+                                readonly property string _progressLabel: {
+                                    if (!cellDelegate.isProgressCell) return ""
+                                    const rv = cellDelegate.rawValue
+                                    if (rv !== null && rv !== undefined && typeof rv === "object")
+                                        return String(rv.label || "")
+                                    return ""
+                                }
 
-                        Item {
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.leftMargin: Theme.AppTheme.spacingSm
-                            anchors.rightMargin: Theme.AppTheme.spacingSm
-                            height: 20
-                            visible: cellDelegate.isProgressCell
+                                width: root._colWidth(cellDelegate.modelData)
+                                height: Theme.AppTheme.compactRowHeight
 
-                            AppWidgets.ProgressBar {
-                                id: progressFill
-                                anchors.left: parent.left
-                                anchors.right: progressPct.visible ? progressPct.left : parent.right
-                                anchors.rightMargin: progressPct.visible ? Theme.AppTheme.spacingXs : 0
-                                anchors.verticalCenter: parent.verticalCenter
-                                value: cellDelegate._progressValue
+                                AppWidgets.StatusChip {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: Theme.AppTheme.spacingSm
+                                    visible: cellDelegate.isStatusCell && cellDelegate.cellText.length > 0
+                                    status: cellDelegate.cellText
+                                }
+
+                                Item {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.leftMargin: Theme.AppTheme.spacingSm
+                                    anchors.rightMargin: Theme.AppTheme.spacingSm
+                                    height: 20
+                                    visible: cellDelegate.isProgressCell
+
+                                    AppWidgets.ProgressBar {
+                                        id: progressFill
+                                        anchors.left: parent.left
+                                        anchors.right: progressPct.visible ? progressPct.left : parent.right
+                                        anchors.rightMargin: progressPct.visible ? Theme.AppTheme.spacingXs : 0
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        value: cellDelegate._progressValue
+                                    }
+
+                                    Label {
+                                        id: progressPct
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        visible: cellDelegate._progressLabel !== ""
+                                        text: cellDelegate._progressLabel
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                    }
+                                }
+
+                                Label {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: Theme.AppTheme.spacingSm
+                                    anchors.rightMargin: Theme.AppTheme.spacingXs
+                                    visible: !cellDelegate.isStatusCell && !cellDelegate.isProgressCell
+                                    text: cellDelegate.cellText
+                                    verticalAlignment: Text.AlignVCenter
+                                    color: rowDelegate.isHighlighted
+                                        ? Theme.AppTheme.textPrimary
+                                        : Theme.AppTheme.textSecondary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    elide: Text.ElideRight
+                                }
                             }
-
-                            Label {
-                                id: progressPct
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                visible: cellDelegate._progressLabel !== ""
-                                text: cellDelegate._progressLabel
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                            }
-                        }
-
-                        Label {
-                            anchors.fill: parent
-                            anchors.leftMargin: Theme.AppTheme.spacingSm
-                            anchors.rightMargin: Theme.AppTheme.spacingXs
-                            visible: !cellDelegate.isStatusCell && !cellDelegate.isProgressCell
-                            text: cellDelegate.cellText
-                            verticalAlignment: Text.AlignVCenter
-                            color: rowDelegate.isHighlighted
-                                ? Theme.AppTheme.textPrimary
-                                : Theme.AppTheme.textSecondary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -498,13 +603,14 @@ Item {
                 color: Theme.AppTheme.divider
             }
 
-            // Row hover/click — covers data area only (not the action column)
+            // Row click — starts after the checkbox column so checkboxes handle their own clicks
             MouseArea {
                 id: rowHover
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
-                width: parent.width - root._actionColWidth
+                anchors.leftMargin: root.multiSelect ? root._checkboxColWidth : 0
+                anchors.right: parent.right
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
@@ -514,41 +620,6 @@ Item {
                     rowList.currentIndex = rowDelegate.index
                 }
                 onDoubleClicked: root.rowActivated(rowDelegate.rowId)
-            }
-
-            // "Details" action button — right-side fixed column
-            Item {
-                id: actionCell
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: root._actionColWidth
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "Details"
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    font.family: Theme.AppTheme.fontFamily
-                    font.bold: true
-                    color: rowHover.containsMouse || rowDelegate.isHighlighted
-                        ? Theme.AppTheme.accent
-                        : Theme.AppTheme.textMuted
-                    opacity: rowHover.containsMouse || rowDelegate.isHighlighted ? 1.0 : 0.40
-
-                    Behavior on opacity {
-                        NumberAnimation { duration: 120 }
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.selectedRowId = rowDelegate.rowId
-                        root.rowSelected(rowDelegate.rowId)
-                        root.viewDetailRequested(rowDelegate.rowId)
-                    }
-                }
             }
         }
     }
