@@ -11,31 +11,8 @@ ROOT = REPO_ROOT
 SRC_ROOT = ROOT / "src"
 UI_QML_ROOT = SRC_ROOT / "ui_qml"
 CORE_ROOT = SRC_ROOT / "core"
-LEGACY_PLATFORM_MODULE_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "modules" / "tab.py"
-LEGACY_PLATFORM_ORGANIZATION_TAB = (
-    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "organizations" / "tab.py"
-)
-LEGACY_PLATFORM_SITE_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "sites" / "tab.py"
-LEGACY_PLATFORM_DEPARTMENT_TAB = (
-    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "departments" / "tab.py"
-)
-LEGACY_PLATFORM_EMPLOYEE_TAB = (
-    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "employees" / "tab.py"
-)
-LEGACY_PLATFORM_USER_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "users" / "tab.py"
-LEGACY_PLATFORM_DOCUMENT_TAB = (
-    SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "documents" / "tab.py"
-)
-LEGACY_PLATFORM_PARTY_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "parties" / "tab.py"
-LEGACY_PLATFORM_ACCESS_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "admin" / "access" / "tab.py"
-LEGACY_PLATFORM_APPROVAL_TAB = (
-    SRC_ROOT / "ui" / "platform" / "workspaces" / "control" / "approvals" / "tab.py"
-)
-LEGACY_PLATFORM_APPROVAL_QUEUE = (
-    SRC_ROOT / "ui" / "platform" / "workspaces" / "control" / "approvals" / "queue.py"
-)
-LEGACY_PLATFORM_AUDIT_TAB = SRC_ROOT / "ui" / "platform" / "workspaces" / "control" / "audit" / "tab.py"
-LEGACY_PLATFORM_HOME_TAB = SRC_ROOT / "ui" / "shell" / "platform" / "home.py"
+LEGACY_SRC_UI_ROOT = SRC_ROOT / "ui"
+LEGACY_TOPLEVEL_UI_ROOT = ROOT / "ui"
 PLATFORM_ADMIN_CONSOLE_CONTROLLER = (
     UI_QML_ROOT / "platform" / "controllers" / "admin" / "admin_console_controller.py"
 )
@@ -523,7 +500,6 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksCollaborationSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksDependenciesSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksDialogHost.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksFiltersSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksTimeEntriesSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskAssignmentEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskAssignmentHoursDialog.qml",
@@ -601,120 +577,6 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     assert 'type "QObject"' not in output, output
 
 
-def test_legacy_platform_modules_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_MODULE_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformRuntimeDesktopApi" in text
-    assert "PlatformRuntimeApplicationService" not in text
-    assert "_platform_runtime_application_service" not in text
-
-
-def test_legacy_platform_organizations_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_ORGANIZATION_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformRuntimeDesktopApi" in text
-    assert "PlatformRuntimeApplicationService" not in text
-    assert "OrganizationService" not in text
-    assert "_organization_service" not in text
-
-
-def test_legacy_platform_home_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_HOME_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformRuntimeDesktopApi" in text
-    assert "PlatformRuntimeApplicationService" not in text
-    assert "_platform_runtime_application_service" not in text
-
-
-def test_legacy_platform_sites_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_SITE_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformSiteDesktopApi" in text
-    assert "SiteService" not in text
-    assert "_site_service" not in text
-
-
-def test_legacy_platform_departments_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_DEPARTMENT_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformDepartmentDesktopApi" in text
-    assert "PlatformSiteDesktopApi" in text
-    assert "DepartmentService" not in text
-    assert "SiteService" not in text
-    assert "_department_service" not in text
-    assert "_site_service" not in text
-
-
-def test_legacy_platform_employees_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_EMPLOYEE_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformEmployeeDesktopApi" in text
-    assert "PlatformDepartmentDesktopApi" in text
-    assert "PlatformSiteDesktopApi" in text
-    assert "EmployeeService" not in text
-    assert "DepartmentService" not in text
-    assert "SiteService" not in text
-    assert "_employee_service" not in text
-    assert "_department_service" not in text
-    assert "_site_service" not in text
-
-
-def test_legacy_platform_users_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_USER_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformUserDesktopApi" in text
-    assert "AuthService" not in text
-    assert "_auth_service" not in text
-
-
-def test_legacy_platform_documents_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_DOCUMENT_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformDocumentDesktopApi" in text
-    assert "DocumentService" not in text
-    assert "_document_service" not in text
-
-
-def test_legacy_platform_parties_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_PARTY_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformPartyDesktopApi" in text
-    assert "PartyService" not in text
-    assert "_party_service" not in text
-
-
-def test_legacy_platform_access_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_ACCESS_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformAccessDesktopApi" in text
-    assert "PlatformUserDesktopApi" in text
-    assert "AccessControlService" not in text
-    assert "AuthService" not in text
-    assert "_access_service" not in text
-    assert "_auth_service" not in text
-
-
-def test_legacy_platform_approvals_tab_uses_desktop_api_boundary() -> None:
-    tab_text = LEGACY_PLATFORM_APPROVAL_TAB.read_text(encoding="utf-8", errors="ignore")
-    queue_text = LEGACY_PLATFORM_APPROVAL_QUEUE.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformApprovalDesktopApi" in tab_text
-    assert "ApprovalService" not in tab_text
-    assert "_approval_service" not in tab_text
-    assert "PlatformApprovalDesktopApi" in queue_text
-    assert "ApprovalService" not in queue_text
-    assert "_approval_service" not in queue_text
-
-
-def test_legacy_platform_audit_tab_uses_desktop_api_boundary() -> None:
-    text = LEGACY_PLATFORM_AUDIT_TAB.read_text(encoding="utf-8", errors="ignore")
-
-    assert "PlatformAuditDesktopApi" in text
-    assert "AuditService" not in text
-    assert "ProjectService" not in text
-    assert "TaskService" not in text
-    assert "ResourceService" not in text
-    assert "CostService" not in text
-    assert "BaselineService" not in text
-    assert "_audit_service" not in text
-    assert "_project_service" not in text
+def test_legacy_widget_ui_roots_are_removed() -> None:
+    assert not LEGACY_SRC_UI_ROOT.exists()
+    assert not LEGACY_TOPLEVEL_UI_ROOT.exists()

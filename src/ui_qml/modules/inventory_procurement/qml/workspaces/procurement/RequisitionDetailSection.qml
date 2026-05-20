@@ -90,24 +90,26 @@ Item {
         Repeater {
             model: root.requisitionDetail.fields || []
 
-            delegate: Rectangle {
-                id: fieldCard
+            delegate: Item {
+                id: fieldRow
                 required property var modelData
 
                 Layout.fillWidth: true
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceAlt
-                implicitHeight: fieldLayout.implicitHeight + (Theme.AppTheme.marginMd * 2)
+                implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd + 1
 
                 ColumnLayout {
                     id: fieldLayout
-                    anchors.fill: parent
-                    anchors.margins: Theme.AppTheme.marginMd
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.leftMargin: Theme.AppTheme.spacingSm
+                    anchors.rightMargin: Theme.AppTheme.spacingSm
+                    anchors.topMargin: Theme.AppTheme.spacingSm
                     spacing: Theme.AppTheme.spacingXs
 
                     Label {
                         Layout.fillWidth: true
-                        text: String(fieldCard.modelData.label || "")
+                        text: String(fieldRow.modelData.label || "")
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -116,12 +118,20 @@ Item {
 
                     Label {
                         Layout.fillWidth: true
-                        text: String(fieldCard.modelData.value || "")
+                        text: String(fieldRow.modelData.value || "")
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.bodySize
                         wrapMode: Text.WordWrap
                     }
+                }
+
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 1
+                    color: Theme.AppTheme.divider
                 }
             }
         }
@@ -131,13 +141,13 @@ Item {
             visible: String(root.requisitionDetail.id || "").length > 0
             spacing: Theme.AppTheme.spacingSm
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Edit"
                 enabled: !root.isBusy && !!(root.requisitionDetail.state && root.requisitionDetail.state.canEdit)
                 onClicked: root.editRequested()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Add Line"
                 enabled: !root.isBusy && !!(root.requisitionDetail.state && root.requisitionDetail.state.canAddLine)
                 onClicked: root.addLineRequested()
@@ -149,7 +159,7 @@ Item {
                 onClicked: root.submitRequested()
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Cancel"
                 danger: true
                 enabled: !root.isBusy && !!(root.requisitionDetail.state && root.requisitionDetail.state.canCancel)

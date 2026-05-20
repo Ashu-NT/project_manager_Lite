@@ -218,8 +218,13 @@ Dialog {
     footer: RowLayout {
         spacing: Theme.AppTheme.spacingSm
         Item { Layout.fillWidth: true }
-        Button { text: "Cancel"; onClicked: root.close() }
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
+            text: "Cancel"
+            onClicked: root.close()
+        }
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: root.modeTitle === "Create Component" ? "Create Component" : "Save Changes"
             onClicked: root.submitDialog()
         }

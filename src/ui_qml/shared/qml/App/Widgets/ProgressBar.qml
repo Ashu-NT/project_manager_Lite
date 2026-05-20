@@ -24,9 +24,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 3
-        color: Theme.AppTheme.surfaceAlt
-        border.color: Theme.AppTheme.subtleBorder
-        border.width: 1
+        color: Theme.AppTheme.surfaceSunken
     }
 
     // Fill

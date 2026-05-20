@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
 Dialog {
@@ -73,12 +74,14 @@ Dialog {
             Layout.fillWidth: true
         }
 
-        Button {
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             text: "Cancel"
             onClicked: root.close()
         }
 
-        Button {
+        AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: "Link"
             enabled: root.documentOptions.length > 0
             onClicked: root.submitDialog()

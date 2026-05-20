@@ -9,6 +9,7 @@ Module {
         Property { name: "appTitle"; type: "QString"; isReadonly: true }
         Property { name: "currentRouteId"; type: "QString"; isReadonly: true }
         Property { name: "currentRouteSource"; type: "QString"; isReadonly: true }
+        Property { name: "currentRouteTitle"; type: "QString"; isReadonly: true }
         Property { name: "navigationItems"; type: "QVariantList"; isReadonly: true }
         Property { name: "themeMode"; type: "QString"; isReadonly: true }
         Property { name: "userDisplayName"; type: "QString"; isReadonly: true }

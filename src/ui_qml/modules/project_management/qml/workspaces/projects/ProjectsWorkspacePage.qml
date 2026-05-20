@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -125,12 +126,14 @@ AppLayouts.WorkspaceFrame {
             searchPlaceholder: "Search projects…"
             showCreate: true
             createLabel: "New Project"
+            showFilter: true
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
             }
+            onFilterClicked: filterPopup.open()
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
@@ -149,9 +152,7 @@ AppLayouts.WorkspaceFrame {
                 columns: root._tableColumns
                 rows: root.projectsModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                showFilter: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
                 }
@@ -174,7 +175,12 @@ AppLayouts.WorkspaceFrame {
                 y: 30
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                Column {
+                background: Rectangle {
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceRaised
+                }
+
+                ColumnLayout {
                     width: parent.width
                     spacing: 8
 
@@ -187,7 +193,7 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -200,6 +206,31 @@ AppLayouts.WorkspaceFrame {
                                 : null
                             if (opt && root.workspaceController)
                                 root.workspaceController.setStatusFilter(String(opt.value || "all"))
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.SecondaryButton {
+                            text: "Clear"
+                            onClicked: {
+                                if (root.workspaceController !== null) {
+                                    root.workspaceController.setStatusFilter("all")
+                                }
+                                filterPopup.close()
+                            }
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                        }
+
+                        AppControls.SecondaryButton {
+                            text: "Close"
+                            implicitWidth: 88
+                            onClicked: filterPopup.close()
                         }
                     }
                 }

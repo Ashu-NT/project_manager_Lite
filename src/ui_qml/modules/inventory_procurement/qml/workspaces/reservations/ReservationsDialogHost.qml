@@ -1,5 +1,8 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
+import App.Theme 1.0 as Theme
 import InventoryProcurement.Dialogs 1.0 as InventoryDialogs
 
 Item {
@@ -52,6 +55,7 @@ Item {
 
     InventoryDialogs.ReservationCreateDialog {
         id: createDialog
+        objectName: "reservationCreateDialog"
 
         itemOptions: root.itemOptions
         storeroomOptions: root.storeroomOptions
@@ -64,6 +68,7 @@ Item {
 
     InventoryDialogs.ReservationIssueDialog {
         id: issueDialog
+        objectName: "reservationIssueDialog"
 
         onSubmitted: function(payload) {
             root.issueReservationRequested(payload)
@@ -73,14 +78,34 @@ Item {
 
     Dialog {
         id: confirmationDialog
+        objectName: "reservationConfirmationDialog"
 
         modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
 
         contentItem: Label {
             id: confirmationMessage
             text: ""
             wrapMode: Text.WordWrap
+        }
+
+        footer: RowLayout {
+            spacing: Theme.AppTheme.spacingSm
+
+            Item {
+                Layout.fillWidth: true
+            }
+
+            AppControls.SecondaryButton {
+                objectName: "dialogCancelButton"
+                text: "Cancel"
+                onClicked: confirmationDialog.close()
+            }
+
+            AppControls.PrimaryButton {
+                objectName: "dialogSubmitButton"
+                text: root.confirmationMode === "cancel" ? "Cancel Reservation" : "Release Reservation"
+                onClicked: confirmationDialog.accept()
+            }
         }
 
         onAccepted: {

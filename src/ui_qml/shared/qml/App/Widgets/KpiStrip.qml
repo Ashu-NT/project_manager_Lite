@@ -9,20 +9,18 @@ Item {
 
     property var metrics: []
 
-    implicitHeight: 48
+    implicitHeight: Theme.AppTheme.normalRowHeight + Theme.AppTheme.spacingMd
     visible: root.metrics.length > 0
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.AppTheme.surface
-        border.color: Theme.AppTheme.subtleBorder
-        border.width: 1
+        color: Theme.AppTheme.surfaceRaised
         radius: Theme.AppTheme.radiusMd
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: Theme.AppTheme.spacingMd
-            anchors.rightMargin: Theme.AppTheme.spacingMd
+            anchors.leftMargin: Theme.AppTheme.marginMd
+            anchors.rightMargin: Theme.AppTheme.marginMd
             spacing: 0
 
             Repeater {
@@ -80,7 +78,7 @@ Item {
                                     return Theme.AppTheme.textPrimary
                                 }
                                 font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.sectionTitleSize
+                                font.pixelSize: Theme.AppTheme.bodySize
                                 font.bold: true
                             }
 

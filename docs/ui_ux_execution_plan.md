@@ -182,8 +182,8 @@ Files: `src/ui_qml/platform/qml/workspaces/**/*.qml`
 -  RegisterFiltersSection — Item root, filter controls only
 
 ### 5.2 PM Workspace sections  [DONE]
--  ProjectsDetailSection, ProjectsFiltersSection — Item root, StatusChip
--  TasksDetailSection, TasksFiltersSection, TasksCatalogSection — Item root, StatusChip
+-  ProjectsWorkspacePage + ProjectsDetailSection — live page owns KPI/table/filter/detail composition; obsolete local metrics/filter/catalog helpers removed
+-  TasksWorkspacePage + TasksDetailPanel — live page owns KPI/table/filter/detail composition; obsolete local metrics/filter/catalog/detail helpers removed
 -  DashboardSelectionBar — Item root
 -  All 19 remaining workspace sections (scheduling, resources, portfolio, financials, timesheets, collaboration, etc.) — Item root via batch transform
 

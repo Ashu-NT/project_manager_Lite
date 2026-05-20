@@ -91,19 +91,19 @@ Item {
                 }
             }
 
-            Button {
+            AppControls.SecondaryButton {
                 text: "Select Visible"
                 enabled: !root.isBusy && root.visibleTaskCount > 0
                 onClicked: root.selectVisibleRequested()
             }
 
-            Button {
+            AppControls.SecondaryButton {
                 text: "Clear"
                 enabled: !root.isBusy && root.selectedTaskCount > 0
                 onClicked: root.clearRequested()
             }
 
-            Button {
+            AppControls.SecondaryButton {
                 text: "Undo"
                 enabled: !root.isBusy && root.canUndoTaskAction
                 onClicked: root.undoRequested()
@@ -112,7 +112,7 @@ Item {
                 ToolTip.text: root.undoLabel
             }
 
-            Button {
+            AppControls.SecondaryButton {
                 text: "Redo"
                 enabled: !root.isBusy && root.canRedoTaskAction
                 onClicked: root.redoRequested()
@@ -170,7 +170,7 @@ Item {
                 })
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 text: "Bulk Delete"
                 danger: true
                 enabled: !root.isBusy && root.selectedTaskCount > 1

@@ -39,6 +39,7 @@ Item {
 
     MaintenanceDialogs.WorkOrderEditorDialog {
         id: editorDialog
+        objectName: "workOrderEditorDialog"
 
         siteOptions: root.siteOptions
         locationOptions: root.locationOptions
@@ -63,6 +64,7 @@ Item {
 
     MaintenanceDialogs.WorkOrderStatusDialog {
         id: statusDialog
+        objectName: "workOrderStatusDialog"
 
         statusOptions: root.statusOptions
 

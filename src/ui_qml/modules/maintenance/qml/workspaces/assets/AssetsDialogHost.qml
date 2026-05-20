@@ -77,6 +77,7 @@ Item {
 
     MaintenanceDialogs.LocationEditorDialog {
         id: locationEditor
+        objectName: "locationEditorDialog"
 
         siteOptions: root.siteOptions
         parentLocationOptions: root.parentLocationOptions
@@ -95,6 +96,7 @@ Item {
 
     MaintenanceDialogs.SystemEditorDialog {
         id: systemEditor
+        objectName: "systemEditorDialog"
 
         siteOptions: root.siteOptions
         locationOptions: root.locationOptions
@@ -114,6 +116,7 @@ Item {
 
     MaintenanceDialogs.AssetEditorDialog {
         id: assetEditor
+        objectName: "assetEditorDialog"
 
         siteOptions: root.siteOptions
         locationOptions: root.locationOptions
@@ -136,6 +139,7 @@ Item {
 
     MaintenanceDialogs.ComponentEditorDialog {
         id: componentEditor
+        objectName: "componentEditorDialog"
 
         assetOptions: root.assetOptions
         parentComponentOptions: root.parentComponentOptions

@@ -8,7 +8,7 @@ Rectangle {
     property bool loading: false
 
     visible: root.loading
-    color: Qt.rgba(Theme.AppTheme.surface.r, Theme.AppTheme.surface.g, Theme.AppTheme.surface.b, 0.75)
+    color: Theme.AppTheme.overlayScrim
 
     BusyIndicator {
         anchors.centerIn: parent

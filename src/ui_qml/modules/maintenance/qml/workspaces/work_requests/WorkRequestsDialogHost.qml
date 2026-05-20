@@ -36,6 +36,7 @@ Item {
 
     MaintenanceDialogs.WorkRequestEditorDialog {
         id: editorDialog
+        objectName: "workRequestEditorDialog"
 
         siteOptions: root.siteOptions
         locationOptions: root.locationOptions
@@ -57,6 +58,7 @@ Item {
 
     MaintenanceDialogs.WorkRequestStatusDialog {
         id: statusDialog
+        objectName: "workRequestStatusDialog"
 
         statusOptions: root.statusOptions
 

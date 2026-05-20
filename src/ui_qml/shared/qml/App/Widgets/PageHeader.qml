@@ -6,26 +6,40 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
+    property string eyebrow: ""
     property string title: ""
     property string subtitle: ""
+    property bool showDivider: true
     default property alias actions: actionSlot.data
 
-    implicitHeight: headerRow.implicitHeight + Theme.AppTheme.spacingMd
+    implicitHeight: headerBlock.implicitHeight + (root.showDivider ? Theme.AppTheme.spacingMd : 0)
 
     ColumnLayout {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        spacing: 2
+        spacing: Theme.AppTheme.spacingSm
 
         RowLayout {
-            id: headerRow
+            id: headerBlock
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
+            spacing: Theme.AppTheme.spacingLg
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 2
+                spacing: 3
+
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.eyebrow.length > 0
+                    text: root.eyebrow.toUpperCase()
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                    font.letterSpacing: 0.8
+                    elide: Text.ElideRight
+                }
 
                 Label {
                     Layout.fillWidth: true
@@ -59,6 +73,7 @@ Item {
             Layout.fillWidth: true
             height: 1
             color: Theme.AppTheme.divider
+            visible: root.showDivider
         }
     }
 }

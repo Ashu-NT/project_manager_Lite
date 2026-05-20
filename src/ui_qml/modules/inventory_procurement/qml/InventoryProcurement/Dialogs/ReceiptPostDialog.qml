@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQml
+import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
 Dialog {
@@ -241,12 +242,14 @@ Dialog {
 
         Item { Layout.fillWidth: true }
 
-        Button {
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             text: "Cancel"
             onClicked: root.close()
         }
 
-        Button {
+        AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: "Post Receipt"
             onClicked: root.submitDialog()
         }

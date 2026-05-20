@@ -7,8 +7,8 @@ Button {
 
     property bool danger: false
 
-    implicitHeight: 38
-    implicitWidth: Math.max(132, contentItem.implicitWidth + 32)
+    implicitHeight: Theme.AppTheme.toolbarHeight
+    implicitWidth: Math.max(120, contentItem.implicitWidth + 28)
 
     contentItem: Label {
         horizontalAlignment: Text.AlignHCenter
@@ -17,11 +17,11 @@ Button {
         color: "#FFFFFF"
         font.family: Theme.AppTheme.fontFamily
         font.bold: true
-        font.pixelSize: Theme.AppTheme.bodySize
+        font.pixelSize: Theme.AppTheme.smallSize
     }
 
     background: Rectangle {
-        radius: Theme.AppTheme.radiusMd
+        radius: Theme.AppTheme.radiusSm
         color: control.danger
             ? Theme.AppTheme.danger
             : control.down
@@ -29,5 +29,7 @@ Button {
                 : control.hovered
                     ? Theme.AppTheme.accentHover
                     : Theme.AppTheme.accent
+        border.color: control.activeFocus ? Theme.AppTheme.focusBorder : "transparent"
+        border.width: control.activeFocus ? 1 : 0
     }
 }

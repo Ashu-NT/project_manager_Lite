@@ -98,7 +98,7 @@ Item {
                 }
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 Layout.alignment: Qt.AlignBottom
                 enabled: !root.isLoading
                 text: "Refresh"

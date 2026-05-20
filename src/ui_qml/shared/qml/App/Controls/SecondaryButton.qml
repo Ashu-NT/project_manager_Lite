@@ -7,27 +7,35 @@ Button {
 
     property bool danger: false
 
-    implicitHeight: 38
-    implicitWidth: Math.max(132, contentItem.implicitWidth + 32)
+    implicitHeight: Theme.AppTheme.toolbarHeight
+    implicitWidth: Math.max(108, contentItem.implicitWidth + 28)
 
     contentItem: Label {
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         text: control.text
-        color: control.danger ? Theme.AppTheme.danger : Theme.AppTheme.accent
+        color: control.danger
+            ? Theme.AppTheme.danger
+            : control.down || control.hovered || control.activeFocus
+                ? Theme.AppTheme.accent
+                : Theme.AppTheme.textSecondary
         font.family: Theme.AppTheme.fontFamily
         font.bold: true
-        font.pixelSize: Theme.AppTheme.bodySize
+        font.pixelSize: Theme.AppTheme.smallSize
     }
 
     background: Rectangle {
-        radius: Theme.AppTheme.radiusMd
+        radius: Theme.AppTheme.radiusSm
         color: control.down
-            ? Qt.rgba(Theme.AppTheme.accent.r, Theme.AppTheme.accent.g, Theme.AppTheme.accent.b, 0.08)
+            ? Theme.AppTheme.hoverSurface
             : control.hovered
-                ? Qt.rgba(Theme.AppTheme.accent.r, Theme.AppTheme.accent.g, Theme.AppTheme.accent.b, 0.05)
-                : "transparent"
-        border.color: control.danger ? Theme.AppTheme.danger : Theme.AppTheme.accent
-        border.width: 1.5
+                ? Theme.AppTheme.surfaceOverlay
+                : Theme.AppTheme.surfaceRaised
+        border.color: control.danger
+            ? Theme.AppTheme.danger
+            : control.activeFocus || control.hovered
+                ? Theme.AppTheme.focusBorder
+                : Theme.AppTheme.subtleBorder
+        border.width: 1
     }
 }

@@ -174,7 +174,7 @@ Item {
                             visible: rowDelegate.hasActions
                             spacing: Theme.AppTheme.spacingSm
 
-                            AppControls.PrimaryButton {
+                            AppControls.SecondaryButton {
                                 visible: root.primaryActionLabel.length > 0
                                     && (rowDelegate.modelData.canPrimaryAction ?? true)
                                 enabled: root.actionsEnabled

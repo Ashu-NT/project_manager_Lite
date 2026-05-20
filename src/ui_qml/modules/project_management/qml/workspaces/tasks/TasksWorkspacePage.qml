@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -216,12 +217,14 @@ AppLayouts.WorkspaceFrame {
             searchPlaceholder: "Search tasks…"
             showCreate: true
             createLabel: "New Task"
+            showFilter: true
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
             }
+            onFilterClicked: filterPopup.open()
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
@@ -278,9 +281,7 @@ AppLayouts.WorkspaceFrame {
                 rows: root.tasksModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
                 selectedRowIds: root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
-                showFilter: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectTask(rowId)
                 }
@@ -313,7 +314,12 @@ AppLayouts.WorkspaceFrame {
                 y: 30
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                Column {
+                background: Rectangle {
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceRaised
+                }
+
+                ColumnLayout {
                     width: parent.width
                     spacing: 8
 
@@ -325,7 +331,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -344,7 +350,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -363,7 +369,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.priorityOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -382,7 +388,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.scheduleOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -401,7 +407,7 @@ AppLayouts.WorkspaceFrame {
                         color: Theme.AppTheme.textMuted
                     }
                     ComboBox {
-                        width: parent.width
+                        Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
@@ -412,56 +418,25 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Row {
-                        width: parent.width
-                        spacing: 8
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingSm
 
-                        Rectangle {
-                            width: (parent.width - 8) / 2
-                            height: 28
-                            radius: Theme.AppTheme.radiusSm
-                            color: clearHover.containsMouse ? Theme.AppTheme.hoverSurface : Theme.AppTheme.surfaceAlt
-                            border.color: Theme.AppTheme.border
-                            Label {
-                                anchors.centerIn: parent
-                                text: "Clear"
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: Theme.AppTheme.textSecondary
-                            }
-                            MouseArea {
-                                id: clearHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (root.workspaceController !== null) root.workspaceController.clearFilters()
-                                    filterPopup.close()
-                                }
+                        AppControls.SecondaryButton {
+                            Layout.fillWidth: true
+                            text: "Clear"
+                            onClicked: {
+                                if (root.workspaceController !== null) root.workspaceController.clearFilters()
+                                filterPopup.close()
                             }
                         }
 
-                        Rectangle {
-                            width: (parent.width - 8) / 2
-                            height: 28
-                            radius: Theme.AppTheme.radiusSm
-                            color: applyHover.containsMouse ? Theme.AppTheme.accentHover : Theme.AppTheme.accent
-                            Label {
-                                anchors.centerIn: parent
-                                text: "Apply View"
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family: Theme.AppTheme.fontFamily
-                                color: "white"
-                            }
-                            MouseArea {
-                                id: applyHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (root.workspaceController !== null) root.workspaceController.applySelectedTaskView()
-                                    filterPopup.close()
-                                }
+                        AppControls.PrimaryButton {
+                            Layout.fillWidth: true
+                            text: "Apply View"
+                            onClicked: {
+                                if (root.workspaceController !== null) root.workspaceController.applySelectedTaskView()
+                                filterPopup.close()
                             }
                         }
                     }

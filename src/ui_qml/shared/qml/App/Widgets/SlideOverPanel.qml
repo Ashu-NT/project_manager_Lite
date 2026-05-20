@@ -18,7 +18,7 @@ Item {
     Rectangle {
         id: scrim
         anchors.fill: parent
-        color: "#40000000"
+        color: Theme.AppTheme.overlayScrim
         opacity: root.open ? 1 : 0
         visible: opacity > 0
         z: 9
@@ -40,10 +40,16 @@ Item {
         anchors.bottom: parent.bottom
         width: root.panelWidth
         x: root.open ? parent.width - root.panelWidth : parent.width
-        color: Theme.AppTheme.surface
-        border.color: Theme.AppTheme.border
-        border.width: 1
+        color: Theme.AppTheme.surfaceRaised
         z: 10
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 1
+            color: Theme.AppTheme.divider
+        }
 
         Behavior on x {
             NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
@@ -53,11 +59,10 @@ Item {
             anchors.fill: parent
             spacing: 0
 
-            // 44px header strip
             Rectangle {
                 Layout.fillWidth: true
-                height: 44
-                color: Theme.AppTheme.surfaceAlt
+                height: Theme.AppTheme.panelHeaderHeight
+                color: Theme.AppTheme.surfaceRaised
 
                 Rectangle {
                     anchors.left: parent.left
@@ -70,7 +75,7 @@ Item {
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: Theme.AppTheme.marginMd
-                    anchors.rightMargin: Theme.AppTheme.spacingSm
+                    anchors.rightMargin: Theme.AppTheme.marginMd
                     spacing: Theme.AppTheme.spacingSm
 
                     Label {
@@ -84,12 +89,12 @@ Item {
                     }
 
                     Rectangle {
-                        width: 28
-                        height: 28
+                        width: Theme.AppTheme.inputHeight
+                        height: Theme.AppTheme.inputHeight
                         radius: Theme.AppTheme.radiusSm
                         color: closeHover.containsMouse
                             ? Theme.AppTheme.hoverSurface
-                            : "transparent"
+                            : Theme.AppTheme.surfaceOverlay
 
                         Label {
                             anchors.centerIn: parent

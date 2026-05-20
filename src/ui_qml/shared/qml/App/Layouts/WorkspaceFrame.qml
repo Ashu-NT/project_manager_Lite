@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
@@ -11,10 +10,15 @@ Item {
     property string title: ""
     property string subtitle: ""
 
+    Rectangle {
+        anchors.fill: parent
+        color: Theme.AppTheme.workspaceBackground
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
-        spacing: Theme.AppTheme.spacingMd
+        anchors.margins: Theme.AppTheme.pagePadding
+        spacing: Theme.AppTheme.sectionGap
 
         AppWidgets.PageHeader {
             Layout.fillWidth: true

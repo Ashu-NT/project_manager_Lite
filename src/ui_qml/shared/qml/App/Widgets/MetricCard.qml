@@ -11,13 +11,13 @@ Rectangle {
     property string supportingText: ""
 
     radius: Theme.AppTheme.radiusMd
-    color: Theme.AppTheme.surface
+    color: Theme.AppTheme.surfaceRaised
     implicitWidth: 220
-    implicitHeight: 132
+    implicitHeight: 124
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.AppTheme.marginLg
+        anchors.margins: Theme.AppTheme.marginMd
         spacing: Theme.AppTheme.spacingSm
 
         Label {
@@ -25,8 +25,9 @@ Rectangle {
             text: root.label
             color: Theme.AppTheme.textMuted
             font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
+            font.pixelSize: Theme.AppTheme.captionSize
             font.bold: true
+            font.letterSpacing: 0.5
             elide: Text.ElideRight
         }
 
@@ -35,7 +36,7 @@ Rectangle {
             text: root.value
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: 28
+            font.pixelSize: 26
             font.bold: true
             elide: Text.ElideRight
         }
@@ -47,6 +48,17 @@ Rectangle {
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.smallSize
             wrapMode: Text.WordWrap
+        }
+
+        Item {
+            Layout.fillHeight: true
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 3
+            radius: 2
+            color: Theme.AppTheme.accentSoft
         }
     }
 }

@@ -4,15 +4,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
+import App.Controls 1.0 as AppControls
 
-// Full-page record detail layout with sidebar scroll-spy navigation.
-// Usage:
-//   SectionDetailPage {
-//       open: true
-//       title: "Project Name"
-//       sections: ["Overview", "Activity", "Settings"]
-//       // place content children here — use SectionAnchor at each section start
-//   }
 Item {
     id: root
 
@@ -21,36 +14,34 @@ Item {
     property bool isBusy: false
     property bool showEdit: true
     property bool showDelete: true
-
-    // Section labels for the sidebar nav
     property var sections: []
 
-    // Currently highlighted sidebar item (updated by scroll-spy)
     readonly property int activeSectionIndex: _activeIdx
 
     signal backRequested()
     signal editRequested()
     signal deleteRequested()
 
-    // Default alias — all content children go inside _contentCol
-    default property alias content: _contentCol.data
+    default property alias content: contentColumn.data
 
     visible: root.open
 
-    // Called by SectionAnchor children to register their Y position
     function registerSection(index, yOffset) {
-        var arr = _sectionOffsets.slice()
-        while (arr.length <= index) arr.push(0)
-        arr[index] = yOffset
-        _sectionOffsets = arr
+        const nextOffsets = _sectionOffsets.slice()
+        while (nextOffsets.length <= index) {
+            nextOffsets.push(0)
+        }
+        nextOffsets[index] = yOffset
+        _sectionOffsets = nextOffsets
     }
 
-    // Scroll the right Flickable so section `index` is at the top
     function scrollToSection(index) {
-        if (index < 0 || index >= root.sections.length) return
-        var target = (index < _sectionOffsets.length) ? _sectionOffsets[index] : 0
-        var maxY = Math.max(0, _contentFlickable.contentHeight - _contentFlickable.height)
-        _contentFlickable.contentY = Math.max(0, Math.min(target, maxY))
+        if (index < 0 || index >= root.sections.length) {
+            return
+        }
+        const target = index < _sectionOffsets.length ? _sectionOffsets[index] : 0
+        const maxY = Math.max(0, contentFlickable.contentHeight - contentFlickable.height)
+        contentFlickable.contentY = Math.max(0, Math.min(target, maxY))
         _activeIdx = index
     }
 
@@ -58,57 +49,102 @@ Item {
     property var _sectionOffsets: []
 
     function _updateActiveFromScroll() {
-        if (_sectionOffsets.length === 0) return
-        var y = _contentFlickable.contentY
-        var best = 0
-        for (var i = 0; i < _sectionOffsets.length; i++) {
-            if (_sectionOffsets[i] <= y + 28) best = i
+        if (_sectionOffsets.length === 0) {
+            return
         }
-        if (_activeIdx !== best) _activeIdx = best
+        const y = contentFlickable.contentY
+        let best = 0
+        for (let i = 0; i < _sectionOffsets.length; i += 1) {
+            if (_sectionOffsets[i] <= y + 28) {
+                best = i
+            }
+        }
+        if (_activeIdx !== best) {
+            _activeIdx = best
+        }
     }
 
-    // ── Full-page background ──────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        color: Theme.AppTheme.background
+        color: Theme.AppTheme.workspaceBackground
 
         ColumnLayout {
             anchors.fill: parent
             spacing: 0
 
-            // ── Header bar ───────────────────────────────────────────────
             Rectangle {
                 Layout.fillWidth: true
-                height: 44
-                color: Theme.AppTheme.surface
-                z: 2
+                Layout.preferredHeight: Theme.AppTheme.panelHeaderHeight
+                color: Theme.AppTheme.surfaceRaised
 
                 Rectangle {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    width: parent.width
                     height: 1
-                    color: Theme.AppTheme.border
+                    color: Theme.AppTheme.divider
                 }
 
                 RowLayout {
-                    anchors { fill: parent; leftMargin: 8; rightMargin: 12 }
-                    spacing: 4
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.AppTheme.marginMd
+                    anchors.rightMargin: Theme.AppTheme.marginMd
+                    spacing: Theme.AppTheme.spacingSm
 
-                    ToolButton {
-                        implicitWidth: 32
-                        implicitHeight: 32
-                        contentItem: AppIcons.AppIcon {
-                            name: "chevron_left"
-                            size: 14
-                            iconColor: Theme.AppTheme.textSecondary
+                    Item {
+                        id: backButton
+                        implicitWidth: backRow.implicitWidth + 14
+                        implicitHeight: Theme.AppTheme.inputHeight
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Theme.AppTheme.radiusSm
+                            color: backHover.containsMouse
+                                ? Theme.AppTheme.hoverSurface
+                                : Theme.AppTheme.surfaceOverlay
                         }
-                        onClicked: root.backRequested()
+
+                        Row {
+                            id: backRow
+                            anchors.centerIn: parent
+                            spacing: Theme.AppTheme.spacingXs
+
+                            AppIcons.AppIcon {
+                                name: "chevron_left"
+                                size: 12
+                                iconColor: Theme.AppTheme.textSecondary
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                text: "Back"
+                                color: Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: backHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.backRequested()
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 1
+                        implicitHeight: 18
+                        color: Theme.AppTheme.divider
                     }
 
                     Label {
                         Layout.fillWidth: true
                         text: root.title
-                        font.pixelSize: Theme.AppTheme.bodySize
+                        font.pixelSize: Theme.AppTheme.sectionSize
                         font.bold: true
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textPrimary
@@ -118,61 +154,64 @@ Item {
                     BusyIndicator {
                         visible: root.isBusy
                         running: root.isBusy
-                        width: 20; height: 20
+                        implicitWidth: 20
+                        implicitHeight: 20
                     }
 
-                    ToolButton {
+                    AppControls.SecondaryButton {
                         visible: root.showEdit
                         text: "Edit"
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        palette.buttonText: Theme.AppTheme.accent
                         enabled: !root.isBusy
+                        implicitWidth: 72
                         onClicked: root.editRequested()
                     }
 
-                    ToolButton {
+                    AppControls.SecondaryButton {
                         visible: root.showDelete
                         text: "Delete"
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        palette.buttonText: Theme.AppTheme.error
+                        danger: true
                         enabled: !root.isBusy
+                        implicitWidth: 80
                         onClicked: root.deleteRequested()
                     }
                 }
             }
 
-            // ── Body: sidebar + content ───────────────────────────────────
             RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: 0
 
-                // ── Left sidebar nav (200px) ──────────────────────────────
                 Rectangle {
-                    width: 200
+                    Layout.preferredWidth: Theme.AppTheme.detailRailWidth
                     Layout.fillHeight: true
-                    color: Theme.AppTheme.surfaceAlt
+                    color: Theme.AppTheme.surfaceRaised
 
                     Rectangle {
                         anchors.right: parent.right
                         width: 1
                         height: parent.height
-                        color: Theme.AppTheme.border
+                        color: Theme.AppTheme.divider
                     }
 
                     Column {
                         id: navColumn
-                        anchors {
-                            top: parent.top
-                            left: parent.left
-                            right: parent.right
-                            topMargin: 16
-                            leftMargin: 8
-                            rightMargin: 8
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.margins: Theme.AppTheme.marginMd
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Label {
+                            width: parent.width
+                            visible: root.sections.length > 0
+                            text: "SECTIONS"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                            font.letterSpacing: 0.8
                         }
-                        spacing: 2
 
                         Repeater {
                             model: root.sections
@@ -183,56 +222,50 @@ Item {
                                 required property int index
 
                                 width: navColumn.width
-                                height: 34
+                                height: Theme.AppTheme.sidebarRowHeight
 
                                 readonly property bool isActive: root._activeIdx === navItem.index
 
-                                // Active background
                                 Rectangle {
                                     anchors.fill: parent
-                                    radius: 6
-                                    color: Theme.AppTheme.accent
-                                    opacity: navItem.isActive ? 0.10 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 120 } }
+                                    radius: Theme.AppTheme.radiusSm
+                                    color: navItem.isActive
+                                        ? Theme.AppTheme.navSelectedBackground
+                                        : navHover.containsMouse
+                                            ? Theme.AppTheme.hoverSurface
+                                            : "transparent"
                                 }
 
-                                // Active left accent bar
                                 Rectangle {
-                                    visible: navItem.isActive
-                                    anchors {
-                                        left: parent.left
-                                        top: parent.top
-                                        bottom: parent.bottom
-                                        topMargin: 6
-                                        bottomMargin: 6
-                                    }
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    anchors.bottom: parent.bottom
                                     width: 3
                                     radius: 2
                                     color: Theme.AppTheme.accent
+                                    visible: navItem.isActive
                                 }
 
                                 Label {
-                                    anchors {
-                                        verticalCenter: parent.verticalCenter
-                                        left: parent.left
-                                        leftMargin: 14
-                                        right: parent.right
-                                        rightMargin: 4
-                                    }
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 14
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: Theme.AppTheme.spacingSm
                                     text: navItem.modelData
-                                    font.pixelSize: Theme.AppTheme.captionSize
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.bold: navItem.isActive
                                     color: navItem.isActive
-                                        ? Theme.AppTheme.accent
+                                        ? Theme.AppTheme.navSelectedText
                                         : Theme.AppTheme.textSecondary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold: navItem.isActive
                                     elide: Text.ElideRight
-
-                                    Behavior on color { ColorAnimation { duration: 120 } }
                                 }
 
                                 MouseArea {
+                                    id: navHover
                                     anchors.fill: parent
+                                    hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: root.scrollToSection(navItem.index)
                                 }
@@ -241,24 +274,24 @@ Item {
                     }
                 }
 
-                // ── Right scrollable content ──────────────────────────────
                 Flickable {
-                    id: _contentFlickable
+                    id: contentFlickable
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: width
-                    contentHeight: _contentCol.implicitHeight + 32
+                    contentHeight: contentColumn.implicitHeight + Theme.AppTheme.pagePadding
                     clip: true
 
                     onContentYChanged: root._updateActiveFromScroll()
 
                     Column {
-                        id: _contentCol
-                        width: _contentFlickable.width
-                        // Content injected via default alias
+                        id: contentColumn
+                        width: contentFlickable.width
                     }
 
-                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                    ScrollBar.vertical: ScrollBar {
+                        policy: ScrollBar.AsNeeded
+                    }
                 }
             }
         }
