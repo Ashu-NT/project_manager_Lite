@@ -72,6 +72,16 @@ AppLayouts.WorkspaceFrame {
     readonly property int _profileCount: root.workspaceController
         ? (root.workspaceController.organizationProfiles.items || []).length : 0
 
+    readonly property var _moduleContextActions: {
+        const item = root._selectedItem
+        if (root._activeSection !== "modules" || !item) return []
+        return [
+            { id: "lifecycle", label: "Lifecycle", icon: "settings", enabled: !!(item.canTertiaryAction), danger: false },
+            { id: "licensed",  label: "Licensed",  icon: "approve",  enabled: !!(item.canPrimaryAction),  danger: false },
+            { id: "enabled",   label: "Enabled",   icon: "approve",  enabled: !!(item.canSecondaryAction), danger: false }
+        ]
+    }
+
     // ── Column definitions ────────────────────────────────────────
     readonly property var _moduleColumns: [
         { key: "title",       label: "Module",          flex: 2, minWidth: 140, sortable: true,  visible: true },
@@ -556,51 +566,6 @@ AppLayouts.WorkspaceFrame {
 
                                     Item { Layout.fillWidth: true }
 
-                                    AppControls.SecondaryButton {
-                                        text:     "Lifecycle"
-                                        iconName: "settings"
-                                        enabled:  !root._busy && root._selectedItem
-                                            && root._selectedItem.canTertiaryAction
-                                        onClicked: {
-                                            if (root._selectedItem && root.workspaceController)
-                                                lifecycleDialog.openForItem(
-                                                    root._selectedItem,
-                                                    root.workspaceController.lifecycleOptions || []
-                                                )
-                                        }
-                                    }
-
-                                    AppControls.SecondaryButton {
-                                        text:     "Licensed"
-                                        iconName: "approve"
-                                        enabled:  !root._busy && root._selectedItem
-                                            && root._selectedItem.canPrimaryAction
-                                        onClicked: {
-                                            if (root.workspaceController)
-                                                root.workspaceController.toggleModuleLicensed(
-                                                    root._selectedRowId
-                                                )
-                                        }
-                                    }
-
-                                    AppControls.SecondaryButton {
-                                        text:     "Enabled"
-                                        iconName: "approve"
-                                        enabled:  !root._busy && root._selectedItem
-                                            && root._selectedItem.canSecondaryAction
-                                        onClicked: {
-                                            if (root.workspaceController)
-                                                root.workspaceController.toggleModuleEnabled(
-                                                    root._selectedRowId
-                                                )
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        width: 1; height: 14
-                                        color: Theme.AppTheme.divider
-                                    }
-
                                     Rectangle {
                                         width: 26; height: 26; radius: 4
                                         color: _modRefreshMA.containsMouse
@@ -621,6 +586,32 @@ AppLayouts.WorkspaceFrame {
                                                     root.workspaceController.refresh()
                                             }
                                         }
+                                    }
+                                }
+                            }
+
+                            // Contextual module actions — visible when a module is selected
+                            AppWidgets.ContextualActionToolbar {
+                                Layout.fillWidth: true
+                                visible:  root._activeSection === "modules"
+                                    && root._selectedRowId.length > 0
+                                title:    root._selectedItem ? (root._selectedItem.title || "") : ""
+                                subtitle: root._selectedItem ? (root._selectedItem.statusLabel || "") : ""
+                                busy:     root._busy
+                                actions:  root._moduleContextActions
+                                onActionTriggered: function(id) {
+                                    if (id === "lifecycle") {
+                                        if (root._selectedItem && root.workspaceController)
+                                            lifecycleDialog.openForItem(
+                                                root._selectedItem,
+                                                root.workspaceController.lifecycleOptions || []
+                                            )
+                                    } else if (id === "licensed") {
+                                        if (root.workspaceController)
+                                            root.workspaceController.toggleModuleLicensed(root._selectedRowId)
+                                    } else if (id === "enabled") {
+                                        if (root.workspaceController)
+                                            root.workspaceController.toggleModuleEnabled(root._selectedRowId)
                                     }
                                 }
                             }
@@ -975,53 +966,30 @@ AppLayouts.WorkspaceFrame {
                         anchors.fill: parent
                         spacing: 0
 
-                        // Panel header
-                        Rectangle {
+                        // Panel header — ContextualActionToolbar for module actions
+                        AppWidgets.ContextualActionToolbar {
                             Layout.fillWidth: true
-                            height: Theme.AppTheme.toolbarHeight - 6
-                            color:  Theme.AppTheme.surfaceRaised
-
-                            Rectangle {
-                                anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                                height: 1; color: Theme.AppTheme.divider
-                            }
-
-                            Label {
-                                anchors.left:           parent.left
-                                anchors.leftMargin:     Theme.AppTheme.marginMd
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.right:          _detailClose.left
-                                anchors.rightMargin:    4
-                                text:           root._activeSection === "modules"
-                                    ? "Module Detail" : "Profile Detail"
-                                color:          Theme.AppTheme.textMuted
-                                font.family:    Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.bold:      true
-                                elide:          Text.ElideRight
-                            }
-
-                            Rectangle {
-                                id: _detailClose
-                                anchors.right:          parent.right
-                                anchors.rightMargin:    6
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 26; height: 26; radius: 4
-                                color: _detailCloseMA.containsMouse
-                                    ? Theme.AppTheme.hoverSurface : "transparent"
-
-                                AppIcons.AppIcon {
-                                    anchors.centerIn: parent
-                                    name: "close"; size: 10
-                                    iconColor: Theme.AppTheme.textMuted
-                                }
-
-                                MouseArea {
-                                    id: _detailCloseMA
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape:  Qt.PointingHandCursor
-                                    onClicked:    root._selectedRowId = ""
+                            showBack: true
+                            title:    root._activeSection === "modules"
+                                ? (root._selectedItem ? (root._selectedItem.title || "Module Detail") : "Module Detail")
+                                : (root._selectedItem ? (root._selectedItem.title || "Profile Detail") : "Profile Detail")
+                            subtitle: root._selectedItem ? (root._selectedItem.statusLabel || "") : ""
+                            busy:     root._busy
+                            actions:  root._moduleContextActions
+                            onBackRequested: root._selectedRowId = ""
+                            onActionTriggered: function(id) {
+                                if (id === "lifecycle") {
+                                    if (root._selectedItem && root.workspaceController)
+                                        lifecycleDialog.openForItem(
+                                            root._selectedItem,
+                                            root.workspaceController.lifecycleOptions || []
+                                        )
+                                } else if (id === "licensed") {
+                                    if (root.workspaceController)
+                                        root.workspaceController.toggleModuleLicensed(root._selectedRowId)
+                                } else if (id === "enabled") {
+                                    if (root.workspaceController)
+                                        root.workspaceController.toggleModuleEnabled(root._selectedRowId)
                                 }
                             }
                         }
@@ -1127,66 +1095,6 @@ AppLayouts.WorkspaceFrame {
                                     }
                                 }
 
-                                // Module actions (modules section only)
-                                ColumnLayout {
-                                    Layout.fillWidth:    true
-                                    Layout.leftMargin:   Theme.AppTheme.marginMd
-                                    Layout.rightMargin:  Theme.AppTheme.marginMd
-                                    Layout.topMargin:    4
-                                    Layout.bottomMargin: Theme.AppTheme.marginMd
-                                    spacing: Theme.AppTheme.spacingXs
-                                    visible: root._activeSection === "modules"
-                                        && root._selectedItem !== null
-
-                                    Rectangle {
-                                        Layout.fillWidth: true
-                                        height: 1; color: Theme.AppTheme.divider
-                                        Layout.bottomMargin: Theme.AppTheme.spacingXs
-                                    }
-
-                                    AppControls.PrimaryButton {
-                                        Layout.fillWidth: true
-                                        text:     "Change Lifecycle"
-                                        iconName: "settings"
-                                        enabled:  !root._busy && root._selectedItem
-                                            && root._selectedItem.canTertiaryAction
-                                        onClicked: {
-                                            if (root._selectedItem && root.workspaceController)
-                                                lifecycleDialog.openForItem(
-                                                    root._selectedItem,
-                                                    root.workspaceController.lifecycleOptions || []
-                                                )
-                                        }
-                                    }
-
-                                    AppControls.SecondaryButton {
-                                        Layout.fillWidth: true
-                                        text:     "Toggle Licensed"
-                                        iconName: "approve"
-                                        enabled:  !root._busy && root._selectedItem
-                                            && root._selectedItem.canPrimaryAction
-                                        onClicked: {
-                                            if (root.workspaceController)
-                                                root.workspaceController.toggleModuleLicensed(
-                                                    root._selectedRowId
-                                                )
-                                        }
-                                    }
-
-                                    AppControls.SecondaryButton {
-                                        Layout.fillWidth: true
-                                        text:     "Toggle Enabled"
-                                        iconName: "approve"
-                                        enabled:  !root._busy && root._selectedItem
-                                            && root._selectedItem.canSecondaryAction
-                                        onClicked: {
-                                            if (root.workspaceController)
-                                                root.workspaceController.toggleModuleEnabled(
-                                                    root._selectedRowId
-                                                )
-                                        }
-                                    }
-                                }
                             }
                         }
                     }

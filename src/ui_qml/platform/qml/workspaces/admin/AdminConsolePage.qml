@@ -214,7 +214,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Set Active"
 
@@ -240,7 +241,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Toggle Active"
 
@@ -266,7 +268,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Toggle Active"
 
@@ -292,7 +295,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Toggle Active"
 
@@ -318,7 +322,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Toggle Active"
 
@@ -344,7 +349,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Toggle Active"
 
@@ -370,7 +376,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Toggle Active"
                 tertiaryActionLabel:  "Add Link"
@@ -401,7 +408,8 @@ AppLayouts.WorkspaceFrame {
                 isLoading:     root._load
                 errorMessage:  root._err
                 feedbackMessage: root._ok
-                selectedRowId: root._selectedRowId
+                selectedRowId:    root._selectedRowId
+                selectedRowTitle: root._detailItem ? (root._detailItem.title || "") : ""
                 primaryActionLabel:   "Edit"
                 secondaryActionLabel: "Toggle Active"
 

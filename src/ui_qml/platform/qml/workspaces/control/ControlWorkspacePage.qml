@@ -154,32 +154,6 @@ AppLayouts.WorkspaceFrame {
 
                         Item { Layout.fillWidth: true }
 
-                        AppControls.PrimaryButton {
-                            text:     "Approve"
-                            iconName: "approve"
-                            enabled:  !root._busy && root._selectedRowId.length > 0
-                            onClicked: {
-                                const item = root.approvalItemById(root._selectedRowId)
-                                if (item !== null) decisionDialog.openForDecision("approve", item)
-                            }
-                        }
-
-                        AppControls.SecondaryButton {
-                            text:     "Reject"
-                            iconName: "reject"
-                            danger:   true
-                            enabled:  !root._busy && root._selectedRowId.length > 0
-                            onClicked: {
-                                const item = root.approvalItemById(root._selectedRowId)
-                                if (item !== null) decisionDialog.openForDecision("reject", item)
-                            }
-                        }
-
-                        Rectangle {
-                            width: 1; height: 14
-                            color: Theme.AppTheme.divider
-                        }
-
                         Rectangle {
                             width: 26; height: 26; radius: 4
                             color: _refreshMA.containsMouse
@@ -202,6 +176,25 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
                         }
+                    }
+                }
+
+                // ── Contextual action toolbar — visible when request selected ─
+                AppWidgets.ContextualActionToolbar {
+                    Layout.fillWidth: true
+                    visible:  root._selectedRowId.length > 0
+                    title:    root._queueItem ? (root._queueItem.title || "") : ""
+                    subtitle: root._queueItem ? (root._queueItem.statusLabel || "") : ""
+                    busy:     root._busy
+                    actions: [
+                        { id: "approve", label: "Approve", icon: "approve", enabled: true,  danger: false },
+                        { id: "reject",  label: "Reject",  icon: "reject",  enabled: true,  danger: true  }
+                    ]
+                    onActionTriggered: function(id) {
+                        const item = root._queueItem
+                        if (item === null) return
+                        if (id === "approve") decisionDialog.openForDecision("approve", item)
+                        else if (id === "reject") decisionDialog.openForDecision("reject", item)
                     }
                 }
 
@@ -369,53 +362,23 @@ AppLayouts.WorkspaceFrame {
                     anchors.fill: parent
                     spacing: 0
 
-                    // Panel header
-                    Rectangle {
+                    // Panel header — ContextualActionToolbar for request actions
+                    AppWidgets.ContextualActionToolbar {
                         Layout.fillWidth: true
-                        height: Theme.AppTheme.toolbarHeight - 6
-                        color:  Theme.AppTheme.surfaceRaised
-
-                        Rectangle {
-                            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                            height: 1; color: Theme.AppTheme.divider
-                        }
-
-                        Label {
-                            anchors.left:           parent.left
-                            anchors.leftMargin:     Theme.AppTheme.marginMd
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.right:          _closeBtn.left
-                            anchors.rightMargin:    4
-                            text:           "Request Detail"
-                            color:          Theme.AppTheme.textMuted
-                            font.family:    Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold:      true
-                            elide:          Text.ElideRight
-                        }
-
-                        Rectangle {
-                            id: _closeBtn
-                            anchors.right:          parent.right
-                            anchors.rightMargin:    6
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 26; height: 26; radius: 4
-                            color: _closeMA.containsMouse
-                                ? Theme.AppTheme.hoverSurface : "transparent"
-
-                            AppIcons.AppIcon {
-                                anchors.centerIn: parent
-                                name: "close"; size: 10
-                                iconColor: Theme.AppTheme.textMuted
-                            }
-
-                            MouseArea {
-                                id: _closeMA
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape:  Qt.PointingHandCursor
-                                onClicked:    root._selectedRowId = ""
-                            }
+                        showBack: true
+                        title:    "Request Detail"
+                        subtitle: root._queueItem ? (root._queueItem.statusLabel || "") : ""
+                        busy:     root._busy
+                        actions: [
+                            { id: "approve", label: "Approve", icon: "approve", enabled: true, danger: false },
+                            { id: "reject",  label: "Reject",  icon: "reject",  enabled: true, danger: true  }
+                        ]
+                        onBackRequested: root._selectedRowId = ""
+                        onActionTriggered: function(id) {
+                            const item = root._queueItem
+                            if (item === null) return
+                            if (id === "approve") decisionDialog.openForDecision("approve", item)
+                            else if (id === "reject") decisionDialog.openForDecision("reject", item)
                         }
                     }
 
@@ -519,46 +482,6 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            Rectangle {
-                                Layout.fillWidth:   true
-                                Layout.leftMargin:  Theme.AppTheme.marginMd
-                                Layout.rightMargin: Theme.AppTheme.marginMd
-                                height: 1; color: Theme.AppTheme.divider
-                                visible: root._queueItem !== null
-                            }
-
-                            // Decision actions
-                            RowLayout {
-                                Layout.fillWidth:    true
-                                Layout.leftMargin:   Theme.AppTheme.marginMd
-                                Layout.rightMargin:  Theme.AppTheme.marginMd
-                                Layout.bottomMargin: Theme.AppTheme.marginMd
-                                spacing: Theme.AppTheme.spacingXs
-                                visible: root._queueItem !== null
-
-                                AppControls.PrimaryButton {
-                                    text:     "Approve"
-                                    iconName: "approve"
-                                    enabled:  !root._busy
-                                    onClicked: {
-                                        const item = root._queueItem
-                                        if (item !== null)
-                                            decisionDialog.openForDecision("approve", item)
-                                    }
-                                }
-
-                                AppControls.SecondaryButton {
-                                    text:     "Reject"
-                                    iconName: "reject"
-                                    danger:   true
-                                    enabled:  !root._busy
-                                    onClicked: {
-                                        const item = root._queueItem
-                                        if (item !== null)
-                                            decisionDialog.openForDecision("reject", item)
-                                    }
-                                }
-                            }
                         }
                     }
                 }

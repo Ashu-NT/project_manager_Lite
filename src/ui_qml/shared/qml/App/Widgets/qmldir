@@ -1,5 +1,8 @@
 module App.Widgets
 AppDivider 1.0 AppDivider.qml
+BulkActionBar 1.0 BulkActionBar.qml
+BulkChangePropertyPopup 1.0 BulkChangePropertyPopup.qml
+ContextualActionToolbar 1.0 ContextualActionToolbar.qml
 DataTable 1.0 DataTable.qml
 DetailTabBar 1.0 DetailTabBar.qml
 EmptyState 1.0 EmptyState.qml

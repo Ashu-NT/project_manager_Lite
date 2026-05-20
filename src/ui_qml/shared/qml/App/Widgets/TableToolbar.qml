@@ -13,6 +13,8 @@ Rectangle {
     property bool showExport: false
     property bool showCreate: false
     property bool showFilter: false
+    property bool showCustomize: false
+    property bool showViews: false
     property string createLabel: "New"
     property bool isBusy: false
 
@@ -20,6 +22,8 @@ Rectangle {
 
     signal searchChanged(string text)
     signal filterClicked()
+    signal customizeClicked()
+    signal viewsClicked()
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
@@ -127,6 +131,86 @@ Rectangle {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.filterClicked()
+            }
+        }
+
+        Rectangle {
+            visible: root.showCustomize
+            implicitWidth: customizeRow.implicitWidth + 14
+            implicitHeight: Theme.AppTheme.inputHeight - 4
+            radius: Theme.AppTheme.radiusSm
+            color: customizeHover.containsMouse
+                ? Theme.AppTheme.hoverSurface
+                : Theme.AppTheme.surfaceOverlay
+
+            Row {
+                id: customizeRow
+                anchors.centerIn: parent
+                spacing: Theme.AppTheme.spacingXs
+
+                AppIcons.AppIcon {
+                    name: "settings"
+                    size: 11
+                    iconColor: Theme.AppTheme.textMuted
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                    text: "Columns"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            MouseArea {
+                id: customizeHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.customizeClicked()
+            }
+        }
+
+        Rectangle {
+            visible: root.showViews
+            implicitWidth: viewsRow.implicitWidth + 14
+            implicitHeight: Theme.AppTheme.inputHeight - 4
+            radius: Theme.AppTheme.radiusSm
+            color: viewsHover.containsMouse
+                ? Theme.AppTheme.hoverSurface
+                : Theme.AppTheme.surfaceOverlay
+
+            Row {
+                id: viewsRow
+                anchors.centerIn: parent
+                spacing: Theme.AppTheme.spacingXs
+
+                AppIcons.AppIcon {
+                    name: "register"
+                    size: 11
+                    iconColor: Theme.AppTheme.textMuted
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                    text: "Views"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            MouseArea {
+                id: viewsHover
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.viewsClicked()
             }
         }
 

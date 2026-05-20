@@ -55,6 +55,8 @@ Item {
         return false
     }
 
+    function openColumnCustomizer() { _colCustomizer.open() }
+
     readonly property bool _allChecked:  root.rows.length > 0
         && (root.selectedRowIds || []).length >= root.rows.length
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked

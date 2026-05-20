@@ -218,61 +218,41 @@ AppLayouts.WorkspaceFrame {
             showCreate: true
             createLabel: "New Task"
             showFilter: true
+            showCustomize: true
+            showViews: true
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
             }
-            onFilterClicked: filterPopup.open()
+            onFilterClicked:   filterPopup.open()
+            onCustomizeClicked: tasksTable.openColumnCustomizer()
+            onViewsClicked:    viewsPopup.open()
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: dialogHost.openCreateDialog()
         }
 
-        // Task action bar — shown when a task is selected
-        Item {
+        // Contextual action toolbar — shown when a task row is selected
+        AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
-            Layout.preferredHeight: Theme.AppTheme.toolbarHeight
-            visible: String(root.selectedTaskModel.id || "").length > 0
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.AppTheme.marginSm
-                anchors.rightMargin: Theme.AppTheme.marginSm
-                spacing: Theme.AppTheme.spacingXs
-
-                AppControls.SecondaryButton {
-                    text: "Details"
-                    iconName: "view"
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onClicked: { detailPage.open = true }
-                }
-
-                AppControls.SecondaryButton {
-                    text: "Edit"
-                    iconName: "edit"
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onClicked: dialogHost.openEditDialog(root.selectedTaskModel)
-                }
-
-                AppControls.SecondaryButton {
-                    text: "Progress"
-                    iconName: "approve"
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onClicked: dialogHost.openProgressDialog(root.selectedTaskModel)
-                }
-
-                AppControls.SecondaryButton {
-                    text: "Delete"
-                    iconName: "delete"
-                    danger: true
-                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                    onClicked: dialogHost.openDeleteDialog(root.selectedTaskModel)
-                }
-
-                Item { Layout.fillWidth: true }
+            visible:  String(root.selectedTaskModel.id || "").length > 0
+            title:    root.selectedTaskModel.title || ""
+            subtitle: root.selectedTaskModel.statusLabel || ""
+            busy:     root.workspaceController ? root.workspaceController.isBusy : false
+            actions: [
+                { id: "details",  label: "Details",  icon: "view",   enabled: true,  danger: false },
+                { id: "edit",     label: "Edit",     icon: "edit",   enabled: true,  danger: false },
+                { id: "progress", label: "Progress", icon: "approve",enabled: true,  danger: false },
+                { id: "delete",   label: "Delete",   icon: "delete", enabled: true,  danger: true  }
+            ]
+            onActionTriggered: function(id) {
+                if (id === "details")  { detailPage.open = true }
+                else if (id === "edit")     { dialogHost.openEditDialog(root.selectedTaskModel) }
+                else if (id === "progress") { dialogHost.openProgressDialog(root.selectedTaskModel) }
+                else if (id === "delete")   { dialogHost.openDeleteDialog(root.selectedTaskModel) }
             }
         }
 
@@ -324,8 +304,10 @@ AppLayouts.WorkspaceFrame {
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 background: Rectangle {
-                    radius: Theme.AppTheme.radiusMd
-                    color: Theme.AppTheme.surfaceRaised
+                    radius:       Theme.AppTheme.radiusLg
+                    color:        Theme.AppTheme.surfaceRaised
+                    border.color: Theme.AppTheme.divider
+                    border.width: 1
                 }
 
                 ColumnLayout {
@@ -408,25 +390,6 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Label {
-                        text: "Saved View"
-                        font.bold: true
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        color: Theme.AppTheme.textMuted
-                    }
-                    ComboBox {
-                        Layout.fillWidth: true
-                        model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
-                        textRole: "label"
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.selectTaskView(String(opts[index].value || ""))
-                        }
-                    }
-
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingSm
@@ -443,7 +406,7 @@ AppLayouts.WorkspaceFrame {
 
                         AppControls.PrimaryButton {
                             Layout.fillWidth: true
-                            text: "Apply View"
+                            text: "Apply"
                             iconName: "filter"
                             onClicked: {
                                 if (root.workspaceController !== null) root.workspaceController.applySelectedTaskView()
@@ -454,83 +417,21 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            // Floating bulk action bar
-            Rectangle {
-                id: bulkBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
-                width: bulkBarRow.implicitWidth + Theme.AppTheme.marginMd * 2
-                height: 40
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceRaised
-                visible: (root.workspaceController ? root.workspaceController.selectedTaskCount : 0) > 0
-                z: 10
-
-                RowLayout {
-                    id: bulkBarRow
-                    anchors.centerIn: parent
-                    spacing: Theme.AppTheme.spacingSm
-
-                    Label {
-                        text: (root.workspaceController ? root.workspaceController.selectedTaskCount : 0) + " selected"
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        font.bold: true
-                    }
-
-                    Rectangle {
-                        width: 1
-                        height: 20
-                        color: Theme.AppTheme.divider
-                    }
-
-                    AppControls.SecondaryButton {
-                        text: "Cancel"
-                        iconName: "close"
-                        implicitWidth: 80
-                        onClicked: {
-                            if (root.workspaceController !== null) root.workspaceController.clearTaskBulkSelection()
-                        }
-                    }
-
-                    AppControls.SecondaryButton {
-                        text: "Delete"
-                        iconName: "delete"
-                        danger: true
-                        implicitWidth: 80
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onClicked: {
-                            dialogHost.openBulkDeleteDialog(
-                                root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
-                            )
-                        }
-                    }
-
-                    AppControls.PrimaryButton {
-                        text: "Change Property"
-                        iconName: "edit"
-                        implicitWidth: 140
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onClicked: changePropertyPopup.open()
-                    }
-                }
-            }
-
-            // Change Property bulk popup — opens above the bulk bar
+            // Saved views popup
             Popup {
-                id: changePropertyPopup
-                parent: bulkBar
-                width: 240
+                id: viewsPopup
+                parent: tasksTable
+                width: 220
                 padding: Theme.AppTheme.marginMd
-                x: (bulkBar.width - width) / 2
-                y: -height - Theme.AppTheme.spacingXs
+                x: tasksTable.width - width - 4
+                y: 30
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 background: Rectangle {
-                    radius: Theme.AppTheme.radiusMd
-                    color: Theme.AppTheme.surfaceRaised
+                    radius:       Theme.AppTheme.radiusLg
+                    color:        Theme.AppTheme.surfaceRaised
+                    border.color: Theme.AppTheme.divider
+                    border.width: 1
                 }
 
                 ColumnLayout {
@@ -538,42 +439,84 @@ AppLayouts.WorkspaceFrame {
                     spacing: Theme.AppTheme.spacingSm
 
                     Label {
-                        text: "Bulk Update"
+                        text: "Saved Views"
                         font.bold: true
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        font.family: Theme.AppTheme.fontFamily
-                        color: Theme.AppTheme.textPrimary
-                    }
-
-                    Label {
-                        text: "Status"
                         font.pixelSize: Theme.AppTheme.captionSize
                         font.family: Theme.AppTheme.fontFamily
                         color: Theme.AppTheme.textMuted
-                        font.bold: true
                     }
 
                     ComboBox {
-                        id: bulkStatusCombo
+                        id: _viewsCombo
                         Layout.fillWidth: true
-                        model: root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
+                        model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
                         textRole: "label"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onActivated: function(index) {
+                            const opts = root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
+                            if (root.workspaceController !== null && opts[index])
+                                root.workspaceController.selectTaskView(String(opts[index].value || ""))
+                        }
                     }
 
                     AppControls.PrimaryButton {
                         Layout.fillWidth: true
-                        text: "Apply"
-                        iconName: "approve"
+                        text: "Apply View"
+                        iconName: "register"
                         enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                         onClicked: {
-                            const opts = root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
-                            const idx = bulkStatusCombo.currentIndex
-                            if (root.workspaceController !== null && idx >= 0 && opts[idx]) {
-                                root.workspaceController.applyBulkStatus({ status: String(opts[idx].value || "") })
-                            }
-                            changePropertyPopup.close()
+                            if (root.workspaceController !== null) root.workspaceController.applySelectedTaskView()
+                            viewsPopup.close()
                         }
+                    }
+                }
+            }
+
+            // Floating bulk action bar
+            AppWidgets.BulkActionBar {
+                id: bulkBar
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                z: 10
+                selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: [
+                    { id: "delete",          label: "Delete",          icon: "delete", danger: true,  enabled: true },
+                    { id: "change_property", label: "Change Property", icon: "edit",   danger: false, enabled: true }
+                ]
+                onCancelRequested: {
+                    if (root.workspaceController !== null) root.workspaceController.clearTaskBulkSelection()
+                }
+                onActionTriggered: function(id) {
+                    if (id === "delete") {
+                        dialogHost.openBulkDeleteDialog(
+                            root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
+                        )
+                    } else if (id === "change_property") {
+                        changePropertyPopup.parent = bulkBar
+                        changePropertyPopup.x = (bulkBar.width - changePropertyPopup.width) / 2
+                        changePropertyPopup.y = -changePropertyPopup.height - Theme.AppTheme.spacingXs
+                        changePropertyPopup.open()
+                    }
+                }
+            }
+
+            // Bulk change property popup
+            AppWidgets.BulkChangePropertyPopup {
+                id: changePropertyPopup
+                selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                properties: [
+                    {
+                        id: "status",
+                        label: "Status",
+                        values: root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
+                    }
+                ]
+                onApplyRequested: function(payload) {
+                    if (root.workspaceController !== null && payload.propertyId === "status") {
+                        root.workspaceController.applyBulkStatus({ status: payload.value })
                     }
                 }
             }
@@ -586,8 +529,8 @@ AppLayouts.WorkspaceFrame {
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: ["Details", "Assignments", "Dependencies", "Time", "Activity"]
-                showEdit: false
-                showDelete: false
+                showEdit: true
+                showDelete: true
 
                 onBackRequested: detailPage.open = false
                 onEditRequested: dialogHost.openEditDialog(root.selectedTaskModel)

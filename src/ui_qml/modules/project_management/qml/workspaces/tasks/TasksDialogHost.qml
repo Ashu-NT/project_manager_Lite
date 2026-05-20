@@ -244,10 +244,13 @@ Item {
         title: "Delete Task"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
+        padding: Theme.AppTheme.marginMd
 
         background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surface
+            radius:       Theme.AppTheme.radiusLg
+            color:        Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.divider
+            border.width: 1
         }
 
         contentItem: ColumnLayout {
@@ -292,10 +295,13 @@ Item {
         title: "Bulk Delete Tasks"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
+        padding: Theme.AppTheme.marginMd
 
         background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surface
+            radius:       Theme.AppTheme.radiusLg
+            color:        Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.divider
+            border.width: 1
         }
 
         contentItem: ColumnLayout {
@@ -333,10 +339,13 @@ Item {
         title: "Remove Assignment"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
+        padding: Theme.AppTheme.marginMd
 
         background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surface
+            radius:       Theme.AppTheme.radiusLg
+            color:        Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.divider
+            border.width: 1
         }
 
         contentItem: ColumnLayout {
@@ -381,10 +390,13 @@ Item {
         title: "Remove Dependency"
         standardButtons: Dialog.Cancel | Dialog.Ok
         closePolicy: Popup.CloseOnEscape
+        padding: Theme.AppTheme.marginMd
 
         background: Rectangle {
-            radius: Theme.AppTheme.radiusLg
-            color: Theme.AppTheme.surface
+            radius:       Theme.AppTheme.radiusLg
+            color:        Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.divider
+            border.width: 1
         }
 
         contentItem: ColumnLayout {

@@ -6,7 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 
-// Reusable admin entity workspace: compact contextual toolbar + DataTable.
+// Reusable admin entity workspace: section toolbar + ContextualActionToolbar + DataTable.
 // Drop in one instance per admin section (organizations, sites, employees, etc.).
 // Wire up signals to the page-level dialog host and controller slots.
 ColumnLayout {
@@ -23,11 +23,18 @@ ColumnLayout {
     property string errorMessage:         ""
     property string feedbackMessage:      ""
     property string selectedRowId:        ""
+    property string selectedRowTitle:     ""
 
     // Toolbar action labels — set to "" to hide the button
     property string primaryActionLabel:   "Edit"
     property string secondaryActionLabel: ""
     property string tertiaryActionLabel:  ""
+    property string primaryActionIcon:    "edit"
+    property string secondaryActionIcon:  "approve"
+    property string tertiaryActionIcon:   "add"
+    property bool   primaryActionDanger:  false
+    property bool   secondaryActionDanger: false
+    property bool   tertiaryActionDanger: false
 
     signal createRequested()
     signal primaryActionRequested(string itemId)
@@ -37,7 +44,20 @@ ColumnLayout {
     signal rowActivated(string rowId)
     signal refreshRequested()
 
-    // ── Contextual toolbar ────────────────────────────────────────
+    // ── Computed actions for ContextualActionToolbar ──────────────
+    readonly property var _contextActions: {
+        const sel = root.selectedRowId.length > 0
+        const result = []
+        if (root.primaryActionLabel.length > 0)
+            result.push({ id: "primary",   label: root.primaryActionLabel,   icon: root.primaryActionIcon,   enabled: sel, danger: root.primaryActionDanger   })
+        if (root.secondaryActionLabel.length > 0)
+            result.push({ id: "secondary", label: root.secondaryActionLabel, icon: root.secondaryActionIcon, enabled: sel, danger: root.secondaryActionDanger })
+        if (root.tertiaryActionLabel.length > 0)
+            result.push({ id: "tertiary",  label: root.tertiaryActionLabel,  icon: root.tertiaryActionIcon,  enabled: sel, danger: root.tertiaryActionDanger  })
+        return result
+    }
+
+    // ── Section header toolbar ────────────────────────────────────
     Rectangle {
         Layout.fillWidth: true
         height: Theme.AppTheme.toolbarHeight - 6
@@ -55,7 +75,6 @@ ColumnLayout {
             anchors.rightMargin:    8
             spacing:                Theme.AppTheme.spacingXs
 
-            // Section label + record count
             Label {
                 text:           root.sectionTitle
                 color:          Theme.AppTheme.textPrimary
@@ -75,39 +94,12 @@ ColumnLayout {
 
             Item { Layout.fillWidth: true }
 
-            // Row-context actions (enabled only when a row is selected)
-            AppControls.SecondaryButton {
-                visible:  root.primaryActionLabel.length > 0
-                text:     root.primaryActionLabel
-                iconName: "edit"
-                enabled:  !root.isBusy && root.selectedRowId.length > 0
-                onClicked: root.primaryActionRequested(root.selectedRowId)
-            }
-
-            AppControls.SecondaryButton {
-                visible:  root.secondaryActionLabel.length > 0
-                text:     root.secondaryActionLabel
-                iconName: "approve"
-                enabled:  !root.isBusy && root.selectedRowId.length > 0
-                onClicked: root.secondaryActionRequested(root.selectedRowId)
-            }
-
-            AppControls.SecondaryButton {
-                visible:  root.tertiaryActionLabel.length > 0
-                text:     root.tertiaryActionLabel
-                iconName: "add"
-                enabled:  !root.isBusy && root.selectedRowId.length > 0
-                onClicked: root.tertiaryActionRequested(root.selectedRowId)
-            }
-
-            // Separator before create
             Rectangle {
                 visible: root.entityLabel.length > 0
                 width: 1; height: 14
                 color: Theme.AppTheme.divider
             }
 
-            // Create entity button
             AppControls.PrimaryButton {
                 visible:  root.entityLabel.length > 0
                 text:     "New " + root.entityLabel
@@ -116,15 +108,13 @@ ColumnLayout {
                 onClicked: root.createRequested()
             }
 
-            // Refresh icon button (compact, no text)
             Rectangle {
                 width: 26; height: 26; radius: 4
-                color: _refreshMA.containsMouse
-                    ? Theme.AppTheme.hoverSurface : "transparent"
+                color: _refreshMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
                 AppIcons.AppIcon {
                     anchors.centerIn: parent
-                    name:      "refresh"; size: 12
+                    name: "refresh"; size: 12
                     iconColor: Theme.AppTheme.textMuted
                 }
 
@@ -137,6 +127,20 @@ ColumnLayout {
                     onClicked:    root.refreshRequested()
                 }
             }
+        }
+    }
+
+    // ── Contextual action toolbar — visible when a row is selected ─
+    AppWidgets.ContextualActionToolbar {
+        Layout.fillWidth: true
+        visible:  root.selectedRowId.length > 0
+        title:    root.selectedRowTitle.length > 0 ? root.selectedRowTitle : root.selectedRowId
+        busy:     root.isBusy
+        actions:  root._contextActions
+        onActionTriggered: function(id) {
+            if      (id === "primary")   root.primaryActionRequested(root.selectedRowId)
+            else if (id === "secondary") root.secondaryActionRequested(root.selectedRowId)
+            else if (id === "tertiary")  root.tertiaryActionRequested(root.selectedRowId)
         }
     }
 
