@@ -1,8 +1,9 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
-import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
@@ -207,22 +208,26 @@ AppLayouts.WorkspaceFrame {
                 ]
 
                 delegate: Item {
-                    property var  _d:       modelData
-                    property bool _isGroup: _d.type === "group"
-                    property bool _isItem:  _d.type === "item"
+                    id: sidebarDelegate
 
-                    width:   ListView.view.width
-                    height:  _isGroup ? (_sidebar.collapsed ? 0 : 24) : 34
-                    visible: _isGroup ? !_sidebar.collapsed : true
+                    required property var modelData
+
+                    readonly property var itemData: sidebarDelegate.modelData
+                    readonly property bool isGroup: sidebarDelegate.itemData.type === "group"
+                    readonly property bool isItem:  sidebarDelegate.itemData.type === "item"
+
+                    width:   ListView.view ? ListView.view.width : 0
+                    height:  sidebarDelegate.isGroup ? (_sidebar.collapsed ? 0 : 24) : 34
+                    visible: sidebarDelegate.isGroup ? !_sidebar.collapsed : true
                     clip:    true
 
                     Label {
-                        visible:            _isGroup
+                        visible:            sidebarDelegate.isGroup
                         anchors.left:       parent.left
                         anchors.leftMargin: 14
                         anchors.bottom:     parent.bottom
                         anchors.bottomMargin: 3
-                        text:           _d.label || ""
+                        text:           sidebarDelegate.itemData.label || ""
                         color:          Theme.AppTheme.textMuted
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
@@ -232,13 +237,13 @@ AppLayouts.WorkspaceFrame {
 
                     Rectangle {
                         id: _navBg
-                        visible:             _isItem
+                        visible:             sidebarDelegate.isItem
                         anchors.fill:        parent
                         anchors.leftMargin:  4
                         anchors.rightMargin: 4
                         radius: 4
 
-                        readonly property bool _active: root._activeSection === (_d.section || "")
+                        readonly property bool _active: root._activeSection === (sidebarDelegate.itemData.section || "")
 
                         color: _active
                             ? Theme.AppTheme.navSelectedBackground
@@ -258,7 +263,7 @@ AppLayouts.WorkspaceFrame {
                             anchors.left:           parent.left
                             anchors.leftMargin:     _sidebar.collapsed ? 13 : 11
                             anchors.verticalCenter: parent.verticalCenter
-                            name:      _d.icon || "settings"
+                            name:      sidebarDelegate.itemData.icon || "settings"
                             size:      13
                             iconColor: _navBg._active
                                 ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
@@ -271,7 +276,7 @@ AppLayouts.WorkspaceFrame {
                             anchors.right:          parent.right
                             anchors.rightMargin:    8
                             anchors.verticalCenter: parent.verticalCenter
-                            text:           _d.label || ""
+                            text:           sidebarDelegate.itemData.label || ""
                             color:          _navBg._active
                                 ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
                             font.family:    Theme.AppTheme.fontFamily
@@ -281,7 +286,7 @@ AppLayouts.WorkspaceFrame {
                         }
 
                         ToolTip.visible: _sidebar.collapsed && _navMA.containsMouse
-                        ToolTip.text:    _d.label || ""
+                        ToolTip.text:    sidebarDelegate.itemData.label || ""
                         ToolTip.delay:   700
 
                         MouseArea {
@@ -290,7 +295,7 @@ AppLayouts.WorkspaceFrame {
                             hoverEnabled: true
                             cursorShape:  Qt.PointingHandCursor
                             onClicked: {
-                                const s = _d.section || ""
+                                const s = sidebarDelegate.itemData.section || ""
                                 if (s.length > 0) {
                                     root._activeSection = s
                                     root._selectedRowId = ""
@@ -358,7 +363,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: Theme.AppTheme.toolbarHeight - 6
+                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
 
@@ -382,7 +387,9 @@ AppLayouts.WorkspaceFrame {
                                     }
                                     Item { Layout.fillWidth: true }
                                     Rectangle {
-                                        width: 26; height: 26; radius: 4
+                                        implicitWidth: 26
+                                        implicitHeight: 26
+                                        radius: 4
                                         color: _rtRefreshMA.containsMouse
                                             ? Theme.AppTheme.hoverSurface : "transparent"
                                         AppIcons.AppIcon {
@@ -420,8 +427,8 @@ AppLayouts.WorkspaceFrame {
 
                                     // ── Property row: Theme Mode ──
                                     Rectangle {
-                                        width:  _runtimeCol.width
-                                        height: 38
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 38
                                         color:  "transparent"
                                         Rectangle {
                                             anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
@@ -453,8 +460,8 @@ AppLayouts.WorkspaceFrame {
 
                                     // ── Property row: Platform API ──
                                     Rectangle {
-                                        width:  _runtimeCol.width
-                                        height: 38
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 38
                                         color:  Theme.AppTheme.surfaceOverlay
                                         Rectangle {
                                             anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
@@ -487,8 +494,8 @@ AppLayouts.WorkspaceFrame {
 
                                     // ── Property row: Summary ──
                                     Rectangle {
-                                        width:  _runtimeCol.width
-                                        height: 38
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 38
                                         color:  "transparent"
                                         Rectangle {
                                             anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
@@ -533,7 +540,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: Theme.AppTheme.toolbarHeight - 6
+                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
 
@@ -567,7 +574,9 @@ AppLayouts.WorkspaceFrame {
                                     Item { Layout.fillWidth: true }
 
                                     Rectangle {
-                                        width: 26; height: 26; radius: 4
+                                        implicitWidth: 26
+                                        implicitHeight: 26
+                                        radius: 4
                                         color: _modRefreshMA.containsMouse
                                             ? Theme.AppTheme.hoverSurface : "transparent"
                                         AppIcons.AppIcon {
@@ -655,7 +664,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: Theme.AppTheme.toolbarHeight - 6
+                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
 
@@ -689,7 +698,9 @@ AppLayouts.WorkspaceFrame {
                                     Item { Layout.fillWidth: true }
 
                                     Rectangle {
-                                        width: 26; height: 26; radius: 4
+                                        implicitWidth: 26
+                                        implicitHeight: 26
+                                        radius: 4
                                         color: _profRefreshMA.containsMouse
                                             ? Theme.AppTheme.hoverSurface : "transparent"
                                         AppIcons.AppIcon {
@@ -741,7 +752,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: Theme.AppTheme.toolbarHeight - 6
+                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
                                 Rectangle {
@@ -783,7 +794,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: Theme.AppTheme.toolbarHeight - 6
+                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
                                 Rectangle {
@@ -825,7 +836,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: Theme.AppTheme.toolbarHeight - 6
+                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
                                 Rectangle {
@@ -867,7 +878,7 @@ AppLayouts.WorkspaceFrame {
 
                             Rectangle {
                                 Layout.fillWidth: true
-                                height: Theme.AppTheme.toolbarHeight - 6
+                                Layout.preferredHeight: Theme.AppTheme.toolbarHeight - 6
                                 color:  Theme.AppTheme.surfaceRaised
                                 z:      1
 
@@ -891,7 +902,9 @@ AppLayouts.WorkspaceFrame {
                                     }
                                     Item { Layout.fillWidth: true }
                                     Rectangle {
-                                        width: 26; height: 26; radius: 4
+                                        implicitWidth: 26
+                                        implicitHeight: 26
+                                        radius: 4
                                         color: _siRefreshMA.containsMouse
                                             ? Theme.AppTheme.hoverSurface : "transparent"
                                         AppIcons.AppIcon {
@@ -1036,7 +1049,8 @@ AppLayouts.WorkspaceFrame {
                                     Layout.fillWidth:   true
                                     Layout.leftMargin:  Theme.AppTheme.marginMd
                                     Layout.rightMargin: Theme.AppTheme.marginMd
-                                    height: 1; color: Theme.AppTheme.divider
+                                    Layout.preferredHeight: 1
+                                    color: Theme.AppTheme.divider
                                 }
 
                                 // Stage / license subtitle
