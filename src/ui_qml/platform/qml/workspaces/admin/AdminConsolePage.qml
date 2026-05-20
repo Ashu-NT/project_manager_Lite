@@ -362,67 +362,10 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Roles & Access ────────────────────────────────────
-            Item {
+            PlatformWidgets.AccessSecurityPanel {
                 anchors.fill: parent
                 visible:      root._activeSection === "access"
-                clip:         true
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: Theme.AppTheme.toolbarHeight - 6
-                        color:  Theme.AppTheme.surfaceRaised
-                        z:      1
-
-                        Rectangle {
-                            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                            height: 1; color: Theme.AppTheme.divider
-                        }
-
-                        RowLayout {
-                            anchors.fill:        parent
-                            anchors.leftMargin:  Theme.AppTheme.marginMd
-                            anchors.rightMargin: 8
-                            spacing: Theme.AppTheme.spacingXs
-
-                            Label {
-                                text:           "Roles & Access"
-                                color:          Theme.AppTheme.textPrimary
-                                font.family:    Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold:      true
-                            }
-                            Item { Layout.fillWidth: true }
-                            AppControls.SecondaryButton {
-                                text:     "Refresh"
-                                iconName: "refresh"
-                                enabled:  root.accessController ? !root.accessController.isBusy : false
-                                onClicked: { if (root.accessController) root.accessController.refresh() }
-                            }
-                        }
-                    }
-
-                    Flickable {
-                        Layout.fillWidth:  true
-                        Layout.fillHeight: true
-                        contentWidth:      width
-                        contentHeight:     _accessPanel.implicitHeight + (2 * Theme.AppTheme.marginLg)
-                        clip:              true
-                        boundsBehavior:    Flickable.StopAtBounds
-
-                        PlatformWidgets.AccessSecurityPanel {
-                            id: _accessPanel
-                            anchors.left:    parent.left
-                            anchors.right:   parent.right
-                            anchors.top:     parent.top
-                            anchors.margins: Theme.AppTheme.marginLg
-                            controller:      root.accessController
-                        }
-                    }
-                }
+                controller:   root.accessController
             }
 
             // ── Support ───────────────────────────────────────────
