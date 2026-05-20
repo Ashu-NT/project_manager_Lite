@@ -240,6 +240,7 @@ Files:
 -  `pytest src/tests/inventory_procurement` — inventory tests pass
 -  `pytest src/tests/maintenance` — maintenance tests pass
 -  QML offscreen loading test if available
+-  Representative offscreen dialog/button verification added for inventory dialog hosts plus active PM/platform dialogs
 
 ---
 

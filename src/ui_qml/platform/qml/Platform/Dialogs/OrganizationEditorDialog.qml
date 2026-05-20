@@ -183,12 +183,14 @@ Dialog {
                 Layout.fillWidth: true
             }
 
-            Button {
+            AppControls.SecondaryButton {
+                objectName: "dialogCancelButton"
                 text: "Cancel"
                 onClicked: root.close()
             }
 
             AppControls.PrimaryButton {
+                objectName: "dialogSubmitButton"
                 enabled: organizationCodeField.text.trim().length > 0
                     && displayNameField.text.trim().length > 0
                     && timezoneField.text.trim().length > 0

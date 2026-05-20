@@ -79,12 +79,14 @@ Dialog {
 
         Item { Layout.fillWidth: true }
 
-        Button {
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             text: "Cancel"
             onClicked: root.close()
         }
 
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: "Update Progress"
             iconName: "approve"
             onClicked: {
