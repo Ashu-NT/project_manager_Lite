@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import App.Theme 1.0 as Theme
 
 // Section heading used inside SectionDetailPage content.

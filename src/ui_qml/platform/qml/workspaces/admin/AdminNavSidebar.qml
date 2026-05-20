@@ -138,7 +138,7 @@ Item {
                 font.family:     Theme.AppTheme.fontFamily
                 font.pixelSize:  Theme.AppTheme.captionSize
                 font.bold:       true
-                letterSpacing:   0.7
+                font.letterSpacing: 0.7
             }
 
             // ── Nav item ──────────────────────────────────────────
