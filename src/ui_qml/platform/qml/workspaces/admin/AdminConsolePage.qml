@@ -369,56 +369,10 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Support ───────────────────────────────────────────
-            Item {
-                anchors.fill: parent
-                visible:      root._activeSection === "support"
-                clip:         true
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: Theme.AppTheme.toolbarHeight - 6
-                        color:  Theme.AppTheme.surfaceRaised
-                        z:      1
-
-                        Rectangle {
-                            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                            height: 1; color: Theme.AppTheme.divider
-                        }
-
-                        Label {
-                            anchors.left:           parent.left
-                            anchors.leftMargin:     Theme.AppTheme.marginMd
-                            anchors.verticalCenter: parent.verticalCenter
-                            text:           "Support"
-                            color:          Theme.AppTheme.textPrimary
-                            font.family:    Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            font.bold:      true
-                        }
-                    }
-
-                    Flickable {
-                        Layout.fillWidth:  true
-                        Layout.fillHeight: true
-                        contentWidth:      width
-                        contentHeight:     _supportSection.implicitHeight + (2 * Theme.AppTheme.marginLg)
-                        clip:              true
-                        boundsBehavior:    Flickable.StopAtBounds
-
-                        AdminSupportSection {
-                            id: _supportSection
-                            anchors.left:    parent.left
-                            anchors.right:   parent.right
-                            anchors.top:     parent.top
-                            anchors.margins: Theme.AppTheme.marginLg
-                            supportController: root.supportController
-                        }
-                    }
-                }
+            AdminSupportSection {
+                anchors.fill:      parent
+                visible:           root._activeSection === "support"
+                supportController: root.supportController
             }
 
             // ── Audit / Overview ──────────────────────────────────

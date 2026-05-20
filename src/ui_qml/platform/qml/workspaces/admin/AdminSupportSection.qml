@@ -3,65 +3,151 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
+import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import Platform.Widgets 1.0 as PlatformWidgets
 
-GridLayout {
+ColumnLayout {
     id: root
+    spacing: 0
 
+    // ── Public API ────────────────────────────────────────────────
     property PlatformControllers.PlatformSupportWorkspaceController supportController
-    property var supportSettings: root.supportController ? root.supportController.supportSettings : AppMock.MockFactory.emptyObject()
-    property var supportPaths: root.supportController ? root.supportController.supportPaths : AppMock.MockFactory.emptyObject()
-    property var updateStatus: root.supportController ? root.supportController.updateStatus : AppMock.MockFactory.emptyObject()
-    property var activityFeed: root.supportController ? root.supportController.activityFeed : AppMock.MockFactory.catalog("Support Activity")
-    property var bundleState: root.supportController ? root.supportController.bundleState : AppMock.MockFactory.emptyObject()
 
-    columns: width > 1320 ? 2 : 1
-    columnSpacing: Theme.AppTheme.spacingMd
-    rowSpacing: Theme.AppTheme.spacingMd
+    property var supportSettings: root.supportController ? root.supportController.supportSettings : ({})
+    property var supportPaths:    root.supportController ? root.supportController.supportPaths    : ({})
+    property var updateStatus:    root.supportController ? root.supportController.updateStatus    : ({})
+    property var activityFeed:    root.supportController ? root.supportController.activityFeed    : ({ items: [], emptyState: "No support activity" })
+    property var bundleState:     root.supportController ? root.supportController.bundleState     : ({})
 
+    readonly property bool _busy: root.supportController ? root.supportController.isBusy : false
+    property string _searchText: ""
+
+    // ── Inline component: compact key-value metadata row ──────────
+    component MetaRow: RowLayout {
+        id: _mr
+        property string rowLabel: ""
+        property string rowValue: ""
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingXs
+
+        Label {
+            text:               _mr.rowLabel
+            color:              Theme.AppTheme.textMuted
+            font.family:        Theme.AppTheme.fontFamily
+            font.pixelSize:     Theme.AppTheme.captionSize
+            font.bold:          true
+            Layout.preferredWidth: 100
+        }
+        Label {
+            Layout.fillWidth: true
+            text:           _mr.rowValue || "-"
+            color:          Theme.AppTheme.textSecondary
+            font.family:    Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.smallSize
+            elide:          Text.ElideRight
+        }
+    }
+
+    // ── Inline component: path row with optional open button ──────
+    component PathRow: Rectangle {
+        id: _pr
+        property string rowLabel: ""
+        property string rowValue: ""
+        property bool   canOpen:  false
+        signal openRequested()
+
+        Layout.fillWidth: true
+        height: 36
+        color:  "transparent"
+
+        Rectangle {
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            height: 1; color: Theme.AppTheme.divider
+        }
+
+        RowLayout {
+            anchors.fill:        parent
+            anchors.leftMargin:  Theme.AppTheme.marginMd
+            anchors.rightMargin: Theme.AppTheme.marginSm
+            spacing:             Theme.AppTheme.spacingXs
+
+            Label {
+                text:           _pr.rowLabel
+                color:          Theme.AppTheme.textMuted
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.bold:      true
+                Layout.preferredWidth: 160
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text:           _pr.rowValue.length > 0 ? _pr.rowValue : "-"
+                color:          Theme.AppTheme.textSecondary
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                elide:          Text.ElideMiddle
+            }
+
+            Rectangle {
+                visible: _pr.canOpen
+                width: 22; height: 22; radius: Theme.AppTheme.radiusMd
+                color: _openMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
+
+                AppIcons.AppIcon {
+                    anchors.centerIn: parent
+                    name: "view"; size: 10
+                    iconColor: Theme.AppTheme.textMuted
+                }
+
+                MouseArea {
+                    id: _openMA
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape:  Qt.PointingHandCursor
+                    onClicked:    _pr.openRequested()
+                }
+            }
+        }
+    }
+
+    // ── Helper functions (wiring preserved) ──────────────────────
     function diagnosticsDefaultTarget() {
-        const now = new Date()
-        const stamp = String(now.getFullYear())
+        const now    = new Date()
+        const stamp  = String(now.getFullYear())
             + String(now.getMonth() + 1).padStart(2, "0")
             + String(now.getDate()).padStart(2, "0")
             + "_"
             + String(now.getHours()).padStart(2, "0")
             + String(now.getMinutes()).padStart(2, "0")
             + String(now.getSeconds()).padStart(2, "0")
-        const baseUrl = String(root.supportPaths.dataDirectoryUrl || "")
-        if (baseUrl.length === 0) {
-            return ""
-        }
-        return baseUrl + "/pm_diagnostics_" + stamp + ".zip"
+        const base = String(root.supportPaths.dataDirectoryUrl || "")
+        return base.length > 0 ? base + "/pm_diagnostics_" + stamp + ".zip" : ""
     }
 
     function syncFormFromController() {
         const channel = String(root.supportSettings.updateChannel || "stable")
         let matchIndex = -1
-        for (let index = 0; index < channelCombo.count; index += 1) {
-            const option = channelCombo.model[index]
-            if (String(option.value || "") === channel) {
-                matchIndex = index
-                break
+        for (let i = 0; i < channelCombo.count; i++) {
+            if (String((channelCombo.model[i] || {}).value || "") === channel) {
+                matchIndex = i; break
             }
         }
         channelCombo.currentIndex = matchIndex >= 0 ? matchIndex : 0
-        autoCheckBox.checked = Boolean(root.supportSettings.updateAutoCheck)
-        manifestField.text = String(root.supportSettings.updateManifestSource || "")
-        incidentField.text = root.supportController ? root.supportController.incidentId : ""
+        autoCheckBox.checked  = Boolean(root.supportSettings.updateAutoCheck)
+        manifestField.text    = String(root.supportSettings.updateManifestSource || "")
+        incidentField.text    = root.supportController ? root.supportController.incidentId : ""
     }
 
     function settingsPayload() {
-        const selectedChannel = channelCombo.currentIndex >= 0 && channelCombo.currentIndex < channelCombo.count
-            ? String((channelCombo.model[channelCombo.currentIndex] || {}).value || "stable")
-            : "stable"
+        const idx = channelCombo.currentIndex
+        const ch  = (idx >= 0 && idx < channelCombo.count)
+            ? String((channelCombo.model[idx] || {}).value || "stable") : "stable"
         return {
-            "updateChannel": selectedChannel,
-            "updateAutoCheck": autoCheckBox.checked,
+            "updateChannel":        ch,
+            "updateAutoCheck":      autoCheckBox.checked,
             "updateManifestSource": manifestField.text.trim()
         }
     }
@@ -70,38 +156,29 @@ GridLayout {
 
     Connections {
         target: root.supportController
-
-        function onSupportSettingsChanged() {
-            root.syncFormFromController()
-        }
-
+        function onSupportSettingsChanged() { root.syncFormFromController() }
         function onIncidentIdChanged() {
             incidentField.text = root.supportController ? root.supportController.incidentId : ""
         }
     }
 
+    // ── Dialogs (wiring preserved) ────────────────────────────────
     FileDialog {
         id: diagnosticsSaveDialog
-
-        title: "Save Diagnostics Bundle"
-        fileMode: FileDialog.SaveFile
+        title:       "Save Diagnostics Bundle"
+        fileMode:    FileDialog.SaveFile
         nameFilters: ["Zip archive (*.zip)"]
         currentFile: root.diagnosticsDefaultTarget()
         onAccepted: {
-            if (root.supportController !== null) {
+            if (root.supportController)
                 root.supportController.exportDiagnosticsTo(String(selectedFile || ""))
-            }
         }
     }
 
     Dialog {
         id: installDialog
-
-        modal: true
-        focus: true
-        implicitWidth: 460
+        modal: true; focus: true; implicitWidth: 460
         title: "Install Update"
-
         contentItem: Label {
             text: "The app will download the installer, prepare the Windows update handoff, then close and relaunch automatically. Continue?"
             wrapMode: Text.WordWrap
@@ -109,434 +186,619 @@ GridLayout {
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.bodySize
         }
-
         footer: Frame {
             padding: Theme.AppTheme.marginMd
-
             RowLayout {
                 anchors.fill: parent
                 spacing: Theme.AppTheme.spacingSm
-
-                Item {
-                    Layout.fillWidth: true
-                }
-
+                Item { Layout.fillWidth: true }
                 AppControls.SecondaryButton {
-                    text: "Cancel"
-                    iconName: "close"
+                    text: "Cancel"; iconName: "close"
                     onClicked: installDialog.close()
                 }
-
                 AppControls.PrimaryButton {
-                    text: "Install Now"
-                    iconName: "approve"
-                    enabled: root.supportController ? !root.supportController.isBusy : false
+                    text: "Install Now"; iconName: "approve"
+                    enabled: !root._busy
                     onClicked: {
                         installDialog.close()
-                        if (root.supportController !== null) {
+                        if (root.supportController)
                             root.supportController.installAvailableUpdate(root.settingsPayload())
-                        }
                     }
                 }
             }
         }
     }
 
-    ColumnLayout {
+    // ── Section title bar ─────────────────────────────────────────
+    Rectangle {
         Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
-
-        Label {
-            Layout.fillWidth: true
-            text: "Support Updates"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.sectionSize
-            font.bold: true
-        }
+        height: Theme.AppTheme.toolbarHeight - 6
+        color:  Theme.AppTheme.surfaceRaised
+        z:      1
 
         Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.AppTheme.divider
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            height: 1; color: Theme.AppTheme.divider
         }
 
         Label {
-            Layout.fillWidth: true
-            text: "Persist the platform update channel, check release manifests, and surface runtime support metadata through the desktop API."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
+            anchors.left:           parent.left
+            anchors.leftMargin:     Theme.AppTheme.marginMd
+            anchors.verticalCenter: parent.verticalCenter
+            text:           "Support"
+            color:          Theme.AppTheme.textPrimary
+            font.family:    Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
+            font.bold:      true
+        }
+    }
+
+    // ── TableToolbar ──────────────────────────────────────────────
+    AppWidgets.TableToolbar {
+        Layout.fillWidth:  true
+        searchPlaceholder: "Search diagnostics..."
+        showFilter:        true
+        showViews:         true
+        showRefresh:       true
+        isBusy:            root._busy
+        onSearchChanged:    function(text) { root._searchText = text }
+        onFilterClicked:    supportFilterPopup.open()
+        onViewsClicked:     supportViewsPopup.open()
+        onRefreshRequested: { if (root.supportController) root.supportController.refresh() }
+    }
+
+    // ── Inline state banner ───────────────────────────────────────
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: root._busy
+        tone:    "info"
+        message: "Processing..."
+    }
+
+    // ── Top panels: Release Management | Runtime Status ───────────
+    RowLayout {
+        Layout.fillWidth:       true
+        Layout.preferredHeight: 240
+        spacing: 0
+
+        // ── Release Management ────────────────────────────────────
+        ColumnLayout {
+            Layout.fillWidth:  true
+            Layout.fillHeight: true
+            spacing: 0
+
+            AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Release Management" }
+
+            ColumnLayout {
+                Layout.fillWidth:    true
+                Layout.fillHeight:   true
+                Layout.leftMargin:   Theme.AppTheme.marginMd
+                Layout.rightMargin:  Theme.AppTheme.marginMd
+                Layout.topMargin:    Theme.AppTheme.spacingSm
+                Layout.bottomMargin: Theme.AppTheme.spacingSm
+                spacing:             Theme.AppTheme.spacingSm
+
+                // Channel + Auto-check
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingMd
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 3
+
+                        Label {
+                            text:           "Channel"
+                            color:          Theme.AppTheme.textMuted
+                            font.family:    Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold:      true
+                        }
+
+                        ComboBox {
+                            id: channelCombo
+                            Layout.fillWidth: true
+                            enabled:  !root._busy
+                            model:    root.supportSettings.channelOptions || []
+                            textRole: "label"
+                        }
+                    }
+
+                    CheckBox {
+                        id: autoCheckBox
+                        Layout.alignment: Qt.AlignBottom
+                        text:    "Auto-check at startup"
+                        enabled: !root._busy
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
+                }
+
+                // Manifest source
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+
+                    Label {
+                        text:           "Manifest Source"
+                        color:          Theme.AppTheme.textMuted
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.bold:      true
+                    }
+
+                    TextField {
+                        id: manifestField
+                        Layout.fillWidth: true
+                        enabled:         !root._busy
+                        placeholderText: "Update manifest URL or path"
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+
+                // Actions
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.PrimaryButton {
+                        text: "Save Settings"; iconName: "save"
+                        enabled: !root._busy
+                        onClicked: { if (root.supportController) root.supportController.saveSettings(root.settingsPayload()) }
+                    }
+
+                    AppControls.SecondaryButton {
+                        text: "Check Updates"; iconName: "refresh"
+                        enabled: !root._busy
+                        onClicked: { if (root.supportController) root.supportController.checkForUpdates(root.settingsPayload()) }
+                    }
+
+                    AppControls.SecondaryButton {
+                        visible: Qt.platform.os === "windows"
+                        text:    "Install Now"; iconName: "approve"
+                        enabled: !root._busy
+                            && Boolean(root.updateStatus.updateAvailable)
+                            && Boolean(root.updateStatus.canOpenDownload)
+                        onClicked: installDialog.open()
+                    }
+
+                    AppControls.SecondaryButton {
+                        text:    "Open Download"; iconName: "view"
+                        enabled: !root._busy && Boolean(root.updateStatus.canOpenDownload)
+                        onClicked: { if (root.supportController) root.supportController.openUpdateDownload() }
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+            }
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingMd
-
-            ComboBox {
-                id: channelCombo
-
-                Layout.preferredWidth: 180
-                model: root.supportSettings.channelOptions || []
-                textRole: "label"
-            }
-
-            CheckBox {
-                id: autoCheckBox
-
-                text: "Auto-check at startup"
-            }
+        // Panel divider
+        Rectangle {
+            Layout.fillHeight: true
+            width: 1; color: Theme.AppTheme.divider
         }
 
-        TextField {
-            id: manifestField
+        // ── Runtime Status ────────────────────────────────────────
+        ColumnLayout {
+            Layout.preferredWidth: 260
+            Layout.fillHeight:     true
+            spacing: 0
 
-            Layout.fillWidth: true
-            placeholderText: "Update manifest source"
+            AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Runtime Status" }
+
+            ColumnLayout {
+                Layout.fillWidth:    true
+                Layout.fillHeight:   true
+                Layout.leftMargin:   Theme.AppTheme.marginMd
+                Layout.rightMargin:  Theme.AppTheme.marginMd
+                Layout.topMargin:    Theme.AppTheme.spacingSm
+                Layout.bottomMargin: Theme.AppTheme.spacingSm
+                spacing:             Theme.AppTheme.spacingXs
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.AppTheme.spacingXs
+
+                    Label {
+                        Layout.fillWidth: true
+                        text:           "Release Status"
+                        color:          Theme.AppTheme.textMuted
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.bold:      true
+                    }
+
+                    AppWidgets.StatusChip {
+                        status: String(root.updateStatus.statusLabel || "Ready")
+                    }
+                }
+
+                MetaRow { rowLabel: "App Version"; rowValue: String(root.supportSettings.appVersion    || "-") }
+                MetaRow { rowLabel: "Current";     rowValue: String(root.updateStatus.currentVersion   || "-") }
+                MetaRow { rowLabel: "Latest";      rowValue: String(root.updateStatus.latestVersion    || "-") }
+                MetaRow { rowLabel: "Theme";       rowValue: String(root.supportSettings.themeMode     || "-") }
+                MetaRow { rowLabel: "Governance";  rowValue: String(root.supportSettings.governanceMode || "-") }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible:        String(root.updateStatus.notes || "").length > 0
+                    text:           String(root.updateStatus.notes || "")
+                    color:          Theme.AppTheme.textMuted
+                    font.family:    Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    wrapMode:       Text.WordWrap
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible:        String(root.updateStatus.summary || "").length > 0
+                    text:           String(root.updateStatus.summary || "")
+                    color:          Theme.AppTheme.textSecondary
+                    font.family:    Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    wrapMode:       Text.WordWrap
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    visible:        String(root.updateStatus.sha256 || "").length > 0
+                    text:           "SHA256: " + String(root.updateStatus.sha256 || "")
+                    color:          Theme.AppTheme.textMuted
+                    font.family:    Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    wrapMode:       Text.WrapAnywhere
+                    maximumLineCount: 2
+                    elide:          Text.ElideRight
+                }
+
+                Item { Layout.fillHeight: true }
+            }
         }
+    }
 
-        GridLayout {
-            Layout.fillWidth: true
-            columns: width > 520 ? 3 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingXs
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
 
-            Label {
-                Layout.fillWidth: true
-                text: "App Version: " + String(root.supportSettings.appVersion || "-")
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
+    // ── Incident Diagnostics ──────────────────────────────────────
+    AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Incident Diagnostics" }
 
-            Label {
-                Layout.fillWidth: true
-                text: "Theme: " + String(root.supportSettings.themeMode || "-")
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
+    // Active trace panel
+    Rectangle {
+        Layout.fillWidth: true
+        implicitHeight:   _tracePanel.implicitHeight + Theme.AppTheme.spacingSm * 2
+        color:            Theme.AppTheme.surfaceOverlay
 
-            Label {
-                Layout.fillWidth: true
-                text: "Governance: " + String(root.supportSettings.governanceMode || "-")
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
+        Rectangle {
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            height: 1; color: Theme.AppTheme.divider
         }
 
         ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
+            id: _tracePanel
+            anchors {
+                left: parent.left; right: parent.right; top: parent.top
+                leftMargin: Theme.AppTheme.marginMd; rightMargin: Theme.AppTheme.marginMd
+                topMargin:  Theme.AppTheme.spacingSm
+            }
+            spacing: Theme.AppTheme.spacingXs
+
+            Label {
+                text:               "ACTIVE TRACE"
+                color:              Theme.AppTheme.textMuted
+                font.family:        Theme.AppTheme.fontFamily
+                font.pixelSize:     Theme.AppTheme.captionSize
+                font.bold:          true
+                font.letterSpacing: 0.8
+            }
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Theme.AppTheme.spacingSm
 
-                Label {
+                TextField {
+                    id: incidentField
                     Layout.fillWidth: true
-                    text: "Release Status"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    font.bold: true
+                    enabled:         !root._busy
+                    placeholderText: "Incident trace ID"
+                    onEditingFinished: {
+                        if (root.supportController)
+                            root.supportController.setIncidentId(text.trim())
+                    }
                 }
 
-                AppWidgets.StatusChip {
-                    status: String(root.updateStatus.statusLabel || "ready")
+                AppControls.SecondaryButton {
+                    text: "New Trace"; iconName: "add"
+                    enabled: !root._busy
+                    onClicked: { if (root.supportController) root.supportController.newIncidentId() }
                 }
-            }
 
-            Label {
-                Layout.fillWidth: true
-                text: String(root.updateStatus.summary || "")
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: "Current: " + String(root.updateStatus.currentVersion || "-")
-                    + " | Latest: " + String(root.updateStatus.latestVersion || "-")
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            Label {
-                Layout.fillWidth: true
-                visible: String(root.updateStatus.notes || "").length > 0
-                text: "Notes: " + String(root.updateStatus.notes || "")
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
-            }
-
-            Label {
-                Layout.fillWidth: true
-                visible: String(root.updateStatus.sha256 || "").length > 0
-                text: "SHA256: " + String(root.updateStatus.sha256 || "")
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WrapAnywhere
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.PrimaryButton {
-                text: "Save Settings"
-                iconName: "save"
-                enabled: root.supportController ? !root.supportController.isBusy : false
-                onClicked: root.supportController.saveSettings(root.settingsPayload())
-            }
-
-            AppControls.SecondaryButton {
-                text: "Check Updates"
-                iconName: "refresh"
-                enabled: root.supportController ? !root.supportController.isBusy : false
-                onClicked: root.supportController.checkForUpdates(root.settingsPayload())
-            }
-
-            AppControls.PrimaryButton {
-                visible: Qt.platform.os === "windows"
-                text: "Install Now"
-                iconName: "approve"
-                enabled: root.supportController
-                    ? (!root.supportController.isBusy
-                        && Boolean(root.updateStatus.updateAvailable)
-                        && Boolean(root.updateStatus.canOpenDownload))
-                    : false
-                onClicked: installDialog.open()
-            }
-
-            AppControls.SecondaryButton {
-                text: "Open Download"
-                iconName: "view"
-                enabled: root.supportController
-                    ? (!root.supportController.isBusy && Boolean(root.updateStatus.canOpenDownload))
-                    : false
-                onClicked: root.supportController.openUpdateDownload()
-            }
-
-            Item {
-                Layout.fillWidth: true
+                AppControls.SecondaryButton {
+                    text: "Copy"; iconName: "export"
+                    enabled: !root._busy
+                    onClicked: { if (root.supportController) root.supportController.copyIncidentId() }
+                }
             }
         }
     }
 
-    ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Theme.AppTheme.spacingMd
+    // Bundle state rows
+    PathRow {
+        rowLabel: "Last Diagnostics"
+        rowValue: String(root.bundleState.lastDiagnosticsPath || "")
+        canOpen:  String(root.bundleState.lastDiagnosticsUrl || "").length > 0
+        onOpenRequested: { if (root.supportController) root.supportController.openLatestDiagnostics() }
+    }
 
-        Label {
-            Layout.fillWidth: true
-            text: "Incident And Diagnostics"
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.sectionSize
-            font.bold: true
-        }
+    PathRow {
+        rowLabel: "Last Incident Report"
+        rowValue: String(root.bundleState.lastIncidentReportPath || "")
+        canOpen:  String(root.bundleState.lastIncidentReportUrl || "").length > 0
+        onOpenRequested: { if (root.supportController) root.supportController.openLatestIncidentReport() }
+    }
+
+    // Diagnostics action bar
+    Rectangle {
+        Layout.fillWidth: true
+        height: Theme.AppTheme.toolbarHeight
+        color:  Theme.AppTheme.surfaceOverlay
 
         Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.AppTheme.divider
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: 1; color: Theme.AppTheme.divider
         }
-
-        Label {
-            Layout.fillWidth: true
-            text: "Package diagnostics, prepare incident bundles, and open runtime support folders without dropping back into the old widget support tab."
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        TextField {
-            id: incidentField
-
-            Layout.fillWidth: true
-            placeholderText: "Incident trace ID"
-            onEditingFinished: {
-                if (root.supportController !== null) {
-                    root.supportController.setIncidentId(text.trim())
-                }
-            }
+        Rectangle {
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            height: 1; color: Theme.AppTheme.divider
         }
 
         RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
+            anchors.fill:        parent
+            anchors.leftMargin:  Theme.AppTheme.marginMd
+            anchors.rightMargin: Theme.AppTheme.marginMd
+            spacing:             Theme.AppTheme.spacingSm
 
             AppControls.SecondaryButton {
-                text: "New Trace"
-                iconName: "add"
-                enabled: root.supportController ? !root.supportController.isBusy : false
-                onClicked: root.supportController.newIncidentId()
-            }
-
-            AppControls.SecondaryButton {
-                text: "Copy Trace"
-                iconName: "export"
-                enabled: root.supportController ? !root.supportController.isBusy : false
-                onClicked: root.supportController.copyIncidentId()
-            }
-
-            Item {
-                Layout.fillWidth: true
-            }
-        }
-
-        Label {
-            Layout.fillWidth: true
-            text: "Support Email: " + String(root.supportSettings.supportEmail || root.bundleState.supportEmail || "-")
-            color: Theme.AppTheme.textPrimary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WordWrap
-        }
-
-        Label {
-            Layout.fillWidth: true
-            text: "Logs: " + String(root.supportPaths.logsDirectoryPath || "-")
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WrapAnywhere
-        }
-
-        Label {
-            Layout.fillWidth: true
-            text: "Data: " + String(root.supportPaths.dataDirectoryPath || "-")
-            color: Theme.AppTheme.textSecondary
-            font.family: Theme.AppTheme.fontFamily
-            font.pixelSize: Theme.AppTheme.smallSize
-            wrapMode: Text.WrapAnywhere
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingXs
-
-            Label {
-                Layout.fillWidth: true
-                text: "Last Diagnostics Bundle"
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                font.bold: true
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: String(root.bundleState.lastDiagnosticsPath || "No diagnostics bundle exported yet.")
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WrapAnywhere
-            }
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingXs
-
-            Label {
-                Layout.fillWidth: true
-                text: "Last Incident Report"
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                font.bold: true
-            }
-
-            Label {
-                Layout.fillWidth: true
-                text: String(root.bundleState.lastIncidentReportPath || "No incident report package created yet.")
-                color: Theme.AppTheme.textPrimary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WrapAnywhere
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
-
-            AppControls.SecondaryButton {
-                text: "Export Diagnostics"
-                iconName: "export"
-                enabled: root.supportController ? !root.supportController.isBusy : false
+                text: "Export Diagnostics"; iconName: "export"
+                enabled: !root._busy
                 onClicked: diagnosticsSaveDialog.open()
             }
 
             AppControls.PrimaryButton {
-                text: "Report Incident"
-                iconName: "approve"
-                enabled: root.supportController ? !root.supportController.isBusy : false
-                onClicked: root.supportController.reportIncident()
+                text: "Report Incident"; iconName: "approve"
+                enabled: !root._busy
+                onClicked: { if (root.supportController) root.supportController.reportIncident() }
+            }
+
+            Item { Layout.fillWidth: true }
+        }
+    }
+
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+
+    // ── Runtime Paths ─────────────────────────────────────────────
+    AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Runtime Paths" }
+
+    PathRow {
+        rowLabel: "Support Contact"
+        rowValue: String(root.supportSettings.supportEmail || root.bundleState.supportEmail || "")
+        canOpen:  false
+    }
+
+    PathRow {
+        rowLabel: "Logs"
+        rowValue: String(root.supportPaths.logsDirectoryPath || "")
+        canOpen:  true
+        onOpenRequested: { if (root.supportController) root.supportController.openLogsFolder() }
+    }
+
+    PathRow {
+        rowLabel: "Data"
+        rowValue: String(root.supportPaths.dataDirectoryPath || "")
+        canOpen:  true
+        onOpenRequested: { if (root.supportController) root.supportController.openDataFolder() }
+    }
+
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+
+    // ── Support Activity ──────────────────────────────────────────
+    AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Support Activity" }
+
+    Item {
+        Layout.fillWidth:       true
+        Layout.preferredHeight: 220
+
+        ListView {
+            id: _activityList
+            anchors.fill:      parent
+            anchors.topMargin: 4
+            clip:              true
+            boundsBehavior:    Flickable.StopAtBounds
+            spacing:           0
+            model:             root.activityFeed.items || []
+
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            delegate: Item {
+                id: _actRow
+                required property var modelData
+                required property int index
+
+                width:  _activityList.width
+                height: 44
+
+                // Timeline dot
+                Rectangle {
+                    id: _actDot
+                    anchors.left:           parent.left
+                    anchors.leftMargin:     Theme.AppTheme.marginMd
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 7; height: 7; radius: 4
+                    color: {
+                        const s = (_actRow.modelData.statusLabel || "").toLowerCase()
+                        if (s.includes("export") || s.includes("success") || s.includes("approv") || s.includes("install")) return Theme.AppTheme.success
+                        if (s.includes("error")  || s.includes("fail")    || s.includes("reject"))                          return Theme.AppTheme.danger
+                        if (s.includes("warn"))                                                                              return Theme.AppTheme.warning
+                        return Theme.AppTheme.textMuted
+                    }
+                }
+
+                // Vertical connector
+                Rectangle {
+                    visible:                  _actRow.index < _activityList.count - 1
+                    anchors.horizontalCenter: _actDot.horizontalCenter
+                    anchors.top:              _actDot.bottom
+                    anchors.topMargin:        2
+                    anchors.bottom:           parent.bottom
+                    width: 1; color: Theme.AppTheme.divider
+                }
+
+                ColumnLayout {
+                    anchors {
+                        left:           _actDot.right
+                        leftMargin:     Theme.AppTheme.spacingSm
+                        right:          parent.right
+                        rightMargin:    Theme.AppTheme.marginSm
+                        verticalCenter: parent.verticalCenter
+                    }
+                    spacing: 2
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing:          Theme.AppTheme.spacingXs
+
+                        Label {
+                            Layout.fillWidth: true
+                            text:           _actRow.modelData.title || ""
+                            color:          Theme.AppTheme.textPrimary
+                            font.family:    Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            elide:          Text.ElideRight
+                        }
+
+                        AppWidgets.StatusChip {
+                            visible: (_actRow.modelData.statusLabel || "").length > 0
+                            status:  _actRow.modelData.statusLabel || ""
+                        }
+                    }
+
+                    Label {
+                        visible:        (_actRow.modelData.metaText || "").length > 0
+                        text:           _actRow.modelData.metaText || ""
+                        color:          Theme.AppTheme.textMuted
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        elide:          Text.ElideRight
+                    }
+                }
             }
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
+        AppWidgets.EmptyState {
+            anchors.centerIn: parent
+            width:   Math.min(_activityList.width, 240)
+            visible: _activityList.count === 0
+            title:   String(root.activityFeed.emptyState || "No support activity recorded")
+        }
+    }
 
-            AppControls.SecondaryButton {
-                text: "Open Logs"
-                iconName: "view"
-                enabled: root.supportController ? !root.supportController.isBusy : false
-                onClicked: root.supportController.openLogsFolder()
+    // ── Filter popup ──────────────────────────────────────────────
+    Popup {
+        id: supportFilterPopup
+        parent:      Overlay.overlay
+        anchors.centerIn: parent
+        width:       280
+        padding:     Theme.AppTheme.marginMd
+        modal:       true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color:        Theme.AppTheme.surfaceRaised
+            radius:       Theme.AppTheme.radiusMd
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+        }
+
+        ColumnLayout {
+            width:   parent.width
+            spacing: Theme.AppTheme.spacingMd
+
+            Label {
+                text:           "Filter Support"
+                color:          Theme.AppTheme.textPrimary
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
+                font.bold:      true
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text:    "Activity type and date filters will appear here."
+                color:   Theme.AppTheme.textMuted
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
             }
 
             AppControls.SecondaryButton {
-                text: "Open Data"
-                iconName: "view"
-                enabled: root.supportController ? !root.supportController.isBusy : false
-                onClicked: root.supportController.openDataFolder()
-            }
-
-            AppControls.SecondaryButton {
-                text: "Open Diagnostics"
-                iconName: "view"
-                enabled: root.supportController
-                    ? (!root.supportController.isBusy && String(root.bundleState.lastDiagnosticsUrl || "").length > 0)
-                    : false
-                onClicked: root.supportController.openLatestDiagnostics()
-            }
-
-            AppControls.SecondaryButton {
-                text: "Open Incident Package"
-                iconName: "view"
-                enabled: root.supportController
-                    ? (!root.supportController.isBusy && String(root.bundleState.lastIncidentReportUrl || "").length > 0)
-                    : false
-                onClicked: root.supportController.openLatestIncidentReport()
+                Layout.alignment: Qt.AlignRight
+                text:     "Close"
+                onClicked: supportFilterPopup.close()
             }
         }
     }
 
-    PlatformWidgets.RecordListCard {
-        Layout.fillWidth: true
-        Layout.columnSpan: root.columns
-        title: root.activityFeed.title || "Support Activity"
-        subtitle: root.activityFeed.subtitle || ""
-        emptyState: root.activityFeed.emptyState || ""
-        items: root.activityFeed.items || []
-        actionsEnabled: false
+    // ── Views popup ───────────────────────────────────────────────
+    Popup {
+        id: supportViewsPopup
+        parent:      Overlay.overlay
+        anchors.centerIn: parent
+        width:       220
+        padding:     4
+        modal:       true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color:        Theme.AppTheme.surfaceRaised
+            radius:       Theme.AppTheme.radiusMd
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+        }
+
+        Column {
+            width: parent.width; spacing: 2
+
+            Repeater {
+                model: ["All Activity", "Updates", "Diagnostics", "Incidents", "Warnings"]
+
+                delegate: Rectangle {
+                    required property string modelData
+                    required property int    index
+                    width:  parent.width; height: 34
+                    radius: Theme.AppTheme.radiusMd
+                    color:  _svMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
+
+                    Label {
+                        anchors {
+                            left:           parent.left
+                            leftMargin:     Theme.AppTheme.spacingMd
+                            verticalCenter: parent.verticalCenter
+                        }
+                        text:           modelData
+                        color:          Theme.AppTheme.textPrimary
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
+
+                    MouseArea {
+                        id: _svMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape:  Qt.PointingHandCursor
+                        onClicked:    supportViewsPopup.close()
+                    }
+                }
+            }
+        }
     }
 }
