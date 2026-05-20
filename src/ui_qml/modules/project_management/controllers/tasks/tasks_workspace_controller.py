@@ -3,20 +3,24 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
+    PMAssignmentController,
+)
+from src.ui_qml.modules.project_management.controllers.tasks.pm_collaboration_controller import (
+    PMCollaborationController,
+)
+from src.ui_qml.modules.project_management.controllers.tasks.pm_dependency_controller import (
+    PMDependencyController,
+)
+from src.ui_qml.modules.project_management.controllers.tasks.pm_task_list_controller import (
+    PMTaskListController,
+)
+from src.ui_qml.modules.project_management.controllers.tasks.pm_time_controller import (
+    PMTimeController,
+)
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,
-    ProjectManagementUndoCommand,
-    ProjectManagementUndoStack,
     ProjectManagementWorkspaceControllerBase,
-    run_mutation,
-    serialize_collaboration_collection_view_model,
-    serialize_selector_options,
-    serialize_task_catalog_overview_view_model,
-    serialize_task_collection_view_model,
-    serialize_task_detail_view_model,
-    serialize_task_record_view_models,
-    serialize_timesheet_collection_view_model,
-    serialize_timesheet_detail_view_model,
     serialize_workspace_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
@@ -33,6 +37,7 @@ QML_IMPORT_MAJOR_VERSION = 1
 class ProjectManagementTasksWorkspaceController(
     ProjectManagementWorkspaceControllerBase
 ):
+    # ── Signals ──────────────────────────────────────────────────────
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
@@ -85,120 +90,117 @@ class ProjectManagementTasksWorkspaceController(
         self._tasks_workspace_presenter = (
             tasks_workspace_presenter or ProjectTasksWorkspacePresenter()
         )
-        self._overview: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "metrics": [],
-        }
-        self._project_options: list[dict[str, str]] = []
+        # ── Coordinator / navigation state ────────────────────────────
         self._selected_project_id = ""
-        self._status_options: list[dict[str, str]] = []
-        self._bulk_status_options: list[dict[str, str]] = []
-        self._priority_options: list[dict[str, str]] = []
-        self._schedule_options: list[dict[str, str]] = []
-        self._task_view_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
         self._selected_priority_filter = "all"
         self._selected_schedule_filter = "all"
-        self._selected_task_view_name = ""
         self._search_text = ""
-        self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
-        self._saved_task_views = self._load_saved_task_views()
-        self._refresh_task_view_options()
-        self._presence_session_task_id = ""
-        self._presence_session_activity = ""
-        self._presence_override_task_id = ""
-        self._tasks: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._selected_task: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "state": {},
-        }
+        self._selected_task_view_name = ""
         self._selected_task_id = ""
-        self._selected_task_ids: list[str] = []
-        self._selected_task_count = 0
-        self._selected_task_done_count = 0
-        self._task_action_history = ProjectManagementUndoStack(max_depth=25)
-        self._assignment_options: list[dict[str, str]] = []
         self._selected_assignment_id = ""
-        self._dependency_task_options: list[dict[str, str]] = []
-        self._dependency_type_options: list[dict[str, str]] = []
-        self._assignments: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._dependencies: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._time_period_options: list[dict[str, str]] = []
         self._selected_time_period_start = ""
-        self._time_assignment_summary: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "state": {},
-        }
-        self._time_entries: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
         self._selected_time_entry_id = ""
-        self._selected_time_entry: dict[str, object] = {
-            "id": "",
-            "title": "",
-            "statusLabel": "",
-            "subtitle": "",
-            "description": "",
-            "emptyState": "",
-            "fields": [],
-            "state": {},
-        }
-        self._collaboration_mention_options: list[dict[str, str]] = []
-        self._collaboration_document_options: list[dict[str, str]] = []
-        self._collaboration_comments: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self._collaboration_presence: dict[str, object] = {
-            "title": "",
-            "subtitle": "",
-            "emptyState": "",
-            "items": [],
-        }
-        self.destroyed.connect(self._on_destroyed_cleanup)
+        # ── Saved views ────────────────────────────────────────────────
+        self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
+        self._saved_task_views: dict[str, dict[str, object]] = (
+            self._load_saved_task_views()
+        )
+        self._task_view_options: list[dict[str, str]] = []
+        self._refresh_task_view_options()
+        # ── Sub-controllers ────────────────────────────────────────────
+        _cb = dict(
+            presenter=self._tasks_workspace_presenter,
+            facade_refresh=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+            parent=self,
+        )
+        self._task_list = PMTaskListController(**_cb)
+        self._assignments_ctrl = PMAssignmentController(**_cb)
+        self._dependencies_ctrl = PMDependencyController(**_cb)
+        self._time_ctrl = PMTimeController(**_cb)
+        self._collab_ctrl = PMCollaborationController(**_cb)
+        # Connect sub-controller signals → facade signals (backward compat)
+        self._task_list.overviewChanged.connect(self.overviewChanged)
+        self._task_list.projectOptionsChanged.connect(self.projectOptionsChanged)
+        self._task_list.statusOptionsChanged.connect(self.statusOptionsChanged)
+        self._task_list.bulkStatusOptionsChanged.connect(self.bulkStatusOptionsChanged)
+        self._task_list.priorityOptionsChanged.connect(self.priorityOptionsChanged)
+        self._task_list.scheduleOptionsChanged.connect(self.scheduleOptionsChanged)
+        self._task_list.tasksChanged.connect(self.tasksChanged)
+        self._task_list.selectedTaskChanged.connect(self.selectedTaskChanged)
+        self._task_list.selectedTaskIdsChanged.connect(self.selectedTaskIdsChanged)
+        self._task_list.selectedTaskCountChanged.connect(self.selectedTaskCountChanged)
+        self._task_list.selectedTaskDoneCountChanged.connect(
+            self.selectedTaskDoneCountChanged
+        )
+        self._task_list.taskActionHistoryChanged.connect(self.taskActionHistoryChanged)
+        self._assignments_ctrl.assignmentOptionsChanged.connect(
+            self.assignmentOptionsChanged
+        )
+        self._assignments_ctrl.assignmentsChanged.connect(self.assignmentsChanged)
+        self._dependencies_ctrl.dependencyTaskOptionsChanged.connect(
+            self.dependencyTaskOptionsChanged
+        )
+        self._dependencies_ctrl.dependencyTypeOptionsChanged.connect(
+            self.dependencyTypeOptionsChanged
+        )
+        self._dependencies_ctrl.dependenciesChanged.connect(self.dependenciesChanged)
+        self._time_ctrl.timePeriodOptionsChanged.connect(self.timePeriodOptionsChanged)
+        self._time_ctrl.timeAssignmentSummaryChanged.connect(
+            self.timeAssignmentSummaryChanged
+        )
+        self._time_ctrl.timeEntriesChanged.connect(self.timeEntriesChanged)
+        self._time_ctrl.selectedTimeEntryChanged.connect(self.selectedTimeEntryChanged)
+        self._collab_ctrl.collaborationMentionOptionsChanged.connect(
+            self.collaborationMentionOptionsChanged
+        )
+        self._collab_ctrl.collaborationDocumentOptionsChanged.connect(
+            self.collaborationDocumentOptionsChanged
+        )
+        self._collab_ctrl.collaborationCommentsChanged.connect(
+            self.collaborationCommentsChanged
+        )
+        self._collab_ctrl.collaborationPresenceChanged.connect(
+            self.collaborationPresenceChanged
+        )
+        self.destroyed.connect(self._collab_ctrl.on_destroyed_cleanup)
         self._bind_domain_events()
         self.refresh()
 
+    # ── Sub-controller access ─────────────────────────────────────────
+
+    @Property(QObject, constant=True)
+    def taskListController(self) -> PMTaskListController:
+        return self._task_list
+
+    @Property(QObject, constant=True)
+    def assignmentsController(self) -> PMAssignmentController:
+        return self._assignments_ctrl
+
+    @Property(QObject, constant=True)
+    def dependenciesController(self) -> PMDependencyController:
+        return self._dependencies_ctrl
+
+    @Property(QObject, constant=True)
+    def timeController(self) -> PMTimeController:
+        return self._time_ctrl
+
+    @Property(QObject, constant=True)
+    def collaborationController(self) -> PMCollaborationController:
+        return self._collab_ctrl
+
+    # ── Backward-compat properties (delegate to sub-controllers) ─────
+
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
-        return self._overview
+        return self._task_list.overview
 
     @Property("QVariantList", notify=projectOptionsChanged)
     def projectOptions(self) -> list[dict[str, str]]:
-        return self._project_options
+        return self._task_list.projectOptions
 
     @Property(str, notify=selectedProjectIdChanged)
     def selectedProjectId(self) -> str:
@@ -206,19 +208,19 @@ class ProjectManagementTasksWorkspaceController(
 
     @Property("QVariantList", notify=statusOptionsChanged)
     def statusOptions(self) -> list[dict[str, str]]:
-        return self._status_options
+        return self._task_list.statusOptions
 
     @Property("QVariantList", notify=bulkStatusOptionsChanged)
     def bulkStatusOptions(self) -> list[dict[str, str]]:
-        return self._bulk_status_options
+        return self._task_list.bulkStatusOptions
 
     @Property("QVariantList", notify=priorityOptionsChanged)
     def priorityOptions(self) -> list[dict[str, str]]:
-        return self._priority_options
+        return self._task_list.priorityOptions
 
     @Property("QVariantList", notify=scheduleOptionsChanged)
     def scheduleOptions(self) -> list[dict[str, str]]:
-        return self._schedule_options
+        return self._task_list.scheduleOptions
 
     @Property("QVariantList", notify=taskViewOptionsChanged)
     def taskViewOptions(self) -> list[dict[str, str]]:
@@ -246,11 +248,11 @@ class ProjectManagementTasksWorkspaceController(
 
     @Property("QVariantMap", notify=tasksChanged)
     def tasks(self) -> dict[str, object]:
-        return self._tasks
+        return self._task_list.tasks
 
     @Property("QVariantMap", notify=selectedTaskChanged)
     def selectedTask(self) -> dict[str, object]:
-        return self._selected_task
+        return self._task_list.selectedTask
 
     @Property(str, notify=selectedTaskIdChanged)
     def selectedTaskId(self) -> str:
@@ -258,35 +260,35 @@ class ProjectManagementTasksWorkspaceController(
 
     @Property("QVariantList", notify=selectedTaskIdsChanged)
     def selectedTaskIds(self) -> list[str]:
-        return list(self._selected_task_ids)
+        return self._task_list.selectedTaskIds
 
     @Property(int, notify=selectedTaskCountChanged)
     def selectedTaskCount(self) -> int:
-        return self._selected_task_count
+        return self._task_list.selectedTaskCount
 
     @Property(int, notify=selectedTaskDoneCountChanged)
     def selectedTaskDoneCount(self) -> int:
-        return self._selected_task_done_count
+        return self._task_list.selectedTaskDoneCount
 
     @Property(bool, notify=taskActionHistoryChanged)
     def canUndoTaskAction(self) -> bool:
-        return self._task_action_history.can_undo()
+        return self._task_list.canUndoTaskAction
 
     @Property(bool, notify=taskActionHistoryChanged)
     def canRedoTaskAction(self) -> bool:
-        return self._task_action_history.can_redo()
+        return self._task_list.canRedoTaskAction
 
     @Property(str, notify=taskActionHistoryChanged)
     def nextUndoLabel(self) -> str:
-        return self._task_action_history.next_undo_label() or ""
+        return self._task_list.nextUndoLabel
 
     @Property(str, notify=taskActionHistoryChanged)
     def nextRedoLabel(self) -> str:
-        return self._task_action_history.next_redo_label() or ""
+        return self._task_list.nextRedoLabel
 
     @Property("QVariantList", notify=assignmentOptionsChanged)
     def assignmentOptions(self) -> list[dict[str, str]]:
-        return self._assignment_options
+        return self._assignments_ctrl.assignmentOptions
 
     @Property(str, notify=selectedAssignmentIdChanged)
     def selectedAssignmentId(self) -> str:
@@ -294,23 +296,23 @@ class ProjectManagementTasksWorkspaceController(
 
     @Property("QVariantList", notify=dependencyTaskOptionsChanged)
     def dependencyTaskOptions(self) -> list[dict[str, str]]:
-        return self._dependency_task_options
+        return self._dependencies_ctrl.dependencyTaskOptions
 
     @Property("QVariantList", notify=dependencyTypeOptionsChanged)
     def dependencyTypeOptions(self) -> list[dict[str, str]]:
-        return self._dependency_type_options
+        return self._dependencies_ctrl.dependencyTypeOptions
 
     @Property("QVariantMap", notify=assignmentsChanged)
     def assignments(self) -> dict[str, object]:
-        return self._assignments
+        return self._assignments_ctrl.assignments
 
     @Property("QVariantMap", notify=dependenciesChanged)
     def dependencies(self) -> dict[str, object]:
-        return self._dependencies
+        return self._dependencies_ctrl.dependencies
 
     @Property("QVariantList", notify=timePeriodOptionsChanged)
     def timePeriodOptions(self) -> list[dict[str, str]]:
-        return self._time_period_options
+        return self._time_ctrl.timePeriodOptions
 
     @Property(str, notify=selectedTimePeriodStartChanged)
     def selectedTimePeriodStart(self) -> str:
@@ -318,11 +320,11 @@ class ProjectManagementTasksWorkspaceController(
 
     @Property("QVariantMap", notify=timeAssignmentSummaryChanged)
     def timeAssignmentSummary(self) -> dict[str, object]:
-        return self._time_assignment_summary
+        return self._time_ctrl.timeAssignmentSummary
 
     @Property("QVariantMap", notify=timeEntriesChanged)
     def timeEntries(self) -> dict[str, object]:
-        return self._time_entries
+        return self._time_ctrl.timeEntries
 
     @Property(str, notify=selectedTimeEntryIdChanged)
     def selectedTimeEntryId(self) -> str:
@@ -330,23 +332,25 @@ class ProjectManagementTasksWorkspaceController(
 
     @Property("QVariantMap", notify=selectedTimeEntryChanged)
     def selectedTimeEntry(self) -> dict[str, object]:
-        return self._selected_time_entry
+        return self._time_ctrl.selectedTimeEntry
 
     @Property("QVariantList", notify=collaborationMentionOptionsChanged)
     def collaborationMentionOptions(self) -> list[dict[str, str]]:
-        return self._collaboration_mention_options
+        return self._collab_ctrl.collaborationMentionOptions
 
     @Property("QVariantList", notify=collaborationDocumentOptionsChanged)
     def collaborationDocumentOptions(self) -> list[dict[str, str]]:
-        return self._collaboration_document_options
+        return self._collab_ctrl.collaborationDocumentOptions
 
     @Property("QVariantMap", notify=collaborationCommentsChanged)
     def collaborationComments(self) -> dict[str, object]:
-        return self._collaboration_comments
+        return self._collab_ctrl.collaborationComments
 
     @Property("QVariantMap", notify=collaborationPresenceChanged)
     def collaborationPresence(self) -> dict[str, object]:
-        return self._collaboration_presence
+        return self._collab_ctrl.collaborationPresence
+
+    # ── Refresh ───────────────────────────────────────────────────────
 
     @Slot()
     def refresh(self) -> None:
@@ -359,7 +363,7 @@ class ProjectManagementTasksWorkspaceController(
                     self._workspace_presenter.build_view_model()
                 )
             )
-            workspace_state = self._tasks_workspace_presenter.build_workspace_state(
+            ws = self._tasks_workspace_presenter.build_workspace_state(
                 project_id=self._selected_project_id or None,
                 search_text=self._search_text,
                 status_filter=self._selected_status_filter,
@@ -370,136 +374,35 @@ class ProjectManagementTasksWorkspaceController(
                 selected_time_period_start=self._selected_time_period_start,
                 selected_time_entry_id=self._selected_time_entry_id or None,
             )
-            self._set_overview(
-                serialize_task_catalog_overview_view_model(
-                    workspace_state.overview
-                )
-            )
-            self._set_project_options(
-                serialize_selector_options(workspace_state.project_options)
-            )
-            self._set_selected_project_id(workspace_state.selected_project_id)
-            self._set_status_options(
-                serialize_selector_options(workspace_state.status_options)
-            )
-            self._set_bulk_status_options(
-                serialize_selector_options(workspace_state.bulk_status_options)
-            )
-            self._set_priority_options(
-                serialize_selector_options(workspace_state.priority_options)
-            )
-            self._set_schedule_options(
-                serialize_selector_options(workspace_state.schedule_options)
-            )
-            self._set_selected_status_filter(
-                workspace_state.selected_status_filter
-            )
-            self._set_selected_priority_filter(
-                workspace_state.selected_priority_filter
-            )
-            self._set_selected_schedule_filter(
-                workspace_state.selected_schedule_filter
-            )
-            self._set_search_text(workspace_state.search_text)
-            self._set_tasks(
-                {
-                    "title": "Task Catalog",
-                    "subtitle": (
-                        "Edit delivery tasks, progress, and execution "
-                        "priorities."
-                    ),
-                    "emptyState": workspace_state.empty_state,
-                    "items": serialize_task_record_view_models(
-                        workspace_state.tasks
-                    ),
-                }
-            )
-            self._reconcile_task_bulk_selection(self._tasks["items"])
-            self._set_selected_task_id(workspace_state.selected_task_id)
-            self._set_selected_task(
-                serialize_task_detail_view_model(
-                    workspace_state.selected_task_detail
-                )
-            )
-            self._sync_review_presence()
-            self._set_assignment_options(
-                serialize_selector_options(workspace_state.assignment_options)
-            )
-            self._set_selected_assignment_id(
-                workspace_state.selected_assignment_id
-            )
-            self._set_dependency_task_options(
-                serialize_selector_options(
-                    workspace_state.dependency_task_options
-                )
-            )
-            self._set_dependency_type_options(
-                serialize_selector_options(
-                    workspace_state.dependency_type_options
-                )
-            )
-            self._set_assignments(
-                serialize_task_collection_view_model(workspace_state.assignments)
-            )
-            self._set_dependencies(
-                serialize_task_collection_view_model(workspace_state.dependencies)
-            )
-            self._set_time_period_options(
-                serialize_selector_options(workspace_state.time_period_options)
-            )
-            self._set_selected_time_period_start(
-                workspace_state.selected_time_period_start
-            )
-            self._set_time_assignment_summary(
-                serialize_timesheet_detail_view_model(
-                    workspace_state.time_assignment_summary
-                )
-            )
-            self._set_time_entries(
-                serialize_timesheet_collection_view_model(
-                    workspace_state.time_entries
-                )
-            )
-            self._set_selected_time_entry_id(
-                workspace_state.selected_time_entry_id
-            )
-            self._set_selected_time_entry(
-                serialize_timesheet_detail_view_model(
-                    workspace_state.selected_time_entry_detail
-                )
-            )
-            self._set_collaboration_mention_options(
-                serialize_selector_options(
-                    workspace_state.collaboration_mention_options
-                )
-            )
-            self._set_collaboration_document_options(
-                serialize_selector_options(
-                    workspace_state.collaboration_document_options
-                )
-            )
-            self._set_collaboration_comments(
-                serialize_collaboration_collection_view_model(
-                    workspace_state.collaboration_comments
-                )
-            )
-            self._set_collaboration_presence(
-                serialize_collaboration_collection_view_model(
-                    workspace_state.collaboration_presence
-                )
-            )
-            self._set_empty_state(workspace_state.empty_state)
+            self._task_list._update(ws)
+            self._assignments_ctrl._update(ws)
+            self._dependencies_ctrl._update(ws)
+            self._time_ctrl._update(ws)
+            self._collab_ctrl._update(ws)
+            self._collab_ctrl.sync_review_presence(ws.selected_task_id)
+            self._set_selected_project_id(ws.selected_project_id)
+            self._set_selected_status_filter(ws.selected_status_filter)
+            self._set_selected_priority_filter(ws.selected_priority_filter)
+            self._set_selected_schedule_filter(ws.selected_schedule_filter)
+            self._set_search_text(ws.search_text)
+            self._set_selected_task_id(ws.selected_task_id)
+            self._set_selected_assignment_id(ws.selected_assignment_id)
+            self._set_selected_time_period_start(ws.selected_time_period_start)
+            self._set_selected_time_entry_id(ws.selected_time_entry_id)
+            self._set_empty_state(ws.empty_state)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
             self._set_is_loading(False)
 
+    # ── Selection / navigation slots ──────────────────────────────────
+
     @Slot(str)
     def selectProject(self, project_id: str) -> None:
-        normalized_value = (project_id or "").strip()
-        if normalized_value == self._selected_project_id:
+        normalized = (project_id or "").strip()
+        if normalized == self._selected_project_id:
             return
-        self._set_selected_project_id(normalized_value)
+        self._set_selected_project_id(normalized)
         self._set_selected_task_id("")
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
@@ -508,37 +411,37 @@ class ProjectManagementTasksWorkspaceController(
 
     @Slot(str)
     def setSearchText(self, search_text: str) -> None:
-        normalized_value = (search_text or "").strip()
-        if normalized_value == self._search_text:
+        normalized = (search_text or "").strip()
+        if normalized == self._search_text:
             return
-        self._set_search_text(normalized_value)
+        self._set_search_text(normalized)
         self._set_selected_task_view_name("")
         self.refresh()
 
     @Slot(str)
     def setStatusFilter(self, status_filter: str) -> None:
-        normalized_value = (status_filter or "").strip().lower() or "all"
-        if normalized_value == self._selected_status_filter.lower():
+        normalized = (status_filter or "").strip().lower() or "all"
+        if normalized == self._selected_status_filter.lower():
             return
-        self._set_selected_status_filter(normalized_value)
+        self._set_selected_status_filter(normalized)
         self._set_selected_task_view_name("")
         self.refresh()
 
     @Slot(str)
     def setPriorityFilter(self, priority_filter: str) -> None:
-        normalized_value = (priority_filter or "").strip().lower() or "all"
-        if normalized_value == self._selected_priority_filter.lower():
+        normalized = (priority_filter or "").strip().lower() or "all"
+        if normalized == self._selected_priority_filter.lower():
             return
-        self._set_selected_priority_filter(normalized_value)
+        self._set_selected_priority_filter(normalized)
         self._set_selected_task_view_name("")
         self.refresh()
 
     @Slot(str)
     def setScheduleFilter(self, schedule_filter: str) -> None:
-        normalized_value = (schedule_filter or "").strip().lower() or "all"
-        if normalized_value == self._selected_schedule_filter.lower():
+        normalized = (schedule_filter or "").strip().lower() or "all"
+        if normalized == self._selected_schedule_filter.lower():
             return
-        self._set_selected_schedule_filter(normalized_value)
+        self._set_selected_schedule_filter(normalized)
         self._set_selected_task_view_name("")
         self.refresh()
 
@@ -560,116 +463,11 @@ class ProjectManagementTasksWorkspaceController(
         self.refresh()
 
     @Slot(str)
-    def selectTaskView(self, view_name: str) -> None:
-        self._set_selected_task_view_name((view_name or "").strip())
-
-    @Slot(str, str, result="QVariantMap")
-    def beginTaskPresence(self, task_id: str, activity: str) -> dict[str, object]:
-        normalized_task_id = (task_id or "").strip()
-        if not normalized_task_id:
-            return {
-                "ok": False,
-                "message": "Task ID is required to start a presence session.",
-            }
-        normalized_activity = (activity or "").strip() or "reviewing"
-        try:
-            self._presence_override_task_id = normalized_task_id
-            self._set_task_presence(
-                normalized_task_id,
-                normalized_activity,
-            )
-            self._set_error_message("")
-            return {"ok": True, "message": ""}
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-            return {"ok": False, "message": str(exc)}
-
-    @Slot(str, result="QVariantMap")
-    def endTaskPresence(self, task_id: str) -> dict[str, object]:
-        normalized_task_id = (task_id or "").strip()
-        try:
-            if (
-                normalized_task_id
-                and normalized_task_id == self._presence_override_task_id
-            ):
-                self._presence_override_task_id = ""
-            self._sync_review_presence()
-            self._set_error_message("")
-            return {"ok": True, "message": ""}
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._set_error_message(str(exc))
-            return {"ok": False, "message": str(exc)}
-
-    @Slot(str, result="QVariantMap")
-    def saveCurrentTaskView(self, view_name: str) -> dict[str, object]:
-        normalized_name = (view_name or "").strip()
-        if not normalized_name:
-            self._set_error_message("Saved view name is required.")
-            return {
-                "ok": False,
-                "message": "Saved view name is required.",
-            }
-        self._saved_task_views[normalized_name] = self._capture_task_view_state()
-        self._persist_saved_task_views()
-        self._refresh_task_view_options()
-        self._set_selected_task_view_name(normalized_name)
-        self._set_error_message("")
-        self._set_feedback_message(f'Saved task view "{normalized_name}".')
-        return {
-            "ok": True,
-            "message": f'Saved task view "{normalized_name}".',
-        }
-
-    @Slot(result="QVariantMap")
-    def applySelectedTaskView(self) -> dict[str, object]:
-        view_name = self._selected_task_view_name
-        if not view_name:
-            self.refresh()
-            return {
-                "ok": True,
-                "message": "Current filters applied.",
-            }
-        state = self._saved_task_views.get(view_name)
-        if not isinstance(state, dict):
-            self._set_error_message("Saved task view is no longer available.")
-            return {
-                "ok": False,
-                "message": "Saved task view is no longer available.",
-            }
-        self._apply_task_view_state(state, selected_view_name=view_name)
-        self._set_error_message("")
-        self._set_feedback_message(f'Applied task view "{view_name}".')
-        return {
-            "ok": True,
-            "message": f'Applied task view "{view_name}".',
-        }
-
-    @Slot(result="QVariantMap")
-    def deleteSelectedTaskView(self) -> dict[str, object]:
-        view_name = self._selected_task_view_name
-        if not view_name:
-            self._set_error_message("Choose a saved task view first.")
-            return {
-                "ok": False,
-                "message": "Choose a saved task view first.",
-            }
-        self._saved_task_views.pop(view_name, None)
-        self._persist_saved_task_views()
-        self._refresh_task_view_options()
-        self._set_selected_task_view_name("")
-        self._set_error_message("")
-        self._set_feedback_message(f'Deleted task view "{view_name}".')
-        return {
-            "ok": True,
-            "message": f'Deleted task view "{view_name}".',
-        }
-
-    @Slot(str)
     def selectTask(self, task_id: str) -> None:
-        normalized_value = (task_id or "").strip()
-        if normalized_value == self._selected_task_id:
+        normalized = (task_id or "").strip()
+        if normalized == self._selected_task_id:
             return
-        self._set_selected_task_id(normalized_value)
+        self._set_selected_task_id(normalized)
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
@@ -677,369 +475,193 @@ class ProjectManagementTasksWorkspaceController(
 
     @Slot(str, bool)
     def setTaskBulkSelection(self, task_id: str, selected: bool) -> None:
-        normalized_value = (task_id or "").strip()
-        if not normalized_value:
-            return
-        current_ids = list(self._selected_task_ids)
-        if selected:
-            if normalized_value not in current_ids:
-                current_ids.append(normalized_value)
-        else:
-            current_ids = [
-                existing_id for existing_id in current_ids if existing_id != normalized_value
-            ]
-        self._set_selected_task_ids(current_ids)
-        self._sync_selected_task_stats(self._tasks.get("items", []))
+        self._task_list.setTaskBulkSelection(task_id, selected)
 
     @Slot()
     def selectVisibleTasks(self) -> None:
-        visible_task_ids = [
-            str(item.get("id", "") or "").strip()
-            for item in self._tasks.get("items", [])
-            if str(item.get("id", "") or "").strip()
-        ]
-        self._set_selected_task_ids(visible_task_ids)
-        self._sync_selected_task_stats(self._tasks.get("items", []))
+        self._task_list.selectVisibleTasks()
 
     @Slot()
     def clearTaskBulkSelection(self) -> None:
-        if not self._selected_task_ids:
-            return
-        self._set_selected_task_ids([])
-        self._sync_selected_task_stats(self._tasks.get("items", []))
+        self._task_list.clearTaskBulkSelection()
 
     @Slot(str)
     def selectAssignment(self, assignment_id: str) -> None:
-        normalized_value = (assignment_id or "").strip()
-        if normalized_value == self._selected_assignment_id:
+        normalized = (assignment_id or "").strip()
+        if normalized == self._selected_assignment_id:
             return
-        self._set_selected_assignment_id(normalized_value)
+        self._set_selected_assignment_id(normalized)
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
         self.refresh()
 
     @Slot(str)
     def selectTimePeriod(self, period_start: str) -> None:
-        normalized_value = (period_start or "").strip()
-        if normalized_value == self._selected_time_period_start:
+        normalized = (period_start or "").strip()
+        if normalized == self._selected_time_period_start:
             return
-        self._set_selected_time_period_start(normalized_value)
+        self._set_selected_time_period_start(normalized)
         self._set_selected_time_entry_id("")
         self.refresh()
 
     @Slot(str)
     def selectTimeEntry(self, entry_id: str) -> None:
-        normalized_value = (entry_id or "").strip()
-        if normalized_value == self._selected_time_entry_id:
+        normalized = (entry_id or "").strip()
+        if normalized == self._selected_time_entry_id:
             return
-        self._set_selected_time_entry_id(normalized_value)
+        self._set_selected_time_entry_id(normalized)
         self.refresh()
+
+    # ── Saved views ───────────────────────────────────────────────────
+
+    @Slot(str)
+    def selectTaskView(self, view_name: str) -> None:
+        self._set_selected_task_view_name((view_name or "").strip())
+
+    @Slot(str, result="QVariantMap")
+    def saveCurrentTaskView(self, view_name: str) -> dict[str, object]:
+        normalized = (view_name or "").strip()
+        if not normalized:
+            self._set_error_message("Saved view name is required.")
+            return {"ok": False, "message": "Saved view name is required."}
+        self._saved_task_views[normalized] = self._capture_task_view_state()
+        self._persist_saved_task_views()
+        self._refresh_task_view_options()
+        self._set_selected_task_view_name(normalized)
+        self._set_error_message("")
+        self._set_feedback_message(f'Saved task view "{normalized}".')
+        return {"ok": True, "message": f'Saved task view "{normalized}".'}
+
+    @Slot(result="QVariantMap")
+    def applySelectedTaskView(self) -> dict[str, object]:
+        view_name = self._selected_task_view_name
+        if not view_name:
+            self.refresh()
+            return {"ok": True, "message": "Current filters applied."}
+        state = self._saved_task_views.get(view_name)
+        if not isinstance(state, dict):
+            self._set_error_message("Saved task view is no longer available.")
+            return {"ok": False, "message": "Saved task view is no longer available."}
+        self._apply_task_view_state(state, selected_view_name=view_name)
+        self._set_error_message("")
+        self._set_feedback_message(f'Applied task view "{view_name}".')
+        return {"ok": True, "message": f'Applied task view "{view_name}".'}
+
+    @Slot(result="QVariantMap")
+    def deleteSelectedTaskView(self) -> dict[str, object]:
+        view_name = self._selected_task_view_name
+        if not view_name:
+            self._set_error_message("Choose a saved task view first.")
+            return {"ok": False, "message": "Choose a saved task view first."}
+        self._saved_task_views.pop(view_name, None)
+        self._persist_saved_task_views()
+        self._refresh_task_view_options()
+        self._set_selected_task_view_name("")
+        self._set_error_message("")
+        self._set_feedback_message(f'Deleted task view "{view_name}".')
+        return {"ok": True, "message": f'Deleted task view "{view_name}".'}
+
+    # ── Backward-compat mutation delegates ───────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
     def createTask(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.create_task(
-                dict(payload)
-            ),
-            success_message="Task created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.createTask(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateTask(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.update_task(
-                dict(payload)
-            ),
-            success_message="Task updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.updateTask(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateProgress(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.update_progress(
-                dict(payload)
-            ),
-            success_message="Task progress updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.updateProgress(payload)
 
     @Slot(str, result="QVariantMap")
     def deleteTask(self, task_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.delete_task(task_id),
-            success_message="Task deleted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createAssignment(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.create_assignment(
-                dict(payload)
-            ),
-            success_message="Assignment created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateAssignmentAllocation(
-        self,
-        payload: dict[str, object],
-    ) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.update_assignment_allocation(
-                dict(payload)
-            ),
-            success_message="Assignment allocation updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def setAssignmentHours(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.set_assignment_hours(
-                dict(payload)
-            ),
-            success_message="Assignment effort updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.deleteTask(task_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def applyBulkStatus(self, payload: dict[str, object]) -> dict[str, object]:
-        merged_payload = dict(payload)
-        merged_payload.setdefault("taskIds", list(self._selected_task_ids))
-        history_command = self._build_bulk_status_history_command(merged_payload)
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.apply_bulk_status(
-                merged_payload
-            ),
-            success_message="Bulk task status applied.",
-            on_success=lambda: self._on_bulk_status_success(history_command),
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.applyBulkStatus(payload)
 
     @Slot("QVariantList", result="QVariantMap")
     def bulkDeleteTasks(self, task_ids: list[object]) -> dict[str, object]:
-        normalized_ids = [
-            str(task_id or "").strip()
-            for task_id in task_ids
-            if str(task_id or "").strip()
-        ]
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.bulk_delete_tasks(
-                normalized_ids
-            ),
-            success_message="Selected tasks deleted.",
-            on_success=lambda: (
-                self.clearTaskBulkSelection(),
-                self.refresh(),
-            ),
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.bulkDeleteTasks(task_ids)
 
     @Slot(result="QVariantMap")
     def undoLastTaskAction(self) -> dict[str, object]:
-        if not self._task_action_history.can_undo():
-            return {
-                "ok": False,
-                "message": "Nothing to undo.",
-            }
-        label = self._task_action_history.next_undo_label() or "task action"
-        return run_mutation(
-            operation=self._undo_task_action,
-            success_message=f"Undid {label}.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.undoLastTaskAction()
 
     @Slot(result="QVariantMap")
     def redoLastTaskAction(self) -> dict[str, object]:
-        if not self._task_action_history.can_redo():
-            return {
-                "ok": False,
-                "message": "Nothing to redo.",
-            }
-        label = self._task_action_history.next_redo_label() or "task action"
-        return run_mutation(
-            operation=self._redo_task_action,
-            success_message=f"Redid {label}.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._task_list.redoLastTaskAction()
 
     @Slot("QVariantMap", result="QVariantMap")
-    def addTaskTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.add_task_time_entry(
-                dict(payload)
-            ),
-            success_message="Task time entry added.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+    def createAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._assignments_ctrl.createAssignment(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def updateTaskTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.update_task_time_entry(
-                dict(payload)
-            ),
-            success_message="Task time entry updated.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot(str, result="QVariantMap")
-    def deleteTaskTimeEntry(self, entry_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.delete_task_time_entry(
-                entry_id
-            ),
-            success_message="Task time entry deleted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+    def updateAssignmentAllocation(
+        self, payload: dict[str, object]
+    ) -> dict[str, object]:
+        return self._assignments_ctrl.updateAssignmentAllocation(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def submitTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.submit_task_period(
-                dict(payload)
-            ),
-            success_message="Task period submitted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def lockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.lock_task_period(
-                dict(payload)
-            ),
-            success_message="Task period locked.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def unlockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.unlock_task_period(
-                dict(payload)
-            ),
-            success_message="Task period unlocked.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+    def setAssignmentHours(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._assignments_ctrl.setAssignmentHours(payload)
 
     @Slot(str, result="QVariantMap")
     def deleteAssignment(self, assignment_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.delete_assignment(
-                assignment_id
-            ),
-            success_message="Assignment removed.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._assignments_ctrl.deleteAssignment(assignment_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDependency(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.create_dependency(
-                dict(payload)
-            ),
-            success_message="Dependency created.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._dependencies_ctrl.createDependency(payload)
 
     @Slot(str, result="QVariantMap")
     def deleteDependency(self, dependency_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.delete_dependency(
-                dependency_id
-            ),
-            success_message="Dependency removed.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._dependencies_ctrl.deleteDependency(dependency_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def addTaskTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._time_ctrl.addTaskTimeEntry(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateTaskTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._time_ctrl.updateTaskTimeEntry(payload)
+
+    @Slot(str, result="QVariantMap")
+    def deleteTaskTimeEntry(self, entry_id: str) -> dict[str, object]:
+        return self._time_ctrl.deleteTaskTimeEntry(entry_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def submitTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._time_ctrl.submitTaskPeriod(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def lockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._time_ctrl.lockTaskPeriod(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def unlockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
+        return self._time_ctrl.unlockTaskPeriod(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.post_task_comment(
-                dict(payload)
-            ),
-            success_message="Task collaboration update posted.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._collab_ctrl.postTaskComment(payload)
 
     @Slot(str, result="QVariantMap")
     def markTaskCollaborationRead(self, task_id: str) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._tasks_workspace_presenter.mark_task_collaboration_read(
-                task_id
-            ),
-            success_message="Task collaboration mentions marked as read.",
-            on_success=self.refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+        return self._collab_ctrl.markTaskCollaborationRead(task_id)
+
+    @Slot(str, str, result="QVariantMap")
+    def beginTaskPresence(self, task_id: str, activity: str) -> dict[str, object]:
+        return self._collab_ctrl.beginTaskPresence(task_id, activity)
+
+    @Slot(str, result="QVariantMap")
+    def endTaskPresence(self, task_id: str) -> dict[str, object]:
+        return self._collab_ctrl.endTaskPresence(task_id)
+
+    # ── Domain event binding ──────────────────────────────────────────
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(
@@ -1051,106 +673,91 @@ class ProjectManagementTasksWorkspaceController(
             scope_code="project_management",
         )
 
-    def _set_overview(self, overview: dict[str, object]) -> None:
-        if overview == self._overview:
-            return
-        self._overview = overview
-        self.overviewChanged.emit()
+    # ── Coordinator state setters ─────────────────────────────────────
 
-    def _set_project_options(self, project_options: list[dict[str, str]]) -> None:
-        if project_options == self._project_options:
+    def _set_selected_project_id(self, v: str) -> None:
+        if v == self._selected_project_id:
             return
-        self._project_options = project_options
-        self.projectOptionsChanged.emit()
-
-    def _set_selected_project_id(self, selected_project_id: str) -> None:
-        if selected_project_id == self._selected_project_id:
-            return
-        self._selected_project_id = selected_project_id
+        self._selected_project_id = v
         self.selectedProjectIdChanged.emit()
 
-    def _set_status_options(self, status_options: list[dict[str, str]]) -> None:
-        if status_options == self._status_options:
+    def _set_selected_status_filter(self, v: str) -> None:
+        if v == self._selected_status_filter:
             return
-        self._status_options = status_options
-        self.statusOptionsChanged.emit()
-
-    def _set_bulk_status_options(self, bulk_status_options: list[dict[str, str]]) -> None:
-        if bulk_status_options == self._bulk_status_options:
-            return
-        self._bulk_status_options = bulk_status_options
-        self.bulkStatusOptionsChanged.emit()
-
-    def _set_priority_options(self, priority_options: list[dict[str, str]]) -> None:
-        if priority_options == self._priority_options:
-            return
-        self._priority_options = priority_options
-        self.priorityOptionsChanged.emit()
-
-    def _set_schedule_options(self, schedule_options: list[dict[str, str]]) -> None:
-        if schedule_options == self._schedule_options:
-            return
-        self._schedule_options = schedule_options
-        self.scheduleOptionsChanged.emit()
-
-    def _set_task_view_options(self, task_view_options: list[dict[str, str]]) -> None:
-        if task_view_options == self._task_view_options:
-            return
-        self._task_view_options = task_view_options
-        self.taskViewOptionsChanged.emit()
-
-    def _set_selected_status_filter(self, selected_status_filter: str) -> None:
-        if selected_status_filter == self._selected_status_filter:
-            return
-        self._selected_status_filter = selected_status_filter
+        self._selected_status_filter = v
         self.selectedStatusFilterChanged.emit()
 
-    def _set_selected_priority_filter(self, selected_priority_filter: str) -> None:
-        if selected_priority_filter == self._selected_priority_filter:
+    def _set_selected_priority_filter(self, v: str) -> None:
+        if v == self._selected_priority_filter:
             return
-        self._selected_priority_filter = selected_priority_filter
+        self._selected_priority_filter = v
         self.selectedPriorityFilterChanged.emit()
 
-    def _set_selected_schedule_filter(self, selected_schedule_filter: str) -> None:
-        if selected_schedule_filter == self._selected_schedule_filter:
+    def _set_selected_schedule_filter(self, v: str) -> None:
+        if v == self._selected_schedule_filter:
             return
-        self._selected_schedule_filter = selected_schedule_filter
+        self._selected_schedule_filter = v
         self.selectedScheduleFilterChanged.emit()
 
-    def _set_selected_task_view_name(self, selected_task_view_name: str) -> None:
-        if selected_task_view_name == self._selected_task_view_name:
+    def _set_search_text(self, v: str) -> None:
+        if v == self._search_text:
             return
-        self._selected_task_view_name = selected_task_view_name
-        self.selectedTaskViewNameChanged.emit()
-
-    def _set_search_text(self, search_text: str) -> None:
-        if search_text == self._search_text:
-            return
-        self._search_text = search_text
+        self._search_text = v
         self.searchTextChanged.emit()
 
+    def _set_selected_task_view_name(self, v: str) -> None:
+        if v == self._selected_task_view_name:
+            return
+        self._selected_task_view_name = v
+        self.selectedTaskViewNameChanged.emit()
+
+    def _set_selected_task_id(self, v: str) -> None:
+        if v == self._selected_task_id:
+            return
+        self._selected_task_id = v
+        self.selectedTaskIdChanged.emit()
+
+    def _set_selected_assignment_id(self, v: str) -> None:
+        if v == self._selected_assignment_id:
+            return
+        self._selected_assignment_id = v
+        self.selectedAssignmentIdChanged.emit()
+
+    def _set_selected_time_period_start(self, v: str) -> None:
+        if v == self._selected_time_period_start:
+            return
+        self._selected_time_period_start = v
+        self.selectedTimePeriodStartChanged.emit()
+
+    def _set_selected_time_entry_id(self, v: str) -> None:
+        if v == self._selected_time_entry_id:
+            return
+        self._selected_time_entry_id = v
+        self.selectedTimeEntryIdChanged.emit()
+
+    # ── Saved view helpers ────────────────────────────────────────────
+
     def _load_saved_task_views(self) -> dict[str, dict[str, object]]:
-        raw_views = self._task_view_store.load_task_saved_views()
-        normalized_views: dict[str, dict[str, object]] = {}
-        for name, state in raw_views.items():
-            normalized_name = (name or "").strip()
-            if not normalized_name or not isinstance(state, dict):
-                continue
-            normalized_views[normalized_name] = self._normalize_task_view_state(
-                state
-            )
-        return normalized_views
+        raw = self._task_view_store.load_task_saved_views()
+        result: dict[str, dict[str, object]] = {}
+        for name, state in raw.items():
+            normalized = (name or "").strip()
+            if normalized and isinstance(state, dict):
+                result[normalized] = self._normalize_task_view_state(state)
+        return result
 
     def _persist_saved_task_views(self) -> None:
         self._task_view_store.save_task_saved_views(self._saved_task_views)
 
     def _refresh_task_view_options(self) -> None:
-        options = [{"value": "", "label": "Current Filters"}]
+        options: list[dict[str, str]] = [{"value": "", "label": "Current Filters"}]
         options.extend(
-            {"value": name, "label": name}
-            for name in sorted(self._saved_task_views)
+            {"value": name, "label": name} for name in sorted(self._saved_task_views)
         )
-        self._set_task_view_options(options)
+        if options == self._task_view_options:
+            return
+        self._task_view_options = options
+        self.taskViewOptionsChanged.emit()
         if self._selected_task_view_name and (
             self._selected_task_view_name not in self._saved_task_views
         ):
@@ -1160,45 +767,39 @@ class ProjectManagementTasksWorkspaceController(
         return {
             "query": self._search_text,
             "status": self._index_for_option_value(
-                self._status_options,
-                self._selected_status_filter,
+                self._task_list.statusOptions, self._selected_status_filter
             ),
             "priority": self._index_for_option_value(
-                self._priority_options,
-                self._selected_priority_filter,
+                self._task_list.priorityOptions, self._selected_priority_filter
             ),
             "schedule": self._index_for_option_value(
-                self._schedule_options,
-                self._selected_schedule_filter,
+                self._task_list.scheduleOptions, self._selected_schedule_filter
             ),
         }
 
     def _apply_task_view_state(
-        self,
-        state: dict[str, object],
-        *,
-        selected_view_name: str,
+        self, state: dict[str, object], *, selected_view_name: str
     ) -> None:
-        normalized_state = self._normalize_task_view_state(state)
-        self._set_search_text(str(normalized_state.get("query", "") or ""))
+        normalized = self._normalize_task_view_state(state)
+        self._set_search_text(str(normalized.get("query", "") or ""))
         self._set_selected_status_filter(
             self._option_value_for_index(
-                self._status_options,
-                normalized_state.get("status", 0),
+                self._task_list.statusOptions,
+                normalized.get("status", 0),
                 default_value="all",
             )
         )
         self._set_selected_priority_filter(
             self._option_value_for_index(
-                self._priority_options,
-                normalized_state.get("priority", 0),
+                self._task_list.priorityOptions,
+                normalized.get("priority", 0),
                 default_value="all",
             )
         )
         self._set_selected_schedule_filter(
             self._option_value_for_index(
-                self._schedule_options,
-                normalized_state.get("schedule", 0),
+                self._task_list.scheduleOptions,
+                normalized.get("schedule", 0),
                 default_value="all",
             )
         )
@@ -1229,13 +830,12 @@ class ProjectManagementTasksWorkspaceController(
 
     @staticmethod
     def _index_for_option_value(
-        options: list[dict[str, str]],
-        target_value: str,
+        options: list[dict[str, str]], target_value: str
     ) -> int:
         target = str(target_value or "")
-        for index, option in enumerate(options):
+        for i, option in enumerate(options):
             if str(option.get("value", "") or "") == target:
-                return index
+                return i
         return 0
 
     @staticmethod
@@ -1245,345 +845,14 @@ class ProjectManagementTasksWorkspaceController(
         *,
         default_value: str,
     ) -> str:
-        normalized_index = ProjectManagementTasksWorkspaceController._coerce_non_negative_int(
+        idx = ProjectManagementTasksWorkspaceController._coerce_non_negative_int(
             index_value
         )
-        if 0 <= normalized_index < len(options):
-            return str(options[normalized_index].get("value", "") or default_value)
+        if 0 <= idx < len(options):
+            return str(options[idx].get("value", "") or default_value)
         if options:
             return str(options[0].get("value", "") or default_value)
         return default_value
-
-    def _set_tasks(self, tasks: dict[str, object]) -> None:
-        if tasks == self._tasks:
-            return
-        self._tasks = tasks
-        self.tasksChanged.emit()
-
-    def _sync_review_presence(self) -> None:
-        if self._presence_override_task_id:
-            return
-        selected_task_id = (self._selected_task_id or "").strip()
-        if selected_task_id:
-            self._set_task_presence(selected_task_id, "reviewing")
-            return
-        self._clear_current_task_presence()
-
-    def _set_task_presence(self, task_id: str, activity: str) -> None:
-        normalized_task_id = (task_id or "").strip()
-        normalized_activity = (activity or "").strip() or "reviewing"
-        if not normalized_task_id:
-            self._clear_current_task_presence()
-            return
-        if (
-            normalized_task_id == self._presence_session_task_id
-            and normalized_activity == self._presence_session_activity
-        ):
-            return
-        if self._presence_session_task_id and (
-            self._presence_session_task_id != normalized_task_id
-            or self._presence_session_activity != normalized_activity
-        ):
-            self._tasks_workspace_presenter.clear_task_collaboration_presence(
-                self._presence_session_task_id
-            )
-            self._presence_session_task_id = ""
-            self._presence_session_activity = ""
-        self._tasks_workspace_presenter.touch_task_collaboration_presence(
-            normalized_task_id,
-            activity=normalized_activity,
-        )
-        self._presence_session_task_id = normalized_task_id
-        self._presence_session_activity = normalized_activity
-
-    def _clear_current_task_presence(self) -> None:
-        if not self._presence_session_task_id:
-            return
-        self._tasks_workspace_presenter.clear_task_collaboration_presence(
-            self._presence_session_task_id
-        )
-        self._presence_session_task_id = ""
-        self._presence_session_activity = ""
-
-    def _on_destroyed_cleanup(self, *_args) -> None:
-        try:
-            self._presence_override_task_id = ""
-            self._clear_current_task_presence()
-        except Exception:
-            pass
-
-    def _set_selected_task(self, selected_task: dict[str, object]) -> None:
-        if selected_task == self._selected_task:
-            return
-        self._selected_task = selected_task
-        self.selectedTaskChanged.emit()
-
-    def _set_selected_task_id(self, selected_task_id: str) -> None:
-        if selected_task_id == self._selected_task_id:
-            return
-        self._selected_task_id = selected_task_id
-        self.selectedTaskIdChanged.emit()
-
-    def _set_selected_task_ids(self, selected_task_ids: list[str]) -> None:
-        normalized_ids = [
-            str(task_id or "").strip()
-            for task_id in selected_task_ids
-            if str(task_id or "").strip()
-        ]
-        if normalized_ids == self._selected_task_ids:
-            return
-        self._selected_task_ids = normalized_ids
-        self.selectedTaskIdsChanged.emit()
-
-    def _set_selected_task_count(self, selected_task_count: int) -> None:
-        if selected_task_count == self._selected_task_count:
-            return
-        self._selected_task_count = selected_task_count
-        self.selectedTaskCountChanged.emit()
-
-    def _set_selected_task_done_count(self, selected_task_done_count: int) -> None:
-        if selected_task_done_count == self._selected_task_done_count:
-            return
-        self._selected_task_done_count = selected_task_done_count
-        self.selectedTaskDoneCountChanged.emit()
-
-    def _emit_task_action_history_changed(self) -> None:
-        self.taskActionHistoryChanged.emit()
-
-    def _on_bulk_status_success(
-        self,
-        history_command: ProjectManagementUndoCommand | None,
-    ) -> None:
-        if history_command is not None:
-            self._task_action_history.record(history_command)
-            self._emit_task_action_history_changed()
-        self.refresh()
-
-    def _undo_task_action(self) -> None:
-        self._task_action_history.undo()
-        self._emit_task_action_history_changed()
-
-    def _redo_task_action(self) -> None:
-        self._task_action_history.redo()
-        self._emit_task_action_history_changed()
-
-    def _build_bulk_status_history_command(
-        self,
-        payload: dict[str, object],
-    ) -> ProjectManagementUndoCommand | None:
-        target_status = str(payload.get("status", "") or "").strip().upper()
-        raw_task_ids = payload.get("taskIds", []) or []
-        task_ids = [
-            str(task_id or "").strip()
-            for task_id in raw_task_ids
-            if str(task_id or "").strip()
-        ]
-        if not target_status or not task_ids:
-            return None
-        task_items_by_id = {
-            str(item.get("id", "") or "").strip(): item
-            for item in self._tasks.get("items", [])
-            if str(item.get("id", "") or "").strip()
-        }
-        changes: list[tuple[str, str, str]] = []
-        for task_id in task_ids:
-            item = task_items_by_id.get(task_id)
-            if item is None:
-                continue
-            state = item.get("state", {})
-            if not isinstance(state, dict):
-                continue
-            current_status = str(state.get("status", "") or "").strip().upper()
-            if not current_status or current_status == target_status:
-                continue
-            changes.append((task_id, current_status, target_status))
-        if not changes:
-            return None
-        reopen_percent_complete = payload.get("reopenPercentComplete", "")
-
-        def _apply_grouped_status(task_changes: list[tuple[str, str, str]], direction: int) -> None:
-            grouped_task_ids: dict[str, list[str]] = {}
-            for task_id, old_status, new_status in task_changes:
-                status = old_status if direction == 0 else new_status
-                grouped_task_ids.setdefault(status, []).append(task_id)
-            for status, grouped_ids in grouped_task_ids.items():
-                mutation_payload: dict[str, object] = {
-                    "taskIds": grouped_ids,
-                    "status": status,
-                }
-                if (
-                    direction == 1
-                    and status == "IN_PROGRESS"
-                    and reopen_percent_complete not in ("", None)
-                    and any(
-                        old_status == "DONE" and new_status == "IN_PROGRESS"
-                        for _, old_status, new_status in task_changes
-                    )
-                ):
-                    mutation_payload["reopenPercentComplete"] = reopen_percent_complete
-                self._tasks_workspace_presenter.apply_bulk_status(mutation_payload)
-
-        label = (
-            "Bulk status -> "
-            f"{target_status.replace('_', ' ').title()} "
-            f"({len(changes)} task(s))"
-        )
-        return ProjectManagementUndoCommand(
-            label=label,
-            redo=lambda: _apply_grouped_status(changes, 1),
-            undo=lambda: _apply_grouped_status(changes, 0),
-        )
-
-    def _set_assignment_options(
-        self,
-        assignment_options: list[dict[str, str]],
-    ) -> None:
-        if assignment_options == self._assignment_options:
-            return
-        self._assignment_options = assignment_options
-        self.assignmentOptionsChanged.emit()
-
-    def _set_selected_assignment_id(self, selected_assignment_id: str) -> None:
-        if selected_assignment_id == self._selected_assignment_id:
-            return
-        self._selected_assignment_id = selected_assignment_id
-        self.selectedAssignmentIdChanged.emit()
-
-    def _set_dependency_task_options(
-        self,
-        dependency_task_options: list[dict[str, str]],
-    ) -> None:
-        if dependency_task_options == self._dependency_task_options:
-            return
-        self._dependency_task_options = dependency_task_options
-        self.dependencyTaskOptionsChanged.emit()
-
-    def _set_dependency_type_options(
-        self,
-        dependency_type_options: list[dict[str, str]],
-    ) -> None:
-        if dependency_type_options == self._dependency_type_options:
-            return
-        self._dependency_type_options = dependency_type_options
-        self.dependencyTypeOptionsChanged.emit()
-
-    def _set_assignments(self, assignments: dict[str, object]) -> None:
-        if assignments == self._assignments:
-            return
-        self._assignments = assignments
-        self.assignmentsChanged.emit()
-
-    def _set_dependencies(self, dependencies: dict[str, object]) -> None:
-        if dependencies == self._dependencies:
-            return
-        self._dependencies = dependencies
-        self.dependenciesChanged.emit()
-
-    def _set_time_period_options(
-        self,
-        time_period_options: list[dict[str, str]],
-    ) -> None:
-        if time_period_options == self._time_period_options:
-            return
-        self._time_period_options = time_period_options
-        self.timePeriodOptionsChanged.emit()
-
-    def _set_selected_time_period_start(self, selected_time_period_start: str) -> None:
-        if selected_time_period_start == self._selected_time_period_start:
-            return
-        self._selected_time_period_start = selected_time_period_start
-        self.selectedTimePeriodStartChanged.emit()
-
-    def _set_time_assignment_summary(self, time_assignment_summary: dict[str, object]) -> None:
-        if time_assignment_summary == self._time_assignment_summary:
-            return
-        self._time_assignment_summary = time_assignment_summary
-        self.timeAssignmentSummaryChanged.emit()
-
-    def _set_time_entries(self, time_entries: dict[str, object]) -> None:
-        if time_entries == self._time_entries:
-            return
-        self._time_entries = time_entries
-        self.timeEntriesChanged.emit()
-
-    def _set_selected_time_entry_id(self, selected_time_entry_id: str) -> None:
-        if selected_time_entry_id == self._selected_time_entry_id:
-            return
-        self._selected_time_entry_id = selected_time_entry_id
-        self.selectedTimeEntryIdChanged.emit()
-
-    def _set_selected_time_entry(self, selected_time_entry: dict[str, object]) -> None:
-        if selected_time_entry == self._selected_time_entry:
-            return
-        self._selected_time_entry = selected_time_entry
-        self.selectedTimeEntryChanged.emit()
-
-    def _reconcile_task_bulk_selection(self, task_items: list[dict[str, object]]) -> None:
-        visible_task_ids = {
-            str(item.get("id", "") or "").strip()
-            for item in task_items
-            if str(item.get("id", "") or "").strip()
-        }
-        reconciled_ids = [
-            task_id for task_id in self._selected_task_ids if task_id in visible_task_ids
-        ]
-        self._set_selected_task_ids(reconciled_ids)
-        self._sync_selected_task_stats(task_items)
-
-    def _sync_selected_task_stats(self, task_items: list[dict[str, object]]) -> None:
-        selected_ids = set(self._selected_task_ids)
-        selected_count = len(selected_ids)
-        selected_done_count = sum(
-            1
-            for item in task_items
-            if str(item.get("id", "") or "").strip() in selected_ids
-            and str(
-                (item.get("state", {}) if isinstance(item.get("state"), dict) else {}).get(
-                    "status",
-                    "",
-                )
-                or ""
-            ).strip().upper()
-            == "DONE"
-        )
-        self._set_selected_task_count(selected_count)
-        self._set_selected_task_done_count(selected_done_count)
-
-    def _set_collaboration_mention_options(
-        self,
-        collaboration_mention_options: list[dict[str, str]],
-    ) -> None:
-        if collaboration_mention_options == self._collaboration_mention_options:
-            return
-        self._collaboration_mention_options = collaboration_mention_options
-        self.collaborationMentionOptionsChanged.emit()
-
-    def _set_collaboration_document_options(
-        self,
-        collaboration_document_options: list[dict[str, str]],
-    ) -> None:
-        if collaboration_document_options == self._collaboration_document_options:
-            return
-        self._collaboration_document_options = collaboration_document_options
-        self.collaborationDocumentOptionsChanged.emit()
-
-    def _set_collaboration_comments(
-        self,
-        collaboration_comments: dict[str, object],
-    ) -> None:
-        if collaboration_comments == self._collaboration_comments:
-            return
-        self._collaboration_comments = collaboration_comments
-        self.collaborationCommentsChanged.emit()
-
-    def _set_collaboration_presence(
-        self,
-        collaboration_presence: dict[str, object],
-    ) -> None:
-        if collaboration_presence == self._collaboration_presence:
-            return
-        self._collaboration_presence = collaboration_presence
-        self.collaborationPresenceChanged.emit()
 
 
 __all__ = ["ProjectManagementTasksWorkspaceController"]
