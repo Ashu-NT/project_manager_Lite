@@ -231,39 +231,48 @@ AppLayouts.WorkspaceFrame {
             onCreateRequested: dialogHost.openCreateDialog()
         }
 
-        // Bulk actions — visible only when tasks are selected
-        TasksBulkActionsSection {
+        // Task action bar — shown when a task is selected
+        Item {
             Layout.fillWidth: true
-            visible: root.workspaceController ? root.workspaceController.selectedTaskCount > 0 : false
-            statusOptions: root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
-            selectedTaskCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
-            selectedTaskDoneCount: root.workspaceController ? root.workspaceController.selectedTaskDoneCount : 0
-            visibleTaskCount: (root.tasksModel.items || []).length
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            canUndoTaskAction: root.workspaceController ? root.workspaceController.canUndoTaskAction : false
-            canRedoTaskAction: root.workspaceController ? root.workspaceController.canRedoTaskAction : false
-            undoLabel: root.workspaceController ? root.workspaceController.nextUndoLabel : ""
-            redoLabel: root.workspaceController ? root.workspaceController.nextRedoLabel : ""
+            Layout.preferredHeight: Theme.AppTheme.toolbarHeight
+            visible: String(root.selectedTaskModel.id || "").length > 0
 
-            onSelectVisibleRequested: function() {
-                if (root.workspaceController !== null) root.workspaceController.selectVisibleTasks()
-            }
-            onClearRequested: function() {
-                if (root.workspaceController !== null) root.workspaceController.clearTaskBulkSelection()
-            }
-            onApplyStatusRequested: function(payload) {
-                if (root.workspaceController !== null) root.workspaceController.applyBulkStatus(payload)
-            }
-            onBulkDeleteRequested: function() {
-                dialogHost.openBulkDeleteDialog(
-                    root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
-                )
-            }
-            onUndoRequested: function() {
-                if (root.workspaceController !== null) root.workspaceController.undoLastTaskAction()
-            }
-            onRedoRequested: function() {
-                if (root.workspaceController !== null) root.workspaceController.redoLastTaskAction()
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.AppTheme.marginSm
+                anchors.rightMargin: Theme.AppTheme.marginSm
+                spacing: Theme.AppTheme.spacingXs
+
+                AppControls.SecondaryButton {
+                    text: "Details"
+                    iconName: "view"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onClicked: { detailPage.open = true }
+                }
+
+                AppControls.SecondaryButton {
+                    text: "Edit"
+                    iconName: "edit"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onClicked: dialogHost.openEditDialog(root.selectedTaskModel)
+                }
+
+                AppControls.SecondaryButton {
+                    text: "Progress"
+                    iconName: "approve"
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onClicked: dialogHost.openProgressDialog(root.selectedTaskModel)
+                }
+
+                AppControls.SecondaryButton {
+                    text: "Delete"
+                    iconName: "delete"
+                    danger: true
+                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    onClicked: dialogHost.openDeleteDialog(root.selectedTaskModel)
+                }
+
+                Item { Layout.fillWidth: true }
             }
         }
 
@@ -445,6 +454,130 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
+            // Floating bulk action bar
+            Rectangle {
+                id: bulkBar
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                width: bulkBarRow.implicitWidth + Theme.AppTheme.marginMd * 2
+                height: 40
+                radius: Theme.AppTheme.radiusMd
+                color: Theme.AppTheme.surfaceRaised
+                visible: (root.workspaceController ? root.workspaceController.selectedTaskCount : 0) > 0
+                z: 10
+
+                RowLayout {
+                    id: bulkBarRow
+                    anchors.centerIn: parent
+                    spacing: Theme.AppTheme.spacingSm
+
+                    Label {
+                        text: (root.workspaceController ? root.workspaceController.selectedTaskCount : 0) + " selected"
+                        color: Theme.AppTheme.textPrimary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                        font.bold: true
+                    }
+
+                    Rectangle {
+                        width: 1
+                        height: 20
+                        color: Theme.AppTheme.divider
+                    }
+
+                    AppControls.SecondaryButton {
+                        text: "Cancel"
+                        iconName: "close"
+                        implicitWidth: 80
+                        onClicked: {
+                            if (root.workspaceController !== null) root.workspaceController.clearTaskBulkSelection()
+                        }
+                    }
+
+                    AppControls.SecondaryButton {
+                        text: "Delete"
+                        iconName: "delete"
+                        danger: true
+                        implicitWidth: 80
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onClicked: {
+                            dialogHost.openBulkDeleteDialog(
+                                root.workspaceController ? (root.workspaceController.selectedTaskIds || []) : []
+                            )
+                        }
+                    }
+
+                    AppControls.PrimaryButton {
+                        text: "Change Property"
+                        iconName: "edit"
+                        implicitWidth: 140
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onClicked: changePropertyPopup.open()
+                    }
+                }
+            }
+
+            // Change Property bulk popup — opens above the bulk bar
+            Popup {
+                id: changePropertyPopup
+                parent: bulkBar
+                width: 240
+                padding: Theme.AppTheme.marginMd
+                x: (bulkBar.width - width) / 2
+                y: -height - Theme.AppTheme.spacingXs
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                background: Rectangle {
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceRaised
+                }
+
+                ColumnLayout {
+                    width: parent.width
+                    spacing: Theme.AppTheme.spacingSm
+
+                    Label {
+                        text: "Bulk Update"
+                        font.bold: true
+                        font.pixelSize: Theme.AppTheme.bodySize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textPrimary
+                    }
+
+                    Label {
+                        text: "Status"
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.family: Theme.AppTheme.fontFamily
+                        color: Theme.AppTheme.textMuted
+                        font.bold: true
+                    }
+
+                    ComboBox {
+                        id: bulkStatusCombo
+                        Layout.fillWidth: true
+                        model: root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
+                        textRole: "label"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                    }
+
+                    AppControls.PrimaryButton {
+                        Layout.fillWidth: true
+                        text: "Apply"
+                        iconName: "approve"
+                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        onClicked: {
+                            const opts = root.workspaceController ? (root.workspaceController.bulkStatusOptions || []) : []
+                            const idx = bulkStatusCombo.currentIndex
+                            if (root.workspaceController !== null && idx >= 0 && opts[idx]) {
+                                root.workspaceController.applyBulkStatus({ status: String(opts[idx].value || "") })
+                            }
+                            changePropertyPopup.close()
+                        }
+                    }
+                }
+            }
+
             // Full-page detail view
             AppWidgets.SectionDetailPage {
                 id: detailPage
@@ -453,6 +586,8 @@ AppLayouts.WorkspaceFrame {
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: ["Details", "Assignments", "Dependencies", "Time", "Activity"]
+                showEdit: false
+                showDelete: false
 
                 onBackRequested: detailPage.open = false
                 onEditRequested: dialogHost.openEditDialog(root.selectedTaskModel)

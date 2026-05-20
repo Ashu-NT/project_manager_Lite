@@ -273,26 +273,11 @@ Item {
                     visible: String(root.taskDetail.id || "").length > 0
                     spacing: Theme.AppTheme.spacingSm
 
-                    AppControls.PrimaryButton {
-                        text: "Edit"
-                        iconName: "edit"
-                        enabled: !root.isBusy
-                        onClicked: root.editRequested()
-                    }
-
                     AppControls.SecondaryButton {
                         text: "Progress"
                         iconName: "approve"
                         enabled: !root.isBusy
                         onClicked: root.progressRequested()
-                    }
-
-                    AppControls.SecondaryButton {
-                        text: "Delete"
-                        iconName: "delete"
-                        danger: true
-                        enabled: !root.isBusy
-                        onClicked: root.deleteRequested()
                     }
 
                     Item { Layout.fillWidth: true }
