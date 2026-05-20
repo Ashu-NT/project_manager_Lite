@@ -188,8 +188,10 @@ Dialog {
             Layout.fillWidth: true
         }
 
-        Button {
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             text: "Cancel"
+            iconName: "close"
             onClicked: root.close()
         }
 
