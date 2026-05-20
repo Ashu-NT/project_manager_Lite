@@ -361,24 +361,15 @@ AppLayouts.WorkspaceFrame {
                     anchors.fill: parent
                     spacing: 0
 
-                    // ── Inspector header: Approve / Reject ────────
+                    // ── Inspector header ──────────────────────────
                     AppWidgets.ContextualActionToolbar {
                         Layout.fillWidth: true
                         showBack: true
                         title:    "Request Detail"
                         subtitle: root._queueItem ? (root._queueItem.statusLabel || "") : ""
                         busy:     root._busy
-                        actions: [
-                            { id: "approve", label: "Approve", icon: "approve", enabled: true, danger: false },
-                            { id: "reject",  label: "Reject",  icon: "reject",  enabled: true, danger: true  }
-                        ]
+                        actions:  []
                         onBackRequested: root._selectedRowId = ""
-                        onActionTriggered: function(id) {
-                            const item = root._queueItem
-                            if (item === null) return
-                            if (id === "approve") decisionDialog.openForDecision("approve", item)
-                            else if (id === "reject")  decisionDialog.openForDecision("reject",  item)
-                        }
                     }
 
                     // ── Scrollable inspector body ─────────────────
@@ -580,6 +571,48 @@ AppLayouts.WorkspaceFrame {
                                         font.pixelSize: Theme.AppTheme.captionSize
                                         elide: Text.ElideRight
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Bottom action footer ──────────────────────
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: Theme.AppTheme.toolbarHeight
+                        color:  Theme.AppTheme.surfaceRaised
+
+                        Rectangle {
+                            anchors { top: parent.top; left: parent.left; right: parent.right }
+                            height: 1; color: Theme.AppTheme.divider
+                        }
+
+                        RowLayout {
+                            anchors.fill:        parent
+                            anchors.leftMargin:  Theme.AppTheme.marginMd
+                            anchors.rightMargin: Theme.AppTheme.marginMd
+                            spacing:             Theme.AppTheme.spacingSm
+
+                            AppControls.PrimaryButton {
+                                Layout.fillWidth: true
+                                text:     "Approve"
+                                iconName: "approve"
+                                enabled:  !root._busy && root._queueItem !== null
+                                onClicked: {
+                                    const item = root._queueItem
+                                    if (item !== null) decisionDialog.openForDecision("approve", item)
+                                }
+                            }
+
+                            AppControls.SecondaryButton {
+                                Layout.fillWidth: true
+                                text:     "Reject"
+                                iconName: "reject"
+                                danger:   true
+                                enabled:  !root._busy && root._queueItem !== null
+                                onClicked: {
+                                    const item = root._queueItem
+                                    if (item !== null) decisionDialog.openForDecision("reject", item)
                                 }
                             }
                         }
