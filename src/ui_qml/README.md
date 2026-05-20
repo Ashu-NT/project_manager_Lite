@@ -85,7 +85,10 @@ Execution progress:
   - QML guardrail/test alignment for the QML-only repo state
   - representative workspace polish for the live platform admin document/support flow and PM projects/tasks flow
   - representative workspace polish for maintenance assets/preventive and inventory storeroom/balance/procurement detail flows
+  - representative dialog/button cleanup for active inventory, PM, and platform dialogs
+  - offscreen dialog/button verification for inventory dialog hosts plus representative PM/platform dialogs
   - removal of obsolete PM workspace helper QML files after their behavior was consolidated into the active page-level compositions
 - Next:
-  - finish the remaining representative pages still carrying local boxed detail treatments and raw dialog buttons
+  - finish the remaining representative pages still carrying local boxed detail treatments
+  - continue converting the non-representative PM/platform dialog footers still using raw `Button`
   - module-by-module removal of remaining overly boxed local section treatments

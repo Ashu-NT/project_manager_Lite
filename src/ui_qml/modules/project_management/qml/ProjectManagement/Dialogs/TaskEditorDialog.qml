@@ -138,12 +138,14 @@ Dialog {
 
         Item { Layout.fillWidth: true }
 
-        Button {
+        AppControls.SecondaryButton {
+            objectName: "dialogCancelButton"
             text: "Cancel"
             onClicked: root.close()
         }
 
         AppControls.PrimaryButton {
+            objectName: "dialogSubmitButton"
             text: root.modeTitle === "Create Task" ? "Create Task" : "Save Changes"
             onClicked: root.submitted(root.buildPayload())
         }
