@@ -35,11 +35,14 @@ ColumnLayout {
     property bool   primaryActionDanger:  false
     property bool   secondaryActionDanger: false
     property bool   tertiaryActionDanger: false
+    property string deleteActionLabel:    "Delete"
+    property bool   deleteActionDanger:   true
 
     signal createRequested()
     signal primaryActionRequested(string itemId)
     signal secondaryActionRequested(string itemId)
     signal tertiaryActionRequested(string itemId)
+    signal deleteRequested(string itemId)
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
     signal refreshRequested()
@@ -54,6 +57,8 @@ ColumnLayout {
             result.push({ id: "secondary", label: root.secondaryActionLabel, icon: root.secondaryActionIcon, enabled: sel, danger: root.secondaryActionDanger })
         if (root.tertiaryActionLabel.length > 0)
             result.push({ id: "tertiary",  label: root.tertiaryActionLabel,  icon: root.tertiaryActionIcon,  enabled: sel, danger: root.tertiaryActionDanger  })
+        if (root.deleteActionLabel.length > 0)
+            result.push({ id: "delete",    label: root.deleteActionLabel,    icon: "delete",                 enabled: sel, danger: root.deleteActionDanger    })
         return result
     }
 
@@ -121,6 +126,7 @@ ColumnLayout {
             if      (id === "primary")   root.primaryActionRequested(root.selectedRowId)
             else if (id === "secondary") root.secondaryActionRequested(root.selectedRowId)
             else if (id === "tertiary")  root.tertiaryActionRequested(root.selectedRowId)
+            else if (id === "delete")    root.deleteRequested(root.selectedRowId)
         }
     }
 

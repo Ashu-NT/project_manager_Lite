@@ -914,66 +914,6 @@ AppLayouts.WorkspaceFrame {
                                 }
                             }
 
-                            // Divider before actions
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.topMargin: 4
-                                height: 1; color: Theme.AppTheme.divider
-                                visible: root._detailItem !== null
-                            }
-
-                            // Quick actions
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: Theme.AppTheme.spacingXs
-                                visible: root._detailItem !== null
-
-                                AppControls.PrimaryButton {
-                                    text:     "Edit"
-                                    iconName: "edit"
-                                    enabled:  !root._busy
-                                    onClicked: {
-                                        const id = root._selectedRowId
-                                        const s  = root._activeSection
-                                        if      (s === "organizations") root.openOrganizationEdit(id)
-                                        else if (s === "sites")         root.openSiteEdit(id)
-                                        else if (s === "departments")   root.openDepartmentEdit(id)
-                                        else if (s === "employees")     root.openEmployeeEdit(id)
-                                        else if (s === "users")         root.openUserEdit(id)
-                                        else if (s === "parties")       root.openPartyEdit(id)
-                                        else if (s === "structures")    root.openDocumentStructureEdit(id)
-                                    }
-                                }
-
-                                AppControls.SecondaryButton {
-                                    visible: root._activeSection === "organizations"
-                                    text:    "Set Active"
-                                    iconName: "approve"
-                                    enabled: !root._busy
-                                    onClicked: {
-                                        if (root.workspaceController)
-                                            root.workspaceController.setActiveOrganization(root._selectedRowId)
-                                    }
-                                }
-
-                                AppControls.SecondaryButton {
-                                    visible: root._activeSection !== "organizations"
-                                    text:    "Toggle"
-                                    iconName: "approve"
-                                    enabled: !root._busy
-                                    onClicked: {
-                                        const id = root._selectedRowId
-                                        const s  = root._activeSection
-                                        if (!root.workspaceController) return
-                                        if      (s === "sites")       root.workspaceController.toggleSiteActive(id)
-                                        else if (s === "departments") root.workspaceController.toggleDepartmentActive(id)
-                                        else if (s === "employees")   root.workspaceController.toggleEmployeeActive(id)
-                                        else if (s === "users")       root.workspaceController.toggleUserActive(id)
-                                        else if (s === "parties")     root.workspaceController.togglePartyActive(id)
-                                        else if (s === "structures")  root.workspaceController.toggleDocumentStructureActive(id)
-                                    }
-                                }
-                            }
                         }
                     }
                 }
