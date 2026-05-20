@@ -45,7 +45,7 @@ Popup {
         // Header
         Rectangle {
             Layout.fillWidth: true
-            height: 40
+            Layout.preferredHeight: 40
             color: Theme.AppTheme.surfaceAlt
             radius: Theme.AppTheme.radiusMd
 
@@ -63,7 +63,7 @@ Popup {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
         }
 
@@ -102,17 +102,8 @@ Popup {
                             CheckBox {
                                 id: colCheck
                                 checked: checkRow.modelData.visible
-                                onCheckedChanged: {
-                                    const updated = []
-                                    for (let i = 0; i < root._draft.length; i++) {
-                                        const col = root._draft[i]
-                                        updated.push({
-                                            key: col.key,
-                                            label: col.label,
-                                            visible: i === checkRow.index ? colCheck.checked : col.visible
-                                        })
-                                    }
-                                    root._draft = updated
+                                onToggled: {
+                                    root._draft[checkRow.index].visible = checked
                                 }
                             }
 
@@ -139,7 +130,7 @@ Popup {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+           Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
         }
 
