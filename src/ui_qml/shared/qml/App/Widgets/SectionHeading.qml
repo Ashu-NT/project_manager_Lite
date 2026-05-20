@@ -25,17 +25,21 @@ Item {
         color: Theme.AppTheme.divider
     }
 
-    Text {
+    Label {
         anchors {
             verticalCenter: parent.verticalCenter
             left: parent.left
             leftMargin: Theme.AppTheme.spacingMd
         }
         text: (root.label || root.text).toUpperCase()
+
+        color: Theme.AppTheme.textMuted
+        
         font.pixelSize: Theme.AppTheme.smallSize
         font.bold: true
         font.family: Theme.AppTheme.fontFamily
         font.letterSpacing: 0.8
-        color: Theme.AppTheme.textMuted
+
+        elide: Text.ElideRight
     }
 }
