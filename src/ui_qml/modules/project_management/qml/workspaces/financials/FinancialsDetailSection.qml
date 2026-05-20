@@ -3,22 +3,14 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
 Item {
     id: root
 
-    property var costDetail: ({
-        "id": "",
-        "title": "",
-        "statusLabel": "",
-        "subtitle": "",
-        "description": "",
-        "emptyState": "",
-        "fields": [],
-        "state": {}
-    })
+    property var costDetail: AppMock.MockFactory.detail()
     property bool isBusy: false
     property var detailPage: null
 

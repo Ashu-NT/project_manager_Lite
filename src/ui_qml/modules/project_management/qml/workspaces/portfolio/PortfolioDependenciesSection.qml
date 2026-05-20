@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
@@ -10,12 +11,7 @@ Item {
 
     property var projectOptions: []
     property var dependencyTypeOptions: []
-    property var dependenciesModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var dependenciesModel: AppMock.MockFactory.catalog()
     property bool isBusy: false
 
     signal createRequested(var payload)

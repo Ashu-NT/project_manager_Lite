@@ -1,15 +1,11 @@
 import QtQuick
+import App.Mock 1.0 as AppMock
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 
 MaintenanceWidgets.RecordListCard {
     id: root
 
-    property var workOrdersModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var workOrdersModel: AppMock.MockFactory.catalog()
     property string selectedWorkOrderId: ""
     property bool isBusy: false
 

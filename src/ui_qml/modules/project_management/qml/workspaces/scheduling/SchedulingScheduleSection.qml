@@ -1,22 +1,13 @@
 import QtQuick
 import QtQuick.Layouts
+import App.Mock 1.0 as AppMock
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 Item {
     id: root
 
-    property var scheduleModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
-    property var criticalPathModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var scheduleModel: AppMock.MockFactory.catalog()
+    property var criticalPathModel: AppMock.MockFactory.catalog()
 
     implicitHeight: scheduleGrid.implicitHeight
 

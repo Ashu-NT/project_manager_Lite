@@ -1,15 +1,11 @@
 import QtQuick
+import App.Mock 1.0 as AppMock
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 ProjectManagementWidgets.RecordListCard {
     id: root
 
-    property var resourcesModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var resourcesModel: AppMock.MockFactory.catalog()
     property string selectedResourceId: ""
     property bool isBusy: false
 

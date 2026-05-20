@@ -1,23 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 Item {
     id: root
 
-    property var heatmapModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
-    property var recentActionsModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var heatmapModel: AppMock.MockFactory.catalog()
+    property var recentActionsModel: AppMock.MockFactory.catalog()
 
     implicitHeight: contentColumn.implicitHeight
 

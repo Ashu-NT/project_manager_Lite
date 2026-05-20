@@ -1,14 +1,10 @@
 import QtQuick
+import App.Mock 1.0 as AppMock
 
 RecordListCard {
     id: root
 
-    property var urgentModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var urgentModel: AppMock.MockFactory.catalog()
     property string selectedEntryId: ""
 
     signal entrySelected(string entryId)

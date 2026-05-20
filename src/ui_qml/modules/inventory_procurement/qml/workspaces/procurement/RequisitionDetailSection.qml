@@ -3,22 +3,14 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 
 Item {
     id: root
 
-    property var requisitionDetail: ({
-        "id": "",
-        "title": "",
-        "statusLabel": "",
-        "subtitle": "",
-        "description": "",
-        "emptyState": "",
-        "fields": [],
-        "state": {}
-    })
+    property var requisitionDetail: AppMock.MockFactory.detail()
     property bool isBusy: false
 
     signal editRequested()

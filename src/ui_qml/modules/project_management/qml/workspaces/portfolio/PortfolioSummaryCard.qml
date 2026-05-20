@@ -1,17 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 
 Item {
     id: root
 
-    property var summaryModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "fields": []
-    })
+    property var summaryModel: AppMock.MockFactory.fieldCatalog()
 
     implicitHeight: contentColumn.implicitHeight
 

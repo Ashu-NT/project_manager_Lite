@@ -2,24 +2,15 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 Item {
     id: root
 
-    property var commentsModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
-    property var presenceModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var commentsModel: AppMock.MockFactory.catalog()
+    property var presenceModel: AppMock.MockFactory.catalog()
     property string selectedTaskId: ""
     property bool isBusy: false
     property bool canCompose: false

@@ -1,15 +1,11 @@
 import QtQuick
+import App.Mock 1.0 as AppMock
 import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 
 InventoryWidgets.RecordListCard {
     id: root
 
-    property var categoriesModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var categoriesModel: AppMock.MockFactory.catalog()
     property string selectedCategoryId: ""
     property bool isBusy: false
 

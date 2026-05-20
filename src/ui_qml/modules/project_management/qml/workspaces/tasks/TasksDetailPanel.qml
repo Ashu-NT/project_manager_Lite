@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
@@ -10,45 +11,27 @@ Item {
     id: root
 
     // ── Core detail ──────────────────────────────────────────────────────
-    property var taskDetail: ({
-        "id": "", "title": "", "statusLabel": "", "subtitle": "",
-        "description": "", "emptyState": "", "fields": [], "state": {}
-    })
+    property var taskDetail: AppMock.MockFactory.detail()
     property bool isBusy: false
     property var detailPage: null
 
     // ── Sub-panel data ────────────────────────────────────────────────────
-    property var assignmentsModel: ({
-        "title": "Assignments", "subtitle": "", "emptyState": "Select a task.", "items": []
-    })
+    property var assignmentsModel: AppMock.MockFactory.catalog("Assignments", "", "Select a task.")
     property string selectedAssignmentId: ""
     property var assignmentOptions: []
 
-    property var dependenciesModel: ({
-        "title": "Dependencies", "subtitle": "", "emptyState": "Select a task.", "items": []
-    })
+    property var dependenciesModel: AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
     property var dependencyTaskOptions: []
 
-    property var timeAssignmentSummaryModel: ({
-        "title": "", "subtitle": "", "emptyState": "Select a task assignment.", "fields": [], "state": {}
-    })
-    property var timeEntriesModel: ({
-        "title": "Time Entries", "subtitle": "", "emptyState": "Select a task assignment.", "items": []
-    })
-    property var selectedTimeEntryModel: ({
-        "id": "", "title": "", "statusLabel": "", "subtitle": "",
-        "description": "", "emptyState": "", "fields": [], "state": {}
-    })
+    property var timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
+    property var timeEntriesModel: AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
+    property var selectedTimeEntryModel: AppMock.MockFactory.detail()
     property string selectedEntryId: ""
     property var periodOptions: []
     property string selectedPeriodStart: ""
 
-    property var collaborationCommentsModel: ({
-        "title": "Collaboration", "subtitle": "", "emptyState": "Select a task.", "items": []
-    })
-    property var collaborationPresenceModel: ({
-        "title": "Active Presence", "subtitle": "", "emptyState": "Select a task.", "items": []
-    })
+    property var collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
+    property var collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
     property string selectedTaskId: ""
 
     // ── Signals ───────────────────────────────────────────────────────────

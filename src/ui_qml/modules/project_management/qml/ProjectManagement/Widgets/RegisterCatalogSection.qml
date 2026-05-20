@@ -1,14 +1,10 @@
 import QtQuick
+import App.Mock 1.0 as AppMock
 
 RecordListCard {
     id: root
 
-    property var entriesModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var entriesModel: AppMock.MockFactory.catalog()
     property string selectedEntryId: ""
     property bool isBusy: false
 

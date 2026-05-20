@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
@@ -8,14 +9,8 @@ import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 Item {
     id: root
 
-    property var entryDetail: ({
-        "id": "", "title": "", "statusLabel": "", "subtitle": "",
-        "description": "", "emptyState": "Select a risk entry to review mitigation details.",
-        "fields": [], "state": {}
-    })
-    property var urgentModel: ({
-        "title": "Urgent Review Queue", "subtitle": "", "emptyState": "No urgent risks.", "items": []
-    })
+    property var entryDetail: AppMock.MockFactory.detail("Select a risk entry to review mitigation details.")
+    property var urgentModel: AppMock.MockFactory.catalog("Urgent Review Queue", "", "No urgent risks.")
     property string selectedEntryId: ""
     property bool isBusy: false
     property var detailPage: null

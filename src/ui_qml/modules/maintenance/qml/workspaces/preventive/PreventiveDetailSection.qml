@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 
@@ -14,16 +15,7 @@ Item {
     property string secondaryActionLabel: "Toggle Active"
     property string primaryActionIcon: "edit"
     property string secondaryActionIcon: "workflow"
-    property var detailModel: ({
-        "id": "",
-        "title": "",
-        "statusLabel": "",
-        "subtitle": "",
-        "description": "",
-        "emptyState": "",
-        "fields": [],
-        "state": {}
-    })
+    property var detailModel: AppMock.MockFactory.detail()
     property bool isBusy: false
 
     signal primaryActionRequested()

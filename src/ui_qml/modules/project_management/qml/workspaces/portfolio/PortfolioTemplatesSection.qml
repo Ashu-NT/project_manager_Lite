@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
@@ -9,12 +10,7 @@ Item {
     id: root
 
     property string activeTemplateSummary: ""
-    property var templatesModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var templatesModel: AppMock.MockFactory.catalog()
     property bool isBusy: false
 
     signal createRequested(var payload)

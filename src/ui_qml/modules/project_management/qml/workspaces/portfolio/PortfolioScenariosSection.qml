@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
@@ -13,24 +14,9 @@ Item {
     property var projectOptions: []
     property var scenarioOptions: []
     property var intakeItemsModel: ({ "items": [] })
-    property var scenariosModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
-    property var evaluationModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "fields": []
-    })
-    property var comparisonModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "fields": []
-    })
+    property var scenariosModel: AppMock.MockFactory.catalog()
+    property var evaluationModel: AppMock.MockFactory.fieldCatalog()
+    property var comparisonModel: AppMock.MockFactory.fieldCatalog()
     property bool isBusy: false
     property var selectedProjectIds: []
     property var selectedIntakeIds: []

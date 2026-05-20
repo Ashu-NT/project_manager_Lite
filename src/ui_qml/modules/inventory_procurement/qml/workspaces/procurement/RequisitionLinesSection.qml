@@ -1,15 +1,11 @@
 import QtQuick
+import App.Mock 1.0 as AppMock
 import InventoryProcurement.Widgets 1.0 as InventoryWidgets
 
 InventoryWidgets.RecordListCard {
     id: root
 
-    property var lineModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var lineModel: AppMock.MockFactory.catalog()
 
     title: root.lineModel.title || "Requisition Lines"
     subtitle: root.lineModel.subtitle || ""

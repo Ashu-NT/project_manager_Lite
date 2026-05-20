@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
@@ -10,12 +11,7 @@ Item {
 
     property var intakeStatusOptions: []
     property var templateOptions: []
-    property var intakeItemsModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var intakeItemsModel: AppMock.MockFactory.catalog()
     property string selectedStatusFilter: "all"
     property bool isBusy: false
 

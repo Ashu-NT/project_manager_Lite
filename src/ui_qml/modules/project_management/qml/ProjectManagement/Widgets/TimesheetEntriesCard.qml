@@ -2,35 +2,19 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
 import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 Item {
     id: root
 
-    property var assignmentSummary: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "fields": [],
-        "state": {}
-    })
+    property var assignmentSummary: AppMock.MockFactory.fieldRecord()
     property var periodOptions: []
     property string selectedPeriodStart: ""
     property bool showPeriodSelector: false
-    property var entriesModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
-    property var selectedEntryDetail: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "fields": [],
-        "state": {}
-    })
+    property var entriesModel: AppMock.MockFactory.catalog()
+    property var selectedEntryDetail: AppMock.MockFactory.fieldRecord()
     property string selectedEntryId: ""
     property bool isBusy: false
 

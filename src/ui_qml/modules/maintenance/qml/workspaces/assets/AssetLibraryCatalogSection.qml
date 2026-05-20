@@ -1,15 +1,11 @@
 import QtQuick
+import App.Mock 1.0 as AppMock
 import Maintenance.Widgets 1.0 as MaintenanceWidgets
 
 MaintenanceWidgets.RecordListCard {
     id: root
 
-    property var catalogModel: ({
-        "title": "",
-        "subtitle": "",
-        "emptyState": "",
-        "items": []
-    })
+    property var catalogModel: AppMock.MockFactory.catalog()
     property bool isBusy: false
 
     signal itemChosen(string itemId)
