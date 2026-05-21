@@ -246,6 +246,10 @@ class ProjectManagementFinancialsWorkspaceController(
         self._set_selected_cost_id(normalized_value)
         self.refresh()
 
+    @Slot()
+    def exportFinancials(self) -> None:
+        pass  # TODO: implement financials export when backend export service is available
+
     @Slot("QVariantMap", result="QVariantMap")
     def createCostItem(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
