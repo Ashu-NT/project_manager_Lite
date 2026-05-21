@@ -129,7 +129,7 @@ SchedulingPanelFrame {
                         required property var modelData
 
                         width: _timelineList.width
-                        height: 34
+                        height: 28
 
                         readonly property var _state: modelData.state || ({})
 
@@ -138,7 +138,7 @@ SchedulingPanelFrame {
                             spacing: Theme.AppTheme.spacingSm
 
                             Label {
-                                Layout.preferredWidth: 160
+                                Layout.preferredWidth: 110
                                 text: String(modelData.title || "")
                                 color: Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
@@ -214,7 +214,7 @@ SchedulingPanelFrame {
                             }
 
                             Label {
-                                Layout.preferredWidth: 88
+                                Layout.preferredWidth: 64
                                 horizontalAlignment: Text.AlignRight
                                 text: String(modelData.statusLabel || "")
                                 color: Theme.AppTheme.textMuted

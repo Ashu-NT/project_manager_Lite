@@ -77,6 +77,8 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
+    // ── Column definitions ────────────────────────────────────────────────────
+
     readonly property var _activityColumns: [
         { "key": "activityId", "label": "Activity ID", "flex": 0, "minWidth": 96, "sortable": true },
         { "key": "wbs", "label": "WBS", "flex": 0, "minWidth": 78, "sortable": true },
@@ -132,6 +134,12 @@ AppLayouts.WorkspaceFrame {
         { "key": "delay", "label": "Delay", "flex": 0.7 },
         { "key": "status", "label": "Status", "flex": 0.8, "type": "status" }
     ]
+    readonly property var _activityFeedColumns: [
+        { "key": "event", "label": "Event", "flex": 2.0 },
+        { "key": "detail", "label": "Detail", "flex": 1.5 },
+        { "key": "timestamp", "label": "Timestamp", "flex": 1.0 },
+        { "key": "status", "label": "Status", "flex": 0.8, "type": "status" }
+    ]
 
     readonly property var _detailActions: [
         { "id": "add_dependency", "label": "Add Dependency", "icon": "add", "enabled": true, "danger": false },
@@ -139,17 +147,9 @@ AppLayouts.WorkspaceFrame {
         { "id": "recalculate", "label": "Recalculate", "icon": "refresh", "enabled": true, "danger": false }
     ]
 
-    function _optionIndex(options, value) {
-        const optionList = options || []
-        for (let i = 0; i < optionList.length; i += 1) {
-            if (String(optionList[i].value || "") === String(value || "")) {
-                return i
-            }
-        }
-        return optionList.length > 0 ? 0 : -1
-    }
+    // ── Computed row data (bindings, not function calls) ──────────────────────
 
-    function _scheduleRows() {
+    readonly property var _scheduleRowsData: {
         const items = root.scheduleModel.items || []
         const rows = []
         for (let i = 0; i < items.length; i += 1) {
@@ -175,7 +175,7 @@ AppLayouts.WorkspaceFrame {
         return rows
     }
 
-    function _diagnosticRows() {
+    readonly property var _diagnosticRowsData: {
         const items = root.diagnosticsModel.items || []
         const rows = []
         for (let i = 0; i < items.length; i += 1) {
@@ -191,7 +191,7 @@ AppLayouts.WorkspaceFrame {
         return rows
     }
 
-    function _criticalRows() {
+    readonly property var _criticalRowsData: {
         const items = root.criticalPathModel.items || []
         const rows = []
         for (let i = 0; i < items.length; i += 1) {
@@ -213,7 +213,7 @@ AppLayouts.WorkspaceFrame {
         return rows
     }
 
-    function _baselineCompareRows() {
+    readonly property var _baselineCompareRowsData: {
         const items = root.baselinesModel.rows || []
         const rows = []
         for (let i = 0; i < items.length; i += 1) {
@@ -230,7 +230,7 @@ AppLayouts.WorkspaceFrame {
         return rows
     }
 
-    function _baselineRegisterRows() {
+    readonly property var _baselineRegisterRowsData: {
         const items = root.baselineRegisterModel.items || []
         const rows = []
         for (let i = 0; i < items.length; i += 1) {
@@ -247,7 +247,7 @@ AppLayouts.WorkspaceFrame {
         return rows
     }
 
-    function _resourceRows() {
+    readonly property var _resourceRowsData: {
         const items = root.resourceLoadingModel.items || []
         const rows = []
         for (let i = 0; i < items.length; i += 1) {
@@ -266,7 +266,7 @@ AppLayouts.WorkspaceFrame {
         return rows
     }
 
-    function _delayedRows() {
+    readonly property var _delayedRowsData: {
         const items = root.delayedActivitiesModel.items || []
         const rows = []
         for (let i = 0; i < items.length; i += 1) {
@@ -284,6 +284,34 @@ AppLayouts.WorkspaceFrame {
         }
         return rows
     }
+
+    readonly property var _activityFeedRowsData: {
+        const items = root.activityFeedModel.items || []
+        const rows = []
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i]
+            rows.push({
+                "id": item.id,
+                "event": item.title,
+                "detail": item.supportingText,
+                "timestamp": item.subtitle,
+                "status": item.statusLabel
+            })
+        }
+        return rows
+    }
+
+    function _optionIndex(options, value) {
+        const optionList = options || []
+        for (let i = 0; i < optionList.length; i += 1) {
+            if (String(optionList[i].value || "") === String(value || "")) {
+                return i
+            }
+        }
+        return optionList.length > 0 ? 0 : -1
+    }
+
+    // ── Dialogs ───────────────────────────────────────────────────────────────
 
     SchedulingDialogHost {
         id: dialogHost
@@ -315,6 +343,8 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
+    // ── Main layout ───────────────────────────────────────────────────────────
+
     Item {
         anchors.fill: parent
 
@@ -327,6 +357,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 spacing: Theme.AppTheme.spacingSm
 
+                // Planning toolbar (project / baseline / calendar / CPM actions)
                 SchedulingPlanningToolbar {
                     id: planningToolbar
                     Layout.fillWidth: true
@@ -336,7 +367,6 @@ AppLayouts.WorkspaceFrame {
                     selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                     selectedBaselineId: root.workspaceController ? root.workspaceController.selectedBaselineId : ""
                     selectedCalendarId: root.workspaceController ? root.workspaceController.selectedCalendarId : "default"
-                    searchText: root.workspaceController ? root.workspaceController.searchText : ""
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
                     onProjectSelected: function(projectId) {
@@ -354,26 +384,10 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.selectCalendar(calendarId)
                         }
                     }
-                    onSearchChanged: function(text) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.setSearchText(text)
-                        }
-                    }
-                    onFilterRequested: filterPopup.open()
-                    onRefreshRequested: {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.refresh()
-                        }
-                    }
                     onSaveBaselineRequested: dialogHost.openCreateBaselineDialog()
                     onRecalculateRequested: {
                         if (root.workspaceController !== null) {
                             root.workspaceController.recalculateSchedule()
-                        }
-                    }
-                    onExportRequested: {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.exportSchedule()
                         }
                     }
                 }
@@ -416,175 +430,194 @@ AppLayouts.WorkspaceFrame {
                     metrics: root.overviewModel.metrics || []
                 }
 
-                RowLayout {
+                // Activities table toolbar (search / filter / refresh / export)
+                AppWidgets.TableToolbar {
+                    id: tableToolbar
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.preferredHeight: Math.max(340, root.height * 0.5)
-                    spacing: Theme.AppTheme.spacingSm
+                    searchText: root.workspaceController ? root.workspaceController.searchText : ""
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    showFilter: true
+                    showRefresh: true
+                    showExport: true
 
-                    SchedulingPanelFrame {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: root.width * 0.64
-                        title: "Schedule Activities"
-                        subtitle: "Current activities, CPM timing, float, constraints, and status control."
-
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            clip: true
-
-                            AppWidgets.DataTable {
-                                id: activitiesTable
-                                anchors.top: parent.top
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: activityPagination.top
-                                columns: root._activityColumns
-                                rows: root._scheduleRows()
-                                loading: root.workspaceController ? root.workspaceController.isLoading : false
-                                emptyText: root.scheduleModel.emptyState || "No scheduled activities are available."
-                                selectedRowId: root.workspaceController ? root.workspaceController.selectedActivityId : ""
-
-                                onRowSelected: function(rowId) {
-                                    if (root.workspaceController !== null) {
-                                        root.workspaceController.selectActivity(rowId)
-                                    }
-                                }
-                                onRowActivated: function(rowId) {
-                                    if (root.workspaceController !== null) {
-                                        root.workspaceController.activateActivity(rowId)
-                                    }
-                                    detailPage.open = true
-                                }
-                                onSortRequested: function(key) {}
-                            }
-
-                            AppWidgets.TablePaginationBar {
-                                id: activityPagination
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                currentPage: root.workspaceController ? root.workspaceController.activityPage : 1
-                                pageSize: root.workspaceController ? root.workspaceController.activityPageSize : 25
-                                totalItems: root.workspaceController ? root.workspaceController.activityTotalCount : 0
-                                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                                onPageRequested: function(page) {
-                                    if (root.workspaceController !== null) {
-                                        root.workspaceController.setActivityPage(page)
-                                    }
-                                }
-                                onPageSizeRequested: function(pageSize) {
-                                    if (root.workspaceController !== null) {
-                                        root.workspaceController.setActivityPageSize(pageSize)
-                                    }
-                                }
-                            }
+                    onSearchChanged: function(text) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.setSearchText(text)
                         }
                     }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: root.width * 0.36
-                        spacing: Theme.AppTheme.spacingSm
-
-                        SchedulingTimelinePanel {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.preferredHeight: 280
-                            timelineModel: root.timelineModel
+                    onFilterRequested: filterPopup.open()
+                    onRefreshRequested: {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.refresh()
                         }
-
-                        SchedulingPanelFrame {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            title: "Diagnostics"
-                            subtitle: "Network health checks and critical-path watch."
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                spacing: Theme.AppTheme.spacingSm
-
-                                AppWidgets.DataTable {
-                                    Layout.fillWidth: true
-                                    Layout.fillHeight: true
-                                    columns: root._diagnosticColumns
-                                    rows: root._diagnosticRows()
-                                    emptyText: root.diagnosticsModel.emptyState || "No diagnostics are available."
-                                    loading: false
-                                }
-
-                                AppWidgets.DataTable {
-                                    Layout.fillWidth: true
-                                    Layout.fillHeight: true
-                                    columns: root._criticalColumns
-                                    rows: root._criticalRows()
-                                    emptyText: root.criticalPathModel.emptyState || "No critical-path activities are visible."
-                                    loading: false
-                                }
-                            }
+                    }
+                    onExportRequested: {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.exportSchedule()
                         }
                     }
                 }
 
-                RowLayout {
+                // ── Planning surface: activities | timeline ────────────────────
+
+                SplitView {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Math.max(240, root.height * 0.28)
-                    spacing: Theme.AppTheme.spacingSm
+                    Layout.fillHeight: true
+                    orientation: Qt.Horizontal
 
-                    SchedulingPanelFrame {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: root.width * 0.42
-                        title: "Baselines"
-                        subtitle: "Variance comparison and baseline register."
+                    handle: Rectangle {
+                        implicitWidth: 4
+                        color: SplitHandle.hovered || SplitHandle.pressed
+                            ? Theme.AppTheme.accent
+                            : Theme.AppTheme.divider
+                        opacity: SplitHandle.hovered || SplitHandle.pressed ? 0.6 : 0.35
+                    }
 
-                        ColumnLayout {
+                    // Activities panel
+                    Item {
+                        SplitView.fillWidth: true
+                        SplitView.minimumWidth: 340
+
+                        SchedulingPanelFrame {
+                            anchors.fill: parent
+                            title: "Schedule Activities"
+                            subtitle: "CPM timing, float, constraints, and status."
+
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                AppWidgets.DataTable {
+                                    id: activitiesTable
+                                    anchors.top: parent.top
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: activityPagination.top
+                                    columns: root._activityColumns
+                                    rows: root._scheduleRowsData
+                                    loading: root.workspaceController ? root.workspaceController.isLoading : false
+                                    emptyText: root.scheduleModel.emptyState || "No scheduled activities available."
+                                    selectedRowId: root.workspaceController ? root.workspaceController.selectedActivityId : ""
+
+                                    onRowSelected: function(rowId) {
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.selectActivity(rowId)
+                                        }
+                                    }
+                                    onRowActivated: function(rowId) {
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.activateActivity(rowId)
+                                        }
+                                        detailPage.open = true
+                                    }
+                                    onSortRequested: function(key) {}
+                                }
+
+                                AppWidgets.TablePaginationBar {
+                                    id: activityPagination
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    currentPage: root.workspaceController ? root.workspaceController.activityPage : 1
+                                    pageSize: root.workspaceController ? root.workspaceController.activityPageSize : 25
+                                    totalItems: root.workspaceController ? root.workspaceController.activityTotalCount : 0
+                                    busy: root.workspaceController ? root.workspaceController.isBusy : false
+                                    onPageRequested: function(page) {
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.setActivityPage(page)
+                                        }
+                                    }
+                                    onPageSizeRequested: function(size) {
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.setActivityPageSize(size)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Timeline panel
+                    SchedulingTimelinePanel {
+                        SplitView.preferredWidth: 460
+                        SplitView.minimumWidth: 280
+                        timelineModel: root.timelineModel
+                    }
+                }
+
+                // ── Bottom tabbed panel ────────────────────────────────────────
+
+                Rectangle {
+                    id: bottomPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 248
+                    color: Theme.AppTheme.surfaceRaised
+                    radius: Theme.AppTheme.radiusMd
+                    border.color: Theme.AppTheme.subtleBorder
+                    border.width: 1
+                    clip: true
+
+                    property int _tab: 0
+
+                    readonly property var _tabLabels: [
+                        "Diagnostics",
+                        "Resources",
+                        "Baselines",
+                        "Delays",
+                        "Activity Feed"
+                    ]
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 0
+
+                        // Tab bar
+                        Item {
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            spacing: Theme.AppTheme.spacingSm
+                            implicitHeight: 34
 
                             RowLayout {
-                                Layout.fillWidth: true
-                                spacing: Theme.AppTheme.spacingSm
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.AppTheme.marginMd
+                                spacing: 0
 
-                                ComboBox {
-                                    Layout.preferredWidth: 200
-                                    model: root.baselinesModel.options || []
-                                    textRole: "label"
-                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                    currentIndex: root._optionIndex(root.baselinesModel.options || [], root.baselinesModel.selectedBaselineAId || "")
-                                    onActivated: function(index) {
-                                        const option = (root.baselinesModel.options || [])[index]
-                                        if (option && root.workspaceController !== null) {
-                                            root.workspaceController.selectBaselineA(String(option.value || ""))
+                                Repeater {
+                                    model: bottomPanel._tabLabels
+
+                                    delegate: Item {
+                                        id: _tabBtn
+                                        required property var modelData
+                                        required property int index
+
+                                        implicitWidth: _tabBtnLabel.implicitWidth + 24
+                                        height: 34
+
+                                        readonly property bool _active: bottomPanel._tab === _tabBtn.index
+
+                                        Label {
+                                            id: _tabBtnLabel
+                                            anchors.centerIn: parent
+                                            text: String(_tabBtn.modelData || "")
+                                            color: _tabBtn._active ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
+                                            font.family: Theme.AppTheme.fontFamily
+                                            font.pixelSize: Theme.AppTheme.captionSize
+                                            font.bold: _tabBtn._active
                                         }
-                                    }
-                                }
 
-                                ComboBox {
-                                    Layout.preferredWidth: 200
-                                    model: root.baselinesModel.options || []
-                                    textRole: "label"
-                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                    currentIndex: root._optionIndex(root.baselinesModel.options || [], root.baselinesModel.selectedBaselineBId || "")
-                                    onActivated: function(index) {
-                                        const option = (root.baselinesModel.options || [])[index]
-                                        if (option && root.workspaceController !== null) {
-                                            root.workspaceController.selectBaselineB(String(option.value || ""))
+                                        Rectangle {
+                                            anchors.bottom: parent.bottom
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            height: 2
+                                            color: Theme.AppTheme.accent
+                                            visible: _tabBtn._active
                                         }
-                                    }
-                                }
 
-                                CheckBox {
-                                    text: "Include unchanged"
-                                    checked: Boolean(root.baselinesModel.includeUnchanged)
-                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                    onToggled: {
-                                        if (root.workspaceController !== null) {
-                                            root.workspaceController.setIncludeUnchanged(checked)
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: bottomPanel._tab = _tabBtn.index
                                         }
                                     }
                                 }
@@ -592,80 +625,190 @@ AppLayouts.WorkspaceFrame {
                                 Item { Layout.fillWidth: true }
                             }
 
-                            AppWidgets.InlineMessage {
-                                Layout.fillWidth: true
-                                tone: "info"
-                                message: root.baselinesModel.summaryText || root.baselinesModel.emptyState || ""
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 1
+                                color: Theme.AppTheme.divider
                             }
+                        }
 
-                            AppWidgets.DataTable {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 130
-                                columns: root._baselineCompareColumns
-                                rows: root._baselineCompareRows()
-                                emptyText: root.baselinesModel.emptyState || "Choose two baselines to compare."
-                                loading: false
-                            }
+                        // Tab content
+                        StackLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            currentIndex: bottomPanel._tab
 
-                            AppWidgets.DataTable {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                columns: root._baselineRegisterColumns
-                                rows: root._baselineRegisterRows()
-                                selectedRowId: root.selectedBaselineRegisterId
-                                emptyText: root.baselineRegisterModel.emptyState || "No baselines are stored."
-                                loading: false
+                            // Tab 0: Diagnostics (health checks + critical path side by side)
+                            Item {
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.AppTheme.marginMd
+                                    spacing: Theme.AppTheme.spacingSm
 
-                                onRowSelected: function(rowId) {
-                                    root.selectedBaselineRegisterId = String(rowId || "")
+                                    AppWidgets.DataTable {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        columns: root._diagnosticColumns
+                                        rows: root._diagnosticRowsData
+                                        emptyText: root.diagnosticsModel.emptyState || "No diagnostics available."
+                                        loading: false
+                                    }
+
+                                    AppWidgets.DataTable {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        columns: root._criticalColumns
+                                        rows: root._criticalRowsData
+                                        emptyText: root.criticalPathModel.emptyState || "No critical-path activities visible."
+                                        loading: false
+                                    }
                                 }
                             }
-                        }
-                    }
 
-                    SchedulingPanelFrame {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: root.width * 0.28
-                        title: "Resource Loading"
-                        subtitle: "Capacity, utilization, and overload watch."
+                            // Tab 1: Resources
+                            Item {
+                                AppWidgets.DataTable {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.AppTheme.marginMd
+                                    columns: root._resourceColumns
+                                    rows: root._resourceRowsData
+                                    emptyText: root.resourceLoadingModel.emptyState || "No resource load data available."
+                                    loading: false
+                                }
+                            }
 
-                        AppWidgets.DataTable {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            columns: root._resourceColumns
-                            rows: root._resourceRows()
-                            emptyText: root.resourceLoadingModel.emptyState || "No resource load data is available."
-                            loading: false
-                        }
-                    }
+                            // Tab 2: Baselines
+                            ColumnLayout {
+                                spacing: Theme.AppTheme.spacingSm
 
-                    SchedulingPanelFrame {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.preferredWidth: root.width * 0.30
-                        title: "Delayed Activities"
-                        subtitle: "Activities already beyond their current deadline protection."
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: Theme.AppTheme.spacingSm
+                                    Layout.leftMargin: Theme.AppTheme.marginMd
+                                    Layout.rightMargin: Theme.AppTheme.marginMd
+                                    spacing: Theme.AppTheme.spacingSm
 
-                        AppWidgets.DataTable {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            columns: root._delayedColumns
-                            rows: root._delayedRows()
-                            emptyText: root.delayedActivitiesModel.emptyState || "No delayed activities are visible."
-                            loading: false
+                                    ComboBox {
+                                        Layout.preferredWidth: 196
+                                        model: root.baselinesModel.options || []
+                                        textRole: "label"
+                                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                        currentIndex: root._optionIndex(root.baselinesModel.options || [], root.baselinesModel.selectedBaselineAId || "")
+                                        onActivated: function(index) {
+                                            const option = (root.baselinesModel.options || [])[index]
+                                            if (option && root.workspaceController !== null) {
+                                                root.workspaceController.selectBaselineA(String(option.value || ""))
+                                            }
+                                        }
+                                    }
+
+                                    ComboBox {
+                                        Layout.preferredWidth: 196
+                                        model: root.baselinesModel.options || []
+                                        textRole: "label"
+                                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                        currentIndex: root._optionIndex(root.baselinesModel.options || [], root.baselinesModel.selectedBaselineBId || "")
+                                        onActivated: function(index) {
+                                            const option = (root.baselinesModel.options || [])[index]
+                                            if (option && root.workspaceController !== null) {
+                                                root.workspaceController.selectBaselineB(String(option.value || ""))
+                                            }
+                                        }
+                                    }
+
+                                    CheckBox {
+                                        text: "Include unchanged"
+                                        checked: Boolean(root.baselinesModel.includeUnchanged)
+                                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                        onToggled: {
+                                            if (root.workspaceController !== null) {
+                                                root.workspaceController.setIncludeUnchanged(checked)
+                                            }
+                                        }
+                                    }
+
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                AppWidgets.InlineMessage {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: Theme.AppTheme.marginMd
+                                    Layout.rightMargin: Theme.AppTheme.marginMd
+                                    tone: "info"
+                                    message: root.baselinesModel.summaryText || root.baselinesModel.emptyState || ""
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    Layout.leftMargin: Theme.AppTheme.marginMd
+                                    Layout.rightMargin: Theme.AppTheme.marginMd
+                                    Layout.bottomMargin: Theme.AppTheme.spacingSm
+                                    spacing: Theme.AppTheme.spacingSm
+
+                                    AppWidgets.DataTable {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        columns: root._baselineCompareColumns
+                                        rows: root._baselineCompareRowsData
+                                        emptyText: root.baselinesModel.emptyState || "Choose two baselines to compare."
+                                        loading: false
+                                    }
+
+                                    AppWidgets.DataTable {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        columns: root._baselineRegisterColumns
+                                        rows: root._baselineRegisterRowsData
+                                        selectedRowId: root.selectedBaselineRegisterId
+                                        emptyText: root.baselineRegisterModel.emptyState || "No baselines are stored."
+                                        loading: false
+
+                                        onRowSelected: function(rowId) {
+                                            root.selectedBaselineRegisterId = String(rowId || "")
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Tab 3: Delays
+                            Item {
+                                AppWidgets.DataTable {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.AppTheme.marginMd
+                                    columns: root._delayedColumns
+                                    rows: root._delayedRowsData
+                                    emptyText: root.delayedActivitiesModel.emptyState || "No delayed activities visible."
+                                    loading: false
+                                }
+                            }
+
+                            // Tab 4: Activity Feed
+                            Item {
+                                AppWidgets.DataTable {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.AppTheme.marginMd
+                                    columns: root._activityFeedColumns
+                                    rows: root._activityFeedRowsData
+                                    emptyText: root.activityFeedModel.emptyState || "No activity feed items available."
+                                    loading: false
+                                }
+                            }
                         }
                     }
                 }
             }
 
+            // Filter popup anchored to the table toolbar
             Popup {
                 id: filterPopup
-                parent: planningToolbar
+                parent: tableToolbar
                 width: 280
                 padding: Theme.AppTheme.marginMd
-                x: planningToolbar.width - width
-                y: planningToolbar.height + Theme.AppTheme.spacingXs
+                x: tableToolbar.width - width
+                y: tableToolbar.height + Theme.AppTheme.spacingXs
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 background: Rectangle {
@@ -753,6 +896,8 @@ AppLayouts.WorkspaceFrame {
                 }
             }
         }
+
+        // ── Activity detail page ──────────────────────────────────────────────
 
         AppWidgets.SectionDetailPage {
             id: detailPage

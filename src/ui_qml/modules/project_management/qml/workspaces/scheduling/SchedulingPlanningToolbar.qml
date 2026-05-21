@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 
 Rectangle {
@@ -16,18 +15,13 @@ Rectangle {
     property string selectedProjectId: ""
     property string selectedBaselineId: ""
     property string selectedCalendarId: "default"
-    property string searchText: ""
     property bool isBusy: false
 
     signal projectSelected(string projectId)
     signal baselineSelected(string baselineId)
     signal calendarSelected(string calendarId)
-    signal searchChanged(string text)
-    signal filterRequested()
-    signal refreshRequested()
     signal saveBaselineRequested()
     signal recalculateRequested()
-    signal exportRequested()
 
     function _indexForValue(options, value) {
         const optionList = options || []
@@ -94,109 +88,7 @@ Rectangle {
             }
         }
 
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: Theme.AppTheme.inputHeight
-            radius: Theme.AppTheme.radiusSm
-            color: Theme.AppTheme.surface
-            border.color: searchField.activeFocus
-                ? Theme.AppTheme.focusBorder
-                : Theme.AppTheme.subtleBorder
-            border.width: 1
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.AppTheme.spacingSm
-                anchors.rightMargin: Theme.AppTheme.spacingSm
-                spacing: Theme.AppTheme.spacingXs
-
-                AppIcons.AppIcon {
-                    name: "search"
-                    size: 12
-                    iconColor: Theme.AppTheme.textMuted
-                }
-
-                TextField {
-                    id: searchField
-                    Layout.fillWidth: true
-                    placeholderText: "Search activities..."
-                    enabled: !root.isBusy
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    color: Theme.AppTheme.textPrimary
-                    leftPadding: 0
-                    rightPadding: 0
-                    topPadding: 0
-                    bottomPadding: 0
-                    background: Item {}
-
-                    Timer {
-                        id: _debounce
-                        interval: 260
-                        onTriggered: root.searchChanged(searchField.text)
-                    }
-
-                    onTextChanged: _debounce.restart()
-                    Keys.onReturnPressed: {
-                        _debounce.stop()
-                        root.searchChanged(searchField.text)
-                    }
-                }
-            }
-        }
-
-        Rectangle {
-            implicitWidth: filterRow.implicitWidth + 14
-            implicitHeight: Theme.AppTheme.inputHeight - 4
-            radius: Theme.AppTheme.radiusSm
-            color: filterHover.containsMouse
-                ? Theme.AppTheme.hoverSurface
-                : Theme.AppTheme.surfaceOverlay
-
-            Row {
-                id: filterRow
-                anchors.centerIn: parent
-                spacing: Theme.AppTheme.spacingXs
-
-                AppIcons.AppIcon {
-                    name: "filter"
-                    size: 11
-                    iconColor: Theme.AppTheme.textMuted
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Text {
-                    text: "Filters"
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    font.bold: true
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-            }
-
-            MouseArea {
-                id: filterHover
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.filterRequested()
-            }
-        }
-
-        AppControls.SecondaryButton {
-            text: "Refresh"
-            iconName: "refresh"
-            enabled: !root.isBusy
-            onClicked: root.refreshRequested()
-        }
-
-        AppControls.SecondaryButton {
-            text: "Export"
-            iconName: "export"
-            enabled: !root.isBusy
-            onClicked: root.exportRequested()
-        }
+        Item { Layout.fillWidth: true }
 
         AppControls.SecondaryButton {
             text: "Save Baseline"
@@ -210,18 +102,6 @@ Rectangle {
             iconName: "approve"
             enabled: !root.isBusy && String(root.selectedProjectId || "").length > 0
             onClicked: root.recalculateRequested()
-        }
-    }
-
-    onSearchTextChanged: {
-        if (searchField.text !== root.searchText) {
-            searchField.text = root.searchText
-        }
-    }
-
-    Component.onCompleted: {
-        if (searchField.text !== root.searchText) {
-            searchField.text = root.searchText
         }
     }
 }
