@@ -156,6 +156,7 @@ SchedulingPanelFrame {
                                     model: 8
 
                                     delegate: Rectangle {
+                                        required property int index
                                         readonly property real _step: _laneHost.width / 8
                                         x: Math.round(index * _step)
                                         width: 1

@@ -216,8 +216,9 @@ Item {
             subtitle: "Operational planning fields and current schedule state."
 
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.AppTheme.marginMd
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
                 AppWidgets.InlineMessage {
@@ -240,6 +241,7 @@ Item {
                     model: root.activityDetail.fields || []
 
                     delegate: Rectangle {
+                        required property var modelData
                         Layout.fillWidth: true
                         implicitHeight: _fieldColumn.implicitHeight + (Theme.AppTheme.spacingSm * 2)
                         radius: Theme.AppTheme.radiusSm
@@ -294,8 +296,9 @@ Item {
             subtitle: "Sequence logic, lag controls, and predecessor/successor management."
 
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.AppTheme.marginMd
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
                 RowLayout {
@@ -396,8 +399,9 @@ Item {
             subtitle: "Working week, holidays, and working-day calculations."
 
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.AppTheme.marginMd
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
                 AppWidgets.InlineMessage {
@@ -562,8 +566,9 @@ Item {
             subtitle: "Snapshot comparison, variance review, and baseline register."
 
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.AppTheme.marginMd
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
 
                 RowLayout {
