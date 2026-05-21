@@ -60,6 +60,9 @@ class DependencyRepository(ABC):
     def get(self, dependency_id: str) -> Optional[TaskDependency]: ...
 
     @abstractmethod
+    def update(self, dependency: TaskDependency) -> None: ...
+
+    @abstractmethod
     def list_by_project(self, project_id: str) -> List[TaskDependency]: ...
 
     @abstractmethod

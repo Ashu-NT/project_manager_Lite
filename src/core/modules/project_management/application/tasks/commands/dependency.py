@@ -13,6 +13,23 @@ from src.core.modules.project_management.domain.enums import DependencyType
 
 
 class TaskDependencyMixin:
+    def get_dependency(self, dep_id: str) -> TaskDependency | None:
+        require_permission(self._user_session, "task.read", operation_label="view dependency")
+        dependency = self._dependency_repo.get(dep_id)
+        if dependency is None:
+            return None
+        predecessor = self._task_repo.get(dependency.predecessor_task_id)
+        successor = self._task_repo.get(dependency.successor_task_id)
+        project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
+        if project_id:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "task.read",
+                operation_label="view dependency",
+            )
+        return dependency
+
     def add_dependency(
         self,
         predecessor_id: str,
@@ -184,6 +201,104 @@ class TaskDependencyMixin:
             operation_label="list task dependencies",
         )
         return self._dependency_repo.list_by_task(task_id)
+
+    def update_dependency(
+        self,
+        dep_id: str,
+        *,
+        dependency_type: DependencyType | None = None,
+        lag_days: int | None = None,
+        bypass_approval: bool = False,
+    ) -> TaskDependency:
+        dependency = self._dependency_repo.get(dep_id)
+        if not dependency:
+            raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
+
+        predecessor = self._task_repo.get(dependency.predecessor_task_id)
+        successor = self._task_repo.get(dependency.successor_task_id)
+        project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
+        governed = (
+            not bypass_approval
+            and self._approval_service is not None
+            and is_governance_required("dependency.update")
+            and not is_admin_session(self._user_session)
+        )
+        if governed:
+            require_permission(self._user_session, "approval.request", operation_label="request dependency update")
+        else:
+            require_permission(self._user_session, "task.manage", operation_label="update dependency")
+        if project_id:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "approval.request" if governed else "task.manage",
+                operation_label="request dependency update" if governed else "update dependency",
+            )
+
+        next_dependency_type = dependency_type or dependency.dependency_type
+        next_lag_days = int(dependency.lag_days if lag_days is None else lag_days)
+        diagnostic = self.get_dependency_diagnostics(
+            predecessor_id=dependency.predecessor_task_id,
+            successor_id=dependency.successor_task_id,
+            dependency_type=next_dependency_type,
+            lag_days=next_lag_days,
+            include_impact=False,
+        )
+        if not diagnostic.is_valid and diagnostic.code not in {"DEPENDENCY_DUPLICATE"}:
+            message = diagnostic.summary
+            if diagnostic.detail:
+                message = f"{diagnostic.summary}\n{diagnostic.detail}"
+            if diagnostic.code == "DEPENDENCY_CYCLE":
+                raise BusinessRuleError(message, code=diagnostic.code)
+            raise ValidationError(message, code=diagnostic.code)
+
+        if governed:
+            request = self._approval_service.request_change(
+                request_type="dependency.update",
+                entity_type="task_dependency",
+                entity_id=dependency.id,
+                project_id=project_id,
+                payload={
+                    "dependency_id": dependency.id,
+                    "predecessor_id": dependency.predecessor_task_id,
+                    "predecessor_name": predecessor.name if predecessor else None,
+                    "successor_id": dependency.successor_task_id,
+                    "successor_name": successor.name if successor else None,
+                    "dependency_type": next_dependency_type.value,
+                    "lag_days": next_lag_days,
+                },
+            )
+            raise BusinessRuleError(
+                f"Approval required for dependency update. Request {request.id} created.",
+                code="APPROVAL_REQUIRED",
+            )
+
+        dependency.dependency_type = next_dependency_type
+        dependency.lag_days = next_lag_days
+        try:
+            self._dependency_repo.update(dependency)
+            self._session.commit()
+            if project_id:
+                self._sync_project_schedule(project_id)
+            record_audit(
+                self,
+                action="dependency.update",
+                entity_type="task_dependency",
+                entity_id=dependency.id,
+                project_id=project_id,
+                details={
+                    "predecessor_name": predecessor.name if predecessor else None,
+                    "successor_name": successor.name if successor else None,
+                    "type": dependency.dependency_type.value,
+                    "lag_days": dependency.lag_days,
+                },
+            )
+        except Exception as exc:
+            self._session.rollback()
+            raise exc
+        if project_id:
+            domain_events.tasks_changed.emit(project_id)
+        return dependency
 
 
 __all__ = ["TaskDependencyMixin"]

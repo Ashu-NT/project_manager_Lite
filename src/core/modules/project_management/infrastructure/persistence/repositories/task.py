@@ -119,6 +119,9 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
         obj = self.session.get(TaskDependencyORM, dependency_id)
         return dependency_from_orm(obj) if obj else None
 
+    def update(self, dependency: TaskDependency) -> None:
+        self.session.merge(dependency_to_orm(dependency))
+
     def list_by_project(self, project_id: str) -> List[TaskDependency]:
         task_ids_subq = select(TaskORM.id).where(TaskORM.project_id == project_id)
         stmt = select(TaskDependencyORM).where(

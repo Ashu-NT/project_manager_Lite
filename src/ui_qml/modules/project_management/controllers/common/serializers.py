@@ -43,6 +43,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingBaselineCompareViewModel,
     SchedulingCalendarViewModel,
     SchedulingCollectionViewModel,
+    SchedulingDetailViewModel,
     SchedulingOverviewViewModel,
     SchedulingRecordViewModel,
 )
@@ -828,6 +829,28 @@ def serialize_scheduling_baselines_view_model(
     }
 
 
+def serialize_scheduling_detail_view_model(
+    view_model: SchedulingDetailViewModel,
+) -> dict[str, object]:
+    return {
+        "id": view_model.id,
+        "title": view_model.title,
+        "statusLabel": view_model.status_label,
+        "subtitle": view_model.subtitle,
+        "description": view_model.description,
+        "emptyState": view_model.empty_state,
+        "fields": [
+            {
+                "label": field.label,
+                "value": field.value,
+                "supportingText": field.supporting_text,
+            }
+            for field in view_model.fields
+        ],
+        "state": dict(view_model.state),
+    }
+
+
 __all__ = [
     "serialize_collaboration_collection_view_model",
     "serialize_collaboration_overview_view_model",
@@ -858,6 +881,7 @@ __all__ = [
     "serialize_scheduling_baselines_view_model",
     "serialize_scheduling_calendar_view_model",
     "serialize_scheduling_collection_view_model",
+    "serialize_scheduling_detail_view_model",
     "serialize_scheduling_overview_view_model",
     "serialize_scheduling_record_view_models",
     "serialize_selector_options",

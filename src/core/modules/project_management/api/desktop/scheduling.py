@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import (
     SchedulingEngine,
@@ -12,7 +13,7 @@ from src.core.modules.project_management.application.scheduling import (
 from src.core.modules.project_management.application.scheduling.baseline_service import (
     BaselineService,
 )
-from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.domain.scheduling.calendar import Holiday, WorkingCalendar
 
@@ -24,6 +25,13 @@ _DAY_LABELS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 class SchedulingProjectOptionDescriptor:
     value: str
     label: str
+
+
+@dataclass(frozen=True)
+class SchedulingCalendarOptionDescriptor:
+    value: str
+    label: str
+    summary_label: str
 
 
 @dataclass(frozen=True)
@@ -45,23 +53,87 @@ class SchedulingTaskDto:
     id: str
     project_id: str
     name: str
+    description: str
     status: str
     status_label: str
     start_date: date | None
     finish_date: date | None
     latest_start: date | None
     latest_finish: date | None
+    duration_days: int | None
+    remaining_duration_days: int | None
     total_float_days: int | None
     is_critical: bool
     deadline: date | None
     late_by_days: int | None
     percent_complete: float
+    actual_start: date | None
+    actual_end: date | None
+    priority: int | None
+
+
+@dataclass(frozen=True)
+class SchedulingDependencyTypeDescriptor:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class SchedulingProjectDependencyDto:
+    id: str
+    predecessor_task_id: str
+    predecessor_task_name: str
+    successor_task_id: str
+    successor_task_name: str
+    dependency_type: str
+    dependency_type_label: str
+    lag_days: int
+
+
+@dataclass(frozen=True)
+class SchedulingDependencyDto:
+    id: str
+    direction: str
+    direction_label: str
+    related_activity_id: str
+    related_activity_name: str
+    dependency_type: str
+    dependency_type_label: str
+    lag_days: int
+    relationship_label: str
+    status_label: str
+
+
+@dataclass(frozen=True)
+class SchedulingDependencyCreateCommand:
+    task_id: str
+    related_activity_id: str
+    relationship_direction: str
+    dependency_type: str = DependencyType.FINISH_TO_START.value
+    lag_days: int = 0
+
+
+@dataclass(frozen=True)
+class SchedulingDependencyUpdateCommand:
+    dependency_id: str
+    dependency_type: str = DependencyType.FINISH_TO_START.value
+    lag_days: int = 0
 
 
 @dataclass(frozen=True)
 class SchedulingBaselineOptionDescriptor:
     value: str
     label: str
+
+
+@dataclass(frozen=True)
+class SchedulingBaselineRowDto:
+    id: str
+    name: str
+    created_at: date | None
+    created_at_label: str
+    approved_by_label: str
+    variance_state_label: str
 
 
 @dataclass(frozen=True)
@@ -118,6 +190,20 @@ class SchedulingBaselineCreateCommand:
     name: str = "Baseline"
 
 
+@dataclass(frozen=True)
+class SchedulingResourceLoadDto:
+    resource_id: str
+    resource_name: str
+    total_allocation_percent: float
+    total_allocation_label: str
+    capacity_percent: float
+    capacity_label: str
+    utilization_percent: float
+    utilization_label: str
+    tasks_count: int
+    status_label: str
+
+
 class ProjectManagementSchedulingDesktopApi:
     def __init__(
         self,
@@ -148,6 +234,25 @@ class ProjectManagementSchedulingDesktopApi:
         return tuple(
             SchedulingProjectOptionDescriptor(value=project.id, label=project.name)
             for project in projects
+        )
+
+    def list_calendars(self) -> tuple[SchedulingCalendarOptionDescriptor, ...]:
+        calendar = self._get_calendar()
+        working_days = set(calendar.working_days or {0, 1, 2, 3, 4})
+        active_labels = [
+            _DAY_LABELS[index]
+            for index in range(7)
+            if index in working_days
+        ]
+        return (
+            SchedulingCalendarOptionDescriptor(
+                value=str(getattr(calendar, "id", "") or "default"),
+                label=str(getattr(calendar, "name", "") or "Default Calendar").strip(),
+                summary_label=(
+                    f"{', '.join(active_labels) or 'No days'} | "
+                    f"{float(calendar.hours_per_day or 8.0):g}h/day"
+                ),
+            ),
         )
 
     def get_calendar_snapshot(self) -> SchedulingCalendarSnapshotDto:
@@ -221,6 +326,38 @@ class ProjectManagementSchedulingDesktopApi:
             skipped_non_working_days=skipped_non_working,
         )
 
+    def list_dependency_types(self) -> tuple[SchedulingDependencyTypeDescriptor, ...]:
+        return tuple(
+            SchedulingDependencyTypeDescriptor(
+                value=dependency_type.value,
+                label=_dependency_type_label(dependency_type),
+            )
+            for dependency_type in DependencyType
+        )
+
+    def list_activity_options(
+        self,
+        project_id: str,
+        *,
+        exclude_task_id: str | None = None,
+    ) -> tuple[SchedulingProjectOptionDescriptor, ...]:
+        normalized_project_id = (project_id or "").strip()
+        if not normalized_project_id or self._task_service is None:
+            return ()
+        excluded = (exclude_task_id or "").strip()
+        tasks = sorted(
+            self._task_service.list_tasks_for_project(normalized_project_id),
+            key=lambda task: (
+                task.start_date or date.max,
+                (task.name or "").casefold(),
+            ),
+        )
+        return tuple(
+            SchedulingProjectOptionDescriptor(value=task.id, label=task.name)
+            for task in tasks
+            if task.id != excluded
+        )
+
     def list_schedule(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
         normalized_project_id = (project_id or "").strip()
         if not normalized_project_id:
@@ -257,6 +394,152 @@ class ProjectManagementSchedulingDesktopApi:
         )
         return tuple(self._serialize_schedule_item(item) for item in items)
 
+    def list_project_dependencies(
+        self,
+        project_id: str,
+    ) -> tuple[SchedulingProjectDependencyDto, ...]:
+        normalized_project_id = (project_id or "").strip()
+        if not normalized_project_id:
+            return ()
+        list_tasks_for_project = self._get_task_method("list_tasks_for_project")
+        list_dependencies_for_task = self._get_task_method("list_dependencies_for_task")
+        if list_tasks_for_project is None or list_dependencies_for_task is None:
+            return ()
+        tasks_by_id = {
+            task.id: task
+            for task in list_tasks_for_project(normalized_project_id)
+        }
+        dependencies_by_id: dict[str, object] = {}
+        for task_id in tasks_by_id:
+            for dependency in list_dependencies_for_task(task_id):
+                dependencies_by_id[dependency.id] = dependency
+        rows = [
+            SchedulingProjectDependencyDto(
+                id=dependency.id,
+                predecessor_task_id=dependency.predecessor_task_id,
+                predecessor_task_name=str(
+                    getattr(tasks_by_id.get(dependency.predecessor_task_id), "name", "")
+                    or dependency.predecessor_task_id
+                ),
+                successor_task_id=dependency.successor_task_id,
+                successor_task_name=str(
+                    getattr(tasks_by_id.get(dependency.successor_task_id), "name", "")
+                    or dependency.successor_task_id
+                ),
+                dependency_type=dependency.dependency_type.value,
+                dependency_type_label=_dependency_type_label(dependency.dependency_type),
+                lag_days=int(getattr(dependency, "lag_days", 0) or 0),
+            )
+            for dependency in dependencies_by_id.values()
+        ]
+        rows.sort(
+            key=lambda row: (
+                row.predecessor_task_name.casefold(),
+                row.successor_task_name.casefold(),
+                row.dependency_type_label,
+            )
+        )
+        return tuple(rows)
+
+    def list_dependencies(self, task_id: str) -> tuple[SchedulingDependencyDto, ...]:
+        normalized_task_id = (task_id or "").strip()
+        if not normalized_task_id:
+            return ()
+        get_task = self._get_task_method("get_task")
+        list_tasks_for_project = self._get_task_method("list_tasks_for_project")
+        list_dependencies_for_task = self._get_task_method("list_dependencies_for_task")
+        if (
+            get_task is None
+            or list_tasks_for_project is None
+            or list_dependencies_for_task is None
+        ):
+            return ()
+        current_task = get_task(normalized_task_id)
+        if current_task is None:
+            return ()
+        tasks_by_id = {
+            task.id: task
+            for task in list_tasks_for_project(current_task.project_id)
+        }
+        rows = [
+            self._serialize_dependency(
+                dependency,
+                current_task_id=current_task.id,
+                tasks_by_id=tasks_by_id,
+            )
+            for dependency in list_dependencies_for_task(normalized_task_id)
+            if _dependency_direction(current_task.id, dependency)[0]
+        ]
+        rows.sort(
+            key=lambda row: (
+                row.direction != "PREDECESSOR",
+                row.related_activity_name.casefold(),
+            )
+        )
+        return tuple(rows)
+
+    def create_dependency(
+        self,
+        command: SchedulingDependencyCreateCommand,
+    ) -> SchedulingDependencyDto:
+        relationship_direction = _coerce_dependency_direction(command.relationship_direction)
+        predecessor_id = (
+            command.related_activity_id
+            if relationship_direction == "PREDECESSOR"
+            else command.task_id
+        )
+        successor_id = (
+            command.task_id
+            if relationship_direction == "PREDECESSOR"
+            else command.related_activity_id
+        )
+        dependency = self._require_task_method("add_dependency")(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=_coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
+        )
+        current_task = self._require_task_method("get_task")(command.task_id)
+        tasks_by_id: dict[str, object] = {}
+        if current_task is not None:
+            tasks_by_id = {
+                task.id: task
+                for task in self._require_task_method("list_tasks_for_project")(current_task.project_id)
+            }
+        return self._serialize_dependency(
+            dependency,
+            current_task_id=command.task_id,
+            tasks_by_id=tasks_by_id,
+        )
+
+    def update_dependency(
+        self,
+        command: SchedulingDependencyUpdateCommand,
+        *,
+        current_task_id: str,
+    ) -> SchedulingDependencyDto:
+        dependency = self._require_task_method("update_dependency")(
+            command.dependency_id,
+            dependency_type=_coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
+        )
+        current_task = self._require_task_method("get_task")(current_task_id)
+        project_id = current_task.project_id if current_task is not None else ""
+        tasks_by_id: dict[str, object] = {}
+        if project_id:
+            tasks_by_id = {
+                task.id: task
+                for task in self._require_task_method("list_tasks_for_project")(project_id)
+            }
+        return self._serialize_dependency(
+            dependency,
+            current_task_id=current_task_id,
+            tasks_by_id=tasks_by_id,
+        )
+
+    def delete_dependency(self, dependency_id: str) -> None:
+        self._require_task_method("remove_dependency")(str(dependency_id or "").strip())
+
     def list_baselines(
         self,
         project_id: str,
@@ -271,6 +554,27 @@ class ProjectManagementSchedulingDesktopApi:
                 label=f"{baseline.name} ({baseline.created_at.isoformat()})",
             )
             for baseline in baselines
+        )
+
+    def list_baseline_rows(
+        self,
+        project_id: str,
+    ) -> tuple[SchedulingBaselineRowDto, ...]:
+        normalized_project_id = (project_id or "").strip()
+        if not normalized_project_id or self._baseline_service is None:
+            return ()
+        baselines = list(self._baseline_service.list_baselines(normalized_project_id))
+        baselines.sort(key=lambda baseline: baseline.created_at, reverse=True)
+        return tuple(
+            SchedulingBaselineRowDto(
+                id=baseline.id,
+                name=baseline.name,
+                created_at=baseline.created_at.date() if hasattr(baseline.created_at, "date") else baseline.created_at,
+                created_at_label=baseline.created_at.strftime("%Y-%m-%d %H:%M"),
+                approved_by_label="System snapshot",
+                variance_state_label="Latest" if index == 0 else "Stored",
+            )
+            for index, baseline in enumerate(baselines)
         )
 
     def create_baseline(
@@ -320,6 +624,39 @@ class ProjectManagementSchedulingDesktopApi:
             for row in result.rows
         )
 
+    def list_resource_load(
+        self,
+        project_id: str,
+    ) -> tuple[SchedulingResourceLoadDto, ...]:
+        normalized_project_id = (project_id or "").strip()
+        if not normalized_project_id or self._reporting_service is None:
+            return ()
+        get_resource_load_summary = getattr(
+            self._reporting_service,
+            "get_resource_load_summary",
+            None,
+        )
+        if not callable(get_resource_load_summary):
+            return ()
+        rows = get_resource_load_summary(normalized_project_id)
+        return tuple(
+            SchedulingResourceLoadDto(
+                resource_id=row.resource_id,
+                resource_name=row.resource_name,
+                total_allocation_percent=float(row.total_allocation_percent or 0.0),
+                total_allocation_label=f"{float(row.total_allocation_percent or 0.0):.1f}%",
+                capacity_percent=float(getattr(row, "capacity_percent", 100.0) or 100.0),
+                capacity_label=f"{float(getattr(row, 'capacity_percent', 100.0) or 100.0):.1f}%",
+                utilization_percent=float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0),
+                utilization_label=f"{float(getattr(row, 'utilization_percent', row.total_allocation_percent) or 0.0):.1f}%",
+                tasks_count=int(getattr(row, "tasks_count", 0) or 0),
+                status_label=_resource_load_status_label(
+                    float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0)
+                ),
+            )
+            for row in rows
+        )
+
     def _list_schedule_from_tasks(
         self,
         project_id: str,
@@ -338,17 +675,26 @@ class ProjectManagementSchedulingDesktopApi:
                 id=task.id,
                 project_id=task.project_id,
                 name=task.name,
+                description=getattr(task, "description", "") or "",
                 status=task.status.value,
                 status_label=task.status.value.replace("_", " ").title(),
                 start_date=task.start_date,
                 finish_date=task.end_date,
                 latest_start=None,
                 latest_finish=None,
+                duration_days=getattr(task, "duration_days", None),
+                remaining_duration_days=_remaining_duration_days(
+                    getattr(task, "duration_days", None),
+                    float(task.percent_complete or 0.0),
+                ),
                 total_float_days=None,
                 is_critical=False,
-                deadline=task.deadline,
+                deadline=getattr(task, "deadline", None),
                 late_by_days=None,
                 percent_complete=float(task.percent_complete or 0.0),
+                actual_start=getattr(task, "actual_start", None),
+                actual_end=getattr(task, "actual_end", None),
+                priority=getattr(task, "priority", None),
             )
             for task in tasks
         )
@@ -360,17 +706,26 @@ class ProjectManagementSchedulingDesktopApi:
             id=task.id,
             project_id=task.project_id,
             name=task.name,
+            description=getattr(task, "description", "") or "",
             status=task.status.value,
             status_label=task.status.value.replace("_", " ").title(),
             start_date=item.earliest_start,
             finish_date=item.earliest_finish,
             latest_start=item.latest_start,
             latest_finish=item.latest_finish,
+            duration_days=getattr(task, "duration_days", None),
+            remaining_duration_days=_remaining_duration_days(
+                getattr(task, "duration_days", None),
+                float(task.percent_complete or 0.0),
+            ),
             total_float_days=item.total_float_days,
             is_critical=item.is_critical,
             deadline=item.deadline,
             late_by_days=item.late_by_days,
             percent_complete=float(task.percent_complete or 0.0),
+            actual_start=getattr(task, "actual_start", None),
+            actual_end=getattr(task, "actual_end", None),
+            priority=getattr(task, "priority", None),
         )
 
     def _get_calendar(self) -> WorkingCalendar:
@@ -398,6 +753,28 @@ class ProjectManagementSchedulingDesktopApi:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._scheduling_engine
 
+    def _require_task_service(self) -> TaskService:
+        if self._task_service is None:
+            raise RuntimeError("Project management scheduling desktop API is not connected.")
+        return self._task_service
+
+    def _require_task_method(self, method_name: str):
+        service = self._require_task_service()
+        method = getattr(service, method_name, None)
+        if not callable(method):
+            raise RuntimeError(
+                f"Project management scheduling desktop API does not support {method_name}."
+            )
+        return method
+
+    def _get_task_method(self, method_name: str):
+        if self._task_service is None:
+            return None
+        method = getattr(self._task_service, method_name, None)
+        if not callable(method):
+            return None
+        return method
+
     def _require_baseline_service(self) -> BaselineService:
         if self._baseline_service is None:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
@@ -407,6 +784,38 @@ class ProjectManagementSchedulingDesktopApi:
         if self._reporting_service is None:
             raise RuntimeError("Project management scheduling desktop API is not connected.")
         return self._reporting_service
+
+    @staticmethod
+    def _serialize_dependency(
+        dependency,
+        *,
+        current_task_id: str,
+        tasks_by_id: dict[str, object],
+    ) -> SchedulingDependencyDto:
+        direction, related_activity_id = _dependency_direction(current_task_id, dependency)
+        predecessor = tasks_by_id.get(dependency.predecessor_task_id)
+        successor = tasks_by_id.get(dependency.successor_task_id)
+        predecessor_name = str(
+            getattr(predecessor, "name", "") or dependency.predecessor_task_id
+        )
+        successor_name = str(
+            getattr(successor, "name", "") or dependency.successor_task_id
+        )
+        related_name = str(
+            getattr(tasks_by_id.get(related_activity_id), "name", "") or related_activity_id
+        )
+        return SchedulingDependencyDto(
+            id=dependency.id,
+            direction=direction,
+            direction_label="Predecessor" if direction == "PREDECESSOR" else "Successor",
+            related_activity_id=related_activity_id,
+            related_activity_name=related_name,
+            dependency_type=dependency.dependency_type.value,
+            dependency_type_label=_dependency_type_label(dependency.dependency_type),
+            lag_days=int(getattr(dependency, "lag_days", 0) or 0),
+            relationship_label=f"{predecessor_name} -> {successor_name}",
+            status_label="Linked",
+        )
 
 
 def build_project_management_scheduling_desktop_api(
@@ -430,17 +839,78 @@ def build_project_management_scheduling_desktop_api(
     )
 
 
+def _remaining_duration_days(duration_days: int | None, percent_complete: float) -> int | None:
+    if duration_days is None:
+        return None
+    remaining_ratio = max(0.0, 1.0 - (float(percent_complete or 0.0) / 100.0))
+    return max(0, int(round(duration_days * remaining_ratio)))
+
+
+def _coerce_dependency_direction(value: str | None) -> str:
+    normalized = str(value or "PREDECESSOR").strip().upper()
+    if normalized in {"PREDECESSOR", "SUCCESSOR"}:
+        return normalized
+    raise ValueError(f"Unsupported dependency direction: {normalized}.")
+
+
+def _dependency_direction(current_task_id: str, dependency) -> tuple[str, str]:
+    if dependency.successor_task_id == current_task_id:
+        return "PREDECESSOR", dependency.predecessor_task_id
+    if dependency.predecessor_task_id == current_task_id:
+        return "SUCCESSOR", dependency.successor_task_id
+    return "", ""
+
+
+def _coerce_dependency_type(value: str | DependencyType | None) -> DependencyType:
+    if isinstance(value, DependencyType):
+        return value
+    normalized_value = str(value or DependencyType.FINISH_TO_START.value).strip().upper()
+    try:
+        return DependencyType(normalized_value)
+    except ValueError as exc:
+        raise ValueError(f"Unsupported dependency type: {normalized_value}.") from exc
+
+
+def _dependency_type_label(value: DependencyType | str) -> str:
+    dependency_type = value if isinstance(value, DependencyType) else _coerce_dependency_type(value)
+    mapping = {
+        DependencyType.FINISH_TO_START: "Finish -> Start",
+        DependencyType.START_TO_START: "Start -> Start",
+        DependencyType.FINISH_TO_FINISH: "Finish -> Finish",
+        DependencyType.START_TO_FINISH: "Start -> Finish",
+    }
+    return mapping.get(dependency_type, dependency_type.value)
+
+
+def _resource_load_status_label(utilization_percent: float) -> str:
+    if utilization_percent > 100.0:
+        return "Overloaded"
+    if utilization_percent >= 85.0:
+        return "Hot"
+    if utilization_percent > 0.0:
+        return "Stable"
+    return "Idle"
+
+
 __all__ = [
     "ProjectManagementSchedulingDesktopApi",
     "SchedulingBaselineComparisonRowDto",
     "SchedulingBaselineCreateCommand",
     "SchedulingBaselineOptionDescriptor",
+    "SchedulingBaselineRowDto",
+    "SchedulingCalendarOptionDescriptor",
     "SchedulingCalendarSnapshotDto",
     "SchedulingCalendarUpdateCommand",
     "SchedulingDayDescriptor",
+    "SchedulingDependencyCreateCommand",
+    "SchedulingDependencyDto",
+    "SchedulingDependencyTypeDescriptor",
+    "SchedulingDependencyUpdateCommand",
     "SchedulingHolidayCreateCommand",
     "SchedulingHolidayDto",
     "SchedulingProjectOptionDescriptor",
+    "SchedulingProjectDependencyDto",
+    "SchedulingResourceLoadDto",
     "SchedulingTaskDto",
     "SchedulingWorkingDayCalculationCommand",
     "SchedulingWorkingDayCalculationDto",

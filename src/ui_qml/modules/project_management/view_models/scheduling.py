@@ -22,6 +22,7 @@ class SchedulingOverviewViewModel:
 class SchedulingSelectorOptionViewModel:
     value: str
     label: str
+    supporting_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,25 @@ class SchedulingCollectionViewModel:
 
 
 @dataclass(frozen=True)
+class SchedulingDetailFieldViewModel:
+    label: str
+    value: str
+    supporting_text: str = ""
+
+
+@dataclass(frozen=True)
+class SchedulingDetailViewModel:
+    id: str = ""
+    title: str = ""
+    status_label: str = ""
+    subtitle: str = ""
+    description: str = ""
+    empty_state: str = ""
+    fields: tuple[SchedulingDetailFieldViewModel, ...] = field(default_factory=tuple)
+    state: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class SchedulingCalendarViewModel:
     summary_text: str
     working_day_options: tuple[SchedulingDayOptionViewModel, ...] = field(
@@ -81,7 +101,32 @@ class SchedulingWorkspaceViewModel:
     project_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
         default_factory=tuple
     )
+    calendar_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    baseline_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    dependency_type_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    dependency_task_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
+    status_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
+        default_factory=tuple
+    )
     selected_project_id: str = ""
+    selected_calendar_id: str = "default"
+    selected_baseline_id: str = ""
+    selected_status_filter: str = "all"
+    search_text: str = ""
+    show_critical_only: bool = False
+    show_delayed_only: bool = False
+    page: int = 1
+    page_size: int = 25
+    total_count: int = 0
+    selected_activity_id: str = ""
     calendar: SchedulingCalendarViewModel = field(
         default_factory=lambda: SchedulingCalendarViewModel(summary_text="")
     )
@@ -90,7 +135,13 @@ class SchedulingWorkspaceViewModel:
     )
     schedule: SchedulingCollectionViewModel = field(
         default_factory=lambda: SchedulingCollectionViewModel(
-            title="Schedule Snapshot",
+            title="Activity Table",
+            subtitle="",
+        )
+    )
+    timeline: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Timeline",
             subtitle="",
         )
     )
@@ -100,6 +151,51 @@ class SchedulingWorkspaceViewModel:
             subtitle="",
         )
     )
+    diagnostics: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Diagnostics",
+            subtitle="",
+        )
+    )
+    delayed_activities: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Delayed Activities",
+            subtitle="",
+        )
+    )
+    resource_loading: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Resource Loading",
+            subtitle="",
+        )
+    )
+    baseline_register: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Baselines",
+            subtitle="",
+        )
+    )
+    dependencies: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Dependencies",
+            subtitle="",
+        )
+    )
+    constraints: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Constraints",
+            subtitle="",
+        )
+    )
+    activity_feed: SchedulingCollectionViewModel = field(
+        default_factory=lambda: SchedulingCollectionViewModel(
+            title="Planning Activity",
+            subtitle="",
+        )
+    )
+    selected_activity_detail: SchedulingDetailViewModel = field(
+        default_factory=SchedulingDetailViewModel
+    )
 
 
 __all__ = [
@@ -107,6 +203,8 @@ __all__ = [
     "SchedulingCalendarViewModel",
     "SchedulingCollectionViewModel",
     "SchedulingDayOptionViewModel",
+    "SchedulingDetailFieldViewModel",
+    "SchedulingDetailViewModel",
     "SchedulingMetricViewModel",
     "SchedulingOverviewViewModel",
     "SchedulingRecordViewModel",
