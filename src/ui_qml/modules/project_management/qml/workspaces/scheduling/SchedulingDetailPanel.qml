@@ -51,9 +51,7 @@ Item {
         return optionList.length > 0 ? 0 : -1
     }
 
-    function _currentSectionIndex() {
-        return detailPage ? detailPage.activeSectionIndex : 0
-    }
+    readonly property int _sectionIdx: detailPage ? detailPage.activeSectionIndex : 0
 
     function _findItem(items, itemId) {
         const list = items || []
@@ -211,7 +209,7 @@ Item {
         SchedulingPanelFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root._currentSectionIndex() === 0
+            visible: root._sectionIdx === 0
             title: "Activity Details"
             subtitle: "Operational planning fields and current schedule state."
 
@@ -291,7 +289,7 @@ Item {
         SchedulingPanelFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root._currentSectionIndex() === 1
+            visible: root._sectionIdx === 1
             title: "Dependencies"
             subtitle: "Sequence logic, lag controls, and predecessor/successor management."
 
@@ -372,7 +370,7 @@ Item {
         SchedulingPanelFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root._currentSectionIndex() === 2
+            visible: root._sectionIdx === 2
             title: "Constraints"
             subtitle: "Date guards, deadline controls, and execution locks."
 
@@ -394,7 +392,7 @@ Item {
         SchedulingPanelFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root._currentSectionIndex() === 3
+            visible: root._sectionIdx === 3
             title: "Calendars"
             subtitle: "Working week, holidays, and working-day calculations."
 
@@ -561,7 +559,7 @@ Item {
         SchedulingPanelFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root._currentSectionIndex() === 4
+            visible: root._sectionIdx === 4
             title: "Baselines"
             subtitle: "Snapshot comparison, variance review, and baseline register."
 
@@ -680,7 +678,7 @@ Item {
         SchedulingPanelFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root._currentSectionIndex() === 5
+            visible: root._sectionIdx === 5
             title: "Resources"
             subtitle: "Project resource pressure and utilization indicators."
 
@@ -704,7 +702,7 @@ Item {
         SchedulingPanelFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: root._currentSectionIndex() === 6
+            visible: root._sectionIdx === 6
             title: "Activity Feed"
             subtitle: "Recent planning actions, warnings, and control events."
 
