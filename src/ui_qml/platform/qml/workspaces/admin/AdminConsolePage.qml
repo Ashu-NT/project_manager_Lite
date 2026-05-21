@@ -376,87 +376,10 @@ AppLayouts.WorkspaceFrame {
             }
 
             // ── Audit / Overview ──────────────────────────────────
-            Item {
-                anchors.fill: parent
-                visible:      root._activeSection === "audit"
-                clip:         true
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: Theme.AppTheme.toolbarHeight - 6
-                        color:  Theme.AppTheme.surfaceRaised
-                        z:      1
-
-                        Rectangle {
-                            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                            height: 1; color: Theme.AppTheme.divider
-                        }
-
-                        RowLayout {
-                            anchors.fill:        parent
-                            anchors.leftMargin:  Theme.AppTheme.marginMd
-                            anchors.rightMargin: 8
-                            spacing: Theme.AppTheme.spacingXs
-
-                            Label {
-                                text:           "Audit & Overview"
-                                color:          Theme.AppTheme.textPrimary
-                                font.family:    Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold:      true
-                            }
-                            Item { Layout.fillWidth: true }
-                            AppControls.SecondaryButton {
-                                text:     "Refresh"
-                                iconName: "refresh"
-                                enabled:  root.workspaceController ? !root.workspaceController.isBusy : false
-                                onClicked: { if (root.workspaceController) root.workspaceController.refresh() }
-                            }
-                        }
-                    }
-
-                    Flickable {
-                        Layout.fillWidth:  true
-                        Layout.fillHeight: true
-                        contentWidth:      width
-                        contentHeight:     _auditColumn.implicitHeight + (2 * Theme.AppTheme.marginLg)
-                        clip:              true
-                        boundsBehavior:    Flickable.StopAtBounds
-
-                        ColumnLayout {
-                            id: _auditColumn
-                            anchors.left:    parent.left
-                            anchors.right:   parent.right
-                            anchors.top:     parent.top
-                            anchors.margins: Theme.AppTheme.marginLg
-                            spacing:         Theme.AppTheme.spacingMd
-
-                            PlatformWidgets.WorkspaceStateBanner {
-                                Layout.fillWidth: true
-                                isLoading:       root._load
-                                isBusy:          root._busy
-                                errorMessage:    root._err
-                                feedbackMessage: root._ok
-                            }
-
-                            AdminMetricsSection {
-                                Layout.fillWidth: true
-                                metrics: root.workspaceController
-                                    ? (root.workspaceController.overview.metrics || []) : []
-                            }
-
-                            AdminOverviewSections {
-                                Layout.fillWidth: true
-                                sections: root.workspaceController
-                                    ? (root.workspaceController.overview.sections || []) : []
-                            }
-                        }
-                    }
-                }
+            AdminAuditSection {
+                anchors.fill:        parent
+                visible:             root._activeSection === "audit"
+                workspaceController: root.workspaceController
             }
         }
 

@@ -1,0 +1,571 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
+import App.Icons 1.0 as AppIcons
+import App.Theme 1.0 as Theme
+import Platform.Controllers 1.0 as PlatformControllers
+
+// Enterprise governance overview console.
+// Left: Governance Activity timeline. Right: scrollable Runtime / Identity / Master Data panels.
+ColumnLayout {
+    id: root
+    spacing: 0
+
+    // ── Public API ────────────────────────────────────────────────
+    property PlatformControllers.PlatformAdminWorkspaceController workspaceController
+
+    readonly property var _overview:  root.workspaceController ? (root.workspaceController.overview || {}) : ({})
+    readonly property var _metrics:   root._overview.metrics   || []
+    readonly property var _sections:  root._overview.sections  || []
+    readonly property var _activity:  root._overview.activityFeed || []
+
+    readonly property var _runtimeSection:   root._sections.length > 0
+        ? root._sections[0] : { title: "Runtime Context",      rows: [], emptyState: "No runtime data" }
+    readonly property var _workforceSection: root._sections.length > 1
+        ? root._sections[1] : { title: "Identity & Workforce", rows: [], emptyState: "No identity data" }
+    readonly property var _masterSection:    root._sections.length > 2
+        ? root._sections[2] : { title: "Master Data Coverage", rows: [], emptyState: "No master data" }
+
+    readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy          : false
+    readonly property bool   _load: root.workspaceController ? root.workspaceController.isLoading       : false
+    readonly property string _err:  root.workspaceController ? root.workspaceController.errorMessage    : ""
+    readonly property string _ok:   root.workspaceController ? root.workspaceController.feedbackMessage : ""
+
+    property string _searchText: ""
+
+    // ── Section title bar ─────────────────────────────────────────
+    Rectangle {
+        Layout.fillWidth: true
+        height: Theme.AppTheme.toolbarHeight - 6
+        color:  Theme.AppTheme.surfaceRaised
+        z:      1
+
+        Rectangle {
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+            height: 1; color: Theme.AppTheme.divider
+        }
+
+        Label {
+            anchors.left:           parent.left
+            anchors.leftMargin:     Theme.AppTheme.marginMd
+            anchors.verticalCenter: parent.verticalCenter
+            text:           "Audit & Overview"
+            color:          Theme.AppTheme.textPrimary
+            font.family:    Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.smallSize
+            font.bold:      true
+        }
+    }
+
+    // ── TableToolbar ──────────────────────────────────────────────
+    AppWidgets.TableToolbar {
+        Layout.fillWidth:  true
+        searchPlaceholder: "Search activity..."
+        showFilter:        true
+        showViews:         true
+        showRefresh:       true
+        isBusy:            root._busy
+        onSearchChanged:    function(text) { root._searchText = text }
+        onFilterClicked:    auditFilterPopup.open()
+        onViewsClicked:     auditViewsPopup.open()
+        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+    }
+
+    // ── Inline state banners ──────────────────────────────────────
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: (root._load || root._busy) && root._err.length === 0
+        tone:    "info"
+        message: root._busy ? "Saving changes..." : "Loading..."
+    }
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: root._err.length > 0
+        tone:    "danger"
+        message: root._err
+    }
+    AppWidgets.InlineMessage {
+        Layout.fillWidth: true
+        visible: root._ok.length > 0 && root._err.length === 0
+        tone:    "success"
+        message: root._ok
+    }
+
+    // ── KPI strip ─────────────────────────────────────────────────
+    AppWidgets.KpiStrip {
+        Layout.fillWidth: true
+        metrics: root._metrics
+    }
+
+    // ── Main two-column area (fills remaining height) ─────────────
+    RowLayout {
+        Layout.fillWidth:  true
+        Layout.fillHeight: true
+        spacing: 0
+
+        // ── Left: Governance Activity timeline ────────────────────
+        ColumnLayout {
+            Layout.fillWidth:  true
+            Layout.fillHeight: true
+            spacing: 0
+
+            AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Governance Activity" }
+
+            Item {
+                Layout.fillWidth:  true
+                Layout.fillHeight: true
+
+                ListView {
+                    id: _activityList
+                    anchors.fill:      parent
+                    anchors.topMargin: 4
+                    clip:              true
+                    boundsBehavior:    Flickable.StopAtBounds
+                    spacing:           0
+                    model:             root._activity
+
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                    delegate: Item {
+                        id: _actRow
+                        required property var modelData
+                        required property int index
+
+                        width:  _activityList.width
+                        height: 44
+
+                        // Timeline dot
+                        Rectangle {
+                            id: _actDot
+                            anchors.left:           parent.left
+                            anchors.leftMargin:     Theme.AppTheme.marginMd
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 7; height: 7; radius: 4
+                            color: {
+                                const s = (_actRow.modelData.statusLabel || "").toLowerCase()
+                                if (s.includes("creat") || s.includes("enabl") || s.includes("approv") || s.includes("grant")) return Theme.AppTheme.success
+                                if (s.includes("revok") || s.includes("delet") || s.includes("reject") || s.includes("lock"))  return Theme.AppTheme.danger
+                                if (s.includes("warn")  || s.includes("chang"))                                                return Theme.AppTheme.warning
+                                return Theme.AppTheme.textMuted
+                            }
+                        }
+
+                        // Vertical connector
+                        Rectangle {
+                            visible:                  _actRow.index < _activityList.count - 1
+                            anchors.horizontalCenter: _actDot.horizontalCenter
+                            anchors.top:              _actDot.bottom
+                            anchors.topMargin:        2
+                            anchors.bottom:           parent.bottom
+                            width: 1; color: Theme.AppTheme.divider
+                        }
+
+                        ColumnLayout {
+                            anchors {
+                                left:           _actDot.right
+                                leftMargin:     Theme.AppTheme.spacingSm
+                                right:          parent.right
+                                rightMargin:    Theme.AppTheme.marginSm
+                                verticalCenter: parent.verticalCenter
+                            }
+                            spacing: 2
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing:          Theme.AppTheme.spacingXs
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text:           _actRow.modelData.title || ""
+                                    color:          Theme.AppTheme.textPrimary
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    elide:          Text.ElideRight
+                                }
+
+                                AppWidgets.StatusChip {
+                                    visible: (_actRow.modelData.statusLabel || "").length > 0
+                                    status:  _actRow.modelData.statusLabel || ""
+                                }
+                            }
+
+                            Label {
+                                visible:        (_actRow.modelData.metaText || "").length > 0
+                                text:           _actRow.modelData.metaText || ""
+                                color:          Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                elide:          Text.ElideRight
+                            }
+                        }
+                    }
+                }
+
+                AppWidgets.EmptyState {
+                    anchors.centerIn: parent
+                    width:   Math.min(_activityList.width, 260)
+                    visible: _activityList.count === 0 && !root._load
+                    title:   "No governance activity recorded"
+                }
+            }
+        }
+
+        // Column divider
+        Rectangle {
+            Layout.fillHeight: true
+            width: 1; color: Theme.AppTheme.divider
+        }
+
+        // ── Right: Runtime + Identity + Master Data (scrollable) ──
+        Flickable {
+            Layout.preferredWidth: 300
+            Layout.fillHeight:     true
+            contentWidth:          width
+            contentHeight:         _rightContent.implicitHeight
+            clip:                  true
+            boundsBehavior:        Flickable.StopAtBounds
+
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            ColumnLayout {
+                id: _rightContent
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                spacing: 0
+
+                // ── Runtime Context ───────────────────────────────
+                AppWidgets.SectionHeading {
+                    Layout.fillWidth: true
+                    label: root._runtimeSection.title || "Runtime Context"
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth:    true
+                    Layout.leftMargin:   Theme.AppTheme.marginMd
+                    Layout.rightMargin:  Theme.AppTheme.marginMd
+                    Layout.topMargin:    Theme.AppTheme.spacingXs
+                    Layout.bottomMargin: Theme.AppTheme.spacingMd
+                    spacing:             Theme.AppTheme.spacingSm
+
+                    Repeater {
+                        model: root._runtimeSection.rows || []
+
+                        delegate: ColumnLayout {
+                            id: _rtRow
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingXs
+
+                                Label {
+                                    text:           _rtRow.modelData.label || ""
+                                    color:          Theme.AppTheme.textMuted
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold:      true
+                                    Layout.preferredWidth: 130
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text:           _rtRow.modelData.value || "-"
+                                    color:          Theme.AppTheme.textPrimary
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold:      true
+                                    elide:          Text.ElideRight
+                                }
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                visible:        String(_rtRow.modelData.supportingText || "").length > 0
+                                text:           _rtRow.modelData.supportingText || ""
+                                color:          Theme.AppTheme.textSecondary
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                wrapMode:       Text.WordWrap
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1; color: Theme.AppTheme.divider
+                                visible: _rtRow.index < (root._runtimeSection.rows || []).length - 1
+                            }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        visible: (root._runtimeSection.rows || []).length === 0
+                        text:    root._runtimeSection.emptyState || "No runtime data"
+                        color:   Theme.AppTheme.textMuted
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+
+                // ── Identity & Workforce ──────────────────────────
+                AppWidgets.SectionHeading {
+                    Layout.fillWidth: true
+                    label: root._workforceSection.title || "Identity & Workforce"
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth:    true
+                    Layout.leftMargin:   Theme.AppTheme.marginMd
+                    Layout.rightMargin:  Theme.AppTheme.marginMd
+                    Layout.topMargin:    Theme.AppTheme.spacingXs
+                    Layout.bottomMargin: Theme.AppTheme.spacingMd
+                    spacing:             Theme.AppTheme.spacingSm
+
+                    Repeater {
+                        model: root._workforceSection.rows || []
+
+                        delegate: ColumnLayout {
+                            id: _wfRow
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingXs
+
+                                Label {
+                                    text:           _wfRow.modelData.label || ""
+                                    color:          Theme.AppTheme.textMuted
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold:      true
+                                    Layout.preferredWidth: 130
+                                }
+
+                                Label {
+                                    text:           _wfRow.modelData.value || "-"
+                                    color:          Theme.AppTheme.textPrimary
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold:      true
+                                }
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                visible:        String(_wfRow.modelData.supportingText || "").length > 0
+                                text:           _wfRow.modelData.supportingText || ""
+                                color:          Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                elide:          Text.ElideRight
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1; color: Theme.AppTheme.divider
+                                visible: _wfRow.index < (root._workforceSection.rows || []).length - 1
+                            }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        visible: (root._workforceSection.rows || []).length === 0
+                        text:    root._workforceSection.emptyState || "No identity data"
+                        color:   Theme.AppTheme.textMuted
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+
+                // ── Master Data Coverage ──────────────────────────
+                AppWidgets.SectionHeading {
+                    Layout.fillWidth: true
+                    label: root._masterSection.title || "Master Data Coverage"
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth:    true
+                    Layout.leftMargin:   Theme.AppTheme.marginMd
+                    Layout.rightMargin:  Theme.AppTheme.marginMd
+                    Layout.topMargin:    Theme.AppTheme.spacingXs
+                    Layout.bottomMargin: Theme.AppTheme.spacingMd
+                    spacing:             Theme.AppTheme.spacingSm
+
+                    Repeater {
+                        model: root._masterSection.rows || []
+
+                        delegate: ColumnLayout {
+                            id: _mdRow
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingXs
+
+                                Label {
+                                    text:           _mdRow.modelData.label || ""
+                                    color:          Theme.AppTheme.textMuted
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold:      true
+                                    Layout.preferredWidth: 130
+                                }
+
+                                Label {
+                                    text:           _mdRow.modelData.value || "-"
+                                    color:          Theme.AppTheme.textPrimary
+                                    font.family:    Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    font.bold:      true
+                                }
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                visible:        String(_mdRow.modelData.supportingText || "").length > 0
+                                text:           _mdRow.modelData.supportingText || ""
+                                color:          Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                wrapMode:       Text.WrapAtWordBoundaryOrAnywhere
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 1; color: Theme.AppTheme.divider
+                                visible: _mdRow.index < (root._masterSection.rows || []).length - 1
+                            }
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        visible: (root._masterSection.rows || []).length === 0
+                        text:    root._masterSection.emptyState || "No master data"
+                        color:   Theme.AppTheme.textMuted
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Filter popup ──────────────────────────────────────────────
+    Popup {
+        id: auditFilterPopup
+        parent:      Overlay.overlay
+        anchors.centerIn: parent
+        width:       280
+        padding:     Theme.AppTheme.marginMd
+        modal:       true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color:        Theme.AppTheme.surfaceRaised
+            radius:       Theme.AppTheme.radiusMd
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+        }
+
+        ColumnLayout {
+            width: parent.width; spacing: Theme.AppTheme.spacingMd
+
+            Label {
+                text:           "Filter Governance"
+                color:          Theme.AppTheme.textPrimary
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
+                font.bold:      true
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text:    "Event type and date filters will appear here."
+                color:   Theme.AppTheme.textMuted
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.SecondaryButton {
+                Layout.alignment: Qt.AlignRight
+                text: "Close"; onClicked: auditFilterPopup.close()
+            }
+        }
+    }
+
+    // ── Views popup ───────────────────────────────────────────────
+    Popup {
+        id: auditViewsPopup
+        parent:      Overlay.overlay
+        anchors.centerIn: parent
+        width:       240
+        padding:     4
+        modal:       true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color:        Theme.AppTheme.surfaceRaised
+            radius:       Theme.AppTheme.radiusMd
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+        }
+
+        Column {
+            width: parent.width; spacing: 2
+
+            Repeater {
+                model: [
+                    "All Events",
+                    "Access Changes",
+                    "Module Events",
+                    "Site & Org Changes",
+                    "Configuration Changes"
+                ]
+
+                delegate: Rectangle {
+                    required property string modelData
+                    required property int    index
+                    width: parent.width; height: 34
+                    radius: Theme.AppTheme.radiusMd
+                    color:  _avMA.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
+
+                    Label {
+                        anchors {
+                            left:           parent.left
+                            leftMargin:     Theme.AppTheme.spacingMd
+                            verticalCenter: parent.verticalCenter
+                        }
+                        text:           modelData
+                        color:          Theme.AppTheme.textPrimary
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.smallSize
+                    }
+
+                    MouseArea {
+                        id: _avMA
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape:  Qt.PointingHandCursor
+                        onClicked:    auditViewsPopup.close()
+                    }
+                }
+            }
+        }
+    }
+}
