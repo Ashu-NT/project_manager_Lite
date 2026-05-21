@@ -377,8 +377,10 @@ AppLayouts.WorkspaceFrame {
                                     text: "Clear"
                                     iconName: "close"
                                     onClicked: {
-                                        if (root.workspaceController !== null)
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.selectProject("")
                                             root.workspaceController.setCostTypeFilter("all")
+                                        }
                                         filterPopup.close()
                                     }
                                 }
