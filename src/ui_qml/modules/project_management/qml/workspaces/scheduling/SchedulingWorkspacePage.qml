@@ -141,11 +141,16 @@ AppLayouts.WorkspaceFrame {
         { "key": "status", "label": "Status", "flex": 0.8, "type": "status" }
     ]
 
-    readonly property var _detailActions: [
-        { "id": "add_dependency", "label": "Add Dependency", "icon": "add", "enabled": true, "danger": false },
-        { "id": "save_baseline", "label": "Save Baseline", "icon": "register", "enabled": true, "danger": false },
-        { "id": "recalculate", "label": "Recalculate", "icon": "refresh", "enabled": true, "danger": false }
-    ]
+    readonly property var _detailActions: {
+        const idx = detailPage ? detailPage.activeSectionIndex : 0
+        if (idx === 0) {
+            return [
+                { "id": "add_dependency", "label": "Add Dependency", "icon": "add", "enabled": true, "danger": false },
+                { "id": "recalculate", "label": "Recalculate", "icon": "refresh", "enabled": true, "danger": false }
+            ]
+        }
+        return []
+    }
 
     // ── Computed row data (bindings, not function calls) ──────────────────────
 

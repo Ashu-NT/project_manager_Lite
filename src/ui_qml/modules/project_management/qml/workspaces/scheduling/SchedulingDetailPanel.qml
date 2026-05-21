@@ -434,10 +434,10 @@ Item {
                     }
 
                     TextField {
-                        Layout.preferredWidth: 96
+                        Layout.preferredWidth: 72
                         text: root.hoursPerDayDraft
                         enabled: !root.isBusy
-                        placeholderText: "Hours/day"
+                        placeholderText: "Hrs/day"
                         onTextChanged: root.hoursPerDayDraft = text
                     }
 
@@ -473,7 +473,7 @@ Item {
 
                     TextField {
                         id: holidayDateField
-                        Layout.preferredWidth: 130
+                        Layout.preferredWidth: 106
                         placeholderText: "YYYY-MM-DD"
                     }
 
@@ -519,14 +519,14 @@ Item {
 
                     TextField {
                         id: calcStartField
-                        Layout.preferredWidth: 130
+                        Layout.preferredWidth: 106
                         placeholderText: "Start YYYY-MM-DD"
                     }
 
                     TextField {
                         id: calcDaysField
-                        Layout.preferredWidth: 110
-                        placeholderText: "Working days"
+                        Layout.preferredWidth: 80
+                        placeholderText: "Days"
                     }
 
                     AppControls.SecondaryButton {
@@ -574,7 +574,7 @@ Item {
                     spacing: Theme.AppTheme.spacingSm
 
                     ComboBox {
-                        Layout.preferredWidth: 220
+                        Layout.preferredWidth: 160
                         model: root.baselinesModel.options || []
                         textRole: "label"
                         currentIndex: root._indexForValue(root.baselinesModel.options || [], root.baselinesModel.selectedBaselineAId || "")
@@ -588,7 +588,7 @@ Item {
                     }
 
                     ComboBox {
-                        Layout.preferredWidth: 220
+                        Layout.preferredWidth: 160
                         model: root.baselinesModel.options || []
                         textRole: "label"
                         currentIndex: root._indexForValue(root.baselinesModel.options || [], root.baselinesModel.selectedBaselineBId || "")
