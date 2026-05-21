@@ -343,30 +343,30 @@ Item {
                 }
             }
 
-            CheckBox {
-                id: _cb
+            Item {
                 anchors.centerIn: parent
-                checked: _cbCell._chk
-                padding: 0; spacing: 0
+                width: 20; height: 20
 
-                indicator: Rectangle {
-                    implicitWidth: 14; implicitHeight: 14; radius: 2
-                    color: _cb.checked ? Theme.AppTheme.accent : "transparent"
-                    border.color: _cb.checked
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 14; height: 14; radius: 2
+                    color: _cbCell._chk ? Theme.AppTheme.accent : "transparent"
+                    border.color: _cbCell._chk
                         ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
                     border.width: 1
                     Text {
                         anchors.centerIn: parent
                         text: "✓"; color: "white"
                         font.pixelSize: 9; font.bold: true
-                        visible: _cb.checked
+                        visible: _cbCell._chk
                     }
                 }
-                contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
-                onClicked: root.rowSelectionToggled(
-                    _cbCell._rid,
-                    !root._isRowChecked(_cbCell._rid)
-                )
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.rowSelectionToggled(_cbCell._rid, !root._isRowChecked(_cbCell._rid))
+                }
             }
 
             Rectangle {
@@ -550,11 +550,9 @@ Item {
                 anchors.fill:  parent
                 cursorShape:   Qt.PointingHandCursor
                 onClicked: {
-                    const rowId = _cell.rowId
-                    root.selectedRowId = rowId
                     root._currentRow = _cell.row
                     _mainView.forceActiveFocus()
-                    Qt.callLater(function() { root.rowSelected(rowId) })
+                    root.rowSelected(_cell.rowId)
                 }
                 onDoubleClicked: root.rowActivated(_cell.rowId)
             }
