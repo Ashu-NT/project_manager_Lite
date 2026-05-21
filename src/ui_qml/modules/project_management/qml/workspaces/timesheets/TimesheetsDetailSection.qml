@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -44,8 +45,7 @@ Item {
 
         AppWidgets.SectionHeading {
             width: parent.width
-            title: "Entries"
-            subtitle: "Time entries captured for this period."
+            label: "Entries"
         }
 
         AppWidgets.EmptyState {
@@ -86,8 +86,7 @@ Item {
 
         AppWidgets.SectionHeading {
             width: parent.width
-            title: "Approval History"
-            subtitle: "Submission, approval, and rejection events for this period."
+            label: "Approval History"
         }
 
         AppWidgets.EmptyState {
@@ -170,8 +169,7 @@ Item {
 
         AppWidgets.SectionHeading {
             width: parent.width
-            title: "Labor Notes"
-            subtitle: "Notes and narrative captured for the selected time entry."
+            label: "Labor Notes"
         }
 
         AppWidgets.EmptyState {
@@ -247,8 +245,7 @@ Item {
 
         AppWidgets.SectionHeading {
             width: parent.width
-            title: "Audit Trail"
-            subtitle: "System-recorded changes and period lifecycle events."
+            label: "Audit Trail"
         }
 
         AppWidgets.EmptyState {
