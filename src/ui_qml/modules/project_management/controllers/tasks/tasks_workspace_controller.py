@@ -471,6 +471,10 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
+
+    @Slot(str)
+    def activateTask(self, task_id: str) -> None:
+        self.selectTask(task_id)
         QTimer.singleShot(0, self.refresh)
 
     @Slot(str, bool)

@@ -347,7 +347,7 @@ AppLayouts.WorkspaceFrame {
                         }
                         onRowActivated: function(rowId) {
                             if (root.workspaceController !== null) {
-                                root.workspaceController.selectTask(rowId)
+                                root.workspaceController.activateTask(rowId)
                             }
                             detailPage.open = true
                         }
