@@ -69,6 +69,9 @@ class ProjectCatalogWorkspaceViewModel:
         default_factory=ProjectDetailViewModel
     )
     empty_state: str = ""
+    total_count: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 __all__ = [

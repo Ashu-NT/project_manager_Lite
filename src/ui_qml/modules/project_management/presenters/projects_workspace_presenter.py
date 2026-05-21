@@ -34,6 +34,8 @@ class ProjectProjectsWorkspacePresenter:
         search_text: str = "",
         status_filter: str = "all",
         selected_project_id: str | None = None,
+        page: int = 1,
+        page_size: int = 25,
     ) -> ProjectCatalogWorkspaceViewModel:
         all_projects = self._desktop_api.list_projects()
         status_options = (
@@ -57,6 +59,11 @@ class ProjectProjectsWorkspacePresenter:
             if self._matches_status(project, normalized_status_filter)
             and self._matches_search(project, normalized_search)
         )
+        _total_count = len(filtered_projects)
+        _page = max(1, page)
+        _page_size = max(1, page_size)
+        _offset = (_page - 1) * _page_size
+        paged_projects = filtered_projects[_offset: _offset + _page_size]
         resolved_selected_project_id = self._resolve_selected_project_id(
             selected_project_id,
             filtered_projects,
@@ -79,7 +86,7 @@ class ProjectProjectsWorkspacePresenter:
             search_text=normalized_search,
             projects=tuple(
                 self._to_project_record_view_model(project)
-                for project in filtered_projects
+                for project in paged_projects
             ),
             selected_project_id=resolved_selected_project_id,
             selected_project_detail=self._build_detail_view_model(selected_project),
@@ -89,6 +96,9 @@ class ProjectProjectsWorkspacePresenter:
                 search_text=normalized_search,
                 status_filter=normalized_status_filter,
             ),
+            total_count=_total_count,
+            page=_page,
+            page_size=_page_size,
         )
 
     def create_project(self, payload: dict[str, Any]) -> None:

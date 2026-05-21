@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -123,56 +124,85 @@ AppLayouts.WorkspaceFrame {
             searchPlaceholder: "Search resources…"
             showCreate: true
             createLabel: "New Resource"
+            showFilter: true
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
                 if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
             }
+            onFilterClicked: filterPopup.open()
             onRefreshRequested: {
                 if (root.workspaceController !== null) root.workspaceController.refresh()
             }
             onCreateRequested: dialogHost.openCreateDialog()
         }
 
-        // ── Full-width table with full-page detail view ───────────────
+        // ── Table + detail stacked ────────────────────────────────────
         Item {
+            id: _listPage
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
 
             AppWidgets.DataTable {
                 id: resourcesTable
-                anchors.fill: parent
+                anchors.top:    parent.top
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+                anchors.bottom: _paginationBar.top
                 columns: root._tableColumns
                 rows: root.resourcesModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedResourceId : ""
-                showFilter: true
+                multiSelect: true
 
-                onFilterClicked: filterPopup.open()
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
                 }
                 onRowActivated: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
+                    if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
+                    detailPage.open = true
                 }
                 onViewDetailRequested: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
+                    if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
                     detailPage.open = true
                 }
                 onSortRequested: function(key) {}
             }
 
+            AppWidgets.TablePaginationBar {
+                id: _paginationBar
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+                anchors.bottom: parent.bottom
+                currentPage:  root.workspaceController ? root.workspaceController.resourcePage : 1
+                pageSize:     root.workspaceController ? root.workspaceController.resourcePageSize : 25
+                totalItems:   root.workspaceController ? root.workspaceController.resourceTotalCount : 0
+                busy:         root.workspaceController ? root.workspaceController.isBusy : false
+
+                onPageRequested: function(page) {
+                    if (root.workspaceController !== null) root.workspaceController.setResourcePage(page)
+                }
+                onPageSizeRequested: function(pageSize) {
+                    if (root.workspaceController !== null) root.workspaceController.setResourcePageSize(pageSize)
+                }
+            }
+
             Popup {
                 id: filterPopup
-                parent: resourcesTable
+                parent: tableToolbar
                 width: 260
                 padding: 12
-                x: resourcesTable.width - width - 4
-                y: 30
+                x: tableToolbar.width - width
+                y: tableToolbar.height + Theme.AppTheme.spacingXs
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                Column {
+                background: Rectangle {
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceRaised
+                }
+
+                contentItem: Column {
                     width: parent.width
                     spacing: 8
 
@@ -232,6 +262,7 @@ AppLayouts.WorkspaceFrame {
             AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
+                z: 20
                 title: root.selectedResourceModel.title || "Resource Details"
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false

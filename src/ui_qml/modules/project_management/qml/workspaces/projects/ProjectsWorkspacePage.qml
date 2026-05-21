@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -140,39 +141,63 @@ AppLayouts.WorkspaceFrame {
             onCreateRequested: dialogHost.openCreateDialog()
         }
 
-        // ── Full-width table with full-page detail view ───────────────
+        // ── Table + detail stacked ────────────────────────────────────
         Item {
+            id: _listPage
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
 
             AppWidgets.DataTable {
                 id: projectsTable
-                anchors.fill: parent
+                anchors.top:    parent.top
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+                anchors.bottom: _paginationBar.top
                 columns: root._tableColumns
                 rows: root.projectsModel.items || []
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
+                multiSelect: true
 
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
                 }
                 onRowActivated: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
+                    if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
+                    detailPage.open = true
                 }
                 onViewDetailRequested: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectProject(rowId)
+                    if (root.workspaceController !== null) root.workspaceController.activateProject(rowId)
                     detailPage.open = true
                 }
                 onSortRequested: function(key) {}
             }
 
+            AppWidgets.TablePaginationBar {
+                id: _paginationBar
+                anchors.left:   parent.left
+                anchors.right:  parent.right
+                anchors.bottom: parent.bottom
+                currentPage:  root.workspaceController ? root.workspaceController.projectPage : 1
+                pageSize:     root.workspaceController ? root.workspaceController.projectPageSize : 25
+                totalItems:   root.workspaceController ? root.workspaceController.projectTotalCount : 0
+                busy:         root.workspaceController ? root.workspaceController.isBusy : false
+
+                onPageRequested: function(page) {
+                    if (root.workspaceController !== null) root.workspaceController.setProjectPage(page)
+                }
+                onPageSizeRequested: function(pageSize) {
+                    if (root.workspaceController !== null) root.workspaceController.setProjectPageSize(pageSize)
+                }
+            }
+
             Popup {
                 id: filterPopup
-                parent: projectsTable
+                parent: tableToolbar
                 width: 260
                 padding: 12
-                x: projectsTable.width - width - 4
-                y: 30
+                x: tableToolbar.width - width
+                y: tableToolbar.height + Theme.AppTheme.spacingXs
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                 background: Rectangle {
@@ -240,6 +265,7 @@ AppLayouts.WorkspaceFrame {
             AppWidgets.SectionDetailPage {
                 id: detailPage
                 anchors.fill: parent
+                z: 20
                 title: root.selectedProjectModel.title || "Project Details"
                 open: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false

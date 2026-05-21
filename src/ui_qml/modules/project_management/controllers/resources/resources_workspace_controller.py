@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.notifications.domain_events import domain_events
@@ -38,6 +38,9 @@ class ProjectManagementResourcesWorkspaceController(
     resourcesChanged = Signal()
     selectedResourceChanged = Signal()
     selectedResourceIdChanged = Signal()
+    resourcePageChanged = Signal()
+    resourcePageSizeChanged = Signal()
+    resourceTotalCountChanged = Signal()
 
     def __init__(
         self,
@@ -77,6 +80,9 @@ class ProjectManagementResourcesWorkspaceController(
             "state": {},
         }
         self._selected_resource_id = ""
+        self._resource_page = 1
+        self._resource_page_size = 25
+        self._resource_total_count = 0
         self._bind_domain_events()
         self.refresh()
 
@@ -120,6 +126,18 @@ class ProjectManagementResourcesWorkspaceController(
     def selectedResourceId(self) -> str:
         return self._selected_resource_id
 
+    @Property(int, notify=resourcePageChanged)
+    def resourcePage(self) -> int:
+        return self._resource_page
+
+    @Property(int, notify=resourcePageSizeChanged)
+    def resourcePageSize(self) -> int:
+        return self._resource_page_size
+
+    @Property(int, notify=resourceTotalCountChanged)
+    def resourceTotalCount(self) -> int:
+        return self._resource_total_count
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -136,6 +154,8 @@ class ProjectManagementResourcesWorkspaceController(
                 active_filter=self._selected_active_filter,
                 category_filter=self._selected_category_filter,
                 selected_resource_id=self._selected_resource_id or None,
+                page=self._resource_page,
+                page_size=self._resource_page_size,
             )
             self._set_overview(
                 serialize_resource_catalog_overview_view_model(
@@ -173,6 +193,9 @@ class ProjectManagementResourcesWorkspaceController(
                 )
             )
             self._set_empty_state(workspace_state.empty_state)
+            self._set_resource_total_count(workspace_state.total_count)
+            self._set_resource_page(workspace_state.page)
+            self._set_resource_page_size(workspace_state.page_size)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -184,6 +207,7 @@ class ProjectManagementResourcesWorkspaceController(
         if normalized_value == self._search_text:
             return
         self._set_search_text(normalized_value)
+        self._resource_page = 1
         self.refresh()
 
     @Slot(str)
@@ -192,6 +216,7 @@ class ProjectManagementResourcesWorkspaceController(
         if normalized_value == self._selected_active_filter:
             return
         self._set_selected_active_filter(normalized_value)
+        self._resource_page = 1
         self.refresh()
 
     @Slot(str)
@@ -200,6 +225,7 @@ class ProjectManagementResourcesWorkspaceController(
         if normalized_value == self._selected_category_filter.upper():
             return
         self._set_selected_category_filter(category_filter)
+        self._resource_page = 1
         self.refresh()
 
     @Slot(str)
@@ -208,6 +234,27 @@ class ProjectManagementResourcesWorkspaceController(
         if normalized_value == self._selected_resource_id:
             return
         self._set_selected_resource_id(normalized_value)
+
+    @Slot(str)
+    def activateResource(self, resource_id: str) -> None:
+        self.selectResource(resource_id)
+        QTimer.singleShot(0, self.refresh)
+
+    @Slot(int)
+    def setResourcePage(self, page: int) -> None:
+        p = max(1, page)
+        if p == self._resource_page:
+            return
+        self._set_resource_page(p)
+        self.refresh()
+
+    @Slot(int)
+    def setResourcePageSize(self, page_size: int) -> None:
+        if page_size <= 0 or page_size == self._resource_page_size:
+            return
+        self._resource_page_size = page_size
+        self.resourcePageSizeChanged.emit()
+        self._set_resource_page(1)
         self.refresh()
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -336,6 +383,24 @@ class ProjectManagementResourcesWorkspaceController(
             return
         self._selected_resource_id = selected_resource_id
         self.selectedResourceIdChanged.emit()
+
+    def _set_resource_page(self, v: int) -> None:
+        if v == self._resource_page:
+            return
+        self._resource_page = v
+        self.resourcePageChanged.emit()
+
+    def _set_resource_page_size(self, v: int) -> None:
+        if v == self._resource_page_size:
+            return
+        self._resource_page_size = v
+        self.resourcePageSizeChanged.emit()
+
+    def _set_resource_total_count(self, v: int) -> None:
+        if v == self._resource_total_count:
+            return
+        self._resource_total_count = v
+        self.resourceTotalCountChanged.emit()
 
 
 __all__ = ["ProjectManagementResourcesWorkspaceController"]

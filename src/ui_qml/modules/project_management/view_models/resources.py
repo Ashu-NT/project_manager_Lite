@@ -81,6 +81,9 @@ class ResourceCatalogWorkspaceViewModel:
     selected_resource_id: str = ""
     selected_resource_detail: ResourceDetailViewModel = field(default_factory=ResourceDetailViewModel)
     empty_state: str = ""
+    total_count: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 __all__ = [

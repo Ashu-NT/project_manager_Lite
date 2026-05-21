@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
@@ -33,6 +33,9 @@ class ProjectManagementProjectsWorkspaceController(
     projectsChanged = Signal()
     selectedProjectChanged = Signal()
     selectedProjectIdChanged = Signal()
+    projectPageChanged = Signal()
+    projectPageSizeChanged = Signal()
+    projectTotalCountChanged = Signal()
 
     def __init__(
         self,
@@ -69,6 +72,9 @@ class ProjectManagementProjectsWorkspaceController(
             "state": {},
         }
         self._selected_project_id = ""
+        self._project_page = 1
+        self._project_page_size = 25
+        self._project_total_count = 0
         self._bind_domain_events()
         self.refresh()
 
@@ -100,6 +106,18 @@ class ProjectManagementProjectsWorkspaceController(
     def selectedProjectId(self) -> str:
         return self._selected_project_id
 
+    @Property(int, notify=projectPageChanged)
+    def projectPage(self) -> int:
+        return self._project_page
+
+    @Property(int, notify=projectPageSizeChanged)
+    def projectPageSize(self) -> int:
+        return self._project_page_size
+
+    @Property(int, notify=projectTotalCountChanged)
+    def projectTotalCount(self) -> int:
+        return self._project_total_count
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -115,6 +133,8 @@ class ProjectManagementProjectsWorkspaceController(
                 search_text=self._search_text,
                 status_filter=self._selected_status_filter,
                 selected_project_id=self._selected_project_id or None,
+                page=self._project_page,
+                page_size=self._project_page_size,
             )
             self._set_overview(
                 serialize_project_catalog_overview_view_model(
@@ -143,6 +163,9 @@ class ProjectManagementProjectsWorkspaceController(
                 )
             )
             self._set_empty_state(workspace_state.empty_state)
+            self._set_project_total_count(workspace_state.total_count)
+            self._set_project_page(workspace_state.page)
+            self._set_project_page_size(workspace_state.page_size)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -154,6 +177,7 @@ class ProjectManagementProjectsWorkspaceController(
         if normalized_value == self._search_text:
             return
         self._set_search_text(normalized_value)
+        self._project_page = 1
         self.refresh()
 
     @Slot(str)
@@ -162,6 +186,7 @@ class ProjectManagementProjectsWorkspaceController(
         if normalized_value == self._selected_status_filter.lower():
             return
         self._set_selected_status_filter(normalized_value)
+        self._project_page = 1
         self.refresh()
 
     @Slot(str)
@@ -170,6 +195,27 @@ class ProjectManagementProjectsWorkspaceController(
         if normalized_value == self._selected_project_id:
             return
         self._set_selected_project_id(normalized_value)
+
+    @Slot(str)
+    def activateProject(self, project_id: str) -> None:
+        self.selectProject(project_id)
+        QTimer.singleShot(0, self.refresh)
+
+    @Slot(int)
+    def setProjectPage(self, page: int) -> None:
+        p = max(1, page)
+        if p == self._project_page:
+            return
+        self._set_project_page(p)
+        self.refresh()
+
+    @Slot(int)
+    def setProjectPageSize(self, page_size: int) -> None:
+        if page_size <= 0 or page_size == self._project_page_size:
+            return
+        self._project_page_size = page_size
+        self.projectPageSizeChanged.emit()
+        self._set_project_page(1)
         self.refresh()
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -277,6 +323,24 @@ class ProjectManagementProjectsWorkspaceController(
             return
         self._selected_project_id = selected_project_id
         self.selectedProjectIdChanged.emit()
+
+    def _set_project_page(self, v: int) -> None:
+        if v == self._project_page:
+            return
+        self._project_page = v
+        self.projectPageChanged.emit()
+
+    def _set_project_page_size(self, v: int) -> None:
+        if v == self._project_page_size:
+            return
+        self._project_page_size = v
+        self.projectPageSizeChanged.emit()
+
+    def _set_project_total_count(self, v: int) -> None:
+        if v == self._project_total_count:
+            return
+        self._project_total_count = v
+        self.projectTotalCountChanged.emit()
 
 
 __all__ = ["ProjectManagementProjectsWorkspaceController"]

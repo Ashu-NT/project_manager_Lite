@@ -36,6 +36,8 @@ class ProjectResourcesWorkspacePresenter:
         active_filter: str = "all",
         category_filter: str = "all",
         selected_resource_id: str | None = None,
+        page: int = 1,
+        page_size: int = 25,
     ) -> ResourceCatalogWorkspaceViewModel:
         all_resources = self._desktop_api.list_resources()
         worker_type_options = tuple(
@@ -74,6 +76,11 @@ class ProjectResourcesWorkspacePresenter:
             and self._matches_category(resource, normalized_category_filter)
             and self._matches_search(resource, normalized_search)
         )
+        _total_count = len(filtered_resources)
+        _page = max(1, page)
+        _page_size = max(1, page_size)
+        _offset = (_page - 1) * _page_size
+        paged_resources = filtered_resources[_offset: _offset + _page_size]
         resolved_selected_resource_id = self._resolve_selected_resource_id(
             selected_resource_id,
             filtered_resources,
@@ -99,7 +106,7 @@ class ProjectResourcesWorkspacePresenter:
             search_text=normalized_search,
             resources=tuple(
                 self._to_resource_record_view_model(resource)
-                for resource in filtered_resources
+                for resource in paged_resources
             ),
             selected_resource_id=resolved_selected_resource_id,
             selected_resource_detail=self._build_detail_view_model(selected_resource),
@@ -110,6 +117,9 @@ class ProjectResourcesWorkspacePresenter:
                 active_filter=normalized_active_filter,
                 category_filter=normalized_category_filter,
             ),
+            total_count=_total_count,
+            page=_page,
+            page_size=_page_size,
         )
 
     def create_resource(self, payload: dict[str, Any]) -> None:
