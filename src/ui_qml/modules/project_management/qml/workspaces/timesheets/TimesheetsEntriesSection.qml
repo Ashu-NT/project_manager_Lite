@@ -1,4 +1,3 @@
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
+import QtQuick
 
-ProjectManagementWidgets.TimesheetEntriesCard {
-}
+Item {}

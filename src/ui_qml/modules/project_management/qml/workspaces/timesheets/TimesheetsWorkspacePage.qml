@@ -1,9 +1,13 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -17,9 +21,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.timesheets",
             "title": "Timesheets",
-            "summary": "Time entry, review, labor capture, and project time reporting.",
-            "migrationStatus": "QML landing zone ready",
-            "legacyRuntimeStatus": "Existing QWidget timesheets workspace remains active"
+            "summary": "Time entry, review, labor capture, and project time reporting."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
@@ -28,200 +30,417 @@ AppLayouts.WorkspaceFrame {
             "subtitle": root.workspaceModel.summary,
             "metrics": []
         })
+    readonly property var reviewQueueModel: root.workspaceController
+        ? root.workspaceController.reviewQueue
+        : ({
+            "title": "Review Queue",
+            "subtitle": "Timesheet periods pending review and approval.",
+            "emptyState": "No timesheet periods match the current filter.",
+            "items": []
+        })
+    readonly property var selectedPeriodModel: root.workspaceController
+        ? root.workspaceController.reviewDetail
+        : ({
+            "title": "",
+            "statusLabel": "",
+            "subtitle": "",
+            "description": "",
+            "emptyState": "Select a timesheet period to review entries and manage approval.",
+            "fields": [],
+            "state": {}
+        })
+    readonly property var entriesModel: root.workspaceController
+        ? root.workspaceController.entries
+        : ({
+            "title": "Time Entries",
+            "subtitle": "",
+            "emptyState": "No time entries for the selected period.",
+            "items": []
+        })
+    readonly property var selectedEntryModel: root.workspaceController
+        ? root.workspaceController.selectedEntry
+        : ({
+            "title": "",
+            "subtitle": "",
+            "emptyState": "Select an entry to review its labor note and details.",
+            "fields": [],
+            "state": {}
+        })
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
-    Flickable {
+    readonly property var _tableColumns: [
+        { "key": "title",         "label": "Resource / Period", "flex": 2,   "sortable": true },
+        { "key": "statusLabel",   "label": "Status",            "flex": 0,   "minWidth": 110, "type": "status" },
+        { "key": "subtitle",      "label": "Assignment",        "flex": 1.5                   },
+        { "key": "metaText",      "label": "Hours",             "flex": 0,   "minWidth": 80   },
+        { "key": "supportingText","label": "Period",            "flex": 0,   "minWidth": 110  }
+    ]
+
+    readonly property var _detailActions: {
+        const state = root.selectedPeriodModel ? (root.selectedPeriodModel.state || {}) : {}
+        const status = String(state.periodStatus || "").toUpperCase()
+        const hasPeriod = Boolean(state.periodId)
+        const hasStatus = status.length > 0
+        return [
+            { "id": "submit",  "label": "Submit",        "icon": "approve",
+              "enabled": hasPeriod && (!hasStatus || status === "DRAFT" || status === "OPEN"),
+              "danger": false },
+            { "id": "approve", "label": "Approve",       "icon": "approve",
+              "enabled": hasPeriod && (!hasStatus || status === "SUBMITTED"),
+              "danger": false },
+            { "id": "reject",  "label": "Reject",        "icon": "close",
+              "enabled": hasPeriod && (!hasStatus || status === "SUBMITTED"),
+              "danger": true  },
+            { "id": "lock",    "label": "Lock Period",   "icon": "lock",
+              "enabled": hasPeriod && (!hasStatus || status === "APPROVED"),
+              "danger": false },
+            { "id": "unlock",  "label": "Unlock Period", "icon": "edit",
+              "enabled": hasPeriod && (!hasStatus || status === "LOCKED"),
+              "danger": false },
+            { "id": "export",  "label": "Export",        "icon": "export",
+              "enabled": true,
+              "danger": false }
+        ]
+    }
+
+    function _optionIndexForValue(options, value) {
+        const optionList = options || []
+        for (let i = 0; i < optionList.length; i += 1) {
+            if (String(optionList[i].value || "") === String(value || "")) return i
+        }
+        return 0
+    }
+
+    // ── Stacked layout: list page / detail page ───────────────────────
+    Item {
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: contentColumn.implicitHeight
-        clip: true
 
-        ColumnLayout {
-            id: contentColumn
+        // ── List page (hidden when detail is open) ────────────────────
+        Item {
+            id: _listPage
+            anchors.fill: parent
+            visible: !detailPage.open
 
-            width: parent.width
-            spacing: 12
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: Theme.AppTheme.spacingSm
 
-            AppWidgets.KpiStrip {
-                Layout.fillWidth: true
-                metrics: root.overviewModel.metrics || []
-            }
-
-            ProjectManagementWidgets.WorkspaceStateBanner {
-                Layout.fillWidth: true
-                isLoading: root.workspaceController ? root.workspaceController.isLoading : false
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-                feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-            }
-
-            ProjectManagementWidgets.WorkspaceStatusSection {
-                visible: false
-                Layout.fillWidth: true
-                migrationStatus: root.workspaceController
-                    ? "QML timesheet capture and review slice active"
-                    : (root.workspaceModel.migrationStatus || "")
-                legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-                architectureStatus: "Desktop API + typed controller"
-                architectureSummary: "Assignment-level time entry, resource-period submission, and review-queue approval flows now run through a typed PM controller backed by the timesheets desktop API."
-            }
-
-            TimesheetsToolbarSection {
-                Layout.fillWidth: true
-                projectOptions: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
-                periodOptions: root.workspaceController ? (root.workspaceController.periodOptions || []) : []
-                queueStatusOptions: root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : []
-                selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : "all"
-                selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
-                selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedPeriodStart : ""
-                selectedQueueStatus: root.workspaceController ? root.workspaceController.selectedQueueStatus : "SUBMITTED"
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                onProjectChanged: function(value) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.selectProject(value)
-                    }
-                }
-
-                onAssignmentChanged: function(value) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.selectAssignment(value)
-                    }
-                }
-
-                onPeriodChanged: function(value) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.selectPeriod(value)
-                    }
-                }
-
-                onQueueStatusChanged: function(value) {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.setQueueStatus(value)
-                    }
-                }
-
-                onRefreshRequested: function() {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.refresh()
-                    }
-                }
-            }
-
-            GridLayout {
-                Layout.fillWidth: true
-                columns: root.width > 1340 ? 2 : 1
-                columnSpacing: 12
-                rowSpacing: 12
-
-                TimesheetsEntriesSection {
+                AppWidgets.KpiStrip {
                     Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    assignmentSummary: root.workspaceController ? root.workspaceController.assignmentSummary : ({
-                        "title": "",
-                        "subtitle": "",
-                        "emptyState": "",
-                        "fields": [],
-                        "state": {}
-                    })
-                    entriesModel: root.workspaceController ? root.workspaceController.entries : ({
-                        "title": "",
-                        "subtitle": "",
-                        "emptyState": "",
-                        "items": []
-                    })
-                    selectedEntryDetail: root.workspaceController ? root.workspaceController.selectedEntry : ({
-                        "title": "",
-                        "subtitle": "",
-                        "emptyState": "",
-                        "fields": [],
-                        "state": {}
-                    })
-                    selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                    metrics: root.overviewModel.metrics || []
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                        && !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "info"
+                    message: "Loading timesheets..."
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: root.workspaceController
+                        ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
+                        : false
+                    tone: "info"
+                    message: "Saving changes..."
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
+                AppWidgets.TableToolbar {
+                    id: tableToolbar
+                    Layout.fillWidth: true
+                    searchPlaceholder: "Search timesheets..."
+                    showCreate: false
+                    showFilter: true
+                    showCustomize: true
+                    showViews: true
+                    showRefresh: true
+                    showExport: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onEntrySelected: function(entryId) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.selectEntry(entryId)
+                    onFilterClicked: filterPopup.open()
+                    onCustomizeClicked: reviewTable.openColumnCustomizer()
+                    onViewsClicked: viewsPopup.open()
+                    onRefreshRequested: {
+                        if (root.workspaceController !== null) root.workspaceController.refresh()
+                    }
+                    onExportRequested: {}
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+
+                    AppWidgets.DataTable {
+                        id: reviewTable
+                        anchors.fill: parent
+                        columns: root._tableColumns
+                        rows: root.reviewQueueModel.items || []
+                        loading: root.workspaceController ? root.workspaceController.isLoading : false
+                        emptyText: root.reviewQueueModel.emptyState || "No timesheet periods available."
+                        selectedRowId: root.workspaceController ? root.workspaceController.selectedQueuePeriodId : ""
+
+                        onRowSelected: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
+                        }
+                        onRowActivated: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
+                            detailPage.open = true
+                        }
+                        onViewDetailRequested: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
+                            detailPage.open = true
+                        }
+                        onSortRequested: function(key) {}
+                    }
+
+                    // ── Filter popup ──────────────────────────────────────
+                    Popup {
+                        id: filterPopup
+                        parent: tableToolbar
+                        width: 280
+                        padding: Theme.AppTheme.marginMd
+                        x: tableToolbar.width - width
+                        y: tableToolbar.height + Theme.AppTheme.spacingXs
+                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                        background: Rectangle {
+                            radius: Theme.AppTheme.radiusLg
+                            color: Theme.AppTheme.surfaceRaised
+                            border.color: Theme.AppTheme.divider
+                            border.width: 1
+                        }
+
+                        contentItem: ColumnLayout {
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                text: "Project"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedProjectId : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController
+                                        ? (root.workspaceController.projectOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index])
+                                        root.workspaceController.selectProject(String(opts[index].value || "all"))
+                                }
+                            }
+
+                            Label {
+                                text: "Assignment"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.assignmentOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController
+                                        ? (root.workspaceController.assignmentOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index])
+                                        root.workspaceController.selectAssignment(String(opts[index].value || ""))
+                                }
+                            }
+
+                            Label {
+                                text: "Period"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.periodOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.periodOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedPeriodStart : ""
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController
+                                        ? (root.workspaceController.periodOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index])
+                                        root.workspaceController.selectPeriod(String(opts[index].value || ""))
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingSm
+
+                                AppControls.SecondaryButton {
+                                    Layout.fillWidth: true
+                                    text: "Clear"
+                                    iconName: "close"
+                                    onClicked: {
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.selectProject("all")
+                                            root.workspaceController.selectAssignment("")
+                                            root.workspaceController.selectPeriod("")
+                                        }
+                                        filterPopup.close()
+                                    }
+                                }
+                                AppControls.SecondaryButton {
+                                    Layout.fillWidth: true
+                                    text: "Close"
+                                    iconName: "close"
+                                    onClicked: filterPopup.close()
+                                }
+                            }
                         }
                     }
 
-                    onAddRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.addTimeEntry(payload)
-                        }
-                    }
+                    // ── Views popup (queue status / workflow stage) ───────
+                    Popup {
+                        id: viewsPopup
+                        parent: tableToolbar
+                        width: 260
+                        padding: Theme.AppTheme.marginMd
+                        x: tableToolbar.width - width
+                        y: tableToolbar.height + Theme.AppTheme.spacingXs
+                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                    onUpdateRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.updateTimeEntry(payload)
+                        background: Rectangle {
+                            radius: Theme.AppTheme.radiusLg
+                            color: Theme.AppTheme.surfaceRaised
+                            border.color: Theme.AppTheme.divider
+                            border.width: 1
                         }
-                    }
 
-                    onDeleteRequested: function(entryId) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.deleteTimeEntry(entryId)
-                        }
-                    }
+                        contentItem: ColumnLayout {
+                            spacing: Theme.AppTheme.spacingSm
 
-                    onSubmitRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.submitPeriod(payload)
-                        }
-                    }
+                            Label {
+                                text: "View"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
 
-                    onLockRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.lockPeriod(payload)
-                        }
-                    }
-
-                    onUnlockRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.unlockPeriod(payload)
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedQueueStatus : "SUBMITTED"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController
+                                        ? (root.workspaceController.queueStatusOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index]) {
+                                        root.workspaceController.setQueueStatus(String(opts[index].value || "SUBMITTED"))
+                                        viewsPopup.close()
+                                    }
+                                }
+                            }
                         }
                     }
                 }
+            }
+        }
 
-                TimesheetsReviewSection {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    reviewQueueModel: root.workspaceController ? root.workspaceController.reviewQueue : ({
-                        "title": "",
-                        "subtitle": "",
-                        "emptyState": "",
-                        "items": []
-                    })
-                    reviewDetail: root.workspaceController ? root.workspaceController.reviewDetail : ({
-                        "title": "",
-                        "subtitle": "",
-                        "emptyState": "",
-                        "fields": [],
-                        "state": {}
-                    })
-                    selectedQueuePeriodId: root.workspaceController ? root.workspaceController.selectedQueuePeriodId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+        // ── Detail page (covers full area, z:20) ─────────────────────────
+        AppWidgets.SectionDetailPage {
+            id: detailPage
+            anchors.fill: parent
+            open: false
+            showHeader: false
+            showEdit: false
+            showDelete: false
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            sections: [
+                { "label": "Entries",          "count": (root.entriesModel.items || []).length },
+                "Approval History",
+                "Labor Notes",
+                "Audit Trail"
+            ]
+            z: 20
 
-                    onQueuePeriodSelected: function(periodId) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.selectQueuePeriod(periodId)
-                        }
+            AppWidgets.ContextualActionToolbar {
+                width: parent ? parent.width : 0
+                showBack: true
+                title: root.selectedPeriodModel.title || "Timesheet Period"
+                subtitle: root.selectedPeriodModel.statusLabel || root.selectedPeriodModel.subtitle || ""
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: root._detailActions
+
+                onBackRequested: detailPage.open = false
+                onActionTriggered: function(actionId) {
+                    if (root.workspaceController === null) return
+                    const state = root.selectedPeriodModel ? (root.selectedPeriodModel.state || {}) : {}
+                    const periodId = String(state.periodId || "")
+                    if (!periodId) return
+                    if (actionId === "submit") {
+                        root.workspaceController.submitPeriod({ "periodId": periodId })
+                    } else if (actionId === "approve") {
+                        root.workspaceController.approvePeriod({ "periodId": periodId })
+                    } else if (actionId === "reject") {
+                        root.workspaceController.rejectPeriod({ "periodId": periodId })
+                    } else if (actionId === "lock") {
+                        root.workspaceController.lockPeriod({ "periodId": periodId })
+                    } else if (actionId === "unlock") {
+                        root.workspaceController.unlockPeriod({ "periodId": periodId })
                     }
+                }
+            }
 
-                    onApproveRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.approvePeriod(payload)
-                        }
-                    }
+            TimesheetsDetailSection {
+                width: parent ? parent.width : 0
+                detailPage: detailPage
+                reviewDetail: root.selectedPeriodModel
+                entriesModel: root.entriesModel
+                selectedEntry: root.selectedEntryModel
+                selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
-                    onRejectRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.rejectPeriod(payload)
-                        }
-                    }
+                onEntrySelected: function(entryId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
                 }
             }
         }
