@@ -19,94 +19,156 @@ Item {
     signal deleteRequested()
     signal urgentEntrySelected(string entryId)
 
-    implicitHeight: _mainCol.implicitHeight
+    readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
+    readonly property int _activeSectionH: {
+        if (root._idx === 0) return _sec0.implicitHeight
+        if (root._idx === 1) return _sec1.implicitHeight
+        if (root._idx === 2) return _sec2.implicitHeight
+        return _sec3.implicitHeight
+    }
 
-    Column {
-        id: _mainCol
+    implicitHeight: _activeSectionH
+
+    // ── Section 0: Details ────────────────────────────────────────────────
+    Item {
+        id: _sec0
         width: parent.width
-        spacing: 0
+        implicitHeight: _sec0Col.implicitHeight
+        visible: root._idx === 0
 
-        // ── Section 0: Details ───────────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Details" }
-
-        Item {
+        Column {
+            id: _sec0Col
             width: parent.width
-            implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+            spacing: 0
 
-            ProjectManagementWidgets.RegisterDetailSection {
-                id: detailSection
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Details"
+            }
 
-                entryDetail: root.entryDetail
-                isBusy: root.isBusy
-                onEditRequested: root.editRequested()
-                onDeleteRequested: root.deleteRequested()
+            Item {
+                width: parent.width
+                implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                ProjectManagementWidgets.RegisterDetailSection {
+                    id: detailSection
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.topMargin: Theme.AppTheme.spacingMd
+                    anchors.leftMargin: Theme.AppTheme.spacingMd
+                    anchors.rightMargin: Theme.AppTheme.spacingMd
+
+                    entryDetail: root.entryDetail
+                    isBusy: root.isBusy
+                    onEditRequested: root.editRequested()
+                    onDeleteRequested: root.deleteRequested()
+                }
             }
         }
+    }
 
-        // ── Section 1: Impact ────────────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Impact" }
+    // ── Section 1: Impact ─────────────────────────────────────────────────
+    Item {
+        id: _sec1
+        width: parent.width
+        implicitHeight: _sec1Col.implicitHeight
+        visible: root._idx === 1
 
-        Item {
+        Column {
+            id: _sec1Col
             width: parent.width
-            implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
+            spacing: 0
 
-            ProjectManagementWidgets.RegisterUrgentSection {
-                id: urgentSection
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Impact"
+            }
 
-                urgentModel: root.urgentModel
-                selectedEntryId: root.selectedEntryId
+            Item {
+                width: parent.width
+                implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-                onEntrySelected: function(entryId) { root.urgentEntrySelected(entryId) }
+                ProjectManagementWidgets.RegisterUrgentSection {
+                    id: urgentSection
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.topMargin: Theme.AppTheme.spacingMd
+                    anchors.leftMargin: Theme.AppTheme.spacingMd
+                    anchors.rightMargin: Theme.AppTheme.spacingMd
+
+                    urgentModel: root.urgentModel
+                    selectedEntryId: root.selectedEntryId
+
+                    onEntrySelected: function(entryId) { root.urgentEntrySelected(entryId) }
+                }
             }
         }
+    }
 
-        // ── Section 2: Response ──────────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Response" }
+    // ── Section 2: Response ───────────────────────────────────────────────
+    Item {
+        id: _sec2
+        width: parent.width
+        implicitHeight: _sec2Col.implicitHeight
+        visible: root._idx === 2
 
-        Rectangle {
+        Column {
+            id: _sec2Col
             width: parent.width
-            height: 80
-            color: "transparent"
+            spacing: 0
 
-            Label {
-                anchors.centerIn: parent
-                text: "Activity feed coming soon"
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Response"
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 80
+                color: "transparent"
+
+                Label {
+                    anchors.centerIn: parent
+                    text: "Activity feed coming soon"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                }
             }
         }
+    }
 
-        // ── Section 3: Links ─────────────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 3; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Links" }
+    // ── Section 3: Links ──────────────────────────────────────────────────
+    Item {
+        id: _sec3
+        width: parent.width
+        implicitHeight: _sec3Col.implicitHeight
+        visible: root._idx === 3
 
-        Rectangle {
+        Column {
+            id: _sec3Col
             width: parent.width
-            height: 80
-            color: "transparent"
+            spacing: 0
 
-            Label {
-                anchors.centerIn: parent
-                text: "Linked documents and references coming soon"
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Links"
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 80
+                color: "transparent"
+
+                Label {
+                    anchors.centerIn: parent
+                    text: "Linked documents and references coming soon"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                }
             }
         }
     }

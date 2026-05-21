@@ -23,9 +23,16 @@ Item {
 
     signal entrySelected(string entryId)
 
-    implicitHeight: _mainCol.implicitHeight
-
     readonly property bool _hasPeriod: String(root.reviewDetail.title || "").length > 0
+    readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
+    readonly property int _activeSectionH: {
+        if (root._idx === 0) return _sec0.implicitHeight
+        if (root._idx === 1) return _sec1.implicitHeight
+        if (root._idx === 2) return _sec2.implicitHeight
+        return _sec3.implicitHeight
+    }
+
+    implicitHeight: _activeSectionH
 
     readonly property var _entryColumns: [
         { "key": "title",         "label": "Date",              "flex": 0,   "minWidth": 110  },
@@ -35,224 +42,262 @@ Item {
         { "key": "supportingText","label": "Notes",             "flex": 1                    }
     ]
 
-    Column {
-        id: _mainCol
+    // ── Section 0: Entries ────────────────────────────────────────────────
+    Item {
+        id: _sec0
         width: parent.width
-        spacing: 0
+        implicitHeight: _sec0Col.implicitHeight
+        visible: root._idx === 0
 
-        // ── Section 0: Entries ────────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
-
-        AppWidgets.SectionHeading {
+        Column {
+            id: _sec0Col
             width: parent.width
-            label: "Entries"
-        }
+            spacing: 0
 
-        AppWidgets.EmptyState {
-            width: parent.width
-            visible: !root._hasPeriod
-            message: root.reviewDetail.emptyState || "Select a timesheet period to review its captured entries."
-        }
-
-        Item {
-            width: parent.width
-            height: 240
-            visible: root._hasPeriod
-
-            AppWidgets.DataTable {
-                id: _entriesTable
-                anchors.fill: parent
-                columns: root._entryColumns
-                rows: root.entriesModel.items || []
-                loading: root.isBusy
-                emptyText: root.entriesModel.emptyState || "No time entries for this period."
-                selectedRowId: root.selectedEntryId
-
-                onRowSelected: function(rowId) { root.entrySelected(rowId) }
-                onRowActivated: function(rowId) { root.entrySelected(rowId) }
-                onSortRequested: function(key) {}
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Entries"
             }
-        }
 
-        Rectangle {
-            width: parent.width
-            height: 1
-            color: Theme.AppTheme.divider
-            visible: root._hasPeriod
-        }
+            AppWidgets.EmptyState {
+                width: parent.width
+                visible: !root._hasPeriod
+                message: root.reviewDetail.emptyState || "Select a timesheet period to review its captured entries."
+            }
 
-        // ── Section 1: Approval History ───────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
+            Item {
+                width: parent.width
+                height: 240
+                visible: root._hasPeriod
 
-        AppWidgets.SectionHeading {
-            width: parent.width
-            label: "Approval History"
-        }
+                AppWidgets.DataTable {
+                    id: _entriesTable
+                    anchors.fill: parent
+                    columns: root._entryColumns
+                    rows: root.entriesModel.items || []
+                    loading: root.isBusy
+                    emptyText: root.entriesModel.emptyState || "No time entries for this period."
+                    selectedRowId: root.selectedEntryId
 
-        AppWidgets.EmptyState {
-            width: parent.width
-            visible: !root._hasPeriod
-            message: "Select a timesheet period to review its approval history."
-        }
-
-        AppWidgets.EmptyState {
-            width: parent.width
-            visible: root._hasPeriod && (root.reviewDetail.fields || []).length === 0
-            message: root.reviewDetail.emptyState || "No approval events recorded for this period."
-        }
-
-        Repeater {
-            model: root._hasPeriod ? (root.reviewDetail.fields || []) : []
-
-            delegate: Item {
-                id: _historyRow
-                required property var modelData
-                width: _mainCol.width
-                implicitHeight: _historyContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                ColumnLayout {
-                    id: _historyContent
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: Theme.AppTheme.spacingMd
-                    spacing: Theme.AppTheme.spacingXs
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: String(_historyRow.modelData.label || "")
-                        color: Theme.AppTheme.textMuted
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.captionSize
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: String(_historyRow.modelData.value || "")
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        font.bold: true
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(_historyRow.modelData.supportingText || "").length > 0
-                        text: String(_historyRow.modelData.supportingText || "")
-                        color: Theme.AppTheme.textSecondary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 1
-                    color: Theme.AppTheme.divider
+                    onRowSelected: function(rowId) { root.entrySelected(rowId) }
+                    onRowActivated: function(rowId) { root.entrySelected(rowId) }
+                    onSortRequested: function(key) {}
                 }
             }
-        }
 
-        Rectangle {
-            width: parent.width
-            height: 1
-            color: Theme.AppTheme.divider
-            visible: root._hasPeriod && (root.reviewDetail.fields || []).length > 0
-        }
-
-        // ── Section 2: Labor Notes ────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
-
-        AppWidgets.SectionHeading {
-            width: parent.width
-            label: "Labor Notes"
-        }
-
-        AppWidgets.EmptyState {
-            width: parent.width
-            visible: (root.selectedEntry.fields || []).length === 0
-            message: root.selectedEntry.emptyState || "Select a time entry from the Entries section to view its labor notes."
-        }
-
-        Repeater {
-            model: root.selectedEntry.fields || []
-
-            delegate: Item {
-                id: _noteRow
-                required property var modelData
-                width: _mainCol.width
-                implicitHeight: _noteContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                ColumnLayout {
-                    id: _noteContent
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: Theme.AppTheme.spacingMd
-                    spacing: Theme.AppTheme.spacingXs
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: String(_noteRow.modelData.label || "")
-                        color: Theme.AppTheme.textMuted
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.captionSize
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: String(_noteRow.modelData.value || "")
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        visible: String(_noteRow.modelData.supportingText || "").length > 0
-                        text: String(_noteRow.modelData.supportingText || "")
-                        color: Theme.AppTheme.textSecondary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                Rectangle {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 1
-                    color: Theme.AppTheme.divider
-                }
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: Theme.AppTheme.divider
+                visible: root._hasPeriod
             }
         }
+    }
 
-        Rectangle {
+    // ── Section 1: Approval History ───────────────────────────────────────
+    Item {
+        id: _sec1
+        width: parent.width
+        implicitHeight: _sec1Col.implicitHeight
+        visible: root._idx === 1
+
+        Column {
+            id: _sec1Col
             width: parent.width
-            height: 1
-            color: Theme.AppTheme.divider
-            visible: (root.selectedEntry.fields || []).length > 0
+            spacing: 0
+
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Approval History"
+            }
+
+            AppWidgets.EmptyState {
+                width: parent.width
+                visible: !root._hasPeriod
+                message: "Select a timesheet period to review its approval history."
+            }
+
+            AppWidgets.EmptyState {
+                width: parent.width
+                visible: root._hasPeriod && (root.reviewDetail.fields || []).length === 0
+                message: root.reviewDetail.emptyState || "No approval events recorded for this period."
+            }
+
+            Repeater {
+                model: root._hasPeriod ? (root.reviewDetail.fields || []) : []
+
+                delegate: Item {
+                    id: _historyRow
+                    required property var modelData
+                    width: root.width
+                    implicitHeight: _historyContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                    ColumnLayout {
+                        id: _historyContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Theme.AppTheme.spacingMd
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: String(_historyRow.modelData.label || "")
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: String(_historyRow.modelData.value || "")
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.bodySize
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            visible: String(_historyRow.modelData.supportingText || "").length > 0
+                            text: String(_historyRow.modelData.supportingText || "")
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: Theme.AppTheme.divider
+                visible: root._hasPeriod && (root.reviewDetail.fields || []).length > 0
+            }
         }
+    }
 
-        // ── Section 3: Audit Trail ────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 3; detailPage: root.detailPage }
+    // ── Section 2: Labor Notes ────────────────────────────────────────────
+    Item {
+        id: _sec2
+        width: parent.width
+        implicitHeight: _sec2Col.implicitHeight
+        visible: root._idx === 2
 
-        AppWidgets.SectionHeading {
+        Column {
+            id: _sec2Col
             width: parent.width
-            label: "Audit Trail"
+            spacing: 0
+
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Labor Notes"
+            }
+
+            AppWidgets.EmptyState {
+                width: parent.width
+                visible: (root.selectedEntry.fields || []).length === 0
+                message: root.selectedEntry.emptyState || "Select a time entry from the Entries section to view its labor notes."
+            }
+
+            Repeater {
+                model: root.selectedEntry.fields || []
+
+                delegate: Item {
+                    id: _noteRow
+                    required property var modelData
+                    width: root.width
+                    implicitHeight: _noteContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                    ColumnLayout {
+                        id: _noteContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Theme.AppTheme.spacingMd
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: String(_noteRow.modelData.label || "")
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: String(_noteRow.modelData.value || "")
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.bodySize
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            visible: String(_noteRow.modelData.supportingText || "").length > 0
+                            text: String(_noteRow.modelData.supportingText || "")
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: 1
+                color: Theme.AppTheme.divider
+                visible: (root.selectedEntry.fields || []).length > 0
+            }
         }
+    }
 
-        AppWidgets.EmptyState {
+    // ── Section 3: Audit Trail ────────────────────────────────────────────
+    Item {
+        id: _sec3
+        width: parent.width
+        implicitHeight: _sec3Col.implicitHeight
+        visible: root._idx === 3
+
+        Column {
+            id: _sec3Col
             width: parent.width
-            message: !root._hasPeriod
-                ? "Select a timesheet period to view its audit trail."
-                : "No audit events recorded for this period."
+            spacing: 0
+
+            AppWidgets.SectionHeading {
+                width: parent.width
+                label: "Audit Trail"
+            }
+
+            AppWidgets.EmptyState {
+                width: parent.width
+                message: !root._hasPeriod
+                    ? "Select a timesheet period to view its audit trail."
+                    : "No audit events recorded for this period."
+            }
         }
     }
 }
