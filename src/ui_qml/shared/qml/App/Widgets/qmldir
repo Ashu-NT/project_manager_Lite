@@ -1,4 +1,5 @@
 module App.Widgets
+ActivityFeed 1.0 ActivityFeed.qml
 AppDivider 1.0 AppDivider.qml
 BulkActionBar 1.0 BulkActionBar.qml
 BulkChangePropertyPopup 1.0 BulkChangePropertyPopup.qml

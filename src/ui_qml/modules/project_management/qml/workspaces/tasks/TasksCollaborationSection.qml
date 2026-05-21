@@ -1,104 +1,134 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
 Item {
     id: root
 
-    property var commentsModel: AppMock.MockFactory.catalog()
-    property var presenceModel: AppMock.MockFactory.catalog()
+    property var    commentsModel:  AppMock.MockFactory.catalog()
+    property var    presenceModel:  AppMock.MockFactory.catalog()
     property string selectedTaskId: ""
-    property bool isBusy: false
-    property bool canCompose: false
+    property bool   isBusy:        false
+    property bool   canCompose:    false
 
     signal composeRequested()
     signal markReadRequested(string taskId)
     signal refreshRequested()
 
-    implicitHeight: contentColumn.implicitHeight
+    readonly property var _feedItems: root.commentsModel.items || []
+    readonly property var _presence:  root.presenceModel.items  || []
+
+    implicitHeight: _col.implicitHeight
 
     ColumnLayout {
-        id: contentColumn
+        id: _col
+        anchors.left:  parent.left
+        anchors.right: parent.right
+        anchors.top:   parent.top
+        spacing: 0
 
-        anchors.fill: parent
-        spacing: Theme.AppTheme.spacingMd
-
-        RowLayout {
+        // ── Section toolbar ───────────────────────────────────────────
+        AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
-            spacing: Theme.AppTheme.spacingSm
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingXs
-
-                Label {
-                    Layout.fillWidth: true
-                    text: "Task Collaboration"
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    font.bold: true
-                    wrapMode: Text.WordWrap
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    text: "Comments, mentions, attachments, linked documents, and active task presence now sit directly on the task workspace."
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    wrapMode: Text.WordWrap
-                }
-            }
-
-            AppControls.PrimaryButton {
-                text: "Post Update"
-                iconName: "collaboration"
-                enabled: root.canCompose && !root.isBusy
-                onClicked: root.composeRequested()
-            }
-
-            AppControls.PrimaryButton {
-                text: "Mark Mentions Read"
-                iconName: "approve"
-                enabled: root.selectedTaskId.length > 0 && !root.isBusy
-                onClicked: root.markReadRequested(root.selectedTaskId)
-            }
-
-            AppControls.PrimaryButton {
-                text: "Refresh"
-                iconName: "refresh"
-                enabled: !root.isBusy
-                onClicked: root.refreshRequested()
+            title:    "Activity"
+            subtitle: root._feedItems.length > 0 ? String(root._feedItems.length) : ""
+            busy:     root.isBusy
+            createLabel: root.canCompose ? "Post Update" : ""
+            actions: [
+                { id: "read",    label: "Mark Read", icon: "approve", enabled: root.selectedTaskId.length > 0, danger: false },
+                { id: "refresh", label: "Refresh",   icon: "refresh", enabled: true,                          danger: false }
+            ]
+            onCreateRequested: root.composeRequested()
+            onActionTriggered: function(actionId) {
+                if      (actionId === "read")    root.markReadRequested(root.selectedTaskId)
+                else if (actionId === "refresh") root.refreshRequested()
             }
         }
 
-        GridLayout {
+        // ── Activity timeline ─────────────────────────────────────────
+        Item {
             Layout.fillWidth: true
-            columns: root.width > 1180 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingMd
-            rowSpacing: Theme.AppTheme.spacingMd
+            implicitHeight: _feed.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-            ProjectManagementWidgets.RecordListCard {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                title: String(root.commentsModel.title || "")
-                subtitle: String(root.commentsModel.subtitle || "")
-                emptyState: String(root.commentsModel.emptyState || "")
-                items: root.commentsModel.items || []
+            AppWidgets.ActivityFeed {
+                id: _feed
+                anchors.left:        parent.left
+                anchors.right:       parent.right
+                anchors.top:         parent.top
+                anchors.topMargin:   Theme.AppTheme.spacingMd
+                anchors.leftMargin:  Theme.AppTheme.marginMd
+                anchors.rightMargin: Theme.AppTheme.marginMd
+                items:     root._feedItems
+                emptyText: root.commentsModel.emptyState || "No activity for this task."
+            }
+        }
+
+        // ── Active presence ───────────────────────────────────────────
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: _presenceContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+            visible: root._presence.length > 0
+
+            Rectangle {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 1
+                color: Theme.AppTheme.divider
             }
 
-            ProjectManagementWidgets.RecordListCard {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                title: String(root.presenceModel.title || "")
-                subtitle: String(root.presenceModel.subtitle || "")
-                emptyState: String(root.presenceModel.emptyState || "")
-                items: root.presenceModel.items || []
+            ColumnLayout {
+                id: _presenceContent
+                anchors.left:    parent.left
+                anchors.right:   parent.right
+                anchors.top:     parent.top
+                anchors.margins: Theme.AppTheme.spacingMd
+                spacing:         Theme.AppTheme.spacingXs
+
+                Label {
+                    text:           "ACTIVE PRESENCE"
+                    color:          Theme.AppTheme.textMuted
+                    font.family:    Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold:      true
+                    font.letterSpacing: 0.8
+                }
+
+                Repeater {
+                    model: root._presence
+                    delegate: RowLayout {
+                        id: _pRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingXs
+
+                        Rectangle {
+                            width: 6; height: 6; radius: 3
+                            color: Theme.AppTheme.success
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text:           String(_pRow.modelData.title || "")
+                            color:          Theme.AppTheme.textSecondary
+                            font.family:    Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            elide:          Text.ElideRight
+                        }
+
+                        Label {
+                            text:           String(_pRow.modelData.metaText || "")
+                            color:          Theme.AppTheme.textMuted
+                            font.family:    Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                        }
+                    }
+                }
             }
         }
     }

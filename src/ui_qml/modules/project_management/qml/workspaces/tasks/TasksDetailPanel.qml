@@ -9,31 +9,31 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    // ── Core detail ──────────────────────────────────────────────────────
-    property var taskDetail: AppMock.MockFactory.detail()
-    property bool isBusy: false
-    property var detailPage: null
+    // ── Core detail ───────────────────────────────────────────────────
+    property var  taskDetail: AppMock.MockFactory.detail()
+    property bool isBusy:    false
+    property var  detailPage: null
 
-    // ── Sub-panel data ────────────────────────────────────────────────────
-    property var assignmentsModel: AppMock.MockFactory.catalog("Assignments", "", "Select a task.")
+    // ── Sub-panel data ────────────────────────────────────────────────
+    property var    assignmentsModel:     AppMock.MockFactory.catalog("Assignments", "", "Select a task.")
     property string selectedAssignmentId: ""
-    property var assignmentOptions: []
+    property var    assignmentOptions:    []
 
-    property var dependenciesModel: AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
+    property var dependenciesModel:    AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
     property var dependencyTaskOptions: []
 
-    property var timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
-    property var timeEntriesModel: AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
-    property var selectedTimeEntryModel: AppMock.MockFactory.detail()
-    property string selectedEntryId: ""
-    property var periodOptions: []
-    property string selectedPeriodStart: ""
+    property var    timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
+    property var    timeEntriesModel:           AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
+    property var    selectedTimeEntryModel:     AppMock.MockFactory.detail()
+    property string selectedEntryId:            ""
+    property var    periodOptions:              []
+    property string selectedPeriodStart:        ""
 
-    property var collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
-    property var collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
+    property var    collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
+    property var    collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
     property string selectedTaskId: ""
 
-    // ── Signals ───────────────────────────────────────────────────────────
+    // ── Signals ───────────────────────────────────────────────────────
     signal editRequested()
     signal progressRequested()
     signal deleteRequested()
@@ -60,329 +60,285 @@ Item {
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
 
+    // ── Private helpers ───────────────────────────────────────────────
+    readonly property real _progressValue: {
+        const s = root.taskDetail.state || {}
+        return parseFloat(s.percentComplete || "0") / 100.0
+    }
+    readonly property string _progressLabel: {
+        const s = root.taskDetail.state || {}
+        return String(s.percentCompleteLabel || "")
+    }
+    readonly property bool _hasTask: String(root.taskDetail.id || "").length > 0
+
     implicitHeight: _mainCol.implicitHeight
 
     Column {
         id: _mainCol
-        width: parent.width
+        width: parent ? parent.width : 0
         spacing: 0
 
-        // ── Section 0: Details ───────────────────────────────────────────
+        // ── Compact summary strip ─────────────────────────────────────
+        Rectangle {
+            width:   parent.width
+            height:  40
+            color:   Theme.AppTheme.surfaceAlt
+            visible: root._hasTask
+
+            Rectangle {
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                height: 1; color: Theme.AppTheme.divider
+            }
+
+            RowLayout {
+                anchors.fill:        parent
+                anchors.leftMargin:  Theme.AppTheme.marginMd
+                anchors.rightMargin: Theme.AppTheme.marginMd
+                spacing: Theme.AppTheme.spacingMd
+
+                AppWidgets.StatusChip {
+                    visible: String(root.taskDetail.statusLabel || "").length > 0
+                    status:  root.taskDetail.statusLabel || ""
+                }
+
+                RowLayout {
+                    visible: root._progressValue > 0
+                    spacing: Theme.AppTheme.spacingXs
+
+                    AppWidgets.ProgressBar {
+                        implicitWidth: 90
+                        value: root._progressValue
+                    }
+
+                    Label {
+                        text:           root._progressLabel
+                        color:          Theme.AppTheme.textMuted
+                        font.family:    Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                }
+
+                Rectangle {
+                    width: 1; height: 14
+                    color:   Theme.AppTheme.divider
+                    visible: String(root.taskDetail.subtitle || "").length > 0
+                        && (String(root.taskDetail.statusLabel || "").length > 0 || root._progressValue > 0)
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text:           root.taskDetail.subtitle || ""
+                    color:          Theme.AppTheme.textSecondary
+                    font.family:    Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    elide:          Text.ElideRight
+                    visible:        text.length > 0
+                }
+            }
+        }
+
+        // ── Section 0: Details ────────────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
         AppWidgets.SectionHeading { label: "Details" }
 
         Item {
-            width: parent.width
-            implicitHeight: detailsContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+            width:          parent.width
+            implicitHeight: _detailsContent.implicitHeight + Theme.AppTheme.spacingMd * 2
 
             ColumnLayout {
-                id: detailsContent
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
+                id: _detailsContent
+                anchors.top:         parent.top
+                anchors.left:        parent.left
+                anchors.right:       parent.right
+                anchors.topMargin:   Theme.AppTheme.spacingMd
+                anchors.leftMargin:  Theme.AppTheme.marginMd
+                anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingMd
 
-                // Header: title + status chip
-                RowLayout {
+                // Empty state when no task selected
+                AppWidgets.EmptyState {
                     Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingSm
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.AppTheme.spacingXs
-
-                        Label {
-                            Layout.fillWidth: true
-                            text: root.taskDetail.title || "Task Detail"
-                            color: Theme.AppTheme.textPrimary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.bodySize
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Label {
-                            Layout.fillWidth: true
-                            text: root.taskDetail.subtitle || "Select a task to inspect details."
-                            color: Theme.AppTheme.textSecondary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.smallSize
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    AppWidgets.StatusChip {
-                        visible: String(root.taskDetail.statusLabel || "").length > 0
-                        status: root.taskDetail.statusLabel || ""
-                    }
-                }
-
-                // Empty state
-                Label {
-                    Layout.fillWidth: true
-                    visible: String(root.taskDetail.emptyState || "").length > 0
-                        && String(root.taskDetail.id || "").length === 0
-                    text: root.taskDetail.emptyState || ""
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                }
-
-                // Progress bar strip
-                Item {
-                    id: progressStrip
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 28
-                    visible: String(root.taskDetail.id || "").length > 0 && progressStrip._progressValue > 0
-
-                    readonly property real _progressValue: {
-                        const state = root.taskDetail.state || {}
-                        return parseFloat(state.percentComplete || "0") / 100.0
-                    }
-                    readonly property string _progressLabel: {
-                        const state = root.taskDetail.state || {}
-                        return state.percentCompleteLabel || ""
-                    }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: Theme.AppTheme.spacingSm
-
-                        Label {
-                            text: "Progress"
-                            color: Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: true
-                        }
-
-                        AppWidgets.ProgressBar {
-                            Layout.fillWidth: true
-                            value: progressStrip._progressValue
-                            implicitHeight: 6
-                        }
-
-                        Label {
-                            text: progressStrip._progressLabel
-                            color: Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                        }
-                    }
+                    visible: !root._hasTask
+                        && String(root.taskDetail.emptyState || "").length > 0
+                    title:   root.taskDetail.emptyState || ""
                 }
 
                 // Description
                 Label {
                     Layout.fillWidth: true
-                    visible: String(root.taskDetail.id || "").length > 0
+                    visible:        root._hasTask
                         && String(root.taskDetail.description || "").length > 0
-                    text: root.taskDetail.description || ""
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
+                    text:           root.taskDetail.description || ""
+                    color:          Theme.AppTheme.textPrimary
+                    font.family:    Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.bodySize
-                    wrapMode: Text.WordWrap
+                    wrapMode:       Text.WordWrap
                 }
 
-                // Field cards
-                Repeater {
-                    model: root.taskDetail.fields || []
+                // ── Compact metadata grid (2 columns) ─────────────────
+                GridLayout {
+                    Layout.fillWidth: true
+                    visible:  root._hasTask && (root.taskDetail.fields || []).length > 0
+                    columns:  2
+                    columnSpacing: Theme.AppTheme.spacingLg
+                    rowSpacing:    Theme.AppTheme.spacingMd
 
-                    delegate: Item {
-                        id: fieldCard
-                        required property var modelData
+                    Repeater {
+                        model: root.taskDetail.fields || []
 
-                        Layout.fillWidth: true
-                        implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd + 1
+                        delegate: ColumnLayout {
+                            id: _field
+                            required property var modelData
 
-                        ColumnLayout {
-                            id: fieldLayout
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.leftMargin: Theme.AppTheme.spacingSm
-                            anchors.rightMargin: Theme.AppTheme.spacingSm
-                            anchors.topMargin: Theme.AppTheme.spacingSm
-                            spacing: Theme.AppTheme.spacingXs
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Label {
+                                text:           String(_field.modelData.label || "")
+                                color:          Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold:      true
+                            }
 
                             Label {
                                 Layout.fillWidth: true
-                                text: String(fieldCard.modelData.label || "")
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
+                                text:           String(_field.modelData.value || "—")
+                                color:          Theme.AppTheme.textPrimary
+                                font.family:    Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold: true
+                                elide:          Text.ElideRight
                             }
 
                             Label {
                                 Layout.fillWidth: true
-                                text: String(fieldCard.modelData.value || "")
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
-                                wrapMode: Text.WordWrap
+                                visible:        String(_field.modelData.supportingText || "").length > 0
+                                text:           String(_field.modelData.supportingText || "")
+                                color:          Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                elide:          Text.ElideRight
                             }
-
-                            Label {
-                                Layout.fillWidth: true
-                                visible: String(fieldCard.modelData.supportingText || "").length > 0
-                                text: String(fieldCard.modelData.supportingText || "")
-                                color: Theme.AppTheme.textSecondary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 1
-                            color: Theme.AppTheme.divider
                         }
                     }
                 }
 
+                // Grid bottom divider
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 1
+                    color:  Theme.AppTheme.divider
+                    visible: root._hasTask && (root.taskDetail.fields || []).length > 0
+                }
             }
         }
 
-        // ── Section 1: Assignments ───────────────────────────────────────
+        // ── Section 1: Assignments ────────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Assignments" }
 
         Item {
-            width: parent.width
-            implicitHeight: assignmentsInner.implicitHeight + Theme.AppTheme.spacingMd * 2
+            width:          parent.width
+            implicitHeight: _assignmentsInner.implicitHeight
 
             TasksAssignmentsSection {
-                id: assignmentsInner
-                anchors.top: parent.top
-                anchors.left: parent.left
+                id: _assignmentsInner
+                anchors.left:  parent.left
                 anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
+                anchors.top:   parent.top
 
-                assignmentsModel: root.assignmentsModel
+                assignmentsModel:     root.assignmentsModel
                 selectedAssignmentId: root.selectedAssignmentId
-                isBusy: root.isBusy
-                canCreate: String(root.taskDetail.id || "").length > 0
-                    && root.assignmentOptions.length > 0
+                isBusy:               root.isBusy
+                canCreate:            root._hasTask && root.assignmentOptions.length > 0
 
-                onCreateRequested: root.createAssignmentRequested()
-                onAssignmentSelected: function(assignmentId) {
-                    root.assignmentSelected(assignmentId)
-                }
-                onEditAllocationRequested: function(assignmentData) {
-                    root.editAllocationRequested(assignmentData)
-                }
-                onSetHoursRequested: function(assignmentData) {
-                    root.setHoursRequested(assignmentData)
-                }
-                onDeleteRequested: function(assignmentData) {
-                    root.deleteAssignmentRequested(assignmentData)
-                }
+                onCreateRequested:           root.createAssignmentRequested()
+                onAssignmentSelected: function(id) { root.assignmentSelected(id) }
+                onEditAllocationRequested: function(data) { root.editAllocationRequested(data) }
+                onSetHoursRequested: function(data)       { root.setHoursRequested(data) }
+                onDeleteRequested: function(data)         { root.deleteAssignmentRequested(data) }
             }
         }
 
-        // ── Section 2: Dependencies ──────────────────────────────────────
+        // ── Section 2: Dependencies ───────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Dependencies" }
 
         Item {
-            width: parent.width
-            implicitHeight: dependenciesInner.implicitHeight + Theme.AppTheme.spacingMd * 2
+            width:          parent.width
+            implicitHeight: _dependenciesInner.implicitHeight
 
             TasksDependenciesSection {
-                id: dependenciesInner
-                anchors.top: parent.top
-                anchors.left: parent.left
+                id: _dependenciesInner
+                anchors.left:  parent.left
                 anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
+                anchors.top:   parent.top
 
                 dependenciesModel: root.dependenciesModel
-                isBusy: root.isBusy
-                canCreate: String(root.taskDetail.id || "").length > 0
-                    && root.dependencyTaskOptions.length > 0
+                isBusy:            root.isBusy
+                canCreate:         root._hasTask && root.dependencyTaskOptions.length > 0
 
-                onCreateRequested: root.createDependencyRequested()
-                onDeleteRequested: function(dependencyData) {
-                    root.deleteDependencyRequested(dependencyData)
-                }
+                onCreateRequested:           root.createDependencyRequested()
+                onDeleteRequested: function(data) { root.deleteDependencyRequested(data) }
             }
         }
 
-        // ── Section 3: Time ──────────────────────────────────────────────
+        // ── Section 3: Time ───────────────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 3; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Time" }
 
         Item {
-            width: parent.width
-            implicitHeight: timeInner.implicitHeight + Theme.AppTheme.spacingMd * 2
+            width:          parent.width
+            implicitHeight: _timeInner.implicitHeight
 
             TasksTimeEntriesSection {
-                id: timeInner
-                anchors.top: parent.top
-                anchors.left: parent.left
+                id: _timeInner
+                anchors.left:  parent.left
                 anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
+                anchors.top:   parent.top
 
-                assignmentSummary: root.timeAssignmentSummaryModel
-                periodOptions: root.periodOptions
+                assignmentSummary:   root.timeAssignmentSummaryModel
+                periodOptions:       root.periodOptions
                 selectedPeriodStart: root.selectedPeriodStart
-                entriesModel: root.timeEntriesModel
+                entriesModel:        root.timeEntriesModel
                 selectedEntryDetail: root.selectedTimeEntryModel
-                selectedEntryId: root.selectedEntryId
-                isBusy: root.isBusy
+                selectedEntryId:     root.selectedEntryId
+                isBusy:              root.isBusy
 
-                onPeriodChanged: function(periodStart) { root.periodChanged(periodStart) }
-                onEntrySelected: function(entryId) { root.entrySelected(entryId) }
-                onAddRequested: function(payload) { root.timeAddRequested(payload) }
+                onPeriodChanged: function(p) { root.periodChanged(p) }
+                onEntrySelected: function(id) { root.entrySelected(id) }
+                onAddRequested:    function(payload) { root.timeAddRequested(payload) }
                 onUpdateRequested: function(payload) { root.timeUpdateRequested(payload) }
-                onDeleteRequested: function(entryId) { root.timeDeleteRequested(entryId) }
+                onDeleteRequested: function(id)      { root.timeDeleteRequested(id) }
                 onSubmitRequested: function(payload) { root.timeSubmitRequested(payload) }
-                onLockRequested: function(payload) { root.timeLockRequested(payload) }
+                onLockRequested:   function(payload) { root.timeLockRequested(payload) }
                 onUnlockRequested: function(payload) { root.timeUnlockRequested(payload) }
             }
         }
 
-        // ── Section 4: Activity ──────────────────────────────────────────
+        // ── Section 4: Activity ───────────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 4; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Activity" }
 
         Item {
-            width: parent.width
-            implicitHeight: collaborationInner.implicitHeight + Theme.AppTheme.spacingMd * 2
+            width:          parent.width
+            implicitHeight: _collaborationInner.implicitHeight
 
             TasksCollaborationSection {
-                id: collaborationInner
-                anchors.top: parent.top
-                anchors.left: parent.left
+                id: _collaborationInner
+                anchors.left:  parent.left
                 anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
+                anchors.top:   parent.top
 
-                commentsModel: root.collaborationCommentsModel
-                presenceModel: root.collaborationPresenceModel
+                commentsModel:  root.collaborationCommentsModel
+                presenceModel:  root.collaborationPresenceModel
                 selectedTaskId: root.selectedTaskId
-                isBusy: root.isBusy
-                canCompose: String(root.taskDetail.id || "").length > 0
+                isBusy:         root.isBusy
+                canCompose:     root._hasTask
 
-                onComposeRequested: root.composeRequested()
-                onMarkReadRequested: function(taskId) { root.markReadRequested(taskId) }
-                onRefreshRequested: root.collaborationRefreshRequested()
+                onComposeRequested:            root.composeRequested()
+                onMarkReadRequested: function(id) { root.markReadRequested(id) }
+                onRefreshRequested:            root.collaborationRefreshRequested()
             }
         }
+
+        // Bottom padding
+        Item { width: parent.width; height: Theme.AppTheme.spacingLg }
     }
 }

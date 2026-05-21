@@ -676,7 +676,13 @@ AppLayouts.WorkspaceFrame {
             showEdit: false
             showDelete: false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            sections: ["Details", "Assignments", "Dependencies", "Time", "Activity"]
+            sections: [
+                    "Details",
+                    { "label": "Assignments",  "count": (root.assignmentsModel.items   || []).length },
+                    { "label": "Dependencies", "count": (root.dependenciesModel.items  || []).length },
+                    { "label": "Time",         "count": (root.timeEntriesModel.items   || []).length },
+                    { "label": "Activity",     "count": (root.collaborationCommentsModel.items || []).length }
+                ]
             z: 20
 
             AppWidgets.ContextualActionToolbar {

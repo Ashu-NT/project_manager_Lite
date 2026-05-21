@@ -222,13 +222,19 @@ Item {
 
                             delegate: Item {
                                 id: navItem
-                                required property string modelData
+                                required property var modelData
                                 required property int index
 
                                 width: navColumn.width
                                 height: Theme.AppTheme.sidebarRowHeight
 
-                                readonly property bool isActive: root._activeIdx === navItem.index
+                                readonly property bool   isActive: root._activeIdx === navItem.index
+                                readonly property string _label: typeof navItem.modelData === "string"
+                                    ? navItem.modelData
+                                    : String(navItem.modelData.label || "")
+                                readonly property int    _count: typeof navItem.modelData === "object"
+                                    ? (parseInt(navItem.modelData.count || 0))
+                                    : 0
 
                                 Rectangle {
                                     anchors.fill: parent
@@ -251,19 +257,46 @@ Item {
                                 }
 
                                 Label {
+                                    id: _navLabel
                                     anchors.verticalCenter: parent.verticalCenter
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 14
-                                    anchors.right: parent.right
+                                    anchors.left:        parent.left
+                                    anchors.leftMargin:  14
+                                    anchors.right:       _countBadge.visible ? _countBadge.left : parent.right
                                     anchors.rightMargin: Theme.AppTheme.spacingSm
-                                    text: navItem.modelData
-                                    color: navItem.isActive
+                                    text:           navItem._label
+                                    color:          navItem.isActive
                                         ? Theme.AppTheme.navSelectedText
                                         : Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
+                                    font.family:    Theme.AppTheme.fontFamily
                                     font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: navItem.isActive
-                                    elide: Text.ElideRight
+                                    font.bold:      navItem.isActive
+                                    elide:          Text.ElideRight
+                                }
+
+                                Rectangle {
+                                    id: _countBadge
+                                    anchors.right:          parent.right
+                                    anchors.rightMargin:    Theme.AppTheme.spacingSm
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: navItem._count > 0
+                                    width:  _countLabel.implicitWidth + 8
+                                    height: 16
+                                    radius: 8
+                                    color:  navItem.isActive
+                                        ? Theme.AppTheme.accent
+                                        : Theme.AppTheme.surfaceOverlay
+
+                                    Label {
+                                        id: _countLabel
+                                        anchors.centerIn: parent
+                                        text:           String(navItem._count)
+                                        color:          navItem.isActive
+                                            ? Theme.AppTheme.textOnAccent
+                                            : Theme.AppTheme.textMuted
+                                        font.family:    Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold:      true
+                                    }
                                 }
 
                                 MouseArea {
