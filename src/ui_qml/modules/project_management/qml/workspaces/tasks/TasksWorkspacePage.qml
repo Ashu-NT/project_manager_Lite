@@ -142,6 +142,18 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
 
+    readonly property var _detailActions: {
+        const idx = detailPage ? detailPage.activeSectionIndex : 0
+        if (idx === 0) {
+            return [
+                { "id": "edit",     "label": "Edit",     "icon": "edit",    "enabled": true, "danger": false },
+                { "id": "progress", "label": "Progress", "icon": "approve", "enabled": true, "danger": false },
+                { "id": "delete",   "label": "Delete",   "icon": "delete",  "enabled": true, "danger": true  }
+            ]
+        }
+        return []
+    }
+
     function _optionIndexForValue(options, value) {
         const optionList = options || []
         for (let i = 0; i < optionList.length; i += 1) {
@@ -713,11 +725,7 @@ AppLayouts.WorkspaceFrame {
                 title: root.selectedTaskModel.title || "Task Details"
                 subtitle: root.selectedTaskModel.statusLabel || root.selectedTaskModel.subtitle || ""
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "edit",     "label": "Edit",     "icon": "edit",    "enabled": true, "danger": false },
-                    { "id": "progress", "label": "Progress", "icon": "approve", "enabled": true, "danger": false },
-                    { "id": "delete",   "label": "Delete",   "icon": "delete",  "enabled": true, "danger": true  }
-                ]
+                actions: root._detailActions
 
                 onBackRequested: detailPage.open = false
                 onActionTriggered: function(actionId) {
