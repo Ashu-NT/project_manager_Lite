@@ -36,6 +36,8 @@ class ProjectManagementProjectsWorkspaceController(
     projectPageChanged = Signal()
     projectPageSizeChanged = Signal()
     projectTotalCountChanged = Signal()
+    selectedProjectIdsChanged = Signal()
+    selectedProjectCountChanged = Signal()
 
     def __init__(
         self,
@@ -75,6 +77,8 @@ class ProjectManagementProjectsWorkspaceController(
         self._project_page = 1
         self._project_page_size = 25
         self._project_total_count = 0
+        self._selected_project_ids: list[str] = []
+        self._selected_project_count = 0
         self._bind_domain_events()
         self.refresh()
 
@@ -85,6 +89,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Property("QVariantList", notify=statusOptionsChanged)
     def statusOptions(self) -> list[dict[str, str]]:
         return self._status_options
+
+    @Property("QVariantList", notify=statusOptionsChanged)
+    def bulkStatusOptions(self) -> list[dict[str, str]]:
+        return [opt for opt in self._status_options if opt.get("value", "all") != "all"]
 
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
@@ -117,6 +125,14 @@ class ProjectManagementProjectsWorkspaceController(
     @Property(int, notify=projectTotalCountChanged)
     def projectTotalCount(self) -> int:
         return self._project_total_count
+
+    @Property("QVariantList", notify=selectedProjectIdsChanged)
+    def selectedProjectIds(self) -> list[str]:
+        return list(self._selected_project_ids)
+
+    @Property(int, notify=selectedProjectCountChanged)
+    def selectedProjectCount(self) -> int:
+        return self._selected_project_count
 
     @Slot()
     def refresh(self) -> None:
@@ -218,6 +234,67 @@ class ProjectManagementProjectsWorkspaceController(
         self._set_project_page(1)
         self.refresh()
 
+    @Slot(str, bool)
+    def setProjectBulkSelection(self, project_id: str, selected: bool) -> None:
+        normalized_id = (project_id or "").strip()
+        if not normalized_id:
+            return
+        current = list(self._selected_project_ids)
+        if selected and normalized_id not in current:
+            current.append(normalized_id)
+        elif not selected and normalized_id in current:
+            current.remove(normalized_id)
+        else:
+            return
+        self._set_selected_project_ids(current)
+
+    @Slot()
+    def clearProjectBulkSelection(self) -> None:
+        self._set_selected_project_ids([])
+
+    @Slot()
+    def selectVisibleProjects(self) -> None:
+        items = self._projects.get("items") or []
+        visible_ids = [
+            str(item.get("id", "") or "")
+            for item in items
+            if item.get("id")
+        ]
+        self._set_selected_project_ids(visible_ids)
+
+    @Slot("QVariantList", result="QVariantMap")
+    def bulkDeleteProjects(self, project_ids: list) -> dict[str, object]:
+        ids = [str(pid) for pid in (project_ids or []) if pid]
+        if not ids:
+            return {}
+        return run_mutation(
+            operation=lambda: self._do_bulk_delete(ids),
+            success_message=f"{len(ids)} project(s) deleted.",
+            on_success=self._on_bulk_mutation_success,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkStatus(self, payload: dict[str, object]) -> dict[str, object]:
+        status_value = str(payload.get("status", "") or "").strip()
+        ids = list(self._selected_project_ids)
+        if not status_value or not ids:
+            return {}
+        return run_mutation(
+            operation=lambda: self._do_bulk_set_status(ids, status_value),
+            success_message=f"{len(ids)} project(s) updated.",
+            on_success=self._on_bulk_mutation_success,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot()
+    def exportProjects(self) -> None:
+        pass
+
     @Slot("QVariantMap", result="QVariantMap")
     def createProject(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
@@ -282,6 +359,18 @@ class ProjectManagementProjectsWorkspaceController(
             scope_code="project_management",
         )
 
+    def _on_bulk_mutation_success(self) -> None:
+        self._set_selected_project_ids([])
+        self.refresh()
+
+    def _do_bulk_delete(self, ids: list[str]) -> None:
+        for project_id in ids:
+            self._projects_workspace_presenter.delete_project(project_id)
+
+    def _do_bulk_set_status(self, ids: list[str], status: str) -> None:
+        for project_id in ids:
+            self._projects_workspace_presenter.set_project_status(project_id, status)
+
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:
             return
@@ -341,6 +430,16 @@ class ProjectManagementProjectsWorkspaceController(
             return
         self._project_total_count = v
         self.projectTotalCountChanged.emit()
+
+    def _set_selected_project_ids(self, selected_ids: list[str]) -> None:
+        if selected_ids == self._selected_project_ids:
+            return
+        self._selected_project_ids = selected_ids
+        count = len(selected_ids)
+        self.selectedProjectIdsChanged.emit()
+        if count != self._selected_project_count:
+            self._selected_project_count = count
+            self.selectedProjectCountChanged.emit()
 
 
 __all__ = ["ProjectManagementProjectsWorkspaceController"]

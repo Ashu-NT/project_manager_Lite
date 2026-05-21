@@ -641,7 +641,7 @@ AppLayouts.WorkspaceFrame {
                     AppWidgets.BulkActionBar {
                         id: bulkActionBar
                         anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom: parent.bottom
+                        anchors.bottom: _paginationBar.top
                         anchors.bottomMargin: Theme.AppTheme.spacingMd
                         z: 10
                         selectedCount: root.workspaceController ? root.workspaceController.selectedTaskCount : 0
