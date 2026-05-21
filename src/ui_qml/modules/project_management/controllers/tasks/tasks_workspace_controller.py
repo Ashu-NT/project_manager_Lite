@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
@@ -471,7 +471,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
-        self.refresh()
+        QTimer.singleShot(0, self.refresh)
 
     @Slot(str, bool)
     def setTaskBulkSelection(self, task_id: str, selected: bool) -> None:
