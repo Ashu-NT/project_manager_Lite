@@ -41,6 +41,8 @@ class ProjectManagementResourcesWorkspaceController(
     resourcePageChanged = Signal()
     resourcePageSizeChanged = Signal()
     resourceTotalCountChanged = Signal()
+    selectedResourceIdsChanged = Signal()
+    selectedResourceCountChanged = Signal()
 
     def __init__(
         self,
@@ -83,6 +85,8 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_page = 1
         self._resource_page_size = 25
         self._resource_total_count = 0
+        self._selected_resource_ids: list[str] = []
+        self._selected_resource_count = 0
         self._bind_domain_events()
         self.refresh()
 
@@ -137,6 +141,14 @@ class ProjectManagementResourcesWorkspaceController(
     @Property(int, notify=resourceTotalCountChanged)
     def resourceTotalCount(self) -> int:
         return self._resource_total_count
+
+    @Property("QVariantList", notify=selectedResourceIdsChanged)
+    def selectedResourceIds(self) -> list[str]:
+        return list(self._selected_resource_ids)
+
+    @Property(int, notify=selectedResourceCountChanged)
+    def selectedResourceCount(self) -> int:
+        return self._selected_resource_count
 
     @Slot()
     def refresh(self) -> None:
@@ -314,6 +326,52 @@ class ProjectManagementResourcesWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot(str, bool)
+    def setResourceBulkSelection(self, resource_id: str, selected: bool) -> None:
+        normalized_id = (resource_id or "").strip()
+        if not normalized_id:
+            return
+        current = list(self._selected_resource_ids)
+        if selected and normalized_id not in current:
+            current.append(normalized_id)
+        elif not selected and normalized_id in current:
+            current.remove(normalized_id)
+        else:
+            return
+        self._set_selected_resource_ids(current)
+
+    @Slot()
+    def clearResourceBulkSelection(self) -> None:
+        self._set_selected_resource_ids([])
+
+    @Slot()
+    def selectVisibleResources(self) -> None:
+        items = self._resources.get("items") or []
+        visible_ids = [
+            str(item.get("id", "") or "")
+            for item in items
+            if item.get("id")
+        ]
+        self._set_selected_resource_ids(visible_ids)
+
+    @Slot("QVariantList", result="QVariantMap")
+    def bulkDeleteResources(self, resource_ids: list) -> dict[str, object]:
+        ids = [str(rid) for rid in (resource_ids or []) if rid]
+        if not ids:
+            return {}
+        return run_mutation(
+            operation=lambda: self._do_bulk_delete(ids),
+            success_message=f"{len(ids)} resource(s) deleted.",
+            on_success=self._on_bulk_mutation_success,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot()
+    def exportResources(self) -> None:
+        pass
+
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change("resource", scope_code="project_management")
         self._subscribe_domain_signal(
@@ -401,6 +459,24 @@ class ProjectManagementResourcesWorkspaceController(
             return
         self._resource_total_count = v
         self.resourceTotalCountChanged.emit()
+
+    def _set_selected_resource_ids(self, selected_ids: list[str]) -> None:
+        if selected_ids == self._selected_resource_ids:
+            return
+        self._selected_resource_ids = selected_ids
+        count = len(selected_ids)
+        self.selectedResourceIdsChanged.emit()
+        if count != self._selected_resource_count:
+            self._selected_resource_count = count
+            self.selectedResourceCountChanged.emit()
+
+    def _on_bulk_mutation_success(self) -> None:
+        self._set_selected_resource_ids([])
+        self.refresh()
+
+    def _do_bulk_delete(self, ids: list[str]) -> None:
+        for resource_id in ids:
+            self._resources_workspace_presenter.delete_resource(resource_id)
 
 
 __all__ = ["ProjectManagementResourcesWorkspaceController"]

@@ -1,16 +1,22 @@
-pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
-import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
 Item {
     id: root
 
-    property var resourceDetail: AppMock.MockFactory.detail()
+    property var resourceDetail: ({
+        "id": "",
+        "title": "",
+        "statusLabel": "",
+        "subtitle": "",
+        "description": "",
+        "emptyState": "Select a resource from the pool to review details or edit its setup.",
+        "fields": [],
+        "state": {}
+    })
     property bool isBusy: false
     property var detailPage: null
 
@@ -20,301 +26,590 @@ Item {
 
     implicitHeight: _mainCol.implicitHeight
 
+    function _sv(key) {
+        const s = root.resourceDetail.state || {}
+        return String(s[key] || "")
+    }
+
+    readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
+
     Column {
         id: _mainCol
         width: parent.width
         spacing: 0
 
-        // ── Section 0: Profile ───────────────────────────────────────────
+        // ── Section 0: Overview ───────────────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Profile" }
+        AppWidgets.SectionHeading { label: "Overview" }
 
         Item {
             width: parent.width
-            implicitHeight: profileContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+            implicitHeight: _overviewCol.implicitHeight + Theme.AppTheme.spacingMd * 2
 
             ColumnLayout {
-                id: profileContent
+                id: _overviewCol
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.topMargin: Theme.AppTheme.spacingMd
                 anchors.leftMargin: Theme.AppTheme.spacingMd
                 anchors.rightMargin: Theme.AppTheme.spacingMd
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
                 spacing: Theme.AppTheme.spacingMd
 
+                // ── Empty state when no resource selected ──
+                AppWidgets.EmptyState {
+                    Layout.fillWidth: true
+                    visible: !root._hasResource
+                    title: "No resource selected"
+                    message: root.resourceDetail.emptyState
+                        || "Select a resource from the pool to review details or edit its setup."
+                }
+
+                // ── Compact 4-column metadata panel ──────────────────────
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingSm
+                    visible: root._hasResource
+                    spacing: Theme.AppTheme.spacingMd
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: Theme.AppTheme.spacingXs
-
+                        spacing: 2
+                        Label {
+                            text: "Role"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
                         Label {
                             Layout.fillWidth: true
-                            text: root.resourceDetail.title || "Resource Detail"
+                            text: root._sv("role") || "—"
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.bodySize
-                            font.bold: true
-                            wrapMode: Text.WordWrap
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            elide: Text.ElideRight
                         }
+                    }
 
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label {
+                            text: "Type"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
                         Label {
                             Layout.fillWidth: true
-                            text: root.resourceDetail.subtitle || "Select a resource to inspect details."
-                            color: Theme.AppTheme.textSecondary
+                            text: root._sv("workerTypeLabel") || "—"
+                            color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize
-                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    AppWidgets.StatusChip {
-                        visible: String(root.resourceDetail.statusLabel || "").length > 0
-                        status: root.resourceDetail.statusLabel || ""
-                    }
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    visible: String(root.resourceDetail.emptyState || "").length > 0
-                        && String(root.resourceDetail.id || "").length === 0
-                    text: root.resourceDetail.emptyState || ""
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                }
-
-                Label {
-                    Layout.fillWidth: true
-                    visible: String(root.resourceDetail.id || "").length > 0
-                        && String(root.resourceDetail.description || "").length > 0
-                    text: root.resourceDetail.description || ""
-                    color: Theme.AppTheme.textPrimary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.bodySize
-                    wrapMode: Text.WordWrap
-                }
-
-                Repeater {
-                    model: root.resourceDetail.fields || []
-
-                    delegate: Rectangle {
-                        id: fieldCard
-                        required property var modelData
-
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        radius: Theme.AppTheme.radiusMd
-                        color: Theme.AppTheme.surfaceAlt
-                        implicitHeight: fieldLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
-
-                        ColumnLayout {
-                            id: fieldLayout
-                            anchors.fill: parent
-                            anchors.margins: Theme.AppTheme.spacingMd
-                            spacing: Theme.AppTheme.spacingXs
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: String(fieldCard.modelData.label || "")
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                font.bold: true
+                        spacing: 2
+                        Label {
+                            text: "Capacity"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: {
+                                const pct = parseFloat(root._sv("capacityPercent") || "0")
+                                return root._sv("capacityLabel") || (pct.toFixed(0) + "%")
                             }
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: String(fieldCard.modelData.value || "")
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Label {
-                                Layout.fillWidth: true
-                                visible: String(fieldCard.modelData.supportingText || "").length > 0
-                                text: String(fieldCard.modelData.supportingText || "")
-                                color: Theme.AppTheme.textSecondary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WordWrap
-                            }
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
                         }
                     }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label {
+                            text: "Rate"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("hourlyRateLabel") || "—"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            font.bold: true
+                        }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    visible: root._hasResource
+                    color: Theme.AppTheme.divider
+                    opacity: 0.5
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: String(root.resourceDetail.id || "").length > 0
-                    spacing: Theme.AppTheme.spacingSm
+                    visible: root._hasResource
+                    spacing: Theme.AppTheme.spacingMd
 
-                    AppControls.PrimaryButton {
-                        text: "Edit"
-                        iconName: "edit"
-                        enabled: !root.isBusy
-                        onClicked: root.editRequested()
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label {
+                            text: "Contact"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("contact") || "—"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            elide: Text.ElideRight
+                        }
                     }
 
-                    AppControls.PrimaryButton {
-                        text: root.resourceDetail.state && root.resourceDetail.state.isActive
-                            ? "Deactivate" : "Activate"
-                        iconName: root.resourceDetail.state && root.resourceDetail.state.isActive
-                            ? "close" : "approve"
-                        enabled: !root.isBusy
-                        onClicked: root.toggleRequested()
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label {
+                            text: "Currency"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("currency") || "—"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                        }
                     }
 
-                    AppControls.PrimaryButton {
-                        text: "Delete"
-                        iconName: "delete"
-                        danger: true
-                        enabled: !root.isBusy
-                        onClicked: root.deleteRequested()
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label {
+                            text: "Status"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        AppWidgets.StatusChip {
+                            status: root.resourceDetail.statusLabel || ""
+                        }
                     }
 
-                    Item { Layout.fillWidth: true }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label {
+                            text: "Version"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("version") ? "v" + root._sv("version") : "—"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                        }
+                    }
+                }
+
+                // ── Resource description / context ────────────────────────
+                Label {
+                    Layout.fillWidth: true
+                    visible: root._hasResource
+                    text: root.resourceDetail.description
+                        || "No additional details have been added for this resource."
+                    color: String(root.resourceDetail.description || "").length > 0
+                        ? Theme.AppTheme.textSecondary
+                        : Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 4
+                    elide: Text.ElideRight
                 }
             }
         }
 
-        // ── Section 1: Assignments ───────────────────────────────────────
+        // ── Section 1: Assignments ────────────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
         AppWidgets.SectionHeading { label: "Assignments" }
 
-        Rectangle {
+        Item {
             width: parent.width
-            height: 80
-            color: "transparent"
+            implicitHeight: _assignmentsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-            Label {
-                anchors.centerIn: parent
-                text: "Project assignments coming soon"
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.bodySize
+            AppWidgets.EmptyState {
+                id: _assignmentsEmpty
+                anchors.top: parent.top
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
+                title: "Project assignments"
+                message: "Open the Tasks workspace to view project and task assignments for this resource."
             }
         }
 
-        // ── Section 2: Capacity ──────────────────────────────────────────
+        // ── Section 2: Capacity ───────────────────────────────────────────
         AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
         AppWidgets.SectionHeading { label: "Capacity" }
 
         Item {
             width: parent.width
-            implicitHeight: capacityContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+            implicitHeight: _capacityCol.implicitHeight + Theme.AppTheme.spacingMd * 2
 
             ColumnLayout {
-                id: capacityContent
+                id: _capacityCol
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.topMargin: Theme.AppTheme.spacingMd
                 anchors.leftMargin: Theme.AppTheme.spacingMd
                 anchors.rightMargin: Theme.AppTheme.spacingMd
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
                 spacing: Theme.AppTheme.spacingMd
 
-                Label {
+                AppWidgets.EmptyState {
                     Layout.fillWidth: true
-                    text: "Capacity"
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    font.bold: true
+                    visible: !root._hasResource
+                    title: "No capacity data"
+                    message: "Select a resource to review its capacity settings."
                 }
 
-                // Capacity progress bar
-                Rectangle {
+                // Capacity utilization bar
+                Item {
                     Layout.fillWidth: true
-                    height: 56
-                    radius: Theme.AppTheme.radiusMd
-                    color: Theme.AppTheme.surfaceAlt
+                    Layout.preferredHeight: 52
+                    visible: root._hasResource
 
-                    readonly property real _capacityValue: {
-                        const state = root.resourceDetail.state || {}
-                        return parseFloat(state.capacityPercent || "0") / 100.0
-                    }
-                    readonly property string _capacityLabel: {
-                        const state = root.resourceDetail.state || {}
-                        return state.capacityLabel || "—"
-                    }
-
-                    ColumnLayout {
+                    Rectangle {
                         anchors.fill: parent
-                        anchors.margins: Theme.AppTheme.spacingMd
-                        spacing: Theme.AppTheme.spacingXs
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceAlt
 
-                        RowLayout {
-                            Layout.fillWidth: true
+                        readonly property real _pct: {
+                            const s = root.resourceDetail.state || {}
+                            return Math.min(parseFloat(s.capacityPercent || "0"), 100.0) / 100.0
+                        }
+                        readonly property string _label: {
+                            const s = root.resourceDetail.state || {}
+                            const pct = parseFloat(s.capacityPercent || "0")
+                            return s.capacityLabel || (pct.toFixed(0) + "%")
+                        }
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: Theme.AppTheme.spacingMd
                             spacing: Theme.AppTheme.spacingXs
 
-                            Label {
-                                text: "Capacity"
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.bold: true
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    text: "Capacity"
+                                    color: Theme.AppTheme.textMuted
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                }
+                                Item { Layout.fillWidth: true }
+                                Label {
+                                    text: parent.parent.parent._label
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                }
                             }
 
-                            Item { Layout.fillWidth: true }
-
-                            Label {
-                                text: parent.parent.parent._capacityLabel
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.bold: true
+                            AppWidgets.ProgressBar {
+                                Layout.fillWidth: true
+                                value: parent.parent._pct
+                                Layout.preferredHeight: 6
                             }
-                        }
-
-                        AppWidgets.ProgressBar {
-                            Layout.fillWidth: true
-                            value: parent.parent._capacityValue
-                            implicitHeight: 6
                         }
                     }
                 }
 
-                // Hourly rate card
-                Rectangle {
+                // Hourly rate row
+                Item {
                     Layout.fillWidth: true
-                    visible: String((root.resourceDetail.state || {}).hourlyRateLabel || "").length > 0
-                    height: 44
-                    radius: Theme.AppTheme.radiusMd
-                    color: Theme.AppTheme.surfaceAlt
+                    Layout.preferredHeight: 40
+                    visible: root._hasResource
+                        && String((root.resourceDetail.state || {}).hourlyRateLabel || "").length > 0
 
-                    RowLayout {
+                    Rectangle {
                         anchors.fill: parent
-                        anchors.leftMargin: Theme.AppTheme.spacingMd
-                        anchors.rightMargin: Theme.AppTheme.spacingMd
-                        spacing: Theme.AppTheme.spacingSm
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceAlt
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.AppTheme.spacingMd
+                            anchors.rightMargin: Theme.AppTheme.spacingMd
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                text: "Hourly Rate"
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+                            Item { Layout.fillWidth: true }
+                            Label {
+                                text: root._sv("hourlyRateLabel") || "—"
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.bodySize
+                                font.bold: true
+                            }
+                        }
+                    }
+                }
+
+                // Cost type row
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 40
+                    visible: root._hasResource
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Theme.AppTheme.radiusMd
+                        color: Theme.AppTheme.surfaceAlt
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.AppTheme.spacingMd
+                            anchors.rightMargin: Theme.AppTheme.spacingMd
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                text: "Cost Type"
+                                color: Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold: true
+                            }
+                            Item { Layout.fillWidth: true }
+                            Label {
+                                text: root._sv("costTypeLabel") || "—"
+                                color: Theme.AppTheme.textPrimary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Section 3: Calendar ───────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 3; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Calendar" }
+
+        Item {
+            width: parent.width
+            implicitHeight: _calendarEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+            AppWidgets.EmptyState {
+                id: _calendarEmpty
+                anchors.top: parent.top
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
+                title: "Work calendar"
+                message: "Shift schedules, availability exceptions, and leave periods are not yet configured for this resource."
+            }
+        }
+
+        // ── Section 4: Skills ─────────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 4; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Skills" }
+
+        Item {
+            width: parent.width
+            implicitHeight: _skillsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+            AppWidgets.EmptyState {
+                id: _skillsEmpty
+                anchors.top: parent.top
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
+                title: "Skills and competencies"
+                message: "Skill profiles and competency levels have not been configured for this resource."
+            }
+        }
+
+        // ── Section 5: Certifications ─────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 5; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Certifications" }
+
+        Item {
+            width: parent.width
+            implicitHeight: _certificationsEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+            AppWidgets.EmptyState {
+                id: _certificationsEmpty
+                anchors.top: parent.top
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
+                title: "Certifications"
+                message: "No certifications or compliance records have been linked to this resource."
+            }
+        }
+
+        // ── Section 6: Cost Rates ─────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 6; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Cost Rates" }
+
+        Item {
+            width: parent.width
+            implicitHeight: _costRatesCol.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+            ColumnLayout {
+                id: _costRatesCol
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
+                spacing: Theme.AppTheme.spacingMd
+
+                AppWidgets.EmptyState {
+                    Layout.fillWidth: true
+                    visible: !root._hasResource
+                    title: "No cost rate data"
+                    message: "Select a resource to review its cost rate configuration."
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    visible: root._hasResource
+                    implicitHeight: _costRatesGrid.implicitHeight
+
+                    GridLayout {
+                        id: _costRatesGrid
+                        width: parent.width
+                        columns: 2
+                        columnSpacing: Theme.AppTheme.spacingMd
+                        rowSpacing: Theme.AppTheme.spacingXs
 
                         Label {
                             text: "Hourly Rate"
                             color: Theme.AppTheme.textMuted
                             font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("hourlyRateLabel") || "—"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize
                             font.bold: true
                         }
 
-                        Item { Layout.fillWidth: true }
-
                         Label {
-                            text: String((root.resourceDetail.state || {}).hourlyRateLabel || "—")
+                            text: "Currency"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("currency") || "—"
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.bodySize
+                            font.pixelSize: Theme.AppTheme.smallSize
+                        }
+
+                        Label {
+                            text: "Cost Type"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
                             font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("costTypeLabel") || "—"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                        }
+
+                        Label {
+                            text: "Worker Type"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root._sv("workerTypeLabel") || "—"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
                         }
                     }
                 }
+            }
+        }
+
+        // ── Section 7: Activity ───────────────────────────────────────────
+        AppWidgets.SectionAnchor { sectionIndex: 7; detailPage: root.detailPage }
+        AppWidgets.SectionHeading { label: "Activity" }
+
+        Item {
+            width: parent.width
+            implicitHeight: Math.max(_activityFeed.implicitHeight, 80) + Theme.AppTheme.spacingMd * 2
+
+            AppWidgets.ActivityFeed {
+                id: _activityFeed
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
+                items: {
+                    const s = root.resourceDetail.state || {}
+                    return s.activityItems || []
+                }
+                emptyText: "No resource activity recorded"
             }
         }
     }
