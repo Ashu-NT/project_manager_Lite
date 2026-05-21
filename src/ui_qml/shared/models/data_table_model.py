@@ -162,8 +162,11 @@ class DynamicTableModel(QAbstractTableModel):
         return self._rows
 
     def _set_rows(self, value) -> None:
+        next_rows = list(value) if value is not None else []
+        if next_rows == self._rows:
+            return
         self.beginResetModel()
-        self._rows = list(value) if value is not None else []
+        self._rows = next_rows
         self.endResetModel()
         self.rowsChanged.emit()
 
@@ -171,12 +174,16 @@ class DynamicTableModel(QAbstractTableModel):
         return self._columns
 
     def _set_columns(self, value) -> None:
-        self.beginResetModel()
-        self._columns = list(value) if value is not None else []
-        self._vis_cols = [
-            c for c in self._columns
+        next_columns = list(value) if value is not None else []
+        if next_columns == self._columns:
+            return
+        next_vis_cols = [
+            c for c in next_columns
             if isinstance(c, dict) and c.get("visible", True) is not False
         ]
+        self.beginResetModel()
+        self._columns = next_columns
+        self._vis_cols = next_vis_cols
         self.endResetModel()
         self.columnsChanged.emit()
 

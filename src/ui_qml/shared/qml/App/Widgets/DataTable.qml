@@ -34,6 +34,7 @@ Item {
     property string emptyText:      "No records"
     property bool   multiSelect:    false
     property var    selectedRowIds: []
+    property var    _selectedLookup: ({})
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
@@ -47,15 +48,23 @@ Item {
     property int _hoveredRow:  -1
     property int _currentRow:  -1
 
-    function _isRowChecked(rowId) {
+    function _rebuildSelectedLookup() {
+        const map = {}
         const ids = root.selectedRowIds || []
         for (let i = 0; i < ids.length; i++) {
-            if (String(ids[i]) === String(rowId)) return true
+            map[String(ids[i])] = true
         }
-        return false
+        root._selectedLookup = map
+    }
+
+    function _isRowChecked(rowId) {
+        return root._selectedLookup[String(rowId)] === true
     }
 
     function openColumnCustomizer() { _colCustomizer.open() }
+
+    onSelectedRowIdsChanged: root._rebuildSelectedLookup()
+    Component.onCompleted: root._rebuildSelectedLookup()
 
     readonly property bool _allChecked:  root.rows.length > 0
         && (root.selectedRowIds || []).length >= root.rows.length
@@ -334,7 +343,7 @@ Item {
             CheckBox {
                 id: _cb
                 anchors.centerIn: parent
-                checked: root._isRowChecked(_cbCell._rid)
+                checked: _cbCell._chk
                 padding: 0; spacing: 0
 
                 indicator: Rectangle {
@@ -351,7 +360,10 @@ Item {
                     }
                 }
                 contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
-                onToggled: root.rowSelectionToggled(_cbCell._rid, checked)
+                onClicked: root.rowSelectionToggled(
+                    _cbCell._rid,
+                    !root._isRowChecked(_cbCell._rid)
+                )
             }
 
             Rectangle {
@@ -533,10 +545,11 @@ Item {
                 anchors.fill:  parent
                 cursorShape:   Qt.PointingHandCursor
                 onClicked: {
-                    root.selectedRowId = _cell.rowId
-                    root.rowSelected(_cell.rowId)
+                    const rowId = _cell.rowId
+                    root.selectedRowId = rowId
                     root._currentRow = _cell.row
                     _mainView.forceActiveFocus()
+                    Qt.callLater(function() { root.rowSelected(rowId) })
                 }
                 onDoubleClicked: root.rowActivated(_cell.rowId)
             }
