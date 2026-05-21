@@ -445,7 +445,7 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.setSearchText(text)
                         }
                     }
-                    onFilterRequested: filterPopup.open()
+                    onFilterClicked: filterPopup.open()
                     onRefreshRequested: {
                         if (root.workspaceController !== null) {
                             root.workspaceController.refresh()
