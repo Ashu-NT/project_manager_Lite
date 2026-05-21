@@ -38,6 +38,9 @@ class ProjectManagementTasksWorkspaceController(
     ProjectManagementWorkspaceControllerBase
 ):
     # ── Signals ──────────────────────────────────────────────────────
+    taskPageChanged = Signal()
+    taskPageSizeChanged = Signal()
+    taskTotalCountChanged = Signal()
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
@@ -90,6 +93,10 @@ class ProjectManagementTasksWorkspaceController(
         self._tasks_workspace_presenter = (
             tasks_workspace_presenter or ProjectTasksWorkspacePresenter()
         )
+        # ── Pagination state ───────────────────────────────────────────
+        self._task_page = 1
+        self._task_page_size = 25
+        self._task_total_count = 0
         # ── Coordinator / navigation state ────────────────────────────
         self._selected_project_id = ""
         self._selected_status_filter = "all"
@@ -350,6 +357,38 @@ class ProjectManagementTasksWorkspaceController(
     def collaborationPresence(self) -> dict[str, object]:
         return self._collab_ctrl.collaborationPresence
 
+    # ── Pagination properties ─────────────────────────────────────────
+
+    @Property(int, notify=taskPageChanged)
+    def taskPage(self) -> int:
+        return self._task_page
+
+    @Property(int, notify=taskPageSizeChanged)
+    def taskPageSize(self) -> int:
+        return self._task_page_size
+
+    @Property(int, notify=taskTotalCountChanged)
+    def taskTotalCount(self) -> int:
+        return self._task_total_count
+
+    def _set_task_page(self, v: int) -> None:
+        if v == self._task_page:
+            return
+        self._task_page = v
+        self.taskPageChanged.emit()
+
+    def _set_task_page_size(self, v: int) -> None:
+        if v == self._task_page_size:
+            return
+        self._task_page_size = v
+        self.taskPageSizeChanged.emit()
+
+    def _set_task_total_count(self, v: int) -> None:
+        if v == self._task_total_count:
+            return
+        self._task_total_count = v
+        self.taskTotalCountChanged.emit()
+
     # ── Refresh ───────────────────────────────────────────────────────
 
     @Slot()
@@ -373,6 +412,8 @@ class ProjectManagementTasksWorkspaceController(
                 selected_assignment_id=self._selected_assignment_id or None,
                 selected_time_period_start=self._selected_time_period_start,
                 selected_time_entry_id=self._selected_time_entry_id or None,
+                page=self._task_page,
+                page_size=self._task_page_size,
             )
             self._task_list._update(ws)
             self._assignments_ctrl._update(ws)
@@ -390,6 +431,9 @@ class ProjectManagementTasksWorkspaceController(
             self._set_selected_time_period_start(ws.selected_time_period_start)
             self._set_selected_time_entry_id(ws.selected_time_entry_id)
             self._set_empty_state(ws.empty_state)
+            self._set_task_total_count(ws.total_count)
+            self._set_task_page(ws.page)
+            self._set_task_page_size(ws.page_size)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -407,6 +451,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
+        self._task_page = 1
         self.refresh()
 
     @Slot(str)
@@ -416,6 +461,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_search_text(normalized)
         self._set_selected_task_view_name("")
+        self._task_page = 1
         self.refresh()
 
     @Slot(str)
@@ -425,6 +471,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_selected_status_filter(normalized)
         self._set_selected_task_view_name("")
+        self._task_page = 1
         self.refresh()
 
     @Slot(str)
@@ -434,6 +481,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_selected_priority_filter(normalized)
         self._set_selected_task_view_name("")
+        self._task_page = 1
         self.refresh()
 
     @Slot(str)
@@ -443,6 +491,7 @@ class ProjectManagementTasksWorkspaceController(
             return
         self._set_selected_schedule_filter(normalized)
         self._set_selected_task_view_name("")
+        self._task_page = 1
         self.refresh()
 
     @Slot()
@@ -460,6 +509,7 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_priority_filter("all")
         self._set_selected_schedule_filter("all")
         self._set_selected_task_view_name("")
+        self._task_page = 1
         self.refresh()
 
     @Slot(str)
@@ -471,6 +521,23 @@ class ProjectManagementTasksWorkspaceController(
         self._set_selected_assignment_id("")
         self._set_selected_time_period_start("")
         self._set_selected_time_entry_id("")
+
+    @Slot(int)
+    def setTaskPage(self, page: int) -> None:
+        p = max(1, page)
+        if p == self._task_page:
+            return
+        self._set_task_page(p)
+        self.refresh()
+
+    @Slot(int)
+    def setTaskPageSize(self, page_size: int) -> None:
+        if page_size <= 0 or page_size == self._task_page_size:
+            return
+        self._task_page_size = page_size
+        self.taskPageSizeChanged.emit()
+        self._set_task_page(1)
+        self.refresh()
 
     @Slot(str)
     def activateTask(self, task_id: str) -> None:
@@ -815,6 +882,7 @@ class ProjectManagementTasksWorkspaceController(
             )
         )
         self._set_selected_task_view_name(selected_view_name)
+        self._task_page = 1
         self.refresh()
 
     @staticmethod

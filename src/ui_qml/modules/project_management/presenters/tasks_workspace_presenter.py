@@ -80,10 +80,15 @@ class ProjectTasksWorkspacePresenter:
         selected_assignment_id: str | None = None,
         selected_time_period_start: str = "",
         selected_time_entry_id: str | None = None,
+        page: int = 1,
+        page_size: int = 25,
     ) -> TaskCatalogWorkspaceViewModel:
-        project_options = tuple(
-            TaskSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in self._desktop_api.list_projects()
+        project_options = (
+            TaskSelectorOptionViewModel(value="", label="All Projects"),
+            *(
+                TaskSelectorOptionViewModel(value=option.value, label=option.label)
+                for option in self._desktop_api.list_projects()
+            ),
         )
         resolved_project_id = self._resolve_project_id(project_id, project_options)
         status_options = (
@@ -115,7 +120,7 @@ class ProjectTasksWorkspacePresenter:
         all_tasks = (
             self._desktop_api.list_tasks(resolved_project_id)
             if resolved_project_id
-            else ()
+            else self._desktop_api.list_all_tasks()
         )
         filtered_tasks = tuple(
             task
@@ -128,6 +133,11 @@ class ProjectTasksWorkspacePresenter:
                 schedule_filter=normalized_schedule_filter,
             )
         )
+        _total_count = len(filtered_tasks)
+        _page = max(1, page)
+        _page_size = max(1, page_size)
+        _offset = (_page - 1) * _page_size
+        paged_tasks = filtered_tasks[_offset: _offset + _page_size]
         resolved_task_id = self._resolve_task_id(selected_task_id, filtered_tasks)
         selected_task = next(
             (task for task in filtered_tasks if task.id == resolved_task_id),
@@ -216,8 +226,11 @@ class ProjectTasksWorkspacePresenter:
             search_text=normalized_search,
             tasks=tuple(
                 self._to_task_record_view_model(task)
-                for task in filtered_tasks
+                for task in paged_tasks
             ),
+            total_count=_total_count,
+            page=_page,
+            page_size=_page_size,
             selected_task_id=resolved_task_id,
             selected_task_detail=self._build_detail_view_model(
                 selected_task,
@@ -1139,11 +1152,9 @@ class ProjectTasksWorkspacePresenter:
     ) -> str:
         normalized_id = (project_id or "").strip()
         option_values = {option.value for option in project_options}
-        if normalized_id and normalized_id in option_values:
+        if normalized_id in option_values:
             return normalized_id
-        if project_options:
-            return project_options[0].value
-        return ""
+        return ""  # default to all projects
 
     @staticmethod
     def _resolve_task_id(selected_task_id: str | None, filtered_tasks) -> str:

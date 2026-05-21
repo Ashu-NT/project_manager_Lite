@@ -331,7 +331,10 @@ AppLayouts.WorkspaceFrame {
 
                     AppWidgets.DataTable {
                         id: tasksTable
-                        anchors.fill: parent
+                        anchors.top:    parent.top
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: _paginationBar.top
                         multiSelect: true
                         columns: root._tableColumns
                         rows: root.tasksModel.items || []
@@ -369,13 +372,32 @@ AppLayouts.WorkspaceFrame {
                         onSortRequested: function(key) {}
                     }
 
+                    AppWidgets.TablePaginationBar {
+                        id: _paginationBar
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: parent.bottom
+                        currentPage:  root.workspaceController ? root.workspaceController.taskPage     : 1
+                        pageSize:     root.workspaceController ? root.workspaceController.taskPageSize  : 25
+                        totalItems:   root.workspaceController ? root.workspaceController.taskTotalCount : 0
+                        busy:         root.workspaceController ? root.workspaceController.isBusy        : false
+                        onPageRequested: function(page) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setTaskPage(page)
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setTaskPageSize(pageSize)
+                        }
+                    }
+
                     Popup {
                         id: filterPopup
-                        parent: tasksTable
+                        parent: tableToolbar
                         width: 304
                         padding: Theme.AppTheme.marginMd
-                        x: Math.max(Theme.AppTheme.spacingSm, tasksTable.width - width - Theme.AppTheme.spacingSm)
-                        y: Theme.AppTheme.spacingSm
+                        x: tableToolbar.width - width
+                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {
@@ -557,11 +579,11 @@ AppLayouts.WorkspaceFrame {
 
                     Popup {
                         id: savedViewsPopup
-                        parent: tasksTable
+                        parent: tableToolbar
                         width: 260
                         padding: Theme.AppTheme.marginMd
-                        x: Math.max(Theme.AppTheme.spacingSm, tasksTable.width - width - Theme.AppTheme.spacingSm)
-                        y: Theme.AppTheme.spacingSm
+                        x: tableToolbar.width - width
+                        y: tableToolbar.height + Theme.AppTheme.spacingXs
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
                         background: Rectangle {

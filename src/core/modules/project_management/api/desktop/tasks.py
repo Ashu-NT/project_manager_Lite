@@ -266,6 +266,28 @@ class ProjectManagementTasksDesktopApi:
             for task in tasks
         )
 
+    def list_all_tasks(self) -> tuple[TaskDesktopDto, ...]:
+        if self._project_service is None:
+            return ()
+        project_name_lookup = self._project_name_by_id()
+        service = self._require_task_service()
+        all_tasks: list[TaskDesktopDto] = []
+        for project_id, project_name in project_name_lookup.items():
+            all_tasks.extend(
+                self._serialize_task(task, project_name=project_name)
+                for task in service.list_tasks_for_project(project_id)
+            )
+        return tuple(
+            sorted(
+                all_tasks,
+                key=lambda t: (
+                    t.start_date or date.max,
+                    -int(t.priority or 0),
+                    (t.name or "").casefold(),
+                ),
+            )
+        )
+
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:
         service = self._require_task_service()
         task = service.create_task(

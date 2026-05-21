@@ -23,4 +23,5 @@ SectionHeading 1.0 SectionHeading.qml
 SlideOverPanel 1.0 SlideOverPanel.qml
 StatusChip 1.0 StatusChip.qml
 TableColumnCustomizer 1.0 TableColumnCustomizer.qml
+TablePaginationBar 1.0 TablePaginationBar.qml
 TableToolbar 1.0 TableToolbar.qml
