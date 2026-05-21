@@ -316,7 +316,7 @@ Item {
                 const rawId = _rowData.id
                 return String(rawId !== undefined && rawId !== null ? rawId : row)
             }
-            readonly property bool _sel: root.selectedRowId === _rid
+            readonly property bool _sel: root.selectedRowId === _rid || root._currentRow === _cbCell.row
             readonly property bool _chk: root._isRowChecked(_rid)
             readonly property bool _hi:  _sel || _chk
 
@@ -441,7 +441,7 @@ Item {
             required property string rowId       // row's id field (or row index as string)
             required property string columnType  // "text" | "status" | "progress"
 
-            readonly property bool _sel: root.selectedRowId === _cell.rowId
+            readonly property bool _sel: root.selectedRowId === _cell.rowId || root._currentRow === _cell.row
             readonly property bool _chk: root.multiSelect && root._isRowChecked(_cell.rowId)
             readonly property bool _hi:  _sel || _chk
 
