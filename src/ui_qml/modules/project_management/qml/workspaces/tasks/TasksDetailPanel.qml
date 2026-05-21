@@ -19,7 +19,7 @@ Item {
     property string selectedAssignmentId: ""
     property var    assignmentOptions:    []
 
-    property var dependenciesModel:    AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
+    property var dependenciesModel:     AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
     property var dependencyTaskOptions: []
 
     property var    timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
@@ -60,8 +60,8 @@ Item {
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
 
-    // ── Private helpers ───────────────────────────────────────────────
-    readonly property real _progressValue: {
+    // ── Private ───────────────────────────────────────────────────────
+    readonly property real   _progressValue: {
         const s = root.taskDetail.state || {}
         return parseFloat(s.percentComplete || "0") / 100.0
     }
@@ -71,82 +71,102 @@ Item {
     }
     readonly property bool _hasTask: String(root.taskDetail.id || "").length > 0
 
-    implicitHeight: _mainCol.implicitHeight
+    // Active section index from the parent detail page (0 = Details by default)
+    readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
 
-    Column {
-        id: _mainCol
-        width: parent ? parent.width : 0
-        spacing: 0
+    // Dynamic implicitHeight — only the active section contributes
+    implicitHeight: (_summaryStrip.visible ? _summaryStrip.height : 0)
+        + _activeSectionH
+        + Theme.AppTheme.spacingLg
 
-        // ── Compact summary strip ─────────────────────────────────────
+    readonly property int _activeSectionH: {
+        const i = root._idx
+        if (i === 0) return _sec0.implicitHeight
+        if (i === 1) return _sec1.implicitHeight
+        if (i === 2) return _sec2.implicitHeight
+        if (i === 3) return _sec3.implicitHeight
+        return _sec4.implicitHeight
+    }
+
+    // ── Summary strip (always visible when a task is open) ────────────
+    Rectangle {
+        id: _summaryStrip
+        anchors.top:   parent.top
+        anchors.left:  parent.left
+        anchors.right: parent.right
+        height:  40
+        color:   Theme.AppTheme.surfaceAlt
+        visible: root._hasTask
+
         Rectangle {
-            width:   parent.width
-            height:  40
-            color:   Theme.AppTheme.surfaceAlt
-            visible: root._hasTask
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            height: 1; color: Theme.AppTheme.divider
+        }
 
-            Rectangle {
-                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                height: 1; color: Theme.AppTheme.divider
+        RowLayout {
+            anchors.fill:        parent
+            anchors.leftMargin:  Theme.AppTheme.marginMd
+            anchors.rightMargin: Theme.AppTheme.marginMd
+            spacing: Theme.AppTheme.spacingMd
+
+            AppWidgets.StatusChip {
+                visible: String(root.taskDetail.statusLabel || "").length > 0
+                status:  root.taskDetail.statusLabel || ""
             }
 
             RowLayout {
-                anchors.fill:        parent
-                anchors.leftMargin:  Theme.AppTheme.marginMd
-                anchors.rightMargin: Theme.AppTheme.marginMd
-                spacing: Theme.AppTheme.spacingMd
+                visible: root._progressValue > 0
+                spacing: Theme.AppTheme.spacingXs
 
-                AppWidgets.StatusChip {
-                    visible: String(root.taskDetail.statusLabel || "").length > 0
-                    status:  root.taskDetail.statusLabel || ""
-                }
-
-                RowLayout {
-                    visible: root._progressValue > 0
-                    spacing: Theme.AppTheme.spacingXs
-
-                    AppWidgets.ProgressBar {
-                        implicitWidth: 90
-                        value: root._progressValue
-                    }
-
-                    Label {
-                        text:           root._progressLabel
-                        color:          Theme.AppTheme.textMuted
-                        font.family:    Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.captionSize
-                    }
-                }
-
-                Rectangle {
-                    width: 1; height: 14
-                    color:   Theme.AppTheme.divider
-                    visible: String(root.taskDetail.subtitle || "").length > 0
-                        && (String(root.taskDetail.statusLabel || "").length > 0 || root._progressValue > 0)
+                AppWidgets.ProgressBar {
+                    implicitWidth: 90
+                    value: root._progressValue
                 }
 
                 Label {
-                    Layout.fillWidth: true
-                    text:           root.taskDetail.subtitle || ""
-                    color:          Theme.AppTheme.textSecondary
+                    text:           root._progressLabel
+                    color:          Theme.AppTheme.textMuted
                     font.family:    Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
-                    elide:          Text.ElideRight
-                    visible:        text.length > 0
+                    font.pixelSize: Theme.AppTheme.captionSize
                 }
             }
+
+            Rectangle {
+                width: 1; height: 14
+                color:   Theme.AppTheme.divider
+                visible: String(root.taskDetail.subtitle || "").length > 0
+            }
+
+            Label {
+                Layout.fillWidth: true
+                text:           root.taskDetail.subtitle || ""
+                color:          Theme.AppTheme.textSecondary
+                font.family:    Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                elide:          Text.ElideRight
+                visible:        text.length > 0
+            }
         }
+    }
+
+    // ── Section container — all sections stacked at the same origin ───
+    // Only the active section is visible; all others have height 0.
+    Item {
+        id: _sectionArea
+        anchors.top:   _summaryStrip.visible ? _summaryStrip.bottom : parent.top
+        anchors.left:  parent.left
+        anchors.right: parent.right
+        height: root._activeSectionH
 
         // ── Section 0: Details ────────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 0; detailPage: root.detailPage }
-        AppWidgets.SectionHeading { label: "Details" }
-
         Item {
+            id: _sec0
+            visible: root._idx === 0
             width:          parent.width
-            implicitHeight: _detailsContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+            implicitHeight: _detailsCol.implicitHeight + Theme.AppTheme.spacingMd * 2
 
             ColumnLayout {
-                id: _detailsContent
+                id: _detailsCol
                 anchors.top:         parent.top
                 anchors.left:        parent.left
                 anchors.right:       parent.right
@@ -175,11 +195,11 @@ Item {
                     wrapMode:       Text.WordWrap
                 }
 
-                // ── Compact metadata grid (2 columns) ─────────────────
+                // ── Compact 2-column metadata grid ────────────────────
                 GridLayout {
                     Layout.fillWidth: true
-                    visible:  root._hasTask && (root.taskDetail.fields || []).length > 0
-                    columns:  2
+                    visible:       root._hasTask && (root.taskDetail.fields || []).length > 0
+                    columns:       2
                     columnSpacing: Theme.AppTheme.spacingLg
                     rowSpacing:    Theme.AppTheme.spacingMd
 
@@ -223,20 +243,19 @@ Item {
                     }
                 }
 
-                // Grid bottom divider
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 1
-                    color:  Theme.AppTheme.divider
+                    height:  1
+                    color:   Theme.AppTheme.divider
                     visible: root._hasTask && (root.taskDetail.fields || []).length > 0
                 }
             }
         }
 
         // ── Section 1: Assignments ────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 1; detailPage: root.detailPage }
-
         Item {
+            id: _sec1
+            visible: root._idx === 1
             width:          parent.width
             implicitHeight: _assignmentsInner.implicitHeight
 
@@ -251,23 +270,23 @@ Item {
                 isBusy:               root.isBusy
                 canCreate:            root._hasTask && root.assignmentOptions.length > 0
 
-                onCreateRequested:           root.createAssignmentRequested()
-                onAssignmentSelected: function(id) { root.assignmentSelected(id) }
-                onEditAllocationRequested: function(data) { root.editAllocationRequested(data) }
-                onSetHoursRequested: function(data)       { root.setHoursRequested(data) }
-                onDeleteRequested: function(data)         { root.deleteAssignmentRequested(data) }
+                onCreateRequested:                  root.createAssignmentRequested()
+                onAssignmentSelected: function(id)  { root.assignmentSelected(id) }
+                onEditAllocationRequested: function(d) { root.editAllocationRequested(d) }
+                onSetHoursRequested: function(d)    { root.setHoursRequested(d) }
+                onDeleteRequested: function(d)      { root.deleteAssignmentRequested(d) }
             }
         }
 
         // ── Section 2: Dependencies ───────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 2; detailPage: root.detailPage }
-
         Item {
+            id: _sec2
+            visible: root._idx === 2
             width:          parent.width
-            implicitHeight: _dependenciesInner.implicitHeight
+            implicitHeight: _depsInner.implicitHeight
 
             TasksDependenciesSection {
-                id: _dependenciesInner
+                id: _depsInner
                 anchors.left:  parent.left
                 anchors.right: parent.right
                 anchors.top:   parent.top
@@ -276,15 +295,15 @@ Item {
                 isBusy:            root.isBusy
                 canCreate:         root._hasTask && root.dependencyTaskOptions.length > 0
 
-                onCreateRequested:           root.createDependencyRequested()
-                onDeleteRequested: function(data) { root.deleteDependencyRequested(data) }
+                onCreateRequested:               root.createDependencyRequested()
+                onDeleteRequested: function(d) { root.deleteDependencyRequested(d) }
             }
         }
 
         // ── Section 3: Time ───────────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 3; detailPage: root.detailPage }
-
         Item {
+            id: _sec3
+            visible: root._idx === 3
             width:          parent.width
             implicitHeight: _timeInner.implicitHeight
 
@@ -302,26 +321,26 @@ Item {
                 selectedEntryId:     root.selectedEntryId
                 isBusy:              root.isBusy
 
-                onPeriodChanged: function(p) { root.periodChanged(p) }
-                onEntrySelected: function(id) { root.entrySelected(id) }
-                onAddRequested:    function(payload) { root.timeAddRequested(payload) }
-                onUpdateRequested: function(payload) { root.timeUpdateRequested(payload) }
-                onDeleteRequested: function(id)      { root.timeDeleteRequested(id) }
-                onSubmitRequested: function(payload) { root.timeSubmitRequested(payload) }
-                onLockRequested:   function(payload) { root.timeLockRequested(payload) }
-                onUnlockRequested: function(payload) { root.timeUnlockRequested(payload) }
+                onPeriodChanged: function(p)    { root.periodChanged(p) }
+                onEntrySelected: function(id)   { root.entrySelected(id) }
+                onAddRequested: function(pl)    { root.timeAddRequested(pl) }
+                onUpdateRequested: function(pl) { root.timeUpdateRequested(pl) }
+                onDeleteRequested: function(id) { root.timeDeleteRequested(id) }
+                onSubmitRequested: function(pl) { root.timeSubmitRequested(pl) }
+                onLockRequested: function(pl)   { root.timeLockRequested(pl) }
+                onUnlockRequested: function(pl) { root.timeUnlockRequested(pl) }
             }
         }
 
         // ── Section 4: Activity ───────────────────────────────────────
-        AppWidgets.SectionAnchor { sectionIndex: 4; detailPage: root.detailPage }
-
         Item {
+            id: _sec4
+            visible: root._idx === 4
             width:          parent.width
-            implicitHeight: _collaborationInner.implicitHeight
+            implicitHeight: _activityInner.implicitHeight
 
             TasksCollaborationSection {
-                id: _collaborationInner
+                id: _activityInner
                 anchors.left:  parent.left
                 anchors.right: parent.right
                 anchors.top:   parent.top
@@ -332,13 +351,10 @@ Item {
                 isBusy:         root.isBusy
                 canCompose:     root._hasTask
 
-                onComposeRequested:            root.composeRequested()
+                onComposeRequested:              root.composeRequested()
                 onMarkReadRequested: function(id) { root.markReadRequested(id) }
-                onRefreshRequested:            root.collaborationRefreshRequested()
+                onRefreshRequested:              root.collaborationRefreshRequested()
             }
         }
-
-        // Bottom padding
-        Item { width: parent.width; height: Theme.AppTheme.spacingLg }
     }
 }

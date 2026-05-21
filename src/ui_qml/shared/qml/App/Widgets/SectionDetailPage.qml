@@ -28,42 +28,21 @@ Item {
     visible: root.open
 
     function registerSection(index, yOffset) {
-        const nextOffsets = _sectionOffsets.slice()
-        while (nextOffsets.length <= index) {
-            nextOffsets.push(0)
-        }
-        nextOffsets[index] = yOffset
-        _sectionOffsets = nextOffsets
+        // no-op: section switching is now index-based, not scroll-position-based
     }
 
     function scrollToSection(index) {
         if (index < 0 || index >= root.sections.length) {
             return
         }
-        const target = index < _sectionOffsets.length ? _sectionOffsets[index] : 0
-        const maxY = Math.max(0, contentFlickable.contentHeight - contentFlickable.height)
-        contentFlickable.contentY = Math.max(0, Math.min(target, maxY))
         _activeIdx = index
+        contentFlickable.contentY = 0
     }
 
     property int _activeIdx: 0
-    property var _sectionOffsets: []
+    property var _sectionOffsets: []  // kept for API compat
 
-    function _updateActiveFromScroll() {
-        if (_sectionOffsets.length === 0) {
-            return
-        }
-        const y = contentFlickable.contentY
-        let best = 0
-        for (let i = 0; i < _sectionOffsets.length; i += 1) {
-            if (_sectionOffsets[i] <= y + 28) {
-                best = i
-            }
-        }
-        if (_activeIdx !== best) {
-            _activeIdx = best
-        }
-    }
+    function _updateActiveFromScroll() {}
 
     Rectangle {
         anchors.fill: parent
@@ -318,8 +297,6 @@ Item {
                     contentWidth: width
                     contentHeight: contentColumn.implicitHeight + Theme.AppTheme.pagePadding
                     clip: true
-
-                    onContentYChanged: root._updateActiveFromScroll()
 
                     Column {
                         id: contentColumn
