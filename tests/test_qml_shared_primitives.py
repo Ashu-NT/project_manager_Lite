@@ -1,9 +1,12 @@
 from pathlib import Path
 
+from PySide6.QtCore import QSettings
+
 
 QMLLS_CONFIG = Path(".qmlls.ini")
 UI_QML_ROOT = Path("src/ui_qml")
 QML_SHARED_ROOT = Path("src/ui_qml/shared/qml/App")
+QML_SHARED_MODELS = Path("src/ui_qml/shared/qml/App/Models")
 QML_SHELL_CONTEXT = Path("src/ui_qml/shell/qml/Shell/Context")
 QML_SHELL_CONTROLLERS = Path("src/ui_qml/shell/qml/Shell/Controllers")
 QML_PLATFORM_ROOT = Path("src/ui_qml/platform/qml")
@@ -43,6 +46,8 @@ def test_qml_shared_theme_primitives_exist() -> None:
     expected_files = [
         QML_SHARED_ROOT / "Theme" / "AppTheme.qml",
         QML_SHARED_ROOT / "Theme" / "qmldir",
+        QML_SHARED_MODELS / "qmldir",
+        QML_SHARED_MODELS / "plugins.qmltypes",
         QML_SHARED_ROOT / "Controls" / "PrimaryButton.qml",
         QML_SHARED_ROOT / "Controls" / "qmldir",
         QML_SHARED_ROOT / "Widgets" / "MetricCard.qml",
@@ -61,6 +66,7 @@ def test_qml_shared_theme_primitives_exist() -> None:
 def test_qml_modules_declare_stable_namespaces() -> None:
     expected_modules = {
         QML_SHARED_ROOT / "Theme" / "qmldir": "module App.Theme",
+        QML_SHARED_MODELS / "qmldir": "module App.Models",
         QML_SHARED_ROOT / "Controls" / "qmldir": "module App.Controls",
         QML_SHARED_ROOT / "Widgets" / "qmldir": "module App.Widgets",
         QML_SHARED_ROOT / "Layouts" / "qmldir": "module App.Layouts",
@@ -100,6 +106,19 @@ def test_qmlls_import_paths_cover_named_qml_modules() -> None:
 
     assert "src/ui_qml/modules;" not in config_text
     assert not config_text.rstrip().endswith("src/ui_qml/modules")
+
+
+def test_qmlls_import_paths_parse_as_qt_string_list() -> None:
+    settings = QSettings(str(QMLLS_CONFIG.resolve()), QSettings.IniFormat)
+    import_paths = settings.value("AdditionalQmlImportPaths")
+
+    assert isinstance(import_paths, list)
+    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/shared/qml" in import_paths
+    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/shell/qml" in import_paths
+    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/platform/qml" in import_paths
+    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/project_management/qml" in import_paths
+    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/inventory_procurement/qml" in import_paths
+    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/maintenance/qml" in import_paths
 
 
 def test_qml_platform_widgets_module_exists() -> None:

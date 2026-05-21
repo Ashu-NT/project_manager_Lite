@@ -3,8 +3,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
-import App.Widgets 1.0 as AppWidgets
-import App.Icons 1.0 as AppIcons
 import App.Models 1.0 as AppModels
 
 // Enterprise data table — Qt 6 TableView, true 2-D cell-based delegates.
@@ -136,9 +134,9 @@ Item {
     // Notify the header's columnWidthProvider when visible-column set changes.
     on_VisColsChanged: Qt.callLater(function() { _mainView.forceLayout() })
 
-    AppWidgets.TableColumnCustomizer {
+    TableColumnCustomizer {
         id: _colCustomizer
-        x: root.width - width - 4
+        x: root.width - _colCustomizer.width - 4
         y: 2
         columns: root.columns
         onColumnVisibilityChanged: function(draft) {
@@ -149,25 +147,27 @@ Item {
     // ── Sticky column header ──────────────────────────────────────────
     Rectangle {
         id: _header
-        anchors.top:   parent.top
-        anchors.left:  parent.left
-        anchors.right: parent.right
+        anchors.top:   root.top
+        anchors.left:  root.left
+        anchors.right: root.right
         height: Theme.AppTheme.normalRowHeight
         color:  Theme.AppTheme.surfaceAlt
         z: 2
 
         Row {
-            anchors.fill: parent
+            id: _headerRow
+            anchors.fill: _header
 
             // Checkbox select-all header (fixed, not scrolled)
             Item {
+                id: _selectAllHeaderCell
                 width:   root._cbColW
-                height:  parent.height
+                height:  _headerRow.height
                 visible: root.multiSelect
 
                 CheckBox {
                     id: _headerCb
-                    anchors.centerIn: parent
+                    anchors.centerIn: _selectAllHeaderCell
                     checkState: root._allChecked  ? Qt.Checked
                               : root._someChecked ? Qt.PartiallyChecked
                                                   : Qt.Unchecked
@@ -196,13 +196,15 @@ Item {
 
             // Scrollable header cells — offset synced with _mainView.contentX
             Item {
-                width:  parent.width - (root.multiSelect ? root._cbColW : 0)
-                height: parent.height
+                id: _headerScrollClip
+                width:  _headerRow.width - (root.multiSelect ? root._cbColW : 0)
+                height: _headerRow.height
                 clip:   true
 
                 Row {
+                    id: _headerScrollRow
                     x:      -_mainView.contentX
-                    height: parent.height
+                    height: _headerScrollClip.height
 
                     Repeater {
                         model: root._visCols
@@ -243,9 +245,9 @@ Item {
 
                             // Column separator
                             Rectangle {
-                                anchors.right:  parent.right
-                                anchors.top:    parent.top
-                                anchors.bottom: parent.bottom
+                                anchors.right:  _hCell.right
+                                anchors.top:    _hCell.top
+                                anchors.bottom: _hCell.bottom
                                 width: 1; color: Theme.AppTheme.divider
                                 visible: _hCell.index < root._visCols.length - 1
                             }
@@ -263,7 +265,7 @@ Item {
         }
 
         Rectangle {
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            anchors { left: _header.left; right: _header.right; bottom: _header.bottom }
             height: 1; color: Theme.AppTheme.divider
         }
     }
@@ -274,7 +276,7 @@ Item {
     TableView {
         id: _frozenView
         anchors.top:    _header.bottom
-        anchors.left:   parent.left
+        anchors.left:   root.left
         anchors.bottom: _hScrollBar.top
         width:   root.multiSelect ? root._cbColW : 0
         visible: root.multiSelect
@@ -323,6 +325,7 @@ Item {
 
             // Row background (matches _mainView row colors)
             Rectangle {
+                id: _cbCellBackground
                 anchors.fill: parent
                 color: _cbCell._hi
                     ? Theme.AppTheme.selectedSurface
@@ -334,7 +337,7 @@ Item {
                 // Left selection accent bar
                 Rectangle {
                     width: 2
-                    anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
+                    anchors { top: _cbCellBackground.top; bottom: _cbCellBackground.bottom; left: _cbCellBackground.left }
                     color:   Theme.AppTheme.accent
                     visible: _cbCell._hi
                 }
@@ -367,7 +370,7 @@ Item {
             }
 
             Rectangle {
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                anchors { left: _cbCell.left; right: _cbCell.right; bottom: _cbCell.bottom }
                 height: 1; color: Theme.AppTheme.divider
             }
 
@@ -387,7 +390,7 @@ Item {
         id: _mainView
         anchors.top:    _header.bottom
         anchors.left:   _frozenView.right
-        anchors.right:  parent.right
+        anchors.right:  root.right
         anchors.bottom: _hScrollBar.top
         clip:           true
         focus:          true
@@ -462,6 +465,7 @@ Item {
 
             // ── Cell background ───────────────────────────────────────
             Rectangle {
+                id: _cellBackground
                 anchors.fill: parent
                 color: _cell._hi
                     ? Theme.AppTheme.selectedSurface
@@ -474,15 +478,15 @@ Item {
                 Rectangle {
                     visible: _cell.column === 0 && _cell._hi
                     width: 2
-                    anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
+                    anchors { top: _cellBackground.top; bottom: _cellBackground.bottom; left: _cellBackground.left }
                     color: Theme.AppTheme.accent
                 }
             }
 
             // ── Status chip ───────────────────────────────────────────
-            AppWidgets.StatusChip {
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left:           parent.left
+            StatusChip {
+                anchors.verticalCenter: _cell.verticalCenter
+                anchors.left:           _cell.left
                 anchors.leftMargin:     Theme.AppTheme.spacingSm
                 visible: _cell._isSt && _cell.display.length > 0
                 status:  _cell.display
@@ -490,26 +494,27 @@ Item {
 
             // ── Progress bar + label ──────────────────────────────────
             Item {
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left:           parent.left
-                anchors.right:          parent.right
+                id: _progressCell
+                anchors.verticalCenter: _cell.verticalCenter
+                anchors.left:           _cell.left
+                anchors.right:          _cell.right
                 anchors.leftMargin:     Theme.AppTheme.spacingSm
                 anchors.rightMargin:    Theme.AppTheme.spacingSm
                 height:  20
                 visible: _cell._isPr
 
-                AppWidgets.ProgressBar {
-                    anchors.left:           parent.left
-                    anchors.right:          _pPct.visible ? _pPct.left : parent.right
+                ProgressBar {
+                    anchors.left:           _progressCell.left
+                    anchors.right:          _pPct.visible ? _pPct.left : _progressCell.right
                     anchors.rightMargin:    _pPct.visible ? Theme.AppTheme.spacingXs : 0
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenter: _progressCell.verticalCenter
                     value: _cell._pVal
                 }
 
                 Label {
                     id: _pPct
-                    anchors.right:          parent.right
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.right:          _progressCell.right
+                    anchors.verticalCenter: _progressCell.verticalCenter
                     visible:        _cell._pLbl.length > 0
                     text:           _cell._pLbl
                     color:          Theme.AppTheme.textMuted
@@ -536,7 +541,7 @@ Item {
 
             // ── Cell bottom divider ───────────────────────────────────
             Rectangle {
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                anchors { left: _cell.left; right: _cell.right; bottom: _cell.bottom }
                 height: 1; color: Theme.AppTheme.divider
             }
 
@@ -568,15 +573,15 @@ Item {
     ScrollBar {
         id: _hScrollBar
         anchors.left:   _frozenView.right
-        anchors.right:  parent.right
-        anchors.bottom: parent.bottom
+        anchors.right:  root.right
+        anchors.bottom: root.bottom
         orientation: Qt.Horizontal
         policy:      ScrollBar.AsNeeded
         height:      12
     }
 
     // ── Empty state ───────────────────────────────────────────────────
-    AppWidgets.EmptyState {
+    EmptyState {
         anchors.centerIn: _mainView
         width:   Math.min(_mainView.width, 320)
         visible: root.rows.length === 0 && !root.loading
@@ -586,8 +591,8 @@ Item {
     // ── Loading overlay ───────────────────────────────────────────────
     Item {
         anchors.top:    _header.bottom
-        anchors.left:   parent.left
-        anchors.right:  parent.right
+        anchors.left:   root.left
+        anchors.right:  root.right
         anchors.bottom: _hScrollBar.top
         visible: root.loading
         z: 5
