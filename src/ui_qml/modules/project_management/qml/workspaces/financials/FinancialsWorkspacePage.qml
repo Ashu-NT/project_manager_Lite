@@ -80,6 +80,17 @@ AppLayouts.WorkspaceFrame {
         { "id": "delete", "label": "Delete",        "icon": "delete", "enabled": true, "danger": true  }
     ]
 
+    readonly property var _bulkChangeProperties: {
+        const props = []
+        const costTypeOpts = root.workspaceController
+            ? (root.workspaceController.bulkCostTypeOptions || [])
+            : []
+        if (costTypeOpts.length > 0) {
+            props.push({ "id": "costType", "label": "Cost Type", "values": costTypeOpts })
+        }
+        return props
+    }
+
     function _optionIndexForValue(options, value) {
         const optionList = options || []
         for (let i = 0; i < optionList.length; i += 1) {
@@ -194,12 +205,17 @@ AppLayouts.WorkspaceFrame {
 
                     AppWidgets.DataTable {
                         id: costsTable
-                        anchors.fill: parent
+                        anchors.top:    parent.top
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: _paginationBar.top
+                        multiSelect: true
                         columns: root._tableColumns
                         rows: root.costsModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.costsModel.emptyState || "No cost items available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedCostId : ""
+                        selectedRowIds: root.workspaceController ? (root.workspaceController.selectedCostIds || []) : []
 
                         onRowSelected: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
@@ -212,7 +228,76 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
                             detailPage.open = true
                         }
+                        onRowSelectionToggled: function(rowId, selected) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setCostBulkSelection(rowId, selected)
+                        }
+                        onSelectAllToggled: function(allSelected) {
+                            if (root.workspaceController === null) return
+                            if (allSelected) root.workspaceController.selectVisibleCosts()
+                            else root.workspaceController.clearCostBulkSelection()
+                        }
                         onSortRequested: function(key) {}
+                    }
+
+                    AppWidgets.TablePaginationBar {
+                        id: _paginationBar
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: parent.bottom
+                        currentPage:  root.workspaceController ? root.workspaceController.costPage      : 1
+                        pageSize:     root.workspaceController ? root.workspaceController.costPageSize   : 25
+                        totalItems:   root.workspaceController ? root.workspaceController.costTotalCount : 0
+                        busy:         root.workspaceController ? root.workspaceController.isBusy         : false
+                        onPageRequested: function(page) {
+                            if (root.workspaceController !== null) root.workspaceController.setCostPage(page)
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            if (root.workspaceController !== null) root.workspaceController.setCostPageSize(pageSize)
+                        }
+                    }
+
+                    AppWidgets.BulkActionBar {
+                        id: _bulkActionBar
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: _paginationBar.top
+                        anchors.bottomMargin: Theme.AppTheme.spacingMd
+                        z: 10
+                        selectedCount: root.workspaceController ? root.workspaceController.selectedCostCount : 0
+                        busy: root.workspaceController ? root.workspaceController.isBusy : false
+                        actions: [
+                            { "id": "delete",          "label": "Delete",          "icon": "delete", "danger": true,  "enabled": true },
+                            { "id": "change_property", "label": "Change Cost Type","icon": "edit",   "danger": false, "enabled": true }
+                        ]
+
+                        onCancelRequested: {
+                            if (root.workspaceController !== null) root.workspaceController.clearCostBulkSelection()
+                        }
+                        onActionTriggered: function(actionId) {
+                            if (actionId === "delete") {
+                                root.workspaceController.bulkDeleteCosts(
+                                    root.workspaceController ? (root.workspaceController.selectedCostIds || []) : []
+                                )
+                            } else if (actionId === "change_property") {
+                                _bulkChangePropertyPopup.open()
+                            }
+                        }
+                    }
+
+                    AppWidgets.BulkChangePropertyPopup {
+                        id: _bulkChangePropertyPopup
+                        parent: _bulkActionBar
+                        x: Math.round((_bulkActionBar.width - width) / 2)
+                        y: -height - Theme.AppTheme.spacingXs
+                        selectedCount: root.workspaceController ? root.workspaceController.selectedCostCount : 0
+                        busy: root.workspaceController ? root.workspaceController.isBusy : false
+                        properties: root._bulkChangeProperties
+
+                        onApplyRequested: function(payload) {
+                            if (root.workspaceController === null) return
+                            if (payload.propertyId === "costType")
+                                root.workspaceController.applyBulkCostType({ "value": payload.value })
+                        }
                     }
 
                     // ── Filter popup ──────────────────────────────────────

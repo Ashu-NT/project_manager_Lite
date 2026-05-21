@@ -193,12 +193,17 @@ AppLayouts.WorkspaceFrame {
 
                     AppWidgets.DataTable {
                         id: reviewTable
-                        anchors.fill: parent
+                        anchors.top:    parent.top
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: _paginationBar.top
+                        multiSelect: true
                         columns: root._tableColumns
                         rows: root.reviewQueueModel.items || []
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.reviewQueueModel.emptyState || "No timesheet periods available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedQueuePeriodId : ""
+                        selectedRowIds: root.workspaceController ? (root.workspaceController.selectedQueuePeriodIds || []) : []
 
                         onRowSelected: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
@@ -211,7 +216,59 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
                             detailPage.open = true
                         }
+                        onRowSelectionToggled: function(rowId, selected) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setQueueBulkSelection(rowId, selected)
+                        }
+                        onSelectAllToggled: function(allSelected) {
+                            if (root.workspaceController === null) return
+                            if (allSelected) root.workspaceController.selectVisibleQueuePeriods()
+                            else root.workspaceController.clearQueueBulkSelection()
+                        }
                         onSortRequested: function(key) {}
+                    }
+
+                    AppWidgets.TablePaginationBar {
+                        id: _paginationBar
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: parent.bottom
+                        currentPage:  root.workspaceController ? root.workspaceController.queuePage       : 1
+                        pageSize:     root.workspaceController ? root.workspaceController.queuePageSize    : 25
+                        totalItems:   root.workspaceController ? root.workspaceController.queueTotalCount  : 0
+                        busy:         root.workspaceController ? root.workspaceController.isBusy           : false
+                        onPageRequested: function(page) {
+                            if (root.workspaceController !== null) root.workspaceController.setQueuePage(page)
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            if (root.workspaceController !== null) root.workspaceController.setQueuePageSize(pageSize)
+                        }
+                    }
+
+                    AppWidgets.BulkActionBar {
+                        id: _bulkActionBar
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: _paginationBar.top
+                        anchors.bottomMargin: Theme.AppTheme.spacingMd
+                        z: 10
+                        selectedCount: root.workspaceController ? root.workspaceController.selectedQueuePeriodCount : 0
+                        busy: root.workspaceController ? root.workspaceController.isBusy : false
+                        actions: [
+                            { "id": "approve", "label": "Approve", "icon": "approve", "danger": false, "enabled": true },
+                            { "id": "reject",  "label": "Reject",  "icon": "close",   "danger": true,  "enabled": true }
+                        ]
+
+                        onCancelRequested: {
+                            if (root.workspaceController !== null) root.workspaceController.clearQueueBulkSelection()
+                        }
+                        onActionTriggered: function(actionId) {
+                            if (root.workspaceController === null) return
+                            const ids = root.workspaceController.selectedQueuePeriodIds || []
+                            if (actionId === "approve")
+                                root.workspaceController.bulkApprovePeriods(ids)
+                            else if (actionId === "reject")
+                                root.workspaceController.bulkRejectPeriods(ids)
+                        }
                     }
 
                     // ── Filter popup ──────────────────────────────────────

@@ -40,6 +40,11 @@ class ProjectManagementRegisterWorkspaceController(
     selectedEntryChanged = Signal()
     selectedEntryIdChanged = Signal()
     urgentEntriesChanged = Signal()
+    entryPageChanged = Signal()
+    entryPageSizeChanged = Signal()
+    entryTotalCountChanged = Signal()
+    selectedEntryIdsChanged = Signal()
+    selectedEntryCountChanged = Signal()
 
     def __init__(
         self,
@@ -88,6 +93,10 @@ class ProjectManagementRegisterWorkspaceController(
             "emptyState": "",
             "items": [],
         }
+        self._entry_page = 1
+        self._entry_page_size = 25
+        self._entry_total_count = 0
+        self._selected_entry_ids: list[str] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -147,6 +156,30 @@ class ProjectManagementRegisterWorkspaceController(
     def urgentEntries(self) -> dict[str, object]:
         return self._urgent_entries
 
+    @Property("QVariantList", notify=statusOptionsChanged)
+    def bulkStatusOptions(self) -> list[dict[str, str]]:
+        return [o for o in self._status_options if str(o.get("value", "")).lower() != "all"]
+
+    @Property(int, notify=entryPageChanged)
+    def entryPage(self) -> int:
+        return self._entry_page
+
+    @Property(int, notify=entryPageSizeChanged)
+    def entryPageSize(self) -> int:
+        return self._entry_page_size
+
+    @Property(int, notify=entryTotalCountChanged)
+    def entryTotalCount(self) -> int:
+        return self._entry_total_count
+
+    @Property("QVariantList", notify=selectedEntryIdsChanged)
+    def selectedEntryIds(self) -> list[str]:
+        return self._selected_entry_ids
+
+    @Property(int, notify=selectedEntryCountChanged)
+    def selectedEntryCount(self) -> int:
+        return len(self._selected_entry_ids)
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -189,6 +222,7 @@ class ProjectManagementRegisterWorkspaceController(
             self._set_entries(
                 serialize_register_collection_view_model(workspace_state.entries)
             )
+            self._set_entry_total_count(len(self._entries.get("items") or []))
             self._set_selected_entry_id(workspace_state.selected_entry_id)
             self._set_selected_entry(
                 serialize_register_detail_view_model(
@@ -253,6 +287,80 @@ class ProjectManagementRegisterWorkspaceController(
             return
         self._set_selected_entry_id(normalized_value)
         self.refresh()
+
+    @Slot(int)
+    def setEntryPage(self, page: int) -> None:
+        p = max(1, page)
+        if p == self._entry_page:
+            return
+        self._set_entry_page(p)
+        self.refresh()
+
+    @Slot(int)
+    def setEntryPageSize(self, page_size: int) -> None:
+        if page_size <= 0 or page_size == self._entry_page_size:
+            return
+        self._entry_page_size = page_size
+        self.entryPageSizeChanged.emit()
+        self._set_entry_page(1)
+        self.refresh()
+
+    @Slot(str, bool)
+    def setEntryBulkSelection(self, entry_id: str, selected: bool) -> None:
+        ids = list(self._selected_entry_ids)
+        if selected:
+            if entry_id not in ids:
+                ids.append(entry_id)
+        else:
+            ids = [i for i in ids if i != entry_id]
+        self._set_selected_entry_ids(ids)
+
+    @Slot()
+    def selectVisibleEntries(self) -> None:
+        ids = [
+            str(item.get("id", ""))
+            for item in (self._entries.get("items") or [])
+            if item.get("id")
+        ]
+        self._set_selected_entry_ids(ids)
+
+    @Slot()
+    def clearEntryBulkSelection(self) -> None:
+        self._set_selected_entry_ids([])
+
+    @Slot("QVariantList", result="QVariantMap")
+    def bulkDeleteEntries(self, entry_ids: list) -> dict[str, object]:
+        ids = [str(i) for i in (entry_ids or [])]
+        if not ids:
+            return {"ok": False, "message": "No entries selected."}
+        return run_mutation(
+            operation=lambda: [
+                self._register_workspace_presenter.delete_entry(i) for i in ids
+            ],
+            success_message=f"{len(ids)} register entry/entries deleted.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkEntryStatus(self, payload: dict[str, object]) -> dict[str, object]:
+        ids = list(self._selected_entry_ids)
+        status = str(payload.get("value") or payload.get("status") or "")
+        if not ids or not status:
+            return {"ok": False, "message": "No entries or status selected."}
+        return run_mutation(
+            operation=lambda: [
+                self._register_workspace_presenter.update_entry({"id": i, "status": status})
+                for i in ids
+            ],
+            success_message=f"Status updated for {len(ids)} entry/entries.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createEntry(self, payload: dict[str, object]) -> dict[str, object]:
@@ -383,6 +491,25 @@ class ProjectManagementRegisterWorkspaceController(
             return
         self._urgent_entries = urgent_entries
         self.urgentEntriesChanged.emit()
+
+    def _set_entry_page(self, v: int) -> None:
+        if v == self._entry_page:
+            return
+        self._entry_page = v
+        self.entryPageChanged.emit()
+
+    def _set_entry_total_count(self, v: int) -> None:
+        if v == self._entry_total_count:
+            return
+        self._entry_total_count = v
+        self.entryTotalCountChanged.emit()
+
+    def _set_selected_entry_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_entry_ids:
+            return
+        self._selected_entry_ids = ids
+        self.selectedEntryIdsChanged.emit()
+        self.selectedEntryCountChanged.emit()
 
 
 __all__ = ["ProjectManagementRegisterWorkspaceController"]

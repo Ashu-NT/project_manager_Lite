@@ -1,6 +1,9 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -19,9 +22,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "routeId": "project_management.register",
             "title": "Register",
-            "summary": "Controlled project register records and governance-facing project history.",
-            "migrationStatus": "QML landing zone ready",
-            "legacyRuntimeStatus": "Existing QWidget register workspace remains active"
+            "summary": "Controlled project register records and governance-facing project history."
         })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
@@ -35,7 +36,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "title": "Project Register",
             "subtitle": "Track risks, issues, and changes across the selected project scope.",
-            "emptyState": "Project-management register desktop API is not connected in this QML preview.",
+            "emptyState": "Select a project to review register entries.",
             "items": []
         })
     readonly property var selectedEntryModel: root.workspaceController
@@ -55,7 +56,7 @@ AppLayouts.WorkspaceFrame {
         : ({
             "title": "Urgent Review Queue",
             "subtitle": "Severity-first shortlist to help triage what needs attention next.",
-            "emptyState": "No urgent register items are available in this QML preview.",
+            "emptyState": "No urgent register items.",
             "items": []
         })
 
@@ -70,6 +71,30 @@ AppLayouts.WorkspaceFrame {
         { "key": "ownerName",    "label": "Owner",    "flex": 1.5                    },
         { "key": "dueDateLabel", "label": "Due",      "flex": 0,   "minWidth": 90    }
     ]
+
+    readonly property var _detailActions: [
+        { "id": "edit",   "label": "Edit",   "icon": "edit",   "enabled": true, "danger": false },
+        { "id": "delete", "label": "Delete", "icon": "delete", "enabled": true, "danger": true  }
+    ]
+
+    readonly property var _bulkChangeProperties: {
+        const props = []
+        const statusOpts = root.workspaceController
+            ? (root.workspaceController.bulkStatusOptions || [])
+            : []
+        if (statusOpts.length > 0) {
+            props.push({ "id": "status", "label": "Status", "values": statusOpts })
+        }
+        return props
+    }
+
+    function _optionIndexForValue(options, value) {
+        const optionList = options || []
+        for (let i = 0; i < optionList.length; i += 1) {
+            if (String(optionList[i].value || "") === String(value || "")) return i
+        }
+        return 0
+    }
 
     ProjectManagementWidgets.RegisterDialogHost {
         id: dialogHost
@@ -93,195 +118,419 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    ColumnLayout {
+    // ── Stacked layout: list page / detail page ───────────────────────
+    Item {
         anchors.fill: parent
-        spacing: Theme.AppTheme.spacingSm
 
-        AppWidgets.KpiStrip {
-            Layout.fillWidth: true
-            metrics: root.overviewModel.metrics || []
-        }
-
-        ProjectManagementWidgets.WorkspaceStateBanner {
-            Layout.fillWidth: true
-            isLoading: root.workspaceController ? root.workspaceController.isLoading : false
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-            errorMessage: root.workspaceController ? root.workspaceController.errorMessage : ""
-            feedbackMessage: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-        }
-
-        ProjectManagementWidgets.WorkspaceStatusSection {
-            visible: false
-            Layout.fillWidth: true
-            migrationStatus: root.workspaceController
-                ? "QML governance register slice active"
-                : (root.workspaceModel.migrationStatus || "")
-            legacyRuntimeStatus: root.workspaceModel.legacyRuntimeStatus || ""
-            architectureStatus: "Desktop API + typed controller"
-            architectureSummary: "Cross-project risks, issues, changes, and governance review flows now run through a typed PM controller backed by the register desktop API."
-        }
-
-        AppWidgets.TableToolbar {
-            id: tableToolbar
-            Layout.fillWidth: true
-            searchPlaceholder: "Search register entries…"
-            showCreate: true
-            createLabel: "New Entry"
-            showRefresh: true
-            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-            onSearchChanged: function(text) {
-                if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
-            }
-            onRefreshRequested: {
-                if (root.workspaceController !== null) root.workspaceController.refresh()
-            }
-            onCreateRequested: dialogHost.openCreateDialog()
-        }
-
-        // ── Full-width table with full-page detail view ───────────────
+        // ── List page (hidden when detail is open) ────────────────────
         Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
+            id: _listPage
+            anchors.fill: parent
+            visible: !detailPage.open
 
-            AppWidgets.DataTable {
-                id: registerTable
+            ColumnLayout {
                 anchors.fill: parent
-                columns: root._tableColumns
-                rows: root.entriesModel.items || []
-                selectedRowId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
-                showFilter: true
+                spacing: Theme.AppTheme.spacingSm
 
-                onFilterClicked: filterPopup.open()
-                onRowSelected: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
+                AppWidgets.KpiStrip {
+                    Layout.fillWidth: true
+                    metrics: root.overviewModel.metrics || []
                 }
-                onRowActivated: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: (root.workspaceController ? root.workspaceController.isLoading : false)
+                        && !(root.workspaceController ? root.workspaceController.isBusy : false)
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "info"
+                    message: "Loading register..."
                 }
-                onViewDetailRequested: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
-                    detailPage.open = true
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: root.workspaceController
+                        ? root.workspaceController.isBusy && String(root.workspaceController.errorMessage || "").length === 0
+                        : false
+                    tone: "info"
+                    message: "Saving changes..."
                 }
-                onSortRequested: function(key) {}
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                }
+
+                AppWidgets.TableToolbar {
+                    id: tableToolbar
+                    Layout.fillWidth: true
+                    searchPlaceholder: "Search register entries..."
+                    showCreate: true
+                    createLabel: "New Entry"
+                    showFilter: true
+                    showCustomize: true
+                    showViews: true
+                    showRefresh: true
+                    showExport: true
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+
+                    onSearchChanged: function(text) {
+                        if (root.workspaceController !== null) root.workspaceController.setSearchText(text)
+                    }
+                    onFilterClicked: filterPopup.open()
+                    onCustomizeClicked: registerTable.openColumnCustomizer()
+                    onViewsClicked: viewsPopup.open()
+                    onRefreshRequested: {
+                        if (root.workspaceController !== null) root.workspaceController.refresh()
+                    }
+                    onExportRequested: {}
+                    onCreateRequested: dialogHost.openCreateDialog()
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+
+                    AppWidgets.DataTable {
+                        id: registerTable
+                        anchors.top:    parent.top
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: _paginationBar.top
+                        multiSelect: true
+                        columns: root._tableColumns
+                        rows: root.entriesModel.items || []
+                        loading: root.workspaceController ? root.workspaceController.isLoading : false
+                        emptyText: root.entriesModel.emptyState || "No register entries available."
+                        selectedRowId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                        selectedRowIds: root.workspaceController ? (root.workspaceController.selectedEntryIds || []) : []
+
+                        onRowSelected: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
+                        }
+                        onRowActivated: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
+                            detailPage.open = true
+                        }
+                        onViewDetailRequested: function(rowId) {
+                            if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)
+                            detailPage.open = true
+                        }
+                        onRowSelectionToggled: function(rowId, selected) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setEntryBulkSelection(rowId, selected)
+                        }
+                        onSelectAllToggled: function(allSelected) {
+                            if (root.workspaceController === null) return
+                            if (allSelected) root.workspaceController.selectVisibleEntries()
+                            else root.workspaceController.clearEntryBulkSelection()
+                        }
+                        onSortRequested: function(key) {}
+                    }
+
+                    AppWidgets.TablePaginationBar {
+                        id: _paginationBar
+                        anchors.left:   parent.left
+                        anchors.right:  parent.right
+                        anchors.bottom: parent.bottom
+                        currentPage:  root.workspaceController ? root.workspaceController.entryPage       : 1
+                        pageSize:     root.workspaceController ? root.workspaceController.entryPageSize    : 25
+                        totalItems:   root.workspaceController ? root.workspaceController.entryTotalCount  : 0
+                        busy:         root.workspaceController ? root.workspaceController.isBusy           : false
+                        onPageRequested: function(page) {
+                            if (root.workspaceController !== null) root.workspaceController.setEntryPage(page)
+                        }
+                        onPageSizeRequested: function(pageSize) {
+                            if (root.workspaceController !== null) root.workspaceController.setEntryPageSize(pageSize)
+                        }
+                    }
+
+                    AppWidgets.BulkActionBar {
+                        id: _bulkActionBar
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: _paginationBar.top
+                        anchors.bottomMargin: Theme.AppTheme.spacingMd
+                        z: 10
+                        selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
+                        busy: root.workspaceController ? root.workspaceController.isBusy : false
+                        actions: [
+                            { "id": "delete",          "label": "Delete",         "icon": "delete", "danger": true,  "enabled": true },
+                            { "id": "change_property", "label": "Change Status",  "icon": "edit",   "danger": false, "enabled": true }
+                        ]
+
+                        onCancelRequested: {
+                            if (root.workspaceController !== null) root.workspaceController.clearEntryBulkSelection()
+                        }
+                        onActionTriggered: function(actionId) {
+                            if (root.workspaceController === null) return
+                            if (actionId === "delete") {
+                                root.workspaceController.bulkDeleteEntries(
+                                    root.workspaceController.selectedEntryIds || []
+                                )
+                            } else if (actionId === "change_property") {
+                                _bulkChangePropertyPopup.open()
+                            }
+                        }
+                    }
+
+                    AppWidgets.BulkChangePropertyPopup {
+                        id: _bulkChangePropertyPopup
+                        parent: _bulkActionBar
+                        x: Math.round((_bulkActionBar.width - width) / 2)
+                        y: -height - Theme.AppTheme.spacingXs
+                        selectedCount: root.workspaceController ? root.workspaceController.selectedEntryCount : 0
+                        busy: root.workspaceController ? root.workspaceController.isBusy : false
+                        properties: root._bulkChangeProperties
+
+                        onApplyRequested: function(payload) {
+                            if (root.workspaceController === null) return
+                            if (payload.propertyId === "status")
+                                root.workspaceController.applyBulkEntryStatus({ "value": payload.value })
+                        }
+                    }
+
+                    // ── Filter popup ──────────────────────────────────────
+                    Popup {
+                        id: filterPopup
+                        parent: tableToolbar
+                        width: 280
+                        padding: Theme.AppTheme.marginMd
+                        x: tableToolbar.width - width
+                        y: tableToolbar.height + Theme.AppTheme.spacingXs
+                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                        background: Rectangle {
+                            radius: Theme.AppTheme.radiusLg
+                            color: Theme.AppTheme.surfaceRaised
+                            border.color: Theme.AppTheme.divider
+                            border.width: 1
+                        }
+
+                        contentItem: ColumnLayout {
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                text: "Project"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedProjectId : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index])
+                                        root.workspaceController.selectProject(String(opts[index].value || "all"))
+                                }
+                            }
+
+                            Label {
+                                text: "Type"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.typeOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedTypeFilter : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index])
+                                        root.workspaceController.setTypeFilter(String(opts[index].value || "all"))
+                                }
+                            }
+
+                            Label {
+                                text: "Status"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.statusOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index])
+                                        root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
+                                }
+                            }
+
+                            Label {
+                                text: "Severity"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.severityOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedSeverityFilter : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index])
+                                        root.workspaceController.setSeverityFilter(String(opts[index].value || "all"))
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.AppTheme.spacingSm
+
+                                AppControls.SecondaryButton {
+                                    Layout.fillWidth: true
+                                    text: "Clear"
+                                    iconName: "close"
+                                    onClicked: {
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.selectProject("all")
+                                            root.workspaceController.setTypeFilter("all")
+                                            root.workspaceController.setStatusFilter("all")
+                                            root.workspaceController.setSeverityFilter("all")
+                                        }
+                                        filterPopup.close()
+                                    }
+                                }
+                                AppControls.SecondaryButton {
+                                    Layout.fillWidth: true
+                                    text: "Close"
+                                    iconName: "close"
+                                    onClicked: filterPopup.close()
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Views popup ───────────────────────────────────────
+                    Popup {
+                        id: viewsPopup
+                        parent: tableToolbar
+                        width: 260
+                        padding: Theme.AppTheme.marginMd
+                        x: tableToolbar.width - width
+                        y: tableToolbar.height + Theme.AppTheme.spacingXs
+                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                        background: Rectangle {
+                            radius: Theme.AppTheme.radiusLg
+                            color: Theme.AppTheme.surfaceRaised
+                            border.color: Theme.AppTheme.divider
+                            border.width: 1
+                        }
+
+                        contentItem: ColumnLayout {
+                            spacing: Theme.AppTheme.spacingSm
+
+                            Label {
+                                text: "View by Type"
+                                font.bold: true
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.family: Theme.AppTheme.fontFamily
+                                color: Theme.AppTheme.textMuted
+                            }
+
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                                textRole: "label"
+                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                currentIndex: root._optionIndexForValue(
+                                    root.workspaceController ? (root.workspaceController.typeOptions || []) : [],
+                                    root.workspaceController ? root.workspaceController.selectedTypeFilter : "all"
+                                )
+                                onActivated: function(index) {
+                                    const opts = root.workspaceController ? (root.workspaceController.typeOptions || []) : []
+                                    if (root.workspaceController !== null && opts[index]) {
+                                        root.workspaceController.setTypeFilter(String(opts[index].value || "all"))
+                                        viewsPopup.close()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
 
-            Popup {
-                id: filterPopup
-                parent: registerTable
-                width: 260
-                padding: 12
-                x: registerTable.width - width - 4
-                y: 30
-                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        // ── Detail page (covers full area, z:20) ─────────────────────────
+        AppWidgets.SectionDetailPage {
+            id: detailPage
+            anchors.fill: parent
+            open: false
+            showHeader: false
+            showEdit: false
+            showDelete: false
+            isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+            sections: ["Details", "Impact", "Response", "Links"]
+            z: 20
 
-                Column {
-                    width: parent.width
-                    spacing: 8
-
-                    Label {
-                        text: "Project"
-                        font.bold: true
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        color: Theme.AppTheme.textMuted
-                    }
-                    ComboBox {
-                        width: parent.width
-                        model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                        textRole: "label"
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.selectProject(String(opts[index].value || "all"))
-                        }
-                    }
-
-                    Label {
-                        text: "Type"
-                        font.bold: true
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        color: Theme.AppTheme.textMuted
-                    }
-                    ComboBox {
-                        width: parent.width
-                        model: root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-                        textRole: "label"
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.typeOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.setTypeFilter(String(opts[index].value || "all"))
-                        }
-                    }
-
-                    Label {
-                        text: "Status"
-                        font.bold: true
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        color: Theme.AppTheme.textMuted
-                    }
-                    ComboBox {
-                        width: parent.width
-                        model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                        textRole: "label"
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.setStatusFilter(String(opts[index].value || "all"))
-                        }
-                    }
-
-                    Label {
-                        text: "Severity"
-                        font.bold: true
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        color: Theme.AppTheme.textMuted
-                    }
-                    ComboBox {
-                        width: parent.width
-                        model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []
-                        textRole: "label"
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.setSeverityFilter(String(opts[index].value || "all"))
-                        }
-                    }
-                }
-            }
-
-            AppWidgets.SectionDetailPage {
-                id: detailPage
-                anchors.fill: parent
-                title: root.selectedEntryModel.title || "Entry Details"
-                open: false
-                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                sections: ["Details", "Impact", "Response", "Links"]
+            AppWidgets.ContextualActionToolbar {
+                width: parent ? parent.width : 0
+                showBack: true
+                title: root.selectedEntryModel.title || "Register Entry"
+                subtitle: root.selectedEntryModel.statusLabel || root.selectedEntryModel.subtitle || ""
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                actions: root._detailActions
 
                 onBackRequested: detailPage.open = false
+                onActionTriggered: function(actionId) {
+                    if (actionId === "edit") {
+                        dialogHost.openEditDialog(root.selectedEntryModel)
+                    } else if (actionId === "delete") {
+                        dialogHost.openDeleteDialog(root.selectedEntryModel)
+                    }
+                }
+            }
+
+            RegisterDetailPanel {
+                width: parent ? parent.width : 0
+                detailPage: detailPage
+                entryDetail: root.selectedEntryModel
+                urgentModel: root.urgentModel
+                selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
+                isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
                 onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
-
-                RegisterDetailPanel {
-                    width: parent.width
-                    detailPage: detailPage
-                    entryDetail: root.selectedEntryModel
-                    urgentModel: root.urgentModel
-                    selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    onEditRequested: dialogHost.openEditDialog(root.selectedEntryModel)
-                    onDeleteRequested: dialogHost.openDeleteDialog(root.selectedEntryModel)
-                    onUrgentEntrySelected: function(entryId) {
-                        if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
-                    }
+                onUrgentEntrySelected: function(entryId) {
+                    if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
                 }
             }
         }

@@ -42,6 +42,11 @@ class ProjectManagementFinancialsWorkspaceController(
     sourceAnalyticsChanged = Signal()
     costTypeAnalyticsChanged = Signal()
     notesChanged = Signal()
+    costPageChanged = Signal()
+    costPageSizeChanged = Signal()
+    costTotalCountChanged = Signal()
+    selectedCostIdsChanged = Signal()
+    selectedCostCountChanged = Signal()
 
     def __init__(
         self,
@@ -86,6 +91,10 @@ class ProjectManagementFinancialsWorkspaceController(
         self._source_analytics: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._cost_type_analytics: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._notes: list[str] = []
+        self._cost_page = 1
+        self._cost_page_size = 25
+        self._cost_total_count = 0
+        self._selected_cost_ids: list[str] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -149,6 +158,30 @@ class ProjectManagementFinancialsWorkspaceController(
     def notes(self) -> list[str]:
         return self._notes
 
+    @Property("QVariantList", notify=costTypeOptionsChanged)
+    def bulkCostTypeOptions(self) -> list[dict[str, object]]:
+        return [o for o in self._cost_type_options if str(o.get("value", "")).lower() != "all"]
+
+    @Property(int, notify=costPageChanged)
+    def costPage(self) -> int:
+        return self._cost_page
+
+    @Property(int, notify=costPageSizeChanged)
+    def costPageSize(self) -> int:
+        return self._cost_page_size
+
+    @Property(int, notify=costTotalCountChanged)
+    def costTotalCount(self) -> int:
+        return self._cost_total_count
+
+    @Property("QVariantList", notify=selectedCostIdsChanged)
+    def selectedCostIds(self) -> list[str]:
+        return self._selected_cost_ids
+
+    @Property(int, notify=selectedCostCountChanged)
+    def selectedCostCount(self) -> int:
+        return len(self._selected_cost_ids)
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -184,6 +217,7 @@ class ProjectManagementFinancialsWorkspaceController(
             self._set_costs(
                 serialize_financials_collection_view_model(workspace_state.costs)
             )
+            self._set_cost_total_count(len(self._costs.get("items") or []))
             self._set_selected_cost_id(workspace_state.selected_cost_id)
             self._set_selected_cost(
                 serialize_financials_detail_view_model(
@@ -249,6 +283,82 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot()
     def exportFinancials(self) -> None:
         pass  # TODO: implement financials export when backend export service is available
+
+    @Slot(int)
+    def setCostPage(self, page: int) -> None:
+        p = max(1, page)
+        if p == self._cost_page:
+            return
+        self._set_cost_page(p)
+        self.refresh()
+
+    @Slot(int)
+    def setCostPageSize(self, page_size: int) -> None:
+        if page_size <= 0 or page_size == self._cost_page_size:
+            return
+        self._cost_page_size = page_size
+        self.costPageSizeChanged.emit()
+        self._set_cost_page(1)
+        self.refresh()
+
+    @Slot(str, bool)
+    def setCostBulkSelection(self, cost_id: str, selected: bool) -> None:
+        ids = list(self._selected_cost_ids)
+        if selected:
+            if cost_id not in ids:
+                ids.append(cost_id)
+        else:
+            ids = [i for i in ids if i != cost_id]
+        self._set_selected_cost_ids(ids)
+
+    @Slot()
+    def selectVisibleCosts(self) -> None:
+        ids = [
+            str(item.get("id", ""))
+            for item in (self._costs.get("items") or [])
+            if item.get("id")
+        ]
+        self._set_selected_cost_ids(ids)
+
+    @Slot()
+    def clearCostBulkSelection(self) -> None:
+        self._set_selected_cost_ids([])
+
+    @Slot("QVariantList", result="QVariantMap")
+    def bulkDeleteCosts(self, cost_ids: list) -> dict[str, object]:
+        ids = [str(i) for i in (cost_ids or [])]
+        if not ids:
+            return {"ok": False, "message": "No cost items selected."}
+        return run_mutation(
+            operation=lambda: [
+                self._financials_workspace_presenter.delete_cost_item(i) for i in ids
+            ],
+            success_message=f"{len(ids)} cost item(s) deleted.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def applyBulkCostType(self, payload: dict[str, object]) -> dict[str, object]:
+        ids = list(self._selected_cost_ids)
+        cost_type = str(payload.get("value") or payload.get("costType") or "")
+        if not ids or not cost_type:
+            return {"ok": False, "message": "No items or cost type selected."}
+        return run_mutation(
+            operation=lambda: [
+                self._financials_workspace_presenter.update_cost_item(
+                    {"id": i, "costType": cost_type}
+                )
+                for i in ids
+            ],
+            success_message=f"Cost type updated for {len(ids)} item(s).",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
 
     @Slot("QVariantMap", result="QVariantMap")
     def createCostItem(self, payload: dict[str, object]) -> dict[str, object]:
@@ -386,6 +496,25 @@ class ProjectManagementFinancialsWorkspaceController(
             return
         self._notes = notes
         self.notesChanged.emit()
+
+    def _set_cost_page(self, v: int) -> None:
+        if v == self._cost_page:
+            return
+        self._cost_page = v
+        self.costPageChanged.emit()
+
+    def _set_cost_total_count(self, v: int) -> None:
+        if v == self._cost_total_count:
+            return
+        self._cost_total_count = v
+        self.costTotalCountChanged.emit()
+
+    def _set_selected_cost_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_cost_ids:
+            return
+        self._selected_cost_ids = ids
+        self.selectedCostIdsChanged.emit()
+        self.selectedCostCountChanged.emit()
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

@@ -42,6 +42,11 @@ class ProjectManagementTimesheetsWorkspaceController(
     selectedEntryChanged = Signal()
     reviewQueueChanged = Signal()
     reviewDetailChanged = Signal()
+    queuePageChanged = Signal()
+    queuePageSizeChanged = Signal()
+    queueTotalCountChanged = Signal()
+    selectedQueuePeriodIdsChanged = Signal()
+    selectedQueuePeriodCountChanged = Signal()
 
     def __init__(
         self,
@@ -73,6 +78,10 @@ class ProjectManagementTimesheetsWorkspaceController(
         self._selected_entry: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": [], "state": {}}
         self._review_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._review_detail: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "fields": [], "state": {}}
+        self._queue_page = 1
+        self._queue_page_size = 25
+        self._queue_total_count = 0
+        self._selected_queue_period_ids: list[str] = []
         self._bind_domain_events()
         self.refresh()
 
@@ -140,6 +149,26 @@ class ProjectManagementTimesheetsWorkspaceController(
     def reviewDetail(self) -> dict[str, object]:
         return self._review_detail
 
+    @Property(int, notify=queuePageChanged)
+    def queuePage(self) -> int:
+        return self._queue_page
+
+    @Property(int, notify=queuePageSizeChanged)
+    def queuePageSize(self) -> int:
+        return self._queue_page_size
+
+    @Property(int, notify=queueTotalCountChanged)
+    def queueTotalCount(self) -> int:
+        return self._queue_total_count
+
+    @Property("QVariantList", notify=selectedQueuePeriodIdsChanged)
+    def selectedQueuePeriodIds(self) -> list[str]:
+        return self._selected_queue_period_ids
+
+    @Property(int, notify=selectedQueuePeriodCountChanged)
+    def selectedQueuePeriodCount(self) -> int:
+        return len(self._selected_queue_period_ids)
+
     @Slot()
     def refresh(self) -> None:
         self._set_is_loading(True)
@@ -190,6 +219,7 @@ class ProjectManagementTimesheetsWorkspaceController(
             self._set_review_queue(
                 serialize_timesheet_collection_view_model(workspace_state.review_queue)
             )
+            self._set_queue_total_count(len(self._review_queue.get("items") or []))
             self._set_review_detail(
                 serialize_timesheet_detail_view_model(workspace_state.review_detail)
             )
@@ -253,6 +283,80 @@ class ProjectManagementTimesheetsWorkspaceController(
             return
         self._set_selected_queue_period_id(normalized_value)
         self.refresh()
+
+    @Slot(int)
+    def setQueuePage(self, page: int) -> None:
+        p = max(1, page)
+        if p == self._queue_page:
+            return
+        self._set_queue_page(p)
+        self.refresh()
+
+    @Slot(int)
+    def setQueuePageSize(self, page_size: int) -> None:
+        if page_size <= 0 or page_size == self._queue_page_size:
+            return
+        self._queue_page_size = page_size
+        self.queuePageSizeChanged.emit()
+        self._set_queue_page(1)
+        self.refresh()
+
+    @Slot(str, bool)
+    def setQueueBulkSelection(self, period_id: str, selected: bool) -> None:
+        ids = list(self._selected_queue_period_ids)
+        if selected:
+            if period_id not in ids:
+                ids.append(period_id)
+        else:
+            ids = [i for i in ids if i != period_id]
+        self._set_selected_queue_period_ids(ids)
+
+    @Slot()
+    def selectVisibleQueuePeriods(self) -> None:
+        ids = [
+            str(item.get("id", ""))
+            for item in (self._review_queue.get("items") or [])
+            if item.get("id")
+        ]
+        self._set_selected_queue_period_ids(ids)
+
+    @Slot()
+    def clearQueueBulkSelection(self) -> None:
+        self._set_selected_queue_period_ids([])
+
+    @Slot("QVariantList", result="QVariantMap")
+    def bulkApprovePeriods(self, period_ids: list) -> dict[str, object]:
+        ids = [str(i) for i in (period_ids or [])]
+        if not ids:
+            return {"ok": False, "message": "No periods selected."}
+        return run_mutation(
+            operation=lambda: [
+                self._timesheets_workspace_presenter.approve_period({"periodId": i})
+                for i in ids
+            ],
+            success_message=f"{len(ids)} period(s) approved.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantList", result="QVariantMap")
+    def bulkRejectPeriods(self, period_ids: list) -> dict[str, object]:
+        ids = [str(i) for i in (period_ids or [])]
+        if not ids:
+            return {"ok": False, "message": "No periods selected."}
+        return run_mutation(
+            operation=lambda: [
+                self._timesheets_workspace_presenter.reject_period({"periodId": i})
+                for i in ids
+            ],
+            success_message=f"{len(ids)} period(s) rejected.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
 
     @Slot("QVariantMap", result="QVariantMap")
     def addTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
@@ -445,6 +549,25 @@ class ProjectManagementTimesheetsWorkspaceController(
             return
         self._review_detail = review_detail
         self.reviewDetailChanged.emit()
+
+    def _set_queue_page(self, v: int) -> None:
+        if v == self._queue_page:
+            return
+        self._queue_page = v
+        self.queuePageChanged.emit()
+
+    def _set_queue_total_count(self, v: int) -> None:
+        if v == self._queue_total_count:
+            return
+        self._queue_total_count = v
+        self.queueTotalCountChanged.emit()
+
+    def _set_selected_queue_period_ids(self, ids: list[str]) -> None:
+        if ids == self._selected_queue_period_ids:
+            return
+        self._selected_queue_period_ids = ids
+        self.selectedQueuePeriodIdsChanged.emit()
+        self.selectedQueuePeriodCountChanged.emit()
 
 
 __all__ = ["ProjectManagementTimesheetsWorkspaceController"]
