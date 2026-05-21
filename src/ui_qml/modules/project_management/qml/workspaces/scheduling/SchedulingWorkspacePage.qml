@@ -942,6 +942,7 @@ AppLayouts.WorkspaceFrame {
 
             SchedulingDetailPanel {
                 width: parent ? parent.width : 0
+                height: detailPage.height
                 detailPage: detailPage
                 activityDetail: root.selectedActivityModel
                 dependenciesModel: root.dependenciesModel
