@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme

@@ -243,6 +243,21 @@ def _fmt_date(value: date | None) -> str:
     return value.strftime("%Y-%m-%d")
 
 
+def _coerce_utc_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _fmt_utc_datetime(value: datetime | None) -> str:
+    resolved = _coerce_utc_datetime(value)
+    if resolved is None:
+        return ""
+    return resolved.strftime("%Y-%m-%d %H:%M")
+
+
 class ProjectManagementDashboardDesktopApi:
     def __init__(
         self,
@@ -1653,7 +1668,9 @@ class ProjectManagementDashboardDesktopApi:
                         "module": approval_module_label(request),
                         "context": approval_context_label(request),
                         "requestedBy": request.requested_by_username or "Unknown",
-                        "requestedAt": request.requested_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+                        "requestedAt": _fmt_utc_datetime(
+                            _coerce_utc_datetime(getattr(request, "requested_at", None))
+                        ),
                         "statusLabel": str(
                             getattr(
                                 getattr(request, "status", ApprovalStatus.PENDING),
@@ -1728,7 +1745,7 @@ class ProjectManagementDashboardDesktopApi:
         for note in getattr(snapshot, "notifications", []) or []:
             if project_id and str(getattr(note, "project_id", "") or "") != project_id:
                 continue
-            created_at = getattr(note, "created_at", None)
+            created_at = _coerce_utc_datetime(getattr(note, "created_at", None))
             if cutoff is not None and created_at is not None and created_at < cutoff:
                 continue
             route_id = "platform.control" if str(getattr(note, "entity_type", "") or "") == "approval_request" else "project_management.collaboration"
@@ -1742,7 +1759,7 @@ class ProjectManagementDashboardDesktopApi:
                         meta_text=(
                             f"{getattr(note, 'project_name', '') or 'Project'} • "
                             f"{getattr(note, 'actor_username', '') or 'system'} • "
-                            f"{created_at.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') if created_at else ''}"
+                            f"{_fmt_utc_datetime(created_at)}"
                         ).strip(" •"),
                         route_id=route_id,
                         state={
@@ -1756,7 +1773,7 @@ class ProjectManagementDashboardDesktopApi:
         for activity in getattr(snapshot, "recent_activity", []) or []:
             if project_id and str(getattr(activity, "project_id", "") or "") != project_id:
                 continue
-            created_at = getattr(activity, "created_at", None)
+            created_at = _coerce_utc_datetime(getattr(activity, "created_at", None))
             if cutoff is not None and created_at is not None and created_at < cutoff:
                 continue
             items.append(
@@ -1769,7 +1786,7 @@ class ProjectManagementDashboardDesktopApi:
                         meta_text=(
                             f"{getattr(activity, 'project_name', '') or 'Project'} • "
                             f"{getattr(activity, 'author_username', '') or 'unknown'} • "
-                            f"{created_at.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') if created_at else ''}"
+                            f"{_fmt_utc_datetime(created_at)}"
                         ).strip(" •"),
                         route_id="project_management.tasks",
                         state={

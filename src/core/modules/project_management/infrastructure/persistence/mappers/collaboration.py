@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 from src.core.modules.project_management.domain.collaboration import TaskComment, TaskPresence
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
+
+
+def _coerce_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
@@ -43,7 +50,7 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         attachments=_decode(obj.attachments_json),
         read_by=[item.lower() for item in _decode(obj.read_by_json)],
         read_by_user_ids=[item for item in _decode(obj.read_by_user_ids_json)],
-        created_at=obj.created_at,
+        created_at=_coerce_utc_datetime(obj.created_at),
     )
 
 
@@ -68,8 +75,8 @@ def task_presence_from_orm(obj: TaskPresenceORM) -> TaskPresence:
         username=obj.username,
         display_name=obj.display_name,
         activity=obj.activity,
-        started_at=obj.started_at,
-        last_seen_at=obj.last_seen_at,
+        started_at=_coerce_utc_datetime(obj.started_at),
+        last_seen_at=_coerce_utc_datetime(obj.last_seen_at),
     )
 
 

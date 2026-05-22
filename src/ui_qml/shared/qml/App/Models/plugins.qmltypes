@@ -4,7 +4,7 @@ Module {
     Component {
         name: "DynamicTableModel"
         accessSemantics: "reference"
-        prototype: "QAbstractTableModel"
+        prototype: "QObject"
         exports: ["App.Models/DynamicTableModel 1.0"]
         Property { name: "rows"; type: "QVariantList" }
         Property { name: "columns"; type: "QVariantList" }

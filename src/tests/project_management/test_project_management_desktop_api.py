@@ -368,6 +368,96 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
     assert snapshot.sections[4].items[0].status_label == "Critical"
 
 
+def test_project_management_dashboard_desktop_api_normalizes_naive_activity_timestamps() -> None:
+    api = build_project_management_dashboard_desktop_api(
+        project_service=SimpleNamespace(
+            list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
+        ),
+        baseline_service=SimpleNamespace(list_baselines=lambda _project_id: []),
+        dashboard_service=SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+                kpi=SimpleNamespace(
+                    project_id=project_id,
+                    name="Plant Upgrade",
+                    tasks_total=4,
+                    tasks_completed=1,
+                    tasks_in_progress=2,
+                    task_blocked=0,
+                    critical_tasks=1,
+                    late_tasks=1,
+                    cost_variance=0.0,
+                    total_actual_cost=1000.0,
+                    total_planned_cost=1500.0,
+                ),
+                alerts=[],
+                milestone_health=[],
+                critical_watchlist=[],
+                resource_load=[],
+                upcoming_tasks=[],
+                burndown=[],
+                evm=None,
+                register_summary=None,
+                cost_sources=None,
+            )
+        ),
+        collaboration_service=SimpleNamespace(
+            list_workspace_snapshot=lambda limit=120: SimpleNamespace(
+                notifications=[
+                    SimpleNamespace(
+                        entity_id="approval-1",
+                        entity_type="approval_request",
+                        headline="Approval requested",
+                        notification_type="approval",
+                        actor_username="planner",
+                        created_at=datetime(2026, 5, 20, 9, 30),
+                        project_id="proj-1",
+                        project_name="Plant Upgrade",
+                    )
+                ],
+                recent_activity=[
+                    SimpleNamespace(
+                        comment_id="comment-1",
+                        task_id="task-1",
+                        task_name="Cable Pull",
+                        unread=False,
+                        author_username="pm",
+                        created_at=datetime(2026, 5, 19, 8, 15),
+                        project_id="proj-1",
+                        project_name="Plant Upgrade",
+                    )
+                ],
+                inbox=[],
+                active_presence=[],
+            )
+        ),
+        approval_service=SimpleNamespace(
+            list_pending=lambda project_id=None, limit=120: [
+                SimpleNamespace(
+                    id="req-1",
+                    project_id="proj-1",
+                    requested_by_username="planner",
+                    requested_at=datetime(2026, 5, 20, 7, 0),
+                    status=SimpleNamespace(value="pending"),
+                    module_key="project_management",
+                    request_type="baseline",
+                    entity_type="project_baseline",
+                    entity_label="Weekly Freeze",
+                    context_label="Plant Upgrade",
+                )
+            ]
+        ),
+    )
+
+    snapshot = api.build_snapshot(project_id="proj-1", period_key="30d")
+
+    assert snapshot.activity_feed.items[0].title == "Approval requested"
+    assert snapshot.activity_feed.items[0].meta_text.endswith("2026-05-20 09:30")
+    approvals_table = next(
+        table for table in snapshot.operational_tables if table.id == "pending_approvals"
+    )
+    assert approvals_table.rows[0].values["requestedAt"] == "2026-05-20 07:00"
+
+
 def test_project_management_projects_desktop_api_lists_statuses() -> None:
     api = build_project_management_projects_desktop_api()
 

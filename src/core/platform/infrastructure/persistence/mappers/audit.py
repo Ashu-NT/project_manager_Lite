@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from src.core.platform.audit.domain import AuditLogEntry
@@ -21,6 +22,12 @@ def _from_json(raw: str | None) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _coerce_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None or value.utcoffset() is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def audit_to_orm(entry: AuditLogEntry) -> AuditLogORM:
     return AuditLogORM(
         id=entry.id,
@@ -38,7 +45,7 @@ def audit_to_orm(entry: AuditLogEntry) -> AuditLogORM:
 def audit_from_orm(obj: AuditLogORM) -> AuditLogEntry:
     return AuditLogEntry(
         id=obj.id,
-        occurred_at=obj.occurred_at,
+        occurred_at=_coerce_utc_datetime(obj.occurred_at),
         actor_user_id=obj.actor_user_id,
         actor_username=obj.actor_username,
         action=obj.action,
