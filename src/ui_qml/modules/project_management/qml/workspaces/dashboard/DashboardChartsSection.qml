@@ -10,43 +10,116 @@ Item {
 
     property ProjectManagementControllers.ProjectManagementDashboardWorkspaceController workspaceController
 
-    readonly property var chartModels: root.workspaceController ? (root.workspaceController.charts || []) : []
-    readonly property var visibleCharts: root.chartModels.length > 1
-        ? root.chartModels.slice(1)
-        : root.chartModels
-    readonly property int chartColumns: width >= 1040 && root.visibleCharts.length > 1 ? 2 : 1
+    readonly property var chartModels: root.workspaceController
+        ? (root.workspaceController.charts || [])
+        : []
+    readonly property var scheduleChart: root.chartModels.length > 0 ? root.chartModels[0] : null
+    readonly property var costChart: root.chartModels.length > 1 ? root.chartModels[1] : null
+    readonly property var resourceChart: root.chartModels.length > 2 ? root.chartModels[2] : null
+    readonly property bool splitLayout: width >= 1220 && root.resourceChart !== null
 
-    implicitHeight: root.visibleCharts.length > 0 ? chartsGrid.implicitHeight : 0
-    visible: root.visibleCharts.length > 0
+    implicitHeight: chartsLayout.implicitHeight
+    visible: root.chartModels.length > 0
 
-    GridLayout {
-        id: chartsGrid
+    ColumnLayout {
+        id: chartsLayout
 
         anchors.fill: parent
-        columns: root.chartColumns
-        columnSpacing: Theme.AppTheme.spacingSm
-        rowSpacing: Theme.AppTheme.spacingSm
+        spacing: Theme.AppTheme.spacingSm
 
-        Repeater {
-            model: root.visibleCharts
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.AppTheme.spacingSm
+            visible: root.splitLayout
 
-            delegate: DashboardPanelFrame {
-                id: chartFrame
-                required property var modelData
-
+            ColumnLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.chartColumns === 2 ? 236 : 248
-                title: chartFrame.modelData.title || ""
-                subtitle: chartFrame.modelData.subtitle || ""
+                Layout.fillHeight: true
+                spacing: Theme.AppTheme.spacingSm
+
+                DashboardPanelFrame {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 216
+                    visible: root.scheduleChart !== null
+                    title: root.scheduleChart ? root.scheduleChart.title || "Schedule Trend" : ""
+                    subtitle: root.scheduleChart ? root.scheduleChart.subtitle || "" : ""
+
+                    ProjectManagementWidgets.DashboardChartCard {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        title: ""
+                        subtitle: ""
+                        chartType: root.scheduleChart ? root.scheduleChart.chartType || "line" : "line"
+                        emptyState: root.scheduleChart ? root.scheduleChart.emptyState || "" : ""
+                        points: root.scheduleChart ? (root.scheduleChart.points || []) : []
+                    }
+                }
+
+                DashboardPanelFrame {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 216
+                    visible: root.costChart !== null
+                    title: root.costChart ? root.costChart.title || "Cost Trend" : ""
+                    subtitle: root.costChart ? root.costChart.subtitle || "" : ""
+
+                    ProjectManagementWidgets.DashboardChartCard {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        title: ""
+                        subtitle: ""
+                        chartType: root.costChart ? root.costChart.chartType || "line" : "line"
+                        emptyState: root.costChart ? root.costChart.emptyState || "" : ""
+                        points: root.costChart ? (root.costChart.points || []) : []
+                    }
+                }
+            }
+
+            DashboardPanelFrame {
+                Layout.preferredWidth: Math.max(360, root.width * 0.33)
+                Layout.fillHeight: true
+                Layout.preferredHeight: 440
+                visible: root.resourceChart !== null
+                title: root.resourceChart ? root.resourceChart.title || "Resource Utilization" : ""
+                subtitle: root.resourceChart ? root.resourceChart.subtitle || "" : ""
 
                 ProjectManagementWidgets.DashboardChartCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: ""
                     subtitle: ""
-                    chartType: chartFrame.modelData.chartType || "bar"
-                    emptyState: chartFrame.modelData.emptyState || ""
-                    points: chartFrame.modelData.points || []
+                    chartType: root.resourceChart ? root.resourceChart.chartType || "bar" : "bar"
+                    emptyState: root.resourceChart ? root.resourceChart.emptyState || "" : ""
+                    points: root.resourceChart ? (root.resourceChart.points || []) : []
+                }
+            }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Theme.AppTheme.spacingSm
+            visible: !root.splitLayout
+
+            Repeater {
+                model: root.chartModels
+
+                delegate: DashboardPanelFrame {
+                    id: stackedChartFrame
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 224
+                    title: stackedChartFrame.modelData.title || ""
+                    subtitle: stackedChartFrame.modelData.subtitle || ""
+
+                    ProjectManagementWidgets.DashboardChartCard {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        title: ""
+                        subtitle: ""
+                        chartType: stackedChartFrame.modelData.chartType || "bar"
+                        emptyState: stackedChartFrame.modelData.emptyState || ""
+                        points: stackedChartFrame.modelData.points || []
+                    }
                 }
             }
         }

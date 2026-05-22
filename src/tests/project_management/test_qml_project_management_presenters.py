@@ -71,13 +71,21 @@ def test_project_management_workspace_catalog_exposes_qml_safe_maps() -> None:
 def test_project_management_workspace_catalog_exposes_typed_dashboard_controller() -> None:
     catalog = ProjectManagementWorkspaceCatalog()
 
-    workspace = catalog.dashboardWorkspace.workspace
-    overview = catalog.dashboardWorkspace.overview
+    controller = catalog.dashboardWorkspace
+    workspace = controller.workspace
+    overview = controller.overview
 
     assert workspace["routeId"] == "project_management.dashboard"
     assert workspace["migrationStatus"] == "QML landing zone ready"
     assert overview["title"] == "Dashboard"
     assert overview["metrics"][0]["label"] == "Tasks"
+    assert controller.periodOptions[0]["value"] == "all"
+    assert controller.selectedPeriodKey == "90d"
+    assert controller.viewOptions[0]["value"] == "executive"
+    assert controller.selectedViewKey == "executive"
+    assert controller.healthCards[0]["title"] == "Schedule Health"
+    assert controller.operationalTable["id"] == "delayed_tasks"
+    assert controller.activityFeed["title"] == "Recent Activity"
 
 
 def test_project_management_workspace_catalog_exposes_typed_collaboration_controller() -> None:
@@ -1487,6 +1495,11 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
     assert controller.projectOptions[1]["label"] == "Plant Upgrade"
     assert controller.selectedProjectId == "proj-1"
     assert controller.baselineOptions[1]["value"] == "proj-1-base-1"
+    assert controller.periodOptions[2]["value"] == "60d"
+    assert controller.selectedViewKey == "executive"
+    assert controller.healthCards[0]["title"] == "Schedule Health"
+    assert controller.operationalTabs[0]["id"] == "delayed_tasks"
+    assert controller.operationalTable["id"] == "delayed_tasks"
     assert controller.panels[0]["title"] == "Earned Value (EVM)"
     assert controller.charts[0]["chartType"] == "line"
     assert controller.sections[0]["title"] == "Alerts"
@@ -1496,6 +1509,9 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
     assert controller.selectedBaselineId == "proj-1-base-1"
     assert controller.panels[1]["rows"][0]["label"] == "Open risks"
     assert controller.sections[4]["title"] == "Urgent Register Items"
+    controller.selectView("financial")
+    assert controller.selectedViewKey == "financial"
+    assert controller.operationalTable["id"] == "budget_variances"
 
 
 def test_project_management_workspace_catalog_returns_empty_unknown_workspace() -> None:

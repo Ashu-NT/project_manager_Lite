@@ -343,10 +343,18 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
     assert snapshot.panels[0].metrics[0].label == "CPI"
     assert snapshot.panels[1].rows[3].tone == "danger"
     assert snapshot.panels[2].rows[0].supporting_text == "Committed: 6,500"
-    assert [chart.title for chart in snapshot.charts] == ["Burndown", "Resource Load"]
+    assert [chart.title for chart in snapshot.charts] == [
+        "Schedule Trend",
+        "Cost Trend",
+        "Resource Load",
+    ]
     assert snapshot.charts[0].chart_type == "line"
     assert snapshot.charts[0].points[0].target_value == 8.0
     assert snapshot.charts[1].points[0].tone == "danger"
+    assert snapshot.health_cards[0].title == "Schedule Health"
+    assert snapshot.operational_tabs[0].id == "delayed_tasks"
+    assert snapshot.operational_tables[0].id == "delayed_tasks"
+    assert snapshot.activity_feed.title == "Recent Activity"
     assert [section.title for section in snapshot.sections] == [
         "Alerts",
         "Milestones",

@@ -11,11 +11,18 @@ Item {
     property string selectedProjectId: ""
     property var baselineOptions: []
     property string selectedBaselineId: ""
+    property var periodOptions: []
+    property string selectedPeriodKey: ""
+    property var viewOptions: []
+    property string selectedViewKey: ""
     property bool isLoading: false
 
     signal projectSelected(string projectId)
     signal baselineSelected(string baselineId)
+    signal periodSelected(string periodKey)
+    signal viewSelected(string viewKey)
     signal refreshRequested()
+    signal exportRequested()
 
     function indexForValue(options, selectedValue) {
         const rows = options || []
@@ -44,10 +51,11 @@ Item {
             color: Theme.AppTheme.surfaceRaised
             border.color: Theme.AppTheme.subtleBorder
             border.width: 1
-            implicitHeight: toolbarRow.implicitHeight + (Theme.AppTheme.spacingSm * 2)
+            implicitHeight: contextRow.implicitHeight + (Theme.AppTheme.spacingSm * 2)
 
             RowLayout {
-                id: toolbarRow
+                id: contextRow
+
                 anchors.fill: parent
                 anchors.leftMargin: Theme.AppTheme.marginMd
                 anchors.rightMargin: Theme.AppTheme.marginMd
@@ -56,18 +64,15 @@ Item {
                 spacing: Theme.AppTheme.spacingSm
 
                 Label {
-                    text: "Project"
+                    text: "Scope"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.pixelSize: Theme.AppTheme.captionSize
                     font.bold: true
-                    Layout.alignment: Qt.AlignVCenter
                 }
 
                 ComboBox {
-                    id: projectCombo
-
-                    Layout.preferredWidth: Math.max(220, root.width * 0.34)
+                    Layout.preferredWidth: Math.max(220, root.width * 0.24)
                     Layout.fillWidth: true
                     enabled: !root.isLoading
                     model: root.projectOptions || []
@@ -84,15 +89,12 @@ Item {
                     text: "Baseline"
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.pixelSize: Theme.AppTheme.captionSize
                     font.bold: true
-                    Layout.alignment: Qt.AlignVCenter
                 }
 
                 ComboBox {
-                    id: baselineCombo
-
-                    Layout.preferredWidth: Math.max(190, root.width * 0.25)
+                    Layout.preferredWidth: 210
                     enabled: !root.isLoading && !root.baselineSelectionLocked
                     model: root.baselineOptions || []
                     textRole: "label"
@@ -101,6 +103,48 @@ Item {
                     onActivated: function(index) {
                         const option = root.baselineOptions[index]
                         root.baselineSelected(String(option && option.value ? option.value : ""))
+                    }
+                }
+
+                Label {
+                    text: "Period"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+
+                ComboBox {
+                    Layout.preferredWidth: 150
+                    enabled: !root.isLoading
+                    model: root.periodOptions || []
+                    textRole: "label"
+                    currentIndex: root.indexForValue(root.periodOptions, root.selectedPeriodKey)
+
+                    onActivated: function(index) {
+                        const option = root.periodOptions[index]
+                        root.periodSelected(String(option && option.value ? option.value : ""))
+                    }
+                }
+
+                Label {
+                    text: "View"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+
+                ComboBox {
+                    Layout.preferredWidth: 190
+                    enabled: !root.isLoading
+                    model: root.viewOptions || []
+                    textRole: "label"
+                    currentIndex: root.indexForValue(root.viewOptions, root.selectedViewKey)
+
+                    onActivated: function(index) {
+                        const option = root.viewOptions[index]
+                        root.viewSelected(String(option && option.value ? option.value : ""))
                     }
                 }
 
@@ -114,15 +158,20 @@ Item {
                     iconName: "refresh"
                     onClicked: root.refreshRequested()
                 }
+
+                AppControls.SecondaryButton {
+                    enabled: !root.isLoading
+                    text: "Export"
+                    iconName: "export"
+                    onClicked: root.exportRequested()
+                }
             }
         }
 
         Label {
             Layout.fillWidth: true
             visible: root.baselineSelectionLocked
-            text: root.baselineSelectionLocked
-                ? "Portfolio mode summarizes the full portfolio and keeps baseline selection locked."
-                : ""
+            text: "Portfolio overview keeps baseline selection locked and rolls up cross-project health."
             color: Theme.AppTheme.textSecondary
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.smallSize

@@ -73,7 +73,7 @@ Item {
                     text: String(root.heatmapItem ? root.heatmapItem.title || "" : "")
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.headingSize
+                    font.pixelSize: Theme.AppTheme.titleSize
                     font.bold: true
                     wrapMode: Text.WordWrap
                 }

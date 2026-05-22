@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from src.core.modules.project_management.application.scheduling.baseline_service import (
@@ -11,13 +11,23 @@ from src.core.modules.project_management.application.dashboard import (
     PORTFOLIO_SCOPE_ID,
     DashboardService,
 )
+from src.core.modules.project_management.application.risk import (
+    RegisterProjectSummary,
+    RegisterService,
+)
+from src.core.modules.project_management.application.tasks import CollaborationService
 from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.risk import RegisterProjectSummary
 from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntrySeverity,
+    RegisterEntryStatus,
+    RegisterEntryType,
     as_register_entry_severity,
     as_register_entry_status,
     as_register_entry_type,
 )
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.platform.approval import ApprovalService
+from src.core.platform.approval.domain import ApprovalStatus
 
 
 @dataclass(frozen=True)
@@ -97,6 +107,78 @@ class ProjectDashboardSectionDescriptor:
 
 
 @dataclass(frozen=True)
+class ProjectDashboardHealthCardDescriptor:
+    id: str
+    title: str
+    status_label: str = ""
+    metric_value: str = ""
+    metric_label: str = ""
+    supporting_text: str = ""
+    meta_text: str = ""
+    tone: str = "default"
+    route_id: str = ""
+
+
+@dataclass(frozen=True)
+class ProjectDashboardOperationalTabDescriptor:
+    id: str
+    label: str
+    count: int = 0
+    route_id: str = ""
+
+
+@dataclass(frozen=True)
+class ProjectDashboardTableColumnDescriptor:
+    key: str
+    label: str
+    flex: int = 1
+    min_width: int = 120
+    sortable: bool = False
+    visible: bool = True
+    column_type: str = "text"
+
+
+@dataclass(frozen=True)
+class ProjectDashboardTableRowDescriptor:
+    id: str
+    values: dict[str, Any] = field(default_factory=dict)
+    route_id: str = ""
+    state: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ProjectDashboardOperationalTableDescriptor:
+    id: str
+    title: str
+    subtitle: str = ""
+    empty_state: str = ""
+    columns: tuple[ProjectDashboardTableColumnDescriptor, ...] = field(
+        default_factory=tuple
+    )
+    rows: tuple[ProjectDashboardTableRowDescriptor, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True)
+class ProjectDashboardActivityItemDescriptor:
+    id: str
+    title: str
+    status_label: str = ""
+    meta_text: str = ""
+    route_id: str = ""
+    state: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ProjectDashboardActivityFeedDescriptor:
+    title: str
+    subtitle: str = ""
+    empty_state: str = ""
+    items: tuple[ProjectDashboardActivityItemDescriptor, ...] = field(
+        default_factory=tuple
+    )
+
+
+@dataclass(frozen=True)
 class ProjectDashboardSnapshotDescriptor:
     overview: ProjectDashboardOverviewDescriptor
     project_options: tuple[ProjectDashboardSelectorOptionDescriptor, ...] = field(
@@ -107,6 +189,24 @@ class ProjectDashboardSnapshotDescriptor:
         default_factory=tuple
     )
     selected_baseline_id: str = ""
+    period_options: tuple[ProjectDashboardSelectorOptionDescriptor, ...] = field(
+        default_factory=tuple
+    )
+    selected_period_key: str = ""
+    view_options: tuple[ProjectDashboardSelectorOptionDescriptor, ...] = field(
+        default_factory=tuple
+    )
+    selected_view_key: str = ""
+    health_cards: tuple[ProjectDashboardHealthCardDescriptor, ...] = field(
+        default_factory=tuple
+    )
+    operational_tabs: tuple[ProjectDashboardOperationalTabDescriptor, ...] = field(
+        default_factory=tuple
+    )
+    operational_tables: tuple[ProjectDashboardOperationalTableDescriptor, ...] = field(
+        default_factory=tuple
+    )
+    activity_feed: ProjectDashboardActivityFeedDescriptor | None = None
     panels: tuple[ProjectDashboardPanelDescriptor, ...] = field(default_factory=tuple)
     charts: tuple[ProjectDashboardChartDescriptor, ...] = field(default_factory=tuple)
     sections: tuple[ProjectDashboardSectionDescriptor, ...] = field(default_factory=tuple)
@@ -150,10 +250,18 @@ class ProjectManagementDashboardDesktopApi:
         project_service: ProjectService | None = None,
         dashboard_service: DashboardService | None = None,
         baseline_service: BaselineService | None = None,
+        reporting_service: ReportingService | None = None,
+        register_service: RegisterService | None = None,
+        collaboration_service: CollaborationService | None = None,
+        approval_service: ApprovalService | None = None,
     ) -> None:
         self._project_service = project_service
         self._dashboard_service = dashboard_service
         self._baseline_service = baseline_service
+        self._reporting_service = reporting_service
+        self._register_service = register_service
+        self._collaboration_service = collaboration_service
+        self._approval_service = approval_service
 
     def build_empty_overview(self) -> ProjectDashboardOverviewDescriptor:
         return ProjectDashboardOverviewDescriptor(
@@ -231,18 +339,33 @@ class ProjectManagementDashboardDesktopApi:
         *,
         project_id: str | None = None,
         baseline_id: str | None = None,
+        period_key: str | None = None,
+        view_key: str | None = None,
     ) -> ProjectDashboardSnapshotDescriptor:
         project_options = self._build_project_options()
         selected_project_id = self._resolve_project_id(project_id, project_options)
         baseline_options = self._build_baseline_options(selected_project_id)
         selected_baseline_id = self._resolve_baseline_id(baseline_id, baseline_options)
+        period_options = self._build_period_options()
+        selected_period_key = self._resolve_period_key(period_key, period_options)
+        view_options = self._build_view_options()
+        selected_view_key = self._resolve_view_key(view_key, view_options)
         if self._dashboard_service is None:
+            preview_tables = self._build_preview_operational_tables()
             return ProjectDashboardSnapshotDescriptor(
                 overview=self.build_empty_overview(),
                 project_options=project_options,
                 selected_project_id=selected_project_id,
                 baseline_options=baseline_options,
                 selected_baseline_id=selected_baseline_id,
+                period_options=period_options,
+                selected_period_key=selected_period_key,
+                view_options=view_options,
+                selected_view_key=selected_view_key,
+                health_cards=self._build_preview_health_cards(),
+                operational_tabs=self._build_operational_tabs(preview_tables),
+                operational_tables=preview_tables,
+                activity_feed=self._build_preview_activity_feed(),
                 panels=self._build_preview_panels(),
                 charts=self._build_preview_charts(),
                 sections=(
@@ -255,17 +378,45 @@ class ProjectManagementDashboardDesktopApi:
                 empty_state="Project-management dashboard desktop API is not connected in this QML preview.",
             )
 
-        if selected_project_id == PORTFOLIO_SCOPE_ID:
+        portfolio_mode = selected_project_id == PORTFOLIO_SCOPE_ID
+        if portfolio_mode:
             dashboard_data = self._dashboard_service.get_portfolio_data()
+            pending_approvals = self._list_pending_approvals(project_id=None)
+            activity_feed = self._build_activity_feed(
+                project_id=None,
+                selected_period_key=selected_period_key,
+                portfolio_mode=True,
+            )
+            operational_tables = self._build_operational_tables(
+                dashboard_data=dashboard_data,
+                pending_approvals=pending_approvals,
+                selected_period_key=selected_period_key,
+                portfolio_mode=True,
+            )
             return ProjectDashboardSnapshotDescriptor(
-                overview=self.build_overview_from_dashboard_data(
+                overview=self._build_contextual_overview(
                     project_name="Portfolio Overview",
                     dashboard_data=dashboard_data,
+                    pending_approval_count=len(pending_approvals),
+                    selected_view_key=selected_view_key,
+                    portfolio_mode=True,
                 ),
                 project_options=project_options,
                 selected_project_id=selected_project_id,
                 baseline_options=baseline_options,
                 selected_baseline_id=selected_baseline_id,
+                period_options=period_options,
+                selected_period_key=selected_period_key,
+                view_options=view_options,
+                selected_view_key=selected_view_key,
+                health_cards=self._build_health_cards(
+                    dashboard_data=dashboard_data,
+                    pending_approvals=pending_approvals,
+                    portfolio_mode=True,
+                ),
+                operational_tabs=self._build_operational_tabs(operational_tables),
+                operational_tables=operational_tables,
+                activity_feed=activity_feed,
                 panels=self._build_panels_from_dashboard_data(
                     dashboard_data=dashboard_data,
                     baseline_label="Portfolio view",
@@ -273,6 +424,7 @@ class ProjectManagementDashboardDesktopApi:
                 ),
                 charts=self._build_charts_from_dashboard_data(
                     dashboard_data=dashboard_data,
+                    selected_period_key=selected_period_key,
                     portfolio_mode=True,
                 ),
                 sections=self._build_sections_from_dashboard_data(
@@ -296,15 +448,42 @@ class ProjectManagementDashboardDesktopApi:
             selected_project_id,
             baseline_id=selected_baseline_id or None,
         )
+        pending_approvals = self._list_pending_approvals(project_id=selected_project_id)
+        activity_feed = self._build_activity_feed(
+            project_id=selected_project_id,
+            selected_period_key=selected_period_key,
+            portfolio_mode=False,
+        )
+        operational_tables = self._build_operational_tables(
+            dashboard_data=dashboard_data,
+            pending_approvals=pending_approvals,
+            selected_period_key=selected_period_key,
+            portfolio_mode=False,
+        )
         return ProjectDashboardSnapshotDescriptor(
-            overview=self.build_overview_from_dashboard_data(
+            overview=self._build_contextual_overview(
                 project_name=project_label,
                 dashboard_data=dashboard_data,
+                pending_approval_count=len(pending_approvals),
+                selected_view_key=selected_view_key,
+                portfolio_mode=False,
             ),
             project_options=project_options,
             selected_project_id=selected_project_id,
             baseline_options=baseline_options,
             selected_baseline_id=selected_baseline_id,
+            period_options=period_options,
+            selected_period_key=selected_period_key,
+            view_options=view_options,
+            selected_view_key=selected_view_key,
+            health_cards=self._build_health_cards(
+                dashboard_data=dashboard_data,
+                pending_approvals=pending_approvals,
+                portfolio_mode=False,
+            ),
+            operational_tabs=self._build_operational_tabs(operational_tables),
+            operational_tables=operational_tables,
+            activity_feed=activity_feed,
             panels=self._build_panels_from_dashboard_data(
                 dashboard_data=dashboard_data,
                 baseline_label=baseline_label,
@@ -312,6 +491,7 @@ class ProjectManagementDashboardDesktopApi:
             ),
             charts=self._build_charts_from_dashboard_data(
                 dashboard_data=dashboard_data,
+                selected_period_key=selected_period_key,
                 portfolio_mode=False,
             ),
             sections=self._build_sections_from_dashboard_data(
@@ -430,6 +610,463 @@ class ProjectManagementDashboardDesktopApi:
             return baseline_options[0].label
         return "Latest baseline"
 
+    @staticmethod
+    def _build_period_options() -> tuple[ProjectDashboardSelectorOptionDescriptor, ...]:
+        return (
+            ProjectDashboardSelectorOptionDescriptor("all", "All Horizon"),
+            ProjectDashboardSelectorOptionDescriptor("30d", "30 Days"),
+            ProjectDashboardSelectorOptionDescriptor("60d", "60 Days"),
+            ProjectDashboardSelectorOptionDescriptor("90d", "90 Days"),
+            ProjectDashboardSelectorOptionDescriptor("180d", "180 Days"),
+        )
+
+    @staticmethod
+    def _resolve_period_key(
+        period_key: str | None,
+        period_options: tuple[ProjectDashboardSelectorOptionDescriptor, ...],
+    ) -> str:
+        normalized_key = (period_key or "").strip().lower()
+        option_values = {option.value for option in period_options}
+        if normalized_key in option_values:
+            return normalized_key
+        return "90d"
+
+    @staticmethod
+    def _build_view_options() -> tuple[ProjectDashboardSelectorOptionDescriptor, ...]:
+        return (
+            ProjectDashboardSelectorOptionDescriptor("executive", "Executive View"),
+            ProjectDashboardSelectorOptionDescriptor("pmo", "PMO View"),
+            ProjectDashboardSelectorOptionDescriptor(
+                "project_manager", "Project Manager View"
+            ),
+            ProjectDashboardSelectorOptionDescriptor(
+                "resource_manager", "Resource Manager View"
+            ),
+            ProjectDashboardSelectorOptionDescriptor("financial", "Financial View"),
+        )
+
+    @staticmethod
+    def _resolve_view_key(
+        view_key: str | None,
+        view_options: tuple[ProjectDashboardSelectorOptionDescriptor, ...],
+    ) -> str:
+        normalized_key = (view_key or "").strip().lower()
+        option_values = {option.value for option in view_options}
+        if normalized_key in option_values:
+            return normalized_key
+        return "executive"
+
+    def _build_contextual_overview(
+        self,
+        *,
+        project_name: str,
+        dashboard_data: Any,
+        pending_approval_count: int,
+        selected_view_key: str,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardOverviewDescriptor:
+        kpi = getattr(dashboard_data, "kpi", None)
+        title = project_name or getattr(kpi, "name", "") or "Dashboard"
+        if portfolio_mode:
+            portfolio = getattr(dashboard_data, "portfolio", None)
+            total_projects = int(getattr(portfolio, "projects_total", 0) or 0)
+            active_projects = int(getattr(portfolio, "active_projects", 0) or 0)
+            at_risk_projects = int(getattr(portfolio, "at_risk_projects", 0) or 0)
+            on_hold_projects = int(getattr(portfolio, "on_hold_projects", 0) or 0)
+            on_track_projects = max(total_projects - at_risk_projects - on_hold_projects, 0)
+            open_tasks = max(
+                int(getattr(kpi, "tasks_total", 0) or 0)
+                - int(getattr(kpi, "tasks_completed", 0) or 0),
+                0,
+            )
+            utilization = self._average_utilization_percent(
+                tuple(getattr(dashboard_data, "resource_load", []) or [])
+            )
+            metrics_by_id = {
+                "total_projects": ProjectDashboardMetricDescriptor(
+                    "Total Projects",
+                    _fmt_int(total_projects),
+                    "Portfolio footprint",
+                ),
+                "active_projects": ProjectDashboardMetricDescriptor(
+                    "Active",
+                    _fmt_int(active_projects),
+                    "Projects currently executing",
+                ),
+                "on_track": ProjectDashboardMetricDescriptor(
+                    "On Track",
+                    _fmt_int(on_track_projects),
+                    "Projects without current risk flags",
+                ),
+                "delayed": ProjectDashboardMetricDescriptor(
+                    "Delayed",
+                    _fmt_int(getattr(kpi, "late_tasks", 0)),
+                    "Late tasks across visible projects",
+                ),
+                "budget_variance": ProjectDashboardMetricDescriptor(
+                    "Budget Var.",
+                    _fmt_float(getattr(kpi, "cost_variance", 0.0), 0),
+                    "Portfolio actual minus planned",
+                ),
+                "high_risks": ProjectDashboardMetricDescriptor(
+                    "At Risk",
+                    _fmt_int(at_risk_projects),
+                    "Projects requiring intervention",
+                ),
+                "open_tasks": ProjectDashboardMetricDescriptor(
+                    "Open Tasks",
+                    _fmt_int(open_tasks),
+                    "Tasks not yet complete",
+                ),
+                "utilization": ProjectDashboardMetricDescriptor(
+                    "Utilization",
+                    _fmt_percent(utilization, 0),
+                    "Average visible resource load",
+                ),
+                "pending_approvals": ProjectDashboardMetricDescriptor(
+                    "Approvals",
+                    _fmt_int(pending_approval_count),
+                    "Pending governed changes",
+                ),
+                "critical_tasks": ProjectDashboardMetricDescriptor(
+                    "Critical",
+                    _fmt_int(getattr(kpi, "critical_tasks", 0)),
+                    "Critical tasks across visible projects",
+                ),
+            }
+            subtitle = {
+                "executive": "Executive portfolio command center",
+                "pmo": "PMO portfolio operations and escalation view",
+                "project_manager": "Cross-project delivery control view",
+                "resource_manager": "Cross-project resource pressure view",
+                "financial": "Portfolio financial control view",
+            }.get(selected_view_key, "Executive portfolio command center")
+            metric_order = {
+                "executive": (
+                    "total_projects",
+                    "active_projects",
+                    "on_track",
+                    "delayed",
+                    "budget_variance",
+                    "high_risks",
+                    "open_tasks",
+                    "utilization",
+                ),
+                "pmo": (
+                    "active_projects",
+                    "on_track",
+                    "delayed",
+                    "critical_tasks",
+                    "high_risks",
+                    "pending_approvals",
+                    "open_tasks",
+                    "utilization",
+                ),
+                "project_manager": (
+                    "active_projects",
+                    "delayed",
+                    "critical_tasks",
+                    "high_risks",
+                    "open_tasks",
+                    "pending_approvals",
+                    "utilization",
+                    "budget_variance",
+                ),
+                "resource_manager": (
+                    "active_projects",
+                    "utilization",
+                    "open_tasks",
+                    "delayed",
+                    "critical_tasks",
+                    "high_risks",
+                    "pending_approvals",
+                    "budget_variance",
+                ),
+                "financial": (
+                    "budget_variance",
+                    "pending_approvals",
+                    "active_projects",
+                    "delayed",
+                    "open_tasks",
+                    "high_risks",
+                    "utilization",
+                    "total_projects",
+                ),
+            }.get(selected_view_key, ())
+            return ProjectDashboardOverviewDescriptor(
+                title=title,
+                subtitle=subtitle,
+                metrics=tuple(metrics_by_id[key] for key in metric_order if key in metrics_by_id),
+            )
+
+        evm = getattr(dashboard_data, "evm", None)
+        summary = getattr(dashboard_data, "register_summary", None)
+        tasks_total = int(getattr(kpi, "tasks_total", 0) or 0)
+        tasks_completed = int(getattr(kpi, "tasks_completed", 0) or 0)
+        open_tasks = max(tasks_total - tasks_completed, 0)
+        progress = 100.0 * tasks_completed / tasks_total if tasks_total else 0.0
+        utilization = self._average_utilization_percent(
+            tuple(getattr(dashboard_data, "resource_load", []) or [])
+        )
+        overloads = self._overloaded_resource_count(
+            tuple(getattr(dashboard_data, "resource_load", []) or [])
+        )
+        metrics_by_id = {
+            "progress": ProjectDashboardMetricDescriptor(
+                "Progress",
+                _fmt_percent(progress, 0),
+                "Project completion",
+            ),
+            "spi": ProjectDashboardMetricDescriptor(
+                "SPI",
+                _fmt_ratio(getattr(evm, "SPI", None)),
+                "Schedule performance index",
+            ),
+            "cpi": ProjectDashboardMetricDescriptor(
+                "CPI",
+                _fmt_ratio(getattr(evm, "CPI", None)),
+                "Cost performance index",
+            ),
+            "budget_variance": ProjectDashboardMetricDescriptor(
+                "Budget Var.",
+                _fmt_float(getattr(kpi, "cost_variance", 0.0), 0),
+                "Actual minus planned cost",
+            ),
+            "forecast_variance": ProjectDashboardMetricDescriptor(
+                "Forecast Var.",
+                _fmt_float(getattr(evm, "VAC", 0.0), 0),
+                "Variance at completion",
+            ),
+            "high_risks": ProjectDashboardMetricDescriptor(
+                "High Risks",
+                _fmt_int(getattr(summary, "critical_items", 0) or 0),
+                "Critical register exposure",
+            ),
+            "open_tasks": ProjectDashboardMetricDescriptor(
+                "Open Tasks",
+                _fmt_int(open_tasks),
+                "Tasks not yet complete",
+            ),
+            "pending_approvals": ProjectDashboardMetricDescriptor(
+                "Approvals",
+                _fmt_int(pending_approval_count),
+                "Pending governed changes",
+            ),
+            "utilization": ProjectDashboardMetricDescriptor(
+                "Utilization",
+                _fmt_percent(utilization, 0),
+                (
+                    f"{_fmt_int(overloads)} overloaded resource(s)"
+                    if overloads
+                    else "Resource load within capacity"
+                ),
+            ),
+            "delayed": ProjectDashboardMetricDescriptor(
+                "Delayed",
+                _fmt_int(getattr(kpi, "late_tasks", 0)),
+                "Tasks behind target dates",
+            ),
+            "critical_tasks": ProjectDashboardMetricDescriptor(
+                "Critical",
+                _fmt_int(getattr(kpi, "critical_tasks", 0)),
+                "Critical-path tasks",
+            ),
+        }
+        subtitle = {
+            "executive": "Executive project command center",
+            "pmo": "PMO project health and escalation view",
+            "project_manager": "Project manager delivery-control view",
+            "resource_manager": "Resource loading and capacity control view",
+            "financial": "Project financial control view",
+        }.get(selected_view_key, "Executive project command center")
+        metric_order = {
+            "executive": (
+                "progress",
+                "spi",
+                "cpi",
+                "budget_variance",
+                "forecast_variance",
+                "high_risks",
+                "open_tasks",
+                "utilization",
+            ),
+            "pmo": (
+                "progress",
+                "delayed",
+                "critical_tasks",
+                "high_risks",
+                "pending_approvals",
+                "open_tasks",
+                "spi",
+                "cpi",
+            ),
+            "project_manager": (
+                "progress",
+                "delayed",
+                "critical_tasks",
+                "open_tasks",
+                "high_risks",
+                "pending_approvals",
+                "utilization",
+                "spi",
+            ),
+            "resource_manager": (
+                "utilization",
+                "open_tasks",
+                "delayed",
+                "critical_tasks",
+                "progress",
+                "pending_approvals",
+                "high_risks",
+                "budget_variance",
+            ),
+            "financial": (
+                "budget_variance",
+                "forecast_variance",
+                "cpi",
+                "spi",
+                "pending_approvals",
+                "high_risks",
+                "open_tasks",
+                "progress",
+            ),
+        }.get(selected_view_key, ())
+        return ProjectDashboardOverviewDescriptor(
+            title=title,
+            subtitle=subtitle,
+            metrics=tuple(metrics_by_id[key] for key in metric_order if key in metrics_by_id),
+        )
+
+    @staticmethod
+    def _average_utilization_percent(rows: tuple[Any, ...]) -> float:
+        if not rows:
+            return 0.0
+        values = [
+            float(getattr(row, "utilization_percent", getattr(row, "total_allocation_percent", 0.0)) or 0.0)
+            for row in rows
+        ]
+        return sum(values) / max(len(values), 1)
+
+    @staticmethod
+    def _peak_utilization_percent(rows: tuple[Any, ...]) -> float:
+        if not rows:
+            return 0.0
+        return max(
+            float(getattr(row, "utilization_percent", getattr(row, "total_allocation_percent", 0.0)) or 0.0)
+            for row in rows
+        )
+
+    @staticmethod
+    def _overloaded_resource_count(rows: tuple[Any, ...]) -> int:
+        return sum(
+            1
+            for row in rows
+            if float(getattr(row, "utilization_percent", getattr(row, "total_allocation_percent", 0.0)) or 0.0)
+            > 100.0
+        )
+
+    @staticmethod
+    def _period_cutoff_date(selected_period_key: str) -> date | None:
+        days_by_key = {"30d": 30, "60d": 60, "90d": 90, "180d": 180}
+        days = days_by_key.get((selected_period_key or "").strip().lower())
+        if days is None:
+            return None
+        return date.today() - timedelta(days=days)
+
+    @staticmethod
+    def _period_cutoff_datetime(selected_period_key: str) -> datetime | None:
+        cutoff = ProjectManagementDashboardDesktopApi._period_cutoff_date(
+            selected_period_key
+        )
+        if cutoff is None:
+            return None
+        return datetime.combine(cutoff, datetime.min.time(), tzinfo=timezone.utc)
+
+    def _build_preview_health_cards(
+        self,
+    ) -> tuple[ProjectDashboardHealthCardDescriptor, ...]:
+        return (
+            ProjectDashboardHealthCardDescriptor(
+                id="schedule",
+                title="Schedule Health",
+                status_label="Preview",
+                metric_value="SPI -",
+                metric_label="Performance",
+                supporting_text="Schedule diagnostics appear when the dashboard API is connected.",
+                route_id="project_management.scheduling",
+            ),
+            ProjectDashboardHealthCardDescriptor(
+                id="cost",
+                title="Cost Health",
+                status_label="Preview",
+                metric_value="CPI -",
+                metric_label="Performance",
+                supporting_text="Cost diagnostics appear when the dashboard API is connected.",
+                route_id="project_management.financials",
+            ),
+            ProjectDashboardHealthCardDescriptor(
+                id="risk",
+                title="Risk Exposure",
+                status_label="Preview",
+                metric_value="0",
+                metric_label="Critical items",
+                supporting_text="Risk exposure appears when the dashboard API is connected.",
+                route_id="project_management.risk",
+            ),
+            ProjectDashboardHealthCardDescriptor(
+                id="resource",
+                title="Resource Health",
+                status_label="Preview",
+                metric_value="0%",
+                metric_label="Utilization",
+                supporting_text="Resource loading appears when the dashboard API is connected.",
+                route_id="project_management.resources",
+            ),
+        )
+
+    def _build_preview_operational_tables(
+        self,
+    ) -> tuple[ProjectDashboardOperationalTableDescriptor, ...]:
+        preview_columns = (
+            ProjectDashboardTableColumnDescriptor(
+                key="title",
+                label="Item",
+                flex=3,
+                min_width=220,
+                sortable=True,
+            ),
+            ProjectDashboardTableColumnDescriptor(
+                key="statusLabel",
+                label="Status",
+                flex=0,
+                min_width=96,
+                sortable=False,
+                column_type="status",
+            ),
+            ProjectDashboardTableColumnDescriptor(
+                key="summary",
+                label="Summary",
+                flex=2,
+                min_width=180,
+            ),
+        )
+        return (
+            ProjectDashboardOperationalTableDescriptor(
+                id="delayed_tasks",
+                title="Delayed Tasks",
+                subtitle="Operational rows appear here when the dashboard API is connected.",
+                empty_state="No delayed-task rows are available in preview mode.",
+                columns=preview_columns,
+            ),
+        )
+
+    def _build_preview_activity_feed(self) -> ProjectDashboardActivityFeedDescriptor:
+        return ProjectDashboardActivityFeedDescriptor(
+            title="Recent Activity",
+            subtitle="Activity feed appears here when the dashboard API is connected.",
+            empty_state="No recent dashboard activity is available in preview mode.",
+        )
+
     def _build_preview_panels(self) -> tuple[ProjectDashboardPanelDescriptor, ...]:
         return (
             ProjectDashboardPanelDescriptor(
@@ -465,6 +1102,708 @@ class ProjectManagementDashboardDesktopApi:
             ),
         )
 
+    def _build_health_cards(
+        self,
+        *,
+        dashboard_data: Any,
+        pending_approvals: tuple[Any, ...],
+        portfolio_mode: bool,
+    ) -> tuple[ProjectDashboardHealthCardDescriptor, ...]:
+        kpi = getattr(dashboard_data, "kpi", None)
+        evm = getattr(dashboard_data, "evm", None)
+        summary = getattr(dashboard_data, "register_summary", None)
+        resource_rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
+        peak_utilization = self._peak_utilization_percent(resource_rows)
+        overloads = self._overloaded_resource_count(resource_rows)
+
+        if portfolio_mode:
+            portfolio = getattr(dashboard_data, "portfolio", None)
+            total_projects = int(getattr(portfolio, "projects_total", 0) or 0)
+            at_risk_projects = int(getattr(portfolio, "at_risk_projects", 0) or 0)
+            active_projects = int(getattr(portfolio, "active_projects", 0) or 0)
+            late_tasks = int(getattr(kpi, "late_tasks", 0) or 0)
+            cost_variance = float(getattr(kpi, "cost_variance", 0.0) or 0.0)
+            return (
+                ProjectDashboardHealthCardDescriptor(
+                    id="schedule",
+                    title="Schedule Health",
+                    status_label="At Risk" if late_tasks > 0 else "On Track",
+                    metric_value=_fmt_int(late_tasks),
+                    metric_label="Late tasks",
+                    supporting_text=f"{_fmt_int(active_projects)} active projects in view.",
+                    meta_text="Portfolio schedule pressure across visible work.",
+                    tone="danger" if late_tasks > 0 else "success",
+                    route_id="project_management.scheduling",
+                ),
+                ProjectDashboardHealthCardDescriptor(
+                    id="cost",
+                    title="Cost Health",
+                    status_label="Attention" if cost_variance > 0.0 else "Healthy",
+                    metric_value=_fmt_float(cost_variance, 0),
+                    metric_label="Cost variance",
+                    supporting_text="Portfolio actual minus planned cost.",
+                    meta_text="Positive variance indicates current overrun pressure.",
+                    tone="danger" if cost_variance > 0.0 else "success",
+                    route_id="project_management.financials",
+                ),
+                ProjectDashboardHealthCardDescriptor(
+                    id="risk",
+                    title="Risk Exposure",
+                    status_label="Watch" if at_risk_projects > 0 else "Stable",
+                    metric_value=_fmt_int(at_risk_projects),
+                    metric_label="Projects at risk",
+                    supporting_text=f"{_fmt_int(total_projects)} total projects in scope.",
+                    meta_text="Cross-project delivery escalation load.",
+                    tone="warning" if at_risk_projects > 0 else "success",
+                    route_id="project_management.portfolio",
+                ),
+                ProjectDashboardHealthCardDescriptor(
+                    id="resource",
+                    title="Resource Health",
+                    status_label="Overloaded" if overloads > 0 else "Balanced",
+                    metric_value=_fmt_percent(peak_utilization, 0),
+                    metric_label="Peak utilization",
+                    supporting_text=f"{_fmt_int(overloads)} overloaded resource(s).",
+                    meta_text=f"{_fmt_int(len(pending_approvals))} pending approvals in flow.",
+                    tone="danger" if overloads > 0 else "success",
+                    route_id="project_management.resources",
+                ),
+            )
+
+        late_tasks = int(getattr(kpi, "late_tasks", 0) or 0)
+        critical_tasks = int(getattr(kpi, "critical_tasks", 0) or 0)
+        cost_variance = float(getattr(kpi, "cost_variance", 0.0) or 0.0)
+        schedule_tone = (
+            "danger"
+            if late_tasks > 0 or float(getattr(evm, "SPI", 1.0) or 1.0) < 0.95
+            else "warning"
+            if critical_tasks > 0 or float(getattr(evm, "SPI", 1.0) or 1.0) < 1.0
+            else "success"
+        )
+        cost_tone = (
+            "danger"
+            if cost_variance > 0.0 or float(getattr(evm, "CPI", 1.0) or 1.0) < 0.95
+            else "warning"
+            if float(getattr(evm, "CPI", 1.0) or 1.0) < 1.0
+            else "success"
+        )
+        risk_critical = int(getattr(summary, "critical_items", 0) or 0)
+        risk_open = int(getattr(summary, "open_risks", 0) or 0)
+        risk_tone = "danger" if risk_critical > 0 else "warning" if risk_open > 0 else "success"
+        resource_tone = "danger" if overloads > 0 else "warning" if peak_utilization >= 90.0 else "success"
+        return (
+            ProjectDashboardHealthCardDescriptor(
+                id="schedule",
+                title="Schedule Health",
+                status_label="Late" if late_tasks > 0 else "On Track",
+                metric_value=f"SPI {_fmt_ratio(getattr(evm, 'SPI', None))}",
+                metric_label="Schedule performance",
+                supporting_text=(
+                    f"Critical tasks {_fmt_int(critical_tasks)} | "
+                    f"Late tasks {_fmt_int(late_tasks)}"
+                ),
+                meta_text="Critical-path and slip pressure across active activities.",
+                tone=schedule_tone,
+                route_id="project_management.scheduling",
+            ),
+            ProjectDashboardHealthCardDescriptor(
+                id="cost",
+                title="Cost Health",
+                status_label="Overrun" if cost_variance > 0.0 else "Stable",
+                metric_value=f"CPI {_fmt_ratio(getattr(evm, 'CPI', None))}",
+                metric_label="Cost performance",
+                supporting_text=(
+                    f"Variance {_fmt_float(cost_variance, 0)} | "
+                    f"VAC {_fmt_float(getattr(evm, 'VAC', 0.0), 0)}"
+                ),
+                meta_text="Cost and forecast pressure against the selected baseline.",
+                tone=cost_tone,
+                route_id="project_management.financials",
+            ),
+            ProjectDashboardHealthCardDescriptor(
+                id="risk",
+                title="Risk Exposure",
+                status_label="Escalated" if risk_critical > 0 else "Managed",
+                metric_value=_fmt_int(risk_critical),
+                metric_label="Critical items",
+                supporting_text=(
+                    f"Open risks {_fmt_int(risk_open)} | "
+                    f"Pending approvals {_fmt_int(len(pending_approvals))}"
+                ),
+                meta_text="Register pressure across risks, issues, and governed changes.",
+                tone=risk_tone,
+                route_id="project_management.risk",
+            ),
+            ProjectDashboardHealthCardDescriptor(
+                id="resource",
+                title="Resource Health",
+                status_label="Overloaded" if overloads > 0 else "Balanced",
+                metric_value=_fmt_percent(peak_utilization, 0),
+                metric_label="Peak utilization",
+                supporting_text=f"{_fmt_int(overloads)} overloaded resource(s).",
+                meta_text="Load pressure across assigned delivery resources.",
+                tone=resource_tone,
+                route_id="project_management.resources",
+            ),
+        )
+
+    def _build_operational_tabs(
+        self,
+        tables: tuple[ProjectDashboardOperationalTableDescriptor, ...],
+    ) -> tuple[ProjectDashboardOperationalTabDescriptor, ...]:
+        return tuple(
+            ProjectDashboardOperationalTabDescriptor(
+                id=table.id,
+                label=table.title,
+                count=len(table.rows),
+                route_id=(table.rows[0].route_id if table.rows else ""),
+            )
+            for table in tables
+        )
+
+    def _build_operational_tables(
+        self,
+        *,
+        dashboard_data: Any,
+        pending_approvals: tuple[Any, ...],
+        selected_period_key: str,
+        portfolio_mode: bool,
+    ) -> tuple[ProjectDashboardOperationalTableDescriptor, ...]:
+        if portfolio_mode:
+            return (
+                self._build_portfolio_health_table(dashboard_data),
+                self._build_portfolio_delayed_table(
+                    dashboard_data, selected_period_key=selected_period_key
+                ),
+                self._build_portfolio_budget_table(dashboard_data),
+                self._build_resource_overloads_table(dashboard_data),
+                self._build_pending_approvals_table(pending_approvals),
+                self._build_milestones_table(dashboard_data),
+            )
+        return (
+            self._build_delayed_tasks_table(dashboard_data),
+            self._build_high_risks_table(dashboard_data),
+            self._build_budget_variances_table(dashboard_data),
+            self._build_resource_overloads_table(dashboard_data),
+            self._build_pending_approvals_table(pending_approvals),
+            self._build_milestones_table(dashboard_data),
+        )
+
+    def _build_delayed_tasks_table(
+        self, dashboard_data: Any
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        rows = tuple(getattr(dashboard_data, "critical_watchlist", []) or [])
+        return ProjectDashboardOperationalTableDescriptor(
+            id="delayed_tasks",
+            title="Delayed Tasks",
+            subtitle="Critical-path and low-float tasks that need scheduling intervention.",
+            empty_state="No delayed or critical-path tasks are active right now.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("taskName", "Activity", 3, 220, True),
+                ProjectDashboardTableColumnDescriptor("owner", "Owner", 2, 140),
+                ProjectDashboardTableColumnDescriptor("finish", "Finish", 1, 108, True),
+                ProjectDashboardTableColumnDescriptor("float", "Float", 1, 90),
+                ProjectDashboardTableColumnDescriptor("late", "Late", 1, 90),
+                ProjectDashboardTableColumnDescriptor(
+                    "statusLabel", "Status", 0, 96, False, True, "status"
+                ),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=row.task_id,
+                    route_id="project_management.tasks",
+                    state={"taskId": row.task_id, "projectId": getattr(dashboard_data.kpi, "project_id", "")},
+                    values={
+                        "taskName": row.task_name,
+                        "owner": row.owner_name or "Unassigned",
+                        "finish": _fmt_date(row.finish_date),
+                        "float": f"{_fmt_int(row.total_float_days or 0)} d",
+                        "late": f"{_fmt_int(row.late_by_days or 0)} d",
+                        "statusLabel": row.status_label,
+                    },
+                )
+                for row in rows
+            ),
+        )
+
+    def _build_portfolio_delayed_table(
+        self,
+        dashboard_data: Any,
+        *,
+        selected_period_key: str,
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        rows = list(tuple(getattr(dashboard_data, "upcoming_tasks", []) or []))
+        cutoff = self._period_cutoff_date(selected_period_key)
+        if cutoff is not None:
+            rows = [
+                row
+                for row in rows
+                if row.start_date is None or row.start_date >= cutoff
+            ]
+        return ProjectDashboardOperationalTableDescriptor(
+            id="delayed_tasks",
+            title="Delayed Tasks",
+            subtitle="Cross-project upcoming and delayed work in the selected horizon.",
+            empty_state="No cross-project delayed tasks are visible right now.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("taskName", "Task", 3, 220, True),
+                ProjectDashboardTableColumnDescriptor("start", "Start", 1, 108, True),
+                ProjectDashboardTableColumnDescriptor("finish", "Finish", 1, 108, True),
+                ProjectDashboardTableColumnDescriptor("owner", "Owner", 2, 140),
+                ProjectDashboardTableColumnDescriptor(
+                    "statusLabel", "Status", 0, 96, False, True, "status"
+                ),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=row.task_id,
+                    route_id="project_management.tasks",
+                    state={"taskId": row.task_id, "projectId": getattr(row, "project_id", "")},
+                    values={
+                        "taskName": row.name,
+                        "start": _fmt_date(row.start_date),
+                        "finish": _fmt_date(row.end_date),
+                        "owner": row.main_resource or "Unassigned",
+                        "statusLabel": "Late" if row.is_late else "Tracked",
+                    },
+                )
+                for row in rows
+            ),
+        )
+
+    def _build_high_risks_table(
+        self, dashboard_data: Any
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        project_id = str(getattr(dashboard_data.kpi, "project_id", "") or "")
+        risk_rows: list[Any] = []
+        if self._register_service is not None and project_id:
+            try:
+                risk_rows = sorted(
+                    self._register_service.list_entries(
+                        project_id=project_id,
+                        entry_type=RegisterEntryType.RISK,
+                    ),
+                    key=lambda item: (
+                        0 if item.severity == RegisterEntrySeverity.CRITICAL else 1,
+                        0
+                        if item.status == RegisterEntryStatus.OPEN
+                        else 1,
+                        item.due_date or date.max,
+                        str(item.title or "").casefold(),
+                    ),
+                )
+            except Exception:
+                risk_rows = []
+        return ProjectDashboardOperationalTableDescriptor(
+            id="high_risks",
+            title="High Risks",
+            subtitle="Register risks that need active mitigation and escalation follow-through.",
+            empty_state="No high-risk register entries are visible right now.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("title", "Risk", 3, 220, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "severityLabel", "Severity", 0, 96, False, True, "status"
+                ),
+                ProjectDashboardTableColumnDescriptor("owner", "Owner", 2, 140),
+                ProjectDashboardTableColumnDescriptor("dueDate", "Due", 1, 108, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "statusLabel", "Status", 0, 110, False, True, "status"
+                ),
+                ProjectDashboardTableColumnDescriptor("response", "Response", 3, 220),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=item.id,
+                    route_id="project_management.risk",
+                    state={"entryId": item.id, "projectId": item.project_id},
+                    values={
+                        "title": item.title,
+                        "severityLabel": as_register_entry_severity(item.severity).value.title(),
+                        "owner": item.owner_name or "Unassigned",
+                        "dueDate": _fmt_date(item.due_date),
+                        "statusLabel": as_register_entry_status(item.status).value.replace("_", " ").title(),
+                        "response": item.response_plan or item.impact_summary or item.description or "",
+                    },
+                )
+                for item in risk_rows
+                if item.severity in (RegisterEntrySeverity.HIGH, RegisterEntrySeverity.CRITICAL)
+                and item.status in (RegisterEntryStatus.OPEN, RegisterEntryStatus.IN_REVIEW)
+            ),
+        )
+
+    def _build_portfolio_health_table(
+        self, dashboard_data: Any
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        portfolio = getattr(dashboard_data, "portfolio", None)
+        rankings = tuple(getattr(portfolio, "project_rankings", []) or [])
+        return ProjectDashboardOperationalTableDescriptor(
+            id="project_health",
+            title="Projects at Risk",
+            subtitle="Portfolio ranking by delivery pressure, late tasks, and cost variance.",
+            empty_state="No project ranking data is available yet.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("projectName", "Project", 3, 220, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "projectStatus", "Status", 0, 96, False, True, "status"
+                ),
+                ProjectDashboardTableColumnDescriptor("progress", "Progress", 1, 100),
+                ProjectDashboardTableColumnDescriptor("late", "Late", 1, 90),
+                ProjectDashboardTableColumnDescriptor("critical", "Critical", 1, 90),
+                ProjectDashboardTableColumnDescriptor("riskScore", "Risk Score", 1, 100, True),
+                ProjectDashboardTableColumnDescriptor("costVariance", "Cost Var.", 1, 110, True),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=row.project_id,
+                    route_id="project_management.projects",
+                    state={"projectId": row.project_id},
+                    values={
+                        "projectName": row.project_name,
+                        "projectStatus": row.project_status,
+                        "progress": _fmt_percent(row.progress_percent, 0),
+                        "late": _fmt_int(row.late_tasks),
+                        "critical": _fmt_int(row.critical_tasks),
+                        "riskScore": _fmt_float(row.risk_score, 1),
+                        "costVariance": _fmt_float(row.cost_variance, 0),
+                    },
+                )
+                for row in rankings
+            ),
+        )
+
+    def _build_budget_variances_table(
+        self, dashboard_data: Any
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        sources = getattr(dashboard_data, "cost_sources", None)
+        rows = tuple(getattr(sources, "rows", []) or []) if sources is not None else ()
+        return ProjectDashboardOperationalTableDescriptor(
+            id="budget_variances",
+            title="Budget Variances",
+            subtitle="Budget lines with actual, committed, and planned cost visibility.",
+            empty_state="No budget variance rows are available yet.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("source", "Budget Line", 3, 200, True),
+                ProjectDashboardTableColumnDescriptor("planned", "Planned", 1, 110, True),
+                ProjectDashboardTableColumnDescriptor("actual", "Actual", 1, 110, True),
+                ProjectDashboardTableColumnDescriptor("variance", "Variance", 1, 110, True),
+                ProjectDashboardTableColumnDescriptor("committed", "Committed", 1, 110, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "statusLabel", "Status", 0, 96, False, True, "status"
+                ),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=f"cost-source-{index}",
+                    route_id="project_management.financials",
+                    values={
+                        "source": row.source_label,
+                        "planned": _fmt_float(row.planned, 0),
+                        "actual": _fmt_float(row.actual, 0),
+                        "variance": _fmt_float(float(row.actual or 0.0) - float(row.planned or 0.0), 0),
+                        "committed": _fmt_float(row.committed, 0),
+                        "statusLabel": "Watch" if float(row.actual or 0.0) > float(row.planned or 0.0) else "Healthy",
+                    },
+                )
+                for index, row in enumerate(rows, start=1)
+            ),
+        )
+
+    def _build_portfolio_budget_table(
+        self, dashboard_data: Any
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        portfolio = getattr(dashboard_data, "portfolio", None)
+        rankings = tuple(getattr(portfolio, "project_rankings", []) or [])
+        return ProjectDashboardOperationalTableDescriptor(
+            id="budget_variances",
+            title="Budget Variances",
+            subtitle="Projects with the highest portfolio cost-variance exposure.",
+            empty_state="No portfolio budget-variance rows are available yet.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("projectName", "Project", 3, 220, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "projectStatus", "Status", 0, 96, False, True, "status"
+                ),
+                ProjectDashboardTableColumnDescriptor("costVariance", "Cost Var.", 1, 110, True),
+                ProjectDashboardTableColumnDescriptor("late", "Late", 1, 90, True),
+                ProjectDashboardTableColumnDescriptor("critical", "Critical", 1, 90, True),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=row.project_id,
+                    route_id="project_management.financials",
+                    state={"projectId": row.project_id},
+                    values={
+                        "projectName": row.project_name,
+                        "projectStatus": row.project_status,
+                        "costVariance": _fmt_float(row.cost_variance, 0),
+                        "late": _fmt_int(row.late_tasks),
+                        "critical": _fmt_int(row.critical_tasks),
+                    },
+                )
+                for row in rankings
+            ),
+        )
+
+    def _build_resource_overloads_table(
+        self, dashboard_data: Any
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
+        return ProjectDashboardOperationalTableDescriptor(
+            id="resource_overloads",
+            title="Resource Overloads",
+            subtitle="Utilization and overload hotspots across assigned delivery resources.",
+            empty_state="No resource loading data is available yet.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("resourceName", "Resource", 3, 180, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "utilization", "Utilization", 2, 180, False, True, "progress"
+                ),
+                ProjectDashboardTableColumnDescriptor("allocation", "Allocation", 1, 100),
+                ProjectDashboardTableColumnDescriptor("capacity", "Capacity", 1, 100),
+                ProjectDashboardTableColumnDescriptor("tasks", "Tasks", 1, 80, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "statusLabel", "Status", 0, 96, False, True, "status"
+                ),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=row.resource_id,
+                    route_id="project_management.resources",
+                    state={"resourceId": row.resource_id},
+                    values={
+                        "resourceName": row.resource_name,
+                        "utilization": {
+                            "value": min(
+                                max(
+                                    float(
+                                        getattr(
+                                            row,
+                                            "utilization_percent",
+                                            getattr(row, "total_allocation_percent", 0.0),
+                                        )
+                                        or 0.0
+                                    )
+                                    / 100.0,
+                                    0.0,
+                                ),
+                                2.0,
+                            ),
+                            "label": _fmt_percent(
+                                getattr(
+                                    row,
+                                    "utilization_percent",
+                                    getattr(row, "total_allocation_percent", 0.0),
+                                ),
+                                0,
+                            ),
+                        },
+                        "allocation": _fmt_percent(row.total_allocation_percent, 0),
+                        "capacity": _fmt_percent(row.capacity_percent, 0),
+                        "tasks": _fmt_int(row.tasks_count),
+                        "statusLabel": (
+                            "Overloaded"
+                            if float(
+                                getattr(
+                                    row,
+                                    "utilization_percent",
+                                    getattr(row, "total_allocation_percent", 0.0),
+                                )
+                                or 0.0
+                            )
+                            > 100.0
+                            else "Balanced"
+                        ),
+                    },
+                )
+                for row in rows
+            ),
+        )
+
+    def _build_pending_approvals_table(
+        self, pending_approvals: tuple[Any, ...]
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        from src.api.desktop.platform._approval_labels import (
+            approval_context_label,
+            approval_display_label,
+            approval_module_label,
+        )
+
+        return ProjectDashboardOperationalTableDescriptor(
+            id="pending_approvals",
+            title="Pending Approvals",
+            subtitle="Governed changes waiting for decision or application.",
+            empty_state="No pending approvals are active right now.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("request", "Request", 3, 240, True),
+                ProjectDashboardTableColumnDescriptor("module", "Module", 1, 120),
+                ProjectDashboardTableColumnDescriptor("context", "Context", 2, 180),
+                ProjectDashboardTableColumnDescriptor("requestedBy", "Requested By", 1, 120),
+                ProjectDashboardTableColumnDescriptor("requestedAt", "Requested At", 1, 132, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "statusLabel", "Status", 0, 96, False, True, "status"
+                ),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=request.id,
+                    route_id="platform.control",
+                    state={"requestId": request.id, "projectId": request.project_id or ""},
+                    values={
+                        "request": approval_display_label(request),
+                        "module": approval_module_label(request),
+                        "context": approval_context_label(request),
+                        "requestedBy": request.requested_by_username or "Unknown",
+                        "requestedAt": request.requested_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M"),
+                        "statusLabel": str(
+                            getattr(
+                                getattr(request, "status", ApprovalStatus.PENDING),
+                                "value",
+                                getattr(request, "status", ApprovalStatus.PENDING),
+                            )
+                        ).replace("_", " ").title(),
+                    },
+                )
+                for request in pending_approvals
+            ),
+        )
+
+    def _build_milestones_table(
+        self, dashboard_data: Any
+    ) -> ProjectDashboardOperationalTableDescriptor:
+        rows = tuple(getattr(dashboard_data, "milestone_health", []) or [])
+        return ProjectDashboardOperationalTableDescriptor(
+            id="milestones",
+            title="Milestone Health",
+            subtitle="Delivery checkpoints and schedule slips that require planning attention.",
+            empty_state="No milestone health rows are available yet.",
+            columns=(
+                ProjectDashboardTableColumnDescriptor("milestone", "Milestone", 3, 220, True),
+                ProjectDashboardTableColumnDescriptor("owner", "Owner", 2, 140),
+                ProjectDashboardTableColumnDescriptor("target", "Target", 1, 108, True),
+                ProjectDashboardTableColumnDescriptor("slip", "Slip", 1, 90, True),
+                ProjectDashboardTableColumnDescriptor(
+                    "statusLabel", "Status", 0, 96, False, True, "status"
+                ),
+            ),
+            rows=tuple(
+                ProjectDashboardTableRowDescriptor(
+                    id=row.task_id,
+                    route_id="project_management.scheduling",
+                    state={"taskId": row.task_id, "projectId": getattr(dashboard_data.kpi, "project_id", "")},
+                    values={
+                        "milestone": row.task_name,
+                        "owner": row.owner_name or "Unassigned",
+                        "target": _fmt_date(row.target_date),
+                        "slip": f"{_fmt_int(row.slip_days or 0)} d",
+                        "statusLabel": row.status_label,
+                    },
+                )
+                for row in rows
+            ),
+        )
+
+    def _build_activity_feed(
+        self,
+        *,
+        project_id: str | None,
+        selected_period_key: str,
+        portfolio_mode: bool,
+    ) -> ProjectDashboardActivityFeedDescriptor:
+        if self._collaboration_service is None:
+            return ProjectDashboardActivityFeedDescriptor(
+                title="Recent Activity",
+                subtitle="Activity stream is not connected for this dashboard preview.",
+                empty_state="No collaboration or workflow activity is available yet.",
+            )
+        cutoff = self._period_cutoff_datetime(selected_period_key)
+        try:
+            snapshot = self._collaboration_service.list_workspace_snapshot(limit=120)
+        except Exception:
+            return ProjectDashboardActivityFeedDescriptor(
+                title="Recent Activity",
+                subtitle="Activity feed is unavailable for the current session.",
+                empty_state="No collaboration or workflow activity is available yet.",
+            )
+        items: list[tuple[datetime, ProjectDashboardActivityItemDescriptor]] = []
+        for note in getattr(snapshot, "notifications", []) or []:
+            if project_id and str(getattr(note, "project_id", "") or "") != project_id:
+                continue
+            created_at = getattr(note, "created_at", None)
+            if cutoff is not None and created_at is not None and created_at < cutoff:
+                continue
+            route_id = "platform.control" if str(getattr(note, "entity_type", "") or "") == "approval_request" else "project_management.collaboration"
+            items.append(
+                (
+                    created_at or datetime.now(timezone.utc),
+                    ProjectDashboardActivityItemDescriptor(
+                        id=f"note-{getattr(note, 'entity_id', '')}-{len(items)}",
+                        title=str(getattr(note, "headline", "") or ""),
+                        status_label=str(getattr(note, "notification_type", "") or "").replace("_", " ").title(),
+                        meta_text=(
+                            f"{getattr(note, 'project_name', '') or 'Project'} • "
+                            f"{getattr(note, 'actor_username', '') or 'system'} • "
+                            f"{created_at.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') if created_at else ''}"
+                        ).strip(" •"),
+                        route_id=route_id,
+                        state={
+                            "entityId": getattr(note, "entity_id", ""),
+                            "projectId": getattr(note, "project_id", "") or "",
+                            "entityType": getattr(note, "entity_type", ""),
+                        },
+                    ),
+                )
+            )
+        for activity in getattr(snapshot, "recent_activity", []) or []:
+            if project_id and str(getattr(activity, "project_id", "") or "") != project_id:
+                continue
+            created_at = getattr(activity, "created_at", None)
+            if cutoff is not None and created_at is not None and created_at < cutoff:
+                continue
+            items.append(
+                (
+                    created_at or datetime.now(timezone.utc),
+                    ProjectDashboardActivityItemDescriptor(
+                        id=f"comment-{getattr(activity, 'comment_id', '')}",
+                        title=f"{getattr(activity, 'task_name', '') or 'Task'} update",
+                        status_label="Mention" if bool(getattr(activity, "unread", False)) else "Comment",
+                        meta_text=(
+                            f"{getattr(activity, 'project_name', '') or 'Project'} • "
+                            f"{getattr(activity, 'author_username', '') or 'unknown'} • "
+                            f"{created_at.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M') if created_at else ''}"
+                        ).strip(" •"),
+                        route_id="project_management.tasks",
+                        state={
+                            "taskId": getattr(activity, "task_id", ""),
+                            "projectId": getattr(activity, "project_id", ""),
+                            "commentId": getattr(activity, "comment_id", ""),
+                        },
+                    ),
+                )
+            )
+        items.sort(key=lambda item: item[0], reverse=True)
+        return ProjectDashboardActivityFeedDescriptor(
+            title="Recent Activity",
+            subtitle=(
+                "Portfolio workflow notifications, approvals, and task updates."
+                if portfolio_mode
+                else "Latest project workflow notifications, approvals, and task updates."
+            ),
+            empty_state="No recent dashboard activity is available in the selected period.",
+            items=tuple(item for _, item in items[:24]),
+        )
+
+    def _list_pending_approvals(
+        self, *, project_id: str | None
+    ) -> tuple[Any, ...]:
+        if self._approval_service is None:
+            return ()
+        try:
+            return tuple(
+                self._approval_service.list_pending(project_id=project_id, limit=120)
+            )
+        except Exception:
+            return ()
+
     def _build_panels_from_dashboard_data(
         self,
         *,
@@ -492,16 +1831,30 @@ class ProjectManagementDashboardDesktopApi:
         self,
         *,
         dashboard_data: Any,
+        selected_period_key: str,
         portfolio_mode: bool,
     ) -> tuple[ProjectDashboardChartDescriptor, ...]:
+        if portfolio_mode:
+            return (
+                self._build_portfolio_status_chart(dashboard_data),
+                self._build_portfolio_cost_chart(dashboard_data),
+                self._build_resource_chart(
+                    dashboard_data=dashboard_data,
+                    portfolio_mode=True,
+                ),
+            )
         return (
-            self._build_burndown_chart(
+            self._build_schedule_trend_chart(
                 dashboard_data=dashboard_data,
-                portfolio_mode=portfolio_mode,
+                selected_period_key=selected_period_key,
+            ),
+            self._build_cost_trend_chart(
+                dashboard_data=dashboard_data,
+                selected_period_key=selected_period_key,
             ),
             self._build_resource_chart(
                 dashboard_data=dashboard_data,
-                portfolio_mode=portfolio_mode,
+                portfolio_mode=False,
             ),
         )
 
@@ -823,44 +2176,150 @@ class ProjectManagementDashboardDesktopApi:
             ),
         )
 
-    def _build_burndown_chart(
+    def _build_portfolio_status_chart(
         self,
         *,
         dashboard_data: Any,
-        portfolio_mode: bool,
     ) -> ProjectDashboardChartDescriptor:
-        if portfolio_mode:
-            portfolio = getattr(dashboard_data, "portfolio", None)
-            rollup = tuple(getattr(portfolio, "status_rollup", []) or []) if portfolio is not None else ()
+        portfolio = getattr(dashboard_data, "portfolio", None)
+        rollup = tuple(getattr(portfolio, "status_rollup", []) or []) if portfolio is not None else ()
+        return ProjectDashboardChartDescriptor(
+            title="Portfolio Status",
+            subtitle="Cross-project delivery status counts.",
+            chart_type="bar",
+            empty_state="No portfolio status data is available yet.",
+            points=tuple(
+                ProjectDashboardChartPointDescriptor(
+                    label=str(row.status_label or "").replace("_", " ").title(),
+                    value=float(row.project_count or 0),
+                    value_label=_fmt_int(row.project_count),
+                    supporting_text="Projects",
+                    tone="accent",
+                )
+                for row in rollup
+            ),
+        )
+
+    def _build_portfolio_cost_chart(
+        self,
+        *,
+        dashboard_data: Any,
+    ) -> ProjectDashboardChartDescriptor:
+        portfolio = getattr(dashboard_data, "portfolio", None)
+        rankings = tuple(getattr(portfolio, "project_rankings", []) or [])
+        return ProjectDashboardChartDescriptor(
+            title="Cost Pressure",
+            subtitle="Projects with the highest variance pressure.",
+            chart_type="bar",
+            empty_state="No project cost-pressure rows are available yet.",
+            points=tuple(
+                ProjectDashboardChartPointDescriptor(
+                    label=row.project_name,
+                    value=float(abs(row.cost_variance or 0.0)),
+                    value_label=_fmt_float(row.cost_variance, 0),
+                    supporting_text=(
+                        f"Late {_fmt_int(row.late_tasks)} | Critical {_fmt_int(row.critical_tasks)}"
+                    ),
+                    tone="danger" if float(row.cost_variance or 0.0) > 0.0 else "accent",
+                )
+                for row in rankings[:8]
+            ),
+        )
+
+    def _build_schedule_trend_chart(
+        self,
+        *,
+        dashboard_data: Any,
+        selected_period_key: str,
+    ) -> ProjectDashboardChartDescriptor:
+        series = self._filtered_evm_series(
+            project_id=str(getattr(dashboard_data.kpi, "project_id", "") or ""),
+            baseline_id=getattr(getattr(dashboard_data, "evm", None), "baseline_id", None),
+            selected_period_key=selected_period_key,
+        )
+        if series:
             return ProjectDashboardChartDescriptor(
-                title="Portfolio Status Rollup",
-                subtitle="Cross-project delivery status counts.",
-                chart_type="bar",
-                empty_state="No portfolio status data is available yet.",
+                title="Schedule Trend",
+                subtitle="Earned value against planned value across the selected period.",
+                chart_type="line",
                 points=tuple(
                     ProjectDashboardChartPointDescriptor(
-                        label=str(row.status_label or "").replace("_", " ").title(),
-                        value=float(row.project_count or 0),
-                        value_label=_fmt_int(row.project_count),
-                        supporting_text="Projects",
-                        tone="accent",
+                        label=point.period_end.strftime("%b"),
+                        value=float(point.EV or 0.0),
+                        value_label=_fmt_float(point.EV, 0),
+                        supporting_text=point.period_end.strftime("%Y-%m-%d"),
+                        target_value=float(point.PV or 0.0),
+                        tone="danger" if float(point.SPI or 0.0) < 0.95 else "accent",
                     )
-                    for row in rollup
+                    for point in series
                 ),
             )
+        return self._build_burndown_fallback_chart(dashboard_data)
 
+    def _build_cost_trend_chart(
+        self,
+        *,
+        dashboard_data: Any,
+        selected_period_key: str,
+    ) -> ProjectDashboardChartDescriptor:
+        series = self._filtered_evm_series(
+            project_id=str(getattr(dashboard_data.kpi, "project_id", "") or ""),
+            baseline_id=getattr(getattr(dashboard_data, "evm", None), "baseline_id", None),
+            selected_period_key=selected_period_key,
+        )
+        if series:
+            return ProjectDashboardChartDescriptor(
+                title="Cost Trend",
+                subtitle="Actual cost against earned value across the selected period.",
+                chart_type="line",
+                points=tuple(
+                    ProjectDashboardChartPointDescriptor(
+                        label=point.period_end.strftime("%b"),
+                        value=float(point.AC or 0.0),
+                        value_label=_fmt_float(point.AC, 0),
+                        supporting_text=point.period_end.strftime("%Y-%m-%d"),
+                        target_value=float(point.EV or 0.0),
+                        tone="danger" if float(point.AC or 0.0) > float(point.EV or 0.0) else "accent",
+                    )
+                    for point in series
+                ),
+            )
+        sources = getattr(dashboard_data, "cost_sources", None)
+        source_rows = tuple(getattr(sources, "rows", []) or []) if sources is not None else ()
+        return ProjectDashboardChartDescriptor(
+            title="Cost Trend",
+            subtitle="Actual cost against planned budget lines.",
+            chart_type="bar",
+            empty_state="No cost-trend data is available yet for this project.",
+            points=tuple(
+                ProjectDashboardChartPointDescriptor(
+                    label=row.source_label,
+                    value=float(row.actual or 0.0),
+                    value_label=_fmt_float(row.actual, 0),
+                    supporting_text=f"Planned {_fmt_float(row.planned, 0)}",
+                    target_value=float(row.planned or 0.0),
+                    tone="danger" if float(row.actual or 0.0) > float(row.planned or 0.0) else "accent",
+                )
+                for row in source_rows[:8]
+            ),
+        )
+
+    def _build_burndown_fallback_chart(
+        self,
+        dashboard_data: Any,
+    ) -> ProjectDashboardChartDescriptor:
         points = tuple(getattr(dashboard_data, "burndown", []) or [])
         if not points:
             return ProjectDashboardChartDescriptor(
-                title="Burndown",
+                title="Schedule Trend",
                 subtitle="Remaining tasks over time against the ideal trend.",
                 chart_type="line",
-                empty_state="No burndown data is available yet for this project.",
+                empty_state="No schedule-trend data is available yet for this project.",
             )
         start_value = float(getattr(points[0], "remaining_tasks", 0) or 0)
         denominator = max(len(points) - 1, 1)
         return ProjectDashboardChartDescriptor(
-            title="Burndown",
+            title="Schedule Trend",
             subtitle="Remaining tasks over time against the ideal trend.",
             chart_type="line",
             points=tuple(
@@ -875,6 +2334,31 @@ class ProjectManagementDashboardDesktopApi:
                 for index, point in enumerate(points)
             ),
         )
+
+    def _filtered_evm_series(
+        self,
+        *,
+        project_id: str,
+        baseline_id: str | None,
+        selected_period_key: str,
+    ) -> tuple[Any, ...]:
+        if self._reporting_service is None or not project_id:
+            return ()
+        try:
+            get_series = getattr(self._reporting_service, "get_evm_series", None)
+            if not callable(get_series):
+                return ()
+            series = tuple(
+                get_series(project_id, baseline_id=baseline_id or None, as_of=date.today())
+                or ()
+            )
+        except Exception:
+            return ()
+        cutoff = self._period_cutoff_date(selected_period_key)
+        if cutoff is None:
+            return series
+        filtered = tuple(point for point in series if getattr(point, "period_end", cutoff) >= cutoff)
+        return filtered or series[-6:]
 
     def _build_resource_chart(
         self,
@@ -934,25 +2418,40 @@ def build_project_management_dashboard_desktop_api(
     project_service: ProjectService | None = None,
     dashboard_service: DashboardService | None = None,
     baseline_service: BaselineService | None = None,
+    reporting_service: ReportingService | None = None,
+    register_service: RegisterService | None = None,
+    collaboration_service: CollaborationService | None = None,
+    approval_service: ApprovalService | None = None,
 ) -> ProjectManagementDashboardDesktopApi:
     return ProjectManagementDashboardDesktopApi(
         project_service=project_service,
         dashboard_service=dashboard_service,
         baseline_service=baseline_service,
+        reporting_service=reporting_service,
+        register_service=register_service,
+        collaboration_service=collaboration_service,
+        approval_service=approval_service,
     )
 
 
 __all__ = [
+    "ProjectDashboardActivityFeedDescriptor",
+    "ProjectDashboardActivityItemDescriptor",
     "ProjectDashboardChartDescriptor",
     "ProjectDashboardChartPointDescriptor",
+    "ProjectDashboardHealthCardDescriptor",
     "ProjectDashboardMetricDescriptor",
     "ProjectDashboardOverviewDescriptor",
+    "ProjectDashboardOperationalTabDescriptor",
+    "ProjectDashboardOperationalTableDescriptor",
     "ProjectDashboardPanelDescriptor",
     "ProjectDashboardPanelRowDescriptor",
     "ProjectDashboardSectionDescriptor",
     "ProjectDashboardSectionItemDescriptor",
     "ProjectDashboardSelectorOptionDescriptor",
     "ProjectDashboardSnapshotDescriptor",
+    "ProjectDashboardTableColumnDescriptor",
+    "ProjectDashboardTableRowDescriptor",
     "ProjectManagementDashboardDesktopApi",
     "build_project_management_dashboard_desktop_api",
 ]

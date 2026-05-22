@@ -2,157 +2,179 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 
 Item {
     id: root
 
     property ProjectManagementControllers.ProjectManagementDashboardWorkspaceController workspaceController
-    property string emptyState: ""
+    property var shellModel: null
 
-    readonly property var sectionModels: root.workspaceController ? (root.workspaceController.sections || []) : []
-    readonly property var panelModels: root.workspaceController ? (root.workspaceController.panels || []) : []
-    readonly property var overviewModel: root.workspaceController ? (root.workspaceController.overview || {}) : ({})
-    readonly property var milestoneSection: root.matchingSection(["Milestones", "Portfolio Ranking"])
-    readonly property var issuesSection: root.matchingSection(["Urgent Register Items", "Alerts"])
-    readonly property var taskSection: root.matchingSection(["Critical Path", "Upcoming Work"])
-    readonly property var costPanel: root.panelModels.length > 2 ? root.panelModels[2] : ({ "rows": [] })
+    readonly property var operationalTabsModel: root.workspaceController
+        ? (root.workspaceController.operationalTabs || [])
+        : []
+    readonly property var operationalTableModel: root.workspaceController
+        ? (root.workspaceController.operationalTable || {})
+        : ({ "title": "", "subtitle": "", "emptyState": "No operational data is available yet.", "columns": [], "rows": [] })
+    readonly property var activityFeedModel: root.workspaceController
+        ? (root.workspaceController.activityFeed || {})
+        : ({ "title": "Recent Activity", "subtitle": "", "emptyState": "No recent activity is available yet.", "items": [] })
+    readonly property bool splitLayout: width >= 1360
 
-    function matchingSection(preferredTitles) {
-        const sections = root.sectionModels || []
-        const titles = preferredTitles || []
-        for (let titleIndex = 0; titleIndex < titles.length; titleIndex += 1) {
-            const needle = String(titles[titleIndex] || "").toLowerCase()
-            for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
-                const section = sections[sectionIndex] || {}
-                if (String(section.title || "").toLowerCase().indexOf(needle) !== -1) {
-                    return section
-                }
-            }
-        }
-        return sections.length > 0 ? sections[0] : ({ "title": "", "subtitle": "", "items": [], "emptyState": root.emptyState })
-    }
-
-    function sectionColumns(primaryLabel, secondaryLabel, tertiaryLabel) {
-        return [
-            { "key": "title", "label": primaryLabel, "flex": 3, "minWidth": 180, "sortable": true, "visible": true },
-            { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 96, "sortable": false, "visible": true, "type": "status" },
-            { "key": "subtitle", "label": secondaryLabel, "flex": 2, "minWidth": 160, "sortable": false, "visible": true },
-            { "key": "supportingText", "label": tertiaryLabel, "flex": 2, "minWidth": 160, "sortable": false, "visible": true },
-            { "key": "metaText", "label": "Summary", "flex": 2, "minWidth": 160, "sortable": false, "visible": true }
-        ]
-    }
-
-    function sectionRows(sectionModel) {
-        const rows = []
-        const items = sectionModel && sectionModel.items ? sectionModel.items : []
-        for (let index = 0; index < items.length; index += 1) {
-            const item = items[index] || {}
-            rows.push({
-                "id": String(item.id || ("row-" + index)),
-                "title": item.title || "",
-                "statusLabel": item.statusLabel || "",
-                "subtitle": item.subtitle || "",
-                "supportingText": item.supportingText || "",
-                "metaText": item.metaText || ""
+    function tabsForBar() {
+        const tabs = root.operationalTabsModel || []
+        const values = []
+        for (let index = 0; index < tabs.length; index += 1) {
+            const tab = tabs[index] || {}
+            const count = Number(tab.count || 0)
+            values.push({
+                "id": String(tab.id || ""),
+                "label": count > 0
+                    ? String(tab.label || "") + " (" + count + ")"
+                    : String(tab.label || "")
             })
         }
-        return rows
+        return values
     }
 
-    function budgetColumns() {
-        return [
-            { "key": "source", "label": "Budget Line", "flex": 2, "minWidth": 150, "sortable": true, "visible": true },
-            { "key": "statusLabel", "label": "Status", "flex": 0, "minWidth": 92, "sortable": false, "visible": true, "type": "status" },
-            { "key": "value", "label": "Spend vs Plan", "flex": 2, "minWidth": 150, "sortable": false, "visible": true },
-            { "key": "supportingText", "label": "Committed", "flex": 2, "minWidth": 140, "sortable": false, "visible": true }
-        ]
-    }
-
-    function budgetRows() {
-        const rows = []
-        const sourceRows = root.costPanel && root.costPanel.rows ? root.costPanel.rows : []
-        for (let index = 0; index < sourceRows.length; index += 1) {
-            const row = sourceRows[index] || {}
-            let statusLabel = ""
-            if (String(row.tone || "") === "danger") {
-                statusLabel = "Attention"
-            } else if (String(row.tone || "") === "warning") {
-                statusLabel = "Watch"
-            } else if (String(row.tone || "") === "success") {
-                statusLabel = "Healthy"
+    function selectedTabIndex() {
+        const tabs = root.operationalTabsModel || []
+        const selectedId = root.workspaceController ? root.workspaceController.selectedOperationalTabId : ""
+        for (let index = 0; index < tabs.length; index += 1) {
+            if (String((tabs[index] || {}).id || "") === String(selectedId || "")) {
+                return index
             }
-            rows.push({
-                "id": "budget-" + index,
-                "source": row.label || "",
-                "statusLabel": statusLabel,
-                "value": row.value || "",
-                "supportingText": row.supportingText || ""
-            })
         }
-        return rows
+        return 0
     }
 
-    implicitHeight: dashboardLayout.implicitHeight
+    function findOperationalRow(rowId) {
+        const rows = root.operationalTableModel.rows || []
+        for (let index = 0; index < rows.length; index += 1) {
+            const row = rows[index] || {}
+            if (String(row.id || "") === String(rowId || "")) {
+                return row
+            }
+        }
+        return null
+    }
+
+    function activateOperationalRoute(rowId) {
+        const row = root.findOperationalRow(rowId)
+        if (!row || !root.shellModel) {
+            return
+        }
+        const routeId = String(row.routeId || "")
+        if (routeId.length > 0) {
+            root.shellModel.selectRoute(routeId)
+        }
+    }
+
+    implicitHeight: contentLayout.implicitHeight
 
     ColumnLayout {
-        id: dashboardLayout
+        id: contentLayout
 
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
-        DashboardTablePanel {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 258
-            title: root.milestoneSection.title || "Delivery Overview"
-            subtitle: root.milestoneSection.subtitle || "Milestone health and delivery checkpoints."
-            columns: root.sectionColumns("Milestone", "Owner / Context", "Target / Due")
-            rows: root.sectionRows(root.milestoneSection)
-            loading: root.workspaceController ? root.workspaceController.isLoading : false
-            emptyText: root.milestoneSection.emptyState || root.emptyState || "No milestone or delivery rows are available yet."
-        }
-
-        GridLayout {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            columns: width >= 1380 ? 3 : width >= 960 ? 2 : 1
-            columnSpacing: Theme.AppTheme.spacingSm
-            rowSpacing: Theme.AppTheme.spacingSm
+            spacing: Theme.AppTheme.spacingSm
+            visible: root.splitLayout
 
-            DashboardTablePanel {
+            DashboardPanelFrame {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredHeight: 250
-                title: root.issuesSection.title || "Recent Issues"
-                subtitle: root.issuesSection.subtitle || "Open issues, alerts, and urgent register entries."
-                columns: root.sectionColumns("Issue", "Context", "Due / Owner")
-                rows: root.sectionRows(root.issuesSection)
-                loading: root.workspaceController ? root.workspaceController.isLoading : false
-                emptyText: root.issuesSection.emptyState || "No recent issues are active."
+                Layout.preferredHeight: 520
+                title: root.operationalTableModel.title || "Operational Tables"
+                subtitle: root.operationalTableModel.subtitle || "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
+
+                DashboardOperationalPanel {
+                    width: parent ? parent.width : 0
+                    height: parent ? parent.height : 0
+                    workspaceController: root.workspaceController
+                    operationalTabsModel: root.operationalTabsModel
+                    operationalTableModel: root.operationalTableModel
+                    onOperationalRouteRequested: function(routeId) {
+                        if (root.shellModel && String(routeId || "").length > 0) {
+                            root.shellModel.selectRoute(routeId)
+                        }
+                    }
+                }
             }
 
-            DashboardTablePanel {
-                Layout.fillWidth: true
+            DashboardPanelFrame {
+                Layout.preferredWidth: 360
                 Layout.fillHeight: true
-                Layout.preferredHeight: 250
-                title: root.taskSection.title || "Delayed Tasks"
-                subtitle: root.taskSection.subtitle || "Critical path and upcoming execution pressure."
-                columns: root.sectionColumns("Task", "Schedule", "Owner / Progress")
-                rows: root.sectionRows(root.taskSection)
-                loading: root.workspaceController ? root.workspaceController.isLoading : false
-                emptyText: root.taskSection.emptyState || "No delayed or critical tasks are active."
-            }
+                Layout.preferredHeight: 520
+                title: root.activityFeedModel.title || "Recent Activity"
+                subtitle: root.activityFeedModel.subtitle || "Workflow updates, approvals, and project events."
 
-            DashboardTablePanel {
+                AppWidgets.ActivityFeed {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    items: root.activityFeedModel.items || []
+                    emptyText: root.activityFeedModel.emptyState || "No recent activity is available yet."
+
+                    onItemActivated: function(item) {
+                        if (!root.shellModel) {
+                            return
+                        }
+                        const routeId = String(item.routeId || "")
+                        if (routeId.length > 0) {
+                            root.shellModel.selectRoute(routeId)
+                        }
+                    }
+                }
+            }
+        }
+
+        DashboardPanelFrame {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 560
+            visible: !root.splitLayout
+            title: root.operationalTableModel.title || "Operational Tables"
+            subtitle: root.operationalTableModel.subtitle || "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
+
+            DashboardOperationalPanel {
+                width: parent ? parent.width : 0
+                height: parent ? parent.height : 0
+                workspaceController: root.workspaceController
+                operationalTabsModel: root.operationalTabsModel
+                operationalTableModel: root.operationalTableModel
+                onOperationalRouteRequested: function(routeId) {
+                    if (root.shellModel && String(routeId || "").length > 0) {
+                        root.shellModel.selectRoute(routeId)
+                    }
+                }
+            }
+        }
+
+        DashboardPanelFrame {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 280
+            visible: !root.splitLayout
+            title: root.activityFeedModel.title || "Recent Activity"
+            subtitle: root.activityFeedModel.subtitle || "Workflow updates, approvals, and project events."
+
+            AppWidgets.ActivityFeed {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.preferredHeight: 250
-                title: "Budget Lines"
-                subtitle: "Committed spend versus current planning lines."
-                columns: root.budgetColumns()
-                rows: root.budgetRows()
-                loading: root.workspaceController ? root.workspaceController.isLoading : false
-                emptyText: "No budget-line rows are available yet."
+                items: root.activityFeedModel.items || []
+                emptyText: root.activityFeedModel.emptyState || "No recent activity is available yet."
+
+                onItemActivated: function(item) {
+                    if (!root.shellModel) {
+                        return
+                    }
+                    const routeId = String(item.routeId || "")
+                    if (routeId.length > 0) {
+                        root.shellModel.selectRoute(routeId)
+                    }
+                }
             }
         }
     }

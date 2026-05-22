@@ -8,6 +8,7 @@ import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 AppLayouts.WorkspaceFrame {
     id: root
 
+    property var shellModel: null
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property ProjectManagementControllers.ProjectManagementDashboardWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.dashboardWorkspace
@@ -42,6 +43,10 @@ AppLayouts.WorkspaceFrame {
             selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
             baselineOptions: root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
             selectedBaselineId: root.workspaceController ? root.workspaceController.selectedBaselineId : ""
+            periodOptions: root.workspaceController ? (root.workspaceController.periodOptions || []) : []
+            selectedPeriodKey: root.workspaceController ? root.workspaceController.selectedPeriodKey : ""
+            viewOptions: root.workspaceController ? (root.workspaceController.viewOptions || []) : []
+            selectedViewKey: root.workspaceController ? root.workspaceController.selectedViewKey : ""
             isLoading: root.workspaceController ? root.workspaceController.isLoading : false
 
             onProjectSelected: function(projectId) {
@@ -56,9 +61,27 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
+            onPeriodSelected: function(periodKey) {
+                if (root.workspaceController !== null) {
+                    root.workspaceController.selectPeriod(periodKey)
+                }
+            }
+
+            onViewSelected: function(viewKey) {
+                if (root.workspaceController !== null) {
+                    root.workspaceController.selectView(viewKey)
+                }
+            }
+
             onRefreshRequested: function() {
                 if (root.workspaceController !== null) {
                     root.workspaceController.refresh()
+                }
+            }
+
+            onExportRequested: function() {
+                if (root.workspaceController !== null) {
+                    root.workspaceController.exportDashboard()
                 }
             }
         }
@@ -98,13 +121,14 @@ AppLayouts.WorkspaceFrame {
 
         DashboardAnalysisPanels {
             Layout.fillWidth: true
-            Layout.preferredHeight: width >= 1040 ? 300 : 632
+            Layout.preferredHeight: width >= 1320 ? 148 : width >= 900 ? 320 : 632
             workspaceController: root.workspaceController
+            shellModel: root.shellModel
         }
 
         DashboardChartsSection {
             Layout.fillWidth: true
-            Layout.preferredHeight: visible ? (width >= 1040 ? 236 : 248) : 0
+            Layout.preferredHeight: visible ? (width >= 1220 ? 440 : (root.workspaceController && (root.workspaceController.charts || []).length > 0 ? 700 : 0)) : 0
             workspaceController: root.workspaceController
         }
 
@@ -112,7 +136,7 @@ AppLayouts.WorkspaceFrame {
             Layout.fillWidth: true
             Layout.fillHeight: true
             workspaceController: root.workspaceController
-            emptyState: root.workspaceController ? root.workspaceController.emptyState : ""
+            shellModel: root.shellModel
         }
     }
 }

@@ -486,6 +486,10 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             project_service=pm_project_service,
             dashboard_service=pm_dashboard_service,
             baseline_service=pm_baseline_service,
+            reporting_service=pm_reporting_service,
+            register_service=pm_register_service,
+            collaboration_service=pm_collaboration_service,
+            approval_service=approval_service,
         ),
         project_management_collaboration=build_project_management_collaboration_desktop_api(
             collaboration_service=pm_collaboration_service,

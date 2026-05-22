@@ -13,6 +13,8 @@ Item {
     property var    items:     []
     property string emptyText: "No activity recorded"
 
+    signal itemActivated(var item)
+
     implicitHeight: root.items.length === 0
         ? _empty.implicitHeight
         : _list.contentHeight
@@ -42,6 +44,7 @@ Item {
             height: 44
 
             readonly property string _status: String(_row.modelData.statusLabel || "")
+            readonly property bool _clickable: String(_row.modelData.routeId || "").length > 0
 
             Rectangle {
                 id: _dot
@@ -88,7 +91,7 @@ Item {
                     Label {
                         Layout.fillWidth: true
                         text:           String(_row.modelData.title || "")
-                        color:          Theme.AppTheme.textPrimary
+                        color:          _row._clickable ? Theme.AppTheme.accent : Theme.AppTheme.textPrimary
                         font.family:    Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
                         font.bold:      true
@@ -110,6 +113,13 @@ Item {
                     font.pixelSize: Theme.AppTheme.captionSize
                     elide:          Text.ElideRight
                 }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                enabled: _row._clickable
+                cursorShape: _row._clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: root.itemActivated(_row.modelData)
             }
         }
     }
