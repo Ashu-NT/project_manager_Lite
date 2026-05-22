@@ -1,5 +1,6 @@
 # main_qt.py
 import os
+import resources.resources_rc #noqa: F401
 from src.ui_qml.shell.app import main
 
 if __name__ == "__main__":

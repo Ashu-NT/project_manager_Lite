@@ -28,11 +28,15 @@ Item {
         ? Theme.AppTheme.textMuted
         : (root.active ? Theme.AppTheme.accent : root.iconColor)
 
-    // Primary + fallback font
-    readonly property string _iconFontFamily:
-        Qt.fontFamilies().indexOf("Segoe Fluent Icons") !== -1
-            ? "Segoe Fluent Icons"
-            : "Segoe MDL2 Assets"
+    FontLoader {
+        id: fluentRegular
+        source: "qrc:/fonts/FluentRegular.ttf"
+    }
+
+    FontLoader {
+        id: fluentFilled
+        source: "qrc:/fonts/FluentFilled.ttf"
+    }
 
     // Icon registry
     readonly property var _map: ({
@@ -44,7 +48,7 @@ Item {
         "notifications":  "\uEA8F",
         "user":           "\uE77B",
         "admin":          "\uE7EF",
-        "control":        "\uE8EF",
+        "control":        "\uF37C",
         "menu":           "\uE700",
 
         // Actions
@@ -59,13 +63,14 @@ Item {
         "approve":        "\uE8FB",
         "reject":         "\uE738",
         "history":        "\uE81C",
+        "reset":          "\uE423",
 
         // Project Management
         "project":        "\uE8D4",
         "tasks":          "\uE9D9",
         "calendar":       "\uE787",
         "resources":      "\uE716",
-        "financials":     "\uE8C3",
+        "financials":     "\uE7BB",
         "risk":           "\uE946",
         "portfolio":      "\uE8F4",
         "register":       "\uE8C9",
@@ -73,8 +78,8 @@ Item {
         "timesheets":     "\uE823",
 
         // Maintenance
-        "assets":         "\uE90F",
-        "maintenance":    "\uE907",
+        "assets":         "\uECAA",
+        "maintenance":    "\uE90F",
         "workflow":       "\uEA3A",
         "reliability":    "\uE9D5",
         "planner":        "\uE7FD",
@@ -90,7 +95,7 @@ Item {
         "chevron_down":   "\uE70D",
         "chevron_up":     "\uE70E",
         "chevron_right":  "\uE76C",
-        "chevron_left":   "\uE76D",
+        "chevron_left":   "\uE76B",
 
         // Additional actions
         "save":           "\uE74E",
@@ -113,7 +118,7 @@ Item {
 
         color: root._effectiveColor
 
-        font.family: root._iconFontFamily
+        font.family: root.active ? fluentFilled.name : fluentRegular.name
         font.pixelSize: root.size
 
         renderType: Text.NativeRendering

@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/fonts">
+        <file alias="FluentRegular.ttf">../assets/fonts/FluentSystemIcons-Regular.ttf</file>
+        <file alias="FluentFilled.ttf">../assets/fonts/FluentSystemIcons-Filled.ttf</file>
+    </qresource>
+</RCC>
