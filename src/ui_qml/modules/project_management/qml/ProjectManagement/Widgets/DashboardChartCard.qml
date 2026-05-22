@@ -96,9 +96,9 @@ Item {
 
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: 132
+            Layout.minimumHeight: 150
             visible: root.chartType === "line" && (root.points || []).length > 0
-            implicitHeight: 168
+            implicitHeight: 208
 
             onPaint: {
                 const ctx = getContext("2d")
@@ -208,6 +208,55 @@ Item {
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize
                 horizontalAlignment: Text.AlignRight
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.chartType === "line" && (root.points || []).length > 0
+            spacing: Theme.AppTheme.spacingMd
+
+            RowLayout {
+                spacing: Theme.AppTheme.spacingXs
+
+                Rectangle {
+                    implicitWidth: 12
+                    implicitHeight: 3
+                    radius: 2
+                    color: Theme.AppTheme.accent
+                }
+
+                Label {
+                    text: "Actual"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                }
+            }
+
+            RowLayout {
+                visible: (root.points || []).some(function(point) {
+                    return point.targetValue !== undefined && point.targetValue !== null
+                })
+                spacing: Theme.AppTheme.spacingXs
+
+                Rectangle {
+                    implicitWidth: 12
+                    implicitHeight: 3
+                    radius: 2
+                    color: Theme.AppTheme.textMuted
+                }
+
+                Label {
+                    text: "Target"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                }
+            }
+
+            Item {
+                Layout.fillWidth: true
             }
         }
 

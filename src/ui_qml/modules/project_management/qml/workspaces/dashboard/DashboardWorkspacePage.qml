@@ -120,46 +120,37 @@ AppLayouts.WorkspaceFrame {
             metrics: root.overviewModel.metrics || []
         }
 
-        DashboardAnalysisPanels {
-            Layout.fillWidth: true
-            Layout.preferredHeight: width >= 1320 ? 112 : width >= 900 ? 228 : 468
-            workspaceController: root.workspaceController
-            shellModel: root.shellModel
-        }
+        ScrollView {
+            id: dashboardScrollArea
 
-        SplitView {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumHeight: 420
-            orientation: Qt.Vertical
             clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-            handle: Rectangle {
-                implicitHeight: 6
-                color: Theme.AppTheme.surfaceAlt
+            ColumnLayout {
+                id: dashboardScrollContent
 
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: 64
-                    height: 2
-                    radius: 1
-                    color: Theme.AppTheme.divider
+                width: dashboardScrollArea.availableWidth
+                spacing: Theme.AppTheme.spacingSm
+
+                DashboardAnalysisPanels {
+                    Layout.fillWidth: true
+                    workspaceController: root.workspaceController
+                    shellModel: root.shellModel
                 }
-            }
 
-            DashboardChartsSection {
-                SplitView.fillWidth: true
-                SplitView.preferredHeight: visible ? (width >= 1220 ? 320 : 420) : 0
-                SplitView.minimumHeight: visible ? 220 : 0
-                workspaceController: root.workspaceController
-            }
+                DashboardChartsSection {
+                    Layout.fillWidth: true
+                    workspaceController: root.workspaceController
+                }
 
-            DashboardOverviewSections {
-                SplitView.fillWidth: true
-                SplitView.fillHeight: true
-                SplitView.minimumHeight: 280
-                workspaceController: root.workspaceController
-                shellModel: root.shellModel
+                DashboardOverviewSections {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: width >= 1360 ? 520 : 760
+                    workspaceController: root.workspaceController
+                    shellModel: root.shellModel
+                }
             }
         }
     }

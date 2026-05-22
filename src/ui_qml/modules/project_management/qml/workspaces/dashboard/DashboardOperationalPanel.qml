@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
@@ -13,6 +14,8 @@ Item {
     property var operationalTableModel: ({ "title": "", "subtitle": "", "emptyState": "", "columns": [], "rows": [] })
 
     signal operationalRouteRequested(string routeId)
+
+    implicitHeight: contentColumn.implicitHeight
 
     function tabsForBar() {
         const tabs = root.operationalTabsModel || []
@@ -64,6 +67,7 @@ Item {
     }
 
     ColumnLayout {
+        id: contentColumn
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm
 
@@ -79,6 +83,34 @@ Item {
                 if (root.workspaceController !== null && tab) {
                     root.workspaceController.selectOperationalTab(String(tab.id || ""))
                 }
+            }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 2
+            visible: String(root.operationalTableModel.title || "").length > 0
+                || String(root.operationalTableModel.subtitle || "").length > 0
+
+            Label {
+                Layout.fillWidth: true
+                visible: String(root.operationalTableModel.title || "").length > 0
+                text: String(root.operationalTableModel.title || "")
+                color: Theme.AppTheme.textPrimary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.bodySize
+                font.bold: true
+                elide: Text.ElideRight
+            }
+
+            Label {
+                Layout.fillWidth: true
+                visible: String(root.operationalTableModel.subtitle || "").length > 0
+                text: String(root.operationalTableModel.subtitle || "")
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
             }
         }
 

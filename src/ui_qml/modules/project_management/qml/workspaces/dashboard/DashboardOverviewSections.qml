@@ -88,12 +88,12 @@ Item {
             DashboardPanelFrame {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: root.operationalTableModel.title || "Operational Tables"
-                subtitle: root.operationalTableModel.subtitle || "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
+                title: "Operational Views"
+                subtitle: "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
 
                 DashboardOperationalPanel {
-                    width: parent ? parent.width : 0
-                    height: parent ? parent.height : 0
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     workspaceController: root.workspaceController
                     operationalTabsModel: root.operationalTabsModel
                     operationalTableModel: root.operationalTableModel
@@ -136,12 +136,12 @@ Item {
             Layout.preferredHeight: 420
             Layout.minimumHeight: 260
             visible: !root.splitLayout
-            title: root.operationalTableModel.title || "Operational Tables"
-            subtitle: root.operationalTableModel.subtitle || "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
+            title: "Operational Views"
+            subtitle: "Executive drill-down into delayed tasks, risks, budget pressure, resource load, approvals, and milestones."
 
             DashboardOperationalPanel {
-                width: parent ? parent.width : 0
-                height: parent ? parent.height : 0
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 workspaceController: root.workspaceController
                 operationalTabsModel: root.operationalTabsModel
                 operationalTableModel: root.operationalTableModel
