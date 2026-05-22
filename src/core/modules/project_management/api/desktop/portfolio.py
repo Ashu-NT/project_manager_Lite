@@ -404,6 +404,17 @@ class ProjectManagementPortfolioDesktopApi:
             str(dependency_id or "").strip()
         )
 
+    def update_intake_item_status(
+        self,
+        item_id: str,
+        status: str,
+    ) -> PortfolioIntakeDesktopDto:
+        item = self._require_portfolio_service().update_intake_item(
+            str(item_id or "").strip(),
+            status=_coerce_intake_status(status),
+        )
+        return self._serialize_intake_item(item)
+
     def _require_portfolio_service(self) -> PortfolioService:
         if self._portfolio_service is None:
             raise RuntimeError("Project management portfolio desktop API is not connected.")

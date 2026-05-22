@@ -330,6 +330,23 @@ class ProjectManagementPortfolioWorkspaceController(
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot(str, str, result="QVariantMap")
+    def updateIntakeItemStatus(
+        self,
+        item_id: str,
+        status: str,
+    ) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._portfolio_workspace_presenter.update_intake_item_status(
+                item_id, status
+            ),
+            success_message="Intake item status updated.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_change(
             "portfolio_entity",

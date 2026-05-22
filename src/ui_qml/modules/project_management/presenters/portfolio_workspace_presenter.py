@@ -270,6 +270,12 @@ class ProjectPortfolioWorkspacePresenter:
             raise ValueError("Choose a dependency to remove.")
         self._desktop_api.remove_project_dependency(normalized_dependency_id)
 
+    def update_intake_item_status(self, item_id: str, status: str) -> None:
+        normalized_id = (item_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Choose an intake item to update.")
+        self._desktop_api.update_intake_item_status(normalized_id, status)
+
     def _build_evaluation_summary(self, scenario_id: str) -> PortfolioSummaryViewModel:
         if not scenario_id:
             return PortfolioSummaryViewModel(
@@ -417,7 +423,7 @@ class ProjectPortfolioWorkspacePresenter:
             meta_text=item.notes or f"Created: {item.created_at_label}",
             can_primary_action=False,
             can_secondary_action=False,
-            state={"scenarioId": item.id},
+            state={"scenarioId": item.id, "projectIds": list(item.project_ids)},
         )
 
     @staticmethod
@@ -451,7 +457,11 @@ class ProjectPortfolioWorkspacePresenter:
             meta_text=item.summary or f"Created: {item.created_at_label}",
             can_primary_action=True,
             can_secondary_action=False,
-            state={"dependencyId": item.dependency_id},
+            state={
+                "dependencyId": item.dependency_id,
+                "predecessorProjectId": item.predecessor_project_id,
+                "successorProjectId": item.successor_project_id,
+            },
         )
 
     @staticmethod
@@ -462,7 +472,7 @@ class ProjectPortfolioWorkspacePresenter:
             status_label=item.project_name,
             subtitle=f"{item.actor_username} | {item.occurred_at_label}",
             supporting_text=item.summary,
-            meta_text="",
+            meta_text=f"{item.actor_username} | {item.occurred_at_label}",
             can_primary_action=False,
             can_secondary_action=False,
         )
