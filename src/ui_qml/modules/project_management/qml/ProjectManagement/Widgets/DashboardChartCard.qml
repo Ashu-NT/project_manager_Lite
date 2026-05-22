@@ -212,12 +212,12 @@ Item {
             Layout.fillHeight: true
             Layout.minimumHeight: 244
             visible: root.chartType === "line" && (root.points || []).length > 0
-            spacing: Theme.AppTheme.spacingSm
+            spacing: Theme.AppTheme.spacingXs
 
             Item {
                 id: yAxisLabelColumn
 
-                Layout.preferredWidth: 60
+                Layout.preferredWidth: 48
                 Layout.fillHeight: true
 
                 Repeater {
@@ -238,7 +238,8 @@ Item {
                         font.bold: index === 0 || index === root.lineAxisTicks.length - 1
                         elide: Text.ElideRight
                         width: yAxisLabelColumn.width
-                        horizontalAlignment: Text.AlignLeft
+                        horizontalAlignment: Text.AlignRight
+                        rightPadding: 2
                     }
                 }
             }
@@ -260,10 +261,10 @@ Item {
                         return
                     }
 
-                    const left = 14
+                    const left = 10
                     const right = 16
                     const top = 12
-                    const bottom = 42
+                    const bottom = 10
                     const plotWidth = Math.max(1, width - left - right)
                     const plotHeight = Math.max(1, height - top - bottom)
                     const denominator = Math.max(rows.length - 1, 1)
@@ -371,12 +372,12 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.topMargin: Theme.AppTheme.spacingXs
+            Layout.topMargin: 0
             visible: root.chartType === "line" && (root.points || []).length > 0
-            spacing: Theme.AppTheme.spacingSm
+            spacing: Theme.AppTheme.spacingXs
 
             Item {
-                Layout.preferredWidth: 60
+                Layout.preferredWidth: 48
             }
 
             Repeater {
