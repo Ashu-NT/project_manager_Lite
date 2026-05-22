@@ -243,6 +243,20 @@ def _fmt_date(value: date | None) -> str:
     return value.strftime("%Y-%m-%d")
 
 
+def _fmt_period_axis_label(
+    period_end: date,
+    *,
+    selected_period_key: str,
+    series_length: int,
+) -> str:
+    normalized_key = (selected_period_key or "").strip().lower()
+    if normalized_key in {"30d", "60d", "90d"}:
+        return period_end.strftime("%d %b")
+    if normalized_key == "180d":
+        return period_end.strftime("%b %Y" if series_length > 6 else "%d %b")
+    return period_end.strftime("%b %Y")
+
+
 def _coerce_utc_datetime(value: datetime | None) -> datetime | None:
     if value is None:
         return None
@@ -2255,13 +2269,18 @@ class ProjectManagementDashboardDesktopApi:
             selected_period_key=selected_period_key,
         )
         if series:
+            series_length = len(series)
             return ProjectDashboardChartDescriptor(
                 title="Schedule Trend",
                 subtitle="Earned value against planned value across the selected period.",
                 chart_type="line",
                 points=tuple(
                     ProjectDashboardChartPointDescriptor(
-                        label=point.period_end.strftime("%b"),
+                        label=_fmt_period_axis_label(
+                            point.period_end,
+                            selected_period_key=selected_period_key,
+                            series_length=series_length,
+                        ),
                         value=float(point.EV or 0.0),
                         value_label=_fmt_float(point.EV, 0),
                         supporting_text=point.period_end.strftime("%Y-%m-%d"),
@@ -2285,13 +2304,18 @@ class ProjectManagementDashboardDesktopApi:
             selected_period_key=selected_period_key,
         )
         if series:
+            series_length = len(series)
             return ProjectDashboardChartDescriptor(
                 title="Cost Trend",
                 subtitle="Actual cost against earned value across the selected period.",
                 chart_type="line",
                 points=tuple(
                     ProjectDashboardChartPointDescriptor(
-                        label=point.period_end.strftime("%b"),
+                        label=_fmt_period_axis_label(
+                            point.period_end,
+                            selected_period_key=selected_period_key,
+                            series_length=series_length,
+                        ),
                         value=float(point.AC or 0.0),
                         value_label=_fmt_float(point.AC, 0),
                         supporting_text=point.period_end.strftime("%Y-%m-%d"),
@@ -2341,7 +2365,7 @@ class ProjectManagementDashboardDesktopApi:
             chart_type="line",
             points=tuple(
                 ProjectDashboardChartPointDescriptor(
-                    label=point.day.strftime("%m-%d"),
+                    label=point.day.strftime("%d %b"),
                     value=float(point.remaining_tasks or 0),
                     value_label=_fmt_int(point.remaining_tasks),
                     supporting_text=point.day.strftime("%Y-%m-%d"),
